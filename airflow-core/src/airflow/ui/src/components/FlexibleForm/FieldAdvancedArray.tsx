@@ -16,23 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Text } from "@chakra-ui/react";
-import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
 import { JsonEditor } from "../JsonEditor";
 
-export const FieldAdvancedArray = ({ name }: FlexibleFormElementProps) => {
+export const FieldAdvancedArray = ({ name, onUpdate }: FlexibleFormElementProps) => {
+  const { t: translate } = useTranslation("components");
   const { paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
-  const [error, setError] = useState<unknown>(undefined);
   // Determine the expected type based on schema
   const expectedType = param.schema.items?.type ?? "object";
 
   const handleChange = (value: string) => {
-    setError(undefined);
     if (value === "") {
       if (paramsDict[name]) {
         // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
@@ -45,18 +43,18 @@ export const FieldAdvancedArray = ({ name }: FlexibleFormElementProps) => {
         const parsedValue = JSON.parse(value) as unknown;
 
         if (!Array.isArray(parsedValue)) {
-          throw new TypeError("Value must be an array.");
+          throw new TypeError(translate("flexibleForm.validationErrorArrayNotArray"));
         }
 
         if (expectedType === "number" && !parsedValue.every((item) => typeof item === "number")) {
           // Ensure all elements in the array are numbers
-          throw new TypeError("All elements in the array must be numbers.");
+          throw new TypeError(translate("flexibleForm.validationErrorArrayNotNumbers"));
         } else if (
           expectedType === "object" &&
           !parsedValue.every((item) => typeof item === "object" && item !== null)
         ) {
           // Ensure all elements in the array are objects
-          throw new TypeError("All elements in the array must be objects.");
+          throw new TypeError(translate("flexibleForm.validationErrorArrayNotObject"));
         }
 
         if (paramsDict[name]) {
@@ -64,24 +62,18 @@ export const FieldAdvancedArray = ({ name }: FlexibleFormElementProps) => {
         }
 
         setParamsDict(paramsDict);
+        onUpdate(String(parsedValue));
       } catch (_error) {
-        setError(expectedType === "number" ? String(_error).replace("JSON", "Array") : _error);
+        onUpdate(undefined, expectedType === "number" ? String(_error).replace("JSON", "Array") : _error);
       }
     }
   };
 
   return (
-    <>
-      <JsonEditor
-        id={`element_${name}`}
-        onChange={handleChange}
-        value={JSON.stringify(param.value ?? [], undefined, 2)}
-      />
-      {Boolean(error) ? (
-        <Text color="fg.error" fontSize="xs">
-          {String(error)}
-        </Text>
-      ) : undefined}
-    </>
+    <JsonEditor
+      id={`element_${name}`}
+      onChange={handleChange}
+      value={JSON.stringify(param.value ?? [], undefined, 2)}
+    />
   );
 };

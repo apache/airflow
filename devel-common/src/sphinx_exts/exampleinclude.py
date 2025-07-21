@@ -17,13 +17,11 @@
 from __future__ import annotations
 
 """Nice formatted include for examples"""
-import os
 import traceback
+from pathlib import Path
 
 from docutils import nodes
-
-# No stub exists for docutils.parsers.rst.directives. See https://github.com/python/typeshed/issues/5755.
-from docutils.parsers.rst import directives  # type: ignore[attr-defined]
+from docutils.parsers.rst import directives
 from sphinx.directives.code import LiteralIncludeReader
 from sphinx.ext.viewcode import viewcode_anchor
 from sphinx.locale import _
@@ -78,6 +76,7 @@ class ExampleInclude(SphinxDirective):
         "emphasize-lines": directives.unchanged_required,
         "class": directives.class_option,
         "name": directives.unchanged,
+        "caption": directives.unchanged_required,
         "diff": directives.unchanged_required,
     }
 
@@ -139,6 +138,7 @@ def register_source(app, env, modname):
     """
     if modname is None:
         return False
+
     entry = env._viewcode_modules.get(modname, None)
     if entry is False:
         print(f"[{modname}] Entry is false for ")
@@ -194,6 +194,9 @@ def create_node(env, relative_path, show_button):
     if relative_path.startswith("airflow-core/src/"):
         relative_path = relative_path.replace("airflow-core/src/", "", 1)
 
+    if relative_path.startswith("src/"):
+        relative_path = relative_path.replace("src/", "", 1)
+
     if relative_path.endswith(".py"):
         pagename = "_modules/" + relative_path[:-3]
     else:
@@ -227,6 +230,7 @@ def doctree_read(app, doctree):
     :return None
 
     """
+
     env = app.builder.env
     if not hasattr(env, "_viewcode_modules"):
         env._viewcode_modules = {}
@@ -235,19 +239,23 @@ def doctree_read(app, doctree):
         return
 
     for objnode in doctree.traverse(ExampleHeader):
-        filepath = objnode.get("filename")
-        relative_path = os.path.relpath(
-            filepath, os.path.commonprefix([app.config.exampleinclude_sourceroot, filepath])
-        )
-        if relative_path.endswith(".py"):
-            modname = relative_path.replace("/", ".")[-3]
-            split_modname = modname.split(".")
+        source_root_path = Path(app.config.exampleinclude_sourceroot)
+        filepath = Path(objnode.get("filename"))
+        if filepath.is_relative_to(source_root_path) and filepath.name.endswith(".py"):
+            module_path = filepath.relative_to(source_root_path)
+            split_modname = module_path.parts
             if "src" in split_modname:
                 modname = ".".join(split_modname[split_modname.index("src") + 1 :])
+            elif "tests" in split_modname:
+                modname = ".".join(split_modname[split_modname.index("tests") + 1 :])
+            else:
+                modname = ".".join(split_modname)
+            modname = modname.replace(".py", "")
         else:
             modname = None
+            module_path = filepath.resolve()
         show_button = register_source(app, env, modname)
-        onlynode = create_node(env, relative_path, show_button)
+        onlynode = create_node(env, module_path.as_posix(), show_button)
 
         objnode.replace_self(onlynode)
 

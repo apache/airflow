@@ -16,21 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, Flex, HStack, Skeleton } from "@chakra-ui/react";
+import { Box, Heading, Flex, HStack, Skeleton, Separator } from "@chakra-ui/react";
+import type { BoxProps } from "@chakra-ui/react";
 import { createListCollection } from "@chakra-ui/react/collection";
+import { useTranslation } from "react-i18next";
 import { FiDatabase } from "react-icons/fi";
 
 import type { AssetEventCollectionResponse, AssetEventResponse } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
 import { Select } from "src/components/ui";
-import { pluralize } from "src/utils";
 
 import { DataTable } from "../DataTable";
 import type { CardDef, TableState } from "../DataTable/types";
 import { AssetEvent } from "./AssetEvent";
 
-const cardDef = (assetId?: number, showExtra?: boolean): CardDef<AssetEventResponse> => ({
-  card: ({ row }) => <AssetEvent assetId={assetId} event={row} showExtra={showExtra} />,
+const cardDef = (assetId?: number): CardDef<AssetEventResponse> => ({
+  card: ({ row }) => <AssetEvent assetId={assetId} event={row} />,
   meta: {
     customSkeleton: <Skeleton height="120px" width="100%" />,
   },
@@ -42,9 +43,8 @@ type AssetEventProps = {
   readonly isLoading?: boolean;
   readonly setOrderBy?: (order: string) => void;
   readonly setTableUrlState?: (state: TableState) => void;
-  readonly showExtra?: boolean;
   readonly tableUrlState?: TableState;
-  readonly title?: string;
+  readonly titleKey?: string;
 };
 
 export const AssetEvents = ({
@@ -53,27 +53,28 @@ export const AssetEvents = ({
   isLoading,
   setOrderBy,
   setTableUrlState,
-  showExtra,
   tableUrlState,
-  title,
-}: AssetEventProps) => {
+  titleKey,
+  ...rest
+}: AssetEventProps & BoxProps) => {
+  const { t: translate } = useTranslation(["dashboard", "common", "dag"]);
   const assetSortOptions = createListCollection({
     items: [
-      { label: "Newest first", value: "-timestamp" },
-      { label: "Oldest first", value: "timestamp" },
+      { label: translate("sortBy.newestFirst"), value: "-timestamp" },
+      { label: translate("sortBy.oldestFirst"), value: "timestamp" },
     ],
   });
 
   return (
-    <Box borderBottomWidth={0} borderRadius={5} borderWidth={1} ml={2}>
-      <Flex justify="space-between" mr={1} mt={0} pl={3} pt={1}>
+    <Box borderBottomWidth={0} borderRadius={5} borderWidth={1} p={4} py={2} {...rest}>
+      <Flex alignItems="center" justify="space-between">
         <HStack>
           <StateBadge colorPalette="blue" fontSize="md" variant="solid">
             <FiDatabase />
             {data?.total_entries ?? " "}
           </StateBadge>
           <Heading marginEnd="auto" size="md">
-            {pluralize(title ?? "Asset Event", data?.total_entries ?? 0, undefined, true)}
+            {translate(titleKey ?? "common:assetEvent", { count: data?.total_entries ?? 0 })}
           </Heading>
         </HStack>
         {setOrderBy === undefined ? undefined : (
@@ -83,6 +84,7 @@ export const AssetEvents = ({
             data-testid="asset-sort-duration"
             defaultValue={["-timestamp"]}
             onValueChange={(option) => setOrderBy(option.value[0] as string)}
+            size="sm"
             width={130}
           >
             <Select.Trigger>
@@ -99,14 +101,16 @@ export const AssetEvents = ({
           </Select.Root>
         )}
       </Flex>
+      <Separator mt={2.5} />
       <DataTable
-        cardDef={cardDef(assetId, showExtra)}
+        cardDef={cardDef(assetId)}
         columns={[]}
         data={data?.asset_events ?? []}
         displayMode="card"
         initialState={tableUrlState}
         isLoading={isLoading}
-        modelName="Asset Event"
+        modelName={translate("common:assetEvent_one")}
+        noRowsMessage={translate("noAssetEvents")}
         onStateChange={setTableUrlState}
         skeletonCount={5}
         total={data?.total_entries}

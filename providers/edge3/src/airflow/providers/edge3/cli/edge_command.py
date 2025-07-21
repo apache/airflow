@@ -23,43 +23,32 @@ import signal
 import sys
 from dataclasses import asdict
 from datetime import datetime
-from http import HTTPStatus
-from multiprocessing import Process
+from getpass import getuser
 from pathlib import Path
-from subprocess import Popen
 from time import sleep, time
-from typing import TYPE_CHECKING
 
 import psutil
-from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile, write_pid_to_pidfile
-from requests import HTTPError
 
-from airflow import __version__ as airflow_version, settings
+from airflow import settings
 from airflow.cli.cli_config import ARG_PID, ARG_VERBOSE, ActionCommand, Arg
+from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
+from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
-from airflow.providers.edge3 import __version__ as edge_provider_version
-from airflow.providers.edge3.cli.api_client import (
-    jobs_fetch,
-    jobs_set_state,
-    logs_logfile_path,
-    logs_push,
-    worker_register,
-    worker_set_state,
+from airflow.providers.edge3.cli.dataclasses import MaintenanceMarker, WorkerStatus
+from airflow.providers.edge3.cli.signalling import (
+    EDGE_WORKER_PROCESS_NAME,
+    get_pid,
+    maintenance_marker_file_path,
+    pid_file_path,
+    status_file_path,
 )
-from airflow.providers.edge3.cli.dataclasses import Job, MaintenanceMarker, WorkerStatus
-from airflow.providers.edge3.models.edge_worker import EdgeWorkerState, EdgeWorkerVersionException
-from airflow.providers.edge3.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.utils import cli as cli_utils, timezone
+from airflow.providers.edge3.cli.worker import SIG_STATUS, EdgeWorker
+from airflow.providers.edge3.models.edge_worker import EdgeWorkerState
+from airflow.utils import cli as cli_utils
 from airflow.utils.net import getfqdn
-from airflow.utils.platform import IS_WINDOWS
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
-from airflow.utils.state import TaskInstanceState
-
-if TYPE_CHECKING:
-    from airflow.providers.edge3.worker_api.datamodels import EdgeJobFetched
 
 logger = logging.getLogger(__name__)
-EDGE_WORKER_PROCESS_NAME = "edge-worker"
 EDGE_WORKER_HEADER = "\n".join(
     [
         r"   ____   __           _      __         __",
@@ -75,7 +64,7 @@ EDGE_WORKER_HEADER = "\n".join(
 @providers_configuration_loaded
 def force_use_internal_api_on_edge_worker():
     """
-    Ensure that the environment is configured for the internal API without needing to declare it outside.
+    Ensure the environment is configured for the internal API without explicit declaration.
 
     This is only required for an Edge worker and must to be done before the Click CLI wrapper is initiated.
     That is because the CLI wrapper will attempt to establish a DB connection, which will fail before the
@@ -95,418 +84,49 @@ def force_use_internal_api_on_edge_worker():
 force_use_internal_api_on_edge_worker()
 
 
-def _status_signal() -> signal.Signals:
-    if IS_WINDOWS:
-        return signal.SIGBREAK  # type: ignore[attr-defined]
-    return signal.SIGUSR2
-
-
-SIG_STATUS = _status_signal()
-
-
-def _pid_file_path(pid_file: str | None) -> str:
-    return cli_utils.setup_locations(process=EDGE_WORKER_PROCESS_NAME, pid=pid_file)[0]
-
-
-def _get_pid(pid_file: str | None) -> int:
-    pid = read_pid_from_pidfile(_pid_file_path(pid_file))
-    if not pid:
-        logger.warning("Could not find PID of worker.")
-        sys.exit(1)
-    return pid
-
-
-def _status_file_path(pid_file: str | None) -> str:
-    return cli_utils.setup_locations(process=EDGE_WORKER_PROCESS_NAME, pid=pid_file)[1]
-
-
-def _maintenance_marker_file_path(pid_file: str | None) -> str:
-    return cli_utils.setup_locations(process=EDGE_WORKER_PROCESS_NAME, pid=pid_file)[1][:-4] + ".in"
-
-
-def _write_pid_to_pidfile(pid_file_path: str):
-    """Write PIDs for Edge Workers to disk, handling existing PID files."""
-    if Path(pid_file_path).exists():
-        # Handle existing PID files on disk
-        logger.info("An existing PID file has been found: %s.", pid_file_path)
-        pid_stored_in_pid_file = read_pid_from_pidfile(pid_file_path)
-        if os.getpid() == pid_stored_in_pid_file:
-            raise SystemExit("A PID file has already been written")
-        # PID file was written by dead or already running instance
-        if psutil.pid_exists(pid_stored_in_pid_file):
-            # case 1: another instance uses the same path for its PID file
-            raise SystemExit(
-                f"The PID file {pid_file_path} contains the PID of another running process. "
-                "Configuration issue: edge worker instance must use different PID file paths!"
-            )
-        # case 2: previous instance crashed without cleaning up its PID file
-        logger.warning("PID file is orphaned. Cleaning up.")
-        remove_existing_pidfile(pid_file_path)
-    logger.debug("PID file written to %s.", pid_file_path)
-    write_pid_to_pidfile(pid_file_path)
-
-
-def _edge_hostname() -> str:
-    """Get the hostname of the edge worker that should be reported by tasks."""
-    return os.environ.get("HOSTNAME", getfqdn())
-
-
-class _EdgeWorkerCli:
-    """Runner instance which executes the Edge Worker."""
-
-    jobs: list[Job] = []
-    """List of jobs that the worker is running currently."""
-    last_hb: datetime | None = None
-    """Timestamp of last heart beat sent to server."""
-    drain: bool = False
-    """Flag if job processing should be completed and no new jobs fetched for a graceful stop/shutdown."""
-    maintenance_mode: bool = False
-    """Flag if job processing should be completed and no new jobs fetched for maintenance mode. """
-    maintenance_comments: str | None = None
-    """Comments for maintenance mode."""
-
-    edge_instance: _EdgeWorkerCli | None = None
-    """Singleton instance of the worker."""
-
-    def __init__(
-        self,
-        pid_file_path: str,
-        hostname: str,
-        queues: list[str] | None,
-        concurrency: int,
-        job_poll_interval: int,
-        heartbeat_interval: int,
-    ):
-        self.pid_file_path = pid_file_path
-        self.job_poll_interval = job_poll_interval
-        self.hb_interval = heartbeat_interval
-        self.hostname = hostname
-        self.queues = queues
-        self.concurrency = concurrency
-        self.free_concurrency = concurrency
-
-        _EdgeWorkerCli.edge_instance = self
-
-    @staticmethod
-    def signal_handler(sig: signal.Signals, frame):
-        if sig == SIG_STATUS:
-            marker_path = Path(_maintenance_marker_file_path(None))
-            if marker_path.exists():
-                request = MaintenanceMarker.from_json(marker_path.read_text())
-                logger.info("Requested to set maintenance mode to %s", request.maintenance)
-                _EdgeWorkerCli.maintenance_mode = request.maintenance == "on"
-                if _EdgeWorkerCli.maintenance_mode and request.comments:
-                    logger.info("Comments: %s", request.comments)
-                    _EdgeWorkerCli.maintenance_comments = request.comments
-                marker_path.unlink()
-                # send heartbeat immediately to update state
-                if _EdgeWorkerCli.edge_instance:
-                    _EdgeWorkerCli.edge_instance.heartbeat(_EdgeWorkerCli.maintenance_comments)
-            else:
-                logger.info("Request to get status of Edge Worker received.")
-            status_path = Path(_status_file_path(None))
-            status_path.write_text(
-                WorkerStatus(
-                    job_count=len(_EdgeWorkerCli.jobs),
-                    jobs=[job.edge_job.key for job in _EdgeWorkerCli.jobs],
-                    state=_EdgeWorkerCli._get_state(),
-                    maintenance=_EdgeWorkerCli.maintenance_mode,
-                    maintenance_comments=_EdgeWorkerCli.maintenance_comments,
-                    drain=_EdgeWorkerCli.drain,
-                ).json
-            )
-        else:
-            logger.info("Request to shut down Edge Worker received, waiting for jobs to complete.")
-            _EdgeWorkerCli.drain = True
-
-    def shutdown_handler(self, sig, frame):
-        logger.info("SIGTERM received. Terminating all jobs and quit")
-        for job in _EdgeWorkerCli.jobs:
-            os.killpg(job.process.pid, signal.SIGTERM)
-        _EdgeWorkerCli.drain = True
-
-    def _get_sysinfo(self) -> dict:
-        """Produce the sysinfo from worker to post to central site."""
-        return {
-            "airflow_version": airflow_version,
-            "edge_provider_version": edge_provider_version,
-            "concurrency": self.concurrency,
-            "free_concurrency": self.free_concurrency,
-        }
-
-    @staticmethod
-    def _get_state() -> EdgeWorkerState:
-        """State of the Edge Worker."""
-        if _EdgeWorkerCli.jobs:
-            if _EdgeWorkerCli.drain:
-                return EdgeWorkerState.TERMINATING
-            if _EdgeWorkerCli.maintenance_mode:
-                return EdgeWorkerState.MAINTENANCE_PENDING
-            return EdgeWorkerState.RUNNING
-
-        if _EdgeWorkerCli.drain:
-            if _EdgeWorkerCli.maintenance_mode:
-                return EdgeWorkerState.OFFLINE_MAINTENANCE
-            return EdgeWorkerState.OFFLINE
-
-        if _EdgeWorkerCli.maintenance_mode:
-            return EdgeWorkerState.MAINTENANCE_MODE
-        return EdgeWorkerState.IDLE
-
-    def _launch_job_af3(self, edge_job: EdgeJobFetched) -> tuple[Process, Path]:
-        if TYPE_CHECKING:
-            from airflow.executors.workloads import ExecuteTask
-
-        def _run_job_via_supervisor(
-            workload: ExecuteTask,
-        ) -> int:
-            from setproctitle import setproctitle
-
-            from airflow.sdk.execution_time.supervisor import supervise
-
-            # Ignore ctrl-c in this process -- we don't want to kill _this_ one. we let tasks run to completion
-            signal.signal(signal.SIGINT, signal.SIG_IGN)
-
-            logger.info("Worker starting up pid=%d", os.getpid())
-            setproctitle(f"airflow edge worker: {workload.ti.key}")
-
-            try:
-                supervise(
-                    # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
-                    # Same like in airflow/executors/local_executor.py:_execute_work()
-                    ti=workload.ti,  # type: ignore[arg-type]
-                    dag_rel_path=workload.dag_rel_path,
-                    bundle_info=workload.bundle_info,
-                    token=workload.token,
-                    server=conf.get("core", "execution_api_server_url"),
-                    log_path=workload.log_path,
-                )
-                return 0
-            except Exception as e:
-                logger.exception("Task execution failed: %s", e)
-                return 1
-
-        workload: ExecuteTask = edge_job.command
-        process = Process(
-            target=_run_job_via_supervisor,
-            kwargs={"workload": workload},
-        )
-        process.start()
-        base_log_folder = conf.get("logging", "base_log_folder", fallback="NOT AVAILABLE")
-        if TYPE_CHECKING:
-            assert workload.log_path  # We need to assume this is defined in here
-        logfile = Path(base_log_folder, workload.log_path)
-        return process, logfile
-
-    def _launch_job_af2_10(self, edge_job: EdgeJobFetched) -> tuple[Popen, Path]:
-        """Compatibility for Airflow 2.10 Launch."""
-        env = os.environ.copy()
-        env["AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION"] = "True"
-        env["AIRFLOW__CORE__INTERNAL_API_URL"] = conf.get("edge", "api_url")
-        env["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
-        command: list[str] = edge_job.command  # type: ignore[assignment]
-        process = Popen(command, close_fds=True, env=env, start_new_session=True)
-        logfile = logs_logfile_path(edge_job.key)
-        return process, logfile
-
-    def _launch_job(self, edge_job: EdgeJobFetched):
-        """Get the received job executed."""
-        process: Popen | Process
-        if AIRFLOW_V_3_0_PLUS:
-            process, logfile = self._launch_job_af3(edge_job)
-        else:
-            # Airflow 2.10
-            process, logfile = self._launch_job_af2_10(edge_job)
-        _EdgeWorkerCli.jobs.append(Job(edge_job, process, logfile, 0))
-
-    def start(self):
-        """Start the execution in a loop until terminated."""
-        try:
-            self.last_hb = worker_register(
-                self.hostname, EdgeWorkerState.STARTING, self.queues, self._get_sysinfo()
-            ).last_update
-        except EdgeWorkerVersionException as e:
-            logger.info("Version mismatch of Edge worker and Core. Shutting down worker.")
-            raise SystemExit(str(e))
-        except HTTPError as e:
-            if e.response.status_code == HTTPStatus.NOT_FOUND:
-                raise SystemExit("Error: API endpoint is not ready, please set [edge] api_enabled=True.")
-            raise SystemExit(str(e))
-        _write_pid_to_pidfile(self.pid_file_path)
-        signal.signal(signal.SIGINT, _EdgeWorkerCli.signal_handler)
-        signal.signal(SIG_STATUS, _EdgeWorkerCli.signal_handler)
-        signal.signal(signal.SIGTERM, self.shutdown_handler)
-        os.environ["HOSTNAME"] = self.hostname
-        os.environ["AIRFLOW__CORE__HOSTNAME_CALLABLE"] = f"{_edge_hostname.__module__}._edge_hostname"
-        try:
-            self.worker_state_changed = self.heartbeat()
-            self.last_hb = datetime.now()
-            while not _EdgeWorkerCli.drain or _EdgeWorkerCli.jobs:
-                self.loop()
-
-            logger.info("Quitting worker, signal being offline.")
-            try:
-                worker_set_state(
-                    self.hostname,
-                    EdgeWorkerState.OFFLINE_MAINTENANCE
-                    if _EdgeWorkerCli.maintenance_mode
-                    else EdgeWorkerState.OFFLINE,
-                    0,
-                    self.queues,
-                    self._get_sysinfo(),
-                )
-            except EdgeWorkerVersionException:
-                logger.info("Version mismatch of Edge worker and Core. Quitting worker anyway.")
-        finally:
-            remove_existing_pidfile(self.pid_file_path)
-
-    def loop(self):
-        """Run a loop of scheduling and monitoring tasks."""
-        new_job = False
-        previous_jobs = _EdgeWorkerCli.jobs
-        if not any((_EdgeWorkerCli.drain, _EdgeWorkerCli.maintenance_mode)) and self.free_concurrency > 0:
-            new_job = self.fetch_job()
-        self.check_running_jobs()
-
-        if (
-            _EdgeWorkerCli.drain
-            or datetime.now().timestamp() - self.last_hb.timestamp() > self.hb_interval
-            or self.worker_state_changed  # send heartbeat immediately if the state is different in db
-            or bool(previous_jobs) != bool(_EdgeWorkerCli.jobs)  # when number of jobs changes from/to 0
-        ):
-            self.worker_state_changed = self.heartbeat()
-            self.last_hb = datetime.now()
-
-        if not new_job:
-            self.interruptible_sleep()
-
-    def fetch_job(self) -> bool:
-        """Fetch and start a new job from central site."""
-        logger.debug("Attempting to fetch a new job...")
-        edge_job = jobs_fetch(self.hostname, self.queues, self.free_concurrency)
-        if edge_job:
-            logger.info("Received job: %s", edge_job)
-            self._launch_job(edge_job)
-            jobs_set_state(edge_job.key, TaskInstanceState.RUNNING)
-            return True
-
-        logger.info(
-            "No new job to process%s",
-            f", {len(_EdgeWorkerCli.jobs)} still running" if _EdgeWorkerCli.jobs else "",
-        )
-        return False
-
-    def check_running_jobs(self) -> None:
-        """Check which of the running tasks/jobs are completed and report back."""
-        used_concurrency = 0
-        for i in range(len(_EdgeWorkerCli.jobs) - 1, -1, -1):
-            job = _EdgeWorkerCli.jobs[i]
-            if not job.is_running:
-                _EdgeWorkerCli.jobs.remove(job)
-                if job.is_success:
-                    logger.info("Job completed: %s", job.edge_job)
-                    jobs_set_state(job.edge_job.key, TaskInstanceState.SUCCESS)
-                else:
-                    logger.error("Job failed: %s", job.edge_job)
-                    jobs_set_state(job.edge_job.key, TaskInstanceState.FAILED)
-            else:
-                used_concurrency += job.edge_job.concurrency_slots
-
-            if job.logfile.exists() and job.logfile.stat().st_size > job.logsize:
-                with job.logfile.open("rb") as logfile:
-                    push_log_chunk_size = conf.getint("edge", "push_log_chunk_size")
-                    logfile.seek(job.logsize, os.SEEK_SET)
-                    read_data = logfile.read()
-                    job.logsize += len(read_data)
-                    # backslashreplace to keep not decoded characters and not raising exception
-                    # replace null with question mark to fix issue during DB push
-                    log_data = read_data.decode(errors="backslashreplace").replace("\x00", "\ufffd")
-                    while True:
-                        chunk_data = log_data[:push_log_chunk_size]
-                        log_data = log_data[push_log_chunk_size:]
-                        if not chunk_data:
-                            break
-
-                        logs_push(
-                            task=job.edge_job.key,
-                            log_chunk_time=timezone.utcnow(),
-                            log_chunk_data=chunk_data,
-                        )
-
-        self.free_concurrency = self.concurrency - used_concurrency
-
-    def heartbeat(self, new_maintenance_comments: str | None = None) -> bool:
-        """Report liveness state of worker to central site with stats."""
-        state = _EdgeWorkerCli._get_state()
-        sysinfo = self._get_sysinfo()
-        worker_state_changed: bool = False
-        try:
-            worker_info = worker_set_state(
-                self.hostname,
-                state,
-                len(_EdgeWorkerCli.jobs),
-                self.queues,
-                sysinfo,
-                new_maintenance_comments,
-            )
-            self.queues = worker_info.queues
-            if worker_info.state == EdgeWorkerState.MAINTENANCE_REQUEST:
-                logger.info("Maintenance mode requested!")
-                _EdgeWorkerCli.maintenance_mode = True
-            elif (
-                worker_info.state in [EdgeWorkerState.IDLE, EdgeWorkerState.RUNNING]
-                and _EdgeWorkerCli.maintenance_mode
-            ):
-                logger.info("Exit Maintenance mode requested!")
-                _EdgeWorkerCli.maintenance_mode = False
-            if _EdgeWorkerCli.maintenance_mode:
-                _EdgeWorkerCli.maintenance_comments = worker_info.maintenance_comments
-            else:
-                _EdgeWorkerCli.maintenance_comments = None
-
-            worker_state_changed = worker_info.state != state
-        except EdgeWorkerVersionException:
-            logger.info("Version mismatch of Edge worker and Core. Shutting down worker.")
-            _EdgeWorkerCli.drain = True
-        return worker_state_changed
-
-    def interruptible_sleep(self):
-        """Sleeps but stops sleeping if drain is made."""
-        drain_before_sleep = _EdgeWorkerCli.drain
-        for _ in range(0, self.job_poll_interval * 10):
-            sleep(0.1)
-            if drain_before_sleep != _EdgeWorkerCli.drain:
-                return
-
-
-@cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
-def worker(args):
-    """Start Airflow Edge Worker."""
+def _launch_worker(args):
     print(settings.HEADER)
     print(EDGE_WORKER_HEADER)
 
-    edge_worker = _EdgeWorkerCli(
-        pid_file_path=_pid_file_path(args.pid),
+    edge_worker = EdgeWorker(
+        pid_file_path=pid_file_path(args.pid),
         hostname=args.edge_hostname or getfqdn(),
         queues=args.queues.split(",") if args.queues else None,
         concurrency=args.concurrency,
         job_poll_interval=conf.getint("edge", "job_poll_interval"),
         heartbeat_interval=conf.getint("edge", "heartbeat_interval"),
+        daemon=args.daemon,
     )
     edge_worker.start()
 
 
 @cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
+def worker(args):
+    """Start Airflow Edge Worker."""
+    umask = args.umask or conf.get("edge", "worker_umask", fallback=settings.DAEMON_UMASK)
+
+    run_command_with_daemon_option(
+        args=args,
+        process_name=EDGE_WORKER_PROCESS_NAME,
+        callback=lambda: _launch_worker(args),
+        should_setup_logging=True,
+        pid_file=pid_file_path(args.pid),
+        umask=umask,
+    )
+
+
+@cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
 def status(args):
-    """Check for Airflow Edge Worker status."""
-    pid = _get_pid(args.pid)
+    """Check for Airflow Local Edge Worker status."""
+    pid = get_pid(args.pid)
 
     # Send Signal as notification to drop status JSON
     logger.debug("Sending SIGUSR2 to worker pid %i.", pid)
     status_min_date = time() - 1
-    status_path = Path(_status_file_path(args.pid))
+    status_path = Path(status_file_path(args.pid))
     worker_process = psutil.Process(pid)
     worker_process.send_signal(SIG_STATUS)
     while psutil.pid_exists(pid) and (
@@ -526,17 +146,17 @@ def status(args):
 @cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def maintenance(args):
-    """Set or Unset maintenance mode of worker."""
+    """Set or Unset maintenance mode of local edge worker."""
     if args.maintenance == "on" and not args.comments:
         logger.error("Comments are required when setting maintenance mode.")
         sys.exit(4)
 
-    pid = _get_pid(args.pid)
+    pid = get_pid(args.pid)
 
     # Write marker JSON file
     from getpass import getuser
 
-    marker_path = Path(_maintenance_marker_file_path(args.pid))
+    marker_path = Path(maintenance_marker_file_path(args.pid))
     logger.debug("Writing maintenance marker file to %s.", marker_path)
     marker_path.write_text(
         MaintenanceMarker(
@@ -551,7 +171,7 @@ def maintenance(args):
     # Send Signal as notification to fetch maintenance marker
     logger.debug("Sending SIGUSR2 to worker pid %i.", pid)
     status_min_date = time() - 1
-    status_path = Path(_status_file_path(args.pid))
+    status_path = Path(status_file_path(args.pid))
     worker_process = psutil.Process(pid)
     worker_process.send_signal(SIG_STATUS)
     while psutil.pid_exists(pid) and (
@@ -597,8 +217,8 @@ def maintenance(args):
 @cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def stop(args):
-    """Stop a running Airflow Edge Worker."""
-    pid = _get_pid(args.pid)
+    """Stop a running local Airflow Edge Worker."""
+    pid = get_pid(args.pid)
     # Send SIGINT
     logger.info("Sending SIGINT to worker pid %i.", pid)
     worker_process = psutil.Process(pid)
@@ -609,6 +229,168 @@ def stop(args):
         while psutil.pid_exists(pid):
             sleep(0.1)
         logger.info("Worker has been shut down.")
+
+
+def _check_valid_db_connection():
+    """Check for a valid db connection before executing db dependent cli commands."""
+    db_conn = conf.get("database", "sql_alchemy_conn")
+    db_default = conf.get_default_value("database", "sql_alchemy_conn")
+    if db_conn == db_default:
+        raise SystemExit(
+            "Error: The database connection is not set. Please set the connection in the configuration file."
+        )
+
+
+def _check_if_registered_edge_host(hostname: str):
+    """Check if edge worker is registered with the db before executing dependent cli commands."""
+    from airflow.providers.edge3.models.edge_worker import _fetch_edge_hosts_from_db
+
+    if not _fetch_edge_hosts_from_db(hostname=hostname):
+        raise SystemExit(f"Error: Edge Worker {hostname} is unknown!")
+
+
+@cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
+def list_edge_workers(args) -> None:
+    """Query the db to list all registered edge workers."""
+    _check_valid_db_connection()
+    from airflow.providers.edge3.models.edge_worker import get_registered_edge_hosts
+
+    all_hosts_iter = get_registered_edge_hosts(states=args.state)
+    # Format and print worker info on the screen
+    fields = [
+        "worker_name",
+        "state",
+        "queues",
+        "jobs_active",
+        "concurrency",
+        "free_concurrency",
+        "maintenance_comment",
+    ]
+
+    all_hosts = []
+    for host in all_hosts_iter:
+        host_data = {
+            f: getattr(host, f, None) for f in fields if f not in ("concurrency", "free_concurrency")
+        }
+        try:
+            sysinfo = json.loads(host.sysinfo or "{}")
+            host_data["concurrency"] = sysinfo.get("concurrency")
+            host_data["free_concurrency"] = sysinfo.get("free_concurrency")
+        except (json.JSONDecodeError, TypeError):
+            host_data["concurrency"] = None
+            host_data["free_concurrency"] = None
+        all_hosts.append(host_data)
+
+    AirflowConsole().print_as(data=all_hosts, output=args.output)
+
+
+@cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
+def put_remote_worker_on_maintenance(args) -> None:
+    """Put remote edge worker on maintenance."""
+    _check_valid_db_connection()
+    _check_if_registered_edge_host(hostname=args.edge_hostname)
+    from airflow.providers.edge3.models.edge_worker import request_maintenance
+
+    request_maintenance(args.edge_hostname, args.comments)
+    logger.info("%s has been put on maintenance by %s.", args.edge_hostname, getuser())
+
+
+@cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
+def remove_remote_worker_from_maintenance(args) -> None:
+    """Remove remote edge worker from maintenance."""
+    _check_valid_db_connection()
+    _check_if_registered_edge_host(hostname=args.edge_hostname)
+    from airflow.providers.edge3.models.edge_worker import exit_maintenance
+
+    exit_maintenance(args.edge_hostname)
+    logger.info("%s has been removed from maintenance by %s.", args.edge_hostname, getuser())
+
+
+@cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
+def remote_worker_update_maintenance_comment(args) -> None:
+    """Update maintenance comments of the remote edge worker."""
+    _check_valid_db_connection()
+    _check_if_registered_edge_host(hostname=args.edge_hostname)
+    from airflow.providers.edge3.models.edge_worker import change_maintenance_comment
+
+    try:
+        change_maintenance_comment(args.edge_hostname, args.comments)
+        logger.info("Maintenance comments updated for %s by %s.", args.edge_hostname, getuser())
+    except TypeError:
+        raise SystemExit
+
+
+@cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
+def remove_remote_worker(args) -> None:
+    """Remove remote edge worker entry from db."""
+    _check_valid_db_connection()
+    _check_if_registered_edge_host(hostname=args.edge_hostname)
+    from airflow.providers.edge3.models.edge_worker import remove_worker
+
+    try:
+        remove_worker(args.edge_hostname)
+        logger.info("Edge Worker host %s removed by %s.", args.edge_hostname, getuser())
+    except TypeError:
+        raise SystemExit
+
+
+@cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
+def remote_worker_request_shutdown(args) -> None:
+    """Initiate the shutdown of the remote edge worker."""
+    _check_valid_db_connection()
+    _check_if_registered_edge_host(hostname=args.edge_hostname)
+    from airflow.providers.edge3.models.edge_worker import request_shutdown
+
+    request_shutdown(args.edge_hostname)
+    logger.info("Requested shutdown of Edge Worker host %s by %s.", args.edge_hostname, getuser())
+
+
+@cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
+def add_worker_queues(args) -> None:
+    """Add queues to an edge worker."""
+    _check_valid_db_connection()
+    _check_if_registered_edge_host(hostname=args.edge_hostname)
+    from airflow.providers.edge3.models.edge_worker import add_worker_queues
+
+    queues = args.queues.split(",") if args.queues else []
+    if not queues:
+        raise SystemExit("Error: No queues specified to add.")
+
+    try:
+        add_worker_queues(args.edge_hostname, queues)
+        logger.info("Added queues %s to Edge Worker host %s by %s.", queues, args.edge_hostname, getuser())
+    except TypeError as e:
+        logger.error(str(e))
+        raise SystemExit
+
+
+@cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
+def remove_worker_queues(args) -> None:
+    """Remove queues from an edge worker."""
+    _check_valid_db_connection()
+    _check_if_registered_edge_host(hostname=args.edge_hostname)
+    from airflow.providers.edge3.models.edge_worker import remove_worker_queues
+
+    queues = args.queues.split(",") if args.queues else []
+    if not queues:
+        raise SystemExit("Error: No queues specified to remove.")
+
+    try:
+        remove_worker_queues(args.edge_hostname, queues)
+        logger.info(
+            "Removed queues %s from Edge Worker host %s by %s.", queues, args.edge_hostname, getuser()
+        )
+    except TypeError as e:
+        logger.error(str(e))
+        raise SystemExit
 
 
 ARG_CONCURRENCY = Arg(
@@ -625,10 +407,25 @@ ARG_EDGE_HOSTNAME = Arg(
     ("-H", "--edge-hostname"),
     help="Set the hostname of worker if you have multiple workers on a single machine",
 )
+ARG_REQUIRED_EDGE_HOSTNAME = Arg(
+    ("-H", "--edge-hostname"),
+    help="Set the hostname of worker if you have multiple workers on a single machine",
+    required=True,
+)
 ARG_MAINTENANCE = Arg(("maintenance",), help="Desired maintenance state", choices=("on", "off"))
 ARG_MAINTENANCE_COMMENT = Arg(
     ("-c", "--comments"),
     help="Maintenance comments to report reason. Required if maintenance is turned on.",
+)
+ARG_REQUIRED_MAINTENANCE_COMMENT = Arg(
+    ("-c", "--comments"),
+    help="Maintenance comments to report reason. Required if enabling maintenance",
+    required=True,
+)
+ARG_QUEUES_MANAGE = Arg(
+    ("-q", "--queues"),
+    help="Comma delimited list of queues to add or remove.",
+    required=True,
 )
 ARG_WAIT_MAINT = Arg(
     ("-w", "--wait"),
@@ -642,6 +439,36 @@ ARG_WAIT_STOP = Arg(
     help="Wait until edge worker is shut down.",
     action="store_true",
 )
+ARG_OUTPUT = Arg(
+    (
+        "-o",
+        "--output",
+    ),
+    help="Output format. Allowed values: json, yaml, plain, table (default: table)",
+    metavar="(table, json, yaml, plain)",
+    choices=("table", "json", "yaml", "plain"),
+    default="table",
+)
+ARG_STATE = Arg(
+    (
+        "-s",
+        "--state",
+    ),
+    nargs="+",
+    help="State of the edge worker",
+)
+
+ARG_DAEMON = Arg(
+    ("-D", "--daemon"), help="Daemonize instead of running in the foreground", action="store_true"
+)
+ARG_UMASK = Arg(
+    ("-u", "--umask"),
+    help="Set the umask of edge worker in daemon mode",
+)
+ARG_STDERR = Arg(("--stderr",), help="Redirect stderr to this file if run in daemon mode")
+ARG_STDOUT = Arg(("--stdout",), help="Redirect stdout to this file if run in daemon mode")
+ARG_LOG_FILE = Arg(("-l", "--log-file"), help="Location of the log file if run in daemon mode")
+
 EDGE_COMMANDS: list[ActionCommand] = [
     ActionCommand(
         name=worker.__name__,
@@ -653,6 +480,11 @@ EDGE_COMMANDS: list[ActionCommand] = [
             ARG_EDGE_HOSTNAME,
             ARG_PID,
             ARG_VERBOSE,
+            ARG_DAEMON,
+            ARG_STDOUT,
+            ARG_STDERR,
+            ARG_LOG_FILE,
+            ARG_UMASK,
         ),
     ),
     ActionCommand(
@@ -684,6 +516,69 @@ EDGE_COMMANDS: list[ActionCommand] = [
             ARG_WAIT_STOP,
             ARG_PID,
             ARG_VERBOSE,
+        ),
+    ),
+    ActionCommand(
+        name="list-workers",
+        help=list_edge_workers.__doc__,
+        func=list_edge_workers,
+        args=(
+            ARG_OUTPUT,
+            ARG_STATE,
+        ),
+    ),
+    ActionCommand(
+        name="remote-edge-worker-request-maintenance",
+        help=put_remote_worker_on_maintenance.__doc__,
+        func=put_remote_worker_on_maintenance,
+        args=(
+            ARG_REQUIRED_EDGE_HOSTNAME,
+            ARG_REQUIRED_MAINTENANCE_COMMENT,
+        ),
+    ),
+    ActionCommand(
+        name="remote-edge-worker-exit-maintenance",
+        help=remove_remote_worker_from_maintenance.__doc__,
+        func=remove_remote_worker_from_maintenance,
+        args=(ARG_REQUIRED_EDGE_HOSTNAME,),
+    ),
+    ActionCommand(
+        name="remote-edge-worker-update-maintenance-comment",
+        help=remote_worker_update_maintenance_comment.__doc__,
+        func=remote_worker_update_maintenance_comment,
+        args=(
+            ARG_REQUIRED_EDGE_HOSTNAME,
+            ARG_REQUIRED_MAINTENANCE_COMMENT,
+        ),
+    ),
+    ActionCommand(
+        name="remove-remote-edge-worker",
+        help=remove_remote_worker.__doc__,
+        func=remove_remote_worker,
+        args=(ARG_REQUIRED_EDGE_HOSTNAME,),
+    ),
+    ActionCommand(
+        name="shutdown-remote-edge-worker",
+        help=remote_worker_request_shutdown.__doc__,
+        func=remote_worker_request_shutdown,
+        args=(ARG_REQUIRED_EDGE_HOSTNAME,),
+    ),
+    ActionCommand(
+        name="add-worker-queues",
+        help=add_worker_queues.__doc__,
+        func=add_worker_queues,
+        args=(
+            ARG_REQUIRED_EDGE_HOSTNAME,
+            ARG_QUEUES_MANAGE,
+        ),
+    ),
+    ActionCommand(
+        name="remove-worker-queues",
+        help=remove_worker_queues.__doc__,
+        func=remove_worker_queues,
+        args=(
+            ARG_REQUIRED_EDGE_HOSTNAME,
+            ARG_QUEUES_MANAGE,
         ),
     ),
 ]

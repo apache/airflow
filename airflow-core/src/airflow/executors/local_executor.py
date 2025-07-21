@@ -31,7 +31,7 @@ import multiprocessing
 import multiprocessing.sharedctypes
 import os
 from multiprocessing import Queue, SimpleQueue
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from setproctitle import setproctitle
 
@@ -43,7 +43,7 @@ from airflow.utils.state import TaskInstanceState
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    TaskInstanceStateType = tuple[workloads.TaskInstance, TaskInstanceState, Optional[Exception]]
+    TaskInstanceStateType = tuple[workloads.TaskInstance, TaskInstanceState, Exception | None]
 
 
 def _run_worker(
@@ -108,6 +108,13 @@ def _execute_work(log: logging.Logger, workload: workloads.ExecuteTask) -> None:
     from airflow.sdk.execution_time.supervisor import supervise
 
     setproctitle(f"airflow worker -- LocalExecutor: {workload.ti.id}")
+
+    base_url = conf.get("api", "base_url", fallback="/")
+    # If it's a relative URL, use localhost:8080 as the default
+    if base_url.startswith("/"):
+        base_url = f"http://localhost:8080{base_url}"
+    default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
+
     # This will return the exit code of the task process, but we don't care about that, just if the
     # _supervisor_ had an error reporting the state back (which will result in an exception.)
     supervise(
@@ -116,7 +123,7 @@ def _execute_work(log: logging.Logger, workload: workloads.ExecuteTask) -> None:
         dag_rel_path=workload.dag_rel_path,
         bundle_info=workload.bundle_info,
         token=workload.token,
-        server=conf.get("core", "execution_api_server_url"),
+        server=conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
         log_path=workload.log_path,
     )
 
@@ -155,7 +162,7 @@ class LocalExecutor(BaseExecutor):
 
         # Mypy sees this value as `SynchronizedBase[c_uint]`, but that isn't the right runtime type behaviour
         # (it looks like an int to python)
-        self._unread_messages = multiprocessing.Value(ctypes.c_uint)  # type: ignore[assignment]
+        self._unread_messages = multiprocessing.Value(ctypes.c_uint)
 
     def _check_workers(self):
         # Reap any dead workers

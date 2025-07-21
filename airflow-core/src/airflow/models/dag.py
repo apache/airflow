@@ -17,24 +17,17 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
 import copy
 import functools
 import logging
 import re
-import sys
-import time
 from collections import defaultdict
-from collections.abc import Collection, Generator, Iterable, Sequence
-from contextlib import ExitStack
+from collections.abc import Callable, Collection, Generator, Iterable, Sequence
 from datetime import datetime, timedelta
 from functools import cache
-from pathlib import Path
-from re import Pattern
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     TypeVar,
     Union,
     cast,
@@ -46,7 +39,6 @@ import methodtools
 import pendulum
 import sqlalchemy_jsonfield
 from dateutil.relativedelta import relativedelta
-from packaging import version as packaging_version
 from sqlalchemy import (
     Boolean,
     Column,
@@ -70,20 +62,18 @@ from sqlalchemy.sql import Select, expression
 
 from airflow import settings, utils
 from airflow.assets.evaluation import AssetEvaluator
-from airflow.configuration import conf as airflow_conf, secrets_backend_list
+from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import (
     AirflowException,
-    TaskDeferred,
     UnknownExecutorException,
 )
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.executors.workloads import BundleInfo
+from airflow.models import Deadline
 from airflow.models.asset import (
     AssetDagRunQueue,
     AssetModel,
 )
 from airflow.models.base import Base, StringID
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun
 from airflow.models.taskinstance import (
@@ -95,10 +85,8 @@ from airflow.models.tasklog import LogTemplate
 from airflow.sdk import TaskGroup
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, BaseAsset
 from airflow.sdk.definitions.dag import DAG as TaskSDKDag, dag as task_sdk_dag_decorator
-from airflow.secrets.local_filesystem import LocalFilesystemBackend
-from airflow.security import permissions
+from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 from airflow.settings import json
-from airflow.stats import Stats
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
 from airflow.timetables.simple import (
@@ -112,19 +100,19 @@ from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, lock_rows, with_row_locks
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
+    from typing import Literal
+
     from pydantic import NonNegativeInt
     from sqlalchemy.orm.query import Query
     from sqlalchemy.orm.session import Session
 
     from airflow.models.dagbag import DagBag
-    from airflow.models.operator import Operator
-    from airflow.sdk.definitions._internal.abstractoperator import TaskStateChangeCallback
+    from airflow.sdk.types import Operator
     from airflow.serialization.serialized_objects import MaybeSerializedDAG
-    from airflow.typing_compat import Literal
 
 log = logging.getLogger(__name__)
 
@@ -133,14 +121,9 @@ AssetT = TypeVar("AssetT", bound=BaseAsset)
 TAG_MAX_LEN = 100
 
 DagStateChangeCallback = Callable[[Context], None]
-ScheduleInterval = Union[None, str, timedelta, relativedelta]
+ScheduleInterval = None | str | timedelta | relativedelta
 
-ScheduleArg = Union[
-    ScheduleInterval,
-    Timetable,
-    BaseAsset,
-    Collection[Union["Asset", "AssetAlias"]],
-]
+ScheduleArg = ScheduleInterval | Timetable | BaseAsset | Collection[Union["Asset", "AssetAlias"]]
 
 
 class InconsistentDataInterval(AirflowException):
@@ -238,13 +221,6 @@ def get_asset_triggered_next_run_info(
     }
 
 
-def _triggerer_is_healthy(session: Session):
-    from airflow.jobs.triggerer_job_runner import TriggererJobRunner
-
-    job = TriggererJobRunner.most_recent_job(session=session)
-    return job and job.is_alive()
-
-
 @provide_session
 def _create_orm_dagrun(
     *,
@@ -260,6 +236,7 @@ def _create_orm_dagrun(
     creating_job_id: int | None,
     backfill_id: NonNegativeInt | None,
     triggered_by: DagRunTriggeredByType,
+    triggering_user_name: str | None = None,
     session: Session = NEW_SESSION,
 ) -> DagRun:
     bundle_version = None
@@ -268,6 +245,9 @@ def _create_orm_dagrun(
             select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id),
         )
     dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+    if not dag_version:
+        raise AirflowException(f"Cannot create DagRun for DAG {dag.dag_id} because the dag is not serialized")
+
     run = DagRun(
         dag_id=dag.dag_id,
         run_id=run_id,
@@ -280,6 +260,7 @@ def _create_orm_dagrun(
         creating_job_id=creating_job_id,
         data_interval=data_interval,
         triggered_by=triggered_by,
+        triggering_user_name=triggering_user_name,
         backfill_id=backfill_id,
         bundle_version=bundle_version,
     )
@@ -292,7 +273,7 @@ def _create_orm_dagrun(
     run.dag = dag
     # create the associated task instances
     # state is None at the moment of creation
-    run.verify_integrity(session=session, dag_version_id=dag_version.id if dag_version else None)
+    run.verify_integrity(session=session, dag_version_id=dag_version.id)
     return run
 
 
@@ -385,6 +366,19 @@ class DAG(TaskSDKDag, LoggingMixin):
     :param dagrun_timeout: Specify the duration a DagRun should be allowed to run before it times out or
         fails. Task instances that are running when a DagRun is timed out will be marked as skipped.
     :param sla_miss_callback: DEPRECATED - The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in 3.1
+    :param deadline: Optional Deadline Alert for the DAG.
+        Specifies a time by which the DAG run should be complete, either in the form of a static datetime
+        or calculated relative to a reference timestamp.  If the deadline passes before completion, the
+        provided callback is triggered.
+
+        **Example**: To set the deadline for one hour after the DAG run starts you could use ::
+
+            DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+                interval=timedelta(hours=1),
+                callback=my_callback,
+            )
+
     :param catchup: Perform scheduler catchup (or only run latest)? Defaults to False
     :param on_failure_callback: A function or list of functions to be called when a DagRun of this dag fails.
         A context dictionary is passed as a single parameter to this function.
@@ -466,27 +460,14 @@ class DAG(TaskSDKDag, LoggingMixin):
         """Look for outdated dag level actions in DAG access_controls and replace them with updated actions."""
         if access_control is None:
             return None
-
-        from airflow.providers.fab import __version__ as FAB_VERSION
-
         updated_access_control = {}
         for role, perms in access_control.items():
-            if packaging_version.parse(FAB_VERSION) >= packaging_version.parse("1.3.0"):
-                updated_access_control[role] = updated_access_control.get(role, {})
-                if isinstance(perms, (set, list)):
-                    # Support for old-style access_control where only the actions are specified
-                    updated_access_control[role][permissions.RESOURCE_DAG] = set(perms)
-                else:
-                    updated_access_control[role] = perms
-            elif isinstance(perms, dict):
-                # Not allow new access control format with old FAB versions
-                raise AirflowException(
-                    "Please upgrade the FAB provider to a version >= 1.3.0 to allow "
-                    "use the Dag Level Access Control new format."
-                )
+            updated_access_control[role] = updated_access_control.get(role, {})
+            if isinstance(perms, (set, list)):
+                # Support for old-style access_control where only the actions are specified
+                updated_access_control[role]["DAGs"] = set(perms)
             else:
-                updated_access_control[role] = set(perms)
-
+                updated_access_control[role] = perms
         return updated_access_control
 
     def get_next_data_interval(self, dag_model: DagModel) -> DataInterval | None:
@@ -713,15 +694,6 @@ class DAG(TaskSDKDag, LoggingMixin):
             self.dag_id, session=session, include_manually_triggered=include_manually_triggered
         )
 
-    @provide_session
-    def has_dag_runs(self, session=NEW_SESSION, include_manually_triggered=True) -> bool:
-        return (
-            get_last_dagrun(
-                self.dag_id, session=session, include_manually_triggered=include_manually_triggered
-            )
-            is not None
-        )
-
     @property
     def dag_id(self) -> str:
         return self._dag_id
@@ -776,89 +748,6 @@ class DAG(TaskSDKDag, LoggingMixin):
     def get_serialized_fields(cls):
         """Stringified DAGs and operators contain exactly these fields."""
         return TaskSDKDag.get_serialized_fields() | {"_processor_dags_folder"}
-
-    @staticmethod
-    @provide_session
-    def fetch_callback(
-        dag: DAG,
-        run_id: str,
-        success: bool = True,
-        reason: str | None = None,
-        *,
-        session: Session = NEW_SESSION,
-    ) -> tuple[list[TaskStateChangeCallback], Context] | None:
-        """
-        Fetch the appropriate callbacks depending on the value of success.
-
-        This method gets the context of a single TaskInstance part of this DagRun and returns it along
-        the list of callbacks.
-
-        :param dag: DAG object
-        :param run_id: The DAG run ID
-        :param success: Flag to specify if failure or success callback should be called
-        :param reason: Completion reason
-        :param session: Database session
-        """
-        callbacks = dag.on_success_callback if success else dag.on_failure_callback
-        if callbacks:
-            dagrun = DAG.fetch_dagrun(dag_id=dag.dag_id, run_id=run_id, session=session)
-            callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
-            tis = dagrun.get_task_instances(session=session)
-            # tis from a dagrun may not be a part of dag.partial_subset,
-            # since dag.partial_subset is a subset of the dag.
-            # This ensures that we will only use the accessible TI
-            # context for the callback.
-            if dag.partial:
-                tis = [ti for ti in tis if not ti.state == State.NONE]
-            # filter out removed tasks
-            tis = [ti for ti in tis if ti.state != TaskInstanceState.REMOVED]
-            ti = tis[-1]  # get first TaskInstance of DagRun
-            ti.task = dag.get_task(ti.task_id)
-            context = ti.get_template_context(session=session)
-            context["reason"] = reason
-            return callbacks, context
-        return None
-
-    @provide_session
-    def handle_callback(self, dagrun: DagRun, success=True, reason=None, session=NEW_SESSION):
-        """
-        Triggers on_failure_callback or on_success_callback as appropriate.
-
-        This method gets the context of a single TaskInstance part of this DagRun
-        and passes that to the callable along with a 'reason', primarily to
-        differentiate DagRun failures.
-
-        .. note: The logs end up in
-            ``$AIRFLOW_HOME/logs/scheduler/latest/PROJECT/DAG_FILE.py.log``
-
-        :param dagrun: DagRun object
-        :param success: Flag to specify if failure or success callback should be called
-        :param reason: Completion reason
-        :param session: Database session
-        """
-        callbacks, context = DAG.fetch_callback(
-            dag=self, run_id=dagrun.run_id, success=success, reason=reason, session=session
-        ) or (None, None)
-
-        DAG.execute_callback(callbacks, context, self.dag_id)
-
-    @classmethod
-    def execute_callback(cls, callbacks: list[Callable] | None, context: Context | None, dag_id: str):
-        """
-        Triggers the callbacks with the given context.
-
-        :param callbacks: List of callbacks to call
-        :param context: Context to pass to all callbacks
-        :param dag_id: The dag_id of the DAG to find.
-        """
-        if callbacks and context:
-            for callback in callbacks:
-                cls.logger().info("Executing dag callback function: %s", callback)
-                try:
-                    callback(context)
-                except Exception:
-                    cls.logger().exception("failed to invoke dag state update callback")
-                    Stats.incr("dag.callback_exceptions", tags={"dag_id": dag_id})
 
     def get_active_runs(self):
         """
@@ -955,7 +844,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         self,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
-        state: list[TaskInstanceState] | None = None,
+        state: TaskInstanceState | Sequence[TaskInstanceState] | None = None,
         session: Session = NEW_SESSION,
     ) -> list[TaskInstance]:
         if not start_date:
@@ -1319,9 +1208,10 @@ class DAG(TaskSDKDag, LoggingMixin):
         :param session: new session
         """
         from airflow.api.common.mark_tasks import set_state
+        from airflow.serialization.serialized_objects import SerializedBaseOperator as BaseOperator
 
-        tasks_to_set_state: list[BaseOperator | tuple[BaseOperator, int]] = []
-        task_ids: list[str] = []
+        tasks_to_set_state: list
+        task_ids: list[str]
 
         task_group_dict = self.task_group.get_task_group_dict()
         task_group = task_group_dict.get(group_id)
@@ -1526,7 +1416,6 @@ class DAG(TaskSDKDag, LoggingMixin):
             clear_task_instances(
                 list(tis),
                 session,
-                dag=self,
                 dag_run_state=dag_run_state,
             )
         else:
@@ -1550,6 +1439,8 @@ class DAG(TaskSDKDag, LoggingMixin):
     ):
         all_tis = []
         for dag in dags:
+            if not isinstance(dag, DAG):
+                dag = DAG.from_sdk_dag(dag)
             tis = dag.clear(
                 start_date=start_date,
                 end_date=end_date,
@@ -1576,6 +1467,8 @@ class DAG(TaskSDKDag, LoggingMixin):
 
         if do_it:
             for dag in dags:
+                if not isinstance(dag, DAG):
+                    dag = DAG.from_sdk_dag(dag)
                 dag.clear(
                     start_date=start_date,
                     end_date=end_date,
@@ -1601,188 +1494,6 @@ class DAG(TaskSDKDag, LoggingMixin):
         args.func(args, self)
 
     @provide_session
-    def test(
-        self,
-        run_after: datetime | None = None,
-        logical_date: datetime | None = None,
-        run_conf: dict[str, Any] | None = None,
-        conn_file_path: str | None = None,
-        variable_file_path: str | None = None,
-        use_executor: bool = False,
-        mark_success_pattern: Pattern | str | None = None,
-        session: Session = NEW_SESSION,
-    ) -> DagRun:
-        """
-        Execute one single DagRun for a given DAG and logical date.
-
-        :param run_after: the datetime before which to Dag cannot run.
-        :param logical_date: logical date for the DAG run
-        :param run_conf: configuration to pass to newly created dagrun
-        :param conn_file_path: file path to a connection file in either yaml or json
-        :param variable_file_path: file path to a variable file in either yaml or json
-        :param use_executor: if set, uses an executor to test the DAG
-        :param mark_success_pattern: regex of task_ids to mark as success instead of running
-        :param session: database connection (optional)
-        """
-        from airflow.serialization.serialized_objects import SerializedDAG
-
-        def add_logger_if_needed(ti: TaskInstance):
-            """
-            Add a formatted logger to the task instance.
-
-            This allows all logs to surface to the command line, instead of into
-            a task file. Since this is a local test run, it is much better for
-            the user to see logs in the command line, rather than needing to
-            search for a log file.
-
-            :param ti: The task instance that will receive a logger.
-            """
-            format = logging.Formatter("[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s")
-            handler = logging.StreamHandler(sys.stdout)
-            handler.level = logging.INFO
-            handler.setFormatter(format)
-            # only add log handler once
-            if not any(isinstance(h, logging.StreamHandler) for h in ti.log.handlers):
-                self.log.debug("Adding Streamhandler to taskinstance %s", ti.task_id)
-                ti.log.addHandler(handler)
-
-        exit_stack = ExitStack()
-        if conn_file_path or variable_file_path:
-            local_secrets = LocalFilesystemBackend(
-                variables_file_path=variable_file_path, connections_file_path=conn_file_path
-            )
-            secrets_backend_list.insert(0, local_secrets)
-            exit_stack.callback(lambda: secrets_backend_list.pop(0))
-
-        with exit_stack:
-            self.validate()
-            self.log.debug("Clearing existing task instances for logical date %s", logical_date)
-            self.clear(
-                start_date=logical_date,
-                end_date=logical_date,
-                dag_run_state=False,  # type: ignore
-                session=session,
-            )
-            self.log.debug("Getting dagrun for dag %s", self.dag_id)
-            logical_date = timezone.coerce_datetime(logical_date)
-            run_after = timezone.coerce_datetime(run_after) or timezone.coerce_datetime(timezone.utcnow())
-            data_interval = (
-                self.timetable.infer_manual_data_interval(run_after=logical_date) if logical_date else None
-            )
-            scheduler_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(self))
-
-            dr: DagRun = _get_or_create_dagrun(
-                dag=scheduler_dag,
-                start_date=logical_date or run_after,
-                logical_date=logical_date,
-                data_interval=data_interval,
-                run_after=run_after,
-                run_id=DagRun.generate_run_id(
-                    run_type=DagRunType.MANUAL,
-                    logical_date=logical_date,
-                    run_after=run_after,
-                ),
-                session=session,
-                conf=run_conf,
-                triggered_by=DagRunTriggeredByType.TEST,
-            )
-            # Start a mock span so that one is present and not started downstream. We
-            # don't care about otel in dag.test and starting the span during dagrun update
-            # is not functioning properly in this context anyway.
-            dr.start_dr_spans_if_needed(tis=[])
-
-            tasks = self.task_dict
-            self.log.debug("starting dagrun")
-            # Instead of starting a scheduler, we run the minimal loop possible to check
-            # for task readiness and dependency management.
-
-            # ``Dag.test()`` works in two different modes depending on ``use_executor``:
-            # - if ``use_executor`` is False, runs the task locally with no executor using ``_run_task``
-            # - if ``use_executor`` is True, sends the task instances to the executor with
-            #   ``BaseExecutor.queue_task_instance``
-            if use_executor:
-                from airflow.models.dagbag import DagBag
-
-                dag_bag = DagBag()
-                dag_bag.bag_dag(self)
-
-                executor = ExecutorLoader.get_default_executor()
-                executor.start()
-
-            while dr.state == DagRunState.RUNNING:
-                session.expire_all()
-                schedulable_tis, _ = dr.update_state(session=session)
-                for s in schedulable_tis:
-                    if s.state != TaskInstanceState.UP_FOR_RESCHEDULE:
-                        s.try_number += 1
-                    s.state = TaskInstanceState.SCHEDULED
-                    s.scheduled_dttm = timezone.utcnow()
-                session.commit()
-                # triggerer may mark tasks scheduled so we read from DB
-                all_tis = set(dr.get_task_instances(session=session))
-                scheduled_tis = {x for x in all_tis if x.state == TaskInstanceState.SCHEDULED}
-                ids_unrunnable = {x for x in all_tis if x.state not in State.finished} - scheduled_tis
-                if not scheduled_tis and ids_unrunnable:
-                    self.log.warning("No tasks to run. unrunnable tasks: %s", ids_unrunnable)
-                    time.sleep(1)
-
-                triggerer_running = _triggerer_is_healthy(session)
-                for ti in scheduled_tis:
-                    ti.task = tasks[ti.task_id]
-
-                    mark_success = (
-                        re.compile(mark_success_pattern).fullmatch(ti.task_id) is not None
-                        if mark_success_pattern is not None
-                        else False
-                    )
-
-                    if use_executor:
-                        if executor.has_task(ti):
-                            continue
-                        # TODO: Task-SDK: This check is transitionary. Remove once all executors are ported over.
-                        from airflow.executors import workloads
-                        from airflow.executors.base_executor import BaseExecutor
-
-                        if executor.queue_workload.__func__ is not BaseExecutor.queue_workload:  # type: ignore[attr-defined]
-                            workload = workloads.ExecuteTask.make(
-                                ti,
-                                dag_rel_path=Path(self.fileloc),
-                                generator=executor.jwt_generator,
-                                # For the system test/debug purpose, we use the default bundle which uses
-                                # local file system. If it turns out to be a feature people want, we could
-                                # plumb the Bundle to use as a parameter to dag.test
-                                bundle_info=BundleInfo(name="dags-folder"),
-                            )
-                            executor.queue_workload(workload, session=session)
-                            ti.state = TaskInstanceState.QUEUED
-                            session.commit()
-                        else:
-                            # Send the task to the executor
-                            executor.queue_task_instance(ti, ignore_ti_state=True)
-                    else:
-                        # Run the task locally
-                        try:
-                            add_logger_if_needed(ti)
-                            _run_task(
-                                ti=ti,
-                                inline_trigger=not triggerer_running,
-                                session=session,
-                                mark_success=mark_success,
-                            )
-                        except Exception:
-                            self.log.exception("Task failed; ti=%s", ti)
-                if use_executor:
-                    executor.heartbeat()
-                    from airflow.jobs.scheduler_job_runner import SchedulerDagBag, SchedulerJobRunner
-
-                    SchedulerJobRunner.process_executor_events(
-                        executor=executor, job_id=None, scheduler_dag_bag=SchedulerDagBag(), session=session
-                    )
-            if use_executor:
-                executor.end()
-        return dr
-
-    @provide_session
     def create_dagrun(
         self,
         *,
@@ -1793,6 +1504,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         conf: dict | None = None,
         run_type: DagRunType,
         triggered_by: DagRunTriggeredByType,
+        triggering_user_name: str | None = None,
         state: DagRunState,
         start_date: datetime | None = None,
         creating_job_id: int | None = None,
@@ -1802,10 +1514,16 @@ class DAG(TaskSDKDag, LoggingMixin):
         """
         Create a run for this DAG to run its tasks.
 
-        :param start_date: the date this dag run should be evaluated
+        :param run_id: ID of the dag_run
+        :param logical_date: date of execution
+        :param run_after: the datetime before which dag won't run
         :param conf: Dict containing configuration/parameters to pass to the DAG
+        :param triggered_by: the entity which triggers the dag_run
+        :param triggering_user_name: the user name who triggers the dag_run
+        :param start_date: the date this dag run should be evaluated
         :param creating_job_id: ID of the job creating this DagRun
         :param backfill_id: ID of the backfill run if one exists
+        :param session: Unused. Only added in compatibility with database isolation mode
         :return: The created DAG run.
 
         :meta private:
@@ -1848,15 +1566,12 @@ class DAG(TaskSDKDag, LoggingMixin):
 
         # todo: AIP-78 add verification that if run type is backfill then we have a backfill id
 
-        if TYPE_CHECKING:
-            # TODO: Task-SDK: remove this assert
-            assert self.params
         # create a copy of params before validating
         copied_params = copy.deepcopy(self.params)
         if conf:
             copied_params.update(conf)
         copied_params.validate()
-        return _create_orm_dagrun(
+        orm_dagrun = _create_orm_dagrun(
             dag=self,
             run_id=run_id,
             logical_date=logical_date,
@@ -1869,8 +1584,27 @@ class DAG(TaskSDKDag, LoggingMixin):
             creating_job_id=creating_job_id,
             backfill_id=backfill_id,
             triggered_by=triggered_by,
+            triggering_user_name=triggering_user_name,
             session=session,
         )
+
+        if self.deadline and isinstance(self.deadline.reference, DeadlineReference.TYPES.DAGRUN):
+            session.add(
+                Deadline(
+                    deadline_time=self.deadline.reference.evaluate_with(
+                        session=session,
+                        interval=self.deadline.interval,
+                        dag_id=self.dag_id,
+                        run_id=run_id,
+                    ),
+                    callback=self.deadline.callback,
+                    callback_kwargs=self.deadline.callback_kwargs or {},
+                    dag_id=self.dag_id,
+                    dagrun_id=orm_dagrun.id,
+                )
+            )
+
+        return orm_dagrun
 
     @classmethod
     @provide_session
@@ -1895,7 +1629,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         log.info("Sync %s DAGs", len(dags))
         dag_op = DagModelOperation(
             bundle_name=bundle_name, bundle_version=bundle_version, dags={d.dag_id: d for d in dags}
-        )  # type: ignore[misc]
+        )
 
         orm_dags = dag_op.add_dags(session=session)
         dag_op.update_dags(orm_dags, session=session)
@@ -1911,11 +1645,11 @@ class DAG(TaskSDKDag, LoggingMixin):
         asset_op.add_dag_asset_alias_references(orm_dags, orm_asset_aliases, session=session)
         asset_op.add_dag_asset_name_uri_references(session=session)
         asset_op.add_task_asset_references(orm_dags, orm_assets, session=session)
-        asset_op.add_asset_trigger_references(orm_assets, session=session)
         asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
+        session.flush()  # Activation is needed when we add trigger references.
 
+        asset_op.add_asset_trigger_references(orm_assets, session=session)
         dag_op.update_dag_asset_expression(orm_dags=orm_dags, orm_assets=orm_assets)
-
         session.flush()
 
     @provide_session
@@ -2015,7 +1749,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         of_type: type[AssetT] = Asset,  # type: ignore[assignment]
     ) -> Generator[tuple[str, AssetT], None, None]:
         for task in self.task_dict.values():
-            directions = ("inlets",) if inlets else ()
+            directions: tuple[str, ...] = ("inlets",) if inlets else ()
             if outlets:
                 directions += ("outlets",)
             for direction in directions:
@@ -2042,16 +1776,7 @@ class DAG(TaskSDKDag, LoggingMixin):
             if not field.init or field.name in ["edge_info"]:
                 continue
 
-            value = getattr(dag, field.name)
-
-            # Handle special cases where values need conversion
-            if field.name == "max_consecutive_failed_dag_runs":
-                # SchedulerDAG requires this to be >= 0, while TaskSDKDag allows -1
-                if value == -1:
-                    # If it is -1, we get the default value from the DAG
-                    continue
-
-            kwargs[field.name] = value
+            kwargs[field.name] = getattr(dag, field.name)
 
         new_dag = cls(**kwargs)
 
@@ -2076,7 +1801,7 @@ class DAG(TaskSDKDag, LoggingMixin):
             if isinstance(task, TaskGroup):
                 return task_group_map[task.group_id]
 
-            new_task = copy.deepcopy(task)
+            new_task = copy.copy(task)
 
             # Only overwrite the specific attributes we want to change
             new_task.task_id = task.task_id
@@ -2150,7 +1875,7 @@ class DagModel(Base):
 
     __tablename__ = "dag"
     """
-    These items are stored in the database for state related information
+    These items are stored in the database for state related information.
     """
     dag_id = Column(StringID(), primary_key=True)
     # A DAG can be paused from the UI / DB
@@ -2185,6 +1910,8 @@ class DagModel(Base):
     timetable_description = Column(String(1000), nullable=True)
     # Asset expression based on asset triggers
     asset_expression = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    # DAG deadline information
+    _deadline = Column("deadline", sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
     # Tags for view filter
     tags = relationship("DagTag", cascade="all, delete, delete-orphan", backref=backref("dag"))
     # Dag owner links for DAGs view
@@ -2232,6 +1959,10 @@ class DagModel(Base):
         cascade="all, delete, delete-orphan",
     )
     schedule_assets = association_proxy("schedule_asset_references", "asset")
+    task_inlet_asset_references = relationship(
+        "TaskInletAssetReference",
+        cascade="all, delete, delete-orphan",
+    )
     task_outlet_asset_references = relationship(
         "TaskOutletAssetReference",
         cascade="all, delete, delete-orphan",
@@ -2277,6 +2008,16 @@ class DagModel(Base):
             self.next_dagrun_data_interval_start = self.next_dagrun_data_interval_end = None
         else:
             self.next_dagrun_data_interval_start, self.next_dagrun_data_interval_end = value
+
+    @property
+    def deadline(self):
+        """Get the deserialized deadline alert."""
+        return DeadlineAlert.deserialize_deadline_alert(self._deadline) if self._deadline else None
+
+    @deadline.setter
+    def deadline(self, value):
+        """Set and serialize the deadline alert."""
+        self._deadline = value if isinstance(value, dict) else value.serialize_deadline_alert()
 
     @property
     def timezone(self):
@@ -2541,47 +2282,6 @@ if STATICA_HACK:  # pragma: no cover
     """:sphinx-autoapi-skip:"""
 
 
-def _run_inline_trigger(trigger):
-    async def _run_inline_trigger_main():
-        # We can replace it with `return await anext(trigger.run(), default=None)`
-        # when we drop support for Python 3.9
-        try:
-            return await trigger.run().__anext__()
-        except StopAsyncIteration:
-            return None
-
-    return asyncio.run(_run_inline_trigger_main())
-
-
-def _run_task(
-    *, ti: TaskInstance, inline_trigger: bool = False, mark_success: bool = False, session: Session
-):
-    """
-    Run a single task instance, and push result to Xcom for downstream tasks.
-
-    Bypasses a lot of extra steps used in `task.run` to keep our local running as fast as
-    possible.  This function is only meant for the `dag.test` function as a helper function.
-
-    Args:
-        ti: TaskInstance to run
-    """
-    log.info("[DAG TEST] starting task_id=%s map_index=%s", ti.task_id, ti.map_index)
-    while True:
-        try:
-            log.info("[DAG TEST] running task %s", ti)
-            ti._run_raw_task(session=session, raise_on_defer=inline_trigger, mark_success=mark_success)
-            break
-        except TaskDeferred as e:
-            log.info("[DAG TEST] running trigger in line")
-            event = _run_inline_trigger(e.trigger)
-            ti.next_method = e.method_name
-            ti.next_kwargs = {"event": event.payload} if event else e.kwargs
-            log.info("[DAG TEST] Trigger completed")
-        session.merge(ti)
-        session.commit()
-    log.info("[DAG TEST] end task task_id=%s map_index=%s", ti.task_id, ti.map_index)
-
-
 def _get_or_create_dagrun(
     *,
     dag: DAG,
@@ -2591,6 +2291,7 @@ def _get_or_create_dagrun(
     run_after: datetime,
     conf: dict | None,
     triggered_by: DagRunTriggeredByType,
+    triggering_user_name: str | None,
     start_date: datetime,
     session: Session,
 ) -> DagRun:
@@ -2605,6 +2306,7 @@ def _get_or_create_dagrun(
     :param logical_date: Logical date for finding an existing run.
     :param run_id: Run ID for the new DAG run.
     :param triggered_by: the entity which triggers the dag_run
+    :param triggering_user_name: the user name who triggers the dag_run
 
     :return: The newly created DAG run.
     """
@@ -2623,6 +2325,7 @@ def _get_or_create_dagrun(
         run_type=DagRunType.MANUAL,
         state=DagRunState.RUNNING,
         triggered_by=triggered_by,
+        triggering_user_name=triggering_user_name,
         start_date=start_date or logical_date,
         session=session,
     )

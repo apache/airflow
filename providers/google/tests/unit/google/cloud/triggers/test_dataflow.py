@@ -29,6 +29,7 @@ from airflow.providers.google.cloud.triggers.dataflow import (
     DataflowJobAutoScalingEventTrigger,
     DataflowJobMessagesTrigger,
     DataflowJobMetricsTrigger,
+    DataflowJobStateCompleteTrigger,
     DataflowJobStatusTrigger,
     DataflowStartYamlJobTrigger,
     TemplateJobStartTrigger,
@@ -42,6 +43,7 @@ GCP_CONN_ID = "test_gcp_conn_id"
 POLL_SLEEP = 20
 IMPERSONATION_CHAIN = ["impersonate", "this"]
 CANCEL_TIMEOUT = 10 * 420
+WAIT_UNTIL_FINISHED = None
 
 
 @pytest.fixture
@@ -119,6 +121,19 @@ def dataflow_start_yaml_job_trigger():
         poll_sleep=POLL_SLEEP,
         impersonation_chain=IMPERSONATION_CHAIN,
         cancel_timeout=CANCEL_TIMEOUT,
+    )
+
+
+@pytest.fixture
+def dataflow_job_state_complete_trigger():
+    return DataflowJobStateCompleteTrigger(
+        project_id=PROJECT_ID,
+        job_id=JOB_ID,
+        location=LOCATION,
+        gcp_conn_id=GCP_CONN_ID,
+        poll_sleep=POLL_SLEEP,
+        impersonation_chain=IMPERSONATION_CHAIN,
+        wait_until_finished=WAIT_UNTIL_FINISHED,
     )
 
 
@@ -860,3 +875,132 @@ class TestDataflowStartYamlJobTrigger:
         await asyncio.sleep(0.5)
         assert task.done() is False
         task.cancel()
+
+
+class TestDataflowJobStateCompleteTrigger:
+    """Test case for DataflowJobStatusTrigger"""
+
+    def test_serialize(self, dataflow_job_state_complete_trigger):
+        expected_data = (
+            "airflow.providers.google.cloud.triggers.dataflow.DataflowJobStateCompleteTrigger",
+            {
+                "project_id": PROJECT_ID,
+                "job_id": JOB_ID,
+                "location": LOCATION,
+                "wait_until_finished": WAIT_UNTIL_FINISHED,
+                "gcp_conn_id": GCP_CONN_ID,
+                "poll_sleep": POLL_SLEEP,
+                "impersonation_chain": IMPERSONATION_CHAIN,
+            },
+        )
+        actual_data = dataflow_job_state_complete_trigger.serialize()
+        assert actual_data == expected_data
+
+    @pytest.mark.parametrize(
+        "attr, expected",
+        [
+            ("gcp_conn_id", GCP_CONN_ID),
+            ("poll_sleep", POLL_SLEEP),
+            ("impersonation_chain", IMPERSONATION_CHAIN),
+        ],
+    )
+    def test_async_hook(self, dataflow_job_state_complete_trigger, attr, expected):
+        hook = dataflow_job_state_complete_trigger.async_hook
+        actual = hook._hook_kwargs.get(attr)
+        assert actual == expected
+
+    @pytest.mark.parametrize(
+        "job_status_value",
+        [
+            JobState.JOB_STATE_FAILED,
+            JobState.JOB_STATE_CANCELLED,
+            JobState.JOB_STATE_DRAINED,
+        ],
+    )
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job")
+    async def test_run_yields_error_on_failed_state(
+        self,
+        mock_job,
+        job_status_value,
+        dataflow_job_state_complete_trigger,
+    ):
+        mock_job.return_value = Job(
+            id=JOB_ID, current_state=job_status_value, type_=JobType.JOB_TYPE_STREAMING
+        )
+        expected_event = TriggerEvent(
+            {
+                "status": "error",
+                "message": f"Job with id '{JOB_ID}' is in failed terminal state: {job_status_value.name}",
+            }
+        )
+        actual_event = await dataflow_job_state_complete_trigger.run().asend(None)
+        assert actual_event == expected_event
+
+    @pytest.mark.parametrize(
+        "job_item",
+        [
+            Job(id=JOB_ID, current_state=JobState.JOB_STATE_DONE, type_=JobType.JOB_TYPE_BATCH),
+            Job(id=JOB_ID, current_state=JobState.JOB_STATE_RUNNING, type_=JobType.JOB_TYPE_STREAMING),
+        ],
+    )
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job")
+    async def test_run_yields_success_event_if_expected_job_status(
+        self,
+        mock_job,
+        job_item,
+        dataflow_job_state_complete_trigger,
+    ):
+        dataflow_job_state_complete_trigger.expected_statuses = {
+            DataflowJobStatus.JOB_STATE_DONE,
+            DataflowJobStatus.JOB_STATE_RUNNING,
+        }
+        mock_job.return_value = mock_job.return_value = job_item
+
+        expected_event = TriggerEvent(
+            {
+                "status": "success",
+                "message": f"Job with id '{JOB_ID}' has reached successful final state:"
+                f" {job_item.current_state.name}",
+            }
+        )
+        actual_event = await dataflow_job_state_complete_trigger.run().asend(None)
+        assert actual_event == expected_event
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job")
+    async def test_run_loop_is_still_running_if_state_is_not_terminal_or_expected(
+        self,
+        mock_job,
+        dataflow_job_state_complete_trigger,
+    ):
+        """
+        Test that DataflowJobStateCompleteTrigger is still in loop if the job status neither
+        terminal nor expected.
+        """
+        mock_job.return_value = Job(
+            id=JOB_ID,
+            current_state=JobState.JOB_STATE_PENDING,
+            type_=JobType.JOB_TYPE_STREAMING,
+        )
+        task = asyncio.create_task(dataflow_job_state_complete_trigger.run().__anext__())
+        await asyncio.sleep(0.5)
+        assert task.done() is False
+        task.cancel()
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job")
+    async def test_run_raises_exception(self, mock_job, dataflow_job_state_complete_trigger):
+        """
+        Tests the DataflowJobStateCompleteTrigger does trigger error if there is an exception.
+        """
+        mock_job.side_effect = mock.AsyncMock(side_effect=Exception("Test exception"))
+        expected_event = TriggerEvent(
+            {
+                "status": "error",
+                "message": "Test exception",
+            }
+        )
+        actual_event = await dataflow_job_state_complete_trigger.run().asend(None)
+        assert expected_event == actual_event

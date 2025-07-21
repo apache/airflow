@@ -229,6 +229,18 @@ The other way around also applies:
     def process_example_asset(example_asset):
         """Process inlet example_asset..."""
 
+In addition, ``@asset`` can be used with ``@task`` to customize the task that generates the asset,
+utilizing the modern TaskFlow approach described in :doc:`/tutorial/taskflow`.
+
+This combination allows you to set initial arguments for the task and to use various operators, such as the ``BashOperator``:
+
+.. code-block:: python
+
+    @asset(schedule=None)
+    @task.bash(retries=3)
+    def example_asset():
+        """Write to example_asset, from a Bash task with 3 retries..."""
+        return "echo 'run'"
 
 Output to multiple assets in one task
 -------------------------------------
@@ -280,7 +292,7 @@ The following example creates an asset event against the S3 URI ``f"s3://bucket/
 
 .. code-block:: python
 
-    from airflow.sdk.definitions.asset import AssetAlias
+    from airflow.sdk import AssetAlias
 
 
     @task(outlets=[AssetAlias("my-task-outputs")])
@@ -292,19 +304,19 @@ The following example creates an asset event against the S3 URI ``f"s3://bucket/
 
 .. code-block:: python
 
-    from airflow.sdk.definitions.asset.metadata import Metadata
+    from airflow.sdk import Metadata
 
 
     @task(outlets=[AssetAlias("my-task-outputs")])
     def my_task_with_metadata():
         s3_asset = Asset(uri="s3://bucket/my-task", name="example_s3")
-        yield Metadata(s3_asset, extra={"k": "v"}, alias="my-task-outputs")
+        yield Metadata(s3_asset, extra={"k": "v"}, alias=AssetAlias("my-task-outputs"))
 
 Only one asset event is emitted for an added asset, even if it is added to the alias multiple times, or added to multiple aliases. However, if different ``extra`` values are passed, it can emit multiple asset events. In the following example, two asset events will be emitted.
 
 .. code-block:: python
 
-    from airflow.sdk.definitions.asset import AssetAlias
+    from airflow.sdk import AssetAlias
 
 
     @task(

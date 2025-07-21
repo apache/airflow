@@ -28,13 +28,14 @@ from sqlalchemy import select
 from airflow.exceptions import AirflowSkipException
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
+from airflow.models.dag_version import DagVersion
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import setup, task, task_group, teardown
-from airflow.sdk.execution_time.comms import XComCountResponse
+from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 
 from tests_common.test_utils.mapping import expand_mapped_task
@@ -68,6 +69,8 @@ def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template
         unrenderable_values = [UnrenderableClass(), UnrenderableClass()]
         mapped = CustomOperator.partial(task_id="task_2").expand(arg=unrenderable_values)
         task1 >> mapped
+    dag.sync_to_db()
+    SerializedDagModel.write_dag(dag, bundle_name="testing")
     dag.test()
     assert (
         "Unable to check if the value of type 'UnrenderableClass' is False for task 'task_2', field 'arg'"
@@ -125,9 +128,17 @@ def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expec
             TaskInstance.run_id == dr.run_id,
         ).delete()
 
+    dag_version = DagVersion.get_latest_version(dr.dag_id)
+
     for index in range(num_existing_tis):
         # Give the existing TIs a state to make sure we don't change them
-        ti = TaskInstance(mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.SUCCESS)
+        ti = TaskInstance(
+            mapped,
+            run_id=dr.run_id,
+            map_index=index,
+            state=TaskInstanceState.SUCCESS,
+            dag_version_id=dag_version.id,
+        )
         session.add(ti)
     session.flush()
 
@@ -166,10 +177,16 @@ def test_expand_mapped_task_failed_state_in_db(dag_maker, session):
             keys=None,
         )
     )
-
+    dag_version = DagVersion.get_latest_version(dr.dag_id)
     for index in range(2):
         # Give the existing TIs a state to make sure we don't change them
-        ti = TaskInstance(mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.SUCCESS)
+        ti = TaskInstance(
+            mapped,
+            run_id=dr.run_id,
+            map_index=index,
+            state=TaskInstanceState.SUCCESS,
+            dag_version_id=dag_version.id,
+        )
         session.add(ti)
     session.flush()
 
@@ -261,10 +278,17 @@ def test_expand_kwargs_mapped_task_instance(dag_maker, session, num_existing_tis
             TaskInstance.task_id == mapped.task_id,
             TaskInstance.run_id == dr.run_id,
         ).delete()
+    dag_version = DagVersion.get_latest_version(dr.dag_id)
 
     for index in range(num_existing_tis):
         # Give the existing TIs a state to make sure we don't change them
-        ti = TaskInstance(mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.SUCCESS)
+        ti = TaskInstance(
+            mapped,
+            run_id=dr.run_id,
+            map_index=index,
+            state=TaskInstanceState.SUCCESS,
+            dag_version_id=dag_version.id,
+        )
         session.add(ti)
     session.flush()
 
@@ -334,7 +358,7 @@ def _create_mapped_with_name_template_classic(*, task_id, map_names, template):
 
 
 def _create_mapped_with_name_template_taskflow(*, task_id, map_names, template):
-    from airflow.providers.standard.operators.python import get_current_context
+    from airflow.sdk import get_current_context
 
     @task(task_id=task_id, map_index_template=template)
     def task1(map_name):
@@ -360,7 +384,7 @@ def _create_named_map_index_renders_on_failure_classic(*, task_id, map_names, te
 
 
 def _create_named_map_index_renders_on_failure_taskflow(*, task_id, map_names, template):
-    from airflow.providers.standard.operators.python import get_current_context
+    from airflow.sdk import get_current_context
 
     @task(task_id=task_id, map_index_template=template)
     def task1(map_name):
@@ -397,11 +421,16 @@ def test_expand_mapped_task_instance_with_named_index(
     expected_rendered_names,
 ) -> None:
     """Test that the correct number of downstream tasks are generated when mapping with an XComArg"""
-    with dag_maker("test-dag", session=session, start_date=DEFAULT_DATE):
+    dag_id = "test_dag_12345"
+    with dag_maker(
+        dag_id=dag_id,
+        start_date=DEFAULT_DATE,
+        serialized=True,
+    ):
         create_mapped_task(task_id="task1", map_names=["a", "b"], template=template)
 
-    dr = dag_maker.create_dagrun()
-    tis = dr.get_task_instances()
+    dr = dag_maker.create_dagrun(session=session)
+    tis = dr.get_task_instances(session=session)
     for ti in tis:
         ti.run()
     session.flush()
@@ -409,7 +438,7 @@ def test_expand_mapped_task_instance_with_named_index(
     indices = session.scalars(
         select(TaskInstance.rendered_map_index)
         .where(
-            TaskInstance.dag_id == "test-dag",
+            TaskInstance.dag_id == dag_id,
             TaskInstance.task_id == "task1",
             TaskInstance.run_id == dr.run_id,
         )
@@ -1265,13 +1294,7 @@ class TestMappedSetupTeardown:
         tg1, tg2 = dag.task_group.children.values()
         tg1 >> tg2
 
-        with mock.patch(
-            "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
-        ) as supervisor_comms:
-            # TODO: TaskSDK: this is a bit of a hack that we need to stub this at all. `dag.test()` should
-            # really work without this!
-            supervisor_comms.get_message.return_value = XComCountResponse(len=3)
-            dr = dag.test()
+        dr = dag.test()
         states = self.get_states(dr)
         expected = {
             "tg_1.my_pre_setup": "success",

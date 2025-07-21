@@ -19,7 +19,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import computed_field
+from pydantic import AliasPath, Field, computed_field
 
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.dag_processing.bundles.manager import DagBundlesManager
@@ -34,13 +34,17 @@ class DagVersionResponse(BaseModel):
     bundle_name: str | None
     bundle_version: str | None
     created_at: datetime
+    dag_display_name: str = Field(validation_alias=AliasPath("dag_model", "dag_display_name"))
 
     # Mypy issue https://github.com/python/mypy/issues/1362
-    @computed_field  # type: ignore[misc]
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def bundle_url(self) -> str | None:
         if self.bundle_name:
-            return DagBundlesManager().view_url(self.bundle_name, self.bundle_version)
+            try:
+                return DagBundlesManager().view_url(self.bundle_name, self.bundle_version)
+            except ValueError:
+                return None
         return None
 
 

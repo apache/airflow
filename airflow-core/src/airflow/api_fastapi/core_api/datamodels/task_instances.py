@@ -44,6 +44,7 @@ class TaskInstanceResponse(BaseModel):
     id: str
     task_id: str
     dag_id: str
+    dag_version: DagVersionResponse
     run_id: str = Field(alias="dag_run_id")
     map_index: int
     logical_date: datetime | None
@@ -55,6 +56,7 @@ class TaskInstanceResponse(BaseModel):
     try_number: int
     max_tries: int
     task_display_name: str
+    dag_display_name: str = Field(validation_alias=AliasPath("dag_run", "dag_model", "dag_display_name"))
     hostname: str | None
     unixname: str | None
     pool: str
@@ -75,7 +77,6 @@ class TaskInstanceResponse(BaseModel):
     )
     trigger: TriggerResponse | None
     queued_by_job: JobResponse | None = Field(alias="triggerer_job")
-    dag_version: DagVersionResponse | None
 
 
 class TaskInstanceCollectionResponse(BaseModel):
@@ -140,6 +141,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     try_number: int
     max_tries: int
     task_display_name: str
+    dag_display_name: str = Field(validation_alias=AliasPath("dag_run", "dag_model", "dag_display_name"))
     hostname: str | None
     unixname: str | None
     pool: str
@@ -222,3 +224,10 @@ class PatchTaskInstanceBody(StrictBaseModel):
         if ns not in valid_states:
             raise ValueError(f"'{ns}' is not one of {valid_states}")
         return ns
+
+
+class BulkTaskInstanceBody(PatchTaskInstanceBody, StrictBaseModel):
+    """Request body for bulk update, and delete task instances."""
+
+    task_id: str
+    map_index: int | None = None

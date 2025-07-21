@@ -61,7 +61,6 @@ from docs.utils.conf_constants import (
     get_html_theme_options,
     get_intersphinx_mapping,
     get_rst_epilogue,
-    get_rst_filepath_from_path,
 )
 from sphinx_exts.provider_yaml_utils import load_package_data
 
@@ -144,6 +143,7 @@ extensions.extend(
     [
         "extra_provider_files_with_substitutions",
         "providers_extensions",
+        "providers_commits",
         "sphinx_jinja",
     ]
 )
@@ -155,23 +155,16 @@ exclude_patterns = [
     "operators/_partials",
     "_api/airflow/index.rst",
     "_api/airflow/providers/index.rst",
-    "_api/airflow/providers/apache/index.rst",
-    "_api/airflow/providers/atlassian/index.rst",
-    "_api/airflow/providers/cncf/index.rst",
-    "_api/airflow/providers/common/index.rst",
-    "_api/airflow/providers/common/messaging/providers/base_provider/index.rst",
-    "_api/airflow/providers/common/messaging/providers/sqs/index.rst",
-    "_api/airflow/providers/dbt/index.rst",
-    "_api/airflow/providers/microsoft/index.rst",
     "_api/docs/conf",
+    *[f"_api/airflow/providers/{subpackage}/index.rst" for subpackage in empty_subpackages],
     *[f"_api/system/{subpackage}/index.rst" for subpackage in empty_subpackages],
     *[f"_api/tests/system/{subpackage}/index.rst" for subpackage in empty_subpackages],
 ]
 
-exclude_patterns.extend(
-    get_rst_filepath_from_path(f, AIRFLOW_REPO_ROOT_PATH)
-    for f in BASE_PROVIDER_SRC_PATH.rglob("example_dags")
-)
+# exclude_patterns.extend(
+#     get_rst_filepath_from_path(f, AIRFLOW_REPO_ROOT_PATH)
+#     for f in BASE_PROVIDER_SRC_PATH.rglob("example_dags")
+# )
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["templates"]
@@ -303,7 +296,6 @@ autoapi_ignore.extend(
     (
         "*/airflow/__init__.py",
         "*/airflow/providers/__init__.py",
-        "*/example_dags/*",
         "*/providers/__init__.py",
         "*/conf/*",
     )
@@ -369,7 +361,7 @@ if PACKAGE_NAME in PROVIDER_PACKAGES_WITH_REDOC:
         "v1-flask-api.yaml"
     )
     fab_auth_manager_fastapi_api_path = Path(fab_auth_manager_fastapi_api_file).parent.joinpath(
-        "v1-fab-auth-manager-generated.yaml"
+        "v2-fab-auth-manager-generated.yaml"
     )
     redoc = [
         {

@@ -163,7 +163,9 @@ Releasing Production images
 """""""""""""""""""""""""""
 
 The **Production image** can be released by release managers who have permissions to push the image. This
-happens only when there is an RC candidate or final version of Airflow released.
+happens only when there is an RC candidate or final version of Airflow released.  Normally it happens in CI,
+via ("Release PROD images" workflow that uses appropriate breeze commands, but you can also do it locally,
+providing that you are release manager and you have write access to the DockerHub registry.
 
 You release "regular" and "slim" images as separate steps.
 
@@ -171,16 +173,53 @@ Releasing "regular" images:
 
 .. code-block:: bash
 
-     breeze release-management release-prod-images --airflow-version 2.4.0
+     breeze release-management release-prod-images --airflow-version 3.0.0
 
 Or "slim" images:
 
 .. code-block:: bash
 
-     breeze release-management release-prod-images --airflow-version 2.4.0 --slim-images
+     breeze release-management release-prod-images --airflow-version 3.0.0 --slim-images
 
 By default when you are releasing the "final" image, we also tag image with "latest" tags but this
-step can be skipped if you pass the ``--skip-latest`` flag.
+step can be skipped if you pass the ``--skip-latest`` flag (last python version is always tagged
+as non-versioned image). For example:
+
+* airflow-3.0.0-python3.12 is tagged as airflow-3.0.0
+
+If `airflow-3.0.0' is the latest version:
+
+* airflow-3.0.0-python3.12 is tagged as airflow-latest
+* airflow-3.0.0-python3.12 is tagged as airflow-latest-python3.12
+* airflow-3.0.0-python3.11 is tagged as airflow-latest-python3.11
+
+and so on.
+
+This command by default uses either emulation or you need to have driver configured to be able to build
+a multi-platform image on your local machine - but this might be long (for emulation) or a bit complex to
+setup (to have multi-hardware support in your buildx driver). The steps to do so are described in the
+`MANUALLY_BUILDING_IMAGES.md <../../MANUALLY_BUILDING_IMAGES.md>`__ document.
+
+However you can also use the ``--metadata-folder`` flag to specify the folder with metadata files where
+information about the image is stored and build the images separately on each hardware. The images are pushed
+to the registry as ``digest-only`` images without tags and digest information is stored in the locally generated
+metadata files. You can then transfer the metadata files generated on different hardware to a single machine
+and run ``breeze merge-production-images`` command below to merge and publish such
+multi-platform image. Again - details of this process are described in the same
+`MANUALLY_BUILDING_IMAGES.md <../../MANUALLY_BUILDING_IMAGES.md>`__ document. In case ``--metadata-folder``,
+tagging is skipped and it is only performed when you merge the images.
+
+Releasing "regular" images:
+
+.. code-block:: bash
+
+     breeze release-management release-prod-images --airflow-version 3.0.0 --metadata-folder dist
+
+Or "slim" images:
+
+.. code-block:: bash
+
+     breeze release-management release-prod-images --airflow-version 3.0.0 --slim-images --metadata-folder dist
 
 These are all of the available flags for the ``release-prod-images`` command:
 
@@ -188,6 +227,41 @@ These are all of the available flags for the ``release-prod-images`` command:
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_release-prod-images.svg
   :width: 100%
   :alt: Breeze release management release prod images
+
+Merging Production images
+"""""""""""""""""""""""""
+
+As described in the previous step, when you are building images separately - on separate hardware (ARM separately
+and AMD separately), you push images as ``digest-only`` images without tags and digest information is stored
+in the locally generated metadata files. You can then transfer the metadata files generated on different
+hardware to a single machine and run ``breeze merge-production-images`` command below to merge and publish
+such multi-platform image.
+
+You merge "regular" and "slim" images as separate steps.
+
+Merging "regular" images (after getting all the metadata files in the metadata folder):
+
+.. code-block:: bash
+
+     breeze release-management merge-prod-images --airflow-version 3.0.0 --metadata-folder dist
+
+Or "slim" images:
+
+.. code-block:: bash
+
+     breeze release-management release-prod-images --airflow-version 2.4.0 --slim-images dist
+
+By default when you are releasing the "final" image, we also tag image with "latest" tags but this
+step can be skipped if you pass the ``--skip-latest`` flag.
+
+These are all of the available flags for the ``merge-prod-images`` command:
+
+.. image:: ./images/output_release-management_merge-prod-images.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_merge-prod-images.svg
+  :width: 100%
+  :alt: Breeze release management merge prod images
+
+The images are also aliased in dockerhub as appropriate.
 
 Adding git tags for providers
 """""""""""""""""""""""""""""
@@ -767,3 +841,57 @@ These are all available flags of ``release-management publish-docs-to-s3`` comma
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_publish-docs-to-s3.svg
   :width: 100%
   :alt: Breeze Publish documentation to S3
+
+
+Trigger GitHub Actions docs publish workflow
+"""""""""""""""""""""""""""""""""""""""""""""
+To trigger the GitHub Actions workflow that publishes the documentation to S3, you can use the
+``breeze workflow-run publish-docs`` command.
+
+These are all available flags of ``workflow-run`` command:
+
+.. image:: ./images/output_workflow-run.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_workflow-run.svg
+  :width: 100%
+  :alt: Workflow run command
+
+
+.. code-block:: bash
+
+     breeze workflow-run publish-docs --ref <ref> --exclude-docs <exclude-docs> --site-env <site-env> --refresh-site --skip-write-to-stable-folder <docs_packages>
+
+     example:
+      breeze workflow-run publish-docs --ref providers-amazon/1.0.0 --site-env live --refresh-site --skip-write-to-stable-folder amazon apache.kafka
+
+``--ref`` specifies the Git reference tag checkout and build docs.
+``--exclude-docs`` specifies the documentation packages to exclude from the publish process.
+``--site-env`` specifies the environment to use for the site (e.g., auto, live, staging). the default is auto, based on the ref it decides live or staging.
+``--refresh-site`` specifies whether to refresh the site after publishing the documentation. This triggers workflow on apache/airflow-site repository to refresh the site.
+``--skip-write-to-stable-folder`` specifies the documentation packages to skip writing to the stable folder.
+
+
+These are all available flags of ``workflow-run publish-docs`` command:
+
+.. image:: ./images/output_workflow-run_publish-docs.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_workflow-run_publish-docs.svg
+  :width: 100%
+  :alt: Breeze workflow-run publish-docs
+
+Constraints version check
+"""""""""""""""""""""""""
+
+To check if the constraints files are up to date in the current Airflow version, you can use the
+``breeze release-management check-constraints-updates`` command.
+
+These are all available flags of ``check-constraints-updates`` command:
+
+.. image:: ./images/output_release-management_constraints-version-check.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_constraints-version-check.svg
+  :width: 100%
+  :alt: Breeze constraints version check
+
+Example usage:
+
+.. code-block:: bash
+
+     breeze release-management constraints-version-check --python 3.10 --airflow-constraints-mode constraints-source-providers --explain-why

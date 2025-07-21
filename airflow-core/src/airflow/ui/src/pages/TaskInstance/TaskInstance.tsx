@@ -17,38 +17,44 @@
  * under the License.
  */
 import { ReactFlowProvider } from "@xyflow/react";
-import { FiCode } from "react-icons/fi";
-import { MdDetails, MdOutlineEventNote, MdReorder, MdSyncAlt } from "react-icons/md";
+import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import { FiCode, FiDatabase } from "react-icons/fi";
+import { MdDetails, MdOutlineEventNote, MdOutlineTask, MdReorder, MdSyncAlt } from "react-icons/md";
 import { PiBracketsCurlyBold } from "react-icons/pi";
 import { useParams } from "react-router-dom";
 
-import { useDagServiceGetDagDetails, useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
+import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
+import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { Header } from "./Header";
 
-const tabs = [
-  { icon: <MdReorder />, label: "Logs", value: "" },
-  { icon: <PiBracketsCurlyBold />, label: "Rendered Templates", value: "rendered_templates" },
-  { icon: <MdSyncAlt />, label: "XCom", value: "xcom" },
-  { icon: <MdOutlineEventNote />, label: "Events", value: "events" },
-  { icon: <FiCode />, label: "Code", value: "code" },
-  { icon: <MdDetails />, label: "Details", value: "details" },
-];
-
 export const TaskInstance = () => {
+  const { t: translate } = useTranslation("dag");
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
 
-  const refetchInterval = useAutoRefresh({ dagId });
+  // Get external views with task_instance destination
+  const externalTabs = usePluginTabs("task_instance");
 
-  const {
-    data: dag,
-    error: dagError,
-    isLoading: isDagLoading,
-  } = useDagServiceGetDagDetails({
-    dagId,
-  });
+  const tabs = [
+    { icon: <MdReorder />, label: translate("tabs.logs"), value: "" },
+    {
+      icon: <PiBracketsCurlyBold />,
+      label: translate("tabs.renderedTemplates"),
+      value: "rendered_templates",
+    },
+    { icon: <MdSyncAlt />, label: translate("tabs.xcom"), value: "xcom" },
+    { icon: <FiDatabase />, label: translate("tabs.assetEvents"), value: "asset_events" },
+    { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
+    { icon: <FiCode />, label: translate("tabs.code"), value: "code" },
+    { icon: <MdDetails />, label: translate("tabs.details"), value: "details" },
+    ...externalTabs,
+  ];
+
+  const refetchInterval = useAutoRefresh({ dagId });
 
   const {
     data: taskInstance,
@@ -67,9 +73,37 @@ export const TaskInstance = () => {
     },
   );
 
+  const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId });
+
+  const taskInstanceSummary = gridTISummaries?.task_instances.find((ti) => ti.task_id === taskId);
+  const taskCount = useMemo(
+    () =>
+      Array.isArray(taskInstanceSummary?.child_states)
+        ? taskInstanceSummary.child_states
+            .map((_state: string, count: number) => count)
+            .reduce((acc: number, val: unknown) => acc + (typeof val === "number" ? val : 0), 0)
+        : 0,
+    [taskInstanceSummary],
+  );
+  let newTabs = tabs;
+
+  if (taskInstance && taskInstance.map_index > -1) {
+    newTabs = [
+      ...tabs.slice(0, 1),
+      {
+        icon: <MdOutlineTask />,
+        label: translate("tabs.mappedTaskInstances_other", {
+          count: Number(taskCount),
+        }),
+        value: "task_instances",
+      },
+      ...tabs.slice(1),
+    ];
+  }
+
   return (
     <ReactFlowProvider>
-      <DetailsLayout dag={dag} error={error ?? dagError} isLoading={isLoading || isDagLoading} tabs={tabs}>
+      <DetailsLayout error={error} isLoading={isLoading} tabs={newTabs}>
         {taskInstance === undefined ? undefined : (
           <Header
             isRefreshing={Boolean(isStatePending(taskInstance.state) && Boolean(refetchInterval))}

@@ -25,7 +25,7 @@ import pytest
 from cryptography.fernet import Fernet
 
 from airflow.models import Variable, crypto, variable
-from airflow.secrets.cache import SecretCache
+from airflow.sdk import SecretCache
 from airflow.secrets.metastore import MetastoreBackend
 
 from tests_common.test_utils import db
@@ -120,6 +120,27 @@ class TestVariable:
             "will be updated, but to read it you have to delete the conflicting variable from "
             "EnvironmentVariablesBackend"
         )
+
+    def test_variable_set_update_existing(self, session):
+        Variable.set(key="test_key", value="initial_value", session=session)
+
+        initial_var = session.query(Variable).filter(Variable.key == "test_key").one()
+        initial_id = initial_var.id
+
+        # Need to expire session cache to fetch fresh data from db on next query
+        # Without this, SQLAlchemy will return the cached object with old values
+        # instead of querying the database again for the updated values
+        session.expire(initial_var)
+
+        Variable.set(key="test_key", value="updated_value", session=session)
+
+        updated_var = session.query(Variable).filter(Variable.key == "test_key").one()
+
+        # 1. The ID remains the same (no delete-insert)
+        assert updated_var.id == initial_id, "Variable ID should remain the same after update"
+
+        # 2. The value is updated to the new value
+        assert updated_var.val == "updated_value", "Variable value should be updated to the new value"
 
     @mock.patch("airflow.models.variable.ensure_secrets_loaded")
     def test_variable_set_with_extra_secret_backend(self, mock_ensure_secrets, caplog, session):

@@ -27,6 +27,54 @@
 Changelog
 ---------
 
+6.3.1
+.....
+
+Misc
+~~~~
+
+* ``Provider Migration: Update trino for Airflow 3.0 compatibility  (#52383)``
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add extra_credentials and roles to TrinoHook (#51298)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.2.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.10+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Misc
+~~~~
+
+* ``Migrate 'PrestoHook' and 'TrinoHook' to use 'get_df' (#50123)``
+* ``Remove AIRFLOW_2_10_PLUS conditions (#49877)``
+* ``Bump min Airflow version in providers to 2.10 (#49843)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix Trino provider doc (#50018)``
+* ``add exasol operators doc and example & refactor trino (#49679)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Avoid committing history for providers (#49907)``
+
 6.1.2
 .....
 

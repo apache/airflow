@@ -27,19 +27,22 @@ import selectors
 import signal
 import sys
 import time
-from collections.abc import Generator
-from contextlib import suppress
+import weakref
+from collections import deque
+from collections.abc import Callable, Generator
+from contextlib import contextmanager, suppress
 from datetime import datetime, timezone
 from http import HTTPStatus
-from socket import SO_SNDBUF, SOL_SOCKET, SocketIO, socket, socketpair
+from socket import socket, socketpair
 from typing import (
     TYPE_CHECKING,
-    Callable,
+    BinaryIO,
     ClassVar,
     NoReturn,
     TextIO,
     cast,
 )
+from urllib.parse import urlparse
 from uuid import UUID
 
 import attrs
@@ -54,17 +57,19 @@ from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     ConnectionResponse,
-    IntermediateTIState,
     TaskInstance,
+    TaskInstanceState,
     TaskStatesResponse,
-    TerminalTIState,
     VariableResponse,
+    XComSequenceIndexResponse,
 )
 from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.execution_time import comms
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
     ConnectionResult,
+    CreateHITLDetailPayload,
     DagRunStateResult,
     DeferTask,
     DeleteVariable,
@@ -84,10 +89,15 @@ from airflow.sdk.execution_time.comms import (
     GetVariable,
     GetXCom,
     GetXComCount,
+    GetXComSequenceItem,
+    GetXComSequenceSlice,
+    InactiveAssetsResult,
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
+    ResendLoggingFD,
     RetryTask,
+    SentFDs,
     SetRenderedFields,
     SetXCom,
     SkipDownstreamTasks,
@@ -97,11 +107,21 @@ from airflow.sdk.execution_time.comms import (
     TaskStatesResult,
     ToSupervisor,
     TriggerDagRun,
+    ValidateInletsAndOutlets,
     VariableResult,
     XComCountResponse,
     XComResult,
+    XComSequenceIndexResult,
+    XComSequenceSliceResult,
+    _RequestFrame,
+    _ResponseFrame,
 )
 from airflow.sdk.execution_time.secrets_masker import mask_secret
+
+try:
+    from socket import send_fds
+except ImportError:
+    send_fds = None  # type: ignore[assignment]
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger, WrappedLogger
@@ -121,6 +141,11 @@ HEARTBEAT_TIMEOUT: int = conf.getint("scheduler", "task_instance_heartbeat_timeo
 MIN_HEARTBEAT_INTERVAL: int = conf.getint("workers", "min_heartbeat_interval")
 MAX_FAILED_HEARTBEATS: int = conf.getint("workers", "max_failed_heartbeats")
 
+SOCKET_CLEANUP_TIMEOUT: float = conf.getfloat("workers", "socket_cleanup_timeout")
+
+# Maximum possible time (in seconds) that task will have for execution of auxiliary processes
+# like listeners after task is complete.
+TASK_OVERTIME_THRESHOLD: float = conf.getfloat("core", "task_success_overtime")
 
 SERVER_TERMINATED = "SERVER_TERMINATED"
 
@@ -128,10 +153,10 @@ SERVER_TERMINATED = "SERVER_TERMINATED"
 # "Directly" here means that the PATCH API calls to transition into these states are
 # made from _handle_request() itself and don't have to come all the way to wait().
 STATES_SENT_DIRECTLY = [
-    IntermediateTIState.DEFERRED,
-    IntermediateTIState.UP_FOR_RESCHEDULE,
-    IntermediateTIState.UP_FOR_RETRY,
-    TerminalTIState.SUCCESS,
+    TaskInstanceState.DEFERRED,
+    TaskInstanceState.UP_FOR_RESCHEDULE,
+    TaskInstanceState.UP_FOR_RETRY,
+    TaskInstanceState.SUCCESS,
     SERVER_TERMINATED,
 ]
 
@@ -170,23 +195,6 @@ macOS
 ********************************************************************************************************"""
 
 
-def mkpipe(
-    remote_read: bool = False,
-) -> tuple[socket, socket]:
-    """Create a pair of connected sockets."""
-    rsock, wsock = socketpair()
-    local, remote = (wsock, rsock) if remote_read else (rsock, wsock)
-
-    if remote_read:
-        # Setting a 4KB buffer here if possible, if not, it still works, so we will suppress all exceptions
-        with suppress(Exception):
-            local.setsockopt(SO_SNDBUF, SOL_SOCKET, BUFFER_SIZE)
-        # set nonblocking to True so that send or sendall waits till all data is sent
-        local.setblocking(True)
-
-    return remote, local
-
-
 def _subprocess_main():
     from airflow.sdk.execution_time.task_runner import main
 
@@ -214,14 +222,13 @@ def _configure_logs_over_json_channel(log_fd: int):
 def _reopen_std_io_handles(child_stdin, child_stdout, child_stderr):
     # Ensure that sys.stdout et al (and the underlying filehandles for C libraries etc) are connected to the
     # pipes from the supervisor
-
     for handle_name, fd, sock, mode in (
-        ("stdin", 0, child_stdin, "r"),
+        # Yes, we want to re-open stdin in write mode! This is cause it is a bi-directional socket, so we can
+        # read and write to it.
+        ("stdin", 0, child_stdin, "w"),
         ("stdout", 1, child_stdout, "w"),
         ("stderr", 2, child_stderr, "w"),
     ):
-        handle = getattr(sys, handle_name)
-        handle.close()
         os.dup2(sock.fileno(), fd)
         del sock
 
@@ -309,7 +316,7 @@ def block_orm_access():
 
 
 def _fork_main(
-    child_stdin: socket,
+    requests: socket,
     child_stdout: socket,
     child_stderr: socket,
     log_fd: int,
@@ -339,7 +346,7 @@ def _fork_main(
     _reset_signals()
     if log_fd:
         _configure_logs_over_json_channel(log_fd)
-    _reopen_std_io_handles(child_stdin, child_stdout, child_stderr)
+    _reopen_std_io_handles(requests, child_stdout, child_stderr)
 
     def exit(n: int) -> NoReturn:
         with suppress(ValueError, OSError):
@@ -348,6 +355,13 @@ def _fork_main(
             sys.stderr.flush()
         with suppress(ValueError, OSError):
             last_chance_stderr.flush()
+
+        # Explicitly close the child-end of our supervisor sockets so
+        # the parent sees EOF on "logs" channel.
+        with suppress(OSError):
+            os.close(log_fd)
+        with suppress(OSError):
+            os.close(requests.fileno())
         os._exit(n)
 
     if hasattr(atexit, "_clear"):
@@ -415,18 +429,25 @@ class WatchedSubprocess:
     """The decoder to use for incoming messages from the child process."""
 
     _process: psutil.Process = attrs.field(repr=False)
-    _requests_fd: int
     """File descriptor for request handling."""
 
-    _num_open_sockets: int = 4
     _exit_code: int | None = attrs.field(default=None, init=False)
+    _process_exit_monotonic: float | None = attrs.field(default=None, init=False)
+    _open_sockets: weakref.WeakKeyDictionary[socket, str] = attrs.field(
+        factory=weakref.WeakKeyDictionary, init=False
+    )
 
     selector: selectors.BaseSelector = attrs.field(factory=selectors.DefaultSelector, repr=False)
+
+    _frame_encoder: msgspec.msgpack.Encoder = attrs.field(factory=comms._new_encoder, repr=False)
 
     process_log: FilteringBoundLogger = attrs.field(repr=False)
 
     subprocess_logs_to_stdout: bool = False
     """Duplicate log messages to stdout, or only send them to ``self.process_log``."""
+
+    start_time: float = attrs.field(factory=time.monotonic)
+    """The start time of the child process."""
 
     @classmethod
     def start(
@@ -438,18 +459,19 @@ class WatchedSubprocess:
     ) -> Self:
         """Fork and start a new subprocess with the specified target function."""
         # Create socketpairs/"pipes" to connect to the stdin and out from the subprocess
-        child_stdin, feed_stdin = mkpipe(remote_read=True)
-        child_stdout, read_stdout = mkpipe()
-        child_stderr, read_stderr = mkpipe()
+        child_stdout, read_stdout = socketpair()
+        child_stderr, read_stderr = socketpair()
 
-        # Open these socketpair before forking off the child, so that it is open when we fork.
-        child_comms, read_msgs = mkpipe()
-        child_logs, read_logs = mkpipe()
+        # Place for child to send requests/read responses, and the server side to read/respond
+        child_requests, read_requests = socketpair()
+
+        # Open the socketpair before forking off the child, so that it is open when we fork.
+        child_logs, read_logs = socketpair()
 
         pid = os.fork()
         if pid == 0:
             # Close and delete of the parent end of the sockets.
-            cls._close_unused_sockets(feed_stdin, read_stdout, read_stderr, read_msgs, read_logs)
+            cls._close_unused_sockets(read_requests, read_stdout, read_stderr, read_logs)
 
             # Python GC should delete these for us, but lets make double sure that we don't keep anything
             # around in the forked processes, especially things that might involve open files or sockets!
@@ -458,36 +480,37 @@ class WatchedSubprocess:
 
             try:
                 # Run the child entrypoint
-                _fork_main(child_stdin, child_stdout, child_stderr, child_logs.fileno(), target)
+                _fork_main(child_requests, child_stdout, child_stderr, child_logs.fileno(), target)
             except BaseException as e:
+                import traceback
+
                 with suppress(BaseException):
                     # We can't use log here, as if we except out of _fork_main something _weird_ went on.
-                    print("Exception in _fork_main, exiting with code 124", e, file=sys.stderr)
+                    print("Exception in _fork_main, exiting with code 124", file=sys.stderr)
+                    traceback.print_exception(type(e), e, e.__traceback__, file=sys.stderr)
 
             # It's really super super important we never exit this block. We are in the forked child, and if we
             # do then _THINGS GET WEIRD_.. (Normally `_fork_main` itself will `_exit()` so we never get here)
             os._exit(124)
 
-        requests_fd = child_comms.fileno()
-
         # Close the remaining parent-end of the sockets we've passed to the child via fork. We still have the
         # other end of the pair open
-        cls._close_unused_sockets(child_stdin, child_stdout, child_stderr, child_comms, child_logs)
+        cls._close_unused_sockets(child_stdout, child_stderr, child_logs)
 
         logger = logger or cast("FilteringBoundLogger", structlog.get_logger(logger_name="task").bind())
         proc = cls(
             pid=pid,
-            stdin=feed_stdin,
+            stdin=read_requests,
             process=psutil.Process(pid),
-            requests_fd=requests_fd,
             process_log=logger,
+            start_time=time.monotonic(),
             **constructor_kwargs,
         )
 
         proc._register_pipe_readers(
             stdout=read_stdout,
             stderr=read_stderr,
-            requests=read_msgs,
+            requests=read_requests,
             logs=read_logs,
         )
 
@@ -500,16 +523,26 @@ class WatchedSubprocess:
         # alternatives are used automatically) -- this is a way of having "event-based" code, but without
         # needing full async, to read and process output from each socket as it is received.
 
+        # Track the open sockets, and for debugging what type each one is
+        self._open_sockets.update(
+            (
+                (stdout, "stdout"),
+                (stderr, "stderr"),
+                (logs, "logs"),
+                (requests, "requests"),
+            )
+        )
+
         target_loggers: tuple[FilteringBoundLogger, ...] = (self.process_log,)
         if self.subprocess_logs_to_stdout:
             target_loggers += (log,)
         self.selector.register(
-            stdout, selectors.EVENT_READ, self._create_socket_handler(target_loggers, channel="stdout")
+            stdout, selectors.EVENT_READ, self._create_log_forwarder(target_loggers, channel="stdout")
         )
         self.selector.register(
             stderr,
             selectors.EVENT_READ,
-            self._create_socket_handler(target_loggers, channel="stderr", log_level=logging.ERROR),
+            self._create_log_forwarder(target_loggers, channel="stderr", log_level=logging.ERROR),
         )
         self.selector.register(
             logs,
@@ -521,37 +554,52 @@ class WatchedSubprocess:
         self.selector.register(
             requests,
             selectors.EVENT_READ,
-            make_buffered_socket_reader(self.handle_requests(log), on_close=self._on_socket_closed),
+            length_prefixed_frame_reader(self.handle_requests(log), on_close=self._on_socket_closed),
         )
 
-    def _create_socket_handler(self, loggers, channel, log_level=logging.INFO) -> Callable[[socket], bool]:
+    def _create_log_forwarder(self, loggers, channel, log_level=logging.INFO) -> Callable[[socket], bool]:
         """Create a socket handler that forwards logs to a logger."""
         return make_buffered_socket_reader(
             forward_to_log(loggers, chan=channel, level=log_level), on_close=self._on_socket_closed
         )
 
-    def _on_socket_closed(self):
+    def _on_socket_closed(self, sock: socket):
         # We want to keep servicing this process until we've read up to EOF from all the sockets.
-        self._num_open_sockets -= 1
 
-    def send_msg(self, msg: BaseModel, **dump_opts):
-        """Send the given pydantic message to the subprocess at once by encoding it and adding a line break."""
-        b = msg.model_dump_json(**dump_opts).encode() + b"\n"
-        self.stdin.sendall(b)
+        with suppress(KeyError):
+            self.selector.unregister(sock)
+            del self._open_sockets[sock]
 
-    def handle_requests(self, log: FilteringBoundLogger) -> Generator[None, bytes, None]:
+    def send_msg(
+        self, msg: BaseModel | None, request_id: int, error: ErrorResponse | None = None, **dump_opts
+    ):
+        """
+        Send the msg as a length-prefixed response frame.
+
+        ``request_id`` is the ID that the client sent in it's request, and has no meaning to the server
+
+        """
+        if msg:
+            frame = _ResponseFrame(id=request_id, body=msg.model_dump(**dump_opts))
+        else:
+            err_resp = error.model_dump() if error else None
+            frame = _ResponseFrame(id=request_id, error=err_resp)
+
+        self.stdin.sendall(frame.as_bytes())
+
+    def handle_requests(self, log: FilteringBoundLogger) -> Generator[None, _RequestFrame, None]:
         """Handle incoming requests from the task process, respond with the appropriate data."""
         while True:
-            line = yield
+            request = yield
 
             try:
-                msg = self.decoder.validate_json(line)
+                msg = self.decoder.validate_python(request.body)
             except Exception:
-                log.exception("Unable to decode message", line=line)
+                log.exception("Unable to decode message", body=request.body)
                 continue
 
             try:
-                self._handle_request(msg, log)
+                self._handle_request(msg, log, request.id)
             except ServerResponseError as e:
                 error_details = e.response.json() if e.response else None
                 log.error(
@@ -563,28 +611,46 @@ class WatchedSubprocess:
 
                 # Send error response back to task so that the error appears in the task logs
                 self.send_msg(
-                    ErrorResponse(
+                    msg=None,
+                    error=ErrorResponse(
                         error=ErrorType.API_SERVER_ERROR,
                         detail={
                             "status_code": e.response.status_code,
                             "message": str(e),
                             "detail": error_details,
                         },
-                    )
+                    ),
+                    request_id=request.id,
                 )
 
-    def _handle_request(self, msg, log: FilteringBoundLogger) -> None:
+    def _handle_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
         raise NotImplementedError()
 
     @staticmethod
     def _close_unused_sockets(*sockets):
         """Close unused ends of sockets after fork."""
         for sock in sockets:
-            if isinstance(sock, SocketIO):
-                # If we have the socket IO object, we need to close the underlying socket foricebly here too,
-                # else we get unclosed socket warnings, and likely leaking FDs too
-                sock._sock.close()
             sock.close()
+
+    def _cleanup_open_sockets(self):
+        """Force-close any sockets that never reported EOF."""
+        # In extremely busy environments the selector can fail to deliver a
+        # final read event before the subprocess exits. Without closing these
+        # sockets the supervisor would wait forever thinking they are still
+        # active. This cleanup ensures we always release resources and exit.
+        stuck_sockets = []
+        for sock, socket_type in self._open_sockets.items():
+            fileno = "unknown"
+            with suppress(Exception):
+                fileno = sock.fileno()
+                sock.close()
+            stuck_sockets.append(f"{socket_type}(fd={fileno})")
+
+        if stuck_sockets:
+            log.warning("Force-closed stuck sockets", pid=self.pid, sockets=stuck_sockets)
+
+        self.selector.close()
+        self.stdin.close()
 
     def kill(
         self,
@@ -605,7 +671,7 @@ class WatchedSubprocess:
             return
 
         # Escalation sequence: SIGINT -> SIGTERM -> SIGKILL
-        escalation_path = [signal.SIGINT, signal.SIGTERM, signal.SIGKILL]
+        escalation_path: list[signal.Signals] = [signal.SIGINT, signal.SIGTERM, signal.SIGKILL]
 
         if force and signal_to_send in escalation_path:
             # Start from `signal_to_send` and escalate to the end of the escalation path
@@ -678,10 +744,12 @@ class WatchedSubprocess:
         :param expect_signal: Signal not to log if the task exits with this code.
         :returns: The process exit code, or None if it's still alive
         """
-        events = self.selector.select(timeout=max_wait_time)
+        # Ensure minimum timeout to prevent CPU spike with tight loop when timeout is 0 or negative
+        timeout = max(0.01, max_wait_time)
+        events = self.selector.select(timeout=timeout)
         for key, _ in events:
             # Retrieve the handler responsible for processing this file object (e.g., stdout, stderr)
-            socket_handler = key.data
+            socket_handler, on_close = key.data
 
             # Example of handler behavior:
             # If the subprocess writes "Hello, World!" to stdout:
@@ -691,15 +759,16 @@ class WatchedSubprocess:
             # to EOF case
             try:
                 need_more = socket_handler(key.fileobj)
-            except BrokenPipeError:
+            except (BrokenPipeError, ConnectionResetError):
                 need_more = False
 
             # If the handler signals that the file object is no longer needed (EOF, closed, etc.)
             # unregister it from the selector to stop monitoring; `wait()` blocks until all selectors
             # are removed.
             if not need_more:
-                self.selector.unregister(key.fileobj)
-                key.fileobj.close()  # type: ignore[union-attr]
+                sock: socket = key.fileobj  # type: ignore[assignment]
+                on_close(sock)
+                sock.close()
 
         # Check if the subprocess has exited
         return self._check_subprocess_exit(raise_on_timeout=raise_on_timeout, expect_signal=expect_signal)
@@ -717,16 +786,17 @@ class WatchedSubprocess:
             if raise_on_timeout:
                 raise
         else:
-            self._close_unused_sockets(self.stdin)
-            # Put a message in the viewable task logs
+            self._process_exit_monotonic = time.monotonic()
 
             if expect_signal is not None and self._exit_code == -expect_signal:
                 # Bypass logging, the caller expected us to exit with this
                 return self._exit_code
 
-            # psutil turns signal exit codes into an enum for us. Handy. (Otherwise it's a plain integer) if exit_code and (name := getattr(exit_code, "name")):
+            # Put a message in the viewable task logs
+
             if self._exit_code == -signal.SIGSEGV:
                 self.process_log.critical(SIGSEGV_MESSAGE)
+            # psutil turns signal exit codes into an enum for us. Handy. (Otherwise it's a plain integer) if exit_code and (name := getattr(exit_code, "name")):
             elif name := getattr(self._exit_code, "name", None):
                 message = "Process terminated by signal"
                 level = logging.ERROR
@@ -753,15 +823,12 @@ class ActivitySubprocess(WatchedSubprocess):
     _last_heartbeat_attempt: float = attrs.field(default=0, init=False)
 
     # After the failure of a heartbeat, we'll increment this counter. If it reaches `MAX_FAILED_HEARTBEATS`, we
-    # will kill the process. This is to handle temporary network issues etc. ensuring that the process
+    # will kill theprocess. This is to handle temporary network issues etc. ensuring that the process
     # does not hang around forever.
     failed_heartbeats: int = attrs.field(default=0, init=False)
 
-    # Maximum possible time (in seconds) that task will have for execution of auxiliary processes
-    # like listeners after task is complete.
-    # TODO: This should come from airflow.cfg: [core] task_success_overtime
-    TASK_OVERTIME_THRESHOLD: ClassVar[float] = 20.0
     _task_end_time_monotonic: float | None = attrs.field(default=None, init=False)
+    _rendered_map_index: str | None = attrs.field(default=None, init=False)
 
     decoder: ClassVar[TypeAdapter[ToSupervisor]] = TypeAdapter(ToSupervisor)
 
@@ -804,7 +871,6 @@ class ActivitySubprocess(WatchedSubprocess):
             ti=ti,
             dag_rel_path=os.fspath(dag_rel_path),
             bundle_info=bundle_info,
-            requests_fd=self._requests_fd,
             ti_context=ti_context,
             start_date=start_date,
         )
@@ -813,8 +879,8 @@ class ActivitySubprocess(WatchedSubprocess):
         log.debug("Sending", msg=msg)
 
         try:
-            self.send_msg(msg)
-        except BrokenPipeError:
+            self.send_msg(msg, request_id=0)
+        except (BrokenPipeError, ConnectionResetError):
             # Debug is fine, the process will have shown _something_ in it's last_chance exception handler
             log.debug("Couldn't send startup message to Subprocess - it died very early", pid=self.pid)
 
@@ -831,20 +897,26 @@ class ActivitySubprocess(WatchedSubprocess):
         # If it hasn't, assume it's failed
         self._exit_code = self._exit_code if self._exit_code is not None else 1
 
-        # If the process has finished non-directly patched state (directly means deferred, reschedule, etc.),
-        # update the state of the TaskInstance to reflect the final state of the process.
-        # For states like `deferred`, `up_for_reschedule`, the process will exit with 0, but the state will be updated
-        # by the subprocess in the `handle_requests` method.
-        if self.final_state not in STATES_SENT_DIRECTLY:
-            self.client.task_instances.finish(
-                id=self.id, state=self.final_state, when=datetime.now(tz=timezone.utc)
-            )
+        self.update_task_state_if_needed()
 
         # Now at the last possible moment, when all logs and comms with the subprocess has finished, lets
         # upload the remote logs
         self._upload_logs()
 
         return self._exit_code
+
+    def update_task_state_if_needed(self):
+        # If the process has finished non-directly patched state (directly means deferred, reschedule, etc.),
+        # update the state of the TaskInstance to reflect the final state of the process.
+        # For states like `deferred`, `up_for_reschedule`, the process will exit with 0, but the state will be updated
+        # by the subprocess in the `handle_requests` method.
+        if self.final_state not in STATES_SENT_DIRECTLY:
+            self.client.task_instances.finish(
+                id=self.id,
+                state=self.final_state,
+                when=datetime.now(tz=timezone.utc),
+                rendered_map_index=self._rendered_map_index,
+            )
 
     def _upload_logs(self):
         """
@@ -867,7 +939,7 @@ class ActivitySubprocess(WatchedSubprocess):
         - Processes events triggered on the monitored file objects, such as data availability or EOF.
         - Sends heartbeats to ensure the process is alive and checks if the subprocess has exited.
         """
-        while self._exit_code is None or self._num_open_sockets > 0:
+        while self._exit_code is None or self._open_sockets:
             last_heartbeat_ago = time.monotonic() - self._last_successful_heartbeat
             # Monitor the task to see if it's done. Wait in a syscall (`select`) for as long as possible
             # so we notice the subprocess finishing as quick as we can.
@@ -883,6 +955,13 @@ class ActivitySubprocess(WatchedSubprocess):
             # This listens for activity (e.g., subprocess output) on registered file objects
             alive = self._service_subprocess(max_wait_time=max_wait_time) is None
 
+            if self._exit_code is not None and self._open_sockets:
+                if (
+                    self._process_exit_monotonic
+                    and time.monotonic() - self._process_exit_monotonic > SOCKET_CLEANUP_TIMEOUT
+                ):
+                    self._cleanup_open_sockets()
+
             if alive:
                 # We don't need to heartbeat if the process has shutdown, as we are just finishing of reading the
                 # logs
@@ -897,9 +976,14 @@ class ActivitySubprocess(WatchedSubprocess):
             return
         if (
             self._task_end_time_monotonic
-            and (time.monotonic() - self._task_end_time_monotonic) > self.TASK_OVERTIME_THRESHOLD
+            and (time.monotonic() - self._task_end_time_monotonic) > TASK_OVERTIME_THRESHOLD
         ):
-            log.warning("Workload success overtime reached; terminating process", ti_id=self.id)
+            log.warning(
+                "Task success overtime reached; terminating process. "
+                "Modify `task_success_overtime` setting in [core] section of "
+                "Airflow configuration to change this limit.",
+                ti_id=self.id,
+            )
             self.kill(signal.SIGTERM, force=True)
 
     def _send_heartbeat_if_needed(self):
@@ -938,11 +1022,11 @@ class ActivitySubprocess(WatchedSubprocess):
                 self._terminal_state = SERVER_TERMINATED
             else:
                 # If we get any other error, we'll just log it and try again next time
-                self._handle_heartbeat_failures()
-        except Exception:
-            self._handle_heartbeat_failures()
+                self._handle_heartbeat_failures(e)
+        except Exception as e:
+            self._handle_heartbeat_failures(e)
 
-    def _handle_heartbeat_failures(self):
+    def _handle_heartbeat_failures(self, exc: Exception | None):
         """Increment the failed heartbeats counter and kill the process if too many failures."""
         self.failed_heartbeats += 1
         log.warning(
@@ -950,7 +1034,7 @@ class ActivitySubprocess(WatchedSubprocess):
             failed_heartbeats=self.failed_heartbeats,
             ti_id=self.id,
             max_retries=MAX_FAILED_HEARTBEATS,
-            exc_info=True,
+            exception=exc,
         )
         # If we've failed to heartbeat too many times, kill the process
         if self.failed_heartbeats >= MAX_FAILED_HEARTBEATS:
@@ -971,33 +1055,38 @@ class ActivitySubprocess(WatchedSubprocess):
         Not valid before the process has finished.
         """
         if self._exit_code == 0:
-            return self._terminal_state or TerminalTIState.SUCCESS
+            return self._terminal_state or TaskInstanceState.SUCCESS
         if self._exit_code != 0 and self._terminal_state == SERVER_TERMINATED:
             return SERVER_TERMINATED
-        return TerminalTIState.FAILED
+        return TaskInstanceState.FAILED
 
-    def _handle_request(self, msg: ToSupervisor, log: FilteringBoundLogger):
+    def _handle_request(self, msg: ToSupervisor, log: FilteringBoundLogger, req_id: int):
         log.debug("Received message from task runner", msg=msg)
         resp: BaseModel | None = None
         dump_opts = {}
         if isinstance(msg, TaskState):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
+            self._rendered_map_index = msg.rendered_map_index
         elif isinstance(msg, SucceedTask):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
+            self._rendered_map_index = msg.rendered_map_index
             self.client.task_instances.succeed(
                 id=self.id,
                 when=msg.end_date,
                 task_outlets=msg.task_outlets,
                 outlet_events=msg.outlet_events,
+                rendered_map_index=self._rendered_map_index,
             )
         elif isinstance(msg, RetryTask):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
+            self._rendered_map_index = msg.rendered_map_index
             self.client.task_instances.retry(
                 id=self.id,
                 end_date=msg.end_date,
+                rendered_map_index=self._rendered_map_index,
             )
         elif isinstance(msg, GetConnection):
             conn = self.client.connections.get(msg.conn_id)
@@ -1015,7 +1104,7 @@ class ActivitySubprocess(WatchedSubprocess):
             var = self.client.variables.get(msg.key)
             if isinstance(var, VariableResponse):
                 if var.value:
-                    mask_secret(var.value)
+                    mask_secret(var.value, var.key)
                 var_result = VariableResult.from_variable_response(var)
                 resp = var_result
                 dump_opts = {"exclude_unset": True}
@@ -1028,13 +1117,27 @@ class ActivitySubprocess(WatchedSubprocess):
             xcom_result = XComResult.from_xcom_response(xcom)
             resp = xcom_result
         elif isinstance(msg, GetXComCount):
-            len = self.client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
-            resp = XComCountResponse(len=len)
+            xcom_count = self.client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
+            resp = XComCountResponse(len=xcom_count)
+        elif isinstance(msg, GetXComSequenceItem):
+            xcom = self.client.xcoms.get_sequence_item(
+                msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.offset
+            )
+            if isinstance(xcom, XComSequenceIndexResponse):
+                resp = XComSequenceIndexResult.from_response(xcom)
+            else:
+                resp = xcom
+        elif isinstance(msg, GetXComSequenceSlice):
+            xcoms = self.client.xcoms.get_sequence_slice(
+                msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.start, msg.stop, msg.step
+            )
+            resp = XComSequenceSliceResult.from_response(xcoms)
         elif isinstance(msg, DeferTask):
-            self._terminal_state = IntermediateTIState.DEFERRED
+            self._terminal_state = TaskInstanceState.DEFERRED
+            self._rendered_map_index = msg.rendered_map_index
             self.client.task_instances.defer(self.id, msg)
         elif isinstance(msg, RescheduleTask):
-            self._terminal_state = IntermediateTIState.UP_FOR_RESCHEDULE
+            self._terminal_state = TaskInstanceState.UP_FOR_RESCHEDULE
             self.client.task_instances.reschedule(self.id, msg)
         elif isinstance(msg, SkipDownstreamTasks):
             self.client.task_instances.skip_downstream_tasks(self.id, msg)
@@ -1095,6 +1198,7 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetTICount):
             resp = self.client.task_instances.get_count(
                 dag_id=msg.dag_id,
+                map_index=msg.map_index,
                 task_ids=msg.task_ids,
                 task_group_id=msg.task_group_id,
                 logical_dates=msg.logical_dates,
@@ -1104,6 +1208,7 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetTaskStates):
             task_states_map = self.client.task_instances.get_task_states(
                 dag_id=msg.dag_id,
+                map_index=msg.map_index,
                 task_ids=msg.task_ids,
                 task_group_id=msg.task_group_id,
                 logical_dates=msg.logical_dates,
@@ -1122,12 +1227,253 @@ class ActivitySubprocess(WatchedSubprocess):
             )
         elif isinstance(msg, DeleteVariable):
             resp = self.client.variables.delete(msg.key)
+        elif isinstance(msg, ValidateInletsAndOutlets):
+            inactive_assets_resp = self.client.task_instances.validate_inlets_and_outlets(msg.ti_id)
+            resp = InactiveAssetsResult.from_inactive_assets_response(inactive_assets_resp)
+            dump_opts = {"exclude_unset": True}
+        elif isinstance(msg, ResendLoggingFD):
+            # We need special handling here!
+            if send_fds is not None:
+                self._send_new_log_fd(req_id)
+                # Since we've sent the message, return. Nothing else in this ifelse/switch should return directly
+                return
+        elif isinstance(msg, CreateHITLDetailPayload):
+            resp = self.client.hitl.add_response(
+                ti_id=msg.ti_id,
+                options=msg.options,
+                subject=msg.subject,
+                body=msg.body,
+                defaults=msg.defaults,
+                params=msg.params,
+                multiple=msg.multiple,
+            )
+            self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
         else:
             log.error("Unhandled request", msg=msg)
+            self.send_msg(
+                None,
+                request_id=req_id,
+                error=ErrorResponse(
+                    error=ErrorType.API_SERVER_ERROR,
+                    detail={"status_code": 400, "message": "Unhandled request"},
+                ),
+            )
             return
 
-        if resp:
-            self.send_msg(resp, **dump_opts)
+        self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
+
+    def _send_new_log_fd(self, req_id: int) -> None:
+        if send_fds is None:
+            raise RuntimeError("send_fds is not available on this platform")
+        child_logs, read_logs = socketpair()
+
+        target_loggers: tuple[FilteringBoundLogger, ...] = (self.process_log,)
+        if self.subprocess_logs_to_stdout:
+            target_loggers += (log,)
+
+        self.selector.register(
+            read_logs,
+            selectors.EVENT_READ,
+            make_buffered_socket_reader(
+                process_log_messages_from_subprocess(target_loggers), on_close=self._on_socket_closed
+            ),
+        )
+        # We don't explicitly close the old log socket, that will get handled for us if/when the other end is
+        # closed (such as `sudo` would do for us automatically.) This also means that this feature _can_ be
+        # used outside of a exec context if it is useful, as we can then have multiple things sending us logs,
+        # such as the task process and it's launched subprocess.
+
+        frame = _ResponseFrame(id=req_id, body=SentFDs(fds=[child_logs.fileno()]).model_dump())
+        send_fds(self.stdin, [frame.as_bytes()], [child_logs.fileno()])
+        child_logs.close()  # Close this end now.
+
+
+def in_process_api_server():
+    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
+
+    api = InProcessExecutionAPI()
+    return api
+
+
+@attrs.define(kw_only=True)
+class InProcessSupervisorComms:
+    """In-process communication handler that uses deques instead of sockets."""
+
+    log: FilteringBoundLogger = attrs.field(repr=False, factory=structlog.get_logger)
+    supervisor: InProcessTestSupervisor
+    messages: deque[BaseModel | None] = attrs.field(factory=deque)
+
+    def _get_response(self) -> BaseModel | None:
+        """Get a message from the supervisor. Blocks until a message is available."""
+        return self.messages.popleft()
+
+    def send(self, msg: BaseModel):
+        """Send a request to the supervisor."""
+        self.log.debug("Sending request", msg=msg)
+
+        with set_supervisor_comms(None):
+            self.supervisor._handle_request(msg, log, 0)  # type: ignore[arg-type]
+
+        return self._get_response()
+
+
+@attrs.define
+class TaskRunResult:
+    """Result of running a task via ``InProcessTestSupervisor``."""
+
+    ti: RuntimeTI
+    state: str
+    msg: BaseModel | None
+    error: BaseException | None
+
+
+@attrs.define(kw_only=True)
+class InProcessTestSupervisor(ActivitySubprocess):
+    """A supervisor that runs tasks in-process for easier testing."""
+
+    comms: InProcessSupervisorComms = attrs.field(init=False)
+
+    stdin: socket = attrs.field(init=False)
+
+    @classmethod
+    def start(  # type: ignore[override]
+        cls,
+        *,
+        what: TaskInstance,
+        task,
+        logger: FilteringBoundLogger | None = None,
+        **kwargs,
+    ) -> TaskRunResult:
+        """
+        Run a task in-process without spawning a new child process.
+
+        This bypasses the standard `ActivitySubprocess.start()` behavior, which expects
+        to launch a subprocess and communicate via stdin/stdout. Instead, it constructs
+        the `RuntimeTaskInstance` directly — useful in contexts like `dag.test()` where the
+        DAG is already parsed in memory.
+
+        Supervisor state and communications are simulated in-memory via `InProcessSupervisorComms`.
+        """
+        # Create supervisor instance
+        supervisor = cls(
+            id=what.id,
+            pid=os.getpid(),  # Use current process
+            process=psutil.Process(),  # Current process
+            process_log=logger or structlog.get_logger(logger_name="task").bind(),
+            client=cls._api_client(task.dag),
+            **kwargs,
+        )
+
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, finalize, run
+
+        supervisor.comms = InProcessSupervisorComms(supervisor=supervisor)
+        with set_supervisor_comms(supervisor.comms):
+            supervisor.ti = what  # type: ignore[assignment]
+
+            # We avoid calling `task_runner.startup()` because we are already inside a
+            # parsed DAG file (e.g. via dag.test()).
+            # In normal execution, `startup()` parses the DAG based on info in a `StartupDetails` message.
+            # By directly constructing the `RuntimeTaskInstance`,
+            #   we skip re-parsing (`task_runner.parse()`) and avoid needing to set DAG Bundle config
+            #   and run the task in-process.
+            start_date = datetime.now(tz=timezone.utc)
+            ti_context = supervisor.client.task_instances.start(supervisor.id, supervisor.pid, start_date)
+
+            ti = RuntimeTaskInstance.model_construct(
+                **what.model_dump(exclude_unset=True),
+                task=task,
+                _ti_context_from_server=ti_context,
+                max_tries=ti_context.max_tries,
+                start_date=start_date,
+                state=TaskInstanceState.RUNNING,
+            )
+            context = ti.get_template_context()
+            log = structlog.get_logger(logger_name="task")
+
+            state, msg, error = run(ti, context, log)
+            finalize(ti, state, context, log, error)
+
+            # In the normal subprocess model, the task runner calls this before exiting.
+            # Since we're running in-process, we manually notify the API server that
+            # the task has finished—unless the terminal state was already sent explicitly.
+            supervisor.update_task_state_if_needed()
+
+        return TaskRunResult(ti=ti, state=state, msg=msg, error=error)
+
+    @staticmethod
+    def _api_client(dag=None):
+        from airflow.models.dagbag import DagBag
+        from airflow.sdk.api.client import Client
+
+        api = in_process_api_server()
+        if dag is not None:
+            from airflow.api_fastapi.common.dagbag import dag_bag_from_app
+            from airflow.serialization.serialized_objects import SerializedDAG
+
+            # This is needed since the Execution API server uses the DagBag in its "state".
+            # This `app.state.dag_bag` is used to get some DAG properties like `fail_fast`.
+            dag_bag = DagBag(include_examples=False, collect_dags=False, load_op_links=False)
+
+            # Mimic the behavior of the DagBag in the API server by converting the DAG to a SerializedDAG
+            dag_bag.dags[dag.dag_id] = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+            api.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag
+
+        client = Client(base_url=None, token="", dry_run=True, transport=api.transport)
+        # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
+        client.base_url = "http://in-process.invalid./"
+        return client
+
+    def send_msg(
+        self, msg: BaseModel | None, request_id: int, error: ErrorResponse | None = None, **dump_opts
+    ):
+        """Override to use in-process comms."""
+        self.comms.messages.append(msg)
+
+    @property
+    def final_state(self):
+        """Override to use in-process comms."""
+        # Since we're running in-process, we don't have a final state until the task has finished.
+        # We also don't have a process exit code to determine success/failure.
+        return self._terminal_state
+
+
+@contextmanager
+def set_supervisor_comms(temp_comms):
+    """
+    Temporarily override `SUPERVISOR_COMMS` in the `task_runner` module.
+
+    This is used to simulate task-runner ↔ supervisor communication in-process,
+    by injecting a test Comms implementation (e.g. `InProcessSupervisorComms`)
+    in place of the real inter-process communication layer.
+
+    Some parts of the code (e.g. models.Variable.get) check for the presence
+    of `task_runner.SUPERVISOR_COMMS` to determine if the code is running in a Task SDK execution context.
+    This override ensures those code paths behave correctly during in-process tests.
+    """
+    from airflow.sdk.execution_time import task_runner
+
+    sentinel = object()
+    old = getattr(task_runner, "SUPERVISOR_COMMS", sentinel)
+
+    if temp_comms is not None:
+        task_runner.SUPERVISOR_COMMS = temp_comms
+    elif old is not sentinel:
+        delattr(task_runner, "SUPERVISOR_COMMS")
+
+    try:
+        yield
+    finally:
+        if old is sentinel:
+            if hasattr(task_runner, "SUPERVISOR_COMMS"):
+                delattr(task_runner, "SUPERVISOR_COMMS")
+        else:
+            task_runner.SUPERVISOR_COMMS = old
+
+
+def run_task_in_process(ti: TaskInstance, task) -> TaskRunResult:
+    """Run a task in-process for testing."""
+    # Run the task
+    return InProcessTestSupervisor.start(what=ti, task=task)
 
 
 # Sockets, even the `.makefile()` function don't correctly do line buffering on reading. If a chunk is read
@@ -1137,9 +1483,9 @@ class ActivitySubprocess(WatchedSubprocess):
 # to a (sync) generator
 def make_buffered_socket_reader(
     gen: Generator[None, bytes | bytearray, None],
-    on_close: Callable,
+    on_close: Callable[[socket], None],
     buffer_size: int = 4096,
-) -> Callable[[socket], bool]:
+):
     buffer = bytearray()  # This will hold our accumulated binary data
     read_buffer = bytearray(buffer_size)  # Temporary buffer for each read
 
@@ -1156,8 +1502,6 @@ def make_buffered_socket_reader(
             if len(buffer):
                 with suppress(StopIteration):
                     gen.send(buffer)
-            # Tell loop to close this selector
-            on_close()
             return False
 
         buffer.extend(read_buffer[:n_received])
@@ -1168,18 +1512,62 @@ def make_buffered_socket_reader(
             try:
                 gen.send(line)
             except StopIteration:
-                on_close()
                 return False
             buffer = buffer[newline_pos + 1 :]  # Update the buffer with remaining data
 
         return True
 
-    return cb
+    return cb, on_close
+
+
+def length_prefixed_frame_reader(
+    gen: Generator[None, _RequestFrame, None], on_close: Callable[[socket], None]
+):
+    length_needed: int | None = None
+    # This will hold our accumulated/partial binary frame if it doesn't come in a single read
+    buffer: memoryview | None = None
+    # position in the buffer to store next read
+    pos = 0
+    decoder = msgspec.msgpack.Decoder[_RequestFrame](_RequestFrame)
+
+    # We need to start up the generator to get it to the point it's at waiting on the yield
+    next(gen)
+
+    def cb(sock: socket):
+        nonlocal buffer, length_needed, pos
+
+        if length_needed is None:
+            # Read the 32bit length of the frame
+            bytes = sock.recv(4)
+            if bytes == b"":
+                return False
+
+            length_needed = int.from_bytes(bytes, byteorder="big")
+            buffer = memoryview(bytearray(length_needed))
+        if length_needed and buffer:
+            n = sock.recv_into(buffer[pos:])
+            if n == 0:
+                # EOF
+                return False
+            pos += n
+
+            if pos >= length_needed:
+                request = decoder.decode(buffer)
+                buffer = None
+                pos = 0
+                length_needed = None
+                try:
+                    gen.send(request)
+                except StopIteration:
+                    return False
+        return True
+
+    return cb, on_close
 
 
 def process_log_messages_from_subprocess(
     loggers: tuple[FilteringBoundLogger, ...],
-) -> Generator[None, bytes, None]:
+) -> Generator[None, bytes | bytearray, None]:
     from structlog.stdlib import NAME_TO_LEVEL
 
     while True:
@@ -1215,10 +1603,9 @@ def process_log_messages_from_subprocess(
 
 def forward_to_log(
     target_loggers: tuple[FilteringBoundLogger, ...], chan: str, level: int
-) -> Generator[None, bytes, None]:
+) -> Generator[None, bytes | bytearray, None]:
     while True:
-        buf = yield
-        line = bytes(buf)
+        line = yield
         # Strip off new line
         line = line.rstrip()
         try:
@@ -1235,14 +1622,6 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
     backends = ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
-
-    log = structlog.get_logger(logger_name="supervisor")
-
-    log.info(
-        "Secrets backends loaded for worker",
-        count=len(backends),
-        backend_classes=[type(b).__name__ for b in backends],
-    )
 
     return backends
 
@@ -1263,7 +1642,7 @@ def supervise(
     Run a single task execution to completion.
 
     :param ti: The task instance to run.
-    :param bundle_info: Current DagRun of the task instance.
+    :param bundle_info: Information of the DAG bundle to use for this task instance.
     :param dag_rel_path: The file path to the DAG.
     :param token: Authentication token for the API client.
     :param server: Base URL of the API server.
@@ -1272,12 +1651,42 @@ def supervise(
     :param subprocess_logs_to_stdout: Should task logs also be sent to stdout via the main logger.
     :param client: Optional preconfigured client for communication with the server (Mostly for tests).
     :return: Exit code of the process.
+    :raises ValueError: If server URL is empty or invalid.
     """
     # One or the other
     from airflow.sdk.execution_time.secrets_masker import reset_secrets_masker
 
-    if not client and ((not server) ^ dry_run):
-        raise ValueError(f"Can only specify one of {server=} or {dry_run=}")
+    if not client:
+        if dry_run and server:
+            raise ValueError(f"Can only specify one of {server=} or {dry_run=}")
+
+        if not dry_run:
+            if not server:
+                raise ValueError(
+                    "Invalid execution API server URL. Please ensure that a valid URL is configured."
+                )
+
+            try:
+                parsed_url = urlparse(server)
+            except Exception as e:
+                raise ValueError(
+                    f"Invalid execution API server URL '{server}': {e}. "
+                    "Please ensure that a valid URL is configured."
+                ) from e
+
+            if parsed_url.scheme not in ("http", "https"):
+                raise ValueError(
+                    f"Invalid execution API server URL '{server}': "
+                    "URL must use http:// or https:// scheme. "
+                    "Please ensure that a valid URL is configured."
+                )
+
+            if not parsed_url.netloc:
+                raise ValueError(
+                    f"Invalid execution API server URL '{server}': "
+                    "URL must include a valid host. "
+                    "Please ensure that a valid URL is configured."
+                )
 
     if not dag_rel_path:
         raise ValueError("dag_path is required")
@@ -1290,6 +1699,7 @@ def supervise(
 
     # TODO: Use logging providers to handle the chunked upload for us etc.
     logger: FilteringBoundLogger | None = None
+    log_file_descriptor: BinaryIO | TextIO | None = None
     if log_path:
         # If we are told to write logs to a file, redirect the task logger to it. Make sure we append to the
         # file though, otherwise when we resume we would lose the logs from the start->deferral segment if it
@@ -1300,13 +1710,20 @@ def supervise(
 
         pretty_logs = False
         if pretty_logs:
-            underlying_logger: WrappedLogger = structlog.WriteLogger(log_file.open("a", buffering=1))
+            log_file_descriptor = log_file.open("a", buffering=1)
+            underlying_logger: WrappedLogger = structlog.WriteLogger(cast("TextIO", log_file_descriptor))
         else:
-            underlying_logger = structlog.BytesLogger(log_file.open("ab"))
+            log_file_descriptor = log_file.open("ab")
+            underlying_logger = structlog.BytesLogger(cast("BinaryIO", log_file_descriptor))
         processors = logging_processors(enable_pretty_log=pretty_logs)[0]
         logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
 
-    ensure_secrets_backend_loaded()
+    backends = ensure_secrets_backend_loaded()
+    log.info(
+        "Secrets backends loaded for worker",
+        count=len(backends),
+        backend_classes=[type(b).__name__ for b in backends],
+    )
 
     reset_secrets_masker()
 
@@ -1322,4 +1739,6 @@ def supervise(
     exit_code = process.wait()
     end = time.monotonic()
     log.info("Task finished", exit_code=exit_code, duration=end - start, final_state=process.final_state)
+    if log_path and log_file_descriptor:
+        log_file_descriptor.close()
     return exit_code

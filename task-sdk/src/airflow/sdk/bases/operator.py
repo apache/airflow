@@ -24,7 +24,7 @@ import copy
 import inspect
 import sys
 import warnings
-from collections.abc import Callable, Collection, Iterable, Sequence
+from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -55,7 +55,8 @@ from airflow.sdk.definitions._internal.abstractoperator import (
 )
 from airflow.sdk.definitions._internal.decorators import fixup_decorator_warning_stack
 from airflow.sdk.definitions._internal.node import validate_key
-from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, validate_instance_args
+from airflow.sdk.definitions._internal.setup_teardown import SetupTeardownContext
+from airflow.sdk.definitions._internal.types import NOTSET, validate_instance_args
 from airflow.sdk.definitions.edges import EdgeModifier
 from airflow.sdk.definitions.mappedoperator import OperatorPartial, validate_mapping_kwargs
 from airflow.sdk.definitions.param import ParamsDict
@@ -65,7 +66,6 @@ from airflow.task.priority_strategy import (
     validate_and_load_priority_weight_strategy,
 )
 from airflow.utils import timezone
-from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import db_safe_priority
 
@@ -77,10 +77,11 @@ if TYPE_CHECKING:
 
     import jinja2
 
-    from airflow.models.xcom_arg import XComArg
+    from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.taskgroup import TaskGroup
+    from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.serialization.enums import DagAttributeTypes
     from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.triggers.base import BaseTrigger, StartTriggerArgs
@@ -198,27 +199,32 @@ class _PartialDescriptor:
         return self.class_method.__get__(cls, cls)
 
 
-_PARTIAL_DEFAULTS: dict[str, Any] = {
-    "map_index_template": None,
-    "owner": DEFAULT_OWNER,
-    "trigger_rule": DEFAULT_TRIGGER_RULE,
+OPERATOR_DEFAULTS: dict[str, Any] = {
+    "allow_nested_operators": True,
     "depends_on_past": False,
-    "ignore_first_depends_on_past": DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
-    "wait_for_past_depends_before_skipping": DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
-    "wait_for_downstream": False,
-    "retries": DEFAULT_RETRIES,
-    # "executor": DEFAULT_EXECUTOR,
-    "queue": DEFAULT_QUEUE,
-    "pool_slots": DEFAULT_POOL_SLOTS,
     "execution_timeout": DEFAULT_TASK_EXECUTION_TIMEOUT,
+    # "executor": DEFAULT_EXECUTOR,
+    "executor_config": {},
+    "ignore_first_depends_on_past": DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
+    "inlets": [],
+    "map_index_template": None,
+    "on_execute_callback": [],
+    "on_failure_callback": [],
+    "on_retry_callback": [],
+    "on_skipped_callback": [],
+    "on_success_callback": [],
+    "outlets": [],
+    "owner": DEFAULT_OWNER,
+    "pool_slots": DEFAULT_POOL_SLOTS,
+    "priority_weight": DEFAULT_PRIORITY_WEIGHT,
+    "queue": DEFAULT_QUEUE,
+    "retries": DEFAULT_RETRIES,
     "retry_delay": DEFAULT_RETRY_DELAY,
     "retry_exponential_backoff": False,
-    "priority_weight": DEFAULT_PRIORITY_WEIGHT,
+    "trigger_rule": DEFAULT_TRIGGER_RULE,
+    "wait_for_past_depends_before_skipping": DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
+    "wait_for_downstream": False,
     "weight_rule": DEFAULT_WEIGHT_RULE,
-    "inlets": [],
-    "outlets": [],
-    "allow_nested_operators": True,
-    "executor_config": {},
 }
 
 
@@ -232,63 +238,48 @@ if TYPE_CHECKING:
         task_id: str,
         dag: DAG | None = None,
         task_group: TaskGroup | None = None,
-        start_date: datetime | ArgNotSet = NOTSET,
-        end_date: datetime | ArgNotSet = NOTSET,
-        owner: str | ArgNotSet = NOTSET,
-        email: None | str | Iterable[str] | ArgNotSet = NOTSET,
+        start_date: datetime = ...,
+        end_date: datetime = ...,
+        owner: str = ...,
+        email: None | str | Iterable[str] = ...,
         params: collections.abc.MutableMapping | None = None,
-        resources: dict[str, Any] | None | ArgNotSet = NOTSET,
-        trigger_rule: str | ArgNotSet = NOTSET,
-        depends_on_past: bool | ArgNotSet = NOTSET,
-        ignore_first_depends_on_past: bool | ArgNotSet = NOTSET,
-        wait_for_past_depends_before_skipping: bool | ArgNotSet = NOTSET,
-        wait_for_downstream: bool | ArgNotSet = NOTSET,
-        retries: int | None | ArgNotSet = NOTSET,
-        queue: str | ArgNotSet = NOTSET,
-        pool: str | ArgNotSet = NOTSET,
-        pool_slots: int | ArgNotSet = NOTSET,
-        execution_timeout: timedelta | None | ArgNotSet = NOTSET,
-        max_retry_delay: None | timedelta | float | ArgNotSet = NOTSET,
-        retry_delay: timedelta | float | ArgNotSet = NOTSET,
-        retry_exponential_backoff: bool | ArgNotSet = NOTSET,
-        priority_weight: int | ArgNotSet = NOTSET,
-        weight_rule: str | PriorityWeightStrategy | ArgNotSet = NOTSET,
-        sla: timedelta | None | ArgNotSet = NOTSET,
-        map_index_template: str | None | ArgNotSet = NOTSET,
-        max_active_tis_per_dag: int | None | ArgNotSet = NOTSET,
-        max_active_tis_per_dagrun: int | None | ArgNotSet = NOTSET,
-        on_execute_callback: None
-        | TaskStateChangeCallback
-        | list[TaskStateChangeCallback]
-        | ArgNotSet = NOTSET,
-        on_failure_callback: None
-        | TaskStateChangeCallback
-        | list[TaskStateChangeCallback]
-        | ArgNotSet = NOTSET,
-        on_success_callback: None
-        | TaskStateChangeCallback
-        | list[TaskStateChangeCallback]
-        | ArgNotSet = NOTSET,
-        on_retry_callback: None
-        | TaskStateChangeCallback
-        | list[TaskStateChangeCallback]
-        | ArgNotSet = NOTSET,
-        on_skipped_callback: None
-        | TaskStateChangeCallback
-        | list[TaskStateChangeCallback]
-        | ArgNotSet = NOTSET,
-        run_as_user: str | None | ArgNotSet = NOTSET,
-        executor: str | None | ArgNotSet = NOTSET,
-        executor_config: dict | None | ArgNotSet = NOTSET,
-        inlets: Any | None | ArgNotSet = NOTSET,
-        outlets: Any | None | ArgNotSet = NOTSET,
-        doc: str | None | ArgNotSet = NOTSET,
-        doc_md: str | None | ArgNotSet = NOTSET,
-        doc_json: str | None | ArgNotSet = NOTSET,
-        doc_yaml: str | None | ArgNotSet = NOTSET,
-        doc_rst: str | None | ArgNotSet = NOTSET,
-        task_display_name: str | None | ArgNotSet = NOTSET,
-        logger_name: str | None | ArgNotSet = NOTSET,
+        resources: dict[str, Any] | None = ...,
+        trigger_rule: str = ...,
+        depends_on_past: bool = ...,
+        ignore_first_depends_on_past: bool = ...,
+        wait_for_past_depends_before_skipping: bool = ...,
+        wait_for_downstream: bool = ...,
+        retries: int | None = ...,
+        queue: str = ...,
+        pool: str = ...,
+        pool_slots: int = ...,
+        execution_timeout: timedelta | None = ...,
+        max_retry_delay: None | timedelta | float = ...,
+        retry_delay: timedelta | float = ...,
+        retry_exponential_backoff: bool = ...,
+        priority_weight: int = ...,
+        weight_rule: str | PriorityWeightStrategy = ...,
+        sla: timedelta | None = ...,
+        map_index_template: str | None = ...,
+        max_active_tis_per_dag: int | None = ...,
+        max_active_tis_per_dagrun: int | None = ...,
+        on_execute_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = ...,
+        on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = ...,
+        on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = ...,
+        on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = ...,
+        on_skipped_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = ...,
+        run_as_user: str | None = ...,
+        executor: str | None = ...,
+        executor_config: dict | None = ...,
+        inlets: Any | None = ...,
+        outlets: Any | None = ...,
+        doc: str | None = ...,
+        doc_md: str | None = ...,
+        doc_json: str | None = ...,
+        doc_yaml: str | None = ...,
+        doc_rst: str | None = ...,
+        task_display_name: str | None = ...,
+        logger_name: str | None = ...,
         allow_nested_operators: bool = True,
         **kwargs,
     ) -> OperatorPartial: ...
@@ -330,12 +321,16 @@ else:
         }
 
         # Inject DAG-level default args into args provided to this function.
+        # Most of the default args will be retrieved during unmapping; here we
+        # only ensure base properties are correctly set for the scheduler.
         partial_kwargs.update(
-            (k, v) for k, v in dag_default_args.items() if partial_kwargs.get(k, NOTSET) is NOTSET
+            (k, v)
+            for k, v in dag_default_args.items()
+            if k not in partial_kwargs and k in BaseOperator.__init__._BaseOperatorMeta__param_names
         )
 
         # Fill fields not provided by the user with default values.
-        partial_kwargs.update((k, v) for k, v in _PARTIAL_DEFAULTS.items() if k not in partial_kwargs)
+        partial_kwargs.update((k, v) for k, v in OPERATOR_DEFAULTS.items() if k not in partial_kwargs)
 
         # Post-process arguments. Should be kept in sync with _TaskDecorator.expand().
         if "task_concurrency" in kwargs:  # Reject deprecated option.
@@ -357,7 +352,7 @@ else:
         )
 
         for k in ("execute", "failure", "success", "retry", "skipped"):
-            partial_kwargs[attr] = _collect_callbacks(partial_kwargs.get(attr := f"on_{k}_callback"))
+            partial_kwargs[attr] = _collect_from_input(partial_kwargs.get(attr := f"on_{k}_callback"))
 
         return OperatorPartial(
             operator_class=operator_class,
@@ -417,12 +412,12 @@ if "airflow.configuration" in sys.modules:
     ExecutorSafeguard.test_mode = conf.getboolean("core", "unit_test_mode")
 
 
-def _collect_callbacks(callbacks: None | C | Collection[C]) -> list[C]:
-    if not callbacks:
+def _collect_from_input(value_or_values: None | C | Collection[C]) -> list[C]:
+    if not value_or_values:
         return []
-    if isinstance(callbacks, Collection):
-        return list(callbacks)
-    return [callbacks]
+    if isinstance(value_or_values, Collection):
+        return list(value_or_values)
+    return [value_or_values]
 
 
 class BaseOperatorMeta(abc.ABCMeta):
@@ -793,8 +788,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param task_display_name: The display name of the task which appears on the UI.
     :param logger_name: Name of the logger used by the Operator to emit logs.
         If set to `None` (default), the logger name will fall back to
-        `airflow.task.operators.{class.__module__}.{class.__name__}` (e.g. SimpleHttpOperator will have
-        *airflow.task.operators.airflow.providers.http.operators.http.SimpleHttpOperator* as logger).
+        `airflow.task.operators.{class.__module__}.{class.__name__}` (e.g. HttpOperator will have
+        *airflow.task.operators.airflow.providers.http.operators.http.HttpOperator* as logger).
     :param allow_nested_operators: if True, when an operator is executed within another one a warning message
         will be logged. If False, then an exception will be raised if the operator is badly used (e.g. nested
         within another one). In future releases of Airflow this parameter will be removed and an exception
@@ -877,6 +872,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     template_ext: Sequence[str] = ()
 
     template_fields_renderers: ClassVar[dict[str, str]] = {}
+
+    operator_extra_links: Collection[BaseOperatorLink] = ()
 
     # Defines the color in the UI
     ui_color: str = "#fff"
@@ -1070,26 +1067,16 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
         self.execution_timeout = execution_timeout
 
-        self.on_execute_callback = _collect_callbacks(on_execute_callback)
-        self.on_failure_callback = _collect_callbacks(on_failure_callback)
-        self.on_success_callback = _collect_callbacks(on_success_callback)
-        self.on_retry_callback = _collect_callbacks(on_retry_callback)
-        self.on_skipped_callback = _collect_callbacks(on_skipped_callback)
+        self.on_execute_callback = _collect_from_input(on_execute_callback)
+        self.on_failure_callback = _collect_from_input(on_failure_callback)
+        self.on_success_callback = _collect_from_input(on_success_callback)
+        self.on_retry_callback = _collect_from_input(on_retry_callback)
+        self.on_skipped_callback = _collect_from_input(on_skipped_callback)
         self._pre_execute_hook = pre_execute
         self._post_execute_hook = post_execute
 
-        if start_date:
-            self.start_date = timezone.convert_to_utc(start_date)
-
-        if end_date:
-            self.end_date = timezone.convert_to_utc(end_date)
-
-        if executor:
-            warnings.warn(
-                "Specifying executors for operators is not yet supported, the value {executor!r} will have no effect",
-                category=UserWarning,
-                stacklevel=2,
-            )
+        self.start_date = timezone.convert_to_utc(start_date)
+        self.end_date = timezone.convert_to_utc(end_date)
         self.executor = executor
         self.executor_config = executor_config or {}
         self.run_as_user = run_as_user
@@ -1155,27 +1142,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self._logger_name = logger_name
 
         # Lineage
-        if inlets:
-            self.inlets = (
-                inlets
-                if isinstance(inlets, list)
-                else [
-                    inlets,
-                ]
-            )
-        else:
-            self.inlets = []
-
-        if outlets:
-            self.outlets = (
-                outlets
-                if isinstance(outlets, list)
-                else [
-                    outlets,
-                ]
-            )
-        else:
-            self.outlets = []
+        self.inlets = _collect_from_input(inlets)
+        self.outlets = _collect_from_input(outlets)
 
         if isinstance(self.template_fields, str):
             warnings.warn(
@@ -1302,7 +1270,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def get_dag(self) -> DAG | None:
         return self._dag
 
-    @property  # type: ignore[override]
+    @property
     def dag(self) -> DAG:
         """Returns the Operator's DAG if set, otherwise raises an error."""
         if dag := self._dag:
@@ -1389,7 +1357,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         return self._dag is not None
 
     def _set_xcomargs_dependencies(self) -> None:
-        from airflow.models.xcom_arg import XComArg
+        from airflow.sdk.definitions.xcom_arg import XComArg
 
         for f in self.template_fields:
             arg = getattr(self, f, NOTSET)
@@ -1418,7 +1386,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 generate_content >> send_email
 
         """
-        from airflow.models.xcom_arg import XComArg
+        from airflow.sdk.definitions.xcom_arg import XComArg
 
         if field not in self.template_fields:
             return
@@ -1465,10 +1433,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     @property
     def output(self) -> XComArg:
         """Returns reference to XCom pushed by current operator."""
-        from airflow.models.xcom_arg import XComArg
+        from airflow.sdk.definitions.xcom_arg import XComArg
 
-        # TODO: Task-SDK: remove this type ignore once XComArg is ported over
-        return XComArg(operator=self)  # type: ignore[call-overload]
+        return XComArg(operator=self)
 
     @classmethod
     def get_serialized_fields(cls):
@@ -1539,6 +1506,28 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         # needs to cope when `self` is a Serialized instance of a EmptyOperator or one
         # of its subclasses (which don't inherit from anything but BaseOperator).
         return getattr(self, "_is_empty", False)
+
+    def unmap(self, resolve: None | Mapping[str, Any]) -> Self:
+        """
+        Get the "normal" operator from the current operator.
+
+        Since a BaseOperator is not mapped to begin with, this simply returns
+        the original operator.
+
+        :meta private:
+        """
+        return self
+
+    def expand_start_trigger_args(self, *, context: Context) -> StartTriggerArgs | None:
+        """
+        Get the start_trigger_args value of the current abstract operator.
+
+        Since a BaseOperator is not mapped to begin with, this simply returns
+        the original value of start_trigger_args.
+
+        :meta private:
+        """
+        return self.start_trigger_args
 
     def render_template_fields(
         self,
@@ -1618,6 +1607,22 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         # Grab the callable off the Operator/Task and add in any kwargs
         execute_callable = getattr(self, next_method)
         return execute_callable(context, **next_kwargs)
+
+    def dry_run(self) -> None:
+        """Perform dry run for the operator - just render template fields."""
+        self.log.info("Dry run")
+        for f in self.template_fields:
+            try:
+                content = getattr(self, f)
+            except AttributeError:
+                raise AttributeError(
+                    f"{f!r} is configured as a template field "
+                    f"but {self.task_type} does not have this attribute."
+                )
+
+            if content and isinstance(content, str):
+                self.log.info("Rendering template for %s", f)
+                self.log.info(content)
 
 
 def chain(*tasks: DependencyMixin | Sequence[DependencyMixin]) -> None:

@@ -29,10 +29,10 @@ import sys
 import textwrap
 import warnings
 from collections import Counter
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from enum import Enum
 from functools import cache
-from typing import Any, Callable
+from typing import Any
 
 import jsonschema
 import yaml
@@ -41,7 +41,7 @@ from rich.console import Console
 from tabulate import tabulate
 
 from airflow.cli.commands.info_command import Architecture
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
 from airflow.providers_manager import ProvidersManager
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent.resolve()))
@@ -61,6 +61,9 @@ DEPRECATED_MODULES = [
     "airflow.providers.tabular.hooks.tabular",
     "airflow.providers.yandex.hooks.yandexcloud_dataproc",
     "airflow.providers.yandex.operators.yandexcloud_dataproc",
+    "airflow.providers.google.cloud.hooks.datacatalog",
+    "airflow.providers.google.cloud.operators.datacatalog",
+    "airflow.providers.google.cloud.links.datacatalog",
 ]
 
 KNOWN_DEPRECATED_CLASSES = [
@@ -78,7 +81,7 @@ if __name__ != "__main__":
 
 PROVIDER_DATA_SCHEMA_PATH = AIRFLOW_CORE_SOURCES_PATH.joinpath("airflow", "provider.yaml.schema.json")
 PROVIDER_ISSUE_TEMPLATE_PATH = AIRFLOW_ROOT_PATH.joinpath(
-    ".github", "ISSUE_TEMPLATE", "airflow_providers_bug_report.yml"
+    ".github", "ISSUE_TEMPLATE", "3-airflow_providers_bug_report.yml"
 )
 CORE_INTEGRATIONS = ["SQL", "Local"]
 
@@ -243,6 +246,8 @@ def check_if_object_exist(
                 return num_errors
         else:
             raise RuntimeError(f"Wrong enum {object_type}???")
+    except AirflowOptionalProviderFeatureException as e:
+        console.print(f"[yellow]Skipping {object_name} check as it is optional feature[/]:", e)
     except Exception as e:
         errors.append(
             f"The `{object_name}` object in {resource_type} list in {yaml_file_path} does not exist "
@@ -467,9 +472,7 @@ def check_plugin_classes(yaml_files: dict[str, dict]) -> tuple[int, int]:
     return num_plugins, num_errors
 
 
-@run_check("Checking extra-links belong to package, exist and are classes")
-def check_extra_link_classes(yaml_files: dict[str, dict]) -> tuple[int, int]:
-    resource_type = "extra-links"
+def _check_simple_class_list(resource_type, yaml_files):
     num_errors = 0
     num_extra_links = 0
     for yaml_file_path, provider_data in yaml_files.items():
@@ -483,20 +486,24 @@ def check_extra_link_classes(yaml_files: dict[str, dict]) -> tuple[int, int]:
     return num_extra_links, num_errors
 
 
+@run_check("Checking extra-links belong to package, exist and are classes")
+def check_extra_link_classes(yaml_files: dict[str, dict]) -> tuple[int, int]:
+    return _check_simple_class_list("extra-links", yaml_files)
+
+
 @run_check("Checking notifications belong to package, exist and are classes")
 def check_notification_classes(yaml_files: dict[str, dict]) -> tuple[int, int]:
-    resource_type = "notifications"
-    num_errors = 0
-    num_notifications = 0
-    for yaml_file_path, provider_data in yaml_files.items():
-        provider_package = _filepath_to_module(yaml_file_path)
-        notifications = provider_data.get(resource_type)
-        if notifications:
-            num_notifications += len(notifications)
-            num_errors += check_if_objects_exist_and_belong_to_package(
-                notifications, provider_package, yaml_file_path, resource_type, ObjectType.CLASS
-            )
-    return num_notifications, num_errors
+    return _check_simple_class_list("notifications", yaml_files)
+
+
+@run_check("Checking executors belong to package, exist and are classes")
+def check_executor_classes(yaml_files: dict[str, dict]) -> tuple[int, int]:
+    return _check_simple_class_list("executors", yaml_files)
+
+
+@run_check("Checking queues belong to package, exist and are classes")
+def check_queue_classes(yaml_files: dict[str, dict]) -> tuple[int, int]:
+    return _check_simple_class_list("queues", yaml_files)
 
 
 @run_check("Checking for duplicates in list of transfers")
@@ -731,6 +738,8 @@ if __name__ == "__main__":
 
     check_completeness_of_list_of_transfers(all_parsed_yaml_files)
     check_hook_class_name_entries_in_connection_types(all_parsed_yaml_files)
+    check_executor_classes(all_parsed_yaml_files)
+    check_queue_classes(all_parsed_yaml_files)
     check_plugin_classes(all_parsed_yaml_files)
     check_extra_link_classes(all_parsed_yaml_files)
     check_correctness_of_list_of_sensors_operators_hook_trigger_modules(all_parsed_yaml_files)

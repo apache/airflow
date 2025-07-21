@@ -17,11 +17,12 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, status
 from sqlalchemy.sql import select
 
+from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.extra_links import ExtraLinkCollectionResponse
@@ -30,7 +31,8 @@ from airflow.api_fastapi.core_api.security import DagAccessEntity, requires_acce
 from airflow.exceptions import TaskNotFound
 
 if TYPE_CHECKING:
-    from airflow.models import DAG
+    from airflow.models.mappedoperator import MappedOperator
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
 
 
 extra_links_router = AirflowRouter(
@@ -49,18 +51,18 @@ def get_extra_links(
     dag_run_id: str,
     task_id: str,
     session: SessionDep,
-    request: Request,
+    dag_bag: DagBagDep,
     map_index: int = -1,
 ) -> ExtraLinkCollectionResponse:
     """Get extra links for task instance."""
     from airflow.models.taskinstance import TaskInstance
 
-    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
-    if not dag:
+    if (dag := dag_bag.get_dag(dag_id)) is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with ID = {dag_id} not found")
 
     try:
-        task = dag.get_task(task_id)
+        # TODO (GH-52141): Make dag a db-backed object so it only returns db-backed tasks.
+        task = cast("MappedOperator | SerializedBaseOperator", dag.get_task(task_id))
     except TaskNotFound:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Task with ID = {task_id} not found")
 
@@ -76,7 +78,7 @@ def get_extra_links(
     if not ti:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
-            f"DAG Run with ID = {dag_run_id} not found",
+            "TaskInstance not found",
         )
 
     all_extra_link_pairs = (

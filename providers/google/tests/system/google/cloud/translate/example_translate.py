@@ -28,6 +28,8 @@ from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.translate import CloudTranslateTextOperator
 from airflow.providers.standard.operators.bash import BashOperator
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
 DAG_ID = "gcp_translate"
 
 with DAG(
@@ -49,7 +51,15 @@ with DAG(
     # [END howto_operator_translate_text]
     # [START howto_operator_translate_access]
     translation_access = BashOperator(
-        task_id="access", bash_command="echo '{{ task_instance.xcom_pull(\"translate\") }}'"
+        task_id="access",
+        bash_command="""
+        {% if params.airflow_v3 %}
+        echo '{{ task_instance.xcom_pull("translate") }}'
+        {% else %}
+        echo '{{ task_instance.xcom_pull("translate")[0] }}'
+        {% endif %}
+        """,
+        params={"airflow_v3": AIRFLOW_V_3_0_PLUS},
     )
     # [END howto_operator_translate_access]
     product_set_create >> translation_access

@@ -40,7 +40,7 @@ use. So, you can be sure your modifications will also work for CI if they pass
 pre-commit hooks.
 
 We have integrated the fantastic `pre-commit <https://pre-commit.com>`__ framework
-in our development workflow. To install and use it, you need at least Python 3.9 locally.
+in our development workflow. To install and use it, you need at least Python 3.10 locally.
 
 Installing pre-commit hooks
 ---------------------------
@@ -129,6 +129,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-airflow-providers-bug-report-template               | Sort airflow-bug-report provider list                  |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-airflow-v-imports-in-tests                          | Check AIRFLOW_V imports in tests                       |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-apache-license-rat                                  | Check if licenses are OK for Apache                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-base-operator-partial-arguments                     | Check BaseOperator and partial() arguments             |         |
@@ -155,8 +157,6 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-core-deprecation-classes                            | Verify usage of Airflow deprecation classes in core    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| check-daysago-import-from-utils                           | days_ago imported from airflow.utils.dates             |         |
-+-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-decorated-operator-implements-custom-name           | Check @task decorator implements custom_operator_name  |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-default-configuration                               | Check the default configuration                        | *       |
@@ -181,7 +181,9 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-hooks-apply                                         | Check if all hooks apply to the repository             |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| check-imports-in-providers                                | Check imports in providers                             |         |
+| check-i18n-json                                           | Check i18n files validity                              | *       |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-imports-in-providers                                | Check imports in providers                             | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-incorrect-use-of-LoggingMixin                       | Make sure LoggingMixin is not used alone               |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -218,6 +220,8 @@ require Breeze Docker image to be built locally.
 | check-providers-subpackages-init-file-exist               | Provider subpackage init files are there               |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-pydevd-left-in-code                                 | Check for pydevd debug statements accidentally left    |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-pytest-mark-db-test-in-providers                    | Check pytest.mark.db_test use in providers             |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-revision-heads-map                                  | Check that the REVISION_HEADS_MAP is up-to-date        |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -271,17 +275,29 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | flynt                                                     | Run flynt string format converter for Python           |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| gci                                                       | Consistent import ordering for Go files                |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-airflow-diagrams                                 | Generate airflow diagrams                              |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-airflowctl-datamodels                            | Generate Datamodels for AirflowCTL                     | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| generate-airflowctl-help-images                           | Generate SVG from Airflow CTL Commands                 | *       |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-openapi-spec                                     | Generate the FastAPI API spec                          | *       |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| generate-openapi-spec-fab                                 | Generate the FastAPI API spec for FAB                  | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-pypi-readme                                      | Generate PyPI README                                   |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-tasksdk-datamodels                               | Generate Datamodels for TaskSDK client                 | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-volumes-for-sources                              | Generate volumes for docker compose                    |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| go-mockery                                                | Generate mocks for go                                  |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| go-mod-tidy                                               | Run go mod tidy                                        |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| gofmt                                                     | Format go code                                         |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | identity                                                  | Print checked files                                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -296,6 +312,7 @@ require Breeze Docker image to be built locally.
 |                                                           | * Add license for all YAML files except Helm templates |         |
 |                                                           | * Add license for all Markdown files                   |         |
 |                                                           | * Add license for all other files                      |         |
+|                                                           | * Add license for all Go files                         |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | kubeconform                                               | Kubeconform check on our helm chart                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -336,6 +353,10 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | pretty-format-json                                        | Format JSON files                                      |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| prevent-deprecated-sqlalchemy-usage                       | Prevent deprecated sqlalchemy usage                    |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| provider-version-compat                                   | Check for correct version_compat imports in providers  | *       |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | pylint                                                    | pylint                                                 |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | python-no-log-warn                                        | Check if there are no deprecate log warn               |         |
@@ -352,7 +373,9 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | trailing-whitespace                                       | Remove trailing whitespace at end of line              |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| ts-compile-format-lint-ui                                 | Compile / format / lint UI                             | *       |
+| ts-compile-lint-simple-auth-manager-ui                    | Compile / format / lint simple auth manager UI         |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| ts-compile-lint-ui                                        | Compile / format / lint UI                             |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-black-version                                      | Update black versions everywhere (manual)              |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -391,6 +414,8 @@ require Breeze Docker image to be built locally.
 | update-vendored-in-k8s-json-schema                        | Vendor k8s definitions into values.schema.json         |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-version                                            | Update versions in docs                                |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| validate-chart-annotations                                | Validate chart annotations                             |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | validate-operators-init                                   | No templated field logic checks in operator __init__   |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -473,6 +498,36 @@ In case you do not have breeze image configured locally, you can also disable al
 the image by setting ``SKIP_BREEZE_PRE_COMMITS`` to "true". This will mark the tests as "green" automatically
 when run locally (note that those checks will anyway run in CI).
 
+Disabling goproxy for firewall issues
+-------------------------------------
+
+Sometimes your environment might not allow to connect to the ``goproxy`` server, which is used to
+proxy/cache Go modules. When your firewall blocks go proxy it usually ends with message similar to:
+
+.. code-block:: text
+
+  lookup proxy.golang.org: i/o timeout
+
+In such case, you can disable the ``goproxy`` by setting the
+``GOPROXY`` environment variable to "direct". You can do it by running:
+
+.. code-block:: bash
+
+    export GOPROXY=direct
+
+Alternatively if your company has its own Go proxy, you can set the ``GOPROXY`` to
+your company Go proxy URL. For example:
+
+.. code-block:: bash
+
+    export GOPROXY=https://mycompanygoproxy.com
+
+See `Go Proxy lesson <https://www.practical-go-lessons.com/chap-18-go-module-proxies#configuration-of-the-go-module-proxy>`__)
+for more details on how to configure Go proxy - including setting multiple proxies.
+
+You can add the variable to your ``.bashrc`` or ``.zshrc`` if you do not want to set it manually every time you
+enter the terminal.
+
 Manual pre-commits
 ------------------
 
@@ -480,6 +535,24 @@ Most of the checks we run are configured to run automatically when you commit th
 there are some checks that are not run automatically and you need to run them manually. Those
 checks are marked with ``manual`` in the ``Description`` column in the table below. You can run
 them manually by running ``pre-commit run --hook-stage manual <hook-id>``.
+
+Special pin-versions pre-commit
+-------------------------------
+
+There is a separate pre-commit ``pin-versions`` pre-commit which is used to pin versions of
+GitHub Actions in the CI workflows.
+
+This action requires ``GITHUB_TOKEN`` to be set, otherwise you might hit the rate limits with GitHub API, it
+is also configured in a separate ``.pre-commit-config.yaml`` file in the
+``.github`` directory as it requires Python 3.11 to run. It is not run automatically
+when you commit the code but in runs as a separate job in the CI. However, you can run it
+manually by running:
+
+.. code-block:: bash
+
+    export GITHUB_TOKEN=YOUR_GITHUB_TOKEN
+    pre-commit run -c .github/.pre-commit-config.yaml --all-files --hook-stage manual --verbose
+
 
 Mypy checks
 -----------
@@ -504,6 +577,12 @@ For example:
 
 .. code-block:: bash
 
+  pre-commit run --hook-stage manual mypy-airflow --all-files
+
+To show unused mypy ignores for any providers/airflow etc, eg: run below command:
+
+.. code-block:: bash
+  export SHOW_UNUSED_MYPY_WARNINGS=true
   pre-commit run --hook-stage manual mypy-airflow --all-files
 
 MyPy uses a separate docker-volume (called ``mypy-cache-volume``) that keeps the cache of last MyPy

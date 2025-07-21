@@ -101,7 +101,7 @@ fi
 if [[ ${AIRFLOW__CORE__EXECUTOR} == "airflow.providers.edge3.executors.edge_executor.EdgeExecutor" ]]; then
     tmux select-pane -t 0
     tmux split-window -h
-    tmux set-option -p @airflow_component EdgeExec
+    tmux set-option -p @airflow_component "Edge Worker"
 
     # Ensure we are not leaking any DB connection information to Edge Worker process
     tmux send-keys 'unset AIRFLOW__DATABASE__SQL_ALCHEMY_CONN' C-m

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import copy
+import json
 import logging.config
 import sys
 from unittest import mock
@@ -27,6 +28,7 @@ import pytest
 from itsdangerous.url_safe import URLSafeSerializer
 from uuid6 import uuid7
 
+from airflow.api_fastapi.common.dagbag import create_dag_bag, dag_bag_from_app
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models.dag import DAG
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -35,8 +37,9 @@ from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import clear_db_runs
+from tests_common.test_utils.file_task_handler import convert_list_to_stream
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
 
 class TestTaskInstancesLog:
@@ -71,8 +74,6 @@ class TestTaskInstancesLog:
             start_date=timezone.parse(self.default_time),
         )
 
-        self.app.state.dag_bag.bag_dag(dag)
-
         for ti in dr.task_instances:
             ti.try_number = 1
             ti.hostname = "localhost"
@@ -83,7 +84,8 @@ class TestTaskInstancesLog:
             ti.id = str(uuid7())
             ti.hostname = "localhost"
             session.merge(ti)
-            session.flush()
+        # Commit changes to avoid locks
+        session.commit()
 
         # Add dummy dag for checking picking correct log with same task_id and different dag_id case.
         with dag_maker(
@@ -96,7 +98,6 @@ class TestTaskInstancesLog:
             logical_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
         )
-        self.app.state.dag_bag.bag_dag(dummy_dag)
 
         for ti in dr2.task_instances:
             ti.try_number = 1
@@ -108,10 +109,14 @@ class TestTaskInstancesLog:
             ti.id = str(uuid7())
             ti.hostname = "localhost"
             session.merge(ti)
-            session.flush()
-        session.flush()
 
-        ...
+        # Final commit to ensure all changes are persisted
+        session.commit()
+
+        dagbag = create_dag_bag()
+        dagbag.bag_dag(dag)
+        dagbag.bag_dag(dummy_dag)
+        test_client.app.dependency_overrides[dag_bag_from_app] = lambda: dagbag
 
     @pytest.fixture
     def configure_loggers(self, tmp_path, create_log_template):
@@ -210,9 +215,7 @@ class TestTaskInstancesLog:
             ),
         ],
     )
-    def test_should_respond_200_text_plain(
-        self, request_url, expected_filename, extra_query_string, try_number
-    ):
+    def test_should_respond_200_ndjson(self, request_url, expected_filename, extra_query_string, try_number):
         expected_filename = expected_filename.replace("LOG_DIR", str(self.log_dir))
 
         key = self.app.state.secret_key
@@ -222,7 +225,7 @@ class TestTaskInstancesLog:
         response = self.client.get(
             request_url,
             params={"token": token, **extra_query_string},
-            headers={"Accept": "text/plain"},
+            headers={"Accept": "application/x-ndjson"},
         )
         assert response.status_code == 200
 
@@ -231,6 +234,12 @@ class TestTaskInstancesLog:
 
         assert expected_filename in resp_content
         assert log_content in resp_content
+
+        # check content is in ndjson format
+        for line in resp_content.splitlines():
+            log = json.loads(line)
+            assert "event" in log
+            assert "timestamp" in log
 
     @pytest.mark.parametrize(
         "request_url, expected_filename, extra_query_string, try_number",
@@ -265,10 +274,11 @@ class TestTaskInstancesLog:
         expected_filename = expected_filename.replace("LOG_DIR", str(self.log_dir))
 
         # Recreate DAG without tasks
-        dagbag = self.app.state.dag_bag
+        dagbag = create_dag_bag()
         dag = DAG(self.DAG_ID, schedule=None, start_date=timezone.parse(self.default_time))
-        del dagbag.dags[self.DAG_ID]
         dagbag.bag_dag(dag=dag)
+
+        self.app.dependency_overrides[dag_bag_from_app] = lambda: dagbag
 
         key = self.app.state.secret_key
         serializer = URLSafeSerializer(key)
@@ -277,7 +287,7 @@ class TestTaskInstancesLog:
         response = self.client.get(
             request_url,
             params={"token": token, **extra_query_string},
-            headers={"Accept": "text/plain"},
+            headers={"Accept": "application/x-ndjson"},
         )
 
         assert response.status_code == 200
@@ -302,17 +312,28 @@ class TestTaskInstancesLog:
 
     @pytest.mark.parametrize("try_number", [1, 2])
     def test_get_logs_with_metadata_as_download_large_file(self, try_number):
+        from airflow.utils.log.file_task_handler import StructuredLogMessage
+
         with mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.read") as read_mock:
-            first_return = (["", "1st line"], {})
-            second_return = (["", "2nd line"], {"end_of_log": False})
-            third_return = (["", "3rd line"], {"end_of_log": True})
-            fourth_return = (["", "should never be read"], {"end_of_log": True})
+            first_return = (convert_list_to_stream([StructuredLogMessage(event="", message="1st line")]), {})
+            second_return = (
+                convert_list_to_stream([StructuredLogMessage(event="", message="2nd line")]),
+                {"end_of_log": False},
+            )
+            third_return = (
+                convert_list_to_stream([StructuredLogMessage(event="", message="3rd line")]),
+                {"end_of_log": True},
+            )
+            fourth_return = (
+                convert_list_to_stream([StructuredLogMessage(event="", message="should never be read")]),
+                {"end_of_log": True},
+            )
             read_mock.side_effect = [first_return, second_return, third_return, fourth_return]
 
             response = self.client.get(
                 f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/"
                 f"taskInstances/{self.TASK_ID}/logs/{try_number}?full_content=True",
-                headers={"Accept": "text/plain"},
+                headers={"Accept": "application/x-ndjson"},
             )
 
             assert "1st line" in response.content.decode("utf-8")
@@ -380,7 +401,7 @@ class TestTaskInstancesLog:
         response = self.client.get(
             f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.MAPPED_TASK_ID}/logs/1",
             params={"token": token},
-            headers={"Accept": "text/plain"},
+            headers={"Accept": "application/x-ndjson"},
         )
         assert response.status_code == 404
         assert response.json()["detail"] == "TaskInstance not found"
@@ -393,7 +414,7 @@ class TestTaskInstancesLog:
         response = self.client.get(
             f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
             params={"token": token, "map_index": 0},
-            headers={"Accept": "text/plain"},
+            headers={"Accept": "application/x-ndjson"},
         )
         assert response.status_code == 404
         assert response.json()["detail"] == "TaskInstance not found"

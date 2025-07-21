@@ -57,9 +57,10 @@ Other Methods
 '''''''''''''
 
 A ``webserver_config.py`` configuration file is automatically generated and can be used to configure FAB auth manager to support authentication
-methods like OAuth, OpenID, LDAP, REMOTE_USER. It should be noted that due to the limitation of Flask AppBuilder
-and Authlib, only a selection of OAuth2 providers is supported. This list includes ``github``, ``githublocal``, ``twitter``,
-``linkedin``, ``google``, ``azure``, ``openshift``, ``okta``, ``keycloak`` and ``keycloak_before_17``.
+methods like OAuth, OpenID, LDAP and REMOTE_USER. It should be noted that due to the limitation of Flask AppBuilder
+and Authlib, some OAuth2 providers may not be supported. Currently supported providers include ``github``, ``githublocal``, ``twitter``,
+``linkedin``, ``google``, ``azure``, ``openshift``, ``okta``, ``auth0``, ``keycloak``, ``keycloak_before_17`` and ``authentik``.
+If your provider is not on the list, you may need to adjust the ``remote_app`` configuration to match your provider's OAuth2 specification.
 
 By default, the following entry in the ``$AIRFLOW_HOME/webserver_config.py`` is used.
 
@@ -232,15 +233,15 @@ Here is an example of what you might have in your webserver_config.py:
 
 .. code-block:: python
 
-  import os
-  import jwt
-  import requests
   import logging
   from base64 import b64decode
+
+  import jwt
+  import requests
   from cryptography.hazmat.primitives import serialization
-  from flask_appbuilder.security.manager import AUTH_DB, AUTH_OAUTH
-  from airflow import configuration as conf
-  from airflow.www.security import AirflowSecurityManager
+  from flask_appbuilder.security.manager import AUTH_OAUTH
+
+  from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 
   log = logging.getLogger(__name__)
 
@@ -284,11 +285,11 @@ Here is an example of what you might have in your webserver_config.py:
   public_key = serialization.load_der_public_key(key_der)
 
 
-  class CustomSecurityManager(AirflowSecurityManager):
+  class CustomSecurityManager(FabAirflowSecurityManagerOverride):
       def get_oauth_user_info(self, provider, response):
           if provider == "keycloak":
               token = response["access_token"]
-              me = jwt.decode(token, public_key, algorithms=["HS256", "RS256"])
+              me = jwt.decode(token, public_key, algorithms=["HS256", "RS256"], audience="account")
 
               # Extract roles from resource access
               realm_access = me.get("realm_access", {})

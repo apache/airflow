@@ -28,7 +28,6 @@ from airflow.triggers.base import TriggerEvent
 
 from tests_common.test_utils.file_loading import load_json_from_resources
 from tests_common.test_utils.operators.run_deferrable import execute_operator
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
 from unit.microsoft.azure.base import Base
 from unit.microsoft.azure.test_utils import mock_json_response
 
@@ -55,20 +54,20 @@ class TestMSGraphSensor(Base):
             ):
                 results, events = execute_operator(sensor)
 
-                assert sensor.path_parameters == {"scanId": "0a1b1bf3-37de-48f7-9863-ed4cda97a9ef"}
-                assert isinstance(results, str)
-                assert results == "0a1b1bf3-37de-48f7-9863-ed4cda97a9ef"
-                assert len(events) == 3
-                assert isinstance(events[0], TriggerEvent)
-                assert events[0].payload["status"] == "success"
-                assert events[0].payload["type"] == "builtins.dict"
-                assert events[0].payload["response"] == json.dumps(status[0])
-                assert isinstance(events[1], TriggerEvent)
-                assert isinstance(events[1].payload, datetime)
-                assert isinstance(events[2], TriggerEvent)
-                assert events[2].payload["status"] == "success"
-                assert events[2].payload["type"] == "builtins.dict"
-                assert events[2].payload["response"] == json.dumps(status[1])
+            assert sensor.path_parameters == {"scanId": "0a1b1bf3-37de-48f7-9863-ed4cda97a9ef"}
+            assert isinstance(results, str)
+            assert results == "0a1b1bf3-37de-48f7-9863-ed4cda97a9ef"
+            assert len(events) == 3
+            assert isinstance(events[0], TriggerEvent)
+            assert events[0].payload["status"] == "success"
+            assert events[0].payload["type"] == "builtins.dict"
+            assert events[0].payload["response"] == json.dumps(status[0])
+            assert isinstance(events[1], TriggerEvent)
+            assert isinstance(events[1].payload, datetime)
+            assert isinstance(events[2], TriggerEvent)
+            assert events[2].payload["status"] == "success"
+            assert events[2].payload["type"] == "builtins.dict"
+            assert events[2].payload["response"] == json.dumps(status[1])
 
     def test_execute_with_result_processor_with_new_signature(self):
         status = load_json_from_resources(dirname(__file__), "..", "resources", "status.json")
@@ -102,7 +101,6 @@ class TestMSGraphSensor(Base):
             assert events[2].payload["type"] == "builtins.dict"
             assert events[2].payload["response"] == json.dumps(status[1])
 
-    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Lambda parameters works in Airflow >= 2.10.0")
     def test_execute_with_lambda_parameter_and_result_processor_with_new_signature(self):
         status = load_json_from_resources(dirname(__file__), "..", "resources", "status.json")
         response = mock_json_response(200, *status)

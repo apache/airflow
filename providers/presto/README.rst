@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-presto``
 
-Release: ``5.8.4``
+Release: ``5.9.1``
 
 
 `Presto <https://prestodb.io/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``presto`` provider. All classes for this provide
 are in ``airflow.providers.presto`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-presto/5.8.4/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-presto/5.9.1/>`_.
 
 Installation
 ------------
@@ -45,19 +45,20 @@ You can install this package on top of an existing Airflow 2 installation (see `
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-presto``
 
-The package supports the following python versions: 3.9,3.10,3.11,3.12
+The package supports the following python versions: 3.10,3.11,3.12,3.13
 
 Requirements
 ------------
 
-=======================================  ==================
+=======================================  =====================================
 PIP package                              Version required
-=======================================  ==================
-``apache-airflow``                       ``>=2.9.0``
-``apache-airflow-providers-common-sql``  ``>=1.20.0``
+=======================================  =====================================
+``apache-airflow``                       ``>=2.10.0``
+``apache-airflow-providers-common-sql``  ``>=1.26.0``
 ``presto-python-client``                 ``>=0.8.4``
-``pandas``                               ``>=2.1.2,<2.2``
-=======================================  ==================
+``pandas``                               ``>=2.1.2; python_version < "3.13"``
+``pandas``                               ``>=2.2.3; python_version >= "3.13"``
+=======================================  =====================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -80,4 +81,4 @@ Dependent package                                                               
 ============================================================================================================  ==============
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-presto/5.8.4/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-presto/5.9.1/changelog.html>`_.

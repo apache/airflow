@@ -16,15 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.providers.standard.operators.bash import BashOperator
 
-if TYPE_CHECKING:
-    from airflow.models.operator import Operator
 
-
-def get_describe_pod_operator(cluster_name: str, pod_name: str) -> Operator:
+def get_describe_pod_operator(cluster_name: str, pod_name: str) -> BashOperator:
     """Returns an operator that'll print the output of a `k describe pod` in the airflow logs."""
     return BashOperator(
         task_id="describe_pod",

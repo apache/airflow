@@ -34,6 +34,7 @@ import airflow.dag_processing.collection
 from airflow.configuration import conf
 from airflow.dag_processing.collection import (
     AssetModelOperation,
+    DagModelOperation,
     _get_latest_runs_stmt,
     update_dag_parsing_results_in_db,
 )
@@ -45,7 +46,6 @@ from airflow.models.asset import (
     AssetModel,
     DagScheduleAssetNameReference,
     DagScheduleAssetUriReference,
-    asset_trigger_association_table,
 )
 from airflow.models.dag import DAG
 from airflow.models.errors import ParseImportError
@@ -55,7 +55,6 @@ from airflow.providers.standard.triggers.temporal import TimeDeltaTrigger
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetWatcher
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.utils import timezone as tz
-from airflow.utils.session import create_session
 
 from tests_common.test_utils.db import (
     clear_db_assets,
@@ -130,34 +129,37 @@ class TestAssetModelOperation:
             (False, False, 0),
         ],
     )
-    def test_add_asset_trigger_references(self, is_active, is_paused, expected_num_triggers, dag_maker):
-        trigger = TimeDeltaTrigger(timedelta(seconds=0))
-        classpath, kwargs = trigger.serialize()
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_add_asset_trigger_references(self, session, is_active, is_paused, expected_num_triggers):
+        classpath, kwargs = TimeDeltaTrigger(timedelta(seconds=0)).serialize()
         asset = Asset(
             "test_add_asset_trigger_references_asset",
             watchers=[AssetWatcher(name="test", trigger={"classpath": classpath, "kwargs": kwargs})],
         )
 
-        with dag_maker(dag_id="test_add_asset_trigger_references_dag", schedule=[asset]) as dag:
+        with DAG(dag_id="test_add_asset_trigger_references_dag", schedule=[asset]) as dag:
             EmptyOperator(task_id="mytask")
 
-            asset_op = AssetModelOperation.collect({"test_add_asset_trigger_references_dag": dag})
+        dags = {dag.dag_id: dag}
+        orm_dags = DagModelOperation(dags, "testing", None).add_dags(session=session)
 
-        with create_session() as session:
-            # Update `is_active` and `is_paused` properties from DAG
-            dags = session.query(DagModel).all()
-            for dag in dags:
-                dag.is_stale = not is_active
-                dag.is_paused = is_paused
+        # Simulate dag unpause and deletion.
+        dag_model = orm_dags[dag.dag_id]
+        dag_model.is_stale = not is_active
+        dag_model.is_paused = is_paused
 
-            orm_assets = asset_op.sync_assets(session=session)
-            session.flush()
-            asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
-            asset_op.add_asset_trigger_references(orm_assets, session=session)
-            session.flush()
+        asset_op = AssetModelOperation.collect(dags)
+        orm_assets = asset_op.sync_assets(session=session)
+        session.flush()
 
-            assert session.query(Trigger).count() == expected_num_triggers
-            assert session.query(asset_trigger_association_table).count() == expected_num_triggers
+        asset_op.add_dag_asset_references(orm_dags, orm_assets, session=session)
+        asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
+        asset_op.add_asset_trigger_references(orm_assets, session=session)
+        session.flush()
+
+        asset_model = session.scalars(select(AssetModel)).one()
+        assert len(asset_model.triggers) == expected_num_triggers
+        assert session.scalar(select(func.count()).select_from(Trigger)) == expected_num_triggers
 
     @pytest.mark.parametrize(
         "schedule, model, columns, expected",
@@ -239,6 +241,7 @@ class TestAssetModelOperation:
 
 
 @pytest.mark.db_test
+@pytest.mark.want_activate_assets(False)
 class TestAssetModelOperationSyncAssetActive:
     @staticmethod
     def clean_db():
@@ -450,28 +453,30 @@ class TestUpdateDagParsingResults:
         new_serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
         assert new_serialized_dags_count == 1
 
+    @patch.object(ParseImportError, "full_file_path")
     @patch.object(SerializedDagModel, "write_dag")
+    @pytest.mark.usefixtures("clean_db")
     def test_serialized_dag_errors_are_import_errors(
-        self, mock_serialize, caplog, session, dag_import_error_listener, testing_dag_bundle
+        self, mock_serialize, mock_full_path, caplog, session, dag_import_error_listener, testing_dag_bundle
     ):
         """
         Test that errors serializing a DAG are recorded as import_errors in the DB
         """
         mock_serialize.side_effect = SerializationError
-
         caplog.set_level(logging.ERROR)
 
         dag = DAG(dag_id="test")
         dag.fileloc = "abc.py"
+        dag.relative_fileloc = "abc.py"
+        mock_full_path.return_value = "abc.py"
 
         import_errors = {}
         update_dag_parsing_results_in_db("testing", None, [dag], import_errors, set(), session)
         assert "SerializationError" in caplog.text
 
         # Should have been edited in place
-        err = import_errors.get(dag.fileloc)
+        err = import_errors.get(("testing", dag.relative_fileloc))
         assert "SerializationError" in err
-
         dag_model: DagModel = session.get(DagModel, (dag.dag_id,))
         assert dag_model.has_import_errors is True
 
@@ -479,7 +484,7 @@ class TestUpdateDagParsingResults:
 
         assert len(import_errors) == 1
         import_error = import_errors[0]
-        assert import_error.filename == dag.fileloc
+        assert import_error.filename == dag.relative_fileloc
         assert "SerializationError" in import_error.stacktrace
 
         # Ensure the listener was notified
@@ -487,13 +492,18 @@ class TestUpdateDagParsingResults:
         assert len(dag_import_error_listener.existing) == 0
         assert dag_import_error_listener.new["abc.py"] == import_error.stacktrace
 
-    def test_new_import_error_replaces_old(self, session, dag_import_error_listener, testing_dag_bundle):
+    @patch.object(ParseImportError, "full_file_path")
+    @pytest.mark.usefixtures("clean_db")
+    def test_new_import_error_replaces_old(
+        self, mock_full_file_path, session, dag_import_error_listener, testing_dag_bundle
+    ):
         """
         Test that existing import error is updated and new record not created
         for a dag with the same filename
         """
         bundle_name = "testing"
         filename = "abc.py"
+        mock_full_file_path.return_value = filename
         prev_error = ParseImportError(
             filename=filename,
             bundle_name=bundle_name,
@@ -508,7 +518,7 @@ class TestUpdateDagParsingResults:
             bundle_name=bundle_name,
             bundle_version=None,
             dags=[],
-            import_errors={"abc.py": "New error"},
+            import_errors={("testing", "abc.py"): "New error"},
             warnings=set(),
             session=session,
         )
@@ -528,6 +538,7 @@ class TestUpdateDagParsingResults:
         assert len(dag_import_error_listener.existing) == 1
         assert dag_import_error_listener.existing["abc.py"] == prev_error.stacktrace
 
+    @pytest.mark.usefixtures("clean_db")
     def test_remove_error_clears_import_error(self, testing_dag_bundle, session):
         # Pre-condition: there is an import error for the dag file
         bundle_name = "testing"
@@ -557,6 +568,7 @@ class TestUpdateDagParsingResults:
 
         dag = DAG(dag_id="test")
         dag.fileloc = filename
+        dag.relative_fileloc = filename
 
         import_errors = {}
         update_dag_parsing_results_in_db(bundle_name, None, [dag], import_errors, set(), session)
@@ -567,6 +579,38 @@ class TestUpdateDagParsingResults:
         import_errors = set(session.execute(select(ParseImportError.filename, ParseImportError.bundle_name)))
 
         assert import_errors == {("def.py", bundle_name)}
+
+    @pytest.mark.usefixtures("clean_db")
+    def test_remove_error_updates_loaded_dag_model(self, testing_dag_bundle, session):
+        bundle_name = "testing"
+        filename = "abc.py"
+        session.add(
+            ParseImportError(
+                filename=filename,
+                bundle_name=bundle_name,
+                timestamp=tz.utcnow(),
+                stacktrace="Some error",
+            )
+        )
+        session.add(
+            ParseImportError(
+                filename="def.py",
+                bundle_name=bundle_name,
+                timestamp=tz.utcnow(),
+                stacktrace="Some error",
+            )
+        )
+        session.flush()
+        dag = DAG(dag_id="test")
+        dag.fileloc = filename
+        dag.relative_fileloc = filename
+        import_errors = {(bundle_name, filename): "Some error"}
+        update_dag_parsing_results_in_db(bundle_name, None, [dag], import_errors, set(), session)
+        dag_model = session.get(DagModel, (dag.dag_id,))
+        assert dag_model.has_import_errors is True
+        import_errors = {}
+        update_dag_parsing_results_in_db(bundle_name, None, [dag], import_errors, set(), session)
+        assert dag_model.has_import_errors is False
 
     @pytest.mark.parametrize(
         ("attrs", "expected"),

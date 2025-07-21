@@ -19,11 +19,13 @@
  * under the License.
  */
 import { render, screen } from "@testing-library/react";
+import i18n from "i18next";
 import type { DagTagResponse, DAGWithLatestDagRunsResponse } from "openapi-gen/requests/types.gen";
-import { afterEach, describe, it, vi, expect } from "vitest";
+import { afterEach, describe, it, vi, expect, beforeAll } from "vitest";
 
 import { Wrapper } from "src/utils/Wrapper";
 
+import "../../i18n/config";
 import { DagCard } from "./DagCard";
 
 const mockDag = {
@@ -32,6 +34,7 @@ const mockDag = {
   bundle_version: "1",
   dag_display_name: "nested_groups",
   dag_id: "nested_groups",
+  deadline: null,
   description: null,
   file_token: "Ii9maWxlcy9kYWdzL25lc3RlZF90YXNrX2dyb3Vwcy5weSI.G3EkdxmDUDQsVb7AIZww1TSGlFE",
   fileloc: "/files/dags/nested_task_groups.py",
@@ -55,6 +58,23 @@ const mockDag = {
   timetable_description: "",
   timetable_summary: "",
 } satisfies DAGWithLatestDagRunsResponse;
+
+beforeAll(async () => {
+  await i18n.init({
+    defaultNS: "components",
+    fallbackLng: "en",
+    interpolation: { escapeValue: false },
+    lng: "en",
+    ns: ["components"],
+    resources: {
+      en: {
+        components: {
+          limitedList: "+{{count}} more",
+        },
+      },
+    },
+  });
+});
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -82,6 +102,7 @@ describe("DagCard", () => {
 
     render(<DagCard dag={expandedMockDag} />, { wrapper: Wrapper });
     expect(screen.getByTestId("dag-tag")).toBeInTheDocument();
+    expect(screen.queryByText("tag3")).toBeInTheDocument();
     expect(screen.queryByText("tag4")).toBeInTheDocument();
     expect(screen.queryByText(", +1 more")).toBeNull();
   });
@@ -102,6 +123,6 @@ describe("DagCard", () => {
 
     render(<DagCard dag={expandedMockDag} />, { wrapper: Wrapper });
     expect(screen.getByTestId("dag-tag")).toBeInTheDocument();
-    expect(screen.getByText(", +2 more")).toBeInTheDocument();
+    expect(screen.getByText("+2 more")).toBeInTheDocument();
   });
 });

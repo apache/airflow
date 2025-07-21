@@ -29,17 +29,17 @@ from contextlib import contextmanager, redirect_stdout
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest import mock
-from unittest.mock import sentinel
 
 import pytest
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import task_command
-from airflow.cli.commands.task_command import LoggerMutationHelper
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.configuration import conf
 from airflow.exceptions import DagRunNotFound
 from airflow.models import DagBag, DagRun, TaskInstance
+from airflow.models.dag_version import DagVersion
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
@@ -47,6 +47,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_runs, parse_and_sync_to_db
 
 pytestmark = pytest.mark.db_test
@@ -74,7 +75,6 @@ def move_back(old_path, new_path):
     shutil.move(new_path, old_path)
 
 
-# TODO: Check if tests needs side effects - locally there's missing DAG
 class TestCliTasks:
     run_id = "TEST_RUN_ID"
     dag_id = "example_python_operator"
@@ -84,14 +84,13 @@ class TestCliTasks:
     dag_run: DagRun
 
     @classmethod
-    @pytest.fixture(autouse=True)
     def setup_class(cls):
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
         parse_and_sync_to_db(os.devnull, include_examples=True)
         cls.parser = cli_parser.get_parser()
         clear_db_runs()
 
-        cls.dagbag = DagBag(read_dags_from_db=True)
+        cls.dagbag = DagBag(read_dags_from_db=True, include_examples=True)
         cls.dag = cls.dagbag.get_dag(cls.dag_id)
         data_interval = cls.dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE)
         cls.dag_run = cls.dag.create_dagrun(
@@ -108,6 +107,7 @@ class TestCliTasks:
     def teardown_class(cls) -> None:
         clear_db_runs()
 
+    @conf_vars({("core", "load_examples"): "true"})
     @pytest.mark.execution_timeout(120)
     def test_cli_list_tasks(self):
         for dag_id in self.dagbag.dags:
@@ -158,10 +158,9 @@ class TestCliTasks:
         args = self.parser.parse_args(["tasks", "test", self.dag_id, task_id, DEFAULT_DATE.isoformat()])
         with caplog.at_level("INFO", logger="airflow.task"):
             task_command.task_test(args)
-        assert (
-            f"Marking task as SUCCESS. dag_id={self.dag_id}, task_id={task_id}, run_id={self.run_id}, "
-            in caplog.text
-        )
+        ti = self.dag_run.get_task_instance(task_id=task_id)
+        assert ti is not None
+        assert ti.state == State.SUCCESS
 
     @pytest.mark.enable_redact
     def test_test_filters_secrets(self, capsys):
@@ -176,12 +175,16 @@ class TestCliTasks:
             ["tasks", "test", "example_python_operator", "print_the_context", "2018-01-01"],
         )
 
-        with mock.patch("airflow.models.TaskInstance.run", side_effect=lambda *_, **__: print(password)):
+        with mock.patch(
+            "airflow.cli.commands.task_command._run_task", side_effect=lambda *_, **__: print(password)
+        ):
             task_command.task_test(args)
         assert capsys.readouterr().out.endswith("***\n")
 
         not_password = "!4321drowssapemos"
-        with mock.patch("airflow.models.TaskInstance.run", side_effect=lambda *_, **__: print(not_password)):
+        with mock.patch(
+            "airflow.cli.commands.task_command._run_task", side_effect=lambda *_, **__: print(not_password)
+        ):
             task_command.task_test(args)
         assert capsys.readouterr().out.endswith(f"{not_password}\n")
 
@@ -233,7 +236,9 @@ class TestCliTasks:
         assert "AIRFLOW_TEST_MODE=True" in output
 
     @mock.patch("airflow.providers.standard.triggers.file.os.path.getmtime", return_value=0)
-    @mock.patch("airflow.providers.standard.triggers.file.glob", return_value=["/tmp/test"])
+    @mock.patch(
+        "airflow.providers.standard.triggers.file.glob", return_value=["/tmp/temporary_file_for_testing"]
+    )
     @mock.patch("airflow.providers.standard.triggers.file.os")
     @mock.patch("airflow.providers.standard.sensors.filesystem.FileSensor.poke", return_value=False)
     def test_cli_test_with_deferrable_operator(self, mock_pock, mock_os, mock_glob, mock_getmtime, caplog):
@@ -251,7 +256,7 @@ class TestCliTasks:
                 )
             )
             output = caplog.text
-        assert "wait_for_file_async completed successfully as /tmp/temporary_file_for_testing found" in output
+        assert "Found File /tmp/temporary_file_for_testing" in output
 
     def test_task_render(self):
         """
@@ -271,6 +276,9 @@ class TestCliTasks:
         """
         tasks render should render and displays templated fields for a given mapping task
         """
+        dag = DagBag().get_dag("test_mapped_classic")
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
         with redirect_stdout(io.StringIO()) as stdout:
             task_command.task_render(
                 self.parser.parse_args(
@@ -337,6 +345,8 @@ class TestCliTasks:
 
     def test_task_states_for_dag_run(self):
         dag2 = DagBag().dags["example_python_operator"]
+
+        SerializedDagModel.write_dag(dag2, bundle_name="testing")
         task2 = dag2.get_task(task_id="print_the_context")
 
         dag2 = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag2))
@@ -353,7 +363,8 @@ class TestCliTasks:
             run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.CLI,
         )
-        ti2 = TaskInstance(task2, run_id=dagrun.run_id)
+        dag_version = DagVersion.get_latest_version(dag2.dag_id)
+        ti2 = TaskInstance(task2, run_id=dagrun.run_id, dag_version_id=dag_version.id)
         ti2.set_state(State.SUCCESS)
         ti_start = ti2.start_date
         ti_end = ti2.end_date
@@ -474,70 +485,3 @@ class TestLogsfromTaskRunCommand:
             # Example: [2020-06-24 17:07:00,482] {logging_mixin.py:91} INFO - Log from Print statement
             assert "logging_mixin.py" not in log_line
         return log_line
-
-
-class TestLoggerMutationHelper:
-    @pytest.mark.parametrize("target_name", ["test_apply_target", None])
-    def test_apply(self, target_name):
-        """
-        Handlers, level and propagate should be applied on target.
-        """
-        src = logging.getLogger(f"test_apply_source_{target_name}")
-        src.propagate = False
-        src.addHandler(sentinel.handler)
-        src.setLevel(-1)
-        obj = LoggerMutationHelper(src)
-        tgt = logging.getLogger("test_apply_target")
-        obj.apply(tgt)
-        assert tgt.handlers == [sentinel.handler]
-        assert tgt.propagate is False if target_name else True  # root propagate unchanged
-        assert tgt.level == -1
-
-    def test_apply_no_replace(self, clear_all_logger_handlers):
-        """
-        Handlers, level and propagate should be applied on target.
-        """
-        src = logging.getLogger("test_apply_source_no_repl")
-        tgt = logging.getLogger("test_apply_target_no_repl")
-        h1 = logging.Handler()
-        h1.name = "h1"
-        h2 = logging.Handler()
-        h2.name = "h2"
-        h3 = logging.Handler()
-        h3.name = "h3"
-        src.handlers[:] = [h1, h2]
-        tgt.handlers[:] = [h2, h3]
-        LoggerMutationHelper(src).apply(tgt, replace=False)
-        assert tgt.handlers == [h2, h3, h1]
-
-    def test_move(self):
-        """Move should apply plus remove source handler, set propagate to True"""
-        src = logging.getLogger("test_move_source")
-        src.propagate = False
-        src.addHandler(sentinel.handler)
-        src.setLevel(-1)
-        obj = LoggerMutationHelper(src)
-        tgt = logging.getLogger("test_apply_target")
-        obj.move(tgt)
-        assert tgt.handlers == [sentinel.handler]
-        assert tgt.propagate is False
-        assert tgt.level == -1
-        assert src.propagate is True
-        assert obj.propagate is False
-        assert src.level == obj.level
-        assert src.handlers == []
-        assert obj.handlers == tgt.handlers
-
-    def test_reset(self):
-        src = logging.getLogger("test_move_reset")
-        src.propagate = True
-        src.addHandler(sentinel.h1)
-        src.setLevel(-1)
-        obj = LoggerMutationHelper(src)
-        src.propagate = False
-        src.addHandler(sentinel.h2)
-        src.setLevel(-2)
-        obj.reset()
-        assert src.propagate is True
-        assert src.handlers == [sentinel.h1]
-        assert src.level == -1

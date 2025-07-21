@@ -20,18 +20,18 @@ from __future__ import annotations
 import contextlib
 import inspect
 import itertools
-from collections.abc import Iterable, Iterator, Mapping, Sequence, Sized
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence, Sized
 from functools import singledispatch
-from typing import TYPE_CHECKING, Any, Callable, overload
+from typing import TYPE_CHECKING, Any, overload
 
 from airflow.exceptions import AirflowException, XComNotFound
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 from airflow.sdk.definitions._internal.mixins import DependencyMixin, ResolveMixin
+from airflow.sdk.definitions._internal.setup_teardown import SetupTeardownContext
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
-from airflow.utils.setup_teardown import SetupTeardownContext
+from airflow.sdk.execution_time.xcom import BaseXCom
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
     from airflow.sdk.bases.operator import BaseOperator
@@ -79,7 +79,7 @@ class XComArg(ResolveMixin, DependencyMixin):
     """
 
     @overload
-    def __new__(cls: type[XComArg], operator: Operator, key: str = XCOM_RETURN_KEY) -> XComArg:
+    def __new__(cls: type[XComArg], operator: Operator, key: str = BaseXCom.XCOM_RETURN_KEY) -> XComArg:
         """Execute when the user writes ``XComArg(...)`` directly."""
 
     @overload
@@ -207,7 +207,7 @@ class PlainXComArg(XComArg):
     :meta private:
     """
 
-    def __init__(self, operator: Operator, key: str = XCOM_RETURN_KEY):
+    def __init__(self, operator: Operator, key: str = BaseXCom.XCOM_RETURN_KEY):
         self.operator = operator
         self.key = key
 
@@ -238,7 +238,7 @@ class PlainXComArg(XComArg):
         raise TypeError("'XComArg' object is not iterable")
 
     def __repr__(self) -> str:
-        if self.key == XCOM_RETURN_KEY:
+        if self.key == BaseXCom.XCOM_RETURN_KEY:
             return f"XComArg({self.operator!r})"
         return f"XComArg({self.operator!r}, {self.key!r})"
 
@@ -318,17 +318,17 @@ class PlainXComArg(XComArg):
         yield self.operator, self.key
 
     def map(self, f: Callable[[Any], Any]) -> MapXComArg:
-        if self.key != XCOM_RETURN_KEY:
+        if self.key != BaseXCom.XCOM_RETURN_KEY:
             raise ValueError("cannot map against non-return XCom")
         return super().map(f)
 
     def zip(self, *others: XComArg, fillvalue: Any = NOTSET) -> ZipXComArg:
-        if self.key != XCOM_RETURN_KEY:
+        if self.key != BaseXCom.XCOM_RETURN_KEY:
             raise ValueError("cannot map against non-return XCom")
         return super().zip(*others, fillvalue=fillvalue)
 
     def concat(self, *others: XComArg) -> ConcatXComArg:
-        if self.key != XCOM_RETURN_KEY:
+        if self.key != BaseXCom.XCOM_RETURN_KEY:
             raise ValueError("cannot concatenate non-return XCom")
         return super().concat(*others)
 
@@ -337,27 +337,22 @@ class PlainXComArg(XComArg):
         task_id = self.operator.task_id
 
         if self.operator.is_mapped:
-            return LazyXComSequence[Any](xcom_arg=self, ti=ti)
+            return LazyXComSequence(xcom_arg=self, ti=ti)
         tg = self.operator.get_closest_mapped_task_group()
-        result = None
         if tg is None:
-            # regular task
-            result = ti.xcom_pull(
-                task_ids=task_id,
-                key=self.key,
-                default=NOTSET,
-                map_indexes=None,
-            )
+            map_indexes = None
         else:
-            # task from a task group
-            result = ti.xcom_pull(
-                task_ids=task_id,
-                key=self.key,
-                default=NOTSET,
-            )
+            upstream_map_indexes = getattr(ti, "_upstream_map_indexes", {})
+            map_indexes = upstream_map_indexes.get(task_id, None)
+        result = ti.xcom_pull(
+            task_ids=task_id,
+            key=self.key,
+            default=NOTSET,
+            map_indexes=map_indexes,
+        )
         if not isinstance(result, ArgNotSet):
             return result
-        if self.key == XCOM_RETURN_KEY:
+        if self.key == BaseXCom.XCOM_RETURN_KEY:
             return None
         if getattr(self.operator, "multiple_outputs", False):
             # If the operator is set to have multiple outputs and it was not executed,

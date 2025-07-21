@@ -27,6 +27,60 @@
 Changelog
 ---------
 
+4.10.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix HDFS remote_base to use path for compatibility with hdfs client (#50804)``
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Replace models.BaseOperator to Task SDK for apache/hdfs (#52505)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Use BaseSensorOperator from task sdk in providers (#52296)``
+* ``Remove HDFSHook, HdfsRegexSensor, HdfsSensor, HdfsFolderSensor (#52217)``
+* ``Bump upper binding on pandas in all providers (#52060)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add custom headers and cookies support in WebHDFSHook (#50955)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use conn.password instead of conn.get_password() (#50759)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.9.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.10+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Misc
+~~~~
+
+* ``Bump min Airflow version in providers to 2.10 (#49843)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Avoid committing history for providers (#49907)``
+
 4.8.1
 .....
 

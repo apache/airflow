@@ -28,7 +28,7 @@ from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowConfigException
 from airflow.models.dagbundle import DagBundleModel
-from airflow.utils.session import create_session
+from airflow.models.errors import ParseImportError
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dag_bundles
@@ -139,12 +139,9 @@ def clear_db():
 
 @pytest.mark.db_test
 @conf_vars({("core", "LOAD_EXAMPLES"): "False"})
-def test_sync_bundles_to_db(clear_db):
+def test_sync_bundles_to_db(clear_db, session):
     def _get_bundle_names_and_active():
-        with create_session() as session:
-            return (
-                session.query(DagBundleModel.name, DagBundleModel.active).order_by(DagBundleModel.name).all()
-            )
+        return session.query(DagBundleModel.name, DagBundleModel.active).order_by(DagBundleModel.name).all()
 
     # Initial add
     with patch.dict(
@@ -154,11 +151,24 @@ def test_sync_bundles_to_db(clear_db):
         manager.sync_bundles_to_db()
     assert _get_bundle_names_and_active() == [("my-test-bundle", True)]
 
-    # simulate bundle config change
-    # note: airflow will detect config changes when they are in env vars
+    session.add(
+        ParseImportError(
+            bundle_name="my-test-bundle",  # simulate import error for this bundle
+            filename="some_file.py",
+            stacktrace="some error",
+        )
+    )
+    session.flush()
+
+    # simulate bundle config change (now 'dags-folder' is active, 'my-test-bundle' becomes inactive)
     manager = DagBundlesManager()
     manager.sync_bundles_to_db()
-    assert _get_bundle_names_and_active() == [("dags-folder", True), ("my-test-bundle", False)]
+    assert _get_bundle_names_and_active() == [
+        ("dags-folder", True),
+        ("my-test-bundle", False),
+    ]
+    # Since my-test-bundle is inactive, the associated import errors should be deleted
+    assert session.query(ParseImportError).count() == 0
 
     # Re-enable one that reappears in config
     with patch.dict(
@@ -166,7 +176,10 @@ def test_sync_bundles_to_db(clear_db):
     ):
         manager = DagBundlesManager()
         manager.sync_bundles_to_db()
-    assert _get_bundle_names_and_active() == [("dags-folder", False), ("my-test-bundle", True)]
+    assert _get_bundle_names_and_active() == [
+        ("dags-folder", False),
+        ("my-test-bundle", True),
+    ]
 
 
 @conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(BASIC_BUNDLE_CONFIG)})

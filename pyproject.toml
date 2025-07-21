@@ -20,12 +20,12 @@ requires = [
     "GitPython==3.1.44",
     "gitdb==4.0.12",
     "hatchling==1.27.0",
-    "packaging==24.2",
+    "packaging==25.0",
     "pathspec==0.12.1",
-    "pluggy==1.5.0",
+    "pluggy==1.6.0",
     "smmap==5.0.2",
     "tomli==2.2.1; python_version < '3.11'",
-    "trove-classifiers==2025.4.11.15",
+    "trove-classifiers==2025.5.9.12",
 ]
 build-backend = "hatchling.build"
 
@@ -34,7 +34,12 @@ name = "apache-airflow"
 description = "Programmatically author, schedule and monitor data pipelines"
 readme = { file = "generated/PYPI_README.md", content-type = "text/markdown" }
 license-files.globs = ["LICENSE"]
-requires-python = "~=3.9,<3.13"
+# We know that it will take a while before we can support Python 3.14 because of all our dependencies
+# It takes about 4-7 months after Python release before we can support it, so we limit it to <3.14
+# proactively. This way we also have a chance to test it with Python 3.14 and bump the upper binding
+# and manually mark providers that do not support it yet with !-3.14 - until they support it - which will
+# also exclude resolving uv workspace dependencies for those providers.
+requires-python = ">=3.10, <3.14"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -50,10 +55,10 @@ classifiers = [
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
     "License :: OSI Approved :: Apache Software License",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
     "Topic :: System :: Monitoring",
 ]
@@ -69,30 +74,12 @@ dependencies = [
 packages = []
 
 [project.optional-dependencies]
-# Automatically generated airflow optional dependencies
-"aiobotocore" = [
-    "apache-airflow-core[aiobotocore]"
-]
+# Automatically generated airflow optional dependencies (update_airflow_pyproject_toml.py)
 "all-core" = [
     "apache-airflow-core[all]"
 ]
-"apache-atlas" = [
-    "apache-airflow-core[apache-atlas]"
-]
-"apache-webhdfs" = [
-    "apache-airflow-core[apache-webhdfs]"
-]
 "async" = [
     "apache-airflow-core[async]"
-]
-"cloudpickle" = [
-    "apache-airflow-core[cloudpickle]"
-]
-"github-enterprise" = [
-    "apache-airflow-core[github-enterprise]"
-]
-"google-auth" = [
-    "apache-airflow-core[google-auth]"
 ]
 "graphviz" = [
     "apache-airflow-core[graphviz]"
@@ -100,29 +87,14 @@ packages = []
 "kerberos" = [
     "apache-airflow-core[kerberos]"
 ]
-"ldap" = [
-    "apache-airflow-core[ldap]"
-]
 "otel" = [
     "apache-airflow-core[otel]"
-]
-"pandas" = [
-    "apache-airflow-core[pandas]"
-]
-"rabbitmq" = [
-    "apache-airflow-core[rabbitmq]"
-]
-"s3fs" = [
-    "apache-airflow-core[s3fs]"
 ]
 "sentry" = [
     "apache-airflow-core[sentry]"
 ]
 "statsd" = [
     "apache-airflow-core[statsd]"
-]
-"uv" = [
-    "apache-airflow-core[uv]"
 ]
 "airbyte" = [
     "apache-airflow-providers-airbyte>=5.0.0"
@@ -134,7 +106,7 @@ packages = []
     "apache-airflow-providers-amazon>=9.0.0"
 ]
 "apache.beam" = [
-    "apache-airflow-providers-apache-beam>=5.8.1"
+    "apache-airflow-providers-apache-beam>=5.8.1; python_version !=\"3.13\""
 ]
 "apache.cassandra" = [
     "apache-airflow-providers-apache-cassandra>=3.7.0"
@@ -161,7 +133,7 @@ packages = []
     "apache-airflow-providers-apache-impala>=1.5.2"
 ]
 "apache.kafka" = [
-    "apache-airflow-providers-apache-kafka>=1.6.1"
+    "apache-airflow-providers-apache-kafka>=1.6.1; python_version !=\"3.13\""
 ]
 "apache.kylin" = [
     "apache-airflow-providers-apache-kylin>=3.8.0"
@@ -179,7 +151,7 @@ packages = []
     "apache-airflow-providers-apache-spark>=4.11.1"
 ]
 "apache.tinkerpop" = [
-    "apache-airflow-providers-apache-tinkerpop"
+    "apache-airflow-providers-apache-tinkerpop>=1.0.0"
 ]
 "apprise" = [
     "apache-airflow-providers-apprise>=1.4.1"
@@ -212,7 +184,7 @@ packages = []
     "apache-airflow-providers-common-io>=1.4.2"
 ]
 "common.messaging" = [
-    "apache-airflow-providers-common-messaging>=1.0.0"
+    "apache-airflow-providers-common-messaging>=1.0.1" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
 ]
 "common.sql" = [
     "apache-airflow-providers-common-sql>=1.18.0"
@@ -236,7 +208,7 @@ packages = []
     "apache-airflow-providers-docker>=3.14.1"
 ]
 "edge3" = [
-    "apache-airflow-providers-edge3"
+    "apache-airflow-providers-edge3>=1.0.0"
 ]
 "elasticsearch" = [
     "apache-airflow-providers-elasticsearch>=5.5.2"
@@ -245,7 +217,7 @@ packages = []
     "apache-airflow-providers-exasol>=4.6.1"
 ]
 "fab" = [
-    "apache-airflow-providers-fab>=2.0.0"
+    "apache-airflow-providers-fab>=2.2.0; python_version !=\"3.13\"" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
 ]
 "facebook" = [
     "apache-airflow-providers-facebook>=3.7.0"
@@ -254,7 +226,7 @@ packages = []
     "apache-airflow-providers-ftp>=3.12.0"
 ]
 "git" = [
-    "apache-airflow-providers-git>=0.0.1"
+    "apache-airflow-providers-git>=0.0.2" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
 ]
 "github" = [
     "apache-airflow-providers-github>=2.8.0"
@@ -282,6 +254,9 @@ packages = []
 ]
 "jenkins" = [
     "apache-airflow-providers-jenkins>=3.7.2"
+]
+"keycloak" = [
+    "apache-airflow-providers-keycloak"
 ]
 "microsoft.azure" = [
     "apache-airflow-providers-microsoft-azure>=10.5.1"
@@ -314,7 +289,7 @@ packages = []
     "apache-airflow-providers-openfaas>=3.7.0"
 ]
 "openlineage" = [
-    "apache-airflow-providers-openlineage>=2.1.3"
+    "apache-airflow-providers-openlineage>=2.3.0" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
 ]
 "opensearch" = [
     "apache-airflow-providers-opensearch>=1.5.0"
@@ -383,7 +358,7 @@ packages = []
     "apache-airflow-providers-ssh>=3.14.0"
 ]
 "standard" = [
-    "apache-airflow-providers-standard"
+    "apache-airflow-providers-standard>=0.0.1"
 ]
 "tableau" = [
     "apache-airflow-providers-tableau>=5.0.0"
@@ -404,20 +379,21 @@ packages = []
     "apache-airflow-providers-weaviate>=3.0.0"
 ]
 "yandex" = [
-    "apache-airflow-providers-yandex>=4.0.0"
+    "apache-airflow-providers-yandex>=4.0.0; python_version !=\"3.13\""
 ]
 "ydb" = [
-    "apache-airflow-providers-ydb>=1.4.0"
+    "apache-airflow-providers-ydb>=1.4.0; python_version !=\"3.13\""
 ]
 "zendesk" = [
     "apache-airflow-providers-zendesk>=4.9.0"
 ]
 "all" = [
+    "apache-airflow[aiobotocore,amazon-aws-auth,apache-atlas,apache-webhdfs,async,cloudpickle,github-enterprise,google-auth,graphviz,kerberos,ldap,otel,pandas,polars,rabbitmq,s3fs,sentry,statsd,uv]",
     "apache-airflow-core[all]",
     "apache-airflow-providers-airbyte>=5.0.0",
     "apache-airflow-providers-alibaba>=3.0.0",
     "apache-airflow-providers-amazon>=9.0.0",
-    "apache-airflow-providers-apache-beam>=5.8.1",
+    "apache-airflow-providers-apache-beam>=5.8.1; python_version !=\"3.13\"",
     "apache-airflow-providers-apache-cassandra>=3.7.0",
     "apache-airflow-providers-apache-drill>=2.8.1",
     "apache-airflow-providers-apache-druid>=3.12.0",
@@ -426,13 +402,13 @@ packages = []
     "apache-airflow-providers-apache-hive>=8.2.1",
     "apache-airflow-providers-apache-iceberg>=1.2.0",
     "apache-airflow-providers-apache-impala>=1.5.2",
-    "apache-airflow-providers-apache-kafka>=1.6.1",
+    "apache-airflow-providers-apache-kafka>=1.6.1; python_version !=\"3.13\"",
     "apache-airflow-providers-apache-kylin>=3.8.0",
     "apache-airflow-providers-apache-livy>=3.9.2",
     "apache-airflow-providers-apache-pig>=4.6.0",
     "apache-airflow-providers-apache-pinot>=4.5.1",
     "apache-airflow-providers-apache-spark>=4.11.1",
-    "apache-airflow-providers-apache-tinkerpop",
+    "apache-airflow-providers-apache-tinkerpop>=1.0.0",
     "apache-airflow-providers-apprise>=1.4.1",
     "apache-airflow-providers-arangodb>=2.7.0",
     "apache-airflow-providers-asana>=2.7.0",
@@ -443,7 +419,7 @@ packages = []
     "apache-airflow-providers-cohere>=1.4.0",
     "apache-airflow-providers-common-compat>=1.2.1",
     "apache-airflow-providers-common-io>=1.4.2",
-    "apache-airflow-providers-common-messaging>=1.0.0",
+    "apache-airflow-providers-common-messaging>=1.0.1", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-common-sql>=1.18.0",
     "apache-airflow-providers-databricks>=6.11.0",
     "apache-airflow-providers-datadog>=3.8.0",
@@ -451,13 +427,13 @@ packages = []
     "apache-airflow-providers-dingding>=3.7.0",
     "apache-airflow-providers-discord>=3.9.0",
     "apache-airflow-providers-docker>=3.14.1",
-    "apache-airflow-providers-edge3",
+    "apache-airflow-providers-edge3>=1.0.0",
     "apache-airflow-providers-elasticsearch>=5.5.2",
     "apache-airflow-providers-exasol>=4.6.1",
-    "apache-airflow-providers-fab>=2.0.0",
+    "apache-airflow-providers-fab>=2.2.0; python_version !=\"3.13\"", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-facebook>=3.7.0",
     "apache-airflow-providers-ftp>=3.12.0",
-    "apache-airflow-providers-git>=0.0.1",
+    "apache-airflow-providers-git>=0.0.2", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-github>=2.8.0",
     "apache-airflow-providers-google>=10.24.0",
     "apache-airflow-providers-grpc>=3.7.0",
@@ -467,6 +443,7 @@ packages = []
     "apache-airflow-providers-influxdb>=2.8.0",
     "apache-airflow-providers-jdbc>=4.5.2",
     "apache-airflow-providers-jenkins>=3.7.2",
+    "apache-airflow-providers-keycloak",
     "apache-airflow-providers-microsoft-azure>=10.5.1",
     "apache-airflow-providers-microsoft-mssql>=3.9.2",
     "apache-airflow-providers-microsoft-psrp>=3.0.0",
@@ -477,7 +454,7 @@ packages = []
     "apache-airflow-providers-odbc>=4.8.0",
     "apache-airflow-providers-openai>=1.5.0",
     "apache-airflow-providers-openfaas>=3.7.0",
-    "apache-airflow-providers-openlineage>=2.1.3",
+    "apache-airflow-providers-openlineage>=2.3.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-opensearch>=1.5.0",
     "apache-airflow-providers-opsgenie>=5.8.0",
     "apache-airflow-providers-oracle>=3.12.0",
@@ -500,18 +477,66 @@ packages = []
     "apache-airflow-providers-snowflake>=5.8.0",
     "apache-airflow-providers-sqlite>=3.9.1",
     "apache-airflow-providers-ssh>=3.14.0",
-    "apache-airflow-providers-standard",
+    "apache-airflow-providers-standard>=0.0.1",
     "apache-airflow-providers-tableau>=5.0.0",
     "apache-airflow-providers-telegram>=4.7.0",
     "apache-airflow-providers-teradata>=2.6.1",
     "apache-airflow-providers-trino>=5.8.1",
     "apache-airflow-providers-vertica>=3.9.1",
     "apache-airflow-providers-weaviate>=3.0.0",
-    "apache-airflow-providers-yandex>=4.0.0",
-    "apache-airflow-providers-ydb>=1.4.0",
+    "apache-airflow-providers-yandex>=4.0.0; python_version !=\"3.13\"",
+    "apache-airflow-providers-ydb>=1.4.0; python_version !=\"3.13\"",
     "apache-airflow-providers-zendesk>=4.9.0",
 ]
 # End of automatically generated airflow optional dependencies
+# Aiobotocore required for AWS deferrable operators.
+# There is conflict between boto3 and aiobotocore dependency botocore.
+# TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
+# boto3 have native aync support and we move away from aio aiobotocore
+"aiobotocore" =  [
+    "apache-airflow-providers-amazon[aiobotocore]>=9.6.0",
+]
+"apache-atlas" = [
+    "atlasclient>=0.1.2",
+]
+"apache-webhdfs" = [
+    "apache-airflow-providers-apache-hdfs",
+]
+"amazon-aws-auth" = [
+   "apache-airflow-providers-amazon[python3-saml]",
+]
+"cloudpickle" = [
+    "cloudpickle>=2.2.1",
+]
+"github-enterprise" = [
+    "apache-airflow-providers-fab>=2.2.0; python_version !=\"3.13\"",
+    "authlib>=1.0.0",
+]
+"google-auth" = [
+    "apache-airflow-providers-fab>=2.2.0; python_version !=\"3.13\"",
+    "authlib>=1.0.0",
+]
+"ldap" = [
+    "python-ldap>=3.4.4",
+]
+"pandas" = [
+    "apache-airflow-providers-common-sql[pandas]",
+]
+"polars" = [
+    "apache-airflow-providers-common-sql[polars]",
+]
+"rabbitmq" = [
+    "amqp>=5.2.0",
+]
+"s3fs" = [
+    # This is required for support of S3 file system which uses aiobotocore
+    # which can have a conflict with boto3 as mentioned in aiobotocore extra
+    "apache-airflow-providers-amazon[s3fs]",
+]
+"uv" = [
+    "uv>=0.8.0",
+]
+
 
 [project.urls]
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
@@ -537,11 +562,9 @@ bypass-selection = true
 # Needed until https://github.com/astral-sh/ruff/issues/8237 is available.
 [tool.black]
 line-length = 110
-target-version = ['py39', 'py310', 'py311', 'py312']
 
 ## ruff settings ##
 [tool.ruff]
-target-version = "py39"
 line-length = 110
 extend-exclude = [
     ".eggs",
@@ -631,6 +654,7 @@ ignore = [
     "COM819",
     "E501", # Formatted code may exceed the line length, leading to line-too-long (E501) errors.
     "ASYNC110", # TODO: Use `anyio.Event` instead of awaiting `anyio.sleep` in a `while` loop
+    "UP038",
 ]
 unfixable = [
     # PT022 replace empty `yield` to empty `return`. Might be fixed with a combination of PLR1711
@@ -669,7 +693,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 
 # Those are needed so that __init__.py chaining of packages properly works for IDEs
 # the first non-comment line of such empty __init__.py files should be:
-# __path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
+#
 "airflow-core/tests/unit/__init__.py" = ["I002"]
 "airflow-core/tests/system/__init__.py" = ["I002"]
 "airflow-core/tests/integration/__init__.py" = ["I002"]
@@ -736,6 +760,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 "airflow-core/src/airflow/security/kerberos.py" = [ "E402" ]
 "airflow-core/src/airflow/security/utils.py" = [ "E402" ]
 "airflow-core/tests/unit/always/test_connection.py" = [ "E402" ]
+"airflow-core/tests/unit/always/test_providers_manager.py"  = [ "E402" ]
 "providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_auto_ml.py" = [ "E402"]
 "providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_batch_prediction_job.py" = [ "E402"]
 "providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_custom_job.py" = [ "E402"]
@@ -746,14 +771,24 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 "providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_model_service.py" = [ "E402"]
 "providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_pipeline_job.py" = [ "E402"]
 "providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_prediction_service.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_ray.py" = [ "E402" ]
 "providers/google/tests/unit/google/cloud/links/test_translate.py" = [ "E402"]
 "providers/google/tests/unit/google/cloud/operators/test_automl.py" = [ "E402"]
 "providers/google/tests/unit/google/cloud/operators/test_vertex_ai.py" = [ "E402"]
 "providers/google/tests/unit/google/cloud/operators/vertex_ai/test_generative_model.py" = [ "E402"]
 "providers/google/tests/unit/google/cloud/triggers/test_vertex_ai.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/sensors/test_vertex_ai.py" = [ "E402"]
 "providers/microsoft/azure/tests/conftest.py" = ["E402"]
 "providers/qdrant/tests/unit/qdrant/hooks/test_qdrant.py" = ["E402"]
 "providers/qdrant/tests/unit/qdrant/operators/test_qdrant.py" = ["E402"]
+"providers/yandex/tests/unit/yandex/hooks/test_yandex.py" = ["E402"]
+"providers/yandex/tests/unit/yandex/hooks/test_yq.py" = ["E402"]
+"providers/yandex/tests/unit/yandex/operators/test_dataproc.py" = ["E402"]
+"providers/yandex/tests/unit/yandex/operators/test_yq.py" = ["E402"]
+"providers/yandex/tests/unit/yandex/secrets/test_lockbox.py" = ["E402"]
+"providers/ydb/tests/unit/ydb/hooks/test_ydb.py" = ["E402"]
+"providers/ydb/tests/unit/ydb/operators/test_ydb.py" = ["E402"]
+"providers/ydb/tests/unit/ydb/utils/test_credentials.py" = ["E402"]
 
 # Remove some docstring rules from files that do not need docstrings
 "providers/apache/hdfs/src/airflow/providers/apache/hdfs/sensors/hdfs.py" = ["D101"]
@@ -772,7 +807,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 ban-relative-imports = "all"
 # Ban certain modules from being imported at module level, instead requiring
 # that they're imported lazily (e.g., within a function definition).
-banned-module-level-imports = ["numpy", "pandas"]
+banned-module-level-imports = ["numpy", "pandas", "polars"]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 # Direct import from the airflow package modules and constraints
@@ -861,7 +896,6 @@ norecursedirs = [
 log_level = "INFO"
 filterwarnings = [
     "error::pytest.PytestCollectionWarning",
-    "error::pytest.PytestReturnNotNoneWarning",
     # Avoid building cartesian product which might impact performance
     "error:SELECT statement has a cartesian product between FROM:sqlalchemy.exc.SAWarning:airflow",
     'error:Coercing Subquery object into a select\(\) for use in IN\(\):sqlalchemy.exc.SAWarning:airflow',
@@ -965,7 +999,7 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/helm-tests/tests",
     "$MYPY_CONFIG_FILE_DIR/kubernetes-tests/tests",
     "$MYPY_CONFIG_FILE_DIR/docker-tests/tests",
-    # Automatically generated mypy paths
+    # Automatically generated mypy paths (update_airflow_pyproject_toml.py)
     "$MYPY_CONFIG_FILE_DIR/providers/airbyte/src",
     "$MYPY_CONFIG_FILE_DIR/providers/airbyte/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/alibaba/src",
@@ -1072,6 +1106,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/jdbc/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/jenkins/src",
     "$MYPY_CONFIG_FILE_DIR/providers/jenkins/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/keycloak/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/keycloak/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/microsoft/azure/src",
     "$MYPY_CONFIG_FILE_DIR/providers/microsoft/azure/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/microsoft/mssql/src",
@@ -1204,6 +1240,7 @@ ignore_errors = true
 [dependency-groups]
 dev = [
     "apache-airflow[all]",
+    "apache-airflow-breeze",
     "apache-airflow-dev",
     "apache-airflow-devel-common[no-doc]",
     "apache-airflow-docker-tests",
@@ -1245,6 +1282,7 @@ no-build-isolation-package = ["sphinx-redoc"]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
 # *not* the workspace folder paths
 apache-airflow = {workspace = true}
+apache-airflow-breeze = {workspace = true}
 apache-airflow-dev = {workspace = true}
 apache-airflow-core = {workspace = true}
 apache-airflow-ctl = {workspace = true}
@@ -1255,7 +1293,7 @@ apache-airflow-helm-tests = { workspace = true }
 apache-airflow-kubernetes-tests = { workspace = true }
 apache-airflow-providers = { workspace = true }
 apache-aurflow-docker-stack = { workspace = true }
-# Automatically generated provider workspace items
+# Automatically generated provider workspace items (update_airflow_pyproject_toml.py)
 apache-airflow-providers-airbyte = { workspace = true }
 apache-airflow-providers-alibaba = { workspace = true }
 apache-airflow-providers-amazon = { workspace = true }
@@ -1309,6 +1347,7 @@ apache-airflow-providers-imap = { workspace = true }
 apache-airflow-providers-influxdb = { workspace = true }
 apache-airflow-providers-jdbc = { workspace = true }
 apache-airflow-providers-jenkins = { workspace = true }
+apache-airflow-providers-keycloak = { workspace = true }
 apache-airflow-providers-microsoft-azure = { workspace = true }
 apache-airflow-providers-microsoft-mssql = { workspace = true }
 apache-airflow-providers-microsoft-psrp = { workspace = true }
@@ -1358,6 +1397,7 @@ apache-airflow-providers-zendesk = { workspace = true }
 members = [
     ".",
     "airflow-core",
+    "dev/breeze",
     "airflow-ctl",
     "dev",
     "devel-common",
@@ -1367,7 +1407,7 @@ members = [
     "task-sdk",
     "providers-summary-docs",
     "docker-stack-docs",
-    # Automatically generated provider workspace members
+    # Automatically generated provider workspace members (update_airflow_pyproject_toml.py)
     "providers/airbyte",
     "providers/alibaba",
     "providers/amazon",
@@ -1421,6 +1461,7 @@ members = [
     "providers/influxdb",
     "providers/jdbc",
     "providers/jenkins",
+    "providers/keycloak",
     "providers/microsoft/azure",
     "providers/microsoft/mssql",
     "providers/microsoft/psrp",

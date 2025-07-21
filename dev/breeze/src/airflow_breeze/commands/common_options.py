@@ -30,6 +30,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
+    ALLOWED_TTY,
     ALLOWED_USE_AIRFLOW_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     AUTOCOMPLETE_ALL_INTEGRATIONS,
@@ -38,6 +39,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_UV_HTTP_TIMEOUT,
     DOCKER_DEFAULT_PLATFORM,
     SINGLE_PLATFORMS,
+    normalize_platform_machine,
 )
 from airflow_breeze.utils.custom_param_types import (
     AnswerChoice,
@@ -108,9 +110,10 @@ option_backend = click.option(
     type=CacheableChoice(ALLOWED_BACKENDS),
     default=CacheableDefault(value=ALLOWED_BACKENDS[0]),
     show_default=True,
-    help="Database backend to use. If 'none' is chosen, "
-    "Breeze will start with an invalid database configuration, meaning there will be no database "
-    "available, and any attempts to connect to the Airflow database will fail.",
+    help="Database backend to use. Default is 'sqlite'. "
+    "If 'none' is chosen, Breeze will start with an invalid database configuration — "
+    "no database will be available, and any attempt to run Airflow will fail. "
+    "Use 'none' only for specific non-DB test cases.",
     envvar="BACKEND",
 )
 option_builder = click.option(
@@ -205,12 +208,13 @@ option_github_repository = click.option(
     envvar="GITHUB_REPOSITORY",
     callback=_set_default_from_parent,
 )
-option_historical_python_version = click.option(
-    "--python",
+option_historical_python_versions = click.option(
+    "--python-versions",
     type=BetterChoice(ALL_HISTORICAL_PYTHON_VERSIONS),
     required=False,
-    envvar="PYTHON_VERSION",
-    help="Python version to update sbom from. (defaults to all historical python versions)",
+    envvar="PYTHON_VERSIONS",
+    help="Comma separate list of Python versions to update sbom from "
+    "(defaults to all historical python versions)",
 )
 option_include_removed_providers = click.option(
     "--include-removed-providers",
@@ -226,7 +230,7 @@ option_include_not_ready_providers = click.option(
 )
 option_include_success_outputs = click.option(
     "--include-success-outputs",
-    help="Whether to include outputs of successful parallel runs (skipped by default).",
+    help="Whether to include outputs of successful runs (not shown by default).",
     is_flag=True,
     envvar="INCLUDE_SUCCESS_OUTPUTS",
 )
@@ -331,6 +335,14 @@ option_python = click.option(
     help="Python major/minor version used in Airflow image for images.",
     envvar="PYTHON_MAJOR_MINOR_VERSION",
 )
+option_python_no_default = click.option(
+    "-p",
+    "--python",
+    type=BetterChoice(ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS),
+    help="Python major/minor version used in Airflow image for images "
+    "(if not specified - all python versions are used).",
+    envvar="PYTHON_MAJOR_MINOR_VERSION",
+)
 option_python_versions = click.option(
     "--python-versions",
     help="Space separated list of python versions used for build with multiple versions.",
@@ -370,11 +382,26 @@ option_standalone_dag_processor = click.option(
     help="Run standalone dag processor for start-airflow (required for Airflow 3).",
     envvar="STANDALONE_DAG_PROCESSOR",
 )
+option_tty = click.option(
+    "--tty",
+    envvar="TTY",
+    type=BetterChoice(ALLOWED_TTY),
+    default=ALLOWED_TTY[0],
+    show_default=True,
+    help="Whether to allocate pseudo-tty when running docker command"
+    " (useful for pre-commit and CI to force-enable it).",
+)
 option_upgrade_boto = click.option(
     "--upgrade-boto",
     help="Remove aiobotocore and upgrade botocore and boto to the latest version.",
     is_flag=True,
     envvar="UPGRADE_BOTO",
+)
+option_upgrade_sqlalchemy = click.option(
+    "--upgrade-sqlalchemy",
+    help="Upgrade SQLAlchemy to the latest version.",
+    is_flag=True,
+    envvar="UPGRADE_SQLALCHEMY",
 )
 option_use_uv = click.option(
     "--use-uv/--no-use-uv",
@@ -408,6 +435,13 @@ option_use_airflow_version = click.option(
     type=UseAirflowVersionType(ALLOWED_USE_AIRFLOW_VERSIONS),
     envvar="USE_AIRFLOW_VERSION",
 )
+option_allow_pre_releases = click.option(
+    "--allow-pre-releases",
+    help="Allow pre-releases of Airflow, task-sdk and providers to be installed. "
+    "Set to true automatically for pre-release --use-airflow-version)",
+    is_flag=True,
+    envvar="ALLOW_PRE_RELEASES",
+)
 option_airflow_version = click.option(
     "-A",
     "--airflow-version",
@@ -427,16 +461,67 @@ option_verbose = click.option(
     type=VerboseOption(),
     callback=_set_default_from_parent,
 )
-option_version_suffix_for_pypi = click.option(
-    "--version-suffix-for-pypi",
-    help="Version suffix used for PyPI packages (alpha, beta, rc1, etc.).",
-    envvar="VERSION_SUFFIX_FOR_PYPI",
+option_install_airflow_with_constraints = click.option(
+    "--install-airflow-with-constraints/--no-install-airflow-with-constraints",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    envvar="INSTALL_AIRFLOW_WITH_CONSTRAINTS",
+    help="Install airflow in a separate step, with constraints determined from package or airflow version.",
+)
+option_install_airflow_with_constraints_default_true = click.option(
+    "--install-airflow-with-constraints/--no-install-airflow-with-constraints",
+    is_flag=True,
+    default=True,
+    show_default=True,
+    envvar="INSTALL_AIRFLOW_WITH_CONSTRAINTS",
+    help="Install airflow in a separate step, with constraints determined from package or airflow version.",
+)
+
+
+def _is_number_greater_than_expected(value: str) -> bool:
+    digits = [c for c in value.split("+")[0] if c.isdigit()]
+    if not digits:
+        return False
+    if len(digits) == 1 and digits[0] == "0" and not value.startswith(".dev"):
+        return False
+    return True
+
+
+def _validate_version_suffix(ctx: click.core.Context, param: click.core.Option, value: str):
+    if not value:
+        return value
+    if any(
+        value.startswith(s) for s in ("a", "b", "rc", "+", ".dev", ".post")
+    ) and _is_number_greater_than_expected(value):
+        return value
+    raise click.BadParameter(
+        "Version suffix for PyPI packages should be empty or or start with a/b/rc/+/.dev/.post and number "
+        "should be greater than 0 for non-dev version."
+    )
+
+
+option_version_suffix = click.option(
+    "--version-suffix",
+    help="Version suffix used for PyPI packages (a1, a2, b1, rc1, rc2, .dev0, .dev1, .post1, .post2 etc.)."
+    " Note the `.` is need in `.dev0` and `.post`. Might be followed with +local_version",
+    envvar="VERSION_SUFFIX",
+    callback=_validate_version_suffix,
     default="",
 )
+
+
+def _normalize_platform(ctx: click.core.Context, param: click.core.Option, value: str):
+    if not value:
+        return value
+    return normalize_platform_machine(value)
+
+
 option_platform_single = click.option(
     "--platform",
     help="Platform for Airflow image.",
     default=DOCKER_DEFAULT_PLATFORM if not generating_command_images() else SINGLE_PLATFORMS[0],
     envvar="PLATFORM",
+    callback=_normalize_platform,
     type=BetterChoice(SINGLE_PLATFORMS),
 )

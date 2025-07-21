@@ -19,7 +19,6 @@ from __future__ import annotations
 import textwrap
 
 from fastapi import Depends, HTTPException, status
-from fastapi.responses import Response
 
 from airflow.api_fastapi.common.headers import HeaderAcceptJsonOrText
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -31,6 +30,10 @@ from airflow.api_fastapi.core_api.datamodels.config import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_configuration
+from airflow.api_fastapi.core_api.services.public.config import (
+    _check_expose_config,
+    _response_based_on_accept,
+)
 from airflow.configuration import conf
 
 text_example_response_for_get_config_value = {
@@ -66,31 +69,6 @@ text_example_response_for_get_config = {
         },
     }
 }
-
-
-def _check_expose_config() -> bool:
-    display_sensitive: bool | None = None
-    if conf.get("webserver", "expose_config").lower() == "non-sensitive-only":
-        expose_config = True
-        display_sensitive = False
-    else:
-        expose_config = conf.getboolean("webserver", "expose_config")
-        display_sensitive = True
-
-    if not expose_config:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Your Airflow administrator chose not to expose the configuration, most likely for security reasons.",
-        )
-    return display_sensitive
-
-
-def _response_based_on_accept(accept: Mimetype, config: Config):
-    if accept == Mimetype.TEXT:
-        return Response(content=config.text_format, media_type=Mimetype.TEXT)
-    return config
-
-
 config_router = AirflowRouter(tags=["Config"], prefix="/config")
 
 

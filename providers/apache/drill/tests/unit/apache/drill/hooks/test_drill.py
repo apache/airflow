@@ -39,7 +39,7 @@ def test_get_host(host, expect_error):
             "storage_plugin": "dfs",
         }
         if expect_error:
-            with pytest.raises(ValueError):
+            with pytest.raises(ValueError, match=r"Drill database_url should not contain a '\?'"):
                 DrillHook().get_conn()
         else:
             assert DrillHook().get_conn()
@@ -66,9 +66,68 @@ class TestDrillHook:
 
         self.db_hook = TestDrillHook
 
-    def test_get_uri(self):
+    @pytest.mark.parametrize(
+        "host, port, conn_type, extra_dejson, expected_uri",
+        [
+            (
+                "host",
+                "8047",
+                "drill",
+                {"dialect_driver": "drill+sadrill", "storage_plugin": "dfs"},
+                "drill://host:8047/dfs?dialect_driver=drill+sadrill",
+            ),
+            (
+                "host",
+                None,
+                "drill",
+                {"dialect_driver": "drill+sadrill", "storage_plugin": "dfs"},
+                "drill://host/dfs?dialect_driver=drill+sadrill",
+            ),
+            (
+                "host",
+                "8047",
+                None,
+                {"dialect_driver": "drill+sadrill", "storage_plugin": "dfs"},
+                "drill://host:8047/dfs?dialect_driver=drill+sadrill",
+            ),
+            (
+                "host",
+                "8047",
+                "drill",
+                {},  # no extra_dejson fields
+                "drill://host:8047/dfs?dialect_driver=drill+sadrill",
+            ),
+            (
+                "myhost",
+                1234,
+                "custom",
+                {"dialect_driver": "mydriver", "storage_plugin": "myplugin"},
+                "custom://myhost:1234/myplugin?dialect_driver=mydriver",
+            ),
+            (
+                "host",
+                "8047",
+                "drill",
+                {"storage_plugin": "myplugin"},
+                "drill://host:8047/myplugin?dialect_driver=drill+sadrill",
+            ),
+            (
+                "host",
+                "8047",
+                "drill",
+                {"dialect_driver": "mydriver"},
+                "drill://host:8047/dfs?dialect_driver=mydriver",
+            ),
+        ],
+    )
+    def test_get_uri(self, host, port, conn_type, extra_dejson, expected_uri):
+        self.conn.host = host
+        self.conn.port = port
+        self.conn.conn_type = conn_type
+        self.conn.extra_dejson = extra_dejson
+
         db_hook = self.db_hook()
-        assert db_hook.get_uri() == "drill://host:8047/dfs?dialect_driver=drill+sadrill"
+        assert db_hook.get_uri() == expected_uri
 
     def test_get_first_record(self):
         statement = "SQL"
@@ -90,13 +149,13 @@ class TestDrillHook:
         assert self.cur.close.call_count == 1
         self.cur.execute.assert_called_once_with(statement)
 
-    def test_get_pandas_df(self):
+    def test_get_df_pandas(self):
         statement = "SQL"
         column = "col"
         result_sets = [("row1",), ("row2",)]
         self.cur.description = [(column,)]
         self.cur.fetchall.return_value = result_sets
-        df = self.db_hook().get_pandas_df(statement)
+        df = self.db_hook().get_df(statement, df_type="pandas")
 
         assert column == df.columns[0]
         for i, item in enumerate(result_sets):
@@ -104,3 +163,31 @@ class TestDrillHook:
         assert self.conn.close.call_count == 1
         assert self.cur.close.call_count == 1
         self.cur.execute.assert_called_once_with(statement)
+
+    def test_get_df_polars(self):
+        statement = "SQL"
+        column = "col"
+        result_sets = [("row1",), ("row2",)]
+        mock_execute = MagicMock()
+        mock_execute.description = [(column, None, None, None, None, None, None)]
+        mock_execute.fetchall.return_value = result_sets
+        self.cur.execute.return_value = mock_execute
+        df = self.db_hook().get_df(statement, df_type="polars")
+
+        self.cur.execute.assert_called_once_with(statement)
+        mock_execute.fetchall.assert_called_once_with()
+        assert column == df.columns[0]
+        assert result_sets[0][0] == df.row(0)[0]
+        assert result_sets[1][0] == df.row(1)[0]
+
+    def test_set_autocommit_raises_not_implemented(self):
+        db_hook = self.db_hook()
+        conn = db_hook.get_conn()
+
+        with pytest.raises(NotImplementedError, match=r"There are no transactions in Drill."):
+            db_hook.set_autocommit(conn=conn, autocommit=True)
+
+    def test_insert_rows_raises_not_implemented(self):
+        db_hook = self.db_hook()
+        with pytest.raises(NotImplementedError, match=r"There is no INSERT statement in Drill."):
+            db_hook.insert_rows(table="my_table", rows=[("a",)])

@@ -19,7 +19,7 @@ from __future__ import annotations
 import os
 import traceback
 from contextlib import ExitStack
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import yaml
 from openlineage.client import OpenLineageClient, set_producer
@@ -32,8 +32,7 @@ from openlineage.client.facet_v2 import (
     job_type_job,
     nominal_time_run,
     ownership_job,
-    parent_run,
-    source_code_location_job,
+    tags_job,
 )
 from openlineage.client.uuid import generate_static_uuid
 
@@ -64,11 +63,8 @@ _PRODUCER = f"https://github.com/apache/airflow/tree/providers-openlineage/{OPEN
 
 set_producer(_PRODUCER)
 
-# https://openlineage.io/docs/spec/facets/job-facets/job-type
-# They must be set after the `set_producer(_PRODUCER)`
-# otherwise the `JobTypeJobFacet._producer` will be set with the default value
-_JOB_TYPE_DAG = job_type_job.JobTypeJobFacet(jobType="DAG", integration="AIRFLOW", processingType="BATCH")
-_JOB_TYPE_TASK = job_type_job.JobTypeJobFacet(jobType="TASK", integration="AIRFLOW", processingType="BATCH")
+_JOB_TYPE_DAG: Literal["DAG"] = "DAG"
+_JOB_TYPE_TASK: Literal["TASK"] = "TASK"
 
 
 class OpenLineageAdapter(LoggingMixin):
@@ -94,7 +90,7 @@ class OpenLineageAdapter(LoggingMixin):
                     "OpenLineage configuration found. Transport type: `%s`",
                     config.get("transport", {}).get("type", "no type provided"),
                 )
-                self._client = OpenLineageClient(config=config)  # type: ignore[call-arg]
+                self._client = OpenLineageClient(config=config)
             else:
                 self.log.debug(
                     "OpenLineage configuration not found directly in Airflow. "
@@ -186,15 +182,14 @@ class OpenLineageAdapter(LoggingMixin):
         self,
         run_id: str,
         job_name: str,
-        job_description: str,
         event_time: str,
-        parent_job_name: str | None,
-        parent_run_id: str | None,
-        code_location: str | None,
+        job_description: str | None,
         nominal_start_time: str | None,
         nominal_end_time: str | None,
-        owners: list[str],
+        owners: list[str] | None,
+        tags: list[str] | None,
         task: OperatorLineage | None,
+        job_description_type: str | None = None,
         run_facets: dict[str, RunFacet] | None = None,
     ) -> RunEvent:
         """
@@ -202,30 +197,24 @@ class OpenLineageAdapter(LoggingMixin):
 
         :param run_id: globally unique identifier of task in dag run
         :param job_name: globally unique identifier of task in dag
-        :param job_description: user provided description of job
+        :param job_description: description of the job
+        :param job_description_type: MIME type of the description arg content
         :param event_time:
-        :param parent_job_name: the name of the parent job (typically the DAG,
-                but possibly a task group)
-        :param parent_run_id: identifier of job spawning this task
-        :param code_location: file path or URL of DAG file
         :param nominal_start_time: scheduled time of dag run
         :param nominal_end_time: following schedule of dag run
-        :param owners: list of owners of DAG
+        :param owners: list of owners
+        :param tags: list of tags
         :param task: metadata container with information extracted from operator
         :param run_facets: custom run facets
         """
         run_facets = run_facets or {}
         if task:
             run_facets = {**task.run_facets, **run_facets}
-        run_facets = {**run_facets, **get_processing_engine_facet()}  # type: ignore
         event = RunEvent(
             eventType=RunState.START,
             eventTime=event_time,
             run=self._build_run(
                 run_id=run_id,
-                job_name=job_name,
-                parent_job_name=parent_job_name,
-                parent_run_id=parent_run_id,
                 nominal_start_time=nominal_start_time,
                 nominal_end_time=nominal_end_time,
                 run_facets=run_facets,
@@ -234,8 +223,9 @@ class OpenLineageAdapter(LoggingMixin):
                 job_name=job_name,
                 job_type=_JOB_TYPE_TASK,
                 job_description=job_description,
-                code_location=code_location,
-                owners=owners,
+                job_description_type=job_description_type,
+                job_owners=owners,
+                job_tags=tags,
                 job_facets=task.job_facets if task else None,
             ),
             inputs=task.inputs if task else [],
@@ -248,10 +238,14 @@ class OpenLineageAdapter(LoggingMixin):
         self,
         run_id: str,
         job_name: str,
-        parent_job_name: str | None,
-        parent_run_id: str | None,
         end_time: str,
         task: OperatorLineage,
+        nominal_start_time: str | None,
+        nominal_end_time: str | None,
+        owners: list[str] | None,
+        tags: list[str] | None,
+        job_description: str | None,
+        job_description_type: str | None = None,
         run_facets: dict[str, RunFacet] | None = None,
     ) -> RunEvent:
         """
@@ -259,28 +253,37 @@ class OpenLineageAdapter(LoggingMixin):
 
         :param run_id: globally unique identifier of task in dag run
         :param job_name: globally unique identifier of task between dags
-        :param parent_job_name: the name of the parent job (typically the DAG,
-                but possibly a task group)
-        :param parent_run_id: identifier of job spawning this task
         :param end_time: time of task completion
+        :param job_description: description of the job
+        :param job_description_type: MIME type of the description arg content
+        :param tags: list of tags
+        :param nominal_start_time: scheduled time of dag run
+        :param nominal_end_time: following schedule of dag run
         :param task: metadata container with information extracted from operator
+        :param owners: list of owners
         :param run_facets: additional run facets
         """
         run_facets = run_facets or {}
         if task:
             run_facets = {**task.run_facets, **run_facets}
-        run_facets = {**run_facets, **get_processing_engine_facet()}  # type: ignore
         event = RunEvent(
             eventType=RunState.COMPLETE,
             eventTime=end_time,
             run=self._build_run(
                 run_id=run_id,
-                job_name=job_name,
-                parent_job_name=parent_job_name,
-                parent_run_id=parent_run_id,
+                nominal_start_time=nominal_start_time,
+                nominal_end_time=nominal_end_time,
                 run_facets=run_facets,
             ),
-            job=self._build_job(job_name, job_type=_JOB_TYPE_TASK, job_facets=task.job_facets),
+            job=self._build_job(
+                job_name,
+                job_type=_JOB_TYPE_TASK,
+                job_facets=task.job_facets,
+                job_owners=owners,
+                job_tags=tags,
+                job_description=job_description,
+                job_description_type=job_description_type,
+            ),
             inputs=task.inputs,
             outputs=task.outputs,
             producer=_PRODUCER,
@@ -291,10 +294,14 @@ class OpenLineageAdapter(LoggingMixin):
         self,
         run_id: str,
         job_name: str,
-        parent_job_name: str | None,
-        parent_run_id: str | None,
         end_time: str,
         task: OperatorLineage,
+        nominal_start_time: str | None,
+        nominal_end_time: str | None,
+        owners: list[str] | None,
+        tags: list[str] | None,
+        job_description: str | None,
+        job_description_type: str | None = None,
         error: str | BaseException | None = None,
         run_facets: dict[str, RunFacet] | None = None,
     ) -> RunEvent:
@@ -303,19 +310,21 @@ class OpenLineageAdapter(LoggingMixin):
 
         :param run_id: globally unique identifier of task in dag run
         :param job_name: globally unique identifier of task between dags
-        :param parent_job_name: the name of the parent job (typically the DAG,
-                but possibly a task group)
-        :param parent_run_id: identifier of job spawning this task
         :param end_time: time of task completion
         :param task: metadata container with information extracted from operator
+        :param job_description: description of the job
+        :param job_description_type: MIME type of the description arg content
         :param run_facets: custom run facets
+        :param tags: list of tags
+        :param nominal_start_time: scheduled time of dag run
+        :param nominal_end_time: following schedule of dag run
+        :param owners: list of owners
         :param error: error
         :param run_facets: additional run facets
         """
         run_facets = run_facets or {}
         if task:
             run_facets = {**task.run_facets, **run_facets}
-        run_facets = {**run_facets, **get_processing_engine_facet()}  # type: ignore
 
         if error:
             stack_trace = None
@@ -332,12 +341,19 @@ class OpenLineageAdapter(LoggingMixin):
             eventTime=end_time,
             run=self._build_run(
                 run_id=run_id,
-                job_name=job_name,
-                parent_job_name=parent_job_name,
-                parent_run_id=parent_run_id,
+                nominal_start_time=nominal_start_time,
+                nominal_end_time=nominal_end_time,
                 run_facets=run_facets,
             ),
-            job=self._build_job(job_name, job_type=_JOB_TYPE_TASK, job_facets=task.job_facets),
+            job=self._build_job(
+                job_name,
+                job_type=_JOB_TYPE_TASK,
+                job_facets=task.job_facets,
+                job_owners=owners,
+                job_tags=tags,
+                job_description=job_description,
+                job_description_type=job_description_type,
+            ),
             inputs=task.inputs,
             outputs=task.outputs,
             producer=_PRODUCER,
@@ -349,12 +365,14 @@ class OpenLineageAdapter(LoggingMixin):
         dag_id: str,
         logical_date: datetime,
         start_date: datetime,
-        nominal_start_time: str,
-        nominal_end_time: str,
-        owners: list[str],
+        nominal_start_time: str | None,
+        nominal_end_time: str | None,
+        owners: list[str] | None,
+        tags: list[str],
         run_facets: dict[str, RunFacet],
         clear_number: int,
-        description: str | None = None,
+        job_description: str | None,
+        job_description_type: str | None = None,
         job_facets: dict[str, JobFacet] | None = None,  # Custom job facets
     ):
         try:
@@ -364,18 +382,19 @@ class OpenLineageAdapter(LoggingMixin):
                 job=self._build_job(
                     job_name=dag_id,
                     job_type=_JOB_TYPE_DAG,
-                    job_description=description,
-                    owners=owners,
+                    job_description=job_description,
+                    job_description_type=job_description_type,
+                    job_owners=owners,
                     job_facets=job_facets,
+                    job_tags=tags,
                 ),
                 run=self._build_run(
                     run_id=self.build_dag_run_id(
                         dag_id=dag_id, logical_date=logical_date, clear_number=clear_number
                     ),
-                    job_name=dag_id,
                     nominal_start_time=nominal_start_time,
                     nominal_end_time=nominal_end_time,
-                    run_facets={**run_facets, **get_airflow_debug_facet(), **get_processing_engine_facet()},
+                    run_facets={**run_facets, **get_airflow_debug_facet()},
                 ),
                 inputs=[],
                 outputs=[],
@@ -394,24 +413,38 @@ class OpenLineageAdapter(LoggingMixin):
         run_id: str,
         end_date: datetime,
         logical_date: datetime,
+        nominal_start_time: str | None,
+        nominal_end_time: str | None,
+        tags: list[str] | None,
         clear_number: int,
         dag_run_state: DagRunState,
         task_ids: list[str],
+        owners: list[str] | None,
         run_facets: dict[str, RunFacet],
+        job_description: str | None,
+        job_description_type: str | None = None,
     ):
         try:
             event = RunEvent(
                 eventType=RunState.COMPLETE,
                 eventTime=end_date.isoformat(),
-                job=self._build_job(job_name=dag_id, job_type=_JOB_TYPE_DAG),
-                run=Run(
-                    runId=self.build_dag_run_id(
+                job=self._build_job(
+                    job_name=dag_id,
+                    job_type=_JOB_TYPE_DAG,
+                    job_owners=owners,
+                    job_tags=tags,
+                    job_description=job_description,
+                    job_description_type=job_description_type,
+                ),
+                run=self._build_run(
+                    run_id=self.build_dag_run_id(
                         dag_id=dag_id, logical_date=logical_date, clear_number=clear_number
                     ),
-                    facets={
+                    nominal_start_time=nominal_start_time,
+                    nominal_end_time=nominal_end_time,
+                    run_facets={
                         **get_airflow_state_run_facet(dag_id, run_id, task_ids, dag_run_state),
                         **get_airflow_debug_facet(),
-                        **get_processing_engine_facet(),
                         **run_facets,
                     },
                 ),
@@ -432,30 +465,42 @@ class OpenLineageAdapter(LoggingMixin):
         run_id: str,
         end_date: datetime,
         logical_date: datetime,
+        nominal_start_time: str | None,
+        nominal_end_time: str | None,
+        tags: list[str] | None,
         clear_number: int,
         dag_run_state: DagRunState,
         task_ids: list[str],
+        owners: list[str] | None,
         msg: str,
         run_facets: dict[str, RunFacet],
+        job_description: str | None,
+        job_description_type: str | None = None,
     ):
         try:
             event = RunEvent(
                 eventType=RunState.FAIL,
                 eventTime=end_date.isoformat(),
-                job=self._build_job(job_name=dag_id, job_type=_JOB_TYPE_DAG),
-                run=Run(
-                    runId=self.build_dag_run_id(
-                        dag_id=dag_id,
-                        logical_date=logical_date,
-                        clear_number=clear_number,
+                job=self._build_job(
+                    job_name=dag_id,
+                    job_type=_JOB_TYPE_DAG,
+                    job_owners=owners,
+                    job_tags=tags,
+                    job_description=job_description,
+                    job_description_type=job_description_type,
+                ),
+                run=self._build_run(
+                    run_id=self.build_dag_run_id(
+                        dag_id=dag_id, logical_date=logical_date, clear_number=clear_number
                     ),
-                    facets={
+                    nominal_start_time=nominal_start_time,
+                    nominal_end_time=nominal_end_time,
+                    run_facets={
                         "errorMessage": error_message_run.ErrorMessageRunFacet(
                             message=msg, programmingLanguage="python"
                         ),
                         **get_airflow_state_run_facet(dag_id, run_id, task_ids, dag_run_state),
                         **get_airflow_debug_facet(),
-                        **get_processing_engine_facet(),
                         **run_facets,
                     },
                 ),
@@ -473,64 +518,79 @@ class OpenLineageAdapter(LoggingMixin):
     @staticmethod
     def _build_run(
         run_id: str,
-        job_name: str,
-        parent_job_name: str | None = None,
-        parent_run_id: str | None = None,
         nominal_start_time: str | None = None,
         nominal_end_time: str | None = None,
         run_facets: dict[str, RunFacet] | None = None,
     ) -> Run:
         facets: dict[str, RunFacet] = {}
-        if nominal_start_time:
-            facets.update(
-                {"nominalTime": nominal_time_run.NominalTimeRunFacet(nominal_start_time, nominal_end_time)}
-            )
-        if parent_run_id:
-            parent_run_facet = parent_run.ParentRunFacet(
-                run=parent_run.Run(runId=parent_run_id),
-                job=parent_run.Job(namespace=conf.namespace(), name=parent_job_name or job_name),
-            )
-            facets.update({"parent": parent_run_facet})
-
         if run_facets:
             facets.update(run_facets)
+        if nominal_start_time:
+            facets.update(
+                {
+                    "nominalTime": nominal_time_run.NominalTimeRunFacet(
+                        nominalStartTime=nominal_start_time,
+                        nominalEndTime=nominal_end_time,
+                        producer=_PRODUCER,
+                    )
+                }
+            )
+        facets.update(get_processing_engine_facet())
 
         return Run(run_id, facets)
 
     @staticmethod
     def _build_job(
         job_name: str,
-        job_type: job_type_job.JobTypeJobFacet,
+        job_type: Literal["DAG", "TASK"],
         job_description: str | None = None,
-        code_location: str | None = None,
-        owners: list[str] | None = None,
+        job_description_type: str | None = None,
+        job_owners: list[str] | None = None,
+        job_tags: list[str] | None = None,
         job_facets: dict[str, JobFacet] | None = None,
     ):
         facets: dict[str, JobFacet] = {}
-
+        if job_facets:
+            facets.update(job_facets)
         if job_description:
             facets.update(
-                {"documentation": documentation_job.DocumentationJobFacet(description=job_description)}
-            )
-        if code_location:
-            facets.update(
                 {
-                    "sourceCodeLocation": source_code_location_job.SourceCodeLocationJobFacet(
-                        "", url=code_location
+                    "documentation": documentation_job.DocumentationJobFacet(
+                        description=job_description, contentType=job_description_type, producer=_PRODUCER
                     )
                 }
             )
-        if owners:
+        if job_owners:
             facets.update(
                 {
                     "ownership": ownership_job.OwnershipJobFacet(
-                        owners=[ownership_job.Owner(name=owner) for owner in owners]
+                        owners=[ownership_job.Owner(name=owner) for owner in sorted(job_owners)],
+                        producer=_PRODUCER,
                     )
                 }
             )
-        if job_facets:
-            facets = {**facets, **job_facets}
+        if job_tags:
+            facets.update(
+                {
+                    "tags": tags_job.TagsJobFacet(
+                        tags=[
+                            tags_job.TagsJobFacetFields(
+                                key=tag,
+                                value=tag,
+                                source="AIRFLOW",
+                            )
+                            for tag in sorted(job_tags)
+                        ],
+                        producer=_PRODUCER,
+                    )
+                }
+            )
+        facets.update(
+            {
+                "jobType": job_type_job.JobTypeJobFacet(
+                    jobType=job_type, integration="AIRFLOW", processingType="BATCH", producer=_PRODUCER
+                )
+            }
+        )
 
-        facets.update({"jobType": job_type})
-
-        return Job(conf.namespace(), job_name, facets)
+        return Job(namespace=conf.namespace(), name=job_name, facets=facets)

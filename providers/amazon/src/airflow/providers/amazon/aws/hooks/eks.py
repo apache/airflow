@@ -23,11 +23,10 @@ import json
 import os
 import sys
 import tempfile
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from enum import Enum
 from functools import partial
-from typing import Callable
 
 from botocore.exceptions import ClientError
 from botocore.signers import RequestSigner
@@ -79,16 +78,25 @@ class NodegroupStates(Enum):
 
 
 COMMAND = """
+            export PYTHON_OPERATORS_VIRTUAL_ENV_MODE=1
             output=$({python_executable} -m airflow.providers.amazon.aws.utils.eks_get_token \
                 --cluster-name {eks_cluster_name} {args} 2>&1)
 
-            if [ $? -ne 0 ]; then
-                echo "Error running the script"
-                exit 1
+            status=$?
+
+            if [ "$status" -ne 0 ]; then
+                printf '%s' "$output" >&2
+                exit "$status"
             fi
 
-            expiration_timestamp=$(echo "$output" | grep -oP 'expirationTimestamp: \\K[^,]+')
-            token=$(echo "$output" | grep -oP 'token: \\K[^,]+')
+            # Use pure bash below to parse so that it's posix compliant
+
+            last_line=${{output##*$'\\n'}}  # strip everything up to the last newline
+
+            timestamp=${{last_line#expirationTimestamp: }}  # drop the label
+            timestamp=${{timestamp%%,*}}  # keep up to the first comma
+
+            token=${{last_line##*, token: }}  # text after ", token: "
 
             json_string=$(printf '{{"kind": "ExecCredential","apiVersion": \
                 "client.authentication.k8s.io/v1alpha1","spec": {{}},"status": \
@@ -515,7 +523,7 @@ class EksHook(AwsBaseHook):
         :return: A List of the combined results of the provided API call.
         """
         name_collection: list = []
-        token = DEFAULT_PAGINATION_TOKEN
+        token: str | None = DEFAULT_PAGINATION_TOKEN
 
         while token is not None:
             response = api_call(nextToken=token)

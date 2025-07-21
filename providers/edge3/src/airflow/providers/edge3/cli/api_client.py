@@ -82,10 +82,9 @@ def _make_generic_request(method: str, rest_path: str, data: str | None = None) 
 
         @cache
         def jwt_generator() -> JWTGenerator:
-            clock_grace = conf.getint("core", "internal_api_clock_grace", fallback=30)
             return JWTGenerator(
-                secret_key=conf.get("core", "internal_api_secret_key"),
-                valid_for=clock_grace,
+                secret_key=conf.get("api_auth", "jwt_secret"),
+                valid_for=conf.getint("api_auth", "jwt_leeway", fallback=30),
                 audience="api",
             )
 

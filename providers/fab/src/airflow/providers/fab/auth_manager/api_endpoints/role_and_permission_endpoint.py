@@ -123,6 +123,8 @@ def patch_role(*, role_name: str, update_mask: UpdateMask = None) -> APIResponse
     """Update a role."""
     security_manager = cast("FabAuthManager", get_auth_manager()).security_manager
     body = request.json
+    if body is None:
+        raise BadRequest("Request body is required")
     try:
         data = role_schema.load(body)
     except ValidationError as err:
@@ -156,6 +158,8 @@ def post_role() -> APIResponse:
     """Create a new role."""
     security_manager = cast("FabAuthManager", get_auth_manager()).security_manager
     body = request.json
+    if body is None:
+        raise BadRequest("Request body is required")
     try:
         data = role_schema.load(body)
     except ValidationError as err:

@@ -116,7 +116,7 @@ core:
         schedulers in your cluster, is the maximum number of task instances with the running
         state in the metadata database. The value must be larger or equal 1.
       version_added: ~
-      type: string
+      type: integer
       example: ~
       default: "32"
     max_active_tasks_per_dag:
@@ -129,7 +129,7 @@ core:
         An example scenario when this would be useful is when you want to stop a new dag with an early
         start date from stealing all the executor slots in a cluster.
       version_added: 2.2.0
-      type: string
+      type: integer
       example: ~
       default: "16"
     dags_are_paused_at_creation:
@@ -145,7 +145,7 @@ core:
         if it reaches the limit. This is configurable at the DAG level with ``max_active_runs``,
         which is defaulted as ``[core] max_active_runs_per_dag``.
       version_added: ~
-      type: string
+      type: integer
       example: ~
       default: "16"
     max_consecutive_failed_dag_runs_per_dag:
@@ -156,7 +156,7 @@ core:
         If not specified, then the value is considered as 0,
         meaning that the dags are never paused out by default.
       version_added: 2.9.0
-      type: string
+      type: integer
       example: ~
       default: "0"
     mp_start_method:
@@ -207,13 +207,6 @@ core:
       sensitive: true
       example: ~
       default: "{FERNET_KEY}"
-    donot_pickle:
-      description: |
-        Whether to disable pickling dags
-      version_added: ~
-      type: string
-      example: ~
-      default: "True"
     dagbag_import_timeout:
       description: |
         How long before timing out a python file import
@@ -281,7 +274,7 @@ core:
         When a task is killed forcefully, this is the amount of time in seconds that
         it has to cleanup after it is sent a SIGTERM, before it is SIGKILLED
       version_added: ~
-      type: string
+      type: integer
       example: ~
       default: "60"
     dag_run_conf_overrides_params:
@@ -314,7 +307,7 @@ core:
       description: |
         The number of retries each task is going to have by default. Can be overridden at dag or task level.
       version_added: 1.10.6
-      type: string
+      type: integer
       example: ~
       default: "0"
     default_task_retry_delay:
@@ -361,7 +354,7 @@ core:
       description: |
         Updating serialized DAG can not be faster than a minimum interval to reduce database write rate.
       version_added: 1.10.7
-      type: string
+      type: integer
       example: ~
       default: "30"
     compress_serialized_dags:
@@ -372,7 +365,7 @@ core:
 
             This will disable the DAG dependencies view
       version_added: 2.3.0
-      type: string
+      type: boolean
       example: ~
       default: "False"
     min_serialized_dag_fetch_interval:
@@ -380,7 +373,7 @@ core:
         Fetching serialized DAG can not be faster than a minimum interval to reduce database
         read rate. This config controls when your DAGs are updated in the Webserver
       version_added: 1.10.12
-      type: string
+      type: integer
       example: ~
       default: "10"
     max_num_rendered_ti_fields_per_task:
@@ -444,7 +437,7 @@ core:
         deployment where the ``default_pool`` is already created. For existing deployments, users can
         change the number of slots using Webserver, API or the CLI
       version_added: 2.2.0
-      type: string
+      type: integer
       example: ~
       default: "128"
     max_map_length:
@@ -482,33 +475,6 @@ core:
       sensitive: true
       default: ~
       example: '{"some_param": "some_value"}'
-    database_access_isolation:
-      description: (experimental) Whether components should use Airflow Internal API for DB connectivity.
-      version_added: 2.6.0
-      type: boolean
-      example: ~
-      default: "False"
-    internal_api_url:
-      description: |
-        (experimental) Airflow Internal API url.
-        Only used if ``[core] database_access_isolation`` is ``True``.
-      version_added: 2.6.0
-      type: string
-      default: ~
-      example: 'http://localhost:8080'
-    internal_api_secret_key:
-      description: |
-        Secret key used to authenticate internal API clients to core. It should be as random as possible.
-        However, when running more than 1 instances of webserver / internal API services, make sure all
-        of them use the same ``secret_key`` otherwise calls will fail on authentication.
-        The authentication token generated using the secret key has a short expiry time though - make
-        sure that time on ALL the machines that you run airflow components on is synchronized
-        (for example using ntpd) otherwise you might get "forbidden" errors when the logs are accessed.
-      version_added: 2.10.0
-      type: string
-      sensitive: true
-      example: ~
-      default: "{SECRET_KEY}"
     test_connection:
       description: |
         The ability to allow testing connections across Airflow UI, API and CLI.
@@ -536,11 +502,13 @@ core:
       default: "4096"
     execution_api_server_url:
       description: |
-        The url of the execution api server.
+        The url of the execution api server. Default is ``{BASE_URL}/execution/``
+        where ``{BASE_URL}`` is the base url of the API Server. If ``{BASE_URL}`` is not set,
+        it will use ``http://localhost:8080`` as the default base url.
       version_added: 3.0.0
       type: string
       example: ~
-      default: "http://localhost:8080/execution/"
+      default: ~
 database:
   description: ~
   options:
@@ -564,6 +532,18 @@ database:
       sensitive: true
       example: ~
       default: "sqlite:///{AIRFLOW_HOME}/airflow.db"
+    sql_alchemy_conn_async:
+      description: |
+        The SQLAlchemy connection string to the metadata database used for async connections.
+        If this is not set, Airflow automatically derives a string by converting ``sql_alchemy_conn``.
+        Unfortunately, this conversion logic does not always work due to various incompatibilities
+        between sync and async db driver implementations. This sets the connection string directly
+        without any conversion instead.
+      version_added: 3.1.0
+      type: string
+      sensitive: true
+      example: "postgresql+asyncpg://postgres:airflow@postgres/airflow"
+      default: ~
     sql_alchemy_engine_args:
       description: |
         Extra engine specific keyword args passed to SQLAlchemy's create_engine, as a JSON-encoded value
@@ -604,7 +584,7 @@ database:
         The SQLAlchemy pool size is the maximum number of database connections
         in the pool. 0 indicates no limit.
       version_added: 2.3.0
-      type: string
+      type: integer
       example: ~
       default: "5"
     sql_alchemy_max_overflow:
@@ -619,7 +599,7 @@ database:
         max_overflow can be set to ``-1`` to indicate no overflow limit;
         no limit will be placed on the total number of concurrent connections. Defaults to ``10``.
       version_added: 2.3.0
-      type: string
+      type: integer
       example: ~
       default: "10"
     sql_alchemy_pool_recycle:
@@ -629,7 +609,7 @@ database:
         not apply to sqlite. If the number of DB connections is ever exceeded,
         a lower config value will allow the system to recover faster.
       version_added: 2.3.0
-      type: string
+      type: integer
       example: ~
       default: "1800"
     sql_alchemy_pool_pre_ping:
@@ -640,7 +620,7 @@ database:
         <https://docs.sqlalchemy.org/en/14/core/pooling.html#disconnect-handling-pessimistic>`__
         for more details.
       version_added: 2.3.0
-      type: string
+      type: boolean
       example: ~
       default: "True"
     sql_alchemy_schema:
@@ -661,9 +641,22 @@ database:
         <https://airflow.apache.org/docs/apache-airflow/stable/howto/set-up-database.html#setting-up-a-postgresql-database>`__
         e.g ``connect_args={"timeout":30}`` can be defined in ``airflow_local_settings.py`` and
         can be imported as shown below
+
+        *Changed in 3.1.0*: This configuration is only applied to synchronous engines, such as psycopg2.
+        See ``sql_alchemy_connect_args_async``.
       version_added: 2.3.0
       type: string
       example: 'airflow_local_settings.connect_args'
+      default: ~
+    sql_alchemy_connect_args_async:
+      description: |
+        Import path for connect args in SQLAlchemy. Defaults to an empty dict.
+        This is similar to ``sql_alchemy_connect_args``, but only for async connections.
+
+        This configuration is only applied to async engines, such as asyncpg.
+      version_added: 3.1.0
+      type: string
+      example: 'airflow_local_settings.connect_args_async'
       default: ~
     sql_alchemy_session_maker:
       description: |
@@ -1061,7 +1054,7 @@ metrics:
       description: |
         Enables sending metrics to StatsD.
       version_added: 2.0.0
-      type: string
+      type: boolean
       example: ~
       default: "False"
     statsd_host:
@@ -1075,14 +1068,14 @@ metrics:
       description: |
         Enables the statsd host to be resolved into IPv6 address
       version_added: 3.0.0
-      type: string
+      type: boolean
       example: ~
       default: "False"
     statsd_port:
       description: |
         Specifies the port on which the StatsD daemon (or server) is listening to
       version_added: 2.0.0
-      type: string
+      type: integer
       example: ~
       default: "8125"
     statsd_prefix:
@@ -1110,7 +1103,7 @@ metrics:
       description: |
         To enable datadog integration to send airflow metrics.
       version_added: 2.0.0
-      type: string
+      type: boolean
       example: ~
       default: "False"
     statsd_datadog_tags:
@@ -1158,7 +1151,7 @@ metrics:
       description: |
         Enables sending metrics to OpenTelemetry.
       version_added: 2.6.0
-      type: string
+      type: boolean
       example: ~
       default: "False"
     otel_host:
@@ -1173,7 +1166,7 @@ metrics:
       description: |
         Specifies the port of the OpenTelemetry Collector that is listening to.
       version_added: 2.6.0
-      type: string
+      type: integer
       example: ~
       default: "8889"
     otel_prefix:
@@ -1195,7 +1188,7 @@ metrics:
       description: |
         If ``True``, all metrics are also emitted to the console. Defaults to ``False``.
       version_added: 2.7.0
-      type: string
+      type: boolean
       example: ~
       default: "False"
     otel_service:
@@ -1212,7 +1205,7 @@ metrics:
         you need to configure the SSL certificate and key within the OpenTelemetry collector's
         ``config.yml`` file.
       version_added: 2.7.0
-      type: string
+      type: boolean
       example: ~
       default: "False"
 traces:
@@ -1223,7 +1216,7 @@ traces:
       description: |
         Enables sending traces to OpenTelemetry.
       version_added: 2.10.0
-      type: string
+      type: boolean
       example: ~
       default: "False"
     otel_host:
@@ -1238,7 +1231,7 @@ traces:
       description: |
         Specifies the port of the OpenTelemetry Collector that is listening to.
       version_added: 2.10.0
-      type: string
+      type: integer
       example: ~
       default: "8889"
     otel_service:
@@ -1252,7 +1245,7 @@ traces:
       description: |
         If True, all traces are also emitted to the console. Defaults to False.
       version_added: 2.10.0
-      type: string
+      type: boolean
       example: ~
       default: "False"
     otel_ssl_active:
@@ -1262,6 +1255,13 @@ traces:
         you need to configure the SSL certificate and key within the OpenTelemetry collector's
         config.yml file.
       version_added: 2.10.0
+      type: boolean
+      example: ~
+      default: "False"
+    otel_debug_traces_on:
+      description: |
+        If True, then traces from Airflow internal methods are exported. Defaults to False.
+      version_added: 3.1.0
       type: string
       example: ~
       default: "False"
@@ -1316,6 +1316,49 @@ secrets:
 api:
   description: ~
   options:
+    instance_name:
+      description: |
+        Sets a custom page title for the DAGs overview page and site title for all pages
+      version_added: 2.1.0
+      type: string
+      example: ~
+      default:
+    enable_swagger_ui:
+      description: |
+        Boolean for running SwaggerUI in the webserver.
+      version_added: 2.6.0
+      type: boolean
+      example: ~
+      default: "True"
+    secret_key:
+      description: |
+        Secret key used to run your api server. It should be as random as possible. However, when running
+        more than 1 instances of the api, make sure all of them use the same ``secret_key`` otherwise
+        one of them will error with "CSRF session token is missing".
+        The api key is also used to authorize requests to Celery workers when logs are retrieved.
+        The token generated using the secret key has a short expiry time though - make sure that time on
+        ALL the machines that you run airflow components on is synchronized (for example using ntpd)
+        otherwise you might get "forbidden" errors when the logs are accessed.
+      version_added: ~
+      type: string
+      sensitive: true
+      example: ~
+      default: "{SECRET_KEY}"
+    expose_config:
+      description: |
+        Expose the configuration file in the web server. Set to ``non-sensitive-only`` to show all values
+        except those that have security implications. ``True`` shows all values. ``False`` hides the
+        configuration completely.
+      version_added: ~
+      type: string
+      example: ~
+      default: "False"
+    expose_stacktrace:
+      description: Expose stacktrace in the web server
+      version_added: ~
+      type: string
+      example: ~
+      default: "False"
     base_url:
       description: |
         The base url of the API server. Airflow cannot guess what domain or CNAME you are using.
@@ -1343,23 +1386,24 @@ api:
       description: |
         Number of workers to run on the API server
       version_added: ~
-      type: string
+      type: integer
       example: ~
       default: "4"
     worker_timeout:
       description: |
         Number of seconds the API server waits before timing out on a worker
       version_added: ~
-      type: string
+      type: integer
       example: ~
       default: "120"
-    access_logfile:
+    log_config:
       description: |
-        Log files for the api server. '-' means log to stderr.
+        Path to the logging configuration file for the uvicorn server.
+        If not set, the default uvicorn logging configuration will be used.
       version_added: ~
       type: string
-      example: ~
-      default: "-"
+      example: path/to/logging_config.yaml
+      default: ~
     ssl_cert:
       description: |
         Paths to the SSL certificate and key for the api server. When both are
@@ -1419,13 +1463,59 @@ api:
       version_added: 2.2.0
       example: ~
       default: ""
-    enable_xcom_deserialize_support:
+    grid_view_sorting_order:
       description: |
-        Indicates whether the **xcomEntries** endpoint supports the **deserialize**
-        flag. If set to ``False``, setting this flag in a request would result in a
-        400 Bad Request error.
-      type: boolean
+        Sorting order in grid view. Valid values are: ``topological``, ``hierarchical_alphabetical``
       version_added: 2.7.0
+      type: string
+      example: ~
+      default: "topological"
+    log_fetch_timeout_sec:
+      description: |
+        The amount of time (in secs) webserver will wait for initial handshake
+        while fetching logs from other worker machine
+      version_added: ~
+      type: string
+      example: ~
+      default: "5"
+    hide_paused_dags_by_default:
+      description: |
+        By default, the webserver shows paused DAGs. Flip this to hide paused
+        DAGs by default
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "False"
+    page_size:
+      description: |
+        Consistent page size across all listing views in the UI
+      version_added: ~
+      type: integer
+      example: ~
+      default: "50"
+    default_wrap:
+      description: |
+        Default setting for wrap toggle on DAG code and TI log views.
+      version_added: 1.10.4
+      type: boolean
+      example: ~
+      default: "False"
+    auto_refresh_interval:
+      description: |
+        How frequently, in seconds, the DAG data will auto-refresh in graph or grid view
+        when auto-refresh is turned on
+      version_added: 2.2.0
+      type: integer
+      example: ~
+      default: "3"
+    require_confirmation_dag_change:
+      description: |
+        Require confirmation when changing a DAG in the web UI. This is to prevent accidental changes
+        to a DAG that may be running on sensitive environments like production.
+        When set to ``True``, confirmation dialog will be shown when a user tries to Pause/Unpause,
+        Trigger a DAG
+      version_added: 2.9.0
+      type: boolean
       example: ~
       default: "False"
 workers:
@@ -1487,6 +1577,15 @@ workers:
       type: float
       example: ~
       default: "90.0"
+    socket_cleanup_timeout:
+      description: |
+        Number of seconds to wait after a task process exits before forcibly closing any
+        remaining communication sockets. This helps prevent the task supervisor from hanging
+        indefinitely due to missed EOF signals.
+      version_added: 3.0.3
+      type: float
+      example: ~
+      default: "60.0"
 api_auth:
   description: Settings relating to authentication on the Airflow APIs
   options:
@@ -1713,182 +1812,6 @@ operators:
       type: string
       example: ~
       default: "default"
-webserver:
-  description: ~
-  options:
-    access_denied_message:
-      description: |
-        The message displayed when a user attempts to execute actions beyond their authorised privileges.
-      version_added: 2.7.0
-      type: string
-      example: ~
-      default: "Access is Denied"
-    secret_key:
-      description: |
-        Secret key used to run your api server. It should be as random as possible. However, when running
-        more than 1 instances of webserver, make sure all of them use the same ``secret_key`` otherwise
-        one of them will error with "CSRF session token is missing".
-        The webserver key is also used to authorize requests to Celery workers when logs are retrieved.
-        The token generated using the secret key has a short expiry time though - make sure that time on
-        ALL the machines that you run airflow components on is synchronized (for example using ntpd)
-        otherwise you might get "forbidden" errors when the logs are accessed.
-      version_added: ~
-      type: string
-      sensitive: true
-      example: ~
-      default: "{SECRET_KEY}"
-    expose_config:
-      description: |
-        Expose the configuration file in the web server. Set to ``non-sensitive-only`` to show all values
-        except those that have security implications. ``True`` shows all values. ``False`` hides the
-        configuration completely.
-      version_added: ~
-      type: string
-      example: ~
-      default: "False"
-    expose_hostname:
-      description: |
-        Expose hostname in the web server
-      version_added: 1.10.8
-      type: string
-      example: ~
-      default: "False"
-    grid_view_sorting_order:
-      description: |
-        Sorting order in grid view. Valid values are: ``topological``, ``hierarchical_alphabetical``
-      version_added: 2.7.0
-      type: string
-      example: ~
-      default: "topological"
-    log_fetch_timeout_sec:
-      description: |
-        The amount of time (in secs) webserver will wait for initial handshake
-        while fetching logs from other worker machine
-      version_added: ~
-      type: string
-      example: ~
-      default: "5"
-    hide_paused_dags_by_default:
-      description: |
-        By default, the webserver shows paused DAGs. Flip this to hide paused
-        DAGs by default
-      version_added: ~
-      type: string
-      example: ~
-      default: "False"
-    page_size:
-      description: |
-        Consistent page size across all listing views in the UI
-      version_added: ~
-      type: string
-      example: ~
-      default: "50"
-    navbar_color:
-      description: |
-        Define the color of navigation bar
-      version_added: ~
-      type: string
-      example: ~
-      default: "#fff"
-    navbar_text_color:
-      description: |
-        Define the color of text in the navigation bar
-      version_added: 2.8.0
-      type: string
-      example: ~
-      default: "#51504f"
-    navbar_hover_color:
-      description: |
-        Define the color of navigation bar links when hovered
-      version_added: 2.9.0
-      type: string
-      example: ~
-      default: "#eee"
-    navbar_text_hover_color:
-      description: |
-        Define the color of text in the navigation bar when hovered
-      version_added: 2.9.0
-      type: string
-      example: ~
-      default: "#51504f"
-    default_wrap:
-      description: |
-        Default setting for wrap toggle on DAG code and TI log views.
-      version_added: 1.10.4
-      type: boolean
-      example: ~
-      default: "False"
-    x_frame_enabled:
-      description: |
-        Allow the UI to be rendered in a frame
-      version_added: 1.10.8
-      type: boolean
-      example: ~
-      default: "True"
-    instance_name:
-      description: |
-        Sets a custom page title for the DAGs overview page and site title for all pages
-      version_added: 2.1.0
-      type: string
-      example: ~
-      default:
-    instance_name_has_markup:
-      description: |
-        Whether the custom page title for the DAGs overview page contains any Markup language
-      version_added: 2.3.0
-      type: boolean
-      example: ~
-      default: "False"
-    auto_refresh_interval:
-      description: |
-        How frequently, in seconds, the DAG data will auto-refresh in graph or grid view
-        when auto-refresh is turned on
-      version_added: 2.2.0
-      type: integer
-      example: ~
-      default: "3"
-    warn_deployment_exposure:
-      description: |
-        Boolean for displaying warning for publicly viewable deployment
-      version_added: 2.3.0
-      type: boolean
-      example: ~
-      default: "True"
-    audit_view_excluded_events:
-      description: |
-        Comma separated string of view events to exclude from dag audit view.
-        All other events will be added minus the ones passed here.
-        The audit logs in the db will not be affected by this parameter.
-      version_added: 2.3.0
-      type: string
-      example: "cli_task_run,running,success"
-      default: ~
-    audit_view_included_events:
-      description: |
-        Comma separated string of view events to include in dag audit view.
-        If passed, only these events will populate the dag audit view.
-        The audit logs in the db will not be affected by this parameter.
-      version_added: 2.3.0
-      type: string
-      example: "dagrun_cleared,failed"
-      default: ~
-    enable_swagger_ui:
-      description: |
-        Boolean for running SwaggerUI in the webserver.
-      version_added: 2.6.0
-      type: boolean
-      example: ~
-      default: "True"
-    require_confirmation_dag_change:
-      description: |
-        Require confirmation when changing a DAG in the web UI. This is to prevent accidental changes
-        to a DAG that may be running on sensitive environments like production.
-        When set to ``True``, confirmation dialog will be shown when a user tries to Pause/Unpause,
-        Trigger a DAG
-      version_added: 2.9.0
-      type: boolean
-      example: ~
-      default: "False"
 email:
   description: |
     Configuration email backend and whether to
@@ -1979,21 +1902,21 @@ smtp:
       description: |
         Determines whether to use the STARTTLS command when connecting to the SMTP server.
       version_added: ~
-      type: string
+      type: boolean
       example: ~
       default: "True"
     smtp_ssl:
       description: |
         Determines whether to use an SSL connection when talking to the SMTP server.
       version_added: ~
-      type: string
+      type: boolean
       example: ~
       default: "False"
     smtp_port:
       description: |
         Defines the port number on which Airflow connects to the SMTP server to send email notifications.
       version_added: ~
-      type: string
+      type: integer
       example: ~
       default: "25"
     smtp_mail_from:
@@ -2030,7 +1953,7 @@ sentry:
     sentry_on:
       description: Enable error reporting to Sentry
       version_added: 2.0.0
-      type: string
+      type: boolean
       example: ~
       default: "false"
     sentry_dsn:
@@ -2231,16 +2154,6 @@ scheduler:
       type: integer
       default: "20"
       see_also: ":ref:`scheduler:ha:tunables`"
-    parsing_pre_import_modules:
-      description: |
-        The scheduler reads dag files to extract the airflow modules that are going to be used,
-        and imports them ahead of time to avoid having to re-do it for each parsing process.
-        This flag can be set to ``False`` to disable this behavior in case an airflow module needs
-        to be freshly imported each time (at the cost of increased DAG parsing time).
-      version_added: 2.6.0
-      type: boolean
-      example: ~
-      default: "True"
     dag_stale_not_seen_duration:
       description: |
         Time in seconds after which dags, which were not updated by Dag Processor are deactivated.
@@ -2341,7 +2254,7 @@ triggerer:
       description: |
         How many triggers a single Triggerer will run at once, by default.
       version_added: 2.2.0
-      type: string
+      type: integer
       example: ~
       default: "1000"
     job_heartbeat_sec:
@@ -2536,7 +2449,7 @@ dag_processor:
       description: |
         How long before timing out a DagFileProcessor, which processes a dag file
       version_added: ~
-      type: string
+      type: integer
       example: ~
       default: "50"
     print_stats_interval:
@@ -2595,3 +2508,13 @@ dag_processor:
       type: integer
       example: ~
       default: "10"
+    parsing_pre_import_modules:
+      description: |
+        The dag_processor reads dag files to extract the airflow modules that are going to be used,
+        and imports them ahead of time to avoid having to re-do it for each parsing process.
+        This flag can be set to ``False`` to disable this behavior in case an airflow module needs
+        to be freshly imported each time (at the cost of increased DAG parsing time).
+      version_added: 2.6.0
+      type: boolean
+      example: ~
+      default: "True"

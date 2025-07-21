@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import ast
 import json
+import logging
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
@@ -29,11 +30,14 @@ from airflow.models.base import Base
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 
 class EdgeWorkerVersionException(AirflowException):
@@ -51,6 +55,8 @@ class EdgeWorkerState(str, Enum):
     """Edge Worker is actively running a task."""
     IDLE = "idle"
     """Edge Worker is active and waiting for a task."""
+    SHUTDOWN_REQUEST = "shutdown request"
+    """Request to shutdown Edge Worker."""
     TERMINATING = "terminating"
     """Edge Worker is completing work and stopping."""
     OFFLINE = "offline"
@@ -103,7 +109,7 @@ class EdgeWorkerModel(Base, LoggingMixin):
         super().__init__()
 
     @property
-    def sysinfo_json(self) -> dict:
+    def sysinfo_json(self) -> dict | None:
         return json.loads(self.sysinfo) if self.sysinfo else None
 
     @property
@@ -194,6 +200,26 @@ def reset_metrics(worker_name: str) -> None:
     )
 
 
+@providers_configuration_loaded
+@provide_session
+def _fetch_edge_hosts_from_db(
+    hostname: str | None = None, states: list | None = None, session: Session = NEW_SESSION
+) -> list:
+    query = select(EdgeWorkerModel)
+    if states:
+        query = query.where(EdgeWorkerModel.state.in_(states))
+    if hostname:
+        query = query.where(EdgeWorkerModel.worker_name == hostname)
+    query = query.order_by(EdgeWorkerModel.worker_name)
+    return session.scalars(query).all()
+
+
+@providers_configuration_loaded
+@provide_session
+def get_registered_edge_hosts(states: list | None = None, session: Session = NEW_SESSION):
+    return _fetch_edge_hosts_from_db(states=states, session=session)
+
+
 @provide_session
 def request_maintenance(
     worker_name: str, maintenance_comment: str | None, session: Session = NEW_SESSION
@@ -217,7 +243,18 @@ def exit_maintenance(worker_name: str, session: Session = NEW_SESSION) -> None:
 @provide_session
 def remove_worker(worker_name: str, session: Session = NEW_SESSION) -> None:
     """Remove a worker that is offline or just gone from DB."""
-    session.execute(delete(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name))
+    query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    worker: EdgeWorkerModel = session.scalar(query)
+    if worker.state in (
+        EdgeWorkerState.OFFLINE,
+        EdgeWorkerState.OFFLINE_MAINTENANCE,
+        EdgeWorkerState.UNKNOWN,
+    ):
+        session.execute(delete(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name))
+    else:
+        error_message = f"Cannot remove edge worker {worker_name} as it is in {worker.state} state!"
+        logger.error(error_message)
+        raise TypeError(error_message)
 
 
 @provide_session
@@ -227,4 +264,56 @@ def change_maintenance_comment(
     """Write maintenance comment in the db."""
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker: EdgeWorkerModel = session.scalar(query)
-    worker.maintenance_comment = maintenance_comment
+    if worker.state in (EdgeWorkerState.MAINTENANCE_MODE, EdgeWorkerState.OFFLINE_MAINTENANCE):
+        worker.maintenance_comment = maintenance_comment
+    else:
+        error_message = f"Cannot change maintenance comment as {worker_name} is not in maintenance!"
+        logger.error(error_message)
+        raise TypeError(error_message)
+
+
+@provide_session
+def request_shutdown(worker_name: str, session: Session = NEW_SESSION) -> None:
+    """Request to shutdown the edge worker."""
+    query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    worker: EdgeWorkerModel = session.scalar(query)
+    if worker.state not in (
+        EdgeWorkerState.OFFLINE,
+        EdgeWorkerState.OFFLINE_MAINTENANCE,
+        EdgeWorkerState.UNKNOWN,
+    ):
+        worker.state = EdgeWorkerState.SHUTDOWN_REQUEST
+
+
+@provide_session
+def add_worker_queues(worker_name: str, queues: list[str], session: Session = NEW_SESSION) -> None:
+    """Add queues to an edge worker."""
+    query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    worker: EdgeWorkerModel = session.scalar(query)
+    if worker.state in (
+        EdgeWorkerState.OFFLINE,
+        EdgeWorkerState.OFFLINE_MAINTENANCE,
+        EdgeWorkerState.UNKNOWN,
+    ):
+        error_message = f"Cannot add queues to edge worker {worker_name} as it is in {worker.state} state!"
+        logger.error(error_message)
+        raise TypeError(error_message)
+    worker.add_queues(queues)
+
+
+@provide_session
+def remove_worker_queues(worker_name: str, queues: list[str], session: Session = NEW_SESSION) -> None:
+    """Remove queues from an edge worker."""
+    query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    worker: EdgeWorkerModel = session.scalar(query)
+    if worker.state in (
+        EdgeWorkerState.OFFLINE,
+        EdgeWorkerState.OFFLINE_MAINTENANCE,
+        EdgeWorkerState.UNKNOWN,
+    ):
+        error_message = (
+            f"Cannot remove queues from edge worker {worker_name} as it is in {worker.state} state!"
+        )
+        logger.error(error_message)
+        raise TypeError(error_message)
+    worker.remove_queues(queues)

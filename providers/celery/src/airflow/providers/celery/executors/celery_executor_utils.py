@@ -27,11 +27,12 @@ import logging
 import math
 import os
 import subprocess
+import sys
 import traceback
 import warnings
-from collections.abc import Mapping, MutableMapping
+from collections.abc import Mapping, MutableMapping, Sequence
 from concurrent.futures import ProcessPoolExecutor
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any
 
 from celery import Celery, Task, states as celery_states
 from celery.backends.base import BaseKeyValueStoreBackend
@@ -59,18 +60,21 @@ except ImportError:
 log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from typing import TypeAlias
+
     from celery.result import AsyncResult
 
     from airflow.executors import workloads
-    from airflow.executors.base_executor import CommandType, EventBufferValueType
+    from airflow.executors.base_executor import EventBufferValueType
     from airflow.models.taskinstance import TaskInstanceKey
-    from airflow.typing_compat import TypeAlias
 
     # We can't use `if AIRFLOW_V_3_0_PLUS` conditions in type checks, so unfortunately we just have to define
     # the type as the union of both kinds
-    TaskInstanceInCelery: TypeAlias = tuple[
-        TaskInstanceKey, Union[workloads.All, CommandType], Optional[str], Task
-    ]
+    CommandType = Sequence[str]
+
+    TaskInstanceInCelery: TypeAlias = tuple[TaskInstanceKey, workloads.All | CommandType, str | None, Task]
+
+    TaskTuple = tuple[TaskInstanceKey, CommandType, str | None, Any | None]
 
 OPERATION_TIMEOUT = conf.getfloat("celery", "operation_timeout")
 
@@ -158,13 +162,19 @@ def execute_workload(input: str) -> None:
 
     log.info("[%s] Executing workload in Celery: %s", celery_task_id, workload)
 
+    base_url = conf.get("api", "base_url", fallback="/")
+    # If it's a relative URL, use localhost:8080 as the default
+    if base_url.startswith("/"):
+        base_url = f"http://localhost:8080{base_url}"
+    default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
+
     supervise(
         # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
         ti=workload.ti,  # type: ignore[arg-type]
         dag_rel_path=workload.dag_rel_path,
         bundle_info=workload.bundle_info,
         token=workload.token,
-        server=conf.get("core", "execution_api_server_url"),
+        server=conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
         log_path=workload.log_path,
     )
 
@@ -174,7 +184,7 @@ if not AIRFLOW_V_3_0_PLUS:
     @app.task
     def execute_command(command_to_exec: CommandType) -> None:
         """Execute command."""
-        dag_id, task_id = BaseExecutor.validate_airflow_tasks_run_command(command_to_exec)
+        dag_id, task_id = BaseExecutor.validate_airflow_tasks_run_command(command_to_exec)  # type: ignore[attr-defined]
         celery_task_id = app.current_task.request.id
         log.info("[%s] Executing command in Celery: %s", celery_task_id, command_to_exec)
         with _airflow_parsing_context_manager(dag_id=dag_id, task_id=task_id):
@@ -234,7 +244,7 @@ def _execute_in_subprocess(command_to_exec: CommandType, celery_task_id: str | N
     if celery_task_id:
         env["external_executor_id"] = celery_task_id
     try:
-        subprocess.check_output(command_to_exec, stderr=subprocess.STDOUT, close_fds=True, env=env)
+        subprocess.run(command_to_exec, stderr=sys.__stderr__, stdout=sys.__stdout__, close_fds=True, env=env)
     except subprocess.CalledProcessError as e:
         log.exception("[%s] execute_command encountered a CalledProcessError", celery_task_id)
         log.error(e.output)
@@ -276,7 +286,7 @@ def send_task_to_executor(
 
     # The type is right for the version, but the type cannot be defined correctly for Airflow 2 and 3
     # concurrently;
-    return key, args, result  # type: ignore[return-value]
+    return key, args, result
 
 
 def fetch_celery_task_state(async_result: AsyncResult) -> tuple[str, str | ExceptionWithTraceback, Any]:

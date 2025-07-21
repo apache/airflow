@@ -36,13 +36,14 @@ export const DagNode = ({
     <NodeWrapper>
       <Flex
         bg={isOpen ? "bg.muted" : "bg"}
+        borderColor={isSelected ? "border.inverted" : "border"}
         borderRadius={5}
-        borderWidth={isSelected ? 6 : 2}
+        borderWidth={isSelected ? 4 : 2}
         cursor="default"
         flexDirection="column"
         height={`${height}px`}
         px={3}
-        py={isSelected ? 0 : 1}
+        py={1}
         width={`${width}px`}
       >
         <HStack alignItems="center" justifyContent="space-between">

@@ -27,11 +27,105 @@
 Changelog
 ---------
 
-main
+6.5.1
 .....
 
-Bug fixes
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``another magic pip resolver hint (#53329)``
+* ``fix: Improve logging and timeouts in OL helpers (#53139)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Cleanup type ignores in snowflake provider where possible (#53258)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make dag_version_id in TI non-nullable (#50825)``
+   * ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+
+6.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Add explicit support for SnowflakeSqlApiHook to Openlineage helper (#52161)``
+* ``feat: Add new query related methods to SnowflakeSqlApiHook (#52157)``
+* ``feat: Add SnowflakeSqlApiHook Retry Logic (#51463)``
+
+
+Misc
+~~~~
+
+* ``Provider Migration: Update Snowflake provider for Airflow 3.0 compatibility (#52629)``
+* ``Disable UP038 ruff rule and revert mandatory 'X | Y' in insintance checks (#52644)``
+* ``Bump pyarrow to 16.1.0 minimum version for several providers (#52635)``
+* ``Replace models.BaseOperator to Task SDK one for Common Providers (#52443)``
+* ``Relax snowflake-snowpark-python for Python>=3.12 (#52356)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Replace 'models.BaseOperator' to Task SDK one for Standard Provider (#52292)``
+* ``Bump upper binding on pandas in all providers (#52060)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix StopIteration in snowflake sql tests (#52394)``
+   * ``Make sure all test version imports come from test_common (#52425)``
+   * ``Add tests to test whether snowflake sql API handles invalid JSON (#52118)``
+
+6.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Extend SnowflakeHook OAuth implementation to support external IDPs and client_credentials grant (#51620)``
+
+Bug Fixes
 ~~~~~~~~~
+
+* ``fix: make query_ids in SnowflakeSqlApiOperator in deferrable mode consistent (#51542)``
+* ``fix: Duplicate region in Snowflake URI no longer breaks OpenLineage (#50831)``
+* ``Do not allow semicolons in CopyFromExternalStageToSnowflakeOperator fieldS (#51734)``
+
+Misc
+~~~~
+
+* ``Port ''ti.run'' to Task SDK execution path (#50141)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: Adjust OpenLineage task state check for Airflow 3 (#50380)``
+
+Misc
+~~~~
+
+* ``nit: Switch to emitting OL events with adapter and not client directly (#50398)``
+
+Doc-only
+~~~~~~~~
+
+* ``docs: remove stale warning about SnowflakeOperator (#50450)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix Breeze unit test (#50395)``
+   * ``Use non-deprecated context in tests for Airflow 3 (#50391)``
+
+6.3.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.10+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 .. note::
    ``private_key_content`` in Snowflake connection should now be base64 encoded. To encode your private key, you can use the following Python snippet:
@@ -44,6 +138,34 @@ Bug fixes
              encoded_key = base64.b64encode(key_file.read()).decode("utf-8")
              print(encoded_key)
 
+Features
+~~~~~~~~
+
+* ``Adding OAuth support for SnowflakeHook  (#47191)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``make 'private_key_content' in snowflake connection to be a base64 encoded string (#49467)``
+* ``Fix SnowflakeSqlApiHook backwards compatibility for get_oauth_token method (#49482)``
+* ``Fix mypy for get_oauth_token signature in SnowflakeSqlApiHook (#49449)``
+* ``Fix infinite recursive call of _get_conn_params while getting oauth token from snowflake (#50344)``
+* ``Fix: adjust dag_run extraction for Airflow 3 in OL utils (#50346)``
+
+Misc
+~~~~
+
+* ``Remove AIRFLOW_2_10_PLUS conditions (#49877)``
+* ``Bump min Airflow version in providers to 2.10 (#49843)``
+* ``enhance: logs SQL before execution in 'snowflake' and 'databricks_sql' (#48942)``
+* ``chore: import paths use the stable functions (#49460)``
+* ``add root parent information to OpenLineage events (#49237)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Avoid committing history for providers (#49907)``
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Prepare ad hoc release for providers May 2025 (#50166)``
 
 6.2.2
 .....

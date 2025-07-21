@@ -181,21 +181,27 @@ class S3ToGCSOperator(S3ListOperator):
                 'The destination Google Cloud Storage path must end with a slash "/" or be empty.'
             )
 
-    def execute(self, context: Context):
-        self._check_inputs()
+    def _get_files(self, context: Context, gcs_hook: GCSHook) -> list[str]:
         # use the super method to list all the files in an S3 bucket/key
         s3_objects = super().execute(context)
 
+        if not self.replace:
+            s3_objects = self.exclude_existing_objects(s3_objects=s3_objects, gcs_hook=gcs_hook)
+
+        return s3_objects
+
+    def execute(self, context: Context):
+        self._check_inputs()
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.google_impersonation_chain,
         )
-        if not self.replace:
-            s3_objects = self.exclude_existing_objects(s3_objects=s3_objects, gcs_hook=gcs_hook)
-
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
+
+        s3_objects = self._get_files(context, gcs_hook)
         if not s3_objects:
             self.log.info("In sync, no files needed to be uploaded to Google Cloud Storage")
+
         elif self.deferrable:
             self.transfer_files_async(s3_objects, gcs_hook, s3_hook)
         else:

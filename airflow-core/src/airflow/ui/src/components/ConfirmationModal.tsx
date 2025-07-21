@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Button, type DialogBodyProps, Heading } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 
 import { Dialog } from "src/components/ui";
 
@@ -28,32 +29,36 @@ type Props = {
   readonly open: boolean;
 };
 
-export const ConfirmationModal = ({ children, header, onConfirm, onOpenChange, open }: Props) => (
-  <Dialog.Root onOpenChange={onOpenChange} open={open}>
-    <Dialog.Content backdrop>
-      <Dialog.Header>
-        <Heading>{header}</Heading>
-      </Dialog.Header>
+export const ConfirmationModal = ({ children, header, onConfirm, onOpenChange, open }: Props) => {
+  const { t: translate } = useTranslation("common");
 
-      <Dialog.CloseTrigger />
+  return (
+    <Dialog.Root onOpenChange={onOpenChange} open={open}>
+      <Dialog.Content backdrop>
+        <Dialog.Header>
+          <Heading>{header}</Heading>
+        </Dialog.Header>
 
-      <Dialog.Body>{children}</Dialog.Body>
-      <Dialog.Footer>
-        <Dialog.ActionTrigger asChild>
-          <Button onClick={() => onOpenChange({ open })} variant="outline">
-            Cancel
+        <Dialog.CloseTrigger />
+
+        <Dialog.Body>{children}</Dialog.Body>
+        <Dialog.Footer>
+          <Dialog.ActionTrigger asChild>
+            <Button onClick={() => onOpenChange({ open })} variant="outline">
+              {translate("modal.cancel")}
+            </Button>
+          </Dialog.ActionTrigger>
+          <Button
+            colorPalette="blue"
+            onClick={() => {
+              onConfirm();
+              onOpenChange({ open });
+            }}
+          >
+            {translate("modal.confirm")}
           </Button>
-        </Dialog.ActionTrigger>
-        <Button
-          colorPalette="blue"
-          onClick={() => {
-            onConfirm();
-            onOpenChange({ open });
-          }}
-        >
-          Confirm
-        </Button>
-      </Dialog.Footer>
-    </Dialog.Content>
-  </Dialog.Root>
-);
+        </Dialog.Footer>
+      </Dialog.Content>
+    </Dialog.Root>
+  );
+};

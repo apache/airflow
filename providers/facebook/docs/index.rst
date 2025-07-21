@@ -61,7 +61,7 @@ apache-airflow-providers-facebook package
 `Facebook Ads <https://www.facebook.com/about/ads>`__
 
 
-Release: 3.7.2
+Release: 3.8.1
 
 Provider package
 ----------------
@@ -79,11 +79,11 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider distribution is ``2.9.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
 
 =====================  ==================
 PIP package            Version required
 =====================  ==================
-``apache-airflow``     ``>=2.9.0``
-``facebook-business``  ``>=15.0.2``
+``apache-airflow``     ``>=2.10.0``
+``facebook-business``  ``>=22.0.0``
 =====================  ==================

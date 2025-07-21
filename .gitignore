@@ -16,6 +16,7 @@ airflow/git_version
 airflow/ui/coverage/
 logs/
 airflow-webserver.pid
+airflow-api-server.pid
 standalone_admin_password.txt
 warnings.txt
 warn-summary-*.txt
@@ -267,3 +268,6 @@ airflow-build-dockerfile*
 *.zip
 
 _api/
+
+#while running go tests inside the go-sdk, it can generate log files for dags, ignore all logs
+go-sdk/**/*.log

@@ -20,7 +20,6 @@ from unittest import mock
 
 import pytest
 
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_serialized_dags
@@ -35,15 +34,10 @@ class TestDagVersionEndpoint:
         clear_db_serialized_dags()
 
         with dag_maker(
-            "ANOTHER_DAG_ID",
-        ) as dag:
+            dag_id="ANOTHER_DAG_ID", bundle_version="some_commit_hash", bundle_name="another_bundle_name"
+        ):
             EmptyOperator(task_id="task_1")
             EmptyOperator(task_id="task_2")
-
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(
-            dag, bundle_name="another_bundle_name", bundle_version="some_commit_hash"
-        )
 
 
 class TestGetDagVersion(TestDagVersionEndpoint):
@@ -61,6 +55,7 @@ class TestGetDagVersion(TestDagVersionEndpoint):
                     "dag_id": "ANOTHER_DAG_ID",
                     "id": mock.ANY,
                     "version_number": 1,
+                    "dag_display_name": "ANOTHER_DAG_ID",
                 },
             ],
             [
@@ -74,6 +69,7 @@ class TestGetDagVersion(TestDagVersionEndpoint):
                     "dag_id": "dag_with_multiple_versions",
                     "id": mock.ANY,
                     "version_number": 1,
+                    "dag_display_name": "dag_with_multiple_versions",
                 },
             ],
             [
@@ -87,6 +83,7 @@ class TestGetDagVersion(TestDagVersionEndpoint):
                     "dag_id": "dag_with_multiple_versions",
                     "id": mock.ANY,
                     "version_number": 2,
+                    "dag_display_name": "dag_with_multiple_versions",
                 },
             ],
             [
@@ -100,6 +97,7 @@ class TestGetDagVersion(TestDagVersionEndpoint):
                     "dag_id": "dag_with_multiple_versions",
                     "id": mock.ANY,
                     "version_number": 3,
+                    "dag_display_name": "dag_with_multiple_versions",
                 },
             ],
         ],
@@ -109,6 +107,18 @@ class TestGetDagVersion(TestDagVersionEndpoint):
         response = test_client.get(f"/dags/{dag_id}/dagVersions/{dag_version}")
         assert response.status_code == 200
         assert response.json() == expected_response
+
+    @pytest.mark.usefixtures("make_dag_with_multiple_versions")
+    @mock.patch("airflow.dag_processing.bundles.manager.DagBundlesManager.view_url")
+    def test_get_dag_version_with_unconfigured_bundle(self, mock_view_url, test_client, dag_maker, session):
+        """Test that when a bundle is no longer configured, the bundle_url returns an error message."""
+        mock_view_url.side_effect = ValueError("Bundle not configured")
+
+        response = test_client.get("/dags/dag_with_multiple_versions/dagVersions/1")
+        assert response.status_code == 200
+
+        response_data = response.json()
+        assert not response_data["bundle_url"]
 
     def test_get_dag_version_404(self, test_client):
         response = test_client.get("/dags/dag_with_multiple_versions/dagVersions/99")
@@ -144,6 +154,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                             "dag_id": "ANOTHER_DAG_ID",
                             "id": mock.ANY,
                             "version_number": 1,
+                            "dag_display_name": "ANOTHER_DAG_ID",
                         },
                         {
                             "bundle_name": "dag_maker",
@@ -153,6 +164,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                             "dag_id": "dag_with_multiple_versions",
                             "id": mock.ANY,
                             "version_number": 1,
+                            "dag_display_name": "dag_with_multiple_versions",
                         },
                         {
                             "bundle_name": "dag_maker",
@@ -162,6 +174,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                             "dag_id": "dag_with_multiple_versions",
                             "id": mock.ANY,
                             "version_number": 2,
+                            "dag_display_name": "dag_with_multiple_versions",
                         },
                         {
                             "bundle_name": "dag_maker",
@@ -171,6 +184,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                             "dag_id": "dag_with_multiple_versions",
                             "id": mock.ANY,
                             "version_number": 3,
+                            "dag_display_name": "dag_with_multiple_versions",
                         },
                     ],
                     "total_entries": 4,
@@ -188,6 +202,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                             "dag_id": "dag_with_multiple_versions",
                             "id": mock.ANY,
                             "version_number": 1,
+                            "dag_display_name": "dag_with_multiple_versions",
                         },
                         {
                             "bundle_name": "dag_maker",
@@ -197,6 +212,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                             "dag_id": "dag_with_multiple_versions",
                             "id": mock.ANY,
                             "version_number": 2,
+                            "dag_display_name": "dag_with_multiple_versions",
                         },
                         {
                             "bundle_name": "dag_maker",
@@ -206,6 +222,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                             "dag_id": "dag_with_multiple_versions",
                             "id": mock.ANY,
                             "version_number": 3,
+                            "dag_display_name": "dag_with_multiple_versions",
                         },
                     ],
                     "total_entries": 3,

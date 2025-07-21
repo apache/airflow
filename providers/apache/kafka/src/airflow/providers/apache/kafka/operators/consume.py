@@ -16,13 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Sequence
-from functools import partial
-from typing import Any, Callable
+from collections.abc import Callable, Sequence
+from functools import cached_property, partial
+from typing import Any
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.apache.kafka.hooks.consume import KafkaConsumerHook
+from airflow.providers.apache.kafka.version_compat import BaseOperator
 from airflow.utils.module_loading import import_string
 
 VALID_COMMIT_CADENCE = {"never", "end_of_batch", "end_of_operator"}
@@ -82,7 +82,7 @@ class ConsumeFromTopicOperator(BaseOperator):
         apply_function_batch: Callable[..., Any] | str | None = None,
         apply_function_args: Sequence[Any] | None = None,
         apply_function_kwargs: dict[Any, Any] | None = None,
-        commit_cadence: str | None = "end_of_operator",
+        commit_cadence: str = "end_of_operator",
         max_messages: int | None = None,
         max_batch_size: int = 1000,
         poll_timeout: float = 60,
@@ -97,38 +97,35 @@ class ConsumeFromTopicOperator(BaseOperator):
         self.apply_function_kwargs = apply_function_kwargs or {}
         self.kafka_config_id = kafka_config_id
         self.commit_cadence = commit_cadence
-        self.max_messages = max_messages or True
+        self.max_messages = max_messages
         self.max_batch_size = max_batch_size
         self.poll_timeout = poll_timeout
 
-        if self.max_messages is True:
-            self.read_to_end = True
-        else:
-            self.read_to_end = False
+        self.read_to_end = self.max_messages is None
+        self._validate_commit_cadence_on_construct()
 
-        if self.commit_cadence not in VALID_COMMIT_CADENCE:
-            raise AirflowException(
-                f"commit_cadence must be one of {VALID_COMMIT_CADENCE}. Got {self.commit_cadence}"
-            )
-
-        if self.max_messages and self.max_batch_size > self.max_messages:
+        if self.max_messages is not None and self.max_batch_size > self.max_messages:
             self.log.warning(
                 "max_batch_size (%s) > max_messages (%s). Setting max_messages to %s ",
                 self.max_batch_size,
                 self.max_messages,
                 self.max_batch_size,
             )
-
-        if self.commit_cadence == "never":
-            self.commit_cadence = None
+            self.max_messages = self.max_batch_size
 
         if apply_function and apply_function_batch:
             raise AirflowException(
                 "One of apply_function or apply_function_batch must be supplied, not both."
             )
 
+    @cached_property
+    def hook(self):
+        """Return the KafkaConsumerHook instance."""
+        return KafkaConsumerHook(topics=self.topics, kafka_config_id=self.kafka_config_id)
+
     def execute(self, context) -> Any:
-        consumer = KafkaConsumerHook(topics=self.topics, kafka_config_id=self.kafka_config_id).get_consumer()
+        self._validate_commit_cadence_before_execute()
+        consumer = self.hook.get_consumer()
 
         if isinstance(self.apply_function, str):
             self.apply_function = import_string(self.apply_function)
@@ -136,21 +133,29 @@ class ConsumeFromTopicOperator(BaseOperator):
         if isinstance(self.apply_function_batch, str):
             self.apply_function_batch = import_string(self.apply_function_batch)
 
+        if self.apply_function is not None and not callable(self.apply_function):
+            raise TypeError(f"apply_function is not a callable, got {type(self.apply_function)} instead.")
+
         if self.apply_function:
             apply_callable = partial(
-                self.apply_function,  # type: ignore
+                self.apply_function,
                 *self.apply_function_args,
                 **self.apply_function_kwargs,
+            )
+
+        if self.apply_function_batch is not None and not callable(self.apply_function_batch):
+            raise TypeError(
+                f"apply_function_batch is not a callable, got {type(self.apply_function_batch)} instead."
             )
 
         if self.apply_function_batch:
             apply_callable = partial(
-                self.apply_function_batch,  # type: ignore
+                self.apply_function_batch,
                 *self.apply_function_args,
                 **self.apply_function_kwargs,
             )
 
-        messages_left = self.max_messages
+        messages_left = self.max_messages or True
 
         while self.read_to_end or (
             messages_left > 0
@@ -179,10 +184,33 @@ class ConsumeFromTopicOperator(BaseOperator):
                 self.log.info("committing offset at %s", self.commit_cadence)
                 consumer.commit()
 
-        if self.commit_cadence:
+        if self.commit_cadence != "never":
             self.log.info("committing offset at %s", self.commit_cadence)
             consumer.commit()
 
         consumer.close()
 
         return
+
+    def _validate_commit_cadence_on_construct(self):
+        """Validate the commit_cadence parameter when the operator is constructed."""
+        if self.commit_cadence and self.commit_cadence not in VALID_COMMIT_CADENCE:
+            raise AirflowException(
+                f"commit_cadence must be one of {VALID_COMMIT_CADENCE}. Got {self.commit_cadence}"
+            )
+
+    def _validate_commit_cadence_before_execute(self):
+        """Validate the commit_cadence parameter before executing the operator."""
+        kafka_config = self.hook.get_connection(self.kafka_config_id).extra_dejson
+        # Same as kafka's behavior, default to "true" if not set
+        enable_auto_commit = str(kafka_config.get("enable.auto.commit", "true")).lower()
+
+        if self.commit_cadence and enable_auto_commit != "false":
+            self.log.warning(
+                "To respect commit_cadence='%s', "
+                "'enable.auto.commit' should be set to 'false' in the Kafka connection configuration. "
+                "Currently, 'enable.auto.commit' is not explicitly set, so it defaults to 'true', which causes "
+                "the consumer to auto-commit offsets every 5 seconds. "
+                "See: https://kafka.apache.org/documentation/#consumerconfigs_enable.auto.commit for more information",
+                self.commit_cadence,
+            )

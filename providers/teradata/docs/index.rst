@@ -77,7 +77,7 @@ apache-airflow-providers-teradata package
 `Teradata <https://www.teradata.com/>`__
 
 
-Release: 3.0.3
+Release: 3.2.0
 
 Provider package
 ----------------
@@ -95,12 +95,12 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider distribution is ``2.9.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
 
 =======================================  ==================
 PIP package                              Version required
 =======================================  ==================
-``apache-airflow``                       ``>=2.9.0``
+``apache-airflow``                       ``>=2.10.0``
 ``apache-airflow-providers-common-sql``  ``>=1.20.0``
 ``teradatasqlalchemy``                   ``>=17.20.0.0``
 ``teradatasql``                          ``>=17.20.0.28``
@@ -125,6 +125,7 @@ Dependent package                                                               
 `apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                    ``amazon``
 `apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_            ``common.sql``
 `apache-airflow-providers-microsoft-azure <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure>`_  ``microsoft.azure``
+`apache-airflow-providers-ssh <https://airflow.apache.org/docs/apache-airflow-providers-ssh>`_                          ``ssh``
 ======================================================================================================================  ===================
 
 Downloading official packages
@@ -133,5 +134,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-teradata 3.0.3 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_teradata-3.0.3.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_teradata-3.0.3.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_teradata-3.0.3.tar.gz.sha512>`__)
-* `The apache-airflow-providers-teradata 3.0.3 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_teradata-3.0.3-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_teradata-3.0.3-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_teradata-3.0.3-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-teradata 3.2.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_teradata-3.2.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_teradata-3.2.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_teradata-3.2.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-teradata 3.2.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_teradata-3.2.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_teradata-3.2.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_teradata-3.2.0-py3-none-any.whl.sha512>`__)

@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Text } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiCalendar } from "react-icons/fi";
 
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
@@ -28,9 +29,11 @@ type Props = {
   readonly dag: DAGWithLatestDagRunsResponse;
 };
 
-export const Schedule = ({ dag }: Props) =>
-  Boolean(dag.timetable_summary) ? (
-    Boolean(dag.asset_expression) ? (
+export const Schedule = ({ dag }: Props) => {
+  const { t: translate } = useTranslation("dags");
+
+  return Boolean(dag.timetable_summary) ? (
+    Boolean(dag.asset_expression) || dag.timetable_summary === translate("schedule.asset") ? (
       <AssetSchedule dag={dag} />
     ) : (
       <Tooltip content={dag.timetable_description}>
@@ -40,3 +43,4 @@ export const Schedule = ({ dag }: Props) =>
       </Tooltip>
     )
   ) : undefined;
+};

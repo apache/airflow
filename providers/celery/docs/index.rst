@@ -67,7 +67,7 @@ apache-airflow-providers-celery package
 `Celery <https://docs.celeryq.dev/en/stable/>`__
 
 
-Release: 3.10.6
+Release: 3.12.1
 
 Provider package
 ----------------
@@ -85,12 +85,12 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider distribution is ``2.9.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.9.0``
+``apache-airflow``  ``>=2.10.0``
 ``celery[redis]``   ``>=5.5.0,<6``
 ``flower``          ``>=1.0.0``
 ==================  ==================
@@ -120,5 +120,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-celery 3.10.6 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_celery-3.10.6.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_celery-3.10.6.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_celery-3.10.6.tar.gz.sha512>`__)
-* `The apache-airflow-providers-celery 3.10.6 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_celery-3.10.6-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_celery-3.10.6-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_celery-3.10.6-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-celery 3.12.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_celery-3.12.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_celery-3.12.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_celery-3.12.1.tar.gz.sha512>`__)
+* `The apache-airflow-providers-celery 3.12.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_celery-3.12.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_celery-3.12.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_celery-3.12.1-py3-none-any.whl.sha512>`__)

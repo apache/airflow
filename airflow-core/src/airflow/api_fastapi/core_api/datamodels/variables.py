@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 
-from pydantic import Field, model_validator
+from pydantic import Field, JsonValue, model_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.models.base import ID_LEN
@@ -46,7 +46,7 @@ class VariableResponse(BaseModel):
             return self
         except json.JSONDecodeError:
             # value is not a serialized string representation of a dict.
-            self.val = redact(self.val, self.key)
+            self.val = str(redact(self.val, self.key))
             return self
 
 
@@ -54,7 +54,7 @@ class VariableBody(StrictBaseModel):
     """Variable serializer for bodies."""
 
     key: str = Field(max_length=ID_LEN)
-    value: str = Field(serialization_alias="val")
+    value: JsonValue = Field(serialization_alias="val")
     description: str | None = Field(default=None)
 
 

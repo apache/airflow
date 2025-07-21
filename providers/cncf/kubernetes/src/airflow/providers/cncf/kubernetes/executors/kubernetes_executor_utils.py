@@ -41,7 +41,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     annotations_to_key,
     create_unique_id,
 )
-from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, workload_to_command_args
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.singleton import Singleton
 from airflow.utils.state import TaskInstanceState
@@ -387,20 +387,12 @@ class AirflowKubernetesScheduler(LoggingMixin):
         key, command, kube_executor_config, pod_template_file = next_job
 
         dag_id, task_id, run_id, try_number, map_index = key
-        ser_input = ""
         if len(command) == 1:
             from airflow.executors.workloads import ExecuteTask
 
             if isinstance(command[0], ExecuteTask):
                 workload = command[0]
-                ser_input = workload.model_dump_json()
-                command = [
-                    "python",
-                    "-m",
-                    "airflow.sdk.execution_time.execute_workload",
-                    "--json-path",
-                    "/tmp/execute/input.json",
-                ]
+                command = workload_to_command_args(workload)
             else:
                 raise ValueError(
                     f"KubernetesExecutor doesn't know how to handle workload of type: {type(command[0])}"
@@ -427,7 +419,6 @@ class AirflowKubernetesScheduler(LoggingMixin):
             date=None,
             run_id=run_id,
             args=list(command),
-            content_json_for_volume=ser_input,
             pod_override_object=kube_executor_config,
             base_worker_pod=base_worker_pod,
             with_mutation_hook=True,

@@ -16,7 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Link } from "@chakra-ui/react";
+import { Button } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetExternalLogUrl } from "openapi/queries";
@@ -29,6 +30,7 @@ type Props = {
 };
 
 export const ExternalLogLink = ({ externalLogName, taskInstance, tryNumber }: Props) => {
+  const { t: translate } = useTranslation("dag");
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
 
   const {
@@ -55,17 +57,10 @@ export const ExternalLogLink = ({ externalLogName, taskInstance, tryNumber }: Pr
   }
 
   return (
-    <Link
-      as={Button}
-      color="fg.info"
-      fontWeight="bold"
-      href={externalLogData.url}
-      py="2"
-      rel="noopener noreferrer"
-      target="_blank"
-      textDecoration="underline"
-    >
-      View logs in {externalLogName} (attempt {tryNumber})
-    </Link>
+    <Button asChild colorScheme="blue" variant="outline">
+      <a href={externalLogData.url} rel="noopener noreferrer" target="_blank">
+        {translate("logs.viewInExternal", { attempt: tryNumber, name: externalLogName })}
+      </a>
+    </Button>
   );
 };

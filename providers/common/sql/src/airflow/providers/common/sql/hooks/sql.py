@@ -18,29 +18,20 @@ from __future__ import annotations
 
 import contextlib
 import warnings
-from collections.abc import Generator, Iterable, Mapping, MutableMapping, Sequence
+from collections.abc import Callable, Generator, Iterable, Mapping, MutableMapping, Sequence
 from contextlib import closing, contextmanager, suppress
 from datetime import datetime
 from functools import cached_property
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Protocol,
-    TypeVar,
-    cast,
-    overload,
-)
+from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeVar, cast, overload
 from urllib.parse import urlparse
 
 import sqlparse
 from deprecated import deprecated
 from methodtools import lru_cache
 from more_itertools import chunked
-from sqlalchemy import create_engine
-from sqlalchemy.engine import Inspector, make_url
+from sqlalchemy import create_engine, inspect
+from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError, NoSuchModuleError
-from typing_extensions import Literal
 
 from airflow.configuration import conf
 from airflow.exceptions import (
@@ -48,19 +39,23 @@ from airflow.exceptions import (
     AirflowOptionalProviderFeatureException,
     AirflowProviderDeprecationWarning,
 )
-from airflow.hooks.base import BaseHook
 from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks import handlers
+from airflow.providers.common.sql.version_compat import BaseHook
 from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
-    from pandas import DataFrame
+    from pandas import DataFrame as PandasDataFrame
     from polars import DataFrame as PolarsDataFrame
-    from sqlalchemy.engine import URL
+    from sqlalchemy.engine import URL, Engine, Inspector
 
-    from airflow.models import Connection
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+    try:
+        from airflow.sdk import Connection
+    except ImportError:
+        from airflow.models.connection import Connection  # type: ignore[assignment]
 
 
 T = TypeVar("T")
@@ -278,7 +273,10 @@ class DbApiHook(BaseHook):
         db = self.connection
         if self.connector is None:
             raise RuntimeError(f"{type(self).__name__} didn't have `self.connector` set!")
-        return self.connector.connect(host=db.host, port=db.port, username=db.login, schema=db.schema)
+        host = db.host or ""
+        login = db.login or ""
+        schema = db.schema or ""
+        return self.connector.connect(host=host, port=cast("int", db.port), username=login, schema=schema)
 
     def get_uri(self) -> str:
         """
@@ -307,7 +305,7 @@ class DbApiHook(BaseHook):
             msg = "`sqlalchemy_url` property should be implemented in the provider subclass."
         raise NotImplementedError(msg)
 
-    def get_sqlalchemy_engine(self, engine_kwargs=None):
+    def get_sqlalchemy_engine(self, engine_kwargs=None) -> Engine:
         """
         Get an sqlalchemy_engine object.
 
@@ -328,7 +326,7 @@ class DbApiHook(BaseHook):
 
     @property
     def inspector(self) -> Inspector:
-        return Inspector.from_engine(self.get_sqlalchemy_engine())
+        return inspect(self.get_sqlalchemy_engine())
 
     @cached_property
     def dialect_name(self) -> str:
@@ -391,7 +389,7 @@ class DbApiHook(BaseHook):
         sql,
         parameters: list | tuple | Mapping[str, Any] | None = None,
         **kwargs,
-    ) -> DataFrame:
+    ) -> PandasDataFrame:
         """
         Execute the sql and returns a pandas dataframe.
 
@@ -399,7 +397,7 @@ class DbApiHook(BaseHook):
         :param parameters: The parameters to render the SQL query with.
         :param kwargs: (optional) passed into pandas.io.sql.read_sql method
         """
-        return self._get_pandas_df(sql, parameters, **kwargs)
+        return self.get_df(sql, parameters, df_type="pandas", **kwargs)
 
     @deprecated(
         reason="Replaced by function `get_df_by_chunks`.",
@@ -413,17 +411,36 @@ class DbApiHook(BaseHook):
         *,
         chunksize: int,
         **kwargs,
-    ) -> Generator[DataFrame, None, None]:
-        return self._get_pandas_df_by_chunks(sql, parameters, chunksize=chunksize, **kwargs)
+    ) -> Generator[PandasDataFrame, None, None]:
+        return self.get_df_by_chunks(sql, parameters, chunksize=chunksize, df_type="pandas", **kwargs)
+
+    @overload
+    def get_df(
+        self,
+        sql: str | list[str],
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        *,
+        df_type: Literal["pandas"] = "pandas",
+        **kwargs: Any,
+    ) -> PandasDataFrame: ...
+    @overload
+    def get_df(
+        self,
+        sql: str | list[str],
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        *,
+        df_type: Literal["polars"],
+        **kwargs: Any,
+    ) -> PolarsDataFrame: ...
 
     def get_df(
         self,
-        sql,
+        sql: str | list[str],
         parameters: list | tuple | Mapping[str, Any] | None = None,
         *,
         df_type: Literal["pandas", "polars"] = "pandas",
         **kwargs,
-    ) -> DataFrame | PolarsDataFrame:
+    ) -> PandasDataFrame | PolarsDataFrame:
         """
         Execute the sql and returns a dataframe.
 
@@ -442,7 +459,7 @@ class DbApiHook(BaseHook):
         sql,
         parameters: list | tuple | Mapping[str, Any] | None = None,
         **kwargs,
-    ) -> DataFrame:
+    ) -> PandasDataFrame:
         """
         Execute the sql and returns a pandas dataframe.
 
@@ -492,15 +509,36 @@ class DbApiHook(BaseHook):
 
             return pl.read_database(sql, connection=conn, execute_options=execute_options, **kwargs)
 
+    @overload
     def get_df_by_chunks(
         self,
-        sql,
+        sql: str | list[str],
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        *,
+        chunksize: int,
+        df_type: Literal["pandas"] = "pandas",
+        **kwargs,
+    ) -> Generator[PandasDataFrame, None, None]: ...
+    @overload
+    def get_df_by_chunks(
+        self,
+        sql: str | list[str],
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        *,
+        chunksize: int,
+        df_type: Literal["polars"],
+        **kwargs,
+    ) -> Generator[PolarsDataFrame, None, None]: ...
+
+    def get_df_by_chunks(
+        self,
+        sql: str | list[str],
         parameters: list | tuple | Mapping[str, Any] | None = None,
         *,
         chunksize: int,
         df_type: Literal["pandas", "polars"] = "pandas",
         **kwargs,
-    ) -> Generator[DataFrame | PolarsDataFrame, None, None]:
+    ) -> Generator[PandasDataFrame | PolarsDataFrame, None, None]:
         """
         Execute the sql and return a generator.
 
@@ -522,7 +560,7 @@ class DbApiHook(BaseHook):
         *,
         chunksize: int,
         **kwargs,
-    ) -> Generator[DataFrame, None, None]:
+    ) -> Generator[PandasDataFrame, None, None]:
         """
         Execute the sql and return a generator.
 

@@ -20,7 +20,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from airflow.providers.common.compat.version_compat import (
-    AIRFLOW_V_2_10_PLUS,
     AIRFLOW_V_3_0_PLUS,
 )
 
@@ -38,15 +37,11 @@ else:
         from airflow.auth.managers.models.resource_details import DatasetDetails as AssetDetails
         from airflow.datasets import (
             Dataset as Asset,
+            DatasetAlias as AssetAlias,
             DatasetAll as AssetAll,
             DatasetAny as AssetAny,
+            expand_alias_to_datasets as expand_alias_to_assets,
         )
-
-        if AIRFLOW_V_2_10_PLUS:
-            from airflow.datasets import (
-                DatasetAlias as AssetAlias,
-                expand_alias_to_datasets as expand_alias_to_assets,
-            )
 
 
 __all__ = [

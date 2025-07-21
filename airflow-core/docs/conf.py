@@ -120,7 +120,6 @@ ALLOWED_TOP_LEVEL_FILES = ("exceptions.py",)
 
 PACKAGES_THAT_WE_SHOULD_ADD_TO_API_DOCS = {
     "hooks",
-    "decorators",
     "example_dags",
     "executors",
     "operators",
@@ -140,15 +139,7 @@ UTIL_MODULES_THAT_SHOULD_BE_INCLUDED_IN_API_DOCS: set[str] = {
 
 MODELS_THAT_SHOULD_BE_INCLUDED_IN_API_DOCS: set[str] = {
     "baseoperator.py",
-    "connection.py",
-    "dag.py",
-    "dagrun.py",
-    "dagbag.py",
     "param.py",
-    "taskinstance.py",
-    "taskinstancekey.py",
-    "variable.py",
-    "xcom.py",
 }
 
 
@@ -198,7 +189,7 @@ keep_warnings = True
 # a list of builtin themes.
 html_theme = "sphinx_airflow_theme"
 
-html_title = "Airflow Documentation"
+html_title = f"Airflow {PACKAGE_VERSION} Documentation"
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 html_short_title = ""
@@ -221,6 +212,7 @@ manual_substitutions_in_generated_html = [
     "installation/installing-from-sources.html",
     "administration-and-deployment/logging-monitoring/advanced-logging-configuration.html",
     "howto/docker-compose/index.html",
+    "security/sbom.html",
 ]
 
 html_css_files = ["custom.css"]
@@ -349,8 +341,8 @@ spelling_ignore_importable_modules = True
 
 graphviz_output_format = "svg"
 
-main_openapi_path = Path(main_openapi_file).parent.joinpath("v1-rest-api-generated.yaml")
-sam_openapi_path = Path(sam_openapi_file).parent.joinpath("v1-simple-auth-manager-generated.yaml")
+main_openapi_path = Path(main_openapi_file).parent.joinpath("v2-rest-api-generated.yaml")
+sam_openapi_path = Path(sam_openapi_file).parent.joinpath("v2-simple-auth-manager-generated.yaml")
 redoc = [
     {
         "name": "Simple auth manager token API",
@@ -366,7 +358,6 @@ redoc = [
         "spec": main_openapi_path.as_posix(),
         "opts": {
             "hide-hostname": True,
-            "no-auto-auth": True,
         },
     },
 ]

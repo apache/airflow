@@ -32,6 +32,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 KUBERNETES_QUEUE = "kubernetes"
 
 
+@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 3 does not support this executor anymore")
 class TestCeleryKubernetesExecutor:
     def test_supports_pickling(self):
         assert CeleryKubernetesExecutor.supports_pickling

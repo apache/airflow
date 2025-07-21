@@ -995,6 +995,8 @@ def _deploy_helm_chart(
     extra_options: tuple[str, ...] | None = None,
     multi_namespace_mode: bool = False,
 ) -> RunCommandResult:
+    from packaging.version import Version
+
     cluster_name = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
     _, api_server_port = get_kubernetes_port_numbers(python=python, kubernetes_version=kubernetes_version)
     action = "Deploying" if not upgrade else "Upgrading"
@@ -1005,6 +1007,12 @@ def _deploy_helm_chart(
         get_console(output=output).print(f"[info]Copied chart sources to {tmp_chart_path}")
         kubectl_context = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
         params = BuildProdParams(python=python)
+        # TODO (potiuk): we can also run on matrix of auth managers if we make SimpleAuthManager prod-ready ?
+        use_flask_appbuilder = Version(python) < Version("3.13")
+        if use_flask_appbuilder:
+            auth_manager = "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
+        else:
+            auth_manager = "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager"
         helm_command = [
             "helm",
             "upgrade" if upgrade else "install",
@@ -1037,12 +1045,14 @@ def _deploy_helm_chart(
             "--set",
             "config.api_auth.jwt_secret=foo",
             "--set",
-            "config.core.auth_manager=airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+            f"config.core.auth_manager={auth_manager}",
             "--set",
             f"config.api.base_url=http://localhost:{api_server_port}",
         ]
         if multi_namespace_mode:
             helm_command.extend(["--set", "multiNamespaceMode=true"])
+        if not use_flask_appbuilder:
+            helm_command.extend(["--set", "webserver.defaultUser.enabled=false"])
         if upgrade:
             # force upgrade
             helm_command.append("--force")
@@ -1579,6 +1589,7 @@ def kubernetes_tests_command(
 def _run_complete_tests(
     python: str,
     kubernetes_version: str,
+    include_success_outputs: bool,
     executor: str,
     rebuild_base_image: bool,
     copy_local_sources: bool,
@@ -1683,7 +1694,7 @@ def _run_complete_tests(
                 extra_options=extra_options,
                 multi_namespace_mode=True,
             )
-            if returncode != 0:
+            if returncode != 0 or include_success_outputs:
                 _logs(python=python, kubernetes_version=kubernetes_version)
         return returncode, message
     finally:
@@ -1822,6 +1833,7 @@ def run_complete_tests(
         result, _ = _run_complete_tests(
             python=python,
             kubernetes_version=kubernetes_version,
+            include_success_outputs=include_success_outputs,
             executor=executor,
             rebuild_base_image=rebuild_base_image,
             copy_local_sources=copy_local_sources,

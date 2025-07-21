@@ -78,7 +78,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "3.0.0",
+            "default": "3.0.3",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -93,7 +93,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "3.0.0",
+            "default": "3.0.3",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -687,13 +687,19 @@
             "type": "string",
             "x-docsSection": "Common",
             "default": "CeleryExecutor",
-            "pattern": "^(LocalExecutor|LocalKubernetesExecutor|CeleryExecutor|KubernetesExecutor|CeleryKubernetesExecutor|airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor|airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor)(,(LocalExecutor|LocalKubernetesExecutor|CeleryExecutor|KubernetesExecutor|CeleryKubernetesExecutor|airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor|airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor))*$"
+            "pattern": "^(LocalExecutor|LocalKubernetesExecutor|CeleryExecutor|KubernetesExecutor|CeleryKubernetesExecutor|airflow.providers.edge3.executors.EdgeExecutor|airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor|airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor)(,(LocalExecutor|LocalKubernetesExecutor|CeleryExecutor|KubernetesExecutor|CeleryKubernetesExecutor|airflow.providers.edge3.executors.EdgeExecutor|airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor|airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor))*$"
         },
         "allowPodLaunching": {
             "description": "Whether various Airflow components launch pods.",
             "type": "boolean",
             "x-docsSection": "Airflow",
             "default": true
+        },
+        "allowJobLaunching": {
+            "description": "Whether various Airflow components launch jobs.",
+            "type": "boolean",
+            "x-docsSection": "Airflow",
+            "default": false
         },
         "images": {
             "description": "Images.",
@@ -1064,6 +1070,16 @@
                     "type": "boolean",
                     "default": true
                 },
+                "AIRFLOW__API__SECRET_KEY": {
+                    "description": "Enable ``AIRFLOW__API__SECRET_KEY`` variable to be read from the Api Secret Key Secret",
+                    "type": "boolean",
+                    "default": true
+                },
+                "AIRFLOW__API_AUTH__JWT_SECRET": {
+                    "description": "Enable ``AIRFLOW__API_AUTH__JWT_SECRET`` variable to be read from the JWT Secret",
+                    "type": "boolean",
+                    "default": true
+                },
                 "AIRFLOW__WEBSERVER__SECRET_KEY": {
                     "description": "Enable ``AIRFLOW__WEBSERVER__SECRET_KEY`` variable to be read from the Webserver Secret Key Secret",
                     "type": "boolean",
@@ -1336,6 +1352,14 @@
                             "description": "The database SSL parameter.",
                             "type": "string",
                             "default": "disable"
+                        },
+                        "secretAnnotations": {
+                            "description": "Annotations to add to the metadata connection secret.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 },
@@ -1397,6 +1421,14 @@
                         "sslmode"
                     ]
                 },
+                "resultBackendConnectionSecretAnnotations": {
+                    "description": "Annotations to add to the result backend connection secret.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "brokerUrl": {
                     "description": "Direct url to the redis broker (when using an external redis instance) (can only be set during install, not upgrade).",
                     "type": [
@@ -1405,6 +1437,14 @@
                     ],
                     "x-docsSection": "Redis",
                     "default": null
+                },
+                "brokerUrlSecretAnnotations": {
+                    "description": "Annotations to add to the broker url secret.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -1426,6 +1466,69 @@
             "x-docsSection": "Airflow",
             "default": null
         },
+        "fernetKeySecretAnnotations": {
+            "description": "Annotations to add to the Fernet Key secret.",
+            "type": "object",
+            "x-docsSection": "Common",
+            "default": {},
+            "additionalProperties": {
+                "type": "string"
+            }
+        },
+        "apiSecretKey": {
+            "description": "The Flask secret key for Airflow Api to encrypt browser session.",
+            "type": [
+                "string",
+                "null"
+            ],
+            "x-docsSection": "Common",
+            "default": null
+        },
+        "apiSecretAnnotations": {
+            "description": "Annotations to add to the Api secret.",
+            "type": "object",
+            "x-docsSection": "Common",
+            "default": {},
+            "additionalProperties": {
+                "type": "string"
+            }
+        },
+        "apiSecretKeySecretName": {
+            "description": "The Secret name containing Flask secret_key for the Api.",
+            "type": [
+                "string",
+                "null"
+            ],
+            "x-docsSection": "Airflow",
+            "default": null
+        },
+        "jwtSecret": {
+            "description": "Secret key used to encode and decode JWTs to authenticate to public and private APIs (can only be set during install, not upgrade).",
+            "type": [
+                "string",
+                "null"
+            ],
+            "x-docsSection": "Common",
+            "default": null
+        },
+        "jwtSecretName": {
+            "description": "The JWT secret name.",
+            "type": [
+                "string",
+                "null"
+            ],
+            "x-docsSection": "Airflow",
+            "default": null
+        },
+        "jwtSecretAnnotations": {
+            "description": "Annotations to add to the JWT secret.",
+            "type": "object",
+            "x-docsSection": "Common",
+            "default": {},
+            "additionalProperties": {
+                "type": "string"
+            }
+        },
         "webserverSecretKey": {
             "description": "The Flask secret key for Airflow Webserver to encrypt browser session.",
             "type": [
@@ -1434,6 +1537,15 @@
             ],
             "x-docsSection": "Common",
             "default": null
+        },
+        "webserverSecretAnnotations": {
+            "description": "Annotations to add to the webserver secret.",
+            "type": "object",
+            "x-docsSection": "Common",
+            "default": {},
+            "additionalProperties": {
+                "type": "string"
+            }
         },
         "webserverSecretKeySecretName": {
             "description": "The Secret name containing Flask secret_key for the Webserver.",
@@ -1506,12 +1618,12 @@
             "additionalProperties": false,
             "properties": {
                 "replicas": {
-                    "description": "Number of Airflow Celery workers in StatefulSet.",
+                    "description": "Number of Airflow Celery workers.",
                     "type": "integer",
                     "default": 1
                 },
                 "revisionHistoryLimit": {
-                    "description": "Number of old replicasets to retain.",
+                    "description": "Max number of old Airflow Celery workers ReplicaSets to retain.",
                     "type": [
                         "integer",
                         "null"
@@ -1520,7 +1632,7 @@
                     "x-docsSection": null
                 },
                 "command": {
-                    "description": "Command to use when running Airflow workers (templated).",
+                    "description": "Command to use when running Airflow Celery workers and using pod-template-file (templated).",
                     "type": [
                         "array",
                         "null"
@@ -1531,7 +1643,7 @@
                     "default": null
                 },
                 "args": {
-                    "description": "Args to use when running Airflow workers (templated).",
+                    "description": "Args to use when running Airflow Celery workers (templated).",
                     "type": [
                         "array",
                         "null"
@@ -1546,12 +1658,12 @@
                     ]
                 },
                 "livenessProbe": {
-                    "description": "Liveness probe configuration for worker containers.",
+                    "description": "Liveness probe configuration for Airflow Celery worker containers.",
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
                         "enabled": {
-                            "description": "Enable liveness probe for celery workers.",
+                            "description": "Enable liveness probe for Airflow Celery workers.",
                             "type": "boolean",
                             "default": true
                         },
@@ -1588,7 +1700,7 @@
                     }
                 },
                 "updateStrategy": {
-                    "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a StatefulSet.",
+                    "description": "Specifies the strategy used to replace old Airflow Celery worker pods by new ones when deployed as a StatefulSet.",
                     "type": [
                         "null",
                         "object"
@@ -1596,7 +1708,7 @@
                     "default": null
                 },
                 "podManagementPolicy": {
-                    "description": "Specifies the policy for managing pods within the worker. Only applicable to StatefulSet.",
+                    "description": "Specifies the policy for managing pods within the Airflow Celery worker. Only applicable to StatefulSet.",
                     "type": [
                         "null",
                         "string"
@@ -1608,7 +1720,7 @@
                     ]
                 },
                 "strategy": {
-                    "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a Deployment.",
+                    "description": "Specifies the strategy used to replace old Airflow Celery worker pods by new ones when deployed as a Deployment.",
                     "type": [
                         "null",
                         "object"
@@ -1621,7 +1733,7 @@
                     }
                 },
                 "serviceAccount": {
-                    "description": "Create ServiceAccount.",
+                    "description": "Create ServiceAccount for Airflow Celery workers and pods created with pod-template-file.",
                     "type": "object",
                     "properties": {
                         "automountServiceAccountToken": {
@@ -1653,7 +1765,7 @@
                     }
                 },
                 "keda": {
-                    "description": "KEDA configuration.",
+                    "description": "KEDA configuration of Airflow Celery workers.",
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
@@ -1681,12 +1793,12 @@
                             "default": 30
                         },
                         "minReplicaCount": {
-                            "description": "Minimum number of workers created by KEDA.",
+                            "description": "Minimum number of Airflow Celery workers created by KEDA.",
                             "type": "integer",
                             "default": 0
                         },
                         "maxReplicaCount": {
-                            "description": "Maximum number of workers created by KEDA.",
+                            "description": "Maximum number of Airflow Celery workers created by KEDA.",
                             "type": "integer",
                             "default": 10
                         },
@@ -1714,7 +1826,7 @@
                         "query": {
                             "description": "Query to use for KEDA autoscaling. Must return a single integer.",
                             "type": "string",
-                            "default": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }}) FROM task_instance WHERE (state='running' OR state='queued') {{- if or (contains \"CeleryKubernetesExecutor\" .Values.executor) (contains \"KubernetesExecutor\" .Values.executor) }} AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}' {{- end }}"
+                            "default": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }}) FROM task_instance WHERE (state='running' OR state='queued') {{- if contains \"CeleryKubernetesExecutor\" .Values.executor }} AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}' {{- else if contains \"KubernetesExecutor\" .Values.executor }} AND executor != 'KubernetesExecutor' {{- end }}"
                         },
                         "usePgbouncer": {
                             "description": "Weather to use PGBouncer to connect to the database or not when it is enabled. This configuration will be ignored if PGBouncer is not enabled.",
@@ -1724,7 +1836,7 @@
                     }
                 },
                 "hpa": {
-                    "description": "HPA configuration.",
+                    "description": "HPA configuration for Airflow Celery workers.",
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
@@ -1734,12 +1846,12 @@
                             "default": false
                         },
                         "minReplicaCount": {
-                            "description": "Minimum number of workers created by HPA.",
+                            "description": "Minimum number of Airflow Celery workers created by HPA.",
                             "type": "integer",
                             "default": 0
                         },
                         "maxReplicaCount": {
-                            "description": "Maximum number of workers created by HPA.",
+                            "description": "Maximum number of Airflow Celery workers created by HPA.",
                             "type": "integer",
                             "default": 5
                         },
@@ -1771,7 +1883,7 @@
                     }
                 },
                 "persistence": {
-                    "description": "Persistence configuration.",
+                    "description": "Persistence configuration for Airflow Celery workers.",
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
@@ -1782,10 +1894,10 @@
                         },
                         "persistentVolumeClaimRetentionPolicy": {
                             "$ref": "#/definitions/persistentVolumeClaimRetentionPolicy",
-                            "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet"
+                            "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet."
                         },
                         "size": {
-                            "description": "Volume size for worker StatefulSet.",
+                            "description": "Volume size for Airflow Celery worker StatefulSet.",
                             "type": "string",
                             "default": "100Gi"
                         },
@@ -1803,7 +1915,7 @@
                             "default": false
                         },
                         "annotations": {
-                            "description": "Annotations to add to worker volumes.",
+                            "description": "Annotations to add to Airflow Celery worker volumes.",
                             "type": "object",
                             "default": {},
                             "additionalProperties": {
@@ -1866,17 +1978,17 @@
                     }
                 },
                 "kerberosSidecar": {
-                    "description": "Kerberos sidecar for Airflow workers.",
+                    "description": "Kerberos sidecar for Airflow Celery workers and pods created with pod-template-file.",
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
                         "enabled": {
-                            "description": "Enable Kerberos sidecar for the worker.",
+                            "description": "Enable Kerberos sidecar.",
                             "type": "boolean",
                             "default": false
                         },
                         "resources": {
-                            "description": "Resources on workers kerberos sidecar",
+                            "description": "Resources on kerberos sidecar.",
                             "type": "object",
                             "default": {},
                             "examples": [
@@ -1949,17 +2061,17 @@
                     }
                 },
                 "kerberosInitContainer": {
-                    "description": "Kerberos init container for Airflow workers.",
+                    "description": "Kerberos init container for Airflow Celery workers and pods created with pod-template-file.",
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
                         "enabled": {
-                            "description": "Enable Kerberos init container for the worker.",
+                            "description": "Enable Kerberos init container.",
                             "type": "boolean",
                             "default": false
                         },
                         "resources": {
-                            "description": "Resources on workers kerberos init container",
+                            "description": "Resources on kerberos init container.",
                             "type": "object",
                             "default": {},
                             "examples": [
@@ -2032,7 +2144,7 @@
                     }
                 },
                 "resources": {
-                    "description": "Resources on workers",
+                    "description": "Resource configuration for Airflow Celery workers and pods created with pod-template-file.",
                     "type": "object",
                     "default": {},
                     "examples": [
@@ -2050,17 +2162,17 @@
                     "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
                 },
                 "terminationGracePeriodSeconds": {
-                    "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes.",
+                    "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes. It is used by Airflow Celery workers and pod-template-file.",
                     "type": "integer",
                     "default": 600
                 },
                 "safeToEvict": {
-                    "description": "This setting tells Kubernetes that it's ok to evict when it wants to scale a node down.",
+                    "description": "This setting tells Kubernetes that it's ok to evict when it wants to scale a node down. It is used by Airflow Celery workers and pod-template-file.",
                     "type": "boolean",
                     "default": false
                 },
                 "extraContainers": {
-                    "description": "Launch additional containers into workers (templated). Note, if used with KubernetesExecutor, you are responsible for signaling sidecars to exit when the main container finishes so Airflow can continue the worker shutdown process!",
+                    "description": "Launch additional containers into Airflow Celery workers and pods created with pod-template-file (templated). Note, if used with KubernetesExecutor, you are responsible for signaling sidecars to exit when the main container finishes so Airflow can continue the worker shutdown process!",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -2068,7 +2180,7 @@
                     }
                 },
                 "extraInitContainers": {
-                    "description": "Add additional init containers into workers (templated).",
+                    "description": "Add additional init containers into Airflow Celery workers and pods created with pod-template-file (templated).",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -2076,7 +2188,7 @@
                     }
                 },
                 "extraPorts": {
-                    "description": "Expose additional ports on the worker container.",
+                    "description": "Expose additional ports of Airflow Celery worker container.",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -2084,7 +2196,7 @@
                     }
                 },
                 "extraVolumes": {
-                    "description": "Mount additional volumes into workers.",
+                    "description": "Additional volumes attached to the Airflow Celery workers and pods created with pod-template-file.",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -2092,7 +2204,7 @@
                     }
                 },
                 "extraVolumeMounts": {
-                    "description": "Mount additional volumes into workers.",
+                    "description": "Additional volume mounts attached to the Airflow Celery workers and pods created with pod-template-file.",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -2100,7 +2212,7 @@
                     }
                 },
                 "nodeSelector": {
-                    "description": "Select certain nodes for worker pods.",
+                    "description": "Select certain nodes for Airflow Celery worker pods and pods created with pod-template-file.",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -2108,7 +2220,7 @@
                     }
                 },
                 "runtimeClassName": {
-                    "description": "Specify runtime for worker pods.",
+                    "description": "Specify runtime for Airflow Celery worker pods and pods created with pod-template-file.",
                     "type": [
                         "string",
                         "null"
@@ -2116,7 +2228,7 @@
                     "default": null
                 },
                 "priorityClassName": {
-                    "description": "Specify priority for worker pods.",
+                    "description": "Specify priority for Airflow Celery worker pods and pods created with pod-template-file.",
                     "type": [
                         "string",
                         "null"
@@ -2124,13 +2236,13 @@
                     "default": null
                 },
                 "affinity": {
-                    "description": "Specify scheduling constraints for worker pods.",
+                    "description": "Specify scheduling constraints for Airflow Celery worker pods and pods created with pod-template-file.",
                     "type": "object",
                     "default": "See values.yaml",
                     "$ref": "#/definitions/io.k8s.api.core.v1.Affinity"
                 },
                 "tolerations": {
-                    "description": "Specify Tolerations for worker pods.",
+                    "description": "Specify Tolerations for Airflow Celery worker pods and pods created with pod-template-file.",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -2139,7 +2251,7 @@
                     }
                 },
                 "topologySpreadConstraints": {
-                    "description": "Specify topology spread constraints for worker pods.",
+                    "description": "Specify topology spread constraints for Airflow Celery worker pods and pods created with pod-template-file.",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -2148,7 +2260,7 @@
                     }
                 },
                 "hostAliases": {
-                    "description": "Specify HostAliases for workers.",
+                    "description": "Specify HostAliases for Airflow Celery worker pods and pods created with pod-template-file.",
                     "items": {
                         "$ref": "#/definitions/io.k8s.api.core.v1.HostAlias"
                     },
@@ -2170,7 +2282,7 @@
                     ]
                 },
                 "annotations": {
-                    "description": "Annotations to add to the worker deployment",
+                    "description": "Annotations to add to the Airflow Celery worker deployment.",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -2178,7 +2290,7 @@
                     }
                 },
                 "podAnnotations": {
-                    "description": "Annotations to add to the worker pods.",
+                    "description": "Annotations to add to the Airflow Celery workers and pods created with pod-template-file.",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -2186,7 +2298,7 @@
                     }
                 },
                 "labels": {
-                    "description": "Labels to add to the worker objects and pods.",
+                    "description": "Labels to add to the Airflow Celery workers objects and pods created with pod-template-file.",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -2195,10 +2307,10 @@
                 },
                 "logGroomerSidecar": {
                     "$ref": "#/definitions/logGroomerConfigType",
-                    "description": "Configuration for worker log groomer sidecar"
+                    "description": "Configuration for Airflow Celery worker log groomer sidecar"
                 },
                 "securityContext": {
-                    "description": "Security context for the worker pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
+                    "description": "Security context for the Airflow Celery worker pods and pods created with pod-template-file (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
@@ -2211,7 +2323,7 @@
                     ]
                 },
                 "containerLifecycleHooks": {
-                    "description": "Container Lifecycle Hooks definition for the worker. If not set, the values from global `containerLifecycleHooks` will be used.",
+                    "description": "Container Lifecycle Hooks definition for Airflow Celery workers and pods created with pod-template-file. If not set, the values from global `containerLifecycleHooks` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
                     "default": {},
@@ -2240,12 +2352,12 @@
                     ]
                 },
                 "securityContexts": {
-                    "description": "Security context definition for the workers. If not set, the values from global `securityContexts` will be used.",
+                    "description": "Security context definition for the Airflow Celery workers and pod-template-file. If not set, the values from global `securityContexts` will be used.",
                     "type": "object",
                     "x-docsSection": "Kubernetes",
                     "properties": {
                         "pod": {
-                            "description": "Pod security context definition for the workers.",
+                            "description": "Pod security context definition.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                             "default": {},
@@ -2259,7 +2371,7 @@
                             ]
                         },
                         "container": {
-                            "description": "Container security context definition for the workers.",
+                            "description": "Container security context definition.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                             "default": {},
@@ -2278,7 +2390,7 @@
                     }
                 },
                 "waitForMigrations": {
-                    "description": "wait-for-airflow-migrations init container.",
+                    "description": "Configuration of wait-for-airflow-migration init container for Airflow Celery workers.",
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
@@ -2309,12 +2421,12 @@
                             }
                         },
                         "securityContexts": {
-                            "description": "Security context definition for the wait for migrations. If not set, the values from global `securityContexts` will be used.",
+                            "description": "Security context definition for the wait-for-airflow-migrations container. If not set, the values from global `securityContexts` will be used.",
                             "type": "object",
                             "x-docsSection": "Kubernetes",
                             "properties": {
                                 "container": {
-                                    "description": "Container security context definition for the wait for migrations.",
+                                    "description": "Container security context definition for the wait-for-airflow-migrations container.",
                                     "type": "object",
                                     "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                                     "default": {},
@@ -2335,7 +2447,7 @@
                     }
                 },
                 "env": {
-                    "description": "Add additional env vars to worker.",
+                    "description": "Add additional env vars to the Airflow Celery workers and pods created with pod-template-file.",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -2392,7 +2504,7 @@
                     }
                 },
                 "volumeClaimTemplates": {
-                    "description": "Specify additional volume claim template for workers.",
+                    "description": "Specify additional volume claim template for Airflow Celery workers.",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -2424,6 +2536,89 @@
                             }
                         }
                     ]
+                },
+                "useWorkerDedicatedServiceAccounts": {
+                    "description": "One common Service Account for all workers will be created if flag is set to false. If true, dedicated Service Accounts for every worker type will be created.",
+                    "type": "boolean",
+                    "default": false
+                },
+                "celery": {
+                    "description": "Airflow Celery Workers configuration.",
+                    "type": "object",
+                    "x-docsSection": "Workers",
+                    "properties": {
+                        "serviceAccount": {
+                            "description": "Create ServiceAccount.",
+                            "type": "object",
+                            "properties": {
+                                "automountServiceAccountToken": {
+                                    "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "create": {
+                                    "description": "Specifies whether a ServiceAccount should be created.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "name": {
+                                    "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "annotations": {
+                                    "description": "Annotations to add to the Airflow Celery worker Kubernetes ServiceAccount.",
+                                    "type": "object",
+                                    "default": {},
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "kubernetes": {
+                    "description": "Airflow pod-template-file configuration.",
+                    "type": "object",
+                    "x-docsSection": "Workers",
+                    "properties": {
+                        "serviceAccount": {
+                            "description": "Create ServiceAccount.",
+                            "type": "object",
+                            "properties": {
+                                "automountServiceAccountToken": {
+                                    "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "create": {
+                                    "description": "Specifies whether a ServiceAccount should be created.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "name": {
+                                    "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "annotations": {
+                                    "description": "Annotations to add to the worker Kubernetes ServiceAccount.",
+                                    "type": "object",
+                                    "default": {},
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         },
@@ -5065,6 +5260,30 @@
                     ],
                     "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
                 },
+                "apiServerConfig": {
+                    "description": "This string (templated) will be mounted into the Airflow API Server as a custom `webserver_config.py`. You can bake a `webserver_config.py` in to your image instead or specify a configmap containing the webserver_config.py.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "x-docsSection": "Common",
+                    "default": null,
+                    "examples": [
+                        "from airflow import configuration as conf\n\n# The SQLAlchemy connection string.\nSQLALCHEMY_DATABASE_URI = conf.get('database', 'SQL_ALCHEMY_CONN')\n\n# Flask-WTF flag for CSRF\nCSRF_ENABLED = True"
+                    ]
+                },
+                "apiServerConfigConfigMapName": {
+                    "description": "The configmap name containing the webserver_config.py.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "x-docsSection": "Common",
+                    "default": null,
+                    "examples": [
+                        "my-api-server-configmap"
+                    ]
+                },
                 "defaultUser": {
                     "description": "Optional default Airflow user information",
                     "type": "object",
@@ -5365,11 +5584,47 @@
                             },
                             "value": {
                                 "type": "string"
+                            },
+                            "valueFrom": {
+                                "type": "object",
+                                "properties": {
+                                    "configMapKeyRef": {
+                                        "$ref": "#/definitions/io.k8s.api.core.v1.ConfigMapKeySelector",
+                                        "description": "Selects a key of a ConfigMap."
+                                    },
+                                    "secretKeyRef": {
+                                        "$ref": "#/definitions/io.k8s.api.core.v1.SecretKeySelector",
+                                        "description": "Selects a key of a secret in the pod's namespace"
+                                    }
+                                },
+                                "anyOf": [
+                                    {
+                                        "required": [
+                                            "configMapKeyRef"
+                                        ]
+                                    },
+                                    {
+                                        "required": [
+                                            "secretKeyRef"
+                                        ]
+                                    }
+                                ]
                             }
                         },
                         "required": [
-                            "name",
-                            "value"
+                            "name"
+                        ],
+                        "anyOf": [
+                            {
+                                "required": [
+                                    "value"
+                                ]
+                            },
+                            {
+                                "required": [
+                                    "valueFrom"
+                                ]
+                            }
                         ],
                         "additionalProperties": false
                     }
@@ -6403,6 +6658,14 @@
                     ],
                     "default": null
                 },
+                "secretAnnotations": {
+                    "description": "Annotations to add to the flower secret.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "username": {
                     "description": "Username use to access Flower.",
                     "type": [
@@ -7101,6 +7364,14 @@
                         "type": "string"
                     }
                 },
+                "certificatesSecretAnnotations": {
+                    "description": "Annotations to add to the PgBouncer certificates secret.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "replicas": {
                     "description": "Number of PgBouncer replicas to run in Deployment.",
                     "type": "integer",
@@ -7179,6 +7450,14 @@
                         "null"
                     ],
                     "default": null
+                },
+                "configSecretAnnotations": {
+                    "description": "Annotations to add to the PgBouncer config secret.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 },
                 "podAnnotations": {
                     "description": "Add annotations for the PgBouncer Pod.",
@@ -7579,6 +7858,14 @@
                             ],
                             "default": null
                         },
+                        "statsSecretAnnotations": {
+                            "description": "Annotations to add to the PgBouncer stats secret.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
                         "sslmode": {
                             "description": "SSL mode for ``metricsExporterSidecar``",
                             "type": "string",
@@ -7828,6 +8115,14 @@
                         "null"
                     ],
                     "default": null
+                },
+                "passwordSecretAnnotations": {
+                    "description": "Annotations to add to the redis password secret.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 },
                 "safeToEvict": {
                     "description": "This setting tells Kubernetes that its ok to evict when it wants to scale a node down.",
@@ -8079,6 +8374,14 @@
                         "null"
                     ],
                     "default": null
+                },
+                "secretAnnotations": {
+                    "description": "Extra annotations to apply to the elasticsearch secret.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 },
                 "connection": {
                     "description": "Elasticsearch connection configuration.",
@@ -8655,7 +8958,7 @@
             "default": false
         },
         "podTemplate": {
-            "description": "The contents of ``pod_template_file.yaml`` used for KubernetesExecutor workers (templated). The default (see ``files/pod-template-file.kubernetes-helm-yaml``) already takes into account normal ``workers`` configuration parameters (e.g. ``workers.resources``), so you normally won't need to override this directly.",
+            "description": "The content of ``pod_template_file.yaml`` used for KubernetesExecutor workers (templated). The default (see ``files/pod-template-file.kubernetes-helm-yaml``) already takes into account normal ``workers`` configuration parameters (e.g. ``workers.resources``), so you normally won't need to override this directly.",
             "type": [
                 "string",
                 "null"
@@ -8927,25 +9230,21 @@
                             "type": "array",
                             "default": [],
                             "items": {
-                                "type": "object",
-                                "properties": {
-                                    "name": {
-                                        "type": "string"
-                                    },
-                                    "value": {
-                                        "type": "string"
-                                    }
-                                },
-                                "required": [
-                                    "name",
-                                    "value"
-                                ],
-                                "additionalProperties": false
+                                "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
                             },
                             "examples": [
                                 {
                                     "name": "GIT_SYNC_TIMEOUT",
                                     "value": "60"
+                                },
+                                {
+                                    "name": "GIT_SYNC_USERNAME",
+                                    "valueFrom": {
+                                        "secretKeyRef": {
+                                            "name": "git-secret",
+                                            "key": "username"
+                                        }
+                                    }
                                 }
                             ]
                         },

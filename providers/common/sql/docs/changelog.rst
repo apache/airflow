@@ -25,6 +25,87 @@
 Changelog
 ---------
 
+1.27.3
+......
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Replace models.BaseOperator to Task SDK one for Common Providers (#52443)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Use BaseSensorOperator from task sdk in providers (#52296)``
+* ``Bump upper binding on pandas in all providers (#52060)``
+
+Doc-only
+~~~~~~~~
+
+* ``Minor pre-commit fixes (#51769)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Clean up messy default connection overrides in provider tests (#52137)``
+   * ``Remove pytest db markers from common sql provider (#52105)``
+
+1.27.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: Use source hook instead of destination hook when reading records in non-paginated mode in GenericTransfer (#50598)``
+
+Misc
+~~~~
+
+* ``Port ''ti.run'' to Task SDK execution path (#50141)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.27.1
+......
+
+Misc
+~~~~
+
+* ``Update deprecated functions to use stable functions (#50275)``
+* ``Update type to follow newest tpying spec (#50229)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Add test for  overload (#50200)``
+
+1.27.0
+......
+
+.. note::
+  This release of provider is only available for Airflow 2.10+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SADeprecationWarning when using inspector with SQLAlchemy in DbApiHook (#48938)``
+* ``Fix: SQLExecuteQueryOperator does not pass extra_dejson values to hook_params (#49282)``
+
+Misc
+~~~~
+
+* ``Refine type overload for 'common-sql' (#50161)``
+* ``Bump min Airflow version in providers to 2.10 (#49843)``
+* ``refactor: Log generated SQL-statement and passed parameters as ERROR message when an exception occurs during insert_rows (#48932)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update standard provider doc operators in core operators-and-hooks-ref.rst (#49401)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Avoid committing history for providers (#49907)``
+
 1.26.0
 ......
 

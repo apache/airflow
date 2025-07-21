@@ -64,7 +64,7 @@ with DAG(
         project_id=PROJECT_ID,
         location=REGION,
         input_config=GLOSSARY_FILE_INPUT,
-        glossary_id=f"glossary_new_{PROJECT_ID}",
+        glossary_id=f"glossary_new_{PROJECT_ID}_{ENV_ID}",
         language_pair={"source_language_code": "en", "target_language_code": "es"},
     )
     # [END howto_operator_translate_create_glossary]

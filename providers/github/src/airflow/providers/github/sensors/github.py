@@ -17,20 +17,17 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 from github import GithubException
 
 from airflow.exceptions import AirflowException
 from airflow.providers.github.hooks.github import GithubHook
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.github.version_compat import BaseSensorOperator
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.github.version_compat import Context
 
 
 class GithubSensor(BaseSensorOperator):
@@ -139,7 +136,7 @@ class GithubTagSensor(BaseGithubRepositorySensor):
                 all_tags = [x.name for x in repo.get_tags()]
                 result = self.tag_name in all_tags
 
-        except GithubException as github_error:  # type: ignore[misc]
+        except GithubException as github_error:
             raise AirflowException(f"Failed to execute GithubSensor, error: {github_error}")
         except Exception as e:
             raise AirflowException(f"GitHub operator error: {e}")

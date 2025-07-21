@@ -18,35 +18,34 @@ from __future__ import annotations
 
 import threading
 from collections import namedtuple
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from contextlib import closing
 from copy import copy
 from datetime import timedelta
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     TypeVar,
     cast,
     overload,
 )
 
-from databricks import sql  # type: ignore[attr-defined]
+from databricks import sql
 from databricks.sql.types import Row
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.handlers import return_single_query_results
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.databricks.exceptions import DatabricksSqlExecutionError, DatabricksSqlExecutionTimeout
+from airflow.providers.databricks.hooks.databricks import LIST_SQL_ENDPOINTS_ENDPOINT
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
 if TYPE_CHECKING:
     from databricks.sql.client import Connection
 
     from airflow.models.connection import Connection as AirflowConnection
-
-
-LIST_SQL_ENDPOINTS_ENDPOINT = ("GET", "api/2.0/sql/endpoints")
+    from airflow.providers.openlineage.extractors import OperatorLineage
+    from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
 
 T = TypeVar("T")
@@ -108,6 +107,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         self.catalog = catalog
         self.schema = schema
         self.additional_params = kwargs
+        self.query_ids: list[str] = []
 
     def _get_extra_config(self) -> dict[str, Any | None]:
         extra_params = copy(self.databricks_conn.extra_dejson)
@@ -171,7 +171,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
             raise AirflowException("SQL connection is not initialized")
         return cast("AirflowConnection", self._sql_conn)
 
-    @overload  # type: ignore[override]
+    @overload
     def run(
         self,
         sql: str | Iterable[str],
@@ -227,6 +227,8 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
             it will raise and fail.
         """
         self.descriptions = []
+        self.query_ids = []
+
         if isinstance(sql, str):
             if split_statements:
                 sql_list = [self.strip_sql_string(s) for s in self.split_sql_string(sql)]
@@ -254,7 +256,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
 
                     # TODO: adjust this to make testing easier
                     try:
-                        self._run_command(cur, sql_statement, parameters)  # type: ignore[attr-defined]
+                        self._run_command(cur, sql_statement, parameters)
                     except Exception as e:
                         if t is None or t.is_alive():
                             raise DatabricksSqlExecutionError(
@@ -266,6 +268,10 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
                     finally:
                         if t is not None:
                             t.cancel()
+
+                    if query_id := cur.query_id:
+                        self.log.info("Databricks query id: %s", query_id)
+                        self.query_ids.append(query_id)
 
                     if handler is not None:
                         raw_result = handler(cur)
@@ -309,3 +315,80 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
 
     def bulk_load(self, table, tmp_file):
         raise NotImplementedError()
+
+    def get_openlineage_database_info(self, connection) -> DatabaseInfo:
+        from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+        return DatabaseInfo(
+            scheme=self.get_openlineage_database_dialect(connection),
+            authority=self.host,
+            database=self.catalog,
+            information_schema_columns=[
+                "table_schema",
+                "table_name",
+                "column_name",
+                "ordinal_position",
+                "data_type",
+                "table_catalog",
+            ],
+            is_information_schema_cross_db=True,
+        )
+
+    def get_openlineage_database_dialect(self, _) -> str:
+        return "databricks"
+
+    def get_openlineage_default_schema(self) -> str | None:
+        return self.schema or "default"
+
+    def get_openlineage_database_specific_lineage(self, task_instance) -> OperatorLineage | None:
+        """
+        Emit separate OpenLineage events for each Databricks query, based on executed query IDs.
+
+        If a single query ID is present, also add an `ExternalQueryRunFacet` to the returned lineage metadata.
+
+        Note that `get_openlineage_database_specific_lineage` is usually called after task's execution,
+        so if multiple query IDs are present, both START and COMPLETE event for each query will be emitted
+        after task's execution. If we are able to query Databricks for query execution metadata,
+        query event times will correspond to actual query's start and finish times.
+
+        Args:
+            task_instance: The Airflow TaskInstance object for which lineage is being collected.
+
+        Returns:
+            An `OperatorLineage` object if a single query ID is found; otherwise `None`.
+        """
+        from airflow.providers.common.compat.openlineage.facet import ExternalQueryRunFacet
+        from airflow.providers.databricks.utils.openlineage import (
+            emit_openlineage_events_for_databricks_queries,
+        )
+        from airflow.providers.openlineage.extractors import OperatorLineage
+        from airflow.providers.openlineage.sqlparser import SQLParser
+
+        if not self.query_ids:
+            self.log.info("OpenLineage could not find databricks query ids.")
+            return None
+
+        self.log.debug("openlineage: getting connection to get database info")
+        connection = self.get_connection(self.get_conn_id())
+        namespace = SQLParser.create_namespace(self.get_openlineage_database_info(connection))
+
+        self.log.info("Separate OpenLineage events will be emitted for each Databricks query_id.")
+        emit_openlineage_events_for_databricks_queries(
+            task_instance=task_instance,
+            hook=self,
+            query_ids=self.query_ids,
+            query_for_extra_metadata=True,
+            query_source_namespace=namespace,
+        )
+
+        if len(self.query_ids) == 1:
+            self.log.debug("Attaching ExternalQueryRunFacet with single query_id to OpenLineage event.")
+            return OperatorLineage(
+                run_facets={
+                    "externalQuery": ExternalQueryRunFacet(
+                        externalQueryId=self.query_ids[0], source=namespace
+                    )
+                }
+            )
+
+        return None

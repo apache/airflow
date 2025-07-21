@@ -17,30 +17,17 @@
 
 from __future__ import annotations
 
-import re
-
 from fastapi import Depends
 
 from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.datamodels.providers import ProviderCollectionResponse, ProviderResponse
+from airflow.api_fastapi.core_api.datamodels.providers import ProviderCollectionResponse
 from airflow.api_fastapi.core_api.security import requires_access_view
-from airflow.providers_manager import ProviderInfo, ProvidersManager
+from airflow.api_fastapi.core_api.services.public.providers import _provider_mapper
+from airflow.providers_manager import ProvidersManager
 
 providers_router = AirflowRouter(tags=["Provider"], prefix="/providers")
-
-
-def _remove_rst_syntax(value: str) -> str:
-    return re.sub("[`_<>]", "", value.strip(" \n."))
-
-
-def _provider_mapper(provider: ProviderInfo) -> ProviderResponse:
-    return ProviderResponse(
-        package_name=provider.data["package-name"],
-        description=_remove_rst_syntax(provider.data["description"]),
-        version=provider.version,
-    )
 
 
 @providers_router.get(

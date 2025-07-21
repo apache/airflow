@@ -32,41 +32,4 @@ Package apache-airflow-providers-git
 This is detailed commit list of changes for versions provider package: ``git``.
 For high-level changelog, see :doc:`package information including changelog <index>`.
 
-
-
-0.0.2
-.....
-
-Latest change: 2025-04-16
-
-==================================================================================================  ===========  ============================================================
-Commit                                                                                              Committed    Subject
-==================================================================================================  ===========  ============================================================
-`2ae12c815b <https://github.com/apache/airflow/commit/2ae12c815bc704eff6890df56f7387da513d14f2>`__  2025-04-16   ``Update documentation for edge3 and git provider (#49365)``
-`dd0efe348b <https://github.com/apache/airflow/commit/dd0efe348b6ce94243ec7a727f9aa908eeafbc82>`__  2025-04-16   ``Use 'git_default' if the user defines nothing (#49359)``
-`ca3e4e75c6 <https://github.com/apache/airflow/commit/ca3e4e75c634afdceb23a86b7e0b0ff74614a7f1>`__  2025-04-16   ``Prepare docs for Apr 3rd wave of providers (#49338)``
-`192b337c86 <https://github.com/apache/airflow/commit/192b337c86eede5636f802d6f354fa97fe0f9030>`__  2025-04-16   ``Don't log repo_url in git dag bundle (#48909)``
-`2c7b56ee74 <https://github.com/apache/airflow/commit/2c7b56ee742409f65463534e34fa5f444d651af9>`__  2025-04-15   ``Make git connection optional for git dag bundle (#49270)``
-`b9052eed42 <https://github.com/apache/airflow/commit/b9052eed423f5f7f20c58815cce89e6cc659903c>`__  2025-04-15   ``Include subdir in Gitbundle view url (#49239)``
-==================================================================================================  ===========  ============================================================
-
-0.0.1
-.....
-
-Latest change: 2025-04-10
-
-==================================================================================================  ===========  ==================================================================================
-Commit                                                                                              Committed    Subject
-==================================================================================================  ===========  ==================================================================================
-`4a8567b20b <https://github.com/apache/airflow/commit/4a8567b20bdd6555cbdc936d6674bf4fa390b0d5>`__  2025-04-10   ``Prepare docs for Apr 2nd wave of providers (#49051)``
-`4a1e2ff8ab <https://github.com/apache/airflow/commit/4a1e2ff8ab8e6abca1cb273dc55d651d971e49f2>`__  2025-04-09   ``Mark git provider as ready (#48860)``
-`c68f31d3db <https://github.com/apache/airflow/commit/c68f31d3db6b957b4aeede7a257cc0ba59f12ce1>`__  2025-04-08   ``Remove dev0 suffix from Airlfow version (#48934)``
-`7b2ec33c7a <https://github.com/apache/airflow/commit/7b2ec33c7ad4998d9c9735b79593fcdcd3b9dd1f>`__  2025-04-08   ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
-`139673d3ce <https://github.com/apache/airflow/commit/139673d3ce5552c2cf8bcb2d202e97342c4b237c>`__  2025-04-07   ``Remove fab from preinstalled providers (#48457)``
-`67858fd7e7 <https://github.com/apache/airflow/commit/67858fd7e7ac82788854844c1e6ef5a35f1d0d23>`__  2025-04-06   ``Improve documentation building iteration (#48760)``
-`81ae7e2f71 <https://github.com/apache/airflow/commit/81ae7e2f71364b4a7d91432d53ce52b031e85d3b>`__  2025-04-02   ``Fix git has_version check (#48707)``
-`d4473555c0 <https://github.com/apache/airflow/commit/d4473555c0e7022e073489b7163d49102881a1a6>`__  2025-04-02   ``Simplify tooling by switching completely to uv (#48223)``
-`513bba7a65 <https://github.com/apache/airflow/commit/513bba7a6595cac9d47074a784c0b71d5414cb11>`__  2025-03-29   ``Don't add auth token to git bundle view urls (#48516)``
-`d7d9d48e6e <https://github.com/apache/airflow/commit/d7d9d48e6eef5cd04b5699b88ffcceab75679225>`__  2025-03-28   ``Unify the usage of structlog.get_logger in the codebase (#48480)``
-`08d9dc201e <https://github.com/apache/airflow/commit/08d9dc201ef9e35b87b03fdc45a251efbdad2b0c>`__  2025-03-26   ``Move 'GitDagBundle' to providers (#47636)``
-==================================================================================================  ===========  ==================================================================================
+.. airflow-providers-commits::

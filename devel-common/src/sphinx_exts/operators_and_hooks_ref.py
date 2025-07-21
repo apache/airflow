@@ -27,9 +27,7 @@ import jinja2
 import rich_click as click
 import yaml
 from docutils import nodes
-
-# No stub exists for docutils.parsers.rst.directives. See https://github.com/python/typeshed/issues/5755.
-from docutils.parsers.rst import Directive, directives  # type: ignore[attr-defined]
+from docutils.parsers.rst import Directive, directives
 from docutils.statemachine import StringList
 from provider_yaml_utils import get_all_provider_yaml_paths, load_package_data
 from sphinx.util import nested_parse_with_titles
@@ -481,6 +479,17 @@ class ExecutorsDirective(BaseJinjaReferenceDirective):
         )
 
 
+class QueuesDirective(BaseJinjaReferenceDirective):
+    """Generate list of queues"""
+
+    def render_content(
+        self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR
+    ) -> str:
+        return _common_render_list_content(
+            header_separator=header_separator, resource_type="queues", template="queues.rst.jinja2"
+        )
+
+
 class DeferrableOperatorDirective(BaseJinjaReferenceDirective):
     """Generate list of deferrable operators"""
 
@@ -510,6 +519,19 @@ class AssetSchemeDirective(BaseJinjaReferenceDirective):
         )
 
 
+class AuthManagersDirective(BaseJinjaReferenceDirective):
+    """Generate list of auth managers"""
+
+    def render_content(
+        self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR
+    ) -> str:
+        return _common_render_list_content(
+            header_separator=header_separator,
+            resource_type="auth-managers",
+            template="auth-managers.rst.jinja2",
+        )
+
+
 def setup(app):
     """Setup plugin"""
     app.add_directive("operators-hooks-ref", OperatorsHooksReferenceDirective)
@@ -521,9 +543,11 @@ def setup(app):
     app.add_directive("airflow-extra-links", ExtraLinksDirective)
     app.add_directive("airflow-notifications", NotificationsDirective)
     app.add_directive("airflow-executors", ExecutorsDirective)
+    app.add_directive("airflow-queues", QueuesDirective)
     app.add_directive("airflow-deferrable-operators", DeferrableOperatorDirective)
     app.add_directive("airflow-deprecations", DeprecationsDirective)
     app.add_directive("airflow-dataset-schemes", AssetSchemeDirective)
+    app.add_directive("airflow-auth-managers", AuthManagersDirective)
 
     return {"parallel_read_safe": True, "parallel_write_safe": True}
 

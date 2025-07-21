@@ -43,10 +43,10 @@
     :maxdepth: 1
     :caption: Resources
 
+    Example DAGs <_api/airflow/providers/standard/example_dags/index>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-standard/>
     Installing from sources <installing-providers-from-sources>
     Python API <_api/airflow/providers/standard/index>
-
 
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
@@ -66,7 +66,7 @@ apache-airflow-providers-standard package
 Airflow Standard Provider
 
 
-Release: 1.1.0
+Release: 1.4.0
 
 Provider package
 ----------------
@@ -84,10 +84,10 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider distribution is ``2.9.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.9.0``
+``apache-airflow``  ``>=2.10.0``
 ==================  ==================

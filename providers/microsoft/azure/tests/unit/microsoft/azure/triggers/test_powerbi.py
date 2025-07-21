@@ -26,18 +26,40 @@ from airflow.providers.microsoft.azure.hooks.powerbi import (
     PowerBIDatasetRefreshException,
     PowerBIDatasetRefreshStatus,
 )
-from airflow.providers.microsoft.azure.triggers.powerbi import PowerBITrigger
+from airflow.providers.microsoft.azure.triggers.powerbi import (
+    PowerBIDatasetListTrigger,
+    PowerBITrigger,
+    PowerBIWorkspaceListTrigger,
+)
 from airflow.triggers.base import TriggerEvent
 
 from unit.microsoft.azure.test_utils import get_airflow_connection
 
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 POWERBI_CONN_ID = "powerbi_default"
 DATASET_ID = "dataset_id"
 GROUP_ID = "group_id"
 DATASET_REFRESH_ID = "dataset_refresh_id"
+DATASET_IDS = "dataset_ids"
+WORKSPACE_IDS = "workspace_ids"
 TIMEOUT = 5
 MODULE = "airflow.providers.microsoft.azure"
 CHECK_INTERVAL = 1
+REQUEST_BODY = {
+    "type": "full",
+    "commitMode": "transactional",
+    "objects": [{"table": "Customer", "partition": "Robert"}],
+    "applyRefreshPolicy": "false",
+    "timeout": "05:00:00",
+}
 API_VERSION = "v1.0"
 
 
@@ -57,8 +79,33 @@ def powerbi_trigger(timeout=TIMEOUT, check_interval=CHECK_INTERVAL) -> PowerBITr
     )
 
 
+@pytest.fixture
+def powerbi_dataset_list_trigger(timeout=TIMEOUT, group_id=GROUP_ID) -> PowerBIDatasetListTrigger:
+    """Fixture for creating a PowerBIDatasetListTrigger with customizable timeout."""
+    return PowerBIDatasetListTrigger(
+        conn_id=POWERBI_CONN_ID,
+        proxies=None,
+        api_version=API_VERSION,
+        group_id=group_id,
+        dataset_ids=None,
+        timeout=timeout,
+    )
+
+
+@pytest.fixture
+def powerbi_workspace_list_trigger(timeout=TIMEOUT) -> PowerBIWorkspaceListTrigger:
+    """Fixture for creating a PowerBIWorkspaceListTrigger with customizable timeout."""
+    return PowerBIWorkspaceListTrigger(
+        conn_id=POWERBI_CONN_ID,
+        proxies=None,
+        api_version=API_VERSION,
+        workspace_ids=None,
+        timeout=timeout,
+    )
+
+
 class TestPowerBITrigger:
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection)
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection", side_effect=get_airflow_connection)
     def test_powerbi_trigger_serialization(self, connection):
         """Asserts that the PowerBI Trigger correctly serializes its arguments and classpath."""
         powerbi_trigger = PowerBITrigger(
@@ -71,6 +118,7 @@ class TestPowerBITrigger:
             check_interval=CHECK_INTERVAL,
             wait_for_termination=True,
             timeout=TIMEOUT,
+            request_body=REQUEST_BODY,
         )
 
         classpath, kwargs = powerbi_trigger.serialize()
@@ -85,6 +133,7 @@ class TestPowerBITrigger:
             "api_version": API_VERSION,
             "check_interval": CHECK_INTERVAL,
             "wait_for_termination": True,
+            "request_body": REQUEST_BODY,
         }
 
     @pytest.mark.asyncio

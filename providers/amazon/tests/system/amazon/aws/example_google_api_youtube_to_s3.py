@@ -50,19 +50,31 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 import boto3
 
-from airflow import settings
-from airflow.decorators import task
-from airflow.models import Connection
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.transfers.google_api_to_s3 import GoogleApiToS3Operator
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if TYPE_CHECKING:
+    from airflow.decorators import task
+    from airflow.models.baseoperator import chain
+    from airflow.models.dag import DAG
+else:
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.sdk import DAG, chain, task
+    else:
+        # Airflow 2.10 compat
+        from airflow.decorators import task
+        from airflow.models.baseoperator import chain
+        from airflow.models.dag import DAG
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+from tests_common.test_utils.api_client_helpers import make_authenticated_rest_api_request
 
 DAG_ID = "example_google_api_youtube_to_s3"
 
@@ -80,21 +92,20 @@ sys_test_context_task = SystemTestContextBuilder().add_variable(SECRET_ARN_KEY).
 @task
 def create_connection_gcp(conn_id_name: str, secret_arn: str):
     json_data = boto3.client("secretsmanager").get_secret_value(SecretId=secret_arn)["SecretString"]
-    conn = Connection(
-        conn_id=conn_id_name,
-        conn_type="google_cloud_platform",
-    )
-    scopes = "https://www.googleapis.com/auth/youtube.readonly"
     conn_extra = {
-        "scope": scopes,
+        "scope": "https://www.googleapis.com/auth/youtube.readonly",
         "project": "aws-oss-airflow",
         "keyfile_dict": json_data,
     }
-    conn_extra_json = json.dumps(conn_extra)
-    conn.set_extra(conn_extra_json)
-    session = settings.Session()
-    session.add(conn)
-    session.commit()
+    make_authenticated_rest_api_request(
+        path="/api/v2/connections",
+        method="POST",
+        body={
+            "connection_id": conn_id_name,
+            "conn_type": "google_cloud_platform",
+            "extra": json.dumps(conn_extra),
+        },
+    )
 
 
 @task(task_id="wait_for_s3_bucket")

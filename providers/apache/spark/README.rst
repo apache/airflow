@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-spark``
 
-Release: ``5.2.1``
+Release: ``5.3.1``
 
 
 `Apache Spark <https://spark.apache.org/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``apache.spark`` provider. All classes for this p
 are in ``airflow.providers.apache.spark`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-spark/5.2.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-spark/5.3.1/>`_.
 
 Installation
 ------------
@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow 2 installation (see `
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-apache-spark``
 
-The package supports the following python versions: 3.9,3.10,3.11,3.12
+The package supports the following python versions: 3.10,3.11,3.12,3.13
 
 Requirements
 ------------
@@ -53,9 +53,9 @@ Requirements
 ==========================================  ==================
 PIP package                                 Version required
 ==========================================  ==================
-``apache-airflow``                          ``>=2.9.0``
+``apache-airflow``                          ``>=2.10.0``
 ``apache-airflow-providers-common-compat``  ``>=1.5.0``
-``pyspark``                                 ``>=3.1.3``
+``pyspark``                                 ``>=3.5.2``
 ``grpcio-status``                           ``>=1.59.0``
 ==========================================  ==================
 
@@ -80,4 +80,4 @@ Dependent package                                                               
 ======================================================================================================================  ===================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-spark/5.2.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-spark/5.3.1/changelog.html>`_.

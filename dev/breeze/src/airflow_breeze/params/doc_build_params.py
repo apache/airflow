@@ -29,6 +29,7 @@ class DocBuildParams:
     spellcheck_only: bool
     short_doc_packages: tuple[str, ...]
     one_pass_only: bool = False
+    include_commits: bool = False
     github_actions = os.environ.get("GITHUB_ACTIONS", "false")
 
     @property
@@ -40,6 +41,8 @@ class DocBuildParams:
             doc_args.append("--spellcheck-only")
         if self.one_pass_only:
             doc_args.append("--one-pass-only")
+        if self.include_commits:
+            doc_args.append("--include-commits")
         if self.package_filter:
             for filter in self.package_filter:
                 doc_args.extend(["--package-filter", filter])

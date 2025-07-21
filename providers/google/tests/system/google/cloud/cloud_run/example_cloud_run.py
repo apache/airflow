@@ -68,55 +68,45 @@ clean2_task_name = "clean-job2"
 
 
 def _assert_executed_jobs_xcom(ti):
-    job1_dicts = ti.xcom_pull(task_ids=[execute1_task_name], key="return_value")
-    assert job1_name in job1_dicts["name"]
+    job1_dict = ti.xcom_pull(execute1_task_name)
+    assert job1_name in job1_dict["name"]
 
-    job2_dicts = ti.xcom_pull(task_ids=[execute2_task_name], key="return_value")
-    assert job2_name in job2_dicts["name"]
+    job2_dict = ti.xcom_pull(execute2_task_name)
+    assert job2_name in job2_dict["name"]
 
-    job3_dicts = ti.xcom_pull(task_ids=[execute3_task_name], key="return_value")
-    assert job3_name in job3_dicts["name"]
+    job3_dict = ti.xcom_pull(execute3_task_name)
+    assert job3_name in job3_dict["name"]
 
 
 def _assert_created_jobs_xcom(ti):
-    job1_dicts = ti.xcom_pull(task_ids=[create1_task_name], key="return_value")
-    assert job1_name in job1_dicts["name"]
+    job1_dict = ti.xcom_pull(create1_task_name)
+    assert job1_name in job1_dict["name"]
 
-    job2_dicts = ti.xcom_pull(task_ids=[create2_task_name], key="return_value")
-    assert job2_name in job2_dicts["name"]
+    job2_dict = ti.xcom_pull(create2_task_name)
+    assert job2_name in job2_dict["name"]
 
-    job3_dicts = ti.xcom_pull(task_ids=[create3_task_name], key="return_value")
-    assert job3_name in job3_dicts["name"]
+    job3_dict = ti.xcom_pull(create3_task_name)
+    assert job3_name in job3_dict["name"]
 
 
 def _assert_updated_job(ti):
-    job_dicts = ti.xcom_pull(task_ids=[update_job1_task_name], key="return_value")
-    assert job_dicts["labels"]["somelabel"] == "label1"
+    job_dict = ti.xcom_pull(update_job1_task_name)
+    assert job_dict["labels"]["somelabel"] == "label1"
 
 
 def _assert_jobs(ti):
-    job_dicts = ti.xcom_pull(task_ids=[list_jobs_task_name], key="return_value")
+    job_list = ti.xcom_pull(list_jobs_task_name)
 
-    job1_exists = False
-    job2_exists = False
-
-    for job_dict in job_dicts:
-        if job1_exists and job2_exists:
-            break
-
-        if job1_name in job_dict["name"]:
-            job1_exists = True
-
-        if job2_name in job_dict["name"]:
-            job2_exists = True
+    job1_exists = any(job1_name in job["name"] for job in job_list)
+    job2_exists = any(job2_name in job["name"] for job in job_list)
 
     assert job1_exists
     assert job2_exists
 
 
 def _assert_one_job(ti):
-    job_dicts = ti.xcom_pull(task_ids=[list_jobs_limit_task_name], key="return_value")
-    assert len(job_dicts) == 1
+    job_list = ti.xcom_pull(list_jobs_limit_task_name)
+    assert len(job_list) == 1
 
 
 # [START howto_cloud_run_job_instance_creation]

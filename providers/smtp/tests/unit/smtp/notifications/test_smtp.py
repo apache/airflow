@@ -30,14 +30,12 @@ from airflow.providers.smtp.notifications.smtp import (
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils import timezone
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
-
 pytestmark = pytest.mark.db_test
 
 SMTP_API_DEFAULT_CONN_ID = SmtpHook.default_conn_name
 
 
-NUM_TRY = 0 if AIRFLOW_V_2_10_PLUS else 1
+NUM_TRY = 0
 
 
 class TestSmtpNotifier:
@@ -126,8 +124,8 @@ class TestSmtpNotifier:
             from_email="any email",
             to="test_reciver@test.com",
         )
-        mock_smtphook_hook.return_value.subject_template = None
-        mock_smtphook_hook.return_value.html_content_template = None
+        mock_smtphook_hook.return_value.__enter__.return_value.subject_template = None
+        mock_smtphook_hook.return_value.__enter__.return_value.html_content_template = None
         notifier(context)
         mock_smtphook_hook.return_value.__enter__().send_email_smtp.assert_called_once_with(
             from_email="any email",
@@ -159,10 +157,9 @@ class TestSmtpNotifier:
 
             f_content.write("Mock content goes here")
             f_content.flush()
-
-            mock_smtphook_hook.return_value.from_email = "{{ ti.task_id }}@test.com"
-            mock_smtphook_hook.return_value.subject_template = f_subject.name
-            mock_smtphook_hook.return_value.html_content_template = f_content.name
+            mock_smtphook_hook.return_value.__enter__.return_value.from_email = "{{ ti.task_id }}@test.com"
+            mock_smtphook_hook.return_value.__enter__.return_value.subject_template = f_subject.name
+            mock_smtphook_hook.return_value.__enter__.return_value.html_content_template = f_content.name
             notifier = SmtpNotifier(
                 to="test_reciver@test.com",
             )

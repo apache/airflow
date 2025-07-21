@@ -62,6 +62,12 @@ github:
     merge: false
     rebase: false
 
+  pull_requests:
+    # allow auto-merge
+    allow_auto_merge: false
+    # auto-delete head branches after being merged
+    del_branch_on_merge: true
+
   protected_branches:
     main:
       required_pull_request_reviews:
@@ -128,11 +134,10 @@ github:
         required_approving_review_count: 1
       required_linear_history: true
       required_signatures: false
-    v2-10-test:
+    v2-11-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true
-      required_conversation_resolution: true
       required_signatures: false
     v3-0-stable:
       required_pull_request_reviews:
@@ -157,6 +162,7 @@ github:
     - cmarteepants
     - karenbraganz
     - gyli
+    - jroachgolf84
 
 notifications:
   jobs: jobs@airflow.apache.org

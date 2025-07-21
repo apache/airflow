@@ -100,7 +100,7 @@ class CadwynWithOpenAPICustomization(Cadwyn):
     # Workaround lack of customzation https://github.com/zmievsa/cadwyn/issues/255
     async def openapi_jsons(self, req: Request) -> JSONResponse:
         resp = await super().openapi_jsons(req)
-        open_apischema = json.loads(resp.body)  # type: ignore[arg-type]
+        open_apischema = json.loads(resp.body)
         open_apischema = self.customize_openapi(open_apischema)
 
         resp.body = resp.render(open_apischema)
@@ -197,7 +197,7 @@ def get_extra_schemas() -> dict[str, dict]:
     """Get all the extra schemas that are not part of the main FastAPI app."""
     from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
     from airflow.executors.workloads import BundleInfo
-    from airflow.utils.state import TerminalTIState
+    from airflow.utils.state import TaskInstanceState, TerminalTIState
 
     return {
         "TaskInstance": TaskInstance.model_json_schema(),
@@ -205,6 +205,7 @@ def get_extra_schemas() -> dict[str, dict]:
         # Include the combined state enum too. In the datamodels we separate out SUCCESS from the other states
         # as that has different payload requirements
         "TerminalTIState": {"type": "string", "enum": list(TerminalTIState)},
+        "TaskInstanceState": {"type": "string", "enum": list(TaskInstanceState)},
     }
 
 
@@ -224,7 +225,11 @@ class InProcessExecutionAPI:
     def app(self):
         if not self._app:
             from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
-            from airflow.api_fastapi.execution_api.deps import JWTBearerDep, JWTRefresherDep
+            from airflow.api_fastapi.execution_api.deps import (
+                JWTBearerDep,
+                JWTBearerTIPathDep,
+                JWTRefresherDep,
+            )
             from airflow.api_fastapi.execution_api.routes.connections import has_connection_access
             from airflow.api_fastapi.execution_api.routes.variables import has_variable_access
             from airflow.api_fastapi.execution_api.routes.xcoms import has_xcom_access
@@ -234,6 +239,7 @@ class InProcessExecutionAPI:
             async def always_allow(): ...
 
             self._app.dependency_overrides[JWTBearerDep.dependency] = always_allow
+            self._app.dependency_overrides[JWTBearerTIPathDep.dependency] = always_allow
             self._app.dependency_overrides[JWTRefresherDep.dependency] = always_allow
             self._app.dependency_overrides[has_connection_access] = always_allow
             self._app.dependency_overrides[has_variable_access] = always_allow

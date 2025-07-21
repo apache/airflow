@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+from airflow_breeze.global_constants import ALL_PYTHON_VERSION_TO_PATCH_VERSION
 from airflow_breeze.params.common_build_params import CommonBuildParams
 from airflow_breeze.utils.path_utils import BUILD_CACHE_PATH
 
@@ -68,6 +69,9 @@ class BuildCiParams(CommonBuildParams):
             self._opt_arg("UV_HTTP_TIMEOUT", get_uv_timeout(self))
         self._req_arg("AIRFLOW_VERSION", self.airflow_version)
         self._req_arg("PYTHON_BASE_IMAGE", self.python_base_image)
+        self._req_arg(
+            "AIRFLOW_PYTHON_VERSION", ALL_PYTHON_VERSION_TO_PATCH_VERSION.get(self.python, self.python)
+        )
         if self.upgrade_to_newer_dependencies:
             self._opt_arg("UPGRADE_RANDOM_INDICATOR_STRING", f"{random.randrange(2**32):x}")
         # optional build args
@@ -79,4 +83,4 @@ class BuildCiParams(CommonBuildParams):
         return build_args
 
     def __post_init__(self):
-        self.version_suffix_for_pypi = self.version_suffix_for_pypi or "dev0"
+        self.version_suffix = self.version_suffix or "dev0"

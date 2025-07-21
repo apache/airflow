@@ -88,9 +88,9 @@ def action_logging(event: str | None = None):
             user_name = user.get_name()
             user_display = user.get_name()
 
-        hasJsonBody = "application/json" in request.headers.get("content-type", "") and await request.body()
+        has_json_body = "application/json" in request.headers.get("content-type", "") and await request.body()
 
-        if hasJsonBody:
+        if has_json_body:
             request_body = await request.json()
             masked_body_json = {k: secrets_masker.redact(v, k) for k, v in request_body.items()}
         else:
@@ -115,13 +115,13 @@ def action_logging(event: str | None = None):
         }
         if "variable" in event_name:
             extra_fields = _mask_variable_fields(
-                {k: v for k, v in request_body.items()} if hasJsonBody else extra_fields
+                {k: v for k, v in request_body.items()} if has_json_body else extra_fields
             )
         elif "connection" in event_name:
             extra_fields = _mask_connection_fields(
-                {k: v for k, v in request_body.items()} if hasJsonBody else extra_fields
+                {k: v for k, v in request_body.items()} if has_json_body else extra_fields
             )
-        elif hasJsonBody:
+        elif has_json_body:
             extra_fields = {**extra_fields, **masked_body_json}
 
         params = {
@@ -129,7 +129,7 @@ def action_logging(event: str | None = None):
             **request.path_params,
         }
 
-        if hasJsonBody:
+        if has_json_body:
             params.update(masked_body_json)
         if params and "is_paused" in params:
             extra_fields["is_paused"] = params["is_paused"] == "false"

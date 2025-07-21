@@ -609,8 +609,8 @@ key3 = value3
         cmd_file.write_text("#!/usr/bin/env bash\necho -n difficult_unpredictable_cat_password\n")
         cmd_file.chmod(0o0555)
 
-        monkeypatch.setenv("AIRFLOW__WEBSERVER__SECRET_KEY_CMD", str(cmd_file))
-        content = conf.getsection("webserver")
+        monkeypatch.setenv("AIRFLOW__API__SECRET_KEY_CMD", str(cmd_file))
+        content = conf.getsection("api")
         assert content["secret_key"] == "difficult_unpredictable_cat_password"
 
     @pytest.mark.parametrize(
@@ -628,11 +628,13 @@ key3 = value3
         assert isinstance(section_dict[key], type)
 
     def test_command_from_env(self):
-        test_cmdenv_config = textwrap.dedent("""\
+        test_cmdenv_config = textwrap.dedent(
+            """\
             [testcmdenv]
             itsacommand=NOT OK
             notacommand=OK
-        """)
+        """
+        )
         test_cmdenv_conf = AirflowConfigParser()
         test_cmdenv_conf.read_string(test_cmdenv_config)
         test_cmdenv_conf.sensitive_config_values.add(("testcmdenv", "itsacommand"))
@@ -1038,11 +1040,14 @@ class TestDeprecatedConf:
             # Remove it so we are sure we use the right setting
             conf.remove_option("celery", "worker_concurrency")
 
-            with pytest.warns(DeprecationWarning):
+            with pytest.warns(DeprecationWarning, match="celeryd_concurrency"):
                 with mock.patch.dict("os.environ", AIRFLOW__CELERY__CELERYD_CONCURRENCY="99"):
                     assert conf.getint("celery", "worker_concurrency") == 99
 
-            with pytest.warns(DeprecationWarning), conf_vars({("celery", "celeryd_concurrency"): "99"}):
+            with (
+                pytest.warns(DeprecationWarning, match="celeryd_concurrency"),
+                conf_vars({("celery", "celeryd_concurrency"): "99"}),
+            ):
                 assert conf.getint("celery", "worker_concurrency") == 99
 
     @pytest.mark.parametrize(
@@ -1107,13 +1112,13 @@ class TestDeprecatedConf:
         ):
             conf.remove_option("celery", "result_backend")
             with conf_vars({("celery", "celery_result_backend_cmd"): "/bin/echo 99"}):
-                with pytest.warns(DeprecationWarning):
-                    tmp = None
-                    if "AIRFLOW__CELERY__RESULT_BACKEND" in os.environ:
-                        tmp = os.environ.pop("AIRFLOW__CELERY__RESULT_BACKEND")
+                tmp = None
+                if "AIRFLOW__CELERY__RESULT_BACKEND" in os.environ:
+                    tmp = os.environ.pop("AIRFLOW__CELERY__RESULT_BACKEND")
+                with pytest.warns(DeprecationWarning, match="result_backend"):
                     assert conf.getint("celery", "result_backend") == 99
-                    if tmp:
-                        os.environ["AIRFLOW__CELERY__RESULT_BACKEND"] = tmp
+                if tmp:
+                    os.environ["AIRFLOW__CELERY__RESULT_BACKEND"] = tmp
 
     def test_deprecated_values_from_conf(self):
         test_conf = AirflowConfigParser(
@@ -1133,7 +1138,7 @@ sql_alchemy_conn=sqlite://test
 
         with pytest.warns(FutureWarning):
             test_conf.validate()
-            assert test_conf.get("core", "hostname_callable") == "airflow.utils.net.getfqdn"
+        assert test_conf.get("core", "hostname_callable") == "airflow.utils.net.getfqdn"
 
     @pytest.mark.parametrize(
         "old, new",
@@ -1158,19 +1163,19 @@ sql_alchemy_conn=sqlite://test
         old_env_var = test_conf._env_var_name(old_section, old_key)
         new_env_var = test_conf._env_var_name(new_section, new_key)
 
-        with pytest.warns(FutureWarning):
-            with mock.patch.dict("os.environ", **{old_env_var: old_value}):
-                # Can't start with the new env var existing...
-                os.environ.pop(new_env_var, None)
+        with mock.patch.dict("os.environ", **{old_env_var: old_value}):
+            # Can't start with the new env var existing...
+            os.environ.pop(new_env_var, None)
 
+            with pytest.warns(FutureWarning):
                 test_conf.validate()
-                assert test_conf.get(new_section, new_key) == new_value
-                # We also need to make sure the deprecated env var is removed
-                # so that any subprocesses don't use it in place of our updated
-                # value.
-                assert old_env_var not in os.environ
-                # and make sure we track the old value as well, under the new section/key
-                assert test_conf.upgraded_values[(new_section, new_key)] == old_value
+            assert test_conf.get(new_section, new_key) == new_value
+            # We also need to make sure the deprecated env var is removed
+            # so that any subprocesses don't use it in place of our updated
+            # value.
+            assert old_env_var not in os.environ
+            # and make sure we track the old value as well, under the new section/key
+            assert test_conf.upgraded_values[(new_section, new_key)] == old_value
 
     @pytest.mark.parametrize(
         "conf_dict",
@@ -1198,10 +1203,10 @@ sql_alchemy_conn=sqlite://test
             test_conf.validate()
             return test_conf
 
-        with pytest.warns(FutureWarning):
-            with mock.patch.dict("os.environ", AIRFLOW__CORE__HOSTNAME_CALLABLE="airflow.utils.net:getfqdn"):
+        with mock.patch.dict("os.environ", AIRFLOW__CORE__HOSTNAME_CALLABLE="airflow.utils.net:getfqdn"):
+            with pytest.warns(FutureWarning):
                 test_conf = make_config()
-                assert test_conf.get("core", "hostname_callable") == "airflow.utils.net.getfqdn"
+            assert test_conf.get("core", "hostname_callable") == "airflow.utils.net.getfqdn"
 
         with reset_warning_registry():
             with warnings.catch_warnings(record=True) as warning:
@@ -1710,10 +1715,10 @@ def test_sensitive_values():
     # items not matching this pattern must be added here manually
     sensitive_values = {
         ("database", "sql_alchemy_conn"),
+        ("database", "sql_alchemy_conn_async"),
         ("core", "fernet_key"),
-        ("core", "internal_api_secret_key"),
         ("api_auth", "jwt_secret"),
-        ("webserver", "secret_key"),
+        ("api", "secret_key"),
         ("secrets", "backend_kwargs"),
         ("sentry", "sentry_dsn"),
         ("database", "sql_alchemy_engine_args"),
@@ -1724,8 +1729,9 @@ def test_sensitive_values():
         ("celery", "result_backend"),
         ("opensearch", "username"),
         ("opensearch", "password"),
+        ("webserver", "secret_key"),
     }
-    all_keys = {(s, k) for s, v in conf.configuration_description.items() for k in v.get("options")}
+    all_keys = {(s, k) for s, v in conf.configuration_description.items() for k in v["options"]}
     suspected_sensitive = {(s, k) for (s, k) in all_keys if k.endswith(("password", "kwargs"))}
     exclude_list = {
         ("aws_batch_executor", "submit_job_kwargs"),

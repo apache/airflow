@@ -19,15 +19,15 @@ from __future__ import annotations
 
 import ast
 import re
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, NoReturn, SupportsAbs
+from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, SupportsAbs
 
 from airflow.exceptions import AirflowException, AirflowFailException
-from airflow.hooks.base import BaseHook
-from airflow.models import BaseOperator, SkipMixin
+from airflow.models import SkipMixin
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, return_single_query_results
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.common.sql.version_compat import BaseHook, BaseOperator
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
@@ -161,7 +161,12 @@ class BaseSQLOperator(BaseOperator):
         :param hook_params: hook parameters
         :return: default hook for this connection
         """
+        hook_params = hook_params or {}
         connection = BaseHook.get_connection(conn_id)
+        conn_params = connection.extra_dejson
+        for conn_param in conn_params:
+            if conn_param not in hook_params:
+                hook_params[conn_param] = conn_params[conn_param]
         return connection.get_hook(hook_params=hook_params)
 
     @cached_property
@@ -1242,7 +1247,7 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
             )
 
         # TODO(potiuk) remove the type ignore once we solve provider <-> Task SDK relationship
-        self.skip_all_except(context["ti"], follow_branch)  # type: ignore[arg-type]
+        self.skip_all_except(context["ti"], follow_branch)
 
 
 def _initialize_partition_clause(clause: str | None) -> str | None:

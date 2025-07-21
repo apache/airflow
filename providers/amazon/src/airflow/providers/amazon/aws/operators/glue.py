@@ -20,14 +20,12 @@ from __future__ import annotations
 import os
 import urllib.parse
 from collections.abc import Sequence
-from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from botocore.exceptions import ClientError
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook, GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
@@ -38,12 +36,13 @@ from airflow.providers.amazon.aws.triggers.glue import (
     GlueJobCompleteTrigger,
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class GlueJobOperator(BaseOperator):
+class GlueJobOperator(AwsBaseOperator[GlueJobHook]):
     """
     Create an AWS Glue Job.
 
@@ -61,7 +60,6 @@ class GlueJobOperator(BaseOperator):
     :param script_args: etl script arguments and AWS Glue arguments (templated)
     :param retry_limit: The maximum number of times to retry this job if it fails
     :param num_of_dpus: Number of AWS Glue DPUs to allocate to this Job.
-    :param region_name: aws region name (example: us-east-1)
     :param s3_bucket: S3 bucket where logs and local etl script will be uploaded
     :param iam_role_name: AWS IAM Role for Glue Job Execution. If set `iam_role_arn` must equal None.
     :param iam_role_arn: AWS IAM ARN for Glue Job Execution. If set `iam_role_name` must equal None.
@@ -79,10 +77,24 @@ class GlueJobOperator(BaseOperator):
         of limiting concurrency, Glue needs 5-10 seconds to clean up resources.
         Thus if status is returned immediately it might end up in case of more than 1 concurrent run.
         It is recommended to set this parameter to 10 when you are using concurrency=1.
-        For more information see: https://repost.aws/questions/QUaKgpLBMPSGWO0iq2Fob_bw/glue-run-concurrent-jobs#ANFpCL2fRnQRqgDFuIU_rpvA
+        For more information see:
+        https://repost.aws/questions/QUaKgpLBMPSGWO0iq2Fob_bw/glue-run-concurrent-jobs#ANFpCL2fRnQRqgDFuIU_rpvA
+    :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
+    :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 20)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields: Sequence[str] = (
+    aws_hook_class = GlueJobHook
+    template_fields: Sequence[str] = aws_template_fields(
         "job_name",
         "script_location",
         "script_args",
@@ -112,8 +124,6 @@ class GlueJobOperator(BaseOperator):
         script_args: dict | None = None,
         retry_limit: int = 0,
         num_of_dpus: int | float | None = None,
-        aws_conn_id: str | None = "aws_default",
-        region_name: str | None = None,
         s3_bucket: str | None = None,
         iam_role_name: str | None = None,
         iam_role_arn: str | None = None,
@@ -124,9 +134,11 @@ class GlueJobOperator(BaseOperator):
         verbose: bool = False,
         replace_script_file: bool = False,
         update_config: bool = False,
-        job_poll_interval: int | float = 6,
         stop_job_run_on_kill: bool = False,
         sleep_before_return: int = 0,
+        job_poll_interval: int | float = 6,
+        waiter_delay: int = 60,
+        waiter_max_attempts: int = 75,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -137,8 +149,6 @@ class GlueJobOperator(BaseOperator):
         self.script_args = script_args or {}
         self.retry_limit = retry_limit
         self.num_of_dpus = num_of_dpus
-        self.aws_conn_id = aws_conn_id
-        self.region_name = region_name
         self.s3_bucket = s3_bucket
         self.iam_role_name = iam_role_name
         self.iam_role_arn = iam_role_arn
@@ -155,39 +165,51 @@ class GlueJobOperator(BaseOperator):
         self.stop_job_run_on_kill = stop_job_run_on_kill
         self._job_run_id: str | None = None
         self.sleep_before_return: int = sleep_before_return
+        self.s3_script_location: str | None = None
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
 
-    @cached_property
-    def glue_job_hook(self) -> GlueJobHook:
+    @property
+    def _hook_parameters(self):
+        # Upload script to S3 before creating the hook.
         if self.script_location is None:
-            s3_script_location = None
-        elif not self.script_location.startswith(self.s3_protocol):
-            s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
-            script_name = os.path.basename(self.script_location)
-            s3_hook.load_file(
-                self.script_location,
-                self.s3_artifacts_prefix + script_name,
-                bucket_name=self.s3_bucket,
-                replace=self.replace_script_file,
-            )
-            s3_script_location = f"s3://{self.s3_bucket}/{self.s3_artifacts_prefix}{script_name}"
-        else:
-            s3_script_location = self.script_location
-        return GlueJobHook(
-            job_name=self.job_name,
-            desc=self.job_desc,
-            concurrent_run_limit=self.concurrent_run_limit,
-            script_location=s3_script_location,
-            retry_limit=self.retry_limit,
-            num_of_dpus=self.num_of_dpus,
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.region_name,
-            s3_bucket=self.s3_bucket,
-            iam_role_name=self.iam_role_name,
-            iam_role_arn=self.iam_role_arn,
-            create_job_kwargs=self.create_job_kwargs,
-            update_config=self.update_config,
-            job_poll_interval=self.job_poll_interval,
+            self.s3_script_location = None
+        # location provided, but it's not in S3 yet.
+        elif self.script_location and self.s3_script_location is None:
+            if not self.script_location.startswith(self.s3_protocol):
+                self.upload_etl_script_to_s3()
+            else:
+                self.s3_script_location = self.script_location
+
+        return {
+            **super()._hook_parameters,
+            "job_name": self.job_name,
+            "desc": self.job_desc,
+            "concurrent_run_limit": self.concurrent_run_limit,
+            "script_location": self.s3_script_location,
+            "retry_limit": self.retry_limit,
+            "num_of_dpus": self.num_of_dpus,
+            "aws_conn_id": self.aws_conn_id,
+            "region_name": self.region_name,
+            "s3_bucket": self.s3_bucket,
+            "iam_role_name": self.iam_role_name,
+            "iam_role_arn": self.iam_role_arn,
+            "create_job_kwargs": self.create_job_kwargs,
+            "update_config": self.update_config,
+            "job_poll_interval": self.job_poll_interval,
+        }
+
+    def upload_etl_script_to_s3(self):
+        """Upload the ETL script to S3."""
+        s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
+        script_name = os.path.basename(self.script_location)
+        s3_hook.load_file(
+            self.script_location,
+            self.s3_artifacts_prefix + script_name,
+            bucket_name=self.s3_bucket,
+            replace=self.replace_script_file,
         )
+        self.s3_script_location = f"s3://{self.s3_bucket}/{self.s3_artifacts_prefix}{script_name}"
 
     def execute(self, context: Context):
         """
@@ -200,19 +222,19 @@ class GlueJobOperator(BaseOperator):
             self.job_name,
             self.wait_for_completion,
         )
-        glue_job_run = self.glue_job_hook.initialize_job(self.script_args, self.run_job_kwargs)
+        glue_job_run = self.hook.initialize_job(self.script_args, self.run_job_kwargs)
         self._job_run_id = glue_job_run["JobRunId"]
         glue_job_run_url = GlueJobRunDetailsLink.format_str.format(
-            aws_domain=GlueJobRunDetailsLink.get_aws_domain(self.glue_job_hook.conn_partition),
-            region_name=self.glue_job_hook.conn_region_name,
+            aws_domain=GlueJobRunDetailsLink.get_aws_domain(self.hook.conn_partition),
+            region_name=self.hook.conn_region_name,
             job_name=urllib.parse.quote(self.job_name, safe=""),
             job_run_id=self._job_run_id,
         )
         GlueJobRunDetailsLink.persist(
             context=context,
             operator=self,
-            region_name=self.glue_job_hook.conn_region_name,
-            aws_partition=self.glue_job_hook.conn_partition,
+            region_name=self.hook.conn_region_name,
+            aws_partition=self.hook.conn_partition,
             job_name=urllib.parse.quote(self.job_name, safe=""),
             job_run_id=self._job_run_id,
         )
@@ -225,12 +247,14 @@ class GlueJobOperator(BaseOperator):
                     run_id=self._job_run_id,
                     verbose=self.verbose,
                     aws_conn_id=self.aws_conn_id,
-                    job_poll_interval=self.job_poll_interval,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    region_name=self.region_name,
                 ),
                 method_name="execute_complete",
             )
         elif self.wait_for_completion:
-            glue_job_run = self.glue_job_hook.job_completion(
+            glue_job_run = self.hook.job_completion(
                 self.job_name, self._job_run_id, self.verbose, self.sleep_before_return
             )
             self.log.info(
@@ -248,13 +272,13 @@ class GlueJobOperator(BaseOperator):
 
         if validated_event["status"] != "success":
             raise AirflowException(f"Error in glue job: {validated_event}")
-        return validated_event["value"]
+        return validated_event["run_id"]
 
     def on_kill(self):
         """Cancel the running AWS Glue Job."""
         if self.stop_job_run_on_kill:
             self.log.info("Stopping AWS Glue Job: %s. Run Id: %s", self.job_name, self._job_run_id)
-            response = self.glue_job_hook.conn.batch_stop_job_run(
+            response = self.hook.conn.batch_stop_job_run(
                 JobName=self.job_name,
                 JobRunIds=[self._job_run_id],
             )
@@ -276,7 +300,6 @@ class GlueDataQualityOperator(AwsBaseOperator[GlueDataQualityHook]):
     :param description: A description of the data quality ruleset.
     :param update_rule_set: To update existing ruleset, Set this flag to True. (default: False)
     :param data_quality_ruleset_kwargs: Extra arguments for RuleSet.
-
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -290,7 +313,9 @@ class GlueDataQualityOperator(AwsBaseOperator[GlueDataQualityHook]):
     """
 
     aws_hook_class = GlueDataQualityHook
-    template_fields: Sequence[str] = ("name", "ruleset", "description", "data_quality_ruleset_kwargs")
+    template_fields: Sequence[str] = aws_template_fields(
+        "name", "ruleset", "description", "data_quality_ruleset_kwargs"
+    )
 
     template_fields_renderers = {
         "data_quality_ruleset_kwargs": "json",
@@ -305,7 +330,6 @@ class GlueDataQualityOperator(AwsBaseOperator[GlueDataQualityHook]):
         description: str = "AWS Glue Data Quality Rule Set With Airflow",
         update_rule_set: bool = False,
         data_quality_ruleset_kwargs: dict | None = None,
-        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -314,7 +338,6 @@ class GlueDataQualityOperator(AwsBaseOperator[GlueDataQualityHook]):
         self.description = description
         self.update_rule_set = update_rule_set
         self.data_quality_ruleset_kwargs = data_quality_ruleset_kwargs or {}
-        self.aws_conn_id = aws_conn_id
 
     def validate_inputs(self) -> None:
         if not self.ruleset.startswith("Rules") or not self.ruleset.endswith("]"):
@@ -372,7 +395,6 @@ class GlueDataQualityRuleSetEvaluationRunOperator(AwsBaseOperator[GlueDataQualit
     :param deferrable: If True, the operator will wait asynchronously for the job to stop.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False)
-
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -387,7 +409,7 @@ class GlueDataQualityRuleSetEvaluationRunOperator(AwsBaseOperator[GlueDataQualit
 
     aws_hook_class = GlueDataQualityHook
 
-    template_fields: Sequence[str] = (
+    template_fields: Sequence[str] = aws_template_fields(
         "datasource",
         "role",
         "rule_set_names",
@@ -413,7 +435,6 @@ class GlueDataQualityRuleSetEvaluationRunOperator(AwsBaseOperator[GlueDataQualit
         waiter_delay: int = 60,
         waiter_max_attempts: int = 20,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
-        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -429,7 +450,6 @@ class GlueDataQualityRuleSetEvaluationRunOperator(AwsBaseOperator[GlueDataQualit
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
-        self.aws_conn_id = aws_conn_id
 
     def validate_inputs(self) -> None:
         glue_table = self.datasource.get("GlueTable", {})
@@ -539,7 +559,6 @@ class GlueDataQualityRuleRecommendationRunOperator(AwsBaseOperator[GlueDataQuali
     :param deferrable: If True, the operator will wait asynchronously for the job to stop.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False)
-
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -553,7 +572,7 @@ class GlueDataQualityRuleRecommendationRunOperator(AwsBaseOperator[GlueDataQuali
     """
 
     aws_hook_class = GlueDataQualityHook
-    template_fields: Sequence[str] = (
+    template_fields: Sequence[str] = aws_template_fields(
         "datasource",
         "role",
         "recommendation_run_kwargs",
@@ -576,7 +595,6 @@ class GlueDataQualityRuleRecommendationRunOperator(AwsBaseOperator[GlueDataQuali
         waiter_delay: int = 60,
         waiter_max_attempts: int = 20,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
-        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -590,7 +608,6 @@ class GlueDataQualityRuleRecommendationRunOperator(AwsBaseOperator[GlueDataQuali
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
-        self.aws_conn_id = aws_conn_id
 
     def execute(self, context: Context) -> str:
         glue_table = self.datasource.get("GlueTable", {})

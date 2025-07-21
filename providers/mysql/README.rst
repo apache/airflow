@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-mysql``
 
-Release: ``6.2.2``
+Release: ``6.3.2``
 
 
 `MySQL <https://www.mysql.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``mysql`` provider. All classes for this provider
 are in ``airflow.providers.mysql`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-mysql/6.2.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-mysql/6.3.2/>`_.
 
 Installation
 ------------
@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow 2 installation (see `
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-mysql``
 
-The package supports the following python versions: 3.9,3.10,3.11,3.12
+The package supports the following python versions: 3.10,3.11,3.12,3.13
 
 Requirements
 ------------
@@ -53,10 +53,10 @@ Requirements
 =======================================  =====================================
 PIP package                              Version required
 =======================================  =====================================
-``apache-airflow``                       ``>=2.9.0``
+``apache-airflow``                       ``>=2.10.0``
 ``apache-airflow-providers-common-sql``  ``>=1.20.0``
-``mysqlclient``                          ``>=1.4.0; sys_platform != "darwin"``
-``mysql-connector-python``               ``>=8.0.29``
+``mysqlclient``                          ``>=2.2.5; sys_platform != "darwin"``
+``mysql-connector-python``               ``>=9.0.0``
 ``aiomysql``                             ``>=0.2.0``
 =======================================  =====================================
 
@@ -85,4 +85,4 @@ Dependent package                                                               
 ==============================================================================================================  ===============
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-mysql/6.2.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-mysql/6.3.2/changelog.html>`_.

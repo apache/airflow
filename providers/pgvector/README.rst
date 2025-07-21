@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-pgvector``
 
-Release: ``1.4.1``
+Release: ``1.5.1``
 
 
 `pgvector <https://github.com/pgvector/pgvector>`__
@@ -36,7 +36,7 @@ This is a provider package for ``pgvector`` provider. All classes for this provi
 are in ``airflow.providers.pgvector`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-pgvector/1.4.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-pgvector/1.5.1/>`_.
 
 Installation
 ------------
@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow 2 installation (see `
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-pgvector``
 
-The package supports the following python versions: 3.9,3.10,3.11,3.12
+The package supports the following python versions: 3.10,3.11,3.12,3.13
 
 Requirements
 ------------
@@ -53,7 +53,7 @@ Requirements
 =====================================  ==================
 PIP package                            Version required
 =====================================  ==================
-``apache-airflow``                     ``>=2.9.0``
+``apache-airflow``                     ``>=2.10.0``
 ``apache-airflow-providers-postgres``  ``>=5.7.1``
 ``pgvector``                           ``>=0.3.1``
 =====================================  ==================
@@ -79,4 +79,4 @@ Dependent package                                                               
 ============================================================================================================  ==============
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-pgvector/1.4.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-pgvector/1.5.1/changelog.html>`_.

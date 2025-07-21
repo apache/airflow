@@ -21,12 +21,15 @@
 **Table of contents**
 
 - [Selecting what to put into the release](#selecting-what-to-put-into-the-release)
+  - [Validating completeness of i18n locale files](#validating-completeness-of-i18n-locale-files)
   - [Selecting what to cherry-pick](#selecting-what-to-cherry-pick)
   - [Making the cherry picking](#making-the-cherry-picking)
+  - [Collapse Cadwyn Migrations](#collapse-cadwyn-migrations)
   - [Reviewing cherry-picked PRs and assigning labels](#reviewing-cherry-picked-prs-and-assigning-labels)
 - [Prepare the Apache Airflow Package RC](#prepare-the-apache-airflow-package-rc)
   - [Update the milestone](#update-the-milestone)
   - [Build RC artifacts](#build-rc-artifacts)
+  - [Publish release candidate documentation (staging)](#publish-release-candidate-documentation-staging)
   - [Prepare production Docker Image RC](#prepare-production-docker-image-rc)
   - [Prepare Vote email on the Apache Airflow release candidate](#prepare-vote-email-on-the-apache-airflow-release-candidate)
 - [Verify the release candidate by PMC members](#verify-the-release-candidate-by-pmc-members)
@@ -40,11 +43,9 @@
 - [Publish the final Apache Airflow release](#publish-the-final-apache-airflow-release)
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
   - [Publish release to SVN](#publish-release-to-svn)
-  - [Remove chicken-egg providers](#remove-chicken-egg-providers)
   - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
   - [Verify production images](#verify-production-images)
-  - [Publish documentation](#publish-documentation)
-  - [Wait and make sure documentation is published on the website before proceeding](#wait-and-make-sure-documentation-is-published-on-the-website-before-proceeding)
+  - [Publish final documentation](#publish-final-documentation)
   - [Notify developers of release](#notify-developers-of-release)
   - [Send announcements about security issues fixed in the release](#send-announcements-about-security-issues-fixed-in-the-release)
   - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
@@ -70,6 +71,47 @@ The first step of a release is to work out what is being included. This differs 
 - For a *major* or *minor* release, you want to include everything in `main` at the time of release; you'll turn this into a new release branch as part of the rest of the process.
 
 - For a *patch* release, you will be selecting specific commits to cherry-pick and backport into the existing release branch.
+
+
+## Validating completeness of i18n locale files
+
+At this point you should validate the completeness of the i18n locale files - follow the instructions in section 8.1 of the [internationalization (i18n) policy](../airflow-core/src/airflow/ui/public/i18n/README.md) for doing so.
+If there are any incomplete locales, copy the names of the incomplete locales and send out a reminder to the code owners to ensure completion of the translation by a due date of your choice
+before cutting the release candidate (RC).
+The reminder should be sent via dev@airflow.apache.org mailing list, preferably with an accompanying GitHub issue for tracking purposes.
+Do not hold the release process beyond the due date if there are still incomplete locales.
+
+Subject:
+
+```shell script
+cat <<EOF
+[REMINDER] Complete translations for Airflow ${VERSION} RC by <date>
+EOF
+```
+
+Body:
+
+```shell script
+cat <<EOF
+Hey fellow Airflowers,
+
+I'm planning to cut the Airflow ${VERSION} RC soon.
+
+After running the i18n completeness script, I found that the following locales are currently incomplete:
+<list of incomplete locales>
+
+I'd like to ask locales' code owners to ensure the completion of the translations for these locales by <due date>,
+and respond to this email after doing so.
+During this time, I'd like all committers to refrain merging PRs that add new terms to the default locale (English),
+or rename/relocate keys of existing terms to avoid overloading the translators.
+When creating a PR, please run locally the i18n completeness script on your locale to ensure all translations are complete.
+Changes applied after this date will not be included in the release, and the missing terms will fall back to English instead.
+
+
+Thanks for your cooperation!
+<your name>
+EOF
+```
 
 ## Selecting what to cherry-pick
 
@@ -140,6 +182,15 @@ to keep a reference to the original commit we cherry picked from. ("cherry picke
 ```shell
 git cherry-pick <hash-commit> -x
 ```
+
+## Collapse Cadwyn Migrations
+
+Before cutting an RC, bump the HEAD date of Cadwyn versioned API (execution api for now: `airflow-core/src/airflow/api_fastapi/execution_api`)
+to reflect the tentative release date of Airflow. All the Cadwyn migrations in between the tentative release date and last release date
+should be collapsed.
+
+Refer https://github.com/apache/airflow/pull/49116 as a good example.
+
 
 ## Reviewing cherry-picked PRs and assigning labels
 
@@ -242,12 +293,6 @@ export AIRFLOW_REPO_ROOT=$(pwd)
 uv tool install -e ./dev/breeze
 ```
 
-or (if you prefer to use pipx):
-
-```shell script
-pipx install -e ./dev/breeze
-```
-
 - For major/minor version release, run the following commands to create the 'test' and 'stable' branches.
 
     ```shell script
@@ -328,9 +373,68 @@ pipx install -e ./dev/breeze
 - Generate the body of the issue using the below command:
 
   ```shell script
-    breeze release-management generate-issue-content-core --previous-release <PREVIOUS_VERSION>
-    --current-release ${VERSION}
+    breeze release-management generate-issue-content-core --previous-release <PREVIOUS_VERSION> --current-release ${VERSION}
     ```
+
+## Publish release candidate documentation (staging)
+
+Documentation is an essential part of the product and should be made available to users.
+In our cases, documentation for the pre-release versions is published in `staging` S3 bucket.
+The documentation source code and build tools are available in the `apache/airflow` repository, so
+you need to run several workflows to publish the documentation. More details about it can be found in
+[Docs README](../docs/README.md) showing the architecture and workflows including manual workflows for
+emergency cases.
+
+We have two options publishing the documentation 1. Using breeze commands 2. Manually using GitHub Actions.:
+
+### Using breeze commands
+
+You can use the `breeze` command to publish the documentation.
+The command does the following:
+
+1. Triggers [Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml).
+2. Triggers workflow in apache/airflow-site to refresh
+3. Triggers S3 to GitHub Sync
+
+```shell script
+  breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto> apache-airflow docker-stack task-sdk
+```
+
+The `--ref` parameter should be the tag of the release candidate you are publishing.
+
+The `--site-env` parameter should be set to `staging` for pre-release versions or `live` for final releases. the default option is `auto`
+if the tag is rc it publishes to `staging` bucket, otherwise it publishes to `live` bucket.
+
+Other available parameters can be found with:
+
+```shell script
+breeze workflow-run publish-docs --help
+```
+
+### Manually using GitHub Actions
+
+There are two steps to publish the documentation:
+
+1. Publish the documentation to the `staging` S3 bucket.
+
+The release manager publishes the documentation using GitHub Actions workflow
+[Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml). By default `auto` selection should publish to the `staging` bucket - based on
+the tag you use - pre-release tags go to staging. But you can also override it and specify the destination
+manually to be `live` or `staging`.
+
+You should specify 'apache-airflow docker-stack task-sdk' passed as packages to be
+built.
+
+After that step, the provider documentation should be available under https://airflow.stage.apache.org//
+URL (RC PyPI packages are build with the staging urls) but stable links and drop-down boxes are not updated yet.
+
+2. Invalidate Fastly cache, update version drop-down and stable links with the new versions of the documentation.
+
+In order to do it, you need to run the [Build docs](https://github.com/apache/airflow-site/actions/workflows/build.yml)
+workflow in `airflow-site` repository - but make sure to use `staging` branch.
+
+After that workflow completes, the new version should be available in the drop-down list and stable links
+should be updated, also Fastly cache will be updated
 
 ## Prepare production Docker Image RC
 
@@ -345,11 +449,9 @@ to have an environment prepared to build multi-platform images. You can achieve 
 Building the image is triggered by running the
 [Release PROD Images](https://github.com/apache/airflow/actions/workflows/release_dockerhub_image.yml) workflow.
 
-When you trigger it you need to pass Airflow Version (including the right rc suffix). Make sure to use the
-``v2-*-stable`` branch for the workflow.
-
-You can leave the "skip latest" field empty.
-
+When you trigger it you need to pass Airflow Version (including the right `rc` suffix). The workflow will
+normalize and verify version passed. When you are testing or want to release image faster you can also
+select the check-box to limit the build to only AMD platform. This will speed up the build significantly.
 
 ![Release prod image](images/release_prod_image_rc.png)
 
@@ -550,11 +652,17 @@ Or update it if you already checked it out:
 svn update .
 ```
 
+Set an environment variable: PATH_TO_SVN to the root of folder where you clone the SVN repository:
+
+``` shell
+export PATH_TO_SVN=<set your path to svn here>
+```
+
 Optionally you can use `check_files.py` script to verify that all expected files are
 present in SVN. This script may help also with verifying installation of the packages.
 
 ```shell script
-python check_files.py airflow -v ${VERSION} -p {PATH_TO_SVN}
+uv run check_files.py airflow -v ${VERSION} -p ${PATH_TO_SVN}
 ```
 
 ## Licence check
@@ -687,7 +795,7 @@ Optionally it can be followed with constraints
 
 ```shell script
 pip install apache-airflow==<VERSION>rc<X> \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-<VERSION>/constraints-3.9.txt"
+  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-<VERSION>/constraints-3.10.txt"
 ```
 
 Note that the constraints contain python version that you are installing it with.
@@ -699,7 +807,7 @@ There is also an easy way of installation with Breeze if you have the latest sou
 Running the following command will use tmux inside breeze, create `admin` user and run Webserver & Scheduler:
 
 ```shell script
-breeze start-airflow --use-airflow-version 2.7.0rc1 --python 3.9 --backend postgres
+breeze start-airflow --use-airflow-version 2.7.0rc1 --python 3.10 --backend postgres
 ```
 
 You can also choose different executors and extras to install when you are installing airflow this way. For
@@ -707,7 +815,7 @@ example in order to run Airflow with CeleryExecutor and install celery, google a
 Airflow 2.7.0, you need to have celery provider installed to run Airflow with CeleryExecutor) you can run:
 
 ```shell script
-breeze start-airflow --use-airflow-version 2.7.0rc1 --python 3.9 --backend postgres \
+breeze start-airflow --use-airflow-version 2.7.0rc1 --python 3.10 --backend postgres \
   --executor CeleryExecutor --airflow-extras "celery,google,amazon"
 ```
 
@@ -778,42 +886,9 @@ export AIRFLOW_REPO_ROOT=$(pwd)
 breeze release-management start-release --release-candidate ${RC} --previous-release <PREVIOUS RELEASE>
 ```
 
-## Remove chicken-egg providers
-
-For the first MINOR (X.Y.0) release you need to do few more steps if there are new "chicken-egg" providers
-that have min-airflow version set to X.Y.0
-
-* NOTE! WE MIGHT WANT TO AUTOMATE THAT STEP IN THE FUTURE
-
-1. Checkout the constraints-2-* branch and update the ``constraints-3*.txt`` file with the new provider
-   version. Find the place where the provider should be added, add it with the latest provider version.
-
-```
-apache-airflow-providers-PROVIDER==VERSION
-```
-
-Commit, push and tag this change with ``constraints-X.Y.Z`` tag:
-
-```bash
-git add
-git commit -m "Add chicken-egg provider apache-airflow-providers-PROVIDER"
-git tag -s constraints-X.Y.Z --force
-git push -f apache constraints-X.Y.Z
-```
-
-
-2. remove providers from ``CHICKEN_EGG_PROVIDERS`` list  in ``src/airflow_breeze/global_constants.py``
-   that have >= ``X.Y.0`` in the corresponding provider.yaml file.
-
-
-3. In case the provider should also be installed in the image (it is part of ``prod_image_installed_providers.txt``)
-   it should also be added at this moment to ``Dockerfile`` to the list of default extras in the line with ``AIRFLOW_EXTRAS``:
-
 ```Dockerfile
 ARG AIRFLOW_EXTRAS=".....,<provider>,...."
 ```
-
-This change needs to be merged to ``main`` and cherry-picked to ``v2-*-test`` branch before building the image.
 
 4. Make sure to update Airflow version in ``v3-*-test`` branch after cherry-picking to X.Y.1 in
    ``airflow/__init__.py``
@@ -829,7 +904,7 @@ When you trigger it you need to pass:
 * Airflow Version
 * Optional "true" in skip latest field if you do not want to re-tag the latest image
 
-Make sure you use ``v2-*-test`` branch to run the workflow.
+Make sure you use ``v3-*-test`` branch to run the workflow.
 
 ![Release prod image](images/release_prod_image.png)
 
@@ -843,7 +918,7 @@ the older branches, you should set the "skip" field to true.
 ## Verify production images
 
 ```shell script
-for PYTHON in 3.9 3.10 3.11 3.12
+for PYTHON in 3.10 3.11 3.12 3.13
 do
     docker pull apache/airflow:${VERSION}-python${PYTHON}
     breeze prod-image verify --image-name apache/airflow:${VERSION}-python${PYTHON}
@@ -852,57 +927,65 @@ docker pull apache/airflow:${VERSION}
 breeze prod-image verify --image-name apache/airflow:${VERSION}
 ```
 
-## Publish documentation
+## Publish final documentation
 
 Documentation is an essential part of the product and should be made available to users.
-In our cases, documentation for the released versions is published in a separate repository - [`apache/airflow-site`](https://github.com/apache/airflow-site), but the documentation source code and build tools are available in the `apache/airflow` repository, so you have to coordinate between the two repositories to be able to build the documentation.
+In our cases, documentation for the released versions is published in the `live` S3 bucket, and the site is
+kept in a separate repository - [`apache/airflow-site`](https://github.com/apache/airflow-site),
+but the documentation source code and build tools are available in the `apache/airflow` repository, so
+you need to run several workflows to publish the documentation. More details about it can be found in
+[Docs README](../docs/README.md) showing the architecture and workflows including manual workflows for
+emergency cases.
 
-Documentation for providers can be found in the ``/docs/apache-airflow`` directory.
+We have two options publishing the documentation 1. Using breeze commands 2. Manually using GitHub Actions.:
 
-- First, copy the airflow-site repository and set the environment variable ``AIRFLOW_SITE_DIRECTORY``.
+### Using breeze commands
 
-    ```shell script
-    git clone https://github.com/apache/airflow-site.git airflow-site
-    cd airflow-site
-    git checkout -b ${VERSION}-docs
-    export AIRFLOW_SITE_DIRECTORY="$(pwd)"
-    ```
+You can use the `breeze` command to publish the documentation.
+The command does the following:
 
-- Then you can go to the directory and build the necessary documentation packages
+1. Triggers [Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml).
+2. Triggers workflow in apache/airflow-site to refresh
+3. Triggers S3 to GitHub Sync
 
-    ```shell script
-    cd "${AIRFLOW_REPO_ROOT}"
-    breeze build-docs apache-airflow docker-stack --clean-build
-    ```
+```shell script
+  breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto>
+```
 
-- Now you can preview the documentation.
+The `--ref` parameter should be the tag of the final candidate you are publishing.
 
-    ```shell script
-    ./docs/start_doc_server.sh
-    ```
+The `--site-env` parameter should be set to `staging` for pre-release versions or `live` for final releases. the default option is `auto`
+if the tag is rc it publishes to `staging` bucket, otherwise it publishes to `live` bucket.
 
-- Copy the documentation to the ``airflow-site`` repository, create commit, push changes, open a PR and merge it when the build is green.
+Other available parameters can be found with:
 
-    ```shell script
-    breeze release-management publish-docs apache-airflow docker-stack
-    breeze release-management add-back-references apache-airflow --airflow-site-directory "${AIRFLOW_SITE_DIRECTORY}"
-    breeze sbom update-sbom-information --airflow-version ${VERSION} --airflow-site-directory ${AIRFLOW_SITE_DIRECTORY} --force --all-combinations --run-in-parallel
-    cd "${AIRFLOW_SITE_DIRECTORY}"
-    git add .
-    git commit -m "Add documentation for Apache Airflow ${VERSION}"
-    git push
-    # and finally open a PR
-    ```
+```shell
+breeze workflow-run publish-docs --help
+```
 
-The `--run-in-parallel` switch allows to speed up SBOM generation significantly, but it might take a lot
-of memory - if you are running into memory issues you can limit parallelism by setting `--parallelism N`
-where N is a number of parallel `cdxgen` servers that should be started.
+### Manually using GitHub Actions
 
-## Wait and make sure documentation is published on the website before proceeding
+There are two steps to publish the documentation:
 
-This is important as it takes time for the documentation to be published. You should exercise some patient
-here before proceeding with the next steps.
+1. Publish the documentation to S3 bucket.
 
+The release manager publishes the documentation using GitHub Actions workflow
+[Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml). By
+default `auto` selection should publish to the `live` bucket - based on
+the tag you use - pre-release tags go to staging. But you can also override it and specify the destination
+manually to be `live` or `staging`.
+
+After that step, the provider documentation should be available under the https://airflow.apache.org/ URL
+(also linked directly from the PyPI packages) but stable links and drop-down boxes should not be yet updated.
+That allows the Release Manager to verify if the documentation is published.
+
+2. Invalidate Fastly Cache, update version drop-down and stable links with the new versions of the documentation.
+
+In order to do it, you need to run the [Build docs](https://github.com/apache/airflow-site/actions/workflows/build.yml)
+workflow in `airflow-site` repository. Make sure to use `main` as the branch to run the workflow.
+
+After that workflow completes, the new version should be available in the drop-down list and stable links
+should be updated, also Fastly cache will be invalidated.
 
 ## Notify developers of release
 
@@ -1043,7 +1126,7 @@ This includes:
 - For major/minor release, update version in `airflow/__init__.py` and `docs/docker-stack/` to the next likely minor version release.
 - Sync `RELEASE_NOTES.rst` (including deleting relevant `newsfragments`) and `README.md` changes.
 - Updating `Dockerfile` with the new version.
-- Updating `airflow_bug_report.yml` issue template in `.github/ISSUE_TEMPLATE/` with the new version.
+- Updating `1-airflow_bug_report.yml` issue template in `.github/ISSUE_TEMPLATE/` with the new version.
 
 ## Update default Airflow version in the helm chart
 
@@ -1082,7 +1165,7 @@ Clients can be found here:
 ### API Clients versioning policy
 
 Clients and Core versioning are completely decoupled. Clients also follow SemVer and are updated when core introduce changes relevant to the clients.
-Most of the time, if the [openapi specification](https://github.com/apache/airflow/blob/main/clients/python/openapi_v1.yaml) has
+Most of the time, if the [openapi specification](https://github.com/apache/airflow/blob/main/airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-generated.yaml) has
 changed, clients need to be released.
 
 To determine if you should release API clients, you can run from the airflow repository:

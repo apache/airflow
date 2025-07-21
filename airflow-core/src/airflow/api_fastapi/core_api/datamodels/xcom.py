@@ -19,7 +19,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import field_validator
+from pydantic import AliasPath, Field, field_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 
@@ -34,6 +34,7 @@ class XComResponse(BaseModel):
     task_id: str
     dag_id: str
     run_id: str
+    dag_display_name: str = Field(validation_alias=AliasPath("dag_run", "dag_model", "dag_display_name"))
 
 
 class XComResponseNative(XComResponse):

@@ -25,7 +25,7 @@ import pendulum
 import pytest
 from sqlalchemy import select
 
-from airflow.models import DagRun, TaskInstance
+from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.backfill import (
     AlreadyRunningBackfill,
     Backfill,
@@ -88,6 +88,7 @@ def test_reverse_and_depends_on_past_fails(dep_on_past, dag_maker, session):
             to_date=pendulum.parse("2021-01-05"),
             max_active_runs=2,
             reverse=True,
+            triggering_user_name="pytest",
             dag_run_conf={},
         )
     if dep_on_past:
@@ -124,6 +125,7 @@ def test_create_backfill_simple(reverse, existing, dag_maker, session):
         to_date=pendulum.parse("2021-01-05"),
         max_active_runs=2,
         reverse=reverse,
+        triggering_user_name="pytest",
         dag_run_conf=expected_run_conf,
     )
     query = (
@@ -150,6 +152,62 @@ def test_create_backfill_simple(reverse, existing, dag_maker, session):
     assert backfill_dates == expected_dates
     assert all(x.state == DagRunState.QUEUED for x in dag_runs)
     assert all(x.conf == expected_run_conf for x in dag_runs)
+
+
+def test_create_backfill_clear_existing_bundle_version(dag_maker, session):
+    """
+    Verify that when backfill clears an existing dag run, bundle version is cleared.
+    """
+    # two that will be reprocessed, and an old one not to be processed by backfill
+    existing = ["1985-01-01", "2021-01-02", "2021-01-03"]
+    run_ids = {d: f"scheduled_{d}" for d in existing}
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+
+    dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag.dag_id))
+    first_bundle_version = "bundle_VclmpcTdXv"
+    dag_model.bundle_version = first_bundle_version
+    session.commit()
+    for date in existing:
+        dag_maker.create_dagrun(
+            run_id=run_ids[date], logical_date=timezone.parse(date), session=session, state="failed"
+        )
+        session.commit()
+
+    # update bundle version
+    new_bundle_version = "bundle_VclmpcTdXv-2"
+    dag_model.bundle_version = new_bundle_version
+    session.commit()
+
+    # verify that existing dag runs still have the first bundle version
+    dag_runs = list(session.scalars(select(DagRun).where(DagRun.dag_id == dag.dag_id)))
+    assert [x.bundle_version for x in dag_runs] == 3 * [first_bundle_version]
+    assert [x.state for x in dag_runs] == 3 * ["failed"]
+    session.commit()
+    _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2021-01-01"),
+        to_date=pendulum.parse("2021-01-05"),
+        max_active_runs=10,
+        reverse=False,
+        dag_run_conf=None,
+        triggering_user_name="pytest",
+        reprocess_behavior=ReprocessBehavior.FAILED,
+    )
+    session.commit()
+
+    # verify that the old dag run (not included in backfill) still has first bundle version
+    # but the latter 5, which are included in the backfill, have the latest bundle version
+    dag_runs = sorted(
+        session.scalars(
+            select(DagRun).where(
+                DagRun.dag_id == dag.dag_id,
+            ),
+        ),
+        key=lambda x: x.logical_date,
+    )
+    expected = [first_bundle_version] + 5 * [new_bundle_version]
+    assert [x.bundle_version for x in dag_runs] == expected
 
 
 @pytest.mark.parametrize(
@@ -222,6 +280,7 @@ def test_reprocess_behavior(reprocess_behavior, num_in_b, exc_reasons, dag_maker
         max_active_runs=2,
         reprocess_behavior=reprocess_behavior,
         reverse=False,
+        triggering_user_name="pytest",
         dag_run_conf=None,
     )
 
@@ -229,7 +288,7 @@ def test_reprocess_behavior(reprocess_behavior, num_in_b, exc_reasons, dag_maker
     query = (
         select(DagRun)
         .join(BackfillDagRun.dag_run)
-        .where(BackfillDagRun.backfill_id == b.id)
+        .where(BackfillDagRun.backfill_id == b.id, DagRun.dag_id == dag.dag_id)
         .order_by(BackfillDagRun.sort_ordinal)
     )
     # these are all the dag runs that are part of this backfill
@@ -263,6 +322,7 @@ def test_params_stored_correctly(dag_maker, session):
         to_date=pendulum.parse("2021-01-05"),
         max_active_runs=263,
         reverse=False,
+        triggering_user_name="pytest",
         dag_run_conf={"this": "param"},
     )
     session.expunge_all()
@@ -288,6 +348,7 @@ def test_active_dag_run(dag_maker, session):
         to_date=pendulum.parse("2021-01-05"),
         max_active_runs=10,
         reverse=False,
+        triggering_user_name="pytest",
         dag_run_conf={"this": "param"},
     )
     assert b1 is not None
@@ -298,6 +359,7 @@ def test_active_dag_run(dag_maker, session):
             to_date=pendulum.parse("2021-02-05"),
             max_active_runs=10,
             reverse=False,
+            triggering_user_name="pytest",
             dag_run_conf={"this": "param"},
         )
 
@@ -314,6 +376,7 @@ def create_next_run(
             max_active_runs=2,
             reverse=False,
             dag_run_conf=None,
+            triggering_user_name="pytest",
             reprocess_behavior=reprocess,
         )
         assert b
@@ -427,5 +490,6 @@ def test_depends_on_past_requires_reprocess_failed(dep_on_past, behavior, dag_ma
             max_active_runs=5,
             reverse=False,
             dag_run_conf={},
+            triggering_user_name="pytest",
             reprocess_behavior=behavior,
         )

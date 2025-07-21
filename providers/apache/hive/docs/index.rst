@@ -79,7 +79,7 @@ apache-airflow-providers-apache-hive package
 `Apache Hive <https://hive.apache.org/>`__
 
 
-Release: 9.0.6
+Release: 9.1.1
 
 Provider package
 ----------------
@@ -97,15 +97,14 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider distribution is ``2.9.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
 
 =======================================  ==================
 PIP package                              Version required
 =======================================  ==================
-``apache-airflow``                       ``>=2.9.0``
-``apache-airflow-providers-common-sql``  ``>=1.20.0``
+``apache-airflow``                       ``>=2.10.0``
+``apache-airflow-providers-common-sql``  ``>=1.26.0``
 ``hmsclient``                            ``>=0.1.0``
-``pandas``                               ``>=2.1.2,<2.2``
 ``pyhive[hive_pure_sasl]``               ``>=0.7.0``
 ``thrift``                               ``>=0.11.0``
 ``jmespath``                             ``>=0.7.0``
@@ -143,5 +142,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-apache-hive 9.0.6 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.0.6.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.0.6.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.0.6.tar.gz.sha512>`__)
-* `The apache-airflow-providers-apache-hive 9.0.6 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.0.6-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.0.6-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.0.6-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-apache-hive 9.1.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.1.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.1.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.1.1.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-hive 9.1.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.1.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.1.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.1.1-py3-none-any.whl.sha512>`__)

@@ -47,19 +47,15 @@ from airflow.utils.json import XComDecoder, XComEncoder
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
-# XCom constants below are needed for providers backward compatibility,
-# which should import the constants directly after apache-airflow>=2.6.0
-from airflow.utils.xcom import (
-    MAX_XCOM_SIZE,  # noqa: F401
-    XCOM_RETURN_KEY,
-)
-
 log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import Row
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.expression import Select, TextClause
+
+
+XCOM_RETURN_KEY = "return_value"
 
 
 class XComModel(TaskInstanceDependencies):
@@ -180,6 +176,9 @@ class XComModel(TaskInstanceDependencies):
         """
         from airflow.models.dagrun import DagRun
 
+        if not key:
+            raise ValueError(f"XCom key must be a non-empty string. Received: {key!r}")
+
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
 
@@ -277,6 +276,9 @@ class XComModel(TaskInstanceDependencies):
         :param limit: Limiting returning XComs
         """
         from airflow.models.dagrun import DagRun
+
+        if key is not None and not key:
+            raise ValueError(f"XCom key must be a non-empty string. Received: {key!r}")
 
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")

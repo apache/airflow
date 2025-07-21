@@ -25,37 +25,59 @@ import {
   type SelectValueChangeDetails,
 } from "@chakra-ui/react";
 import { useCallback } from "react";
-import { MdOutlineOpenInFull } from "react-icons/md";
+import { useTranslation } from "react-i18next";
+import {
+  MdAccessTime,
+  MdCode,
+  MdCompress,
+  MdExpand,
+  MdOutlineOpenInFull,
+  MdSettings,
+  MdWrapText,
+} from "react-icons/md";
 import { useSearchParams } from "react-router-dom";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
-import { Button, Select } from "src/components/ui";
+import { Button, Menu, Select, Tooltip } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { system } from "src/theme";
 import { type LogLevel, logLevelColorMapping, logLevelOptions } from "src/utils/logs";
 
 type Props = {
+  readonly expanded?: boolean;
   readonly isFullscreen?: boolean;
   readonly onSelectTryNumber: (tryNumber: number) => void;
+  readonly showSource: boolean;
+  readonly showTimestamp: boolean;
   readonly sourceOptions?: Array<string>;
   readonly taskInstance?: TaskInstanceResponse;
+  readonly toggleExpanded?: () => void;
   readonly toggleFullscreen: () => void;
+  readonly toggleSource: () => void;
+  readonly toggleTimestamp: () => void;
   readonly toggleWrap: () => void;
   readonly tryNumber?: number;
   readonly wrap: boolean;
 };
 
 export const TaskLogHeader = ({
+  expanded,
   isFullscreen = false,
   onSelectTryNumber,
+  showSource,
+  showTimestamp,
   sourceOptions,
   taskInstance,
+  toggleExpanded,
   toggleFullscreen,
+  toggleSource,
+  toggleTimestamp,
   toggleWrap,
   tryNumber,
   wrap,
 }: Props) => {
+  const { t: translate } = useTranslation(["common", "dag"]);
   const [searchParams, setSearchParams] = useSearchParams();
   const sources = searchParams.getAll(SearchParamsKeys.SOURCE);
   const logLevels = searchParams.getAll(SearchParamsKeys.LOG_LEVEL);
@@ -72,7 +94,7 @@ export const TaskLogHeader = ({
     value: string;
   }>({
     items: [
-      { label: "All Sources", value: "all" },
+      { label: translate("dag:logs.allSources"), value: "all" },
       ...(sourceOptions ?? []).map((source) => ({ label: source, value: source })),
     ],
   });
@@ -120,7 +142,7 @@ export const TaskLogHeader = ({
           taskInstance={taskInstance}
         />
       )}
-      <HStack justifyContent="space-between" mb={2}>
+      <HStack justifyContent="space-between">
         <Select.Root
           collection={logLevelOptions}
           maxW="250px"
@@ -141,7 +163,7 @@ export const TaskLogHeader = ({
                     ))}
                   </HStack>
                 ) : (
-                  "All Log Levels"
+                  translate("dag:logs.allLevels")
                 )
               }
             </Select.ValueText>
@@ -150,9 +172,11 @@ export const TaskLogHeader = ({
             {logLevelOptions.items.map((option) => (
               <Select.Item item={option} key={option.label}>
                 {option.value === "all" ? (
-                  option.label
+                  translate(option.label)
                 ) : (
-                  <Badge colorPalette={logLevelColorMapping[option.value as LogLevel]}>{option.label}</Badge>
+                  <Badge colorPalette={logLevelColorMapping[option.value as LogLevel]}>
+                    {translate(option.label)}
+                  </Badge>
                 )}
               </Select.Item>
             ))}
@@ -167,7 +191,7 @@ export const TaskLogHeader = ({
             value={sources}
           >
             <Select.Trigger clearable>
-              <Select.ValueText placeholder="All Sources" />
+              <Select.ValueText placeholder={translate("dag:logs.allSources")} />
             </Select.Trigger>
             <Select.Content>
               {sourceOptionList.items.map((option) => (
@@ -178,14 +202,58 @@ export const TaskLogHeader = ({
             </Select.Content>
           </Select.Root>
         ) : undefined}
-        <HStack>
-          <Button aria-label={wrap ? "Unwrap" : "Wrap"} bg="bg.panel" onClick={toggleWrap} variant="outline">
-            {wrap ? "Unwrap" : "Wrap"}
-          </Button>
+        <HStack gap={1}>
+          <Menu.Root>
+            <Menu.Trigger asChild>
+              <Button variant="outline">
+                <MdSettings /> {translate("dag:logs.settings")}
+              </Button>
+            </Menu.Trigger>
+            <Menu.Content zIndex={zIndex}>
+              <Menu.Item onClick={toggleWrap} value="wrap">
+                <MdWrapText /> {wrap ? translate("wrap.unwrap") : translate("wrap.wrap")}
+                <Menu.ItemCommand>{translate("wrap.hotkey")}</Menu.ItemCommand>
+              </Menu.Item>
+              <Menu.Item onClick={toggleTimestamp} value="timestamp">
+                <MdAccessTime /> {showTimestamp ? translate("timestamp.hide") : translate("timestamp.show")}
+                <Menu.ItemCommand>{translate("timestamp.hotkey")}</Menu.ItemCommand>
+              </Menu.Item>
+              <Menu.Item onClick={toggleExpanded} value="expand">
+                {expanded ? (
+                  <>
+                    <MdCompress /> {translate("expand.collapse")}
+                  </>
+                ) : (
+                  <>
+                    <MdExpand /> {translate("expand.expand")}
+                  </>
+                )}
+                <Menu.ItemCommand>{translate("expand.hotkey")}</Menu.ItemCommand>
+              </Menu.Item>
+              <Menu.Item onClick={toggleSource} value="source">
+                <MdCode /> {showSource ? translate("source.hide") : translate("source.show")}
+                <Menu.ItemCommand>{translate("source.hotkey")}</Menu.ItemCommand>
+              </Menu.Item>
+            </Menu.Content>
+          </Menu.Root>
           {!isFullscreen && (
-            <IconButton aria-label="Full screen" bg="bg.panel" onClick={toggleFullscreen} variant="outline">
-              <MdOutlineOpenInFull />
-            </IconButton>
+            <Tooltip
+              closeDelay={100}
+              content={translate("dag:logs.fullscreen.tooltip", { hotkey: "f" })}
+              openDelay={100}
+            >
+              <IconButton
+                aria-label={translate("dag:logs.fullscreen.button")}
+                bg="bg.panel"
+                m={0}
+                onClick={toggleFullscreen}
+                px={4}
+                py={2}
+                variant="outline"
+              >
+                <MdOutlineOpenInFull />
+              </IconButton>
+            </Tooltip>
           )}
         </HStack>
       </HStack>

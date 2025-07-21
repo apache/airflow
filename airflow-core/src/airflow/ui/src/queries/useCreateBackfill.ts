@@ -16,24 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
-import { useBackfillServiceCreateBackfill, useBackfillServiceListBackfillsKey } from "openapi/queries";
+import { useBackfillServiceCreateBackfill, useBackfillServiceListBackfillsUiKey } from "openapi/queries";
 import type { CreateBackfillData } from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
-import { queryClient } from "src/queryClient";
 
 export const useCreateBackfill = ({ onSuccessConfirm }: { onSuccessConfirm: () => void }) => {
   const [dateValidationError, setDateValidationError] = useState<unknown>(undefined);
   const [error, setError] = useState<unknown>(undefined);
+  const queryClient = useQueryClient();
+  const { t: translate } = useTranslation("components");
 
   const onSuccess = async () => {
     await queryClient.invalidateQueries({
-      queryKey: [useBackfillServiceListBackfillsKey],
+      queryKey: [useBackfillServiceListBackfillsUiKey],
     });
     toaster.create({
-      description: "Backfill jobs have been successfully triggered.",
-      title: "Backfill generated",
+      description: translate("backfill.toaster.success.description"),
+      title: translate("backfill.toaster.success.title"),
       type: "success",
     });
     onSuccessConfirm();
@@ -49,7 +52,7 @@ export const useCreateBackfill = ({ onSuccessConfirm }: { onSuccessConfirm: () =
     if (data.requestBody.from_date === "" || data.requestBody.to_date === "") {
       setDateValidationError({
         body: {
-          detail: "Both Data Interval Start Date and End Date must be provided.",
+          detail: translate("backfill.validation.datesRequired"),
         },
       });
 
@@ -63,7 +66,7 @@ export const useCreateBackfill = ({ onSuccessConfirm }: { onSuccessConfirm: () =
     if (dataIntervalStart > dataIntervalEnd) {
       setDateValidationError({
         body: {
-          detail: "Data Interval Start Date must be less than or equal to Data Interval End Date.",
+          detail: translate("backfill.validation.startBeforeEnd"),
         },
       });
 
@@ -76,7 +79,7 @@ export const useCreateBackfill = ({ onSuccessConfirm }: { onSuccessConfirm: () =
     mutate({
       requestBody: {
         dag_id: dagId,
-        dag_run_conf: {},
+        dag_run_conf: data.requestBody.dag_run_conf ?? {},
         from_date: formattedDataIntervalStart,
         max_active_runs: data.requestBody.max_active_runs,
         reprocess_behavior: data.requestBody.reprocess_behavior,

@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import inspect
 from collections import abc
 from collections.abc import Iterable
 from datetime import datetime, timedelta
@@ -34,6 +35,7 @@ from pydantic import (
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_tags import DagTagResponse
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
+from airflow.api_fastapi.core_api.datamodels.deadline import DeadlineAlertResponse
 from airflow.configuration import conf
 from airflow.models.dag_version import DagVersion
 
@@ -66,6 +68,7 @@ class DAGResponse(BaseModel):
     relative_fileloc: str | None
     fileloc: str
     description: str | None
+    deadline: list[DeadlineAlertResponse] | None
     timetable_summary: str | None
     timetable_description: str | None
     tags: list[DagTagResponse]
@@ -90,7 +93,7 @@ class DAGResponse(BaseModel):
         if v is None:
             return []
         if isinstance(v, str):
-            return v.split(",")
+            return [x.strip() for x in v.split(",")]
         return v
 
     @field_validator("timetable_summary", mode="before")
@@ -102,11 +105,11 @@ class DAGResponse(BaseModel):
         return str(tts)
 
     # Mypy issue https://github.com/python/mypy/issues/1362
-    @computed_field  # type: ignore[misc]
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def file_token(self) -> str:
         """Return file token."""
-        serializer = URLSafeSerializer(conf.get_mandatory_value("webserver", "secret_key"))
+        serializer = URLSafeSerializer(conf.get_mandatory_value("api", "secret_key"))
         payload = {
             "bundle_name": self.bundle_name,
             "relative_fileloc": self.relative_fileloc,
@@ -154,6 +157,8 @@ class DAGDetailsResponse(DAGResponse):
     template_search_path: Iterable[str] | None
     timezone: str | None
     last_parsed: datetime | None
+    default_args: abc.Mapping | None
+    owner_links: dict[str, str] | None = None
 
     @field_validator("timezone", mode="before")
     @classmethod
@@ -162,6 +167,14 @@ class DAGDetailsResponse(DAGResponse):
         if tz is None:
             return None
         return str(tz)
+
+    @field_validator("doc_md", mode="before")
+    @classmethod
+    def get_doc_md(cls, doc_md: str | None) -> str | None:
+        """Clean indentation in doc md."""
+        if doc_md is None:
+            return None
+        return inspect.cleandoc(doc_md)
 
     @field_validator("params", mode="before")
     @classmethod
@@ -172,18 +185,18 @@ class DAGDetailsResponse(DAGResponse):
         return {k: v.dump() for k, v in params.items()}
 
     # Mypy issue https://github.com/python/mypy/issues/1362
-    @computed_field  # type: ignore[misc]
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def concurrency(self) -> int:
         """Return max_active_tasks as concurrency."""
         return self.max_active_tasks
 
     # Mypy issue https://github.com/python/mypy/issues/1362
-    @computed_field  # type: ignore[misc]
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def latest_dag_version(self) -> DagVersionResponse | None:
         """Return the latest DagVersion."""
-        latest_dag_version = DagVersion.get_latest_version(self.dag_id)
+        latest_dag_version = DagVersion.get_latest_version(self.dag_id, load_dag_model=True)
         if latest_dag_version is None:
             return latest_dag_version
         return DagVersionResponse.model_validate(latest_dag_version)

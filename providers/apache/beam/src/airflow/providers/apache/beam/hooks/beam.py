@@ -15,8 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains a Apache Beam Hook."""
-
 from __future__ import annotations
 
 import asyncio
@@ -31,14 +29,14 @@ import shutil
 import subprocess
 import tempfile
 import textwrap
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from packaging.version import Version
 
 from airflow.exceptions import AirflowConfigException, AirflowException
-from airflow.hooks.base import BaseHook
+from airflow.providers.apache.beam.version_compat import BaseHook
 from airflow.providers.common.compat.standard.utils import prepare_virtualenv
-from airflow.providers.google.go_module_utils import init_module, install_dependencies
 
 if TYPE_CHECKING:
     import logging
@@ -375,6 +373,16 @@ class BeamHook(BaseHook):
                 "You need to have Go installed to run beam go pipeline. See https://go.dev/doc/install "
                 "installation guide. If you are running airflow in Docker see more info at "
                 "'https://airflow.apache.org/docs/docker-stack/recipes.html'."
+            )
+
+        try:
+            from airflow.providers.google.go_module_utils import init_module, install_dependencies
+        except ImportError:
+            from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+            raise AirflowOptionalProviderFeatureException(
+                "Failed to import apache-airflow-google-provider. To start a go pipeline, please install the"
+                " google provider."
             )
 
         if "labels" in variables:

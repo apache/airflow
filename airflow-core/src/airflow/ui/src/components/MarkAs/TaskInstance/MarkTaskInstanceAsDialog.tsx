@@ -18,6 +18,7 @@
  */
 import { Flex, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
@@ -40,6 +41,7 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
   const dagRunId = taskInstance.dag_run_id;
   const taskId = taskInstance.task_id;
   const mapIndex = taskInstance.map_index;
+  const { t: translate } = useTranslation();
 
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>([]);
 
@@ -87,8 +89,15 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
         <Dialog.Header>
           <VStack align="start" gap={4}>
             <Heading size="xl">
-              <strong>Mark Task Instance as {state}:</strong> {taskInstance.task_display_name}{" "}
-              <Time datetime={taskInstance.start_date} /> <StateBadge state={state} />
+              <strong>
+                {translate("dags:runAndTaskActions.markAs.title", {
+                  state,
+                  type: translate("taskInstance_one"),
+                })}
+                :
+              </strong>{" "}
+              {taskInstance.task_display_name} <Time datetime={taskInstance.start_date} />{" "}
+              <StateBadge state={state} />
             </Heading>
           </VStack>
         </Dialog.Header>
@@ -98,13 +107,28 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
         <Dialog.Body width="full">
           <Flex justifyContent="center">
             <SegmentedControl
+              defaultValues={["downstream"]}
               multiple
               onChange={setSelectedOptions}
               options={[
-                { disabled: taskInstance.logical_date === null, label: "Past", value: "past" },
-                { disabled: taskInstance.logical_date === null, label: "Future", value: "future" },
-                { label: "Upstream", value: "upstream" },
-                { label: "Downstream", value: "downstream" },
+                {
+                  disabled: taskInstance.logical_date === null,
+                  label: translate("dags:runAndTaskActions.options.past"),
+                  value: "past",
+                },
+                {
+                  disabled: taskInstance.logical_date === null,
+                  label: translate("dags:runAndTaskActions.options.future"),
+                  value: "future",
+                },
+                {
+                  label: translate("dags:runAndTaskActions.options.upstream"),
+                  value: "upstream",
+                },
+                {
+                  label: translate("dags:runAndTaskActions.options.downstream"),
+                  value: "downstream",
+                },
               ]}
             />
           </Flex>
@@ -130,7 +154,7 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
                 });
               }}
             >
-              Confirm
+              {translate("modal.confirm")}
             </Button>
           </Flex>
         </Dialog.Body>

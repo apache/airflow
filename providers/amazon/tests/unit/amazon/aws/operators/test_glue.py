@@ -155,6 +155,11 @@ class TestGlueJobOperator:
 
         assert defer.value.trigger.job_name == JOB_NAME
         assert defer.value.trigger.run_id == JOB_RUN_ID
+        assert defer.value.trigger.region_name == "us-west-2"
+        assert not defer.value.trigger.verbose
+        assert defer.value.trigger.waiter_delay == 60
+        assert defer.value.trigger.attempts == 75
+        assert defer.value.trigger.aws_conn_id == "aws_default"
 
     @mock.patch.object(GlueJobHook, "print_job_logs")
     @mock.patch.object(GlueJobHook, "get_job_state")
@@ -335,6 +340,68 @@ class TestGlueJobOperator:
             "folder/file", "artifacts/glue-scripts/file", bucket_name="bucket_name", replace=True
         )
 
+        assert glue.s3_script_location == "s3://bucket_name/artifacts/glue-scripts/file"
+
+    @mock.patch.object(GlueJobHook, "get_job_state")
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    @mock.patch.object(GlueJobHook, "conn")
+    @mock.patch.object(S3Hook, "load_file")
+    @mock.patch.object(GlueJobOperator, "upload_etl_script_to_s3")
+    def test_upload_script_to_s3_no_upload(
+        self,
+        mock_upload,
+        mock_load_file,
+        mock_conn,
+        mock_get_connection,
+        mock_initialize_job,
+        mock_get_job_state,
+    ):
+        glue = GlueJobOperator(
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            script_location="s3://my_bucket/folder/file",
+            s3_bucket="bucket_name",
+            iam_role_name="role_arn",
+            replace_script_file=True,
+        )
+        mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
+        mock_get_job_state.return_value = "SUCCEEDED"
+        glue.execute(mock.MagicMock())
+
+        assert glue.s3_script_location == "s3://my_bucket/folder/file"
+        mock_load_file.assert_not_called()
+        mock_upload.assert_not_called()
+
+    @mock.patch.object(GlueJobHook, "get_job_state")
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    @mock.patch.object(GlueJobHook, "conn")
+    @mock.patch.object(S3Hook, "load_file")
+    @mock.patch.object(GlueJobOperator, "upload_etl_script_to_s3")
+    def test_no_script_file(
+        self,
+        mock_upload,
+        mock_load_file,
+        mock_conn,
+        mock_get_connection,
+        mock_initialize_job,
+        mock_get_job_state,
+    ):
+        glue = GlueJobOperator(
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            iam_role_name="role_arn",
+            replace_script_file=True,
+        )
+
+        mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
+        mock_get_job_state.return_value = "SUCCEEDED"
+        glue.execute(mock.MagicMock())
+
+        assert glue.s3_script_location is None
+        mock_upload.assert_not_called()
+
     def test_template_fields(self):
         operator = GlueJobOperator(
             task_id=TASK_ID,
@@ -345,6 +412,25 @@ class TestGlueJobOperator:
             replace_script_file=True,
         )
         validate_template_fields(operator)
+
+    def test_overwritten_conn_passed_to_hook(self):
+        OVERWRITTEN_CONN = "new-conn-id"
+        op = GlueJobOperator(
+            task_id=TASK_ID,
+            aws_conn_id=OVERWRITTEN_CONN,
+            iam_role_name="role_arn",
+            replace_script_file=True,
+        )
+        assert op.hook.aws_conn_id == OVERWRITTEN_CONN
+
+    def test_default_conn_passed_to_hook(self):
+        DEFAULT_CONN = "aws_default"
+        op = GlueJobOperator(
+            task_id=TASK_ID,
+            iam_role_name="role_arn",
+            replace_script_file=True,
+        )
+        assert op.hook.aws_conn_id == DEFAULT_CONN
 
 
 class TestGlueDataQualityOperator:
@@ -480,6 +566,23 @@ class TestGlueDataQualityOperator:
         )
         validate_template_fields(operator)
 
+    def test_overwritten_conn_passed_to_hook(self):
+        OVERWRITTEN_CONN = "new-conn-id"
+        op = GlueDataQualityOperator(
+            task_id="test_overwritten_conn_passed_to_hook",
+            name=self.RULE_SET_NAME,
+            ruleset=self.RULE_SET,
+            aws_conn_id=OVERWRITTEN_CONN,
+        )
+        assert op.hook.aws_conn_id == OVERWRITTEN_CONN
+
+    def test_default_conn_passed_to_hook(self):
+        DEFAULT_CONN = "aws_default"
+        op = GlueDataQualityOperator(
+            task_id="test_default_conn_passed_to_hook", name=self.RULE_SET_NAME, ruleset=self.RULE_SET
+        )
+        assert op.hook.aws_conn_id == DEFAULT_CONN
+
 
 class TestGlueDataQualityRuleSetEvaluationRunOperator:
     RUN_ID = "1234567890"
@@ -585,6 +688,29 @@ class TestGlueDataQualityRuleSetEvaluationRunOperator:
 
     def test_template_fields(self):
         validate_template_fields(self.operator)
+
+    def test_overwritten_conn_passed_to_hook(self):
+        OVERWRITTEN_CONN = "new-conn-id"
+        op = GlueDataQualityRuleSetEvaluationRunOperator(
+            task_id="test_overwritten_conn_passed_to_hook",
+            datasource=self.DATA_SOURCE,
+            role=self.ROLE,
+            rule_set_names=self.RULE_SET_NAMES,
+            show_results=False,
+            aws_conn_id=OVERWRITTEN_CONN,
+        )
+        assert op.hook.aws_conn_id == OVERWRITTEN_CONN
+
+    def test_default_conn_passed_to_hook(self):
+        DEFAULT_CONN = "aws_default"
+        op = GlueDataQualityRuleSetEvaluationRunOperator(
+            task_id="test_default_conn_passed_to_hook",
+            datasource=self.DATA_SOURCE,
+            role=self.ROLE,
+            rule_set_names=self.RULE_SET_NAMES,
+            show_results=False,
+        )
+        assert op.hook.aws_conn_id == DEFAULT_CONN
 
 
 class TestGlueDataQualityRuleRecommendationRunOperator:
@@ -694,3 +820,28 @@ class TestGlueDataQualityRuleRecommendationRunOperator:
 
     def test_template_fields(self):
         validate_template_fields(self.operator)
+
+    def test_overwritten_conn_passed_to_hook(self):
+        OVERWRITTEN_CONN = "new-conn-id"
+        op = GlueDataQualityRuleRecommendationRunOperator(
+            task_id="test_overwritten_conn_passed_to_hook",
+            datasource=self.DATA_SOURCE,
+            role=self.ROLE,
+            number_of_workers=10,
+            timeout=1000,
+            recommendation_run_kwargs={"CreatedRulesetName": "test-ruleset"},
+            aws_conn_id=OVERWRITTEN_CONN,
+        )
+        assert op.hook.aws_conn_id == OVERWRITTEN_CONN
+
+    def test_default_conn_passed_to_hook(self):
+        DEFAULT_CONN = "aws_default"
+        op = GlueDataQualityRuleRecommendationRunOperator(
+            task_id="test_default_conn_passed_to_hook",
+            datasource=self.DATA_SOURCE,
+            role=self.ROLE,
+            number_of_workers=10,
+            timeout=1000,
+            recommendation_run_kwargs={"CreatedRulesetName": "test-ruleset"},
+        )
+        assert op.hook.aws_conn_id == DEFAULT_CONN

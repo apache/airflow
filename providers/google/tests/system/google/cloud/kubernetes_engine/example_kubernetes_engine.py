@@ -34,6 +34,7 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "kubernetes_engine"
@@ -95,15 +96,22 @@ with DAG(
 
     # [START howto_operator_gke_xcom_result]
     pod_task_xcom_result = BashOperator(
-        bash_command="echo \"{{ task_instance.xcom_pull('pod_task_xcom') }}\"",
         task_id="pod_task_xcom_result",
+        bash_command="""
+        {% if params.airflow_v3 %}
+        echo "{{ task_instance.xcom_pull('pod_task_xcom') }}"
+        {% else %}
+        echo "{{ task_instance.xcom_pull('pod_task_xcom')[0] }}"
+        {% endif %}
+        """,
+        params={"airflow_v3": AIRFLOW_V_3_0_PLUS},
     )
     # [END howto_operator_gke_xcom_result]
 
     # [START howto_operator_gke_delete_cluster]
     delete_cluster = GKEDeleteClusterOperator(
         task_id="delete_cluster",
-        name=CLUSTER_NAME,
+        cluster_name=CLUSTER_NAME,
         project_id=GCP_PROJECT_ID,
         location=GCP_LOCATION,
     )

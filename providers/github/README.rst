@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-github``
 
-Release: ``2.8.3``
+Release: ``2.9.1``
 
 
 `GitHub <https://www.github.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``github`` provider. All classes for this provide
 are in ``airflow.providers.github`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-github/2.8.3/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-github/2.9.1/>`_.
 
 Installation
 ------------
@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow 2 installation (see `
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-github``
 
-The package supports the following python versions: 3.9,3.10,3.11,3.12
+The package supports the following python versions: 3.10,3.11,3.12,3.13
 
 Requirements
 ------------
@@ -53,9 +53,9 @@ Requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.9.0``
+``apache-airflow``  ``>=2.10.0``
 ``PyGithub``        ``>=2.1.1``
 ==================  ==================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-github/2.8.3/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-github/2.9.1/changelog.html>`_.

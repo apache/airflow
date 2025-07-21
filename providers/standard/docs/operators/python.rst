@@ -32,7 +32,7 @@ Use the :class:`~airflow.providers.standard.operators.python.PythonOperator` to 
     .. tab-item:: @task
         :sync: taskflow
 
-        .. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_python_decorator.py
+        .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_python_decorator.py
             :language: python
             :dedent: 4
             :start-after: [START howto_operator_python]
@@ -41,7 +41,7 @@ Use the :class:`~airflow.providers.standard.operators.python.PythonOperator` to 
     .. tab-item:: PythonOperator
         :sync: operator
 
-        .. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_python_operator.py
+        .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_python_operator.py
             :language: python
             :dedent: 4
             :start-after: [START howto_operator_python]
@@ -57,7 +57,7 @@ Pass extra arguments to the ``@task`` decorated function as you would with a nor
     .. tab-item:: @task
         :sync: taskflow
 
-        .. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_python_decorator.py
+        .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_python_decorator.py
             :language: python
             :dedent: 4
             :start-after: [START howto_operator_python_kwargs]
@@ -66,7 +66,7 @@ Pass extra arguments to the ``@task`` decorated function as you would with a nor
     .. tab-item:: PythonOperator
         :sync: operator
 
-        .. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_python_operator.py
+        .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_python_operator.py
             :language: python
             :dedent: 4
             :start-after: [START howto_operator_python_kwargs]
@@ -87,7 +87,7 @@ is evaluated as a :ref:`Jinja template <concepts:jinja-templating>`.
     .. tab-item:: @task
         :sync: taskflow
 
-        .. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_python_decorator.py
+        .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_python_decorator.py
             :language: python
             :dedent: 4
             :start-after: [START howto_operator_python_render_sql]
@@ -96,7 +96,7 @@ is evaluated as a :ref:`Jinja template <concepts:jinja-templating>`.
     .. tab-item:: PythonOperator
         :sync: operator
 
-        .. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_python_operator.py
+        .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_python_operator.py
             :language: python
             :dedent: 4
             :start-after: [START howto_operator_python_render_sql]
@@ -137,7 +137,7 @@ smoother data exchange, while still effectively handling common Python objects a
     .. tab-item:: @task.virtualenv
         :sync: taskflow
 
-        .. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_python_decorator.py
+        .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_python_decorator.py
             :language: python
             :dedent: 4
             :start-after: [START howto_operator_python_venv]
@@ -146,7 +146,7 @@ smoother data exchange, while still effectively handling common Python objects a
     .. tab-item:: PythonVirtualenvOperator
         :sync: operator
 
-        .. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_python_operator.py
+        .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_python_operator.py
             :language: python
             :dedent: 4
             :start-after: [START howto_operator_python_venv]
@@ -196,6 +196,13 @@ If you want to use additional task specific private python repositories to setup
 pip install configurations. Passed index urls replace the standard system configured index url settings.
 To prevent adding secrets to the private repository in your DAG code you can use the Airflow
 :doc:`apache-airflow:authoring-and-scheduling/connections`. For this purpose the connection type ``Package Index (Python)`` can be used.
+In the ``Package Index (Python)`` connection type you can specify the index URL and credentials for the private repository.
+After creating a ``Package Index (Python)`` connection, you can provide the connection ID to the ``PythonVirtualenvOperator`` using the ``index_urls_from_connection_ids`` parameter.
+The ``PythonVirtualenvOperator`` will automatically append the index URLs from the connection to the ``index_urls`` parameter of the pip installer including the provided credentials.
+
+The first ``index_url`` in the list will be used as main index URL (``index-url`` for pip or ``default-index`` for uv) of the virtual environment setup.
+Additional URLs will be added as extra index URLs. If you provide both parameters ``index_urls`` and ``index_urls_from_connection_ids``, the first URL in
+the ``index_urls`` will be used as the main index URL and the rest will be added as extra index URLs.
 
 In the special case you want to prevent remote calls for setup of a virtual environment, pass the ``index_urls`` as empty list as ``index_urls=[]`` which
 forced pip installer to use the ``--no-index`` option.
@@ -251,7 +258,7 @@ in main Airflow environment).
     .. tab-item:: @task.external_python
         :sync: taskflow
 
-        .. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_python_decorator.py
+        .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_python_decorator.py
             :language: python
             :dedent: 4
             :start-after: [START howto_operator_external_python]
@@ -260,7 +267,7 @@ in main Airflow environment).
     .. tab-item:: ExternalPythonOperator
         :sync: operator
 
-        .. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_python_operator.py
+        .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_python_operator.py
             :language: python
             :dedent: 4
             :start-after: [START howto_operator_external_python]
@@ -308,7 +315,7 @@ tasks.
     .. tab-item:: @task.branch
         :sync: taskflow
 
-        .. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_branch_operator_decorator.py
+        .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_branch_operator_decorator.py
             :language: python
             :dedent: 4
             :start-after: [START howto_operator_branch_python]
@@ -317,7 +324,7 @@ tasks.
     .. tab-item:: PythonBranchOperator
         :sync: operator
 
-        .. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_branch_operator.py
+        .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_branch_operator.py
             :language: python
             :dedent: 4
             :start-after: [START howto_operator_branch_python]
@@ -345,7 +352,7 @@ tasks and is a hybrid of the :class:`~airflow.providers.standard.operators.pytho
     .. tab-item:: @task.branch_virtualenv
         :sync: taskflow
 
-        .. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_branch_operator_decorator.py
+        .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_branch_operator_decorator.py
             :language: python
             :dedent: 4
             :start-after: [START howto_operator_branch_virtualenv]
@@ -354,7 +361,7 @@ tasks and is a hybrid of the :class:`~airflow.providers.standard.operators.pytho
     .. tab-item:: BranchPythonVirtualenvOperator
         :sync: operator
 
-        .. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_branch_operator.py
+        .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_branch_operator.py
             :language: python
             :dedent: 4
             :start-after: [START howto_operator_branch_virtualenv]
@@ -383,7 +390,7 @@ external Python environment.
     .. tab-item:: @task.branch_external_python
         :sync: taskflow
 
-        .. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_branch_operator_decorator.py
+        .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_branch_operator_decorator.py
             :language: python
             :dedent: 4
             :start-after: [START howto_operator_branch_ext_py]
@@ -392,7 +399,7 @@ external Python environment.
     .. tab-item:: BranchExternalPythonOperator
         :sync: operator
 
-        .. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_branch_operator.py
+        .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_branch_operator.py
             :language: python
             :dedent: 4
             :start-after: [START howto_operator_branch_ext_py]
@@ -428,7 +435,7 @@ skipped.
     .. tab-item:: @task.short_circuit
         :sync: taskflow
 
-        .. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_short_circuit_decorator.py
+        .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_short_circuit_decorator.py
             :language: python
             :dedent: 4
             :start-after: [START howto_operator_short_circuit]
@@ -437,7 +444,7 @@ skipped.
     .. tab-item:: ShortCircuitOperator
         :sync: operator
 
-        .. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_short_circuit_operator.py
+        .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_short_circuit_operator.py
             :language: python
             :dedent: 4
             :start-after: [START howto_operator_short_circuit]
@@ -463,7 +470,7 @@ tasks have completed running regardless of status (i.e. the ``TriggerRule.ALL_DO
     .. tab-item:: @task.short_circuit
         :sync: taskflow
 
-        .. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_short_circuit_decorator.py
+        .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_short_circuit_decorator.py
             :language: python
             :dedent: 4
             :start-after: [START howto_operator_short_circuit_trigger_rules]
@@ -472,7 +479,7 @@ tasks have completed running regardless of status (i.e. the ``TriggerRule.ALL_DO
     .. tab-item:: ShortCircuitOperator
         :sync: operator
 
-        .. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_short_circuit_operator.py
+        .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_short_circuit_operator.py
             :language: python
             :dedent: 4
             :start-after: [START howto_operator_short_circuit_trigger_rules]

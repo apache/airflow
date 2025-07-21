@@ -26,24 +26,21 @@ type Props = {
 } & TaskNameProps;
 
 export const TaskLink = forwardRef<HTMLAnchorElement, Props>(({ id, isGroup, isMapped, ...rest }, ref) => {
-  const { dagId = "", runId, taskId } = useParams();
+  const { dagId = "", groupId, runId, taskId } = useParams();
   const [searchParams] = useSearchParams();
 
-  // We don't have a task group details page to link to
-  if (isGroup) {
-    return <TaskName isGroup={true} isMapped={isMapped} {...rest} />;
-  }
+  const basePath = `/dags/${dagId}${runId === undefined ? "" : `/runs/${runId}`}`;
+  const taskPath = isGroup
+    ? groupId === id
+      ? ""
+      : `/tasks/group/${id}`
+    : taskId === id
+      ? ""
+      : `/tasks/${id}${isMapped && taskId !== id && runId !== undefined ? "/mapped" : ""}`;
 
   return (
-    <RouterLink
-      ref={ref}
-      to={{
-        // Do not include runId if there is no selected run, clicking a second time will deselect a task id
-        pathname: `/dags/${dagId}/${runId === undefined ? "" : `runs/${runId}/`}${taskId === id ? "" : `tasks/${id}`}${isMapped && taskId !== id && runId !== undefined ? "/mapped" : ""}`,
-        search: searchParams.toString(),
-      }}
-    >
-      <TaskName isMapped={isMapped} {...rest} />
+    <RouterLink ref={ref} to={{ pathname: basePath + taskPath, search: searchParams.toString() }}>
+      <TaskName isGroup={isGroup} isMapped={isMapped} {...rest} />
     </RouterLink>
   );
 });

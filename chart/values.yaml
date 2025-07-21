@@ -68,13 +68,13 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "3.0.0"
+defaultAirflowTag: "3.0.3"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "3.0.0"
+airflowVersion: "3.0.3"
 
 # Images
 images:
@@ -138,8 +138,53 @@ labels: {}
 
 # Ingress configuration
 ingress:
-  # Enable all ingress resources (deprecated - use ingress.web.enabled and ingress.flower.enabled)
+  # Enable all ingress resources
+  # (deprecated - use ingress.web.enabled, ingress.apiServer.enabled and ingress.flower.enabled)
   enabled: ~
+
+  # Configs for the Ingress of the API Server
+  apiServer:
+    # Enable API Server ingress resource
+    enabled: false
+
+    # Annotations for the API Server Ingress
+    annotations: {}
+
+    # The path for the API Server Ingress
+    path: "/"
+
+    # The pathType for the above path (used only with Kubernetes v1.19 and above)
+    pathType: "ImplementationSpecific"
+
+    # The hostname for the API Server Ingress (Deprecated - renamed to `ingress.apiServer.hosts`)
+    host: ""
+
+    # The hostnames or hosts configuration for the API Server Ingress
+    hosts: []
+    #   # The hostname for the web Ingress (templated)
+    # - name: ""
+    #   # configs for API Server Ingress TLS
+    #   tls:
+    #     # Enable TLS termination for the API Server Ingress
+    #     enabled: false
+    #     # the name of a pre-created Secret containing a TLS private key and certificate
+    #     secretName: ""
+
+    # The Ingress Class for the API Server Ingress (used only with Kubernetes v1.19 and above)
+    ingressClassName: ""
+
+    # configs for API Server Ingress TLS (Deprecated - renamed to `ingress.apiServer.hosts[*].tls`)
+    tls:
+      # Enable TLS termination for the API Server Ingress
+      enabled: false
+      # the name of a pre-created Secret containing a TLS private key and certificate
+      secretName: ""
+
+    # HTTP paths to add to the API Server Ingress before the default path
+    precedingPaths: []
+
+    # Http paths to add to the API Server Ingress after the default path
+    succeedingPaths: []
 
   # Configs for the Ingress of the web Service
   web:
@@ -323,8 +368,10 @@ rbac:
   createSCCRoleBinding: false
 
 # Airflow executor
-# One of: LocalExecutor, LocalKubernetesExecutor, CeleryExecutor, KubernetesExecutor, CeleryKubernetesExecutor
-# Specify executors in a prioritized list to leverage multiple execution environments as needed.
+# One or multiple of: LocalExecutor, CeleryExecutor, KubernetesExecutor
+# For Airflow <3.0, LocalKubernetesExecutor and CeleryKubernetesExecutor are also supported.
+# Specify executors in a prioritized list to leverage multiple execution environments as needed:
+# https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/executor/index.html#using-multiple-executors-concurrently
 executor: "CeleryExecutor"
 
 # If this is true and using LocalExecutor/KubernetesExecutor/CeleryKubernetesExecutor, the scheduler's
@@ -332,6 +379,7 @@ executor: "CeleryExecutor"
 # If this is true and using CeleryExecutor/KubernetesExecutor/CeleryKubernetesExecutor, the workers
 # will be able to launch pods.
 allowPodLaunching: true
+allowJobLaunching: false
 
 # Environment variables for all airflow containers
 env: []
@@ -360,6 +408,8 @@ enableBuiltInSecretEnvVars:
   AIRFLOW__CORE__SQL_ALCHEMY_CONN: true
   AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: true
   AIRFLOW_CONN_AIRFLOW_DB: true
+  AIRFLOW__API__SECRET_KEY: true
+  AIRFLOW__API_AUTH__JWT_SECRET: true
   AIRFLOW__WEBSERVER__SECRET_KEY: true
   AIRFLOW__CELERY__CELERY_RESULT_BACKEND: true
   AIRFLOW__CELERY__RESULT_BACKEND: true
@@ -476,8 +526,12 @@ data:
     port: 5432
     db: postgres
     sslmode: disable
+    # Add custom annotations to the metadata connection secret
+    secretAnnotations: {}
   # resultBackendConnection defaults to the same database as metadataConnection
   resultBackendConnection: ~
+  # Add custom annotations to the result backend connection secret
+  resultBackendConnectionSecretAnnotations: {}
   # or, you can use a different database
   # resultBackendConnection:
   #   user: postgres
@@ -489,14 +543,32 @@ data:
   #   sslmode: disable
   # Note: brokerUrl can only be set during install, not upgrade
   brokerUrl: ~
+  # Add custom annotations to the broker url secret
+  brokerUrlSecretAnnotations: {}
 
 # Fernet key settings
 # Note: fernetKey can only be set during install, not upgrade
 fernetKey: ~
 fernetKeySecretName: ~
+# Add custom annotations to the fernet key secret
+fernetKeySecretAnnotations: {}
 
-# Flask secret key for Airflow Webserver: `[webserver] secret_key` in airflow.cfg
+# Flask secret key for Airflow 3+ Api: `[api] secret_key` in airflow.cfg
+apiSecretKey: ~
+# Add custom annotations to the api secret
+apiSecretAnnotations: {}
+apiSecretKeySecretName: ~
+
+# Secret key used to encode and decode JWTs: `[api_auth] jwt_secret` in airflow.cfg
+jwtSecret: ~
+# Add custom annotations to the JWT secret
+jwtSecretAnnotations: {}
+jwtSecretName: ~
+
+# Flask secret key for Airflow <3 Webserver: `[webserver] secret_key` in airflow.cfg
 webserverSecretKey: ~
+# Add custom annotations to the webserver secret
+webserverSecretAnnotations: {}
 webserverSecretKeySecretName: ~
 
 # In order to use kerberos you need to create secret containing the keytab file
@@ -558,14 +630,15 @@ kerberos:
 
 # Airflow Worker Config
 workers:
-  # Number of airflow celery workers in StatefulSet
+  # Number of Airflow Celery workers
   replicas: 1
-  # Max number of old replicasets to retain
+
+  # Max number of old Airflow Celery workers ReplicaSets to retain
   revisionHistoryLimit: ~
 
-  # Command to use when running Airflow workers (templated).
+  # Command to use when running Airflow Celery workers and using pod-template-file (templated)
   command: ~
-  # Args to use when running Airflow workers (templated).
+  # Args to use when running Airflow Celery workers (templated)
   args:
     - "bash"
     - "-c"
@@ -574,8 +647,8 @@ workers:
       exec \
       airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery worker" "worker" }}
 
-  # If the worker stops responding for 5 minutes (5*60s) kill the
-  # worker and let Kubernetes restart it
+  # If the Airflow Celery worker stops responding for 5 minutes (5*60s)
+  # kill the worker and let Kubernetes restart it
   livenessProbe:
     enabled: true
     initialDelaySeconds: 10
@@ -584,32 +657,35 @@ workers:
     periodSeconds: 60
     command: ~
 
-  # Update Strategy when worker is deployed as a StatefulSet
+  # Update Strategy when Airflow Celery worker is deployed as a StatefulSet
   updateStrategy: ~
-  # Update Strategy when worker is deployed as a Deployment
+  # Update Strategy when Airflow Celery worker is deployed as a Deployment
   strategy:
     rollingUpdate:
       maxSurge: "100%"
       maxUnavailable: "50%"
 
-  # Allow relaxing ordering guarantees while preserving its uniqueness and identity
+  # Allow relaxing ordering guarantees for Airflow Celery worker while preserving its uniqueness and identity
   # podManagementPolicy: Parallel
 
-  # When not set, the values defined in the global securityContext will be used
+  # When not set, the values defined in the global securityContext will
+  # be used in Airflow Celery workers and pod-template-file
   securityContext: {}
   #  runAsUser: 50000
   #  fsGroup: 0
   #  runAsGroup: 0
 
-  # Detailed default security context for worker deployments for container and pod level
+  # Detailed default security context for the
+  # Airflow Celery workers and pod-template-file on container and pod level
   securityContexts:
     pod: {}
     container: {}
 
-  # container level lifecycle hooks
+  # Container level Lifecycle Hooks definition for
+  # Airflow Celery workers and pods created with pod-template-file
   containerLifecycleHooks: {}
 
-  # Create ServiceAccount
+  # Create ServiceAccount for Airflow Celery workers and pods created with pod-template-file
   serviceAccount:
     # default value is true
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
@@ -623,7 +699,7 @@ workers:
     # Annotations to add to worker kubernetes service account.
     annotations: {}
 
-  # Allow KEDA autoscaling.
+  # Allow KEDA autoscaling for Airflow Celery workers
   keda:
     enabled: false
     namespaceLabels: {}
@@ -635,10 +711,10 @@ workers:
     # Note that HPA has a separate cooldown period for scale-downs
     cooldownPeriod: 30
 
-    # Minimum number of workers created by keda
+    # Minimum number of Airflow Celery workers created by keda
     minReplicaCount: 0
 
-    # Maximum number of workers created by keda
+    # Maximum number of Airflow Celery workers created by keda
     maxReplicaCount: 10
 
     # Specify HPA related options
@@ -657,23 +733,24 @@ workers:
       SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }})
       FROM task_instance
       WHERE (state='running' OR state='queued')
-      {{- if or (contains "CeleryKubernetesExecutor" .Values.executor)
-      (contains "KubernetesExecutor" .Values.executor) }}
+      {{- if contains "CeleryKubernetesExecutor" .Values.executor }}
       AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}'
+      {{- else if contains "KubernetesExecutor" .Values.executor }}
+      AND executor != 'KubernetesExecutor'
       {{- end }}
 
     # Weather to use PGBouncer to connect to the database or not when it is enabled
     # This configuration will be ignored if PGBouncer is not enabled
     usePgbouncer: true
 
-  # Allow HPA (KEDA must be disabled).
+  # Allow HPA for Airflow Celery workers (KEDA must be disabled)
   hpa:
     enabled: false
 
-    # Minimum number of workers created by HPA
+    # Minimum number of Airflow Celery workers created by HPA
     minReplicaCount: 0
 
-    # Maximum number of workers created by HPA
+    # Maximum number of Airflow Celery workers created by HPA
     maxReplicaCount: 5
 
     # Specifications for which to use to calculate the desired replica count
@@ -688,33 +765,43 @@ workers:
     # Scaling behavior of the target in both Up and Down directions
     behavior: {}
 
+  # Persistence volume configuration for Airflow Celery workers
   persistence:
     # Enable persistent volumes
     enabled: true
-    # This policy determines whether PVCs should be deleted when StatefulSet is scaled down or removed.
+
+    # This policy determines whether PVCs should be deleted when StatefulSet is scaled down or removed
     persistentVolumeClaimRetentionPolicy: ~
     # persistentVolumeClaimRetentionPolicy:
     #   whenDeleted: Delete
     #   whenScaled: Delete
-    # Volume size for worker StatefulSet
+
+    # Volume size for Airflow Celery worker StatefulSet
     size: 100Gi
-    # If using a custom storageClass, pass name ref to all statefulSets here
+
+    # If using a custom storageClass, pass name ref to all StatefulSets here
     storageClassName:
+
     # Execute init container to chown log directory.
     # This is currently only needed in kind, due to usage
     # of local-path provisioner.
     fixPermissions: false
-    # Annotations to add to worker volumes
+
+    # Annotations to add to Airflow Celery worker volumes
     annotations: {}
-    # Detailed default security context for persistence for container level
+
+    # Detailed default security context for persistence on container level
     securityContexts:
       container: {}
-    # container level lifecycle hooks
+
+    # Container level lifecycle hooks
     containerLifecycleHooks: {}
 
+  # Kerberos sidecar configuration for Airflow Celery workers and pods created with pod-template-file
   kerberosSidecar:
     # Enable kerberos sidecar
     enabled: false
+
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -722,12 +809,15 @@ workers:
     #  requests:
     #   cpu: 100m
     #   memory: 128Mi
-    # Detailed default security context for kerberosSidecar for container level
+
+    # Detailed default security context for kerberos sidecar on container level
     securityContexts:
       container: {}
-    # container level lifecycle hooks
+
+    # Container level lifecycle hooks
     containerLifecycleHooks: {}
 
+  # Kerberos init container configuration for Airflow Celery workers and pods created with pod-template-file
   kerberosInitContainer:
     # Enable kerberos init container
     enabled: false
@@ -739,7 +829,14 @@ workers:
     #   cpu: 100m
     #   memory: 128Mi
 
+    # Detailed default security context for kerberos init container on container level
+    securityContexts:
+      container: {}
 
+    # Container level lifecycle hooks
+    containerLifecycleHooks: {}
+
+  # Resource configuration for Airflow Celery workers and pods created with pod-template-file
   resources: {}
   #  limits:
   #   cpu: 100m
@@ -748,21 +845,28 @@ workers:
   #   cpu: 100m
   #   memory: 128Mi
 
-  # Grace period for tasks to finish after SIGTERM is sent from kubernetes
+  # Grace period for tasks to finish after SIGTERM is sent from kubernetes.
+  # It is used by Airflow Celery workers and pod-template-file.
   terminationGracePeriodSeconds: 600
 
-  # This setting tells kubernetes that its ok to evict
-  # when it wants to scale a node down.
+  # This setting tells kubernetes that its ok to evict when it wants to scale a node down.
+  # It is used by Airflow Celery workers and pod-template-file.
   safeToEvict: false
 
-  # Launch additional containers into worker (templated).
+  # Launch additional containers into Airflow Celery worker
+  # and pods created with pod-template-file (templated).
   # Note: If used with KubernetesExecutor, you are responsible for signaling sidecars to exit when the main
   # container finishes so Airflow can continue the worker shutdown process!
   extraContainers: []
-  # Add additional init containers into workers (templated).
+  # Add additional init containers into Airflow Celery workers
+  # and pods created with pod-template-file (templated).
   extraInitContainers: []
 
-  # Mount additional volumes into worker. It can be templated like in the following example:
+  # Additional volumes and volume mounts attached to the
+  # Airflow Celery workers and pods created with pod-template-file
+  extraVolumes: []
+  extraVolumeMounts: []
+  # Mount additional volumes into workers pods. It can be templated like in the following example:
   #   extraVolumes:
   #     - name: my-templated-extra-volume
   #       secret:
@@ -774,18 +878,16 @@ workers:
   #     - name: my-templated-extra-volume
   #       mountPath: "{{ .Values.my_custom_path }}"
   #       readOnly: true
-  extraVolumes: []
-  extraVolumeMounts: []
 
-  # Expose additional ports. These can be used for additional metric collection.
+  # Expose additional ports of Airflow Celery workers. These can be used for additional metric collection.
   extraPorts: []
 
-  # Select certain nodes for airflow worker pods.
+  # Select certain nodes for Airflow Celery worker pods and pods created with pod-template-file
   nodeSelector: {}
   runtimeClassName: ~
   priorityClassName: ~
   affinity: {}
-  # default worker affinity is:
+  # Default Airflow Celery worker affinity is:
   #  podAntiAffinity:
   #    preferredDuringSchedulingIgnoredDuringExecution:
   #    - podAffinityTerm:
@@ -796,7 +898,7 @@ workers:
   #      weight: 100
   tolerations: []
   topologySpreadConstraints: []
-  # hostAliases to use in worker pods.
+  # hostAliases to use in Airflow Celery worker pods and pods created with pod-template-file
   # See:
   # https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
   hostAliases: []
@@ -807,25 +909,32 @@ workers:
   #   hostnames:
   #   - "test.hostname.two"
 
-  # annotations for the worker resource
+  # Annotations for the Airflow Celery worker resource
   annotations: {}
 
+  # Pod annotations for the Airflow Celery workers and pods created with pod-template-file
   podAnnotations: {}
 
-  # Labels specific to workers objects and pods
+  # Labels specific to Airflow Celery workers objects and pods created with pod-template-file
   labels: {}
 
+  # Log groomer configuration for Airflow Celery workers
   logGroomerSidecar:
-    # Whether to deploy the Airflow worker log groomer sidecar.
+    # Whether to deploy the Airflow Celery worker log groomer sidecar
     enabled: true
-    # Command to use when running the Airflow worker log groomer sidecar (templated).
+
+    # Command to use when running the Airflow Celery worker log groomer sidecar (templated)
     command: ~
-    # Args to use when running the Airflow worker log groomer sidecar (templated).
+
+    # Args to use when running the Airflow Celery worker log groomer sidecar (templated)
     args: ["bash", "/clean-logs"]
+
     # Number of days to retain logs
     retentionDays: 15
-    # frequency to attempt to groom logs, in minutes
+
+    # Frequency to attempt to groom logs (in minutes)
     frequencyMinutes: 15
+
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -833,25 +942,30 @@ workers:
     #  requests:
     #   cpu: 100m
     #   memory: 128Mi
+
     # Detailed default security context for logGroomerSidecar for container level
     securityContexts:
       container: {}
+
     env: []
 
+  # Configuration of wait-for-airflow-migration init container for Airflow Celery workers
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
+
     env: []
-    # Detailed default security context for waitForMigrations for container level
+
+    # Detailed default security context for wait-for-airflow-migrations container
     securityContexts:
       container: {}
 
+  # Additional env variable configuration for Airflow Celery workers and pods created with pod-template-file
   env: []
 
+  # Additional volume claim templates for Airflow Celery workers
   volumeClaimTemplates: []
-  # Additional volumeClaimTemplates needed.
   # Comment out the above and uncomment the section below to enable it.
-  # Add more as needed
   # Make sure to mount it under extraVolumeMounts.
   # volumeClaimTemplates:
   #   - metadata:
@@ -872,6 +986,38 @@ workers:
   #       resources:
   #         requests:
   #           storage: "20Gi"
+
+  # One common Service Account for all workers will be created if flag is set to false.
+  # If true, dedicated Service Accounts for every worker type will be created.
+  useWorkerDedicatedServiceAccounts: false
+
+  celery:
+    # Create ServiceAccount for Airflow Celery workers
+    serviceAccount:
+      # default value is true
+      # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+      automountServiceAccountToken: true
+      # Specifies whether a ServiceAccount should be created
+      create: true
+      # The name of the ServiceAccount to use.
+      # If not set and create is true, a name is generated using the release name
+      name: ~
+      # Annotations to add to worker kubernetes service account.
+      annotations: {}
+
+  kubernetes:
+    # Create ServiceAccount for pods created with pod-template-file
+    serviceAccount:
+      # Auto mount service account token into the pod. Default value is true.
+      # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+      automountServiceAccountToken: true
+      # Specifies whether a ServiceAccount should be created
+      create: true
+      # The name of the ServiceAccount to use.
+      # If not set and create is true, a name is generated using the release name.
+      name: ~
+      # Annotations to add to worker kubernetes service account
+      annotations: {}
 
 # Airflow scheduler settings
 scheduler:
@@ -1256,7 +1402,12 @@ migrateDatabaseJob:
 
 apiServer:
 
-  # Labels specific to workers objects and pods
+  # Number of Airflow API servers in the deployment
+  replicas: 1
+  # Max number of old replicasets to retain
+  revisionHistoryLimit: ~
+
+  # Labels specific to Airflow API server objects and pods
   labels: {}
 
   # Command to use when running the Airflow API server (templated).
@@ -1275,7 +1426,7 @@ apiServer:
     # If not set and create is true, a name is generated using the release name
     name: ~
 
-    # Annotations to add to webserver kubernetes service account.
+    # Annotations to add to Airflow API server kubernetes service account.
     annotations: {}
   service:
     type: ClusterIP
@@ -1300,10 +1451,16 @@ apiServer:
       maxUnavailable: 1
       # minAvailable: 1
 
-  # Detailed default security contexts for webserver deployments for container and pod level
+  # Allow overriding Update Strategy for API server
+  strategy: ~
+
+  # Detailed default security contexts for Airflow API server deployments for container and pod level
   securityContexts:
     pod: {}
     container: {}
+
+  # container level lifecycle hooks
+  containerLifecycleHooks: {}
 
   waitForMigrations:
     # Whether to create init container to wait for db migrations
@@ -1313,14 +1470,47 @@ apiServer:
     securityContexts:
       container: {}
 
-  # Launch additional containers into the flower pods.
+  # Launch additional containers into the Airflow API server pods.
   extraContainers: []
+  # Add additional init containers into API server (templated).
+  extraInitContainers: []
+
+  # Mount additional volumes into API server. It can be templated like in the following example:
+  #   extraVolumes:
+  #     - name: my-templated-extra-volume
+  #       secret:
+  #          secretName: '{{ include "my_secret_template" . }}'
+  #          defaultMode: 0640
+  #          optional: true
+  #
+  #   extraVolumeMounts:
+  #     - name: my-templated-extra-volume
+  #       mountPath: "{{ .Values.my_custom_path }}"
+  #       readOnly: true
+  extraVolumes: []
+  extraVolumeMounts: []
+
+  # Select certain nodes for Airflow API server pods.
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
+  topologySpreadConstraints: []
+
+  priorityClassName: ~
+
+  #  hostAliases for API server pod
+  hostAliases: []
+
+  # annotations for Airflow API server deployment
+  annotations: {}
+
+  podAnnotations: {}
 
   networkPolicy:
     ingress:
-      # Peers for webserver NetworkPolicy ingress
+      # Peers for Airflow API server NetworkPolicy ingress
       from: []
-      # Ports for webserver NetworkPolicy ingress (if `from` is set)
+      # Ports for Airflow API server NetworkPolicy ingress (if `from` is set)
       ports:
         - port: "{{ .Values.ports.apiServer }}"
 
@@ -1331,6 +1521,24 @@ apiServer:
   #   requests:
   #     cpu: 100m
   #     memory: 128Mi
+
+  # Add custom annotations to the apiServer configmap
+  configMapAnnotations: {}
+
+  # This string (templated) will be mounted into the Airflow API Server
+  # as a custom webserver_config.py. You can bake a webserver_config.py in to
+  # your image instead or specify a configmap containing the
+  # webserver_config.py.
+  apiServerConfig: ~
+  # apiServerConfig: |
+  #   from airflow import configuration as conf
+
+  #   # The SQLAlchemy connection string.
+  #   SQLALCHEMY_DATABASE_URI = conf.get('database', 'SQL_ALCHEMY_CONN')
+
+  #   # Flask-WTF flag for CSRF
+  #   CSRF_ENABLED = True
+  apiServerConfigConfigMapName: ~
 
   livenessProbe:
     initialDelaySeconds: 15
@@ -2047,6 +2255,8 @@ flower:
 
   # A secret containing the connection
   secretName: ~
+  # Add custom annotations to the flower secret
+  secretAnnotations: {}
 
   # Else, if username and password are set, create secret from username and password
   username: ~
@@ -2211,6 +2421,9 @@ pgbouncer:
 
   podAnnotations: {}
 
+  # Add custom annotations to the pgbouncer certificates secret
+  certificatesSecretAnnotations: {}
+
   # Create ServiceAccount
   serviceAccount:
     # default value is true
@@ -2249,6 +2462,8 @@ pgbouncer:
   #  configSecretName: pgbouncer-config-secret
   #
   configSecretName: ~
+  # Add custom annotations to the pgbouncer config secret
+  configSecretAnnotations: {}
 
   # PgBouncer pod disruption budget
   podDisruptionBudget:
@@ -2369,6 +2584,8 @@ pgbouncer:
 
     # Key containing the PGBouncer connection URI, defaults to `connection` if not defined
     statsSecretKey: ~
+    # Add custom annotations to the pgbouncer stats secret
+    statsSecretAnnotations: {}
 
     # Detailed default security context for metricsExporterSidecar for container level
     securityContexts:
@@ -2462,6 +2679,9 @@ redis:
   # Note: password can only be set during install, not upgrade.
   password: ~
 
+  # Add custom annotations to the redis password secret
+  passwordSecretAnnotations: {}
+
   # This setting tells kubernetes that its ok to evict
   # when it wants to scale a node down.
   safeToEvict: true
@@ -2508,6 +2728,8 @@ elasticsearch:
   enabled: false
   # A secret containing the connection
   secretName: ~
+  # Add custom annotations to the elasticsearch secret
+  secretAnnotations: {}
   # Or an object representing the connection
   # Example:
   # connection:
@@ -2662,7 +2884,10 @@ config:
     statsd_port: 9125
     statsd_prefix: airflow
     statsd_host: '{{ printf "%s-statsd" (include "airflow.fullname" .) }}'
+  fab:
+    enable_proxy_fix: 'True'
   webserver:
+    # For Airflow 2.X
     enable_proxy_fix: 'True'
     # For Airflow 1.10
     rbac: 'True'
@@ -2717,8 +2942,8 @@ config:
 # If true, it creates ClusterRole/ClusterRolebinding (with access to entire cluster)
 multiNamespaceMode: false
 
-# `podTemplate` is a templated string containing the contents of `pod_template_file.yaml` used for
-# KubernetesExecutor workers. The default `podTemplate` will use normal `workers` configuration parameters
+# `podTemplate` is a templated string which overwrites the content of `pod_template_file.yaml` used by
+# KubernetesExecutor. The default `podTemplate` will use `workers` configuration parameters
 # (e.g. `workers.resources`). As such, you normally won't need to override this directly, however,
 # you can still provide a completely custom `pod_template_file.yaml` if desired.
 # If not set, a default one is created using `files/pod-template-file.kubernetes-helm-yaml`.

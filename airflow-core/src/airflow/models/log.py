@@ -20,6 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Column, Index, Integer, String, Text
+from sqlalchemy.orm import relationship
 
 from airflow.models.base import Base, StringID
 from airflow.utils import timezone
@@ -47,6 +48,13 @@ class Log(Base):
     owner_display_name = Column(String(500))
     extra = Column(Text)
     try_number = Column(Integer)
+
+    dag_model = relationship(
+        "DagModel",
+        viewonly=True,
+        foreign_keys=[dag_id],
+        primaryjoin="Log.dag_id == DagModel.dag_id",
+    )
 
     __table_args__ = (
         Index("idx_log_dttm", dttm),

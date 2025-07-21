@@ -38,12 +38,15 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,
     AssetResponse,
     ConnectionResponse,
+    CreateHITLDetailPayload,
     DagRunStateResponse,
     DagRunType,
+    HITLDetailResponse,
+    InactiveAssetsResponse,
     PrevSuccessfulDagRunResponse,
+    TaskInstanceState,
     TaskStatesResponse,
     TerminalStateNonSuccess,
-    TerminalTIState,
     TIDeferredStatePayload,
     TIEnterRunningPayload,
     TIHeartbeatInfo,
@@ -54,15 +57,19 @@ from airflow.sdk.api.datamodels._generated import (
     TISuccessStatePayload,
     TITerminalStatePayload,
     TriggerDAGRunPayload,
+    UpdateHITLDetail,
     ValidationError as RemoteValidationError,
     VariablePostBody,
     VariableResponse,
     XComResponse,
+    XComSequenceIndexResponse,
+    XComSequenceSliceResponse,
 )
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     DRCount,
     ErrorResponse,
+    HITLDetailRequestResult,
     OKResponse,
     SkipDownstreamTasks,
     TaskRescheduleStartDate,
@@ -73,9 +80,9 @@ from airflow.utils.platform import getuser
 
 if TYPE_CHECKING:
     from datetime import datetime
+    from typing import ParamSpec
 
     from airflow.sdk.execution_time.comms import RescheduleTask
-    from airflow.typing_compat import ParamSpec
 
     P = ParamSpec("P")
     T = TypeVar("T")
@@ -103,7 +110,6 @@ def get_json_error(response: httpx.Response):
     """Raise a ServerResponseError if we can extract error info from the error."""
     err = ServerResponseError.from_response(response)
     if err:
-        log.warning("Server error", detail=err.detail)
         raise err
 
 
@@ -146,27 +152,30 @@ class TaskInstanceOperations:
         resp = self.client.patch(f"task-instances/{id}/run", content=body.model_dump_json())
         return TIRunContext.model_validate_json(resp.read())
 
-    def finish(self, id: uuid.UUID, state: TerminalStateNonSuccess, when: datetime):
+    def finish(self, id: uuid.UUID, state: TerminalStateNonSuccess, when: datetime, rendered_map_index):
         """Tell the API server that this TI has reached a terminal state."""
-        if state == TerminalTIState.SUCCESS:
+        if state == TaskInstanceState.SUCCESS:
             raise ValueError("Logic error. SUCCESS state should call the `succeed` function instead")
         # TODO: handle the naming better. finish sounds wrong as "even" deferred is essentially finishing.
-        body = TITerminalStatePayload(end_date=when, state=TerminalStateNonSuccess(state))
+        body = TITerminalStatePayload(
+            end_date=when, state=TerminalStateNonSuccess(state), rendered_map_index=rendered_map_index
+        )
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
-    def retry(self, id: uuid.UUID, end_date: datetime):
+    def retry(self, id: uuid.UUID, end_date: datetime, rendered_map_index):
         """Tell the API server that this TI has failed and reached a up_for_retry state."""
-        body = TIRetryStatePayload(end_date=end_date)
+        body = TIRetryStatePayload(end_date=end_date, rendered_map_index=rendered_map_index)
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
-    def succeed(self, id: uuid.UUID, when: datetime, task_outlets, outlet_events):
+    def succeed(self, id: uuid.UUID, when: datetime, task_outlets, outlet_events, rendered_map_index):
         """Tell the API server that this TI has succeeded."""
-        body = TISuccessStatePayload(end_date=when, task_outlets=task_outlets, outlet_events=outlet_events)
+        body = TISuccessStatePayload(
+            end_date=when,
+            task_outlets=task_outlets,
+            outlet_events=outlet_events,
+            rendered_map_index=rendered_map_index,
+        )
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
-
-    def heartbeat(self, id: uuid.UUID, pid: int):
-        body = TIHeartbeatInfo(pid=pid, hostname=get_hostname())
-        self.client.put(f"task-instances/{id}/heartbeat", content=body.model_dump_json())
 
     def defer(self, id: uuid.UUID, msg):
         """Tell the API server that this TI has been deferred."""
@@ -181,6 +190,10 @@ class TaskInstanceOperations:
 
         # Create a reschedule state payload from msg
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
+
+    def heartbeat(self, id: uuid.UUID, pid: int):
+        body = TIHeartbeatInfo(pid=pid, hostname=get_hostname())
+        self.client.put(f"task-instances/{id}/heartbeat", content=body.model_dump_json())
 
     def skip_downstream_tasks(self, id: uuid.UUID, msg: SkipDownstreamTasks):
         """Tell the API server to skip the downstream tasks of this TI."""
@@ -212,6 +225,7 @@ class TaskInstanceOperations:
     def get_count(
         self,
         dag_id: str,
+        map_index: int | None = None,
         task_ids: list[str] | None = None,
         task_group_id: str | None = None,
         logical_dates: list[datetime] | None = None,
@@ -219,6 +233,7 @@ class TaskInstanceOperations:
         states: list[str] | None = None,
     ) -> TICount:
         """Get count of task instances matching the given criteria."""
+        params: dict[str, Any]
         params = {
             "dag_id": dag_id,
             "task_ids": task_ids,
@@ -231,18 +246,23 @@ class TaskInstanceOperations:
         # Remove None values from params
         params = {k: v for k, v in params.items() if v is not None}
 
+        if map_index is not None and map_index >= 0:
+            params.update({"map_index": map_index})
+
         resp = self.client.get("task-instances/count", params=params)
         return TICount(count=resp.json())
 
     def get_task_states(
         self,
         dag_id: str,
+        map_index: int | None = None,
         task_ids: list[str] | None = None,
         task_group_id: str | None = None,
         logical_dates: list[datetime] | None = None,
         run_ids: list[str] | None = None,
     ) -> TaskStatesResponse:
         """Get task states given criteria."""
+        params: dict[str, Any]
         params = {
             "dag_id": dag_id,
             "task_ids": task_ids,
@@ -254,8 +274,16 @@ class TaskInstanceOperations:
         # Remove None values from params
         params = {k: v for k, v in params.items() if v is not None}
 
+        if map_index is not None and map_index >= 0:
+            params.update({"map_index": map_index})
+
         resp = self.client.get("task-instances/states", params=params)
         return TaskStatesResponse.model_validate_json(resp.read())
+
+    def validate_inlets_and_outlets(self, id: uuid.UUID) -> InactiveAssetsResponse:
+        """Validate whether there're inactive assets in inlets and outlets of a given task instance."""
+        resp = self.client.get(f"task-instances/{id}/validate-inlets-and-outlets")
+        return InactiveAssetsResponse.model_validate_json(resp.read())
 
 
 class ConnectionOperations:
@@ -421,6 +449,61 @@ class XComOperations:
         # decouple from the server response string
         return OKResponse(ok=True)
 
+    def get_sequence_item(
+        self,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        key: str,
+        offset: int,
+    ) -> XComSequenceIndexResponse | ErrorResponse:
+        try:
+            resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}/item/{offset}")
+        except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.NOT_FOUND:
+                log.error(
+                    "XCom not found",
+                    dag_id=dag_id,
+                    run_id=run_id,
+                    task_id=task_id,
+                    key=key,
+                    offset=offset,
+                    detail=e.detail,
+                    status_code=e.response.status_code,
+                )
+                return ErrorResponse(
+                    error=ErrorType.XCOM_NOT_FOUND,
+                    detail={
+                        "dag_id": dag_id,
+                        "run_id": run_id,
+                        "task_id": task_id,
+                        "key": key,
+                        "offset": offset,
+                    },
+                )
+            raise
+        return XComSequenceIndexResponse.model_validate_json(resp.read())
+
+    def get_sequence_slice(
+        self,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        key: str,
+        start: int | None,
+        stop: int | None,
+        step: int | None,
+    ) -> XComSequenceSliceResponse:
+        params = {}
+        if start is not None:
+            params["start"] = start
+        if stop is not None:
+            params["stop"] = stop
+        if step is not None:
+            params["step"] = step
+        resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}/slice", params=params)
+        return XComSequenceSliceResponse.model_validate_json(resp.read())
+
 
 class AssetOperations:
     __slots__ = ("client",)
@@ -468,7 +551,7 @@ class AssetEventOperations:
         if name or uri:
             resp = self.client.get("asset-events/by-asset", params={"name": name, "uri": uri})
         elif alias_name:
-            resp = self.client.get("asset-events/by-asset-alias", params={"name": name})
+            resp = self.client.get("asset-events/by-asset-alias", params={"name": alias_name})
         else:
             raise ValueError("Either `name`, `uri` or `alias_name` must be provided")
 
@@ -539,6 +622,70 @@ class DagRunOperations:
 
         resp = self.client.get("dag-runs/count", params=params)
         return DRCount(count=resp.json())
+
+
+class HITLOperations:
+    """
+    Operations related to Human in the loop. Require Airflow 3.1+.
+
+    :meta: private
+    """
+
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client) -> None:
+        self.client = client
+
+    def add_response(
+        self,
+        *,
+        ti_id: uuid.UUID,
+        options: list[str],
+        subject: str,
+        body: str | None = None,
+        defaults: list[str] | None = None,
+        multiple: bool = False,
+        params: dict[str, Any] | None = None,
+    ) -> HITLDetailRequestResult:
+        """Add a Human-in-the-loop response that waits for human response for a specific Task Instance."""
+        payload = CreateHITLDetailPayload(
+            ti_id=ti_id,
+            options=options,
+            subject=subject,
+            body=body,
+            defaults=defaults,
+            multiple=multiple,
+            params=params,
+        )
+        resp = self.client.post(
+            f"/hitl-details/{ti_id}",
+            content=payload.model_dump_json(),
+        )
+        return HITLDetailRequestResult.model_validate_json(resp.read())
+
+    def update_response(
+        self,
+        *,
+        ti_id: uuid.UUID,
+        chosen_options: list[str],
+        params_input: dict[str, Any],
+    ) -> HITLDetailResponse:
+        """Update an existing Human-in-the-loop response."""
+        payload = UpdateHITLDetail(
+            ti_id=ti_id,
+            chosen_options=chosen_options,
+            params_input=params_input,
+        )
+        resp = self.client.patch(
+            f"/hitl-details/{ti_id}",
+            content=payload.model_dump_json(),
+        )
+        return HITLDetailResponse.model_validate_json(resp.read())
+
+    def get_detail_response(self, ti_id: uuid.UUID) -> HITLDetailResponse:
+        """Get content part of a Human-in-the-loop response for a specific Task Instance."""
+        resp = self.client.get(f"/hitl-details/{ti_id}")
+        return HITLDetailResponse.model_validate_json(resp.read())
 
 
 class BearerAuth(httpx.Auth):
@@ -673,6 +820,12 @@ class Client(httpx.Client):
     def asset_events(self) -> AssetEventOperations:
         """Operations related to Asset Events."""
         return AssetEventOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def hitl(self):
+        """Operations related to HITL Responses."""
+        return HITLOperations(self)
 
 
 # This is only used for parsing. ServerResponseError is raised instead

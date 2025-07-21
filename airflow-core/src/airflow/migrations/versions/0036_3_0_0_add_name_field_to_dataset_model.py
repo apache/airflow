@@ -48,7 +48,7 @@ airflow_version = "3.0.0"
 
 _STRING_COLUMN_TYPE = sa.String(length=1500).with_variant(
     sa.String(length=1500, collation="latin1_general_cs"),
-    dialect_name="mysql",
+    "mysql",
 )
 
 
@@ -128,7 +128,7 @@ def downgrade():
             "uri",
             type_=sa.String(length=3000).with_variant(
                 sa.String(length=3000, collation="latin1_general_cs"),
-                dialect_name="mysql",
+                "mysql",
             ),
             nullable=False,
         )

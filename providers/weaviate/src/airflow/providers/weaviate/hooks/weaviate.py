@@ -33,15 +33,18 @@ from weaviate.classes.query import Filter
 from weaviate.exceptions import ObjectAlreadyExistsException
 from weaviate.util import generate_uuid5
 
-from airflow.hooks.base import BaseHook
+from airflow.providers.weaviate.version_compat import BaseHook
 
 if TYPE_CHECKING:
-    from typing import Callable, Literal
+    from collections.abc import Callable
+    from typing import Literal
 
     import pandas as pd
     from weaviate.auth import AuthCredentials
     from weaviate.collections import Collection
+    from weaviate.collections.classes.batch import ErrorReference
     from weaviate.collections.classes.config import CollectionConfig, CollectionConfigSimple
+    from weaviate.collections.classes.filters import _Filters
     from weaviate.collections.classes.internal import (
         Object,
         QueryReturnType,
@@ -65,11 +68,20 @@ REQUESTS_EXCEPTIONS_TYPES = (
 
 
 def check_http_error_is_retryable(exc: BaseException):
+    try:
+        import httpx
+
+        if isinstance(exc, httpx.ConnectError):
+            return True
+    except ImportError:
+        pass
     return (
         isinstance(exc, requests.exceptions.RequestException)
         and exc.response
         and exc.response.status_code
         and exc.response.status_code in HTTP_RETRY_STATUS_CODE
+        or isinstance(exc, weaviate.UnexpectedStatusCodeException)
+        and exc.status_code in HTTP_RETRY_STATUS_CODE
     )
 
 
@@ -128,14 +140,14 @@ class WeaviateHook(BaseHook):
         http_secure = extras.pop("http_secure", False)
         grpc_secure = extras.pop("grpc_secure", False)
         return weaviate.connect_to_custom(
-            http_host=conn.host,
+            http_host=conn.host,  # type: ignore[arg-type]
             http_port=conn.port or 443 if http_secure else 80,
             http_secure=http_secure,
             grpc_host=extras.pop("grpc_host", conn.host),
             grpc_port=extras.pop("grpc_port", 443 if grpc_secure else 80),
             grpc_secure=grpc_secure,
             headers=extras.pop("additional_headers", {}),
-            auth_credentials=self._extract_auth_credentials(conn),
+            auth_credentials=self._extract_auth_credentials(conn),  # type: ignore[arg-type]
         )
 
     def _extract_auth_credentials(self, conn: Connection) -> AuthCredentials:
@@ -189,6 +201,74 @@ class WeaviateHook(BaseHook):
         """
         client = self.conn
         return client.collections.get(name)
+
+    def delete_by_property(
+        self,
+        *,
+        collection_names: list[str] | str,
+        filter_criteria: _Filters,
+        if_error: str | None = None,
+        dry_run: bool = False,
+        verbose: bool = False,
+    ) -> list[str] | None:
+        """
+        Delete objects in collections using a provided Filter object. The maximum number of objects that can be deleted at once should be set through environment variable `QUERY_MAXIMUM_RESULTS`.
+
+        :param collection_names: The name(s) of the collection(s) to delete from.
+        :param filter_criteria: A `Filter` object defining the filter criteria for deletion.
+        :param if_error: define the actions to be taken if there is an error while deleting objects, possible
+         options are `None` and `continue`
+        :param dry_run: Use 'dry_run' to check how many objects would be deleted, without actually performing the deletion.
+        :param verbose: Set output to 'verbose' to see more details (ID and deletion status) for each deletion
+        :return: If `if_error="continue"`, returns list of failed collection names. Else, returns None.
+
+        Example:
+        >>> from weaviate.classes.query import Filter
+        >>> my_filter = (
+        >>>     Filter.by_property("round").equal("Double Jeopardy!") &
+        >>>     Filter.by_property("points").less_than(600)
+        >>> )
+        >>> delete_by_filter(
+        >>>     collection_names=["collection_a", "collection_b"],
+        >>>     filter_criteria=my_filter,
+        >>>     if_error="continue"
+        >>> )
+        """
+        collection_names = [collection_names] if isinstance(collection_names, str) else collection_names
+
+        failed_collection_list = []
+        for collection_name in collection_names:
+            try:
+                self.log.info("Attempting to delete objects from '%s'", collection_name)
+
+                for attempt in Retrying(
+                    stop=stop_after_attempt(3),
+                    retry=(
+                        retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
+                        | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
+                    ),
+                ):
+                    with attempt:
+                        self.log.info(attempt)
+                        collection = self.get_collection(collection_name)
+                        delete_many_return = collection.data.delete_many(
+                            where=filter_criteria, verbose=verbose, dry_run=dry_run
+                        )
+                        if dry_run:
+                            self.log.info(delete_many_return)
+            except Exception as e:
+                # Capture generic exception to avoid missing any error, but we could anticipate the following errors:
+                # 1. weaviate.exceptions.UnexpectedStatusCodeException
+                # 2. weaviate.exceptions.WeaviateDeleteManyError
+                if if_error == "continue":
+                    self.log.error(e)
+                    failed_collection_list.append(collection_name)
+                else:
+                    raise e
+
+        if if_error == "continue":
+            return failed_collection_list
+        return None
 
     def delete_collections(
         self, collection_names: list[str] | str, if_error: str = "stop"
@@ -267,6 +347,61 @@ class WeaviateHook(BaseHook):
             if isinstance(data, pandas.DataFrame):
                 data = json.loads(data.to_json(orient="records"))
         return cast("list[dict[str, Any]]", data)
+
+    def batch_create_links(
+        self,
+        collection_name: str,
+        data: list[dict[str, Any]] | pd.DataFrame | None,
+        from_property_col: str = "from_property",
+        from_uuid_col: str = "from_uuid",
+        to_uuid_col: str = "to",
+        retry_attempts_per_object: int = 5,
+    ) -> list[ErrorReference] | None:
+        """
+        Batch create links from an object to another other object through cross-references (https://weaviate.io/developers/weaviate/manage-data/import#import-with-references).
+
+        :param collection_name: The name of the collection containing the source objects.
+        :param data: list or dataframe of objects we want to create links.
+        :param from_property_col: name of the reference property column.
+        :param from_uuid_col: Name of the column containing the from UUID.
+        :param to_uuid_col: Name of the column containing the target UUID.
+        :param retry_attempts_per_object: number of time to try in case of failure before giving up.
+        """
+        converted_data = self._convert_dataframe_to_list(data)
+        collection = self.get_collection(collection_name)
+
+        with collection.batch.dynamic() as batch:
+            # Batch create links
+            for data_obj in converted_data:
+                for attempt in Retrying(
+                    stop=stop_after_attempt(retry_attempts_per_object),
+                    retry=(
+                        retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
+                        | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
+                    ),
+                ):
+                    with attempt:
+                        from_property = data_obj.pop(from_property_col, None)
+                        from_uuid = data_obj.pop(from_uuid_col, None)
+                        to_uuid = data_obj.pop(to_uuid_col, None)
+                        self.log.debug(
+                            "Attempt %s of create links between %s and %s using reference property %s",
+                            attempt.retry_state.attempt_number,
+                            from_uuid,
+                            to_uuid,
+                            from_property,
+                        )
+                        batch.add_reference(
+                            from_property=from_property,
+                            from_uuid=from_uuid,
+                            to=to_uuid,
+                        )
+
+        failed_references = collection.batch.failed_references
+        if failed_references:
+            self.log.error("Number of failed imports: %s", len(failed_references))
+
+        return failed_references
 
     def batch_data(
         self,

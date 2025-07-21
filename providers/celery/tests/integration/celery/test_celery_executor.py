@@ -24,28 +24,29 @@ import os
 import sys
 from ast import literal_eval
 from datetime import datetime
-from importlib import reload
 from time import sleep
 from unittest import mock
 
 # leave this it is used by the test worker
 import celery.contrib.testing.tasks  # noqa: F401
 import pytest
+import uuid6
 from celery import Celery
 from celery.backends.base import BaseBackend, BaseKeyValueStoreBackend
 from celery.backends.database import DatabaseBackend
 from celery.contrib.testing.worker import start_worker
 from kombu.asynchronous import set_event_loop
 from kubernetes.client import models as k8s
+from uuid6 import uuid7
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
-from airflow.executors import base_executor, workloads
+from airflow.executors import workloads
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.state import State
 
 from tests_common.test_utils import db
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
@@ -115,27 +116,6 @@ class TestCeleryExecutor:
         db.clear_db_runs()
         db.clear_db_jobs()
 
-    def test_change_state_back_compat(self):
-        # This represents the old implementation that an Airflow package may have
-        def _change_state(self, key: TaskInstanceKey, state: TaskInstanceState, info=None) -> None:
-            pass
-
-        # Replace change_state function on base executor with the old version to force the backcompat edge
-        # case we're looking for
-        base_executor.BaseExecutor.change_state = _change_state
-        # Create an instance of celery executor while the base executor is modified
-        from airflow.providers.celery.executors import celery_executor
-
-        executor = celery_executor.CeleryExecutor()
-
-        # This will throw an exception if the backcompat is not properly handled
-        executor.change_state(
-            key=TaskInstanceKey("foo", "bar", "baz"), state=TaskInstanceState.QUEUED, info="test"
-        )
-        # Restore the base executor and celery modules
-        reload(base_executor)
-        reload(celery_executor)
-
     @pytest.mark.flaky(reruns=3)
     @pytest.mark.parametrize("broker_url", _prepare_test_bodies())
     @pytest.mark.parametrize(
@@ -182,6 +162,7 @@ class TestCeleryExecutor:
 
             with start_worker(app=app, logfile=sys.stdout, loglevel="info"):
                 ti = workloads.TaskInstance.model_construct(
+                    id=uuid7(),
                     task_id="success",
                     dag_id="id",
                     run_id="abc",
@@ -240,7 +221,10 @@ class TestCeleryExecutor:
                 dag=DAG(dag_id="dag_id"),
                 start_date=datetime.now(),
             )
-            ti = TaskInstance(task=task, run_id="abc")
+            if AIRFLOW_V_3_0_PLUS:
+                ti = TaskInstance(task=task, run_id="abc", dag_version_id=uuid6.uuid7())
+            else:
+                ti = TaskInstance(task=task, run_id="abc")
             workload = workloads.ExecuteTask.model_construct(
                 ti=workloads.TaskInstance.model_validate(ti, from_attributes=True),
             )
@@ -276,7 +260,10 @@ class TestCeleryExecutor:
                 dag=DAG(dag_id="id"),
                 start_date=datetime.now(),
             )
-            ti = TaskInstance(task=task, run_id="abc")
+            if AIRFLOW_V_3_0_PLUS:
+                ti = TaskInstance(task=task, run_id="abc", dag_version_id=uuid6.uuid7())
+            else:
+                ti = TaskInstance(task=task, run_id="abc")
             workload = workloads.ExecuteTask.model_construct(
                 ti=workloads.TaskInstance.model_validate(ti, from_attributes=True),
             )

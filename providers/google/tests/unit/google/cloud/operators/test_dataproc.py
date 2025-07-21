@@ -39,6 +39,7 @@ from airflow.exceptions import (
 )
 from airflow.models import DAG, DagBag
 from airflow.providers.google.cloud.links.dataproc import (
+    DATAPROC_BATCH_LINK,
     DATAPROC_CLUSTER_LINK_DEPRECATED,
     DATAPROC_JOB_LINK_DEPRECATED,
 )
@@ -353,6 +354,12 @@ DEFAULT_DATE = datetime(2020, 1, 1)
 TEST_JOB_ID = "test-job"
 TEST_WORKFLOW_ID = "test-workflow"
 
+EXPECTED_LABELS = {
+    "airflow-dag-id": TEST_DAG_ID,
+    "airflow-dag-display-name": TEST_DAG_ID,
+    "airflow-task-id": TASK_ID,
+}
+
 DATAPROC_JOB_LINK_EXPECTED = (
     f"https://console.cloud.google.com/dataproc/jobs/{TEST_JOB_ID}?region={GCP_REGION}&project={GCP_PROJECT}"
 )
@@ -405,7 +412,9 @@ EXAMPLE_CONTEXT = {
         try_number=1,
         map_index=1,
         logical_date=dt.datetime(2024, 11, 11),
-    )
+        dag_run=MagicMock(logical_date=dt.datetime(2024, 11, 11), clear_number=0),
+    ),
+    "task": mock.MagicMock(),
 }
 OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG = {
     "url": "https://some-custom.url",
@@ -436,6 +445,9 @@ OPENLINEAGE_PARENT_JOB_EXAMPLE_SPARK_PROPERTIES = {
     "spark.openlineage.parentJobName": "dag_id.task_id",
     "spark.openlineage.parentJobNamespace": "default",
     "spark.openlineage.parentRunId": "01931885-2800-7be7-aa8d-aaa15c337267",
+    "spark.openlineage.rootParentJobName": "dag_id",
+    "spark.openlineage.rootParentJobNamespace": "default",
+    "spark.openlineage.rootParentRunId": "01931885-2800-7be7-aa8d-aaa15c337267",
 }
 
 
@@ -455,13 +467,13 @@ class DataprocTestBase:
 
     def setup_method(self):
         self.mock_ti = MagicMock()
-        self.mock_context = {"ti": self.mock_ti}
+        self.mock_context = {"ti": self.mock_ti, "task": self.mock_ti.task}
         self.extra_links_manager_mock = Mock()
         self.extra_links_manager_mock.attach_mock(self.mock_ti, "ti")
 
     def tearDown(self):
         self.mock_ti = MagicMock()
-        self.mock_context = {"ti": self.mock_ti}
+        self.mock_context = {"ti": self.mock_ti, "task": self.mock_ti.task}
         self.extra_links_manager_mock = Mock()
         self.extra_links_manager_mock.attach_mock(self.mock_ti, "ti")
 
@@ -492,13 +504,14 @@ class DataprocClusterTestBase(DataprocTestBase):
         super().setup_class()
         if AIRFLOW_V_3_0_PLUS:
             cls.extra_links_expected_calls_base = [
-                call.ti.xcom_push(key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED)
+                call.ti.xcom_push(key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED),
             ]
         else:
             cls.extra_links_expected_calls_base = [
-                call.ti.xcom_push(
-                    key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED, execution_date=None
-                )
+                call.ti.task.extra_links_params.__bool__(),
+                call.ti.task.extra_links_params.keys(),
+                call.ti.task.extra_links_params.keys().__iter__(),
+                call.ti.xcom_push(key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED),
             ]
 
 
@@ -814,7 +827,6 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
             self.mock_ti.xcom_push.assert_called_once_with(
                 key="dataproc_cluster",
                 value=DATAPROC_CLUSTER_EXPECTED,
-                execution_date=None,
             )
 
     @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
@@ -870,7 +882,6 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
             self.mock_ti.xcom_push.assert_called_once_with(
                 key="dataproc_cluster",
                 value=DATAPROC_CLUSTER_EXPECTED,
-                execution_date=None,
             )
 
     @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
@@ -1132,7 +1143,7 @@ def test_create_cluster_operator_extra_links(
     assert operator_extra_link.name == "Dataproc Cluster"
 
     if AIRFLOW_V_3_0_PLUS:
-        mock_supervisor_comms.get_message.return_value = XComResult(
+        mock_supervisor_comms.send.return_value = XComResult(
             key="key",
             value="",
         )
@@ -1142,7 +1153,7 @@ def test_create_cluster_operator_extra_links(
     ti.xcom_push(key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED)
 
     if AIRFLOW_V_3_0_PLUS:
-        mock_supervisor_comms.get_message.return_value = XComResult(
+        mock_supervisor_comms.send.return_value = XComResult(
             key="key",
             value={"cluster_id": "cluster_name", "project_id": "test-project", "region": "test-location"},
         )
@@ -1267,12 +1278,7 @@ class TestDataprocClusterDeleteOperator:
 class TestDataprocSubmitJobOperator(DataprocJobTestBase):
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
-        if AIRFLOW_V_3_0_PLUS:
-            xcom_push_call = call.ti.xcom_push(key="dataproc_job", value=DATAPROC_JOB_EXPECTED)
-        else:
-            xcom_push_call = call.ti.xcom_push(
-                key="dataproc_job", value=DATAPROC_JOB_EXPECTED, execution_date=None
-            )
+        xcom_push_call = call.ti.xcom_push(key="dataproc_job", value=DATAPROC_JOB_EXPECTED)
         wait_for_job_call = call.hook().wait_for_job(
             job_id=TEST_JOB_ID, region=GCP_REGION, project_id=GCP_PROJECT, timeout=None
         )
@@ -1318,12 +1324,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             job_id=TEST_JOB_ID, project_id=GCP_PROJECT, region=GCP_REGION, timeout=None
         )
 
-        if AIRFLOW_V_3_0_PLUS:
-            self.mock_ti.xcom_push.assert_called_once_with(key="dataproc_job", value=DATAPROC_JOB_EXPECTED)
-        else:
-            self.mock_ti.xcom_push.assert_called_once_with(
-                key="dataproc_job", value=DATAPROC_JOB_EXPECTED, execution_date=None
-            )
+        self.mock_ti.xcom_push.assert_called_once_with(key="dataproc_job", value=DATAPROC_JOB_EXPECTED)
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_async(self, mock_hook):
@@ -1361,12 +1362,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         )
         mock_hook.return_value.wait_for_job.assert_not_called()
 
-        if AIRFLOW_V_3_0_PLUS:
-            self.mock_ti.xcom_push.assert_called_once_with(key="dataproc_job", value=DATAPROC_JOB_EXPECTED)
-        else:
-            self.mock_ti.xcom_push.assert_called_once_with(
-                key="dataproc_job", value=DATAPROC_JOB_EXPECTED, execution_date=None
-            )
+        self.mock_ti.xcom_push.assert_called_once_with(key="dataproc_job", value=DATAPROC_JOB_EXPECTED)
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
@@ -1464,6 +1460,9 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
                     "spark.openlineage.parentJobName": "dag_id.task_id",
                     "spark.openlineage.parentJobNamespace": "default",
                     "spark.openlineage.parentRunId": "01931885-2800-7be7-aa8d-aaa15c337267",
+                    "spark.openlineage.rootParentJobName": "dag_id",
+                    "spark.openlineage.rootParentJobNamespace": "default",
+                    "spark.openlineage.rootParentRunId": "01931885-2800-7be7-aa8d-aaa15c337267",
                 },
             },
         }
@@ -1474,7 +1473,8 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
                 try_number=1,
                 map_index=1,
                 logical_date=dt.datetime(2024, 11, 11),
-            )
+            ),
+            "task": MagicMock(),
         }
 
         mock_ol_accessible.return_value = True
@@ -2014,7 +2014,7 @@ def test_submit_job_operator_extra_links(
     assert operator_extra_link.name == "Dataproc Job"
 
     if AIRFLOW_V_3_0_PLUS:
-        mock_supervisor_comms.get_message.return_value = XComResult(
+        mock_supervisor_comms.send.return_value = XComResult(
             key="dataproc_job",
             value="",
         )
@@ -2025,7 +2025,7 @@ def test_submit_job_operator_extra_links(
     ti.xcom_push(key="dataproc_job", value=DATAPROC_JOB_EXPECTED)
 
     if AIRFLOW_V_3_0_PLUS:
-        mock_supervisor_comms.get_message.return_value = XComResult(
+        mock_supervisor_comms.send.return_value = XComResult(
             key="dataproc_job",
             value=DATAPROC_JOB_EXPECTED,
         )
@@ -2082,17 +2082,10 @@ class TestDataprocUpdateClusterOperator(DataprocClusterTestBase):
         # Test whether the xcom push happens before updating the cluster
         self.extra_links_manager_mock.assert_has_calls(expected_calls, any_order=False)
 
-        if AIRFLOW_V_3_0_PLUS:
-            self.mock_ti.xcom_push.assert_called_once_with(
-                key="dataproc_cluster",
-                value=DATAPROC_CLUSTER_EXPECTED,
-            )
-        else:
-            self.mock_ti.xcom_push.assert_called_once_with(
-                key="dataproc_cluster",
-                value=DATAPROC_CLUSTER_EXPECTED,
-                execution_date=None,
-            )
+        self.mock_ti.xcom_push.assert_called_once_with(
+            key="dataproc_cluster",
+            value=DATAPROC_CLUSTER_EXPECTED,
+        )
 
     def test_missing_region_parameter(self):
         with pytest.raises((TypeError, AirflowException), match="missing keyword argument 'region'"):
@@ -2230,7 +2223,7 @@ def test_update_cluster_operator_extra_links(
     assert operator_extra_link.name == "Dataproc Cluster"
 
     if AIRFLOW_V_3_0_PLUS:
-        mock_supervisor_comms.get_message.return_value = XComResult(
+        mock_supervisor_comms.send.return_value = XComResult(
             key="dataproc_cluster",
             value="",
         )
@@ -2240,7 +2233,7 @@ def test_update_cluster_operator_extra_links(
     ti.xcom_push(key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED)
 
     if AIRFLOW_V_3_0_PLUS:
-        mock_supervisor_comms.get_message.return_value = XComResult(
+        mock_supervisor_comms.send.return_value = XComResult(
             key="dataproc_cluster",
             value=DATAPROC_CLUSTER_EXPECTED,
         )
@@ -2456,7 +2449,7 @@ def test_instantiate_workflow_operator_extra_links(
     assert operator_extra_link.name == "Dataproc Workflow"
 
     if AIRFLOW_V_3_0_PLUS:
-        mock_supervisor_comms.get_message.return_value = XComResult(
+        mock_supervisor_comms.send.return_value = XComResult(
             key="dataproc_workflow",
             value="",
         )
@@ -2465,7 +2458,7 @@ def test_instantiate_workflow_operator_extra_links(
 
     ti.xcom_push(key="dataproc_workflow", value=DATAPROC_WORKFLOW_EXPECTED)
     if AIRFLOW_V_3_0_PLUS:
-        mock_supervisor_comms.get_message.return_value = XComResult(
+        mock_supervisor_comms.send.return_value = XComResult(
             key="dataproc_workflow",
             value=DATAPROC_WORKFLOW_EXPECTED,
         )
@@ -2646,6 +2639,9 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
                             "spark.openlineage.parentJobName": "dag_id.task_id",
                             "spark.openlineage.parentJobNamespace": "default",
                             "spark.openlineage.parentRunId": "01931885-2800-7be7-aa8d-aaa15c337267",
+                            "spark.openlineage.rootParentJobName": "dag_id",
+                            "spark.openlineage.rootParentJobNamespace": "default",
+                            "spark.openlineage.rootParentRunId": "01931885-2800-7be7-aa8d-aaa15c337267",
                         },
                     },
                 },
@@ -3138,7 +3134,7 @@ def test_instantiate_inline_workflow_operator_extra_links(
     operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
     assert operator_extra_link.name == "Dataproc Workflow"
     if AIRFLOW_V_3_0_PLUS:
-        mock_supervisor_comms.get_message.return_value = XComResult(
+        mock_supervisor_comms.send.return_value = XComResult(
             key="dataproc_workflow",
             value="",
         )
@@ -3147,7 +3143,7 @@ def test_instantiate_inline_workflow_operator_extra_links(
 
     ti.xcom_push(key="dataproc_workflow", value=DATAPROC_WORKFLOW_EXPECTED)
     if AIRFLOW_V_3_0_PLUS:
-        mock_supervisor_comms.get_message.return_value = XComResult(
+        mock_supervisor_comms.send.return_value = XComResult(
             key="dataproc_workflow", value=DATAPROC_WORKFLOW_EXPECTED
         )
 
@@ -3198,9 +3194,10 @@ class TestDataprocCreateWorkflowTemplateOperator:
 
 
 class TestDataprocCreateBatchOperator:
+    @mock.patch.object(DataprocCreateBatchOperator, "log", new_callable=mock.MagicMock)
     @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_execute(self, mock_hook, to_dict_mock):
+    def test_execute(self, mock_hook, to_dict_mock, mock_log):
         op = DataprocCreateBatchOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -3214,7 +3211,10 @@ class TestDataprocCreateBatchOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        mock_hook.return_value.wait_for_operation.return_value = Batch(state=Batch.State.SUCCEEDED)
+        mock_hook.return_value.create_batch.return_value.metadata.batch = f"prefix/{BATCH_ID}"
+        batch_state_succeeded = Batch(state=Batch.State.SUCCEEDED)
+        mock_hook.return_value.wait_for_batch.return_value = batch_state_succeeded
+
         op.execute(context=MagicMock())
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.create_batch.assert_called_once_with(
@@ -3226,6 +3226,16 @@ class TestDataprocCreateBatchOperator:
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
+        )
+        to_dict_mock.assert_called_once_with(batch_state_succeeded)
+        logs_link = DATAPROC_BATCH_LINK.format(region=GCP_REGION, project_id=GCP_PROJECT, batch_id=BATCH_ID)
+        mock_log.info.assert_has_calls(
+            [
+                mock.call("Starting batch %s", BATCH_ID),
+                mock.call("The batch %s was created.", BATCH_ID),
+                mock.call("Waiting for the completion of batch job %s", BATCH_ID),
+                mock.call("Batch job %s completed.\nDriver logs: %s", BATCH_ID, logs_link),
+            ]
         )
 
     @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
@@ -3245,7 +3255,7 @@ class TestDataprocCreateBatchOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        mock_hook.return_value.wait_for_operation.return_value = Batch(state=Batch.State.SUCCEEDED)
+        mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.SUCCEEDED)
         op.execute(context=MagicMock())
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.create_batch.assert_called_once_with(
@@ -3279,8 +3289,9 @@ class TestDataprocCreateBatchOperator:
         with pytest.raises(AirflowException):
             op.execute(context=MagicMock())
 
+    @mock.patch.object(DataprocCreateBatchOperator, "log", new_callable=mock.MagicMock)
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_execute_batch_already_exists_succeeds(self, mock_hook):
+    def test_execute_batch_already_exists_succeeds(self, mock_hook, mock_log):
         op = DataprocCreateBatchOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -3294,9 +3305,10 @@ class TestDataprocCreateBatchOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        mock_hook.return_value.wait_for_operation.side_effect = AlreadyExists("")
-        mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.SUCCEEDED)
+        mock_hook.return_value.create_batch.side_effect = AlreadyExists("")
         mock_hook.return_value.create_batch.return_value.metadata.batch = f"prefix/{BATCH_ID}"
+        mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.SUCCEEDED)
+
         op.execute(context=MagicMock())
         mock_hook.return_value.wait_for_batch.assert_called_once_with(
             batch_id=BATCH_ID,
@@ -3306,9 +3318,23 @@ class TestDataprocCreateBatchOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
+        # Check for succeeded run
+        logs_link = DATAPROC_BATCH_LINK.format(region=GCP_REGION, project_id=GCP_PROJECT, batch_id=BATCH_ID)
 
+        mock_log.info.assert_has_calls(
+            [
+                mock.call(
+                    "Batch with given id already exists.",
+                ),
+                mock.call("Attaching to the job %s if it is still running.", BATCH_ID),
+                mock.call("Waiting for the completion of batch job %s", BATCH_ID),
+                mock.call("Batch job %s completed.\nDriver logs: %s", BATCH_ID, logs_link),
+            ]
+        )
+
+    @mock.patch.object(DataprocCreateBatchOperator, "log", new_callable=mock.MagicMock)
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_execute_batch_already_exists_fails(self, mock_hook):
+    def test_execute_batch_already_exists_fails(self, mock_hook, mock_log):
         op = DataprocCreateBatchOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -3322,11 +3348,15 @@ class TestDataprocCreateBatchOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        mock_hook.return_value.wait_for_operation.side_effect = AlreadyExists("")
+        mock_hook.return_value.create_batch.side_effect = AlreadyExists("")
+        mock_hook.return_value.create_batch.return_value.metadata.batch = f"prefix/{BATCH_ID}"
         mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.FAILED)
-        mock_hook.return_value.create_batch.return_value.metadata.batch = f"prefix/{BATCH_ID}"
-        with pytest.raises(AirflowException):
+
+        with pytest.raises(AirflowException) as exc:
             op.execute(context=MagicMock())
+        # Check msg for FAILED batch state
+        logs_link = DATAPROC_BATCH_LINK.format(region=GCP_REGION, project_id=GCP_PROJECT, batch_id=BATCH_ID)
+        assert str(exc.value) == (f"Batch job {BATCH_ID} failed with error: .\nDriver logs: {logs_link}")
         mock_hook.return_value.wait_for_batch.assert_called_once_with(
             batch_id=BATCH_ID,
             region=GCP_REGION,
@@ -3335,9 +3365,12 @@ class TestDataprocCreateBatchOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
+        # Check logs for AlreadyExists being called
+        mock_log.info.assert_any_call("Batch with given id already exists.")
 
+    @mock.patch.object(DataprocCreateBatchOperator, "log", new_callable=mock.MagicMock)
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_execute_batch_already_exists_cancelled(self, mock_hook):
+    def test_execute_batch_already_exists_cancelled(self, mock_hook, mock_log):
         op = DataprocCreateBatchOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -3351,11 +3384,16 @@ class TestDataprocCreateBatchOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        mock_hook.return_value.wait_for_operation.side_effect = AlreadyExists("")
-        mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.CANCELLED)
+        mock_hook.return_value.create_batch.side_effect = AlreadyExists("")
         mock_hook.return_value.create_batch.return_value.metadata.batch = f"prefix/{BATCH_ID}"
-        with pytest.raises(AirflowException):
+        mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.CANCELLED)
+
+        with pytest.raises(AirflowException) as exc:
             op.execute(context=MagicMock())
+        # Check msg for CANCELLED batch state
+        logs_link = DATAPROC_BATCH_LINK.format(region=GCP_REGION, project_id=GCP_PROJECT, batch_id=BATCH_ID)
+        assert str(exc.value) == f"Batch job {BATCH_ID} was cancelled.\nDriver logs: {logs_link}"
+
         mock_hook.return_value.wait_for_batch.assert_called_once_with(
             batch_id=BATCH_ID,
             region=GCP_REGION,
@@ -3364,21 +3402,29 @@ class TestDataprocCreateBatchOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
+        # Check logs for AlreadyExists being called
+        mock_log.info.assert_any_call("Batch with given id already exists.")
 
+    @mock.patch.object(DataprocCreateBatchOperator, "log", new_callable=mock.MagicMock)
     @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_parent_job_info_injection(
-        self, mock_hook, to_dict_mock, mock_ol_accessible, mock_static_uuid
+        self,
+        mock_hook,
+        to_dict_mock,
+        mock_ol_accessible,
+        mock_static_uuid,
+        mock_log,
     ):
         mock_ol_accessible.return_value = True
         mock_static_uuid.return_value = "01931885-2800-7be7-aa8d-aaa15c337267"
         expected_batch = {
             **BATCH,
+            "labels": EXPECTED_LABELS,
             "runtime_config": {"properties": OPENLINEAGE_PARENT_JOB_EXAMPLE_SPARK_PROPERTIES},
         }
-
         op = DataprocCreateBatchOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -3392,9 +3438,13 @@ class TestDataprocCreateBatchOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
             openlineage_inject_parent_job_info=True,
+            dag=DAG(dag_id=TEST_DAG_ID),
         )
-        mock_hook.return_value.wait_for_operation.return_value = Batch(state=Batch.State.SUCCEEDED)
+        batch_state_succeeded = Batch(state=Batch.State.SUCCEEDED)
+        mock_hook.return_value.wait_for_batch.return_value = batch_state_succeeded
+        mock_hook.return_value.create_batch.return_value.metadata.batch = f"prefix/{BATCH_ID}"
         op.execute(context=EXAMPLE_CONTEXT)
+
         mock_hook.return_value.create_batch.assert_called_once_with(
             region=GCP_REGION,
             project_id=GCP_PROJECT,
@@ -3405,14 +3455,19 @@ class TestDataprocCreateBatchOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
+        to_dict_mock.assert_called_once_with(batch_state_succeeded)
+        logs_link = DATAPROC_BATCH_LINK.format(region=GCP_REGION, project_id=GCP_PROJECT, batch_id=BATCH_ID)
+        # Check SUCCEED run from the logs
+        mock_log.info.assert_any_call("Batch job %s completed.\nDriver logs: %s", BATCH_ID, logs_link)
 
+    @mock.patch.object(DataprocCreateBatchOperator, "log", new_callable=mock.MagicMock)
     @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
     @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_transport_info_injection(
-        self, mock_hook, to_dict_mock, mock_ol_accessible, mock_ol_listener, mock_static_uuid
+        self, mock_hook, to_dict_mock, mock_ol_accessible, mock_ol_listener, mock_static_uuid, mock_log
     ):
         mock_ol_accessible.return_value = True
         mock_static_uuid.return_value = "01931885-2800-7be7-aa8d-aaa15c337267"
@@ -3421,9 +3476,9 @@ class TestDataprocCreateBatchOperator:
         )
         expected_batch = {
             **BATCH,
+            "labels": EXPECTED_LABELS,
             "runtime_config": {"properties": OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_SPARK_PROPERTIES},
         }
-
         op = DataprocCreateBatchOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -3437,9 +3492,13 @@ class TestDataprocCreateBatchOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
             openlineage_inject_transport_info=True,
+            dag=DAG(dag_id=TEST_DAG_ID),
         )
-        mock_hook.return_value.wait_for_operation.return_value = Batch(state=Batch.State.SUCCEEDED)
+        batch_state_succeeded = Batch(state=Batch.State.SUCCEEDED)
+        mock_hook.return_value.wait_for_batch.return_value = batch_state_succeeded
+        mock_hook.return_value.create_batch.return_value.metadata.batch = f"prefix/{BATCH_ID}"
         op.execute(context=EXAMPLE_CONTEXT)
+
         mock_hook.return_value.create_batch.assert_called_once_with(
             region=GCP_REGION,
             project_id=GCP_PROJECT,
@@ -3449,6 +3508,14 @@ class TestDataprocCreateBatchOperator:
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
+        )
+        to_dict_mock.assert_called_once_with(batch_state_succeeded)
+        logs_link = DATAPROC_BATCH_LINK.format(region=GCP_REGION, project_id=GCP_PROJECT, batch_id=BATCH_ID)
+        # Verify logs for successful run
+        mock_log.info.assert_any_call(
+            "Batch job %s completed.\nDriver logs: %s",
+            BATCH_ID,
+            logs_link,
         )
 
     @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
@@ -3466,6 +3533,7 @@ class TestDataprocCreateBatchOperator:
         )
         expected_batch = {
             **BATCH,
+            "labels": EXPECTED_LABELS,
             "runtime_config": {
                 "properties": {
                     **OPENLINEAGE_PARENT_JOB_EXAMPLE_SPARK_PROPERTIES,
@@ -3473,7 +3541,6 @@ class TestDataprocCreateBatchOperator:
                 }
             },
         }
-
         op = DataprocCreateBatchOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -3488,8 +3555,9 @@ class TestDataprocCreateBatchOperator:
             metadata=METADATA,
             openlineage_inject_parent_job_info=True,
             openlineage_inject_transport_info=True,
+            dag=DAG(dag_id=TEST_DAG_ID),
         )
-        mock_hook.return_value.wait_for_operation.return_value = Batch(state=Batch.State.SUCCEEDED)
+        mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.SUCCEEDED)
         op.execute(context=EXAMPLE_CONTEXT)
         mock_hook.return_value.create_batch.assert_called_once_with(
             region=GCP_REGION,
@@ -3509,22 +3577,15 @@ class TestDataprocCreateBatchOperator:
         self, mock_hook, to_dict_mock, mock_ol_accessible
     ):
         mock_ol_accessible.return_value = True
-        expected_labels = {
-            "airflow-dag-id": "test_dag",
-            "airflow-dag-display-name": "test_dag",
-            "airflow-task-id": "task-id",
-        }
-
         batch = {
             **BATCH,
-            "labels": expected_labels,
+            "labels": EXPECTED_LABELS,
             "runtime_config": {
                 "properties": {
                     "spark.openlineage.parentJobName": "dag_id.task_id",
                 }
             },
         }
-
         op = DataprocCreateBatchOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -3538,9 +3599,9 @@ class TestDataprocCreateBatchOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
             openlineage_inject_parent_job_info=True,
-            dag=DAG(dag_id="test_dag"),
+            dag=DAG(dag_id=TEST_DAG_ID),
         )
-        mock_hook.return_value.wait_for_operation.return_value = Batch(state=Batch.State.SUCCEEDED)
+        mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.SUCCEEDED)
         op.execute(context=EXAMPLE_CONTEXT)
         mock_hook.return_value.create_batch.assert_called_once_with(
             region=GCP_REGION,
@@ -3564,23 +3625,15 @@ class TestDataprocCreateBatchOperator:
         mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
-
-        expected_labels = {
-            "airflow-dag-id": "test_dag",
-            "airflow-dag-display-name": "test_dag",
-            "airflow-task-id": "task-id",
-        }
-
         batch = {
             **BATCH,
-            "labels": expected_labels,
+            "labels": EXPECTED_LABELS,
             "runtime_config": {
                 "properties": {
                     "spark.openlineage.transport.type": "console",
                 }
             },
         }
-
         op = DataprocCreateBatchOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -3594,7 +3647,7 @@ class TestDataprocCreateBatchOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
             openlineage_inject_transport_info=True,
-            dag=DAG(dag_id="test_dag"),
+            dag=DAG(dag_id=TEST_DAG_ID),
         )
         mock_hook.return_value.wait_for_operation.return_value = Batch(state=Batch.State.SUCCEEDED)
         op.execute(context=EXAMPLE_CONTEXT)
@@ -3620,7 +3673,6 @@ class TestDataprocCreateBatchOperator:
             **BATCH,
             "runtime_config": {"properties": {}},
         }
-
         op = DataprocCreateBatchOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -3635,7 +3687,7 @@ class TestDataprocCreateBatchOperator:
             metadata=METADATA,
             # not passing openlineage_inject_parent_job_info, should be False by default
         )
-        mock_hook.return_value.wait_for_operation.return_value = Batch(state=Batch.State.SUCCEEDED)
+        mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.SUCCEEDED)
         op.execute(context=EXAMPLE_CONTEXT)
         mock_hook.return_value.create_batch.assert_called_once_with(
             region=GCP_REGION,
@@ -3663,7 +3715,6 @@ class TestDataprocCreateBatchOperator:
             **BATCH,
             "runtime_config": {"properties": {}},
         }
-
         op = DataprocCreateBatchOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -3678,7 +3729,7 @@ class TestDataprocCreateBatchOperator:
             metadata=METADATA,
             # not passing openlineage_inject_transport_info, should be False by default
         )
-        mock_hook.return_value.wait_for_operation.return_value = Batch(state=Batch.State.SUCCEEDED)
+        mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.SUCCEEDED)
         op.execute(context=EXAMPLE_CONTEXT)
         mock_hook.return_value.create_batch.assert_called_once_with(
             region=GCP_REGION,
@@ -3702,7 +3753,6 @@ class TestDataprocCreateBatchOperator:
             **BATCH,
             "runtime_config": {"properties": {}},
         }
-
         op = DataprocCreateBatchOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -3717,7 +3767,7 @@ class TestDataprocCreateBatchOperator:
             metadata=METADATA,
             openlineage_inject_parent_job_info=True,
         )
-        mock_hook.return_value.wait_for_operation.return_value = Batch(state=Batch.State.SUCCEEDED)
+        mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.SUCCEEDED)
         op.execute(context=EXAMPLE_CONTEXT)
         mock_hook.return_value.create_batch.assert_called_once_with(
             region=GCP_REGION,
@@ -3745,7 +3795,6 @@ class TestDataprocCreateBatchOperator:
             **BATCH,
             "runtime_config": {"properties": {}},
         }
-
         op = DataprocCreateBatchOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -3760,7 +3809,7 @@ class TestDataprocCreateBatchOperator:
             metadata=METADATA,
             openlineage_inject_transport_info=True,
         )
-        mock_hook.return_value.wait_for_operation.return_value = Batch(state=Batch.State.SUCCEEDED)
+        mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.SUCCEEDED)
         op.execute(context=EXAMPLE_CONTEXT)
         mock_hook.return_value.create_batch.assert_called_once_with(
             region=GCP_REGION,
@@ -3789,20 +3838,13 @@ class TestDataprocCreateBatchOperator:
     @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_create_batch_asdict_labels_updated(self, mock_hook, to_dict_mock):
-        expected_labels = {
-            "airflow-dag-id": "test_dag",
-            "airflow-dag-display-name": "test_dag",
-            "airflow-task-id": "test-task",
-        }
-
         expected_batch = {
             **BATCH,
-            "labels": expected_labels,
+            "labels": EXPECTED_LABELS,
         }
-
         DataprocCreateBatchOperator(
-            task_id="test-task",
-            dag=DAG(dag_id="test_dag"),
+            task_id=TASK_ID,
+            dag=DAG(dag_id=TEST_DAG_ID),
             batch=BATCH,
             region=GCP_REGION,
         ).execute(context=EXAMPLE_CONTEXT)
@@ -3812,20 +3854,13 @@ class TestDataprocCreateBatchOperator:
     @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_create_batch_asdict_labels_uppercase_transformed(self, mock_hook, to_dict_mock):
-        expected_labels = {
-            "airflow-dag-id": "test_dag",
-            "airflow-dag-display-name": "test_dag",
-            "airflow-task-id": "test-task",
-        }
-
         expected_batch = {
             **BATCH,
-            "labels": expected_labels,
+            "labels": EXPECTED_LABELS,
         }
-
         DataprocCreateBatchOperator(
-            task_id="test-TASK",
-            dag=DAG(dag_id="Test_dag"),
+            task_id=TASK_ID,
+            dag=DAG(dag_id=TEST_DAG_ID),
             batch=BATCH,
             region=GCP_REGION,
         ).execute(context=EXAMPLE_CONTEXT)
@@ -3837,7 +3872,7 @@ class TestDataprocCreateBatchOperator:
     def test_create_batch_invalid_taskid_labels_ignored(self, mock_hook, to_dict_mock):
         DataprocCreateBatchOperator(
             task_id=".task-id",
-            dag=DAG(dag_id="test-dag"),
+            dag=DAG(dag_id=TEST_DAG_ID),
             batch=BATCH,
             region=GCP_REGION,
         ).execute(context=EXAMPLE_CONTEXT)
@@ -3849,7 +3884,7 @@ class TestDataprocCreateBatchOperator:
     def test_create_batch_long_taskid_labels_ignored(self, mock_hook, to_dict_mock):
         DataprocCreateBatchOperator(
             task_id="a" * 65,
-            dag=DAG(dag_id="test-dag"),
+            dag=DAG(dag_id=TEST_DAG_ID),
             batch=BATCH,
             region=GCP_REGION,
         ).execute(context=EXAMPLE_CONTEXT)
@@ -3861,21 +3896,13 @@ class TestDataprocCreateBatchOperator:
     def test_create_batch_asobj_labels_updated(self, mock_hook, to_dict_mock):
         batch = Batch(name="test")
         batch.labels["foo"] = "bar"
-        dag = DAG(dag_id="test_dag")
-
-        expected_labels = {
-            "airflow-dag-id": "test_dag",
-            "airflow-dag-display-name": "test_dag",
-            "airflow-task-id": "test-task",
-        }
-
         expected_batch = deepcopy(batch)
-        expected_batch.labels.update(expected_labels)
+        expected_batch.labels.update(EXPECTED_LABELS)
+        dag = DAG(dag_id=TEST_DAG_ID)
 
-        DataprocCreateBatchOperator(task_id="test-task", batch=batch, region=GCP_REGION, dag=dag).execute(
+        DataprocCreateBatchOperator(task_id=TASK_ID, batch=batch, region=GCP_REGION, dag=dag).execute(
             context=EXAMPLE_CONTEXT
         )
-
         TestDataprocCreateBatchOperator.__assert_batch_create(mock_hook, expected_batch)
 
 

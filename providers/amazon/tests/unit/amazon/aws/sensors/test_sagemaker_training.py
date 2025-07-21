@@ -91,7 +91,7 @@ class TestSageMakerTrainingSensor:
         assert mock_describe_job.call_count == 3
 
         # make sure the hook was initialized with the specific params
-        calls = [mock.call(aws_conn_id="aws_test")]
+        calls = [mock.call(aws_conn_id="aws_test", config=None, verify=None, region_name=None)]
         hook_init.assert_has_calls(calls)
 
     @mock.patch.object(SageMakerHook, "get_conn")
@@ -123,5 +123,5 @@ class TestSageMakerTrainingSensor:
         assert mock_describe_job_with_log.call_count == 3
         assert mock_describe_job.call_count == 1
 
-        calls = [mock.call(aws_conn_id="aws_test")]
+        calls = [mock.call(aws_conn_id="aws_test", config=None, verify=None, region_name=None)]
         hook_init.assert_has_calls(calls)

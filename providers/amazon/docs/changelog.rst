@@ -26,6 +26,187 @@
 Changelog
 ---------
 
+9.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add support for S3 dag bundle (#46621)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix GlueJobOperator deferred waiting (#52314)``
+* ``Handle exceptions when fetching status in GlueJobHook (#52262)``
+* ``Handle 'S3KeySensor' in 'deferrable' mode splits 'bucket_key' into individual chars (#52983)``
+* ``Pass the region_name from the GlueJobOperator / GlueJobSensor to the Trigger (#52904)``
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Replace 'models.BaseOperator' to Task SDK one for Amazon Provider (#52667)``
+* ``Disable UP038 ruff rule and revert mandatory 'X | Y' in insintance checks (#52644)``
+* ``Upgrade ruff to latest version (0.12.1) (#52562)``
+* ``Replace usage of 'set_extra' with 'extra' for athena sql hook (#52340)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Replace 'models.BaseOperator' to Task SDK one for Standard Provider (#52292)``
+* ``Replace occurences of 'get_password' with 'password' to ease migration (#52333)``
+* ``Use BaseSensorOperator from task sdk in providers (#52296)``
+* ``Use base AWS classes in Glue Trigger / Sensor and implement custom waiter (#52243)``
+* ``Add Airflow 3.0+ Task SDK support to AWS Batch Executor (#52121)``
+* ``Refactor operator_extra_links property in BatchOperator (#51385)``
+* ``Remove unused batch methods from auth manager (#52883)``
+* ``Add debug logging for endpoint_url in AWS Connection (#52856)``
+* ``Remove 'MENU' from 'ResourceMethod' in auth manager (#52731)``
+* ``Remove 'MAX_XCOM_SIZE' hardcoded constant from Airflow core  (#52978)``
+* ``More robust handling of 'BaseHook.get_connection''s 'CONNECTION_NOT_FOUND' Task SDK exception (#52838)``
+* ``Move all BaseHook usages to version_compat in Amazon (#52796)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+
+Doc-only
+~~~~~~~~
+
+* ``Clean some leftovers of Python 3.9 removal - All the rest (#52432)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make sure all test version imports come from test_common (#52425)``
+   * ``Added additional steps to QuickSights test prerequisites (#52198)``
+   * ``examples dags: Update redshift node version dc2.large is deprecated (#52120)``
+   * ``Updating AWS systest to do connection setup using ENV (#52073)``
+   * ``Remove pytest.mark.db_test: airbyte and amazon providers where possible (#52017)``
+   * ``Introducing fixture to create 'Connections' without DB in provider tests (#51930)``
+   * ``Switch the Supervisor/task process from line-based to length-prefixed (#51699)``
+   * ``Mocked time.sleep to avoid actual sleep time (#51752)``
+   * ``Prepare release for July 2025 1st provider wave (#52727)``
+
+9.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'MessageDeduplicationId' support to 'SnsPublishOperator' (#51383)``
+* ``Add support for RequestPay=requester option in Amazon S3's Operators, Sensors and Triggers (#51098)``
+* ``Add AWS Lambda Executor (#50516)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Removed unnecessary 'aws_conn_id' param from operators constructors (#51236)``
+* ``Fix EcsRunTaskOperator reattach (#51412)``
+* ``Fix EKS token generation (#51333)``
+* ``Fix 'EksPodOperator' in deferrable mode (#51255)``
+* ``Rds Operator pass custom conn_id to superclass (#51196)``
+* ``Fix remote logging CloudWatch handler initialization and stream name assignment (#51022)``
+* ``Check 'is_mapped' to prevent 'operator_extra_links' property failing for Airflow 3. #50932``
+* ``Fix aws_conn_id defaulting after dag.test was updated to use TaskSDK. (#50515)``
+* ``AWS ECS Executor. Assign public ip defaults false (#50713)``
+
+Misc
+~~~~
+
+* ``Remove unused entries from 'DagAccessEntity' (#51174)``
+* ``Update Redshift cluster operator and sensor to inherit AwsBaseOperator (#51129)``
+* ``Remove Airflow 2 code path in executors (#51009)``
+* ``Move AWS auth dependencies to python3-saml extra (#50449)``
+* ``Bump some provider dependencies for faster resolution (#51727)``
+
+Doc-only
+~~~~~~~~
+
+* ``docs: Add missing 'param' for waiter_max_attempts in EMR operator docstring (#51676)``
+* ``Update comment in CloudWatchRemoteLogIO (#51092)``
+* ``Use explicit directives instead of implicit syntax (#50870)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix 'example_bedrock_batch_inference' (#51413)``
+   * ``Fixed cross-merged tests that fail for Pytest 8.4.0 (#51366)``
+   * ``Allow test migration to pytest 8.4.0 (#51349)``
+   * ``Fix system test 'test_aws_auth_manager' (#51241)``
+   * ``Fix 'StopIteration' error in AWS System Test 'variable_fetcher' when using remote executor (#51127)``
+
+9.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add in-memory buffer and gzip support in SqlToS3Operator (#50287)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add Key to default meta keys in S3KeySensor (#50122)``
+
+Misc
+~~~~
+
+* ``Update Sagemaker Operators and Sensors to inherit Base AWS classes (#50321)``
+* ``Use non-deprecated context in tests for Airflow 3 (#50391)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Handle exception when building amazon documentation (#50417)``
+   * ``AWS System Test Context: Don't set env_id at parse time (#50571)``
+
+9.7.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.10+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Move SQS messaging from common.messaging to Amazon provider (#50057)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix typo in emr sensor _hook_parameters (#49597)``
+* ``Update 'prune_logs' in Amazon provider package to support 'RuntimeTaskInstance' (#49363)``
+
+Misc
+~~~~
+
+* ``Remove AIRFLOW_2_10_PLUS conditions (#49877)``
+* ``Bump min Airflow version in providers to 2.10 (#49843)``
+* ``Update GlueJobOperator to inherit AWS base class (#49750)``
+* ``Amazon EMR Sensors/Operators inherit AWS Base Classes (#49486)``
+* ``Introduce lower bind to lxml as 5.4.0 (#49612)``
+* ``Remove Marshmallow from Core (#49388)``
+* ``Migrate 'HiveToDynamoDBOperator' and 'SqlToS3Operator' to use 'get_df' (#50126)``
+* ``add root parent information to OpenLineage events (#49237)``
+* ``Remove limits for aiobotocore limiting boto3 (#50285)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Limit boto3 (#49939)" (#49948)``
+   * ``Refactor connection creation in system tests to use REST API instead (#49804)``
+   * ``Min provider version=2.10; use running_state freely (#49924)``
+   * ``Also limit botocore when upgrading to latest (#49962)``
+   * ``Add AWS auth manager to AWS provider.yaml (#49944)``
+   * ``Limit boto3 (#49939)``
+   * ``Avoid committing history for providers (#49907)``
+   * ``Replace chicken-egg providers with automated use of unreleased packages (#49799)``
+   * ``Fix AWS system test names (#49791)``
+   * ``Update 'secure' in AWS auth manager (#49751)``
+   * ``use NonNegativeInt for backfill_id (#49691)``
+   * ``Fix AWS auth manager (#49588)``
+   * ``Fix AWS auth manager system test (#49561)``
+   * ``Make AWS auth manager compatible with AF3 (#49419)``
+   * ``capitalize the term airflow (#49450)``
+   * ``Use Label class from task sdk in providers (#49398)``
+   * ``Add Stop AutoML Job to the Sagemaker system test to clean up. (#49325)``
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Prepare ad hoc release for providers May 2025 (#50166)``
+
 9.6.1
 .....
 

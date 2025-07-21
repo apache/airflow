@@ -23,8 +23,6 @@ from typing import TYPE_CHECKING, Any, cast
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.utils.helpers import prune_dict
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
-
 try:
     # ImportError has been renamed to ParseImportError in airflow 2.10.0, and since our provider tests should
     # run on all supported versions of Airflow, this compatibility shim falls back to the old ImportError so
@@ -39,7 +37,7 @@ try:
     from airflow.sdk import BaseOperatorLink
 except ImportError:
     # Compatibility for Airflow 2.7.*
-    from airflow.models.baseoperator import BaseOperatorLink
+    from airflow.models.baseoperator import BaseOperatorLink  # type: ignore[no-redef]
 
 try:
     from airflow.providers.common.sql.operators.generic_transfer import GenericTransfer
@@ -51,13 +49,19 @@ try:
     from airflow.providers.standard.utils.python_virtualenv import write_python_script
 except ImportError:
     # Compatibility for Airflow < 2.10.*
-    from airflow.operators.bash import BashOperator  # type: ignore[no-redef,attr-defined]
-    from airflow.operators.empty import EmptyOperator  # type: ignore[no-redef,attr-defined]
-    from airflow.operators.generic_transfer import GenericTransfer  # type: ignore[no-redef,attr-defined]
-    from airflow.operators.python import PythonOperator  # type: ignore[no-redef,attr-defined]
-    from airflow.sensors.bash import BashSensor  # type: ignore[no-redef,attr-defined]
-    from airflow.sensors.date_time import DateTimeSensor  # type: ignore[no-redef,attr-defined]
-    from airflow.utils.python_virtualenv import write_python_script  # type: ignore[no-redef,attr-defined]
+    from airflow.operators.bash import BashOperator  # type: ignore[no-redef]
+    from airflow.operators.empty import EmptyOperator  # type: ignore[no-redef]
+    from airflow.operators.generic_transfer import GenericTransfer  # type: ignore[no-redef]
+    from airflow.operators.python import PythonOperator  # type: ignore[no-redef]
+    from airflow.sensors.bash import BashSensor  # type: ignore[no-redef]
+    from airflow.sensors.date_time import DateTimeSensor  # type: ignore[no-redef]
+    from airflow.utils.python_virtualenv import write_python_script  # type: ignore[no-redef]
+
+try:
+    from airflow.models.xcom import XCOM_RETURN_KEY
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.xcom import XCOM_RETURN_KEY  # type: ignore[no-redef,attr-defined]
 
 
 if TYPE_CHECKING:
@@ -86,35 +90,27 @@ else:
     except ModuleNotFoundError:
         # dataset is renamed to asset since Airflow 3.0
         from airflow.models.dataset import (
+            DagScheduleDatasetAliasReference as DagScheduleAssetAliasReference,
             DagScheduleDatasetReference as DagScheduleAssetReference,
+            DatasetAliasModel as AssetAliasModel,
             DatasetDagRunQueue as AssetDagRunQueue,
             DatasetEvent as AssetEvent,
             DatasetModel as AssetModel,
             TaskOutletDatasetReference as TaskOutletAssetReference,
         )
 
-        if AIRFLOW_V_2_10_PLUS:
-            from airflow.models.dataset import (
-                DagScheduleDatasetAliasReference as DagScheduleAssetAliasReference,
-                DatasetAliasModel as AssetAliasModel,
-            )
-
 
 def deserialize_operator(serialized_operator: dict[str, Any]) -> Operator:
-    if AIRFLOW_V_2_10_PLUS:
-        # In airflow 2.10+ we can deserialize operator using regular deserialize method.
-        # We do not need to use deserialize_operator method explicitly but some tests are deserializing the
-        # operator and in the future they could use regular ``deserialize`` method. This method is a shim
-        # to make deserialization of operator works for tests run against older Airflow versions and tests
-        # should use that method instead of calling ``BaseSerialization.deserialize`` directly.
-        # We can remove this method and switch to the regular ``deserialize`` method as long as all providers
-        # are updated to airflow 2.10+.
-        from airflow.serialization.serialized_objects import BaseSerialization
+    # In airflow 2.10+ we can deserialize operator using regular deserialize method.
+    # We do not need to use deserialize_operator method explicitly but some tests are deserializing the
+    # operator and in the future they could use regular ``deserialize`` method. This method is a shim
+    # to make deserialization of operator works for tests run against older Airflow versions and tests
+    # should use that method instead of calling ``BaseSerialization.deserialize`` directly.
+    # We can remove this method and switch to the regular ``deserialize`` method as long as all providers
+    # are updated to airflow 2.10+.
+    from airflow.serialization.serialized_objects import BaseSerialization
 
-        return BaseSerialization.deserialize(serialized_operator)
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
-
-    return SerializedBaseOperator.deserialize_operator(serialized_operator)
+    return BaseSerialization.deserialize(serialized_operator)
 
 
 def connection_to_dict(

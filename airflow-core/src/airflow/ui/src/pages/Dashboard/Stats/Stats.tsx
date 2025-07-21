@@ -17,51 +17,42 @@
  * under the License.
  */
 import { Box, Flex, Heading, HStack } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiClipboard, FiZap } from "react-icons/fi";
 
-import { useDagServiceGetDags } from "openapi/queries";
+import { useDashboardServiceDagStats } from "openapi/queries";
+import { useAutoRefresh } from "src/utils";
 
 import { DAGImportErrors } from "./DAGImportErrors";
 import { PluginImportErrors } from "./PluginImportErrors";
 import { StatsCard } from "./StatsCard";
 
 export const Stats = () => {
-  const { data: activeDagsData, isLoading: isActiveDagsLoading } = useDagServiceGetDags({
-    paused: false,
+  const refetchInterval = useAutoRefresh({});
+  const { data: statsData, isLoading: isStatsLoading } = useDashboardServiceDagStats(undefined, {
+    refetchInterval,
   });
-
-  const { data: failedDagsData, isLoading: isFailedDagsLoading } = useDagServiceGetDags({
-    lastDagRunState: "failed",
-  });
-
-  const { data: queuedDagsData, isLoading: isQueuedDagsLoading } = useDagServiceGetDags({
-    lastDagRunState: "queued",
-  });
-
-  const { data: runningDagsData, isLoading: isRunningDagsLoading } = useDagServiceGetDags({
-    lastDagRunState: "running",
-  });
-
-  const activeDagsCount = activeDagsData?.total_entries ?? 0;
-  const failedDagsCount = failedDagsData?.total_entries ?? 0;
-  const queuedDagsCount = queuedDagsData?.total_entries ?? 0;
-  const runningDagsCount = runningDagsData?.total_entries ?? 0;
+  const failedDagsCount = statsData?.failed_dag_count ?? 0;
+  const queuedDagsCount = statsData?.queued_dag_count ?? 0;
+  const runningDagsCount = statsData?.running_dag_count ?? 0;
+  const activeDagsCount = statsData?.active_dag_count ?? 0;
+  const { t: translate } = useTranslation("dashboard");
 
   return (
     <Box>
       <Flex alignItems="center" color="fg.muted" my={2}>
         <FiClipboard />
         <Heading ml={1} size="xs">
-          Stats
+          {translate("stats.stats")}
         </Heading>
       </Flex>
 
-      <HStack columns={{ base: 1, lg: 5, md: 3 }} gap={4}>
+      <HStack gap={4}>
         <StatsCard
           colorScheme="failed"
           count={failedDagsCount}
-          isLoading={isFailedDagsLoading}
-          label="Failed dags"
+          isLoading={isStatsLoading}
+          label={translate("stats.failedDags")}
           link="dags?last_dag_run_state=failed"
           state="failed"
         />
@@ -74,8 +65,8 @@ export const Stats = () => {
           <StatsCard
             colorScheme="queued"
             count={queuedDagsCount}
-            isLoading={isQueuedDagsLoading}
-            label="Queued dags"
+            isLoading={isStatsLoading}
+            label={translate("stats.queuedDags")}
             link="dags?last_dag_run_state=queued"
             state="queued"
           />
@@ -84,8 +75,8 @@ export const Stats = () => {
         <StatsCard
           colorScheme="running"
           count={runningDagsCount}
-          isLoading={isRunningDagsLoading}
-          label="Running dags"
+          isLoading={isStatsLoading}
+          label={translate("stats.runningDags")}
           link="dags?last_dag_run_state=running"
           state="running"
         />
@@ -94,8 +85,8 @@ export const Stats = () => {
           colorScheme="blue"
           count={activeDagsCount}
           icon={<FiZap />}
-          isLoading={isActiveDagsLoading}
-          label="Active dags"
+          isLoading={isStatsLoading}
+          label={translate("stats.activeDags")}
           link="dags?paused=false"
         />
       </HStack>

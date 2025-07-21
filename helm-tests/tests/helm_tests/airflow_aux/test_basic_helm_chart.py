@@ -38,7 +38,6 @@ OBJECTS_STD_NAMING = {
     ("Secret", "test-basic-airflow-metadata"),
     ("Secret", "test-basic-broker-url"),
     ("Secret", "test-basic-fernet-key"),
-    ("Secret", "test-basic-airflow-webserver-secret-key"),
     ("Secret", "test-basic-redis-password"),
     ("Secret", "test-basic-postgresql"),
     ("ConfigMap", "test-basic-airflow-config"),
@@ -71,6 +70,8 @@ DEFAULT_OBJECTS_STD_NAMING = OBJECTS_STD_NAMING.union(
         ("Deployment", "test-basic-airflow-dag-processor"),
         ("ServiceAccount", "test-basic-airflow-api-server"),
         ("ServiceAccount", "test-basic-airflow-dag-processor"),
+        ("Secret", "test-basic-airflow-api-secret-key"),
+        ("Secret", "test-basic-jwt-secret"),
     }
 )
 
@@ -81,6 +82,7 @@ AIRFLOW2_OBJECTS_STD_NAMING = OBJECTS_STD_NAMING.union(
         ("Service", "test-basic-airflow-webserver"),
         ("Deployment", "test-basic-airflow-webserver"),
         ("ServiceAccount", "test-basic-airflow-webserver"),
+        ("Secret", "test-basic-airflow-webserver-secret-key"),
     }
 )
 
@@ -136,7 +138,6 @@ class TestBaseChartTest:
             ("Secret", "test-basic-metadata"),
             ("Secret", "test-basic-broker-url"),
             ("Secret", "test-basic-fernet-key"),
-            ("Secret", "test-basic-webserver-secret-key"),
             ("Secret", "test-basic-postgresql"),
             ("Secret", "test-basic-redis-password"),
             ("ConfigMap", "test-basic-config"),
@@ -170,6 +171,8 @@ class TestBaseChartTest:
                     ("ServiceAccount", "test-basic-api-server"),
                     ("ServiceAccount", "test-basic-dag-processor"),
                     ("Service", "test-basic-triggerer"),
+                    ("Secret", "test-basic-api-secret-key"),
+                    ("Secret", "test-basic-jwt-secret"),
                 )
             )
         else:
@@ -178,6 +181,7 @@ class TestBaseChartTest:
                     ("Deployment", "test-basic-webserver"),
                     ("Service", "test-basic-webserver"),
                     ("ServiceAccount", "test-basic-webserver"),
+                    ("Secret", "test-basic-webserver-secret-key"),
                 )
             )
         if version == "default":
@@ -236,7 +240,6 @@ class TestBaseChartTest:
             ("Secret", "test-basic-metadata"),
             ("Secret", "test-basic-broker-url"),
             ("Secret", "test-basic-fernet-key"),
-            ("Secret", "test-basic-webserver-secret-key"),
             ("Secret", "test-basic-postgresql"),
             ("Secret", "test-basic-redis-password"),
             ("ConfigMap", "test-basic-config"),
@@ -269,6 +272,8 @@ class TestBaseChartTest:
                     ("Deployment", "test-basic-api-server"),
                     ("Service", "test-basic-api-server"),
                     ("ServiceAccount", "test-basic-api-server"),
+                    ("Secret", "test-basic-api-secret-key"),
+                    ("Secret", "test-basic-jwt-secret"),
                 }
             )
         else:
@@ -277,6 +282,7 @@ class TestBaseChartTest:
                     ("Service", "test-basic-webserver"),
                     ("Deployment", "test-basic-webserver"),
                     ("ServiceAccount", "test-basic-webserver"),
+                    ("Secret", "test-basic-webserver-secret-key"),
                 }
             )
         assert list_of_kind_names_tuples == expected
@@ -401,7 +407,7 @@ class TestBaseChartTest:
         }
 
         kind_names_tuples = [
-            (f"{release_name}-airflow-cleanup", "ServiceAccount", None),
+            (f"{release_name}-airflow-cleanup", "ServiceAccount", "airflow-cleanup-pods"),
             (f"{release_name}-config", "ConfigMap", "config"),
             (f"{release_name}-airflow-create-user-job", "ServiceAccount", "create-user-job"),
             (f"{release_name}-airflow-flower", "ServiceAccount", "flower"),
@@ -444,7 +450,6 @@ class TestBaseChartTest:
             (f"{release_name}-statsd", "Deployment", "statsd"),
             (f"{release_name}-statsd", "Service", "statsd"),
             (f"{release_name}-statsd-policy", "NetworkPolicy", "statsd-policy"),
-            (f"{release_name}-webserver-secret-key", "Secret", "webserver"),
             (f"{release_name}-worker", "Service", "worker"),
             (f"{release_name}-worker", "StatefulSet", "worker"),
             (f"{release_name}-worker-policy", "NetworkPolicy", "airflow-worker-policy"),
@@ -457,14 +462,17 @@ class TestBaseChartTest:
         if self._is_airflow_3_or_above(airflow_version):
             kind_names_tuples += [
                 (f"{release_name}-api-server", "Service", "api-server"),
-                (f"{release_name}-api-server-policy", "NetworkPolicy", "airflow-api-server-policy"),
                 (f"{release_name}-api-server", "Deployment", "api-server"),
+                (f"{release_name}-airflow-api-server", "ServiceAccount", "api-server"),
+                (f"{release_name}-api-secret-key", "Secret", "api-server"),
+                (f"{release_name}-api-server-policy", "NetworkPolicy", "airflow-api-server-policy"),
             ]
         else:
             kind_names_tuples += [
                 (f"{release_name}-airflow-webserver", "ServiceAccount", "webserver"),
                 (f"{release_name}-webserver", "Deployment", "webserver"),
                 (f"{release_name}-webserver", "Service", "webserver"),
+                (f"{release_name}-webserver-secret-key", "Secret", "webserver"),
                 (f"{release_name}-webserver-policy", "NetworkPolicy", "airflow-webserver-policy"),
                 (f"{release_name}-ingress", "Ingress", "airflow-ingress"),
             ]

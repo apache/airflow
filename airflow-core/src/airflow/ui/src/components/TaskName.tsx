@@ -48,7 +48,6 @@ export const TaskName = ({
   setupTeardownType,
   ...rest
 }: TaskNameProps) => {
-  // We don't have a task group details page to link to
   if (isGroup) {
     return (
       <Text

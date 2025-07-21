@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session as SASession
 
     from airflow.models.dag import DAG
-    from airflow.models.operator import Operator
+    from airflow.sdk.types import Operator
 
 
 @provide_session
@@ -215,17 +215,31 @@ def set_dag_run_state_to_success(
     if not run_id:
         raise ValueError(f"Invalid dag_run_id: {run_id}")
 
-    # Mark all task instances of the dag run to success - except for teardown as they need to complete work.
+    # Mark all task instances of the dag run to success - except for unfinished teardown as they need to complete work.
     normal_tasks = [task for task in dag.tasks if not task.is_teardown]
+    teardown_tasks = [task for task in dag.tasks if task.is_teardown]
+    unfinished_teardown_task_ids = set(
+        session.scalars(
+            select(TaskInstance.task_id).where(
+                TaskInstance.dag_id == dag.dag_id,
+                TaskInstance.run_id == run_id,
+                TaskInstance.task_id.in_([task.task_id for task in teardown_tasks]),
+                or_(TaskInstance.state.is_(None), TaskInstance.state.in_(State.unfinished)),
+            )
+        ).all()
+    )
 
-    # Mark the dag run to success.
-    if commit and len(normal_tasks) == len(dag.tasks):
+    # Mark the dag run to success if there are no unfinished teardown tasks.
+    if commit and len(unfinished_teardown_task_ids) == 0:
         _set_dag_run_state(dag.dag_id, run_id, DagRunState.SUCCESS, session)
 
-    for task in normal_tasks:
+    tasks_to_mark_success = normal_tasks + [
+        task for task in teardown_tasks if task.task_id not in unfinished_teardown_task_ids
+    ]
+    for task in tasks_to_mark_success:
         task.dag = dag
     return set_state(
-        tasks=normal_tasks,
+        tasks=tasks_to_mark_success,
         run_id=run_id,
         state=TaskInstanceState.SUCCESS,
         commit=commit,

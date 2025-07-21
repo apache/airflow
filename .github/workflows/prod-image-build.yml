@@ -20,8 +20,8 @@ name: Build PROD images
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on-as-json-public:
-        description: "The array of labels (in json form) determining default runner used for the build."
+      runners:
+        description: "The array of labels (in json form) determining runners."
         required: true
         type: string
       build-type:
@@ -85,23 +85,15 @@ on:  # yamllint disable-line rule:truthy
         required: true
         type: string
       branch:
-        description: "Branch used to run the CI jobs in (main/v2_*_test)."
+        description: "Branch used to run the CI jobs in (main/v*_*_test)."
         required: true
         type: string
       constraints-branch:
         description: "Branch used to construct constraints URL from."
         required: true
         type: string
-      build-provider-distributions:
-        description: "Whether to build provider distributions (true/false). If false providers are from PyPI"
-        required: true
-        type: string
       upgrade-to-newer-dependencies:
         description: "Whether to attempt to upgrade image to newer dependencies (true/false)"
-        required: true
-        type: string
-      chicken-egg-providers:
-        description: "Space-separated list of providers that should be installed from context files"
         required: true
         type: string
       docker-cache:
@@ -122,7 +114,7 @@ jobs:
   build-prod-packages:
     name: "Build Airflow and provider distributions"
     timeout-minutes: 10
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     if: inputs.prod-image-build == 'true'
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
@@ -132,11 +124,11 @@ jobs:
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
         if: inputs.upload-package-artifact == 'true'
       - name: "Checkout target branch"
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Prepare and cleanup runner"
+        run: ./scripts/ci/prepare_and_cleanup_runner.sh
         if: inputs.upload-package-artifact == 'true'
       - name: "Cleanup dist and context file"
         shell: bash
@@ -147,25 +139,22 @@ jobs:
         with:
           use-uv: ${{ inputs.use-uv }}
         if: inputs.upload-package-artifact == 'true'
-      - name: "Prepare providers packages"
+      - name: "Prepare providers packages - all providers built from sources"
         shell: bash
         run: >
           breeze release-management prepare-provider-distributions
           --distributions-list-file ./prod_image_installed_providers.txt
           --distribution-format wheel --include-not-ready-providers --skip-tag-check
         if: >
-          inputs.upload-package-artifact == 'true' &&
-          inputs.build-provider-distributions == 'true'
-      - name: "Prepare chicken-eggs provider distributions"
+          inputs.upload-package-artifact == 'true' && inputs.branch == 'main'
+      - name: "Prepare providers packages with only new versions of providers"
         shell: bash
-        env:
-          CHICKEN_EGG_PROVIDERS: ${{ inputs.chicken-egg-providers }}
         run: >
           breeze release-management prepare-provider-distributions
-          --distribution-format wheel ${CHICKEN_EGG_PROVIDERS}
+          --distributions-list-file ./prod_image_installed_providers.txt
+          --distribution-format wheel --include-not-ready-providers
         if: >
-          inputs.upload-package-artifact == 'true' &&
-          inputs.chicken-egg-providers != ''
+          inputs.upload-package-artifact == 'true' && inputs.branch != 'main'
       - name: "Prepare airflow package"
         shell: bash
         run: >
@@ -182,7 +171,7 @@ jobs:
           breeze release-management prepare-airflow-ctl-distributions --distribution-format wheel
         if: inputs.upload-package-artifact == 'true'
       - name: "Upload prepared packages as artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: prod-packages
           path: ./dist
@@ -197,7 +186,7 @@ jobs:
         python-version: ${{ fromJSON(inputs.python-versions) || fromJSON('[""]') }}
     timeout-minutes: 80
     name: "Build PROD ${{ inputs.build-type }} image ${{ matrix.python-version }}"
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     needs:
       - build-prod-packages
     env:
@@ -215,17 +204,18 @@ jobs:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
+      PLATFORM: ${{ inputs.platform }}
       VERBOSE: "true"
     steps:
       - name: "Cleanup repo"
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout target branch"
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Prepare and cleanup runner"
+        run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         with:
@@ -234,15 +224,27 @@ jobs:
         shell: bash
         run: rm -fv ./dist/* ./docker-context-files/*
       - name: "Download packages prepared as artifacts"
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
         with:
           name: prod-packages
           path: ./docker-context-files
+      - name: "Show downloaded packages"
+        run: ls -la ./docker-context-files
       - name: "Download constraints"
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
         with:
-          name: constraints
+          pattern: constraints-*
           path: ./docker-context-files
+      - name: "Show constraints"
+        run: |
+          for file in ./docker-context-files/constraints*/constraints*.txt
+          do
+            echo "=== ${file} ==="
+            echo
+            cat ${file}
+            echo
+            echo "=== END ${file} ==="
+          done
       - name: "Login to ghcr.io"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -265,25 +267,7 @@ jobs:
           INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ inputs.upgrade-to-newer-dependencies }}
           INCLUDE_NOT_READY_PROVIDERS: "true"
-        if: inputs.build-provider-distributions == 'true'
-      - name: "Build PROD images with PyPi providers ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
-        shell: bash
-        run: >
-          breeze prod-image build
-          --builder airflow_cache
-          --commit-sha "${{ github.sha }}"
-          --install-distributions-from-context
-          --airflow-constraints-mode constraints
-          --use-constraints-for-context-distributions
-        env:
-          PUSH: ${{ inputs.push-image }}
-          DOCKER_CACHE: ${{ inputs.docker-cache }}
-          DISABLE_AIRFLOW_REPO_CACHE: ${{ inputs.disable-airflow-repo-cache }}
-          DEBIAN_VERSION: ${{ inputs.debian-version }}
-          INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
-          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ inputs.upgrade-to-newer-dependencies }}
-          INCLUDE_NOT_READY_PROVIDERS: "true"
-        if: inputs.build-provider-distributions != 'true'
+          USE_UV: ${{ inputs.use-uv }}
       - name: "Verify PROD image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         run: breeze prod-image verify
       - name: "Export PROD docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"

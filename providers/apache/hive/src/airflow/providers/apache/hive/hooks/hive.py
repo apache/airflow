@@ -25,27 +25,23 @@ import subprocess
 import time
 from collections.abc import Iterable, Mapping
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
+
+from deprecated import deprecated
+from typing_extensions import overload
 
 if TYPE_CHECKING:
     import pandas as pd
+    import polars as pl
 
 import csv
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
-from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.providers.apache.hive.version_compat import AIRFLOW_VAR_NAME_FORMAT_MAPPING, BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.security import utils
 from airflow.utils.helpers import as_flattened_list
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.execution_time.context import AIRFLOW_VAR_NAME_FORMAT_MAPPING
-else:
-    from airflow.utils.operator_helpers import (  # type: ignore[no-redef, attr-defined]
-        AIRFLOW_VAR_NAME_FORMAT_MAPPING,
-    )
 
 HIVE_QUEUE_PRIORITIES = ["VERY_HIGH", "HIGH", "NORMAL", "LOW", "VERY_LOW"]
 
@@ -273,7 +269,7 @@ class HiveCliHook(BaseHook):
         True
         """
         conn = self.conn
-        schema = schema or conn.schema
+        schema = schema or conn.schema or ""
 
         invalid_chars_list = re.findall(r"[^a-z0-9_]", schema)
         if invalid_chars_list:
@@ -601,7 +597,9 @@ class HiveMetastoreHook(BaseHook):
 
     def _find_valid_host(self) -> Any:
         conn = self.conn
-        hosts = conn.host.split(",")
+        hosts = []
+        if conn.host:
+            hosts = conn.host.split(",")
         for host in hosts:
             host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.log.info("Trying to connect to %s:%s", host, conn.port)
@@ -867,7 +865,7 @@ class HiveServer2Hook(DbApiHook):
         username: str | None = None
         password: str | None = None
 
-        db = self.get_connection(self.hiveserver2_conn_id)  # type: ignore
+        db = self.get_connection(self.get_conn_id())
 
         auth_mechanism = db.extra_dejson.get("auth_mechanism", "NONE")
         if auth_mechanism == "NONE" and db.login is None:
@@ -909,7 +907,7 @@ class HiveServer2Hook(DbApiHook):
         with contextlib.closing(self.get_conn(schema)) as conn, contextlib.closing(conn.cursor()) as cur:
             cur.arraysize = fetch_size or 1000
 
-            db = self.get_connection(self.hiveserver2_conn_id)  # type: ignore
+            db = self.get_connection(self.get_conn_id())
             # Not all query services (e.g. impala) support the set command
             if db.extra_dejson.get("run_set_variable_statements", True):
                 env_context = get_context_from_env_var()
@@ -1031,30 +1029,14 @@ class HiveServer2Hook(DbApiHook):
         schema = kwargs["schema"] if "schema" in kwargs else "default"
         return self.get_results(sql, schema=schema, hive_conf=parameters)["data"]
 
-    def get_pandas_df(  # type: ignore
+    def _get_pandas_df(
         self,
-        sql: str,
+        sql,
+        parameters: list[Any] | tuple[Any, ...] | Mapping[str, Any] | None = None,
         schema: str = "default",
         hive_conf: dict[Any, Any] | None = None,
         **kwargs,
     ) -> pd.DataFrame:
-        """
-        Get a pandas dataframe from a Hive query.
-
-        :param sql: hql to be executed.
-        :param schema: target schema, default to 'default'.
-        :param hive_conf: hive_conf to execute alone with the hql.
-        :param kwargs: (optional) passed into pandas.DataFrame constructor
-        :return: result of hive execution
-
-        >>> hh = HiveServer2Hook()
-        >>> sql = "SELECT * FROM airflow.static_babynames LIMIT 100"
-        >>> df = hh.get_pandas_df(sql)
-        >>> len(df.index)
-        100
-
-        :return: pandas.DateFrame
-        """
         try:
             import pandas as pd
         except ImportError as e:
@@ -1065,3 +1047,90 @@ class HiveServer2Hook(DbApiHook):
         res = self.get_results(sql, schema=schema, hive_conf=hive_conf)
         df = pd.DataFrame(res["data"], columns=[c[0] for c in res["header"]], **kwargs)
         return df
+
+    def _get_polars_df(
+        self,
+        sql,
+        parameters: list[Any] | tuple[Any, ...] | Mapping[str, Any] | None = None,
+        schema: str = "default",
+        hive_conf: dict[Any, Any] | None = None,
+        **kwargs,
+    ) -> pl.DataFrame:
+        try:
+            import polars as pl
+        except ImportError as e:
+            from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+            raise AirflowOptionalProviderFeatureException(e)
+
+        res = self.get_results(sql, schema=schema, hive_conf=hive_conf)
+        df = pl.DataFrame(res["data"], schema=[c[0] for c in res["header"]], orient="row", **kwargs)
+        return df
+
+    @overload  # type: ignore[override]
+    def get_df(
+        self,
+        sql: str,
+        schema: str = "default",
+        hive_conf: dict[Any, Any] | None = None,
+        *,
+        df_type: Literal["pandas"] = "pandas",
+        **kwargs: Any,
+    ) -> pd.DataFrame: ...
+
+    @overload
+    def get_df(
+        self,
+        sql: str,
+        schema: str = "default",
+        hive_conf: dict[Any, Any] | None = None,
+        *,
+        df_type: Literal["polars"],
+        **kwargs: Any,
+    ) -> pl.DataFrame: ...
+
+    def get_df(
+        self,
+        sql: str,
+        schema: str = "default",
+        hive_conf: dict[Any, Any] | None = None,
+        *,
+        df_type: Literal["pandas", "polars"] = "pandas",
+        **kwargs,
+    ) -> pd.DataFrame | pl.DataFrame:
+        """
+        Get a pandas / polars dataframe from a Hive query.
+
+        :param sql: hql to be executed.
+        :param schema: target schema, default to 'default'.
+        :param hive_conf: hive_conf to execute alone with the hql.
+        :param df_type: type of dataframe to return, either 'pandas' or 'polars'
+        :param kwargs: (optional) passed into pandas.DataFrame constructor
+        :return: result of hive execution
+
+        >>> hh = HiveServer2Hook()
+        >>> sql = "SELECT * FROM airflow.static_babynames LIMIT 100"
+        >>> df = hh.get_df(sql, df_type="pandas")
+        >>> len(df.index)
+        100
+
+        :return: pandas.DateFrame | polars.DataFrame
+        """
+        if df_type == "pandas":
+            return self._get_pandas_df(sql, schema=schema, hive_conf=hive_conf, **kwargs)
+        if df_type == "polars":
+            return self._get_polars_df(sql, schema=schema, hive_conf=hive_conf, **kwargs)
+
+    @deprecated(
+        reason="Replaced by function `get_df`.",
+        category=AirflowProviderDeprecationWarning,
+        action="ignore",
+    )
+    def get_pandas_df(  # type: ignore
+        self,
+        sql: str,
+        schema: str = "default",
+        hive_conf: dict[Any, Any] | None = None,
+        **kwargs,
+    ) -> pd.DataFrame:
+        return self._get_pandas_df(sql, schema=schema, hive_conf=hive_conf, **kwargs)

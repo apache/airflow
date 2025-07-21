@@ -25,9 +25,9 @@ from enum import Enum
 from typing import Annotated, Any, Final, Literal
 from uuid import UUID
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, RootModel
 
-API_VERSION: Final[str] = "2025-04-11"
+API_VERSION: Final[str] = "2025-08-10"
 
 
 class AssetAliasReferenceAssetEventDagRun(BaseModel):
@@ -102,6 +102,23 @@ class ConnectionResponse(BaseModel):
     extra: Annotated[str | None, Field(title="Extra")] = None
 
 
+class CreateHITLDetailPayload(BaseModel):
+    """
+    Add the input request part of a Human-in-the-loop response.
+    """
+
+    ti_id: Annotated[UUID, Field(title="Ti Id")]
+    options: Annotated[list[str], Field(title="Options")]
+    subject: Annotated[str, Field(title="Subject")]
+    body: Annotated[str | None, Field(title="Body")] = None
+    defaults: Annotated[list[str] | None, Field(title="Defaults")] = None
+    multiple: Annotated[bool | None, Field(title="Multiple")] = False
+    params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
+    type: Annotated[Literal["CreateHITLDetailPayload"] | None, Field(title="Type")] = (
+        "CreateHITLDetailPayload"
+    )
+
+
 class DagRunAssetReference(BaseModel):
     """
     DagRun serializer for asset responses.
@@ -154,6 +171,40 @@ class DagRunType(str, Enum):
     ASSET_TRIGGERED = "asset_triggered"
 
 
+class HITLDetailRequest(BaseModel):
+    """
+    Schema for the request part of a Human-in-the-loop detail for a specific task instance.
+    """
+
+    ti_id: Annotated[UUID, Field(title="Ti Id")]
+    options: Annotated[list[str], Field(title="Options")]
+    subject: Annotated[str, Field(title="Subject")]
+    body: Annotated[str | None, Field(title="Body")] = None
+    defaults: Annotated[list[str] | None, Field(title="Defaults")] = None
+    multiple: Annotated[bool | None, Field(title="Multiple")] = False
+    params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
+
+
+class HITLDetailResponse(BaseModel):
+    """
+    Schema for the response part of a Human-in-the-loop detail for a specific task instance.
+    """
+
+    response_received: Annotated[bool, Field(title="Response Received")]
+    user_id: Annotated[str | None, Field(title="User Id")] = None
+    response_at: Annotated[AwareDatetime | None, Field(title="Response At")] = None
+    chosen_options: Annotated[list[str] | None, Field(title="Chosen Options")] = None
+    params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
+
+
+class InactiveAssetsResponse(BaseModel):
+    """
+    Response for inactive assets.
+    """
+
+    inactive_assets: Annotated[list[AssetProfile] | None, Field(title="Inactive Assets")] = None
+
+
 class IntermediateTIState(str, Enum):
     """
     States that a Task Instance can be in that indicate it is not yet in a terminal or running state.
@@ -193,6 +244,7 @@ class TIDeferredStatePayload(BaseModel):
     trigger_timeout: Annotated[timedelta | None, Field(title="Trigger Timeout")] = None
     next_method: Annotated[str, Field(title="Next Method")]
     next_kwargs: Annotated[dict[str, Any] | str | None, Field(title="Next Kwargs")] = None
+    rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
 
 
 class TIEnterRunningPayload(BaseModel):
@@ -245,6 +297,7 @@ class TIRetryStatePayload(BaseModel):
     )
     state: Annotated[Literal["up_for_retry"] | None, Field(title="State")] = "up_for_retry"
     end_date: Annotated[AwareDatetime, Field(title="End Date")]
+    rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
 
 
 class TISkippedDownstreamTasksStatePayload(BaseModel):
@@ -270,6 +323,7 @@ class TISuccessStatePayload(BaseModel):
     end_date: Annotated[AwareDatetime, Field(title="End Date")]
     task_outlets: Annotated[list[AssetProfile] | None, Field(title="Task Outlets")] = None
     outlet_events: Annotated[list[dict[str, Any]] | None, Field(title="Outlet Events")] = None
+    rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
 
 
 class TITargetStatePayload(BaseModel):
@@ -314,6 +368,17 @@ class TriggerDAGRunPayload(BaseModel):
     reset_dag_run: Annotated[bool | None, Field(title="Reset Dag Run")] = False
 
 
+class UpdateHITLDetail(BaseModel):
+    """
+    Update the response content part of an existing Human-in-the-loop response.
+    """
+
+    ti_id: Annotated[UUID, Field(title="Ti Id")]
+    chosen_options: Annotated[list[str], Field(title="Chosen Options")]
+    params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
+    type: Annotated[Literal["UpdateHITLDetail"] | None, Field(title="Type")] = "UpdateHITLDetail"
+
+
 class ValidationError(BaseModel):
     loc: Annotated[list[str | int], Field(title="Location")]
     msg: Annotated[str, Field(title="Message")]
@@ -353,6 +418,30 @@ class XComResponse(BaseModel):
     value: JsonValue
 
 
+class XComSequenceIndexResponse(RootModel[JsonValue]):
+    root: Annotated[
+        JsonValue,
+        Field(
+            description="XCom schema with minimal structure for index-based access.",
+            title="XComSequenceIndexResponse",
+        ),
+    ]
+
+
+class XComSequenceSliceResponse(RootModel[list[JsonValue]]):
+    """
+    XCom schema with minimal structure for slice-based access.
+    """
+
+    root: Annotated[
+        list[JsonValue],
+        Field(
+            description="XCom schema with minimal structure for slice-based access.",
+            title="XComSequenceSliceResponse",
+        ),
+    ]
+
+
 class TaskInstance(BaseModel):
     """
     Schema for TaskInstance model with minimal required fields needed for Runtime.
@@ -363,6 +452,7 @@ class TaskInstance(BaseModel):
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
     try_number: Annotated[int, Field(title="Try Number")]
+    dag_version_id: Annotated[UUID, Field(title="Dag Version Id")]
     map_index: Annotated[int | None, Field(title="Map Index")] = -1
     hostname: Annotated[str | None, Field(title="Hostname")] = None
     context_carrier: Annotated[dict[str, Any] | None, Field(title="Context Carrier")] = None
@@ -382,6 +472,21 @@ class TerminalTIState(str, Enum):
     FAILED = "failed"
     SKIPPED = "skipped"
     REMOVED = "removed"
+
+
+class TaskInstanceState(str, Enum):
+    REMOVED = "removed"
+    SCHEDULED = "scheduled"
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCESS = "success"
+    RESTARTING = "restarting"
+    FAILED = "failed"
+    UP_FOR_RETRY = "up_for_retry"
+    UP_FOR_RESCHEDULE = "up_for_reschedule"
+    UPSTREAM_FAILED = "upstream_failed"
+    SKIPPED = "skipped"
+    DEFERRED = "deferred"
 
 
 class AssetEventDagRunReference(BaseModel):
@@ -462,11 +567,13 @@ class TIRunContext(BaseModel):
     max_tries: Annotated[int, Field(title="Max Tries")]
     variables: Annotated[list[VariableResponse] | None, Field(title="Variables")] = None
     connections: Annotated[list[ConnectionResponse] | None, Field(title="Connections")] = None
-    upstream_map_indexes: Annotated[dict[str, int] | None, Field(title="Upstream Map Indexes")] = None
+    upstream_map_indexes: Annotated[
+        dict[str, int | list[int] | None] | None, Field(title="Upstream Map Indexes")
+    ] = None
     next_method: Annotated[str | None, Field(title="Next Method")] = None
     next_kwargs: Annotated[dict[str, Any] | str | None, Field(title="Next Kwargs")] = None
     xcom_keys_to_clear: Annotated[list[str] | None, Field(title="Xcom Keys To Clear")] = None
-    should_retry: Annotated[bool, Field(title="Should Retry")]
+    should_retry: Annotated[bool | None, Field(title="Should Retry")] = False
 
 
 class TITerminalStatePayload(BaseModel):
@@ -479,3 +586,4 @@ class TITerminalStatePayload(BaseModel):
     )
     state: TerminalStateNonSuccess
     end_date: Annotated[AwareDatetime, Field(title="End Date")]
+    rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None

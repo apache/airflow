@@ -18,12 +18,14 @@
 from __future__ import annotations
 
 import datetime
+import warnings
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, NoReturn
+from typing import TYPE_CHECKING, Any
 
+from airflow.configuration import conf
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
-from airflow.providers.standard.version_compat import AIRFLOW_V_2_10_PLUS
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.standard.version_compat import BaseSensorOperator
 
 try:
     from airflow.triggers.base import StartTriggerArgs
@@ -55,37 +57,12 @@ class TimeSensor(BaseSensorOperator):
     Waits until the specified time of the day.
 
     :param target_time: time after which the job succeeds
+    :param deferrable: whether to defer execution
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
         :ref:`howto/operator:TimeSensor`
 
-    """
-
-    def __init__(self, *, target_time: datetime.time, **kwargs) -> None:
-        super().__init__(**kwargs)
-        self.target_time = target_time
-
-    def poke(self, context: Context) -> bool:
-        self.log.info("Checking if the time (%s) has come", self.target_time)
-        return timezone.make_naive(timezone.utcnow(), self.dag.timezone).time() > self.target_time
-
-
-class TimeSensorAsync(BaseSensorOperator):
-    """
-    Waits until the specified time of the day.
-
-    This frees up a worker slot while it is waiting.
-
-    :param target_time: time after which the job succeeds
-    :param start_from_trigger: Start the task directly from the triggerer without going into the worker.
-    :param end_from_trigger: End the task directly from the triggerer without going into the worker.
-    :param trigger_kwargs: The keyword arguments passed to the trigger when start_from_trigger is set to True
-        during dynamic task mapping. This argument is not used in standard usage.
-
-    .. seealso::
-        For more information on how to use this sensor, take a look at the guide:
-        :ref:`howto/operator:TimeSensorAsync`
     """
 
     start_trigger_args = StartTriggerArgs(
@@ -101,34 +78,66 @@ class TimeSensorAsync(BaseSensorOperator):
         self,
         *,
         target_time: datetime.time,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         start_from_trigger: bool = False,
-        trigger_kwargs: dict[str, Any] | None = None,
         end_from_trigger: bool = False,
+        trigger_kwargs: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.start_from_trigger = start_from_trigger
-        self.end_from_trigger = end_from_trigger
-        self.target_time = target_time
 
+        # Create a "date-aware" timestamp that will be used as the "target_datetime". This is a requirement
+        # of the DateTimeTrigger
+
+        # Get date considering dag.timezone
         aware_time = timezone.coerce_datetime(
-            datetime.datetime.combine(datetime.datetime.today(), self.target_time, self.dag.timezone)
+            datetime.datetime.combine(
+                datetime.datetime.now(self.dag.timezone), target_time, self.dag.timezone
+            )
         )
 
+        # Now that the dag's timezone has made the datetime timezone aware, we need to convert to UTC
         self.target_datetime = timezone.convert_to_utc(aware_time)
+        self.deferrable = deferrable
+        self.start_from_trigger = start_from_trigger
+        self.end_from_trigger = end_from_trigger
+
         if self.start_from_trigger:
             self.start_trigger_args.trigger_kwargs = dict(
                 moment=self.target_datetime, end_from_trigger=self.end_from_trigger
             )
 
-    def execute(self, context: Context) -> NoReturn:
-        self.defer(
-            trigger=DateTimeTrigger(moment=self.target_datetime, end_from_trigger=self.end_from_trigger)
-            if AIRFLOW_V_2_10_PLUS
-            else DateTimeTrigger(moment=self.target_datetime),
-            method_name="execute_complete",
-        )
+    def execute(self, context: Context) -> None:
+        if self.deferrable:
+            self.defer(
+                trigger=DateTimeTrigger(
+                    moment=self.target_datetime,  # This needs to be an aware timestamp
+                    end_from_trigger=self.end_from_trigger,
+                ),
+                method_name="execute_complete",
+            )
 
-    def execute_complete(self, context: Context, event: Any = None) -> None:
-        """Handle the event when the trigger fires and return immediately."""
-        return None
+    def execute_complete(self, context: Context) -> None:
+        return
+
+    def poke(self, context: Context) -> bool:
+        self.log.info("Checking if the time (%s) has come", self.target_datetime)
+
+        # self.target_date has been converted to UTC, so we do not need to convert timezone
+        return timezone.utcnow() > self.target_datetime
+
+
+class TimeSensorAsync(TimeSensor):
+    """
+    Deprecated. Use TimeSensor with deferrable=True instead.
+
+    :sphinx-autoapi-skip:
+    """
+
+    def __init__(self, **kwargs) -> None:
+        warnings.warn(
+            "TimeSensorAsync is deprecated and will be removed in a future version. Use `TimeSensor` with deferrable=True instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(deferrable=True, **kwargs)

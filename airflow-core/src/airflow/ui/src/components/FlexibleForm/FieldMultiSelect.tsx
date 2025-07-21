@@ -18,6 +18,7 @@
  */
 import { type MultiValue, Select as ReactSelect } from "chakra-react-select";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
@@ -31,7 +32,8 @@ const labelLookup = (key: string, valuesDisplay: Record<string, string> | undefi
   return key;
 };
 
-export const FieldMultiSelect = ({ name }: FlexibleFormElementProps) => {
+export const FieldMultiSelect = ({ name, onUpdate }: FlexibleFormElementProps) => {
+  const { t: translate } = useTranslation("components");
   const { paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
 
@@ -64,11 +66,12 @@ export const FieldMultiSelect = ({ name }: FlexibleFormElementProps) => {
       paramsDict[name].value = newValueArray;
     }
     setParamsDict(paramsDict);
+    onUpdate(String(newValueArray));
   };
 
   return (
     <ReactSelect
-      aria-label="Select one or multiple values"
+      aria-label={translate("flexibleForm.placeholderMulti")}
       id={`element_${name}`}
       isClearable
       isMulti
@@ -80,6 +83,7 @@ export const FieldMultiSelect = ({ name }: FlexibleFormElementProps) => {
           value,
         })) ?? []
       }
+      placeholder={translate("flexibleForm.placeholderMulti")}
       size="sm"
       value={selectedOptions}
     />

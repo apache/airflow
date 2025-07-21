@@ -49,6 +49,7 @@ class AirflowDocsBuilder:
         self.is_airflow = False
         self.is_chart = False
         self.is_docker_stack = False
+        self.is_task_sdk = False
         self.is_providers_summary = False
         self.is_autobuild = False
         if self.package_name.startswith("apache-airflow-providers-"):
@@ -61,10 +62,14 @@ class AirflowDocsBuilder:
             self.is_airflow = True
         if self.package_name == "helm-chart":
             self.is_chart = True
+        if self.package_name == "task-sdk":
+            self.is_task_sdk = True
         if self.package_name == "docker-stack":
             self.is_docker_stack = True
         if self.package_name == "apache-airflow-providers":
             self.is_providers_summary = True
+        if self.package_name == "apache-airflow-ctl":
+            self.is_airflow_ctl = True
 
     @property
     def _doctree_dir(self) -> Path:
@@ -117,8 +122,19 @@ class AirflowDocsBuilder:
         if self.package_name.startswith("apache-airflow-providers-"):
             package_paths = self.package_name[len("apache-airflow-providers-") :].split("-")
             return (AIRFLOW_CONTENT_ROOT_PATH / "providers").joinpath(*package_paths) / "docs"
+        if self.package_name == "apache-airflow-ctl":
+            return AIRFLOW_CONTENT_ROOT_PATH / "airflow-ctl" / "docs"
+        if self.package_name == "task-sdk":
+            return AIRFLOW_CONTENT_ROOT_PATH / "task-sdk" / "docs"
         console.print(f"[red]Unknown package name: {self.package_name}")
         sys.exit(1)
+
+    @property
+    def pythonpath(self) -> list[Path]:
+        path = []
+        if (self._src_dir.parent / "tests").exists():
+            path.append(self._src_dir.parent.joinpath("tests").resolve())
+        return path
 
     @property
     def _generated_api_dir(self) -> Path:
@@ -167,6 +183,8 @@ class AirflowDocsBuilder:
             console.print("[yellow]Command to run:[/] ", " ".join([shlex.quote(arg) for arg in build_cmd]))
         env = os.environ.copy()
         env["AIRFLOW_PACKAGE_NAME"] = self.package_name
+        if self.pythonpath:
+            env["PYTHONPATH"] = ":".join([path.as_posix() for path in self.pythonpath])
         if verbose:
             console.print(
                 f"[bright_blue]{self.package_name:60}:[/] The output is hidden until an error occurs."
@@ -246,6 +264,8 @@ class AirflowDocsBuilder:
             console.print("[yellow]Command to run:[/] ", " ".join([shlex.quote(arg) for arg in build_cmd]))
         env = os.environ.copy()
         env["AIRFLOW_PACKAGE_NAME"] = self.package_name
+        if self.pythonpath:
+            env["PYTHONPATH"] = ":".join([path.as_posix() for path in self.pythonpath])
         if verbose:
             console.print(
                 f"[bright_blue]{self.package_name:60}:[/] Running sphinx. "
@@ -319,6 +339,8 @@ def get_available_packages(include_suspended: bool = False, short_form: bool = F
         "apache-airflow",
         *provider_names,
         "apache-airflow-providers",
+        "apache-airflow-ctl",
+        "task-sdk",
         "helm-chart",
         "docker-stack",
     ]

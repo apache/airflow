@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-databricks``
 
-Release: ``7.3.2``
+Release: ``7.6.0``
 
 
 `Databricks <https://databricks.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``databricks`` provider. All classes for this pro
 are in ``airflow.providers.databricks`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.3.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.6.0/>`_.
 
 Installation
 ------------
@@ -45,23 +45,27 @@ You can install this package on top of an existing Airflow 2 installation (see `
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-databricks``
 
-The package supports the following python versions: 3.9,3.10,3.11,3.12
+The package supports the following python versions: 3.10,3.11,3.12,3.13
 
 Requirements
 ------------
 
-=======================================  ==================
-PIP package                              Version required
-=======================================  ==================
-``apache-airflow``                       ``>=2.9.0``
-``apache-airflow-providers-common-sql``  ``>=1.20.0``
-``requests``                             ``>=2.31.0,<3``
-``databricks-sql-connector``             ``>=3.0.0``
-``aiohttp``                              ``>=3.9.2,<4``
-``mergedeep``                            ``>=1.3.4``
-``pandas``                               ``>=2.1.2,<2.2``
-``pyarrow``                              ``>=14.0.1``
-=======================================  ==================
+==========================================  ======================================
+PIP package                                 Version required
+==========================================  ======================================
+``apache-airflow``                          ``>=2.10.0``
+``apache-airflow-providers-common-compat``  ``>=1.6.0``
+``apache-airflow-providers-common-sql``     ``>=1.27.0``
+``requests``                                ``>=2.32.0,<3``
+``databricks-sql-connector``                ``>=4.0.0``
+``databricks-sqlalchemy``                   ``>=1.0.2``
+``aiohttp``                                 ``>=3.9.2,<4``
+``mergedeep``                               ``>=1.3.4``
+``pandas``                                  ``>=2.1.2; python_version < "3.13"``
+``pandas``                                  ``>=2.2.3; python_version >= "3.13"``
+``pyarrow``                                 ``>=16.1.0; python_version < "3.13"``
+``pyarrow``                                 ``>=18.0.0; python_version >= "3.13"``
+==========================================  ======================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -84,4 +88,4 @@ Dependent package                                                               
 ============================================================================================================  ==============
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.3.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.6.0/changelog.html>`_.

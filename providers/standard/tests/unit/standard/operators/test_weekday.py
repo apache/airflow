@@ -29,11 +29,12 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.weekday import BranchDayOfWeekOperator
 from airflow.providers.standard.utils.skipmixin import XCOM_SKIPMIXIN_FOLLOWED, XCOM_SKIPMIXIN_KEY
 from airflow.providers.standard.utils.weekday import WeekDay
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.models.xcom import XComModel as XCom
@@ -115,15 +116,15 @@ class TestBranchDayOfWeekOperator:
             data_interval=DataInterval(DEFAULT_DATE, DEFAULT_DATE),
         )
 
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_1:
             from airflow.exceptions import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
-                branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+                dag_maker.run_ti("make_choice", dr)
 
             assert exc_info.value.tasks == [("branch_3", -1)]
         else:
-            branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            dag_maker.run_ti("make_choice", dr)
 
             self._assert_task_ids_match_states(
                 dr,
@@ -161,14 +162,14 @@ class TestBranchDayOfWeekOperator:
             data_interval=DataInterval(DEFAULT_DATE, DEFAULT_DATE),
         )
 
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_1:
             from airflow.exceptions import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
-                branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+                dag_maker.run_ti("make_choice", dr)
             assert exc_info.value.tasks == [("branch_2", -1)]
         else:
-            branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            dag_maker.run_ti("make_choice", dr)
 
             self._assert_task_ids_match_states(
                 dr,
@@ -230,15 +231,15 @@ class TestBranchDayOfWeekOperator:
             data_interval=DataInterval(DEFAULT_DATE, DEFAULT_DATE),
         )
 
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_1:
             from airflow.exceptions import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
-                branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+                dag_maker.run_ti("make_choice", dr)
 
             assert exc_info.value.tasks == [("branch_1", -1)]
         else:
-            branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            dag_maker.run_ti("make_choice", dr)
 
             self._assert_task_ids_match_states(
                 dr,
@@ -336,20 +337,16 @@ class TestBranchDayOfWeekOperator:
         )
         branch_op_ti = dr.get_task_instance(branch_op.task_id)
 
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_1:
             from airflow.exceptions import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
                 branch_op_ti.run()
 
             assert exc_info.value.tasks == [("branch_2", -1)]
+        else:
+            dag_maker.run_ti("make_choice", dr)
+
             assert branch_op_ti.xcom_pull(task_ids="make_choice", key=XCOM_SKIPMIXIN_KEY) == {
                 XCOM_SKIPMIXIN_FOLLOWED: ["branch_1"]
             }
-        else:
-            branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-
-            tis = dr.get_task_instances()
-            for ti in tis:
-                if ti.task_id == "make_choice":
-                    assert ti.xcom_pull(task_ids="make_choice") == "branch_1"

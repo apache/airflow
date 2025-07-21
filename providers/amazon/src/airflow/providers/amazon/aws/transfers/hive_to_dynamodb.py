@@ -20,11 +20,11 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING
 
-from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
+from airflow.providers.amazon.version_compat import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
 
 if TYPE_CHECKING:
@@ -93,7 +93,7 @@ class HiveToDynamoDBOperator(BaseOperator):
         self.log.info("Extracting data from Hive")
         self.log.info(self.sql)
 
-        data = hive.get_pandas_df(self.sql, schema=self.schema)
+        data = hive.get_df(self.sql, schema=self.schema, df_type="pandas")
         dynamodb = DynamoDBHook(
             aws_conn_id=self.aws_conn_id,
             table_name=self.table_name,

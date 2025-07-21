@@ -295,6 +295,36 @@ class TestLoggingSettings:
             assert isinstance(remote_io, CloudWatchRemoteLogIO)
             assert remote_io.log_group_arn == log_group_arn
 
+    def test_loading_remote_logging_with_gcs_handler(self):
+        """Test if logging can be configured successfully for GCS"""
+        import airflow.logging_config
+        from airflow.config_templates import airflow_local_settings
+        from airflow.providers.google.cloud.log.gcs_task_handler import GCSRemoteLogIO
+
+        with conf_vars(
+            {
+                ("logging", "remote_logging"): "True",
+                ("logging", "remote_log_conn_id"): "some_gcs",
+                ("logging", "remote_base_log_folder"): "gs://some-folder",
+                ("logging", "google_key_path"): "/gcs-key.json",
+                (
+                    "logging",
+                    "remote_task_handler_kwargs",
+                ): '{"delete_local_copy": true, "project_id": "test-project", "gcp_keyfile_dict": {},"scopes": ["https://www.googleapis.com/auth/devstorage.read_write"]}',
+            }
+        ):
+            importlib.reload(airflow_local_settings)
+            airflow.logging_config.configure_logging()
+
+        assert isinstance(airflow.logging_config.REMOTE_TASK_LOG, GCSRemoteLogIO)
+        assert getattr(airflow.logging_config.REMOTE_TASK_LOG, "delete_local_copy") is True
+        assert getattr(airflow.logging_config.REMOTE_TASK_LOG, "project_id") == "test-project"
+        assert getattr(airflow.logging_config.REMOTE_TASK_LOG, "gcp_keyfile_dict") == {}
+        assert getattr(airflow.logging_config.REMOTE_TASK_LOG, "scopes") == [
+            "https://www.googleapis.com/auth/devstorage.read_write"
+        ]
+        assert getattr(airflow.logging_config.REMOTE_TASK_LOG, "gcp_key_path") == "/gcs-key.json"
+
     def test_loading_remote_logging_with_kwargs(self):
         """Test if logging can be configured successfully with kwargs"""
         pytest.importorskip("airflow.providers.amazon", reason="'amazon' provider not installed")

@@ -22,6 +22,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import NonNegativeInt
 from sqlalchemy import select, update
+from sqlalchemy.orm import joinedload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import (
@@ -40,7 +41,7 @@ from airflow.api_fastapi.core_api.datamodels.backfills import (
 from airflow.api_fastapi.core_api.openapi.exceptions import (
     create_openapi_http_exception_doc,
 )
-from airflow.api_fastapi.core_api.security import requires_access_backfill, requires_access_dag
+from airflow.api_fastapi.core_api.security import GetUserDep, requires_access_backfill, requires_access_dag
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import DagNotFound
 from airflow.models import DagRun
@@ -78,7 +79,7 @@ def list_backfills(
     session: SessionDep,
 ) -> BackfillCollectionResponse:
     select_stmt, total_entries = paginated_select(
-        statement=select(Backfill).where(Backfill.dag_id == dag_id),
+        statement=select(Backfill).where(Backfill.dag_id == dag_id).options(joinedload(Backfill.dag_model)),
         order_by=order_by,
         offset=offset,
         limit=limit,
@@ -102,7 +103,9 @@ def get_backfill(
     backfill_id: NonNegativeInt,
     session: SessionDep,
 ) -> BackfillResponse:
-    backfill = session.get(Backfill, backfill_id)
+    backfill = session.scalars(
+        select(Backfill).where(Backfill.id == backfill_id).options(joinedload(Backfill.dag_model))
+    ).one_or_none()
     if backfill:
         return backfill
     raise HTTPException(status.HTTP_404_NOT_FOUND, "Backfill not found")
@@ -123,7 +126,9 @@ def get_backfill(
     ],
 )
 def pause_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> BackfillResponse:
-    b = session.get(Backfill, backfill_id)
+    b = session.scalars(
+        select(Backfill).where(Backfill.id == backfill_id).options(joinedload(Backfill.dag_model))
+    ).one_or_none()
     if not b:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Could not find backfill with id {backfill_id}")
     if b.completed_at:
@@ -149,7 +154,9 @@ def pause_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> Backfill
     ],
 )
 def unpause_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> BackfillResponse:
-    b = session.get(Backfill, backfill_id)
+    b = session.scalars(
+        select(Backfill).where(Backfill.id == backfill_id).options(joinedload(Backfill.dag_model))
+    ).one_or_none()
     if not b:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Could not find backfill with id {backfill_id}")
     if b.completed_at:
@@ -174,7 +181,9 @@ def unpause_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> Backfi
     ],
 )
 def cancel_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> BackfillResponse:
-    b: Backfill = session.get(Backfill, backfill_id)
+    b = session.scalars(
+        select(Backfill).where(Backfill.id == backfill_id).options(joinedload(Backfill.dag_model))
+    ).one_or_none()
     if not b:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Could not find backfill with id {backfill_id}")
     if b.completed_at is not None:
@@ -220,6 +229,7 @@ def cancel_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> Backfil
 )
 def create_backfill(
     backfill_request: BackfillPostBody,
+    user: GetUserDep,
 ) -> BackfillResponse:
     from_date = timezone.coerce_datetime(backfill_request.from_date)
     to_date = timezone.coerce_datetime(backfill_request.to_date)
@@ -231,6 +241,7 @@ def create_backfill(
             max_active_runs=backfill_request.max_active_runs,
             reverse=backfill_request.run_backwards,
             dag_run_conf=backfill_request.dag_run_conf,
+            triggering_user_name=user.get_name(),
             reprocess_behavior=backfill_request.reprocess_behavior,
         )
         return BackfillResponse.model_validate(backfill_obj)

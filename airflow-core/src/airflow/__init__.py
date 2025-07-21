@@ -23,9 +23,10 @@
 # Make `airflow` a namespace package, supporting installing
 # airflow.providers.* in different locations (i.e. one in site, and one in user
 # lib.)  This is required by some IDEs to resolve the import paths.
-__path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
+__path__ = __import__("pkgutil").extend_path(__path__, __name__)
 
 __version__ = "3.1.0"
+
 
 import os
 import sys
@@ -85,7 +86,7 @@ __lazy_imports: dict[str, tuple[str, str, bool]] = {
     "version": (".version", "", False),
     # Deprecated lazy imports
     "AirflowException": (".exceptions", "AirflowException", True),
-    "Dataset": (".sdk.definitions.asset", "Dataset", True),
+    "Dataset": (".sdk.definitions.asset", "Asset", True),
 }
 if TYPE_CHECKING:
     # These objects are imported by PEP-562, however, static analyzers and IDE's

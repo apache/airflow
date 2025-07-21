@@ -27,6 +27,60 @@
 Changelog
 ---------
 
+5.3.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Ensure  'HttpHook.run()' does not alter 'extra_options' passed to it (#51893)``
+* ``Fix HttpOperator(deferrable=True) crash when connection has login / password (#52050)``
+* ``Enable extra_options even when extra not defined for HttpHook.run (#51746)``
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Provider Migration: Replace 'BaseOperator' to Task SDK for 'apache/http' (#52528)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Use BaseSensorOperator from task sdk in providers (#52296)``
+* ``Add deprecation to 'airflow/sensors/base.py' (#52249)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Replace models.BaseOperator to Task SDK for http (#52506)" (#52515)``
+   * ``Replace models.BaseOperator to Task SDK for http (#52506)``
+   * ``Remove db usage from http provider tests (#52227)``
+
+5.3.1
+.....
+
+Misc
+~~~~
+
+* ``Bump some provider dependencies for faster resolution (#51727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Increasing task timeout by 2 seconds for more resilient runs (#50578)``
+
+5.3.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.10+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Misc
+~~~~
+
+* ``Bump min Airflow version in providers to 2.10 (#49843)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Avoid committing history for providers (#49907)``
+
 5.2.2
 .....
 

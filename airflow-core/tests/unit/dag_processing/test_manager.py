@@ -30,10 +30,11 @@ from collections import deque
 from datetime import datetime, timedelta
 from logging.config import dictConfig
 from pathlib import Path
-from socket import socket
+from socket import socket, socketpair
 from unittest import mock
 from unittest.mock import MagicMock
 
+import msgspec
 import pytest
 import time_machine
 from sqlalchemy import func, select
@@ -54,7 +55,6 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.sdk.execution_time.supervisor import mkpipe
 from airflow.utils import timezone
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
@@ -133,22 +133,24 @@ class TestDagFileProcessorManager:
         clear_db_import_errors()
         clear_db_dag_bundles()
 
-    def mock_processor(self) -> tuple[DagFileProcessorProcess, socket]:
+    def mock_processor(self, start_time: float | None = None) -> tuple[DagFileProcessorProcess, socket]:
         proc = MagicMock()
         logger_filehandle = MagicMock()
         proc.create_time.return_value = time.time()
         proc.wait.return_value = 0
-        read_end, write_end = mkpipe(remote_read=True)
+        read_end, write_end = socketpair()
         ret = DagFileProcessorProcess(
             process_log=MagicMock(),
             id=uuid7(),
             pid=1234,
             process=proc,
             stdin=write_end,
-            requests_fd=123,
             logger_filehandle=logger_filehandle,
+            client=MagicMock(),
         )
-        ret._num_open_sockets = 0
+        if start_time:
+            ret.start_time = start_time
+        ret._open_sockets.clear()
         return ret, read_end
 
     @pytest.fixture
@@ -518,9 +520,7 @@ class TestDagFileProcessorManager:
 
     def test_kill_timed_out_processors_kill(self):
         manager = DagFileProcessorManager(max_runs=1, processor_timeout=5)
-
-        processor, _ = self.mock_processor()
-        processor._process.create_time.return_value = timezone.make_aware(datetime.min).timestamp()
+        processor, _ = self.mock_processor(start_time=16000)
         manager._processors = {
             DagFileInfo(
                 bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER
@@ -551,18 +551,17 @@ class TestDagFileProcessorManager:
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     @pytest.mark.parametrize(
-        ["callbacks", "path", "expected_buffer"],
+        ["callbacks", "path", "expected_body"],
         [
             pytest.param(
                 [],
                 "/opt/airflow/dags/test_dag.py",
-                b"{"
-                b'"file":"/opt/airflow/dags/test_dag.py",'
-                b'"bundle_path":"/opt/airflow/dags",'
-                b'"requests_fd":123,'
-                b'"callback_requests":[],'
-                b'"type":"DagFileParseRequest"'
-                b"}\n",
+                {
+                    "file": "/opt/airflow/dags/test_dag.py",
+                    "bundle_path": "/opt/airflow/dags",
+                    "callback_requests": [],
+                    "type": "DagFileParseRequest",
+                },
             ),
             pytest.param(
                 [
@@ -576,44 +575,39 @@ class TestDagFileProcessorManager:
                     )
                 ],
                 "/opt/airflow/dags/dag_callback_dag.py",
-                b"{"
-                b'"file":"/opt/airflow/dags/dag_callback_dag.py",'
-                b'"bundle_path":"/opt/airflow/dags",'
-                b'"requests_fd":123,"callback_requests":'
-                b"["
-                b"{"
-                b'"filepath":"dag_callback_dag.py",'
-                b'"bundle_name":"testing",'
-                b'"bundle_version":null,'
-                b'"msg":null,'
-                b'"dag_id":"dag_id",'
-                b'"run_id":"run_id",'
-                b'"is_failure_callback":false,'
-                b'"type":"DagCallbackRequest"'
-                b"}"
-                b"],"
-                b'"type":"DagFileParseRequest"'
-                b"}\n",
+                {
+                    "file": "/opt/airflow/dags/dag_callback_dag.py",
+                    "bundle_path": "/opt/airflow/dags",
+                    "callback_requests": [
+                        {
+                            "filepath": "dag_callback_dag.py",
+                            "bundle_name": "testing",
+                            "bundle_version": None,
+                            "msg": None,
+                            "dag_id": "dag_id",
+                            "run_id": "run_id",
+                            "is_failure_callback": False,
+                            "type": "DagCallbackRequest",
+                        }
+                    ],
+                    "type": "DagFileParseRequest",
+                },
             ),
         ],
     )
-    def test_serialize_callback_requests(self, callbacks, path, expected_buffer):
+    def test_serialize_callback_requests(self, callbacks, path, expected_body):
+        from airflow.sdk.execution_time.comms import _ResponseFrame
+
         processor, read_socket = self.mock_processor()
         processor._on_child_started(callbacks, path, bundle_path=Path("/opt/airflow/dags"))
 
         read_socket.settimeout(0.1)
-        val = b""
-        try:
-            while not val.endswith(b"\n"):
-                chunk = read_socket.recv(4096)
-                if not chunk:
-                    break
-                val += chunk
-        except (BlockingIOError, TimeoutError):
-            # no response written, valid for some message types.
-            pass
+        # Read response from the read end of the socket
+        frame_len = int.from_bytes(read_socket.recv(4), "big")
+        bytes = read_socket.recv(frame_len)
+        frame = msgspec.msgpack.Decoder(_ResponseFrame).decode(bytes)
 
-        assert val == expected_buffer
+        assert frame.body == expected_body
 
     @conf_vars({("core", "load_examples"): "False"})
     @pytest.mark.execution_timeout(10)
@@ -899,6 +893,7 @@ class TestDagFileProcessorManager:
                     selector=mock.ANY,
                     logger=mock_logger,
                     logger_filehandle=mock_filehandle,
+                    client=mock.ANY,
                 ),
                 mock.call(
                     id=mock.ANY,
@@ -908,6 +903,7 @@ class TestDagFileProcessorManager:
                     selector=mock.ANY,
                     logger=mock_logger,
                     logger_filehandle=mock_filehandle,
+                    client=mock.ANY,
                 ),
             ]
             # And removed from the queue

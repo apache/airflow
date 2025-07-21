@@ -25,11 +25,16 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from urllib.parse import quote_plus, urlencode
 
 import trino
+from deprecated import deprecated
 from trino.exceptions import DatabaseError
 from trino.transaction import IsolationLevel
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import (
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+    AirflowProviderDeprecationWarning,
+)
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.trino.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.helpers import exactly_one
@@ -141,14 +146,14 @@ class TrinoHook(DbApiHook):
 
     def get_conn(self) -> Connection:
         """Return a connection object."""
-        db = self.get_connection(self.trino_conn_id)  # type: ignore[attr-defined]
+        db = self.get_connection(self.get_conn_id())
         extra = db.extra_dejson
         auth = None
         user = db.login
         if db.password and extra.get("auth") in ("kerberos", "certs"):
             raise AirflowException(f"The {extra.get('auth')!r} authorization type doesn't support password.")
         if db.password:
-            auth = trino.auth.BasicAuthentication(db.login, db.password)  # type: ignore[attr-defined]
+            auth = trino.auth.BasicAuthentication(db.login, db.password)
         elif extra.get("auth") == "jwt":
             if not exactly_one(jwt_file := "jwt__file" in extra, jwt_token := "jwt__token" in extra):
                 msg = (
@@ -171,7 +176,7 @@ class TrinoHook(DbApiHook):
                 extra.get("certs__client_key_path"),
             )
         elif extra.get("auth") == "kerberos":
-            auth = trino.auth.KerberosAuthentication(  # type: ignore[attr-defined]
+            auth = trino.auth.KerberosAuthentication(
                 config=extra.get("kerberos__config", os.environ.get("KRB5_CONFIG")),
                 service_name=extra.get("kerberos__service_name"),
                 mutual_authentication=_boolify(extra.get("kerberos__mutual_authentication", False)),
@@ -200,19 +205,20 @@ class TrinoHook(DbApiHook):
             catalog=extra.get("catalog", "hive"),
             schema=db.schema,
             auth=auth,
-            # type: ignore[func-returns-value]
             isolation_level=self.get_isolation_level(),
             verify=_boolify(extra.get("verify", True)),
             session_properties=extra.get("session_properties") or None,
             client_tags=extra.get("client_tags") or None,
             timezone=extra.get("timezone") or None,
+            extra_credential=extra.get("extra_credential") or None,
+            roles=extra.get("roles") or None,
         )
 
         return trino_conn
 
     def get_isolation_level(self) -> Any:
         """Return an isolation level."""
-        db = self.get_connection(self.trino_conn_id)  # type: ignore[attr-defined]
+        db = self.get_connection(self.get_conn_id())
         isolation_level = db.extra_dejson.get("isolation_level", "AUTOCOMMIT").upper()
         return getattr(IsolationLevel, isolation_level, IsolationLevel.AUTOCOMMIT)
 
@@ -238,8 +244,13 @@ class TrinoHook(DbApiHook):
         except DatabaseError as e:
             raise TrinoException(e)
 
-    def get_pandas_df(self, sql: str = "", parameters: Iterable | Mapping[str, Any] | None = None, **kwargs):  # type: ignore[override]
-        import pandas as pd
+    def _get_pandas_df(self, sql: str = "", parameters=None, **kwargs):
+        try:
+            import pandas as pd
+        except ImportError:
+            raise AirflowOptionalProviderFeatureException(
+                "Pandas is not installed. Please install it with `pip install pandas`."
+            )
 
         cursor = self.get_cursor()
         try:
@@ -254,6 +265,40 @@ class TrinoHook(DbApiHook):
         else:
             df = pd.DataFrame(**kwargs)
         return df
+
+    def _get_polars_df(self, sql: str = "", parameters=None, **kwargs):
+        try:
+            import polars as pl
+        except ImportError:
+            raise AirflowOptionalProviderFeatureException(
+                "Polars is not installed. Please install it with `pip install polars`."
+            )
+
+        cursor = self.get_cursor()
+        try:
+            cursor.execute(self.strip_sql_string(sql), parameters)
+            data = cursor.fetchall()
+        except DatabaseError as e:
+            raise TrinoException(e)
+        column_descriptions = cursor.description
+        if data:
+            df = pl.DataFrame(
+                data,
+                schema=[c[0] for c in column_descriptions],
+                orient="row",
+                **kwargs,
+            )
+        else:
+            df = pl.DataFrame(**kwargs)
+        return df
+
+    @deprecated(
+        reason="Replaced by function `get_df`.",
+        category=AirflowProviderDeprecationWarning,
+        action="ignore",
+    )
+    def get_pandas_df(self, sql: str = "", parameters=None, **kwargs):
+        return self._get_pandas_df(sql, parameters, **kwargs)
 
     def insert_rows(
         self,

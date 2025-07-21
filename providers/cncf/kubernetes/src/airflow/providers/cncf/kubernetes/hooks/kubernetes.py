@@ -36,7 +36,6 @@ from kubernetes_asyncio import client as async_client, config as async_config
 from urllib3.exceptions import HTTPError
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
-from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import should_retry_creation
@@ -45,6 +44,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     container_is_completed,
     container_is_running,
 )
+from airflow.providers.cncf.kubernetes.version_compat import BaseHook
 from airflow.utils import yaml
 
 if TYPE_CHECKING:
@@ -140,7 +140,8 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
     def __init__(
         self,
-        conn_id: str | None = default_conn_name,
+        conn_id: str | None = None,
+        kubernetes_conn_id: str | None = default_conn_name,
         client_configuration: client.Configuration | None = None,
         cluster_context: str | None = None,
         config_file: str | None = None,
@@ -149,7 +150,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         disable_tcp_keepalive: bool | None = None,
     ) -> None:
         super().__init__()
-        self.conn_id = conn_id
+        self.conn_id = conn_id or kubernetes_conn_id
         self.client_configuration = client_configuration
         self.cluster_context = cluster_context
         self.config_file = config_file
@@ -173,7 +174,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         default to cluster-derived credentials.
         """
         try:
-            return super().get_connection(conn_id)
+            return super().get_connection(conn_id)  # type: ignore[return-value]
         except AirflowNotFoundException:
             if conn_id == cls.default_conn_name:
                 return Connection(conn_id=cls.default_conn_name)
@@ -705,6 +706,14 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             raise AirflowException("Was not able to read the yaml file from given URL")
 
         return list(yaml.safe_load_all(response.text))
+
+    def test_connection(self):
+        try:
+            conn = self.get_conn()
+            version: client.VersionInfo = client.VersionApi(conn).get_code()
+            return True, f"Connection successful. Version Info: {version.to_dict()}"
+        except Exception as e:
+            return False, str(e)
 
 
 def _get_bool(val) -> bool | None:

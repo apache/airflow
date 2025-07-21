@@ -18,13 +18,31 @@
 package-name: apache-airflow-providers-edge3
 name: Edge Executor
 description: |
-  Handle edge workers on remote sites via HTTP(s) connection and orchestrates work over distributed sites
+  Handle edge workers on remote sites via HTTP(s) connection and orchestrates work over distributed sites.
+
+  When tasks need to be executed on remote sites where the connection need to pass through
+  firewalls or other network restrictions, the Edge Worker can be deployed. The Edge Worker
+  is a lightweight process with reduced dependencies. The worker only needs to be able to
+  communicate with the central Airflow site via HTTPS.
+
+  In the central Airflow site the EdgeExecutor is used to orchestrate the work. The EdgeExecutor
+  is a custom executor which is used to schedule tasks on the edge workers. The EdgeExecutor can co-exist
+  with other executors (for example CeleryExecutor or KubernetesExecutor) in the same Airflow site.
+
+  Additional REST API endpoints are provided to distribute tasks and manage the edge workers. The endpoints
+  are provided by the API server.
 
 state: ready
-source-date-epoch: 1741121867
+source-date-epoch: 1751473321
 
-# note that those versions are maintained by release manager - do not update them manually
+# Note that those versions are maintained by release manager - do not update them manually
+# with the exception of case where other provider in sources has >= new provider version.
+# In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
+# to be done in the same PR
 versions:
+  - 1.1.2
+  - 1.1.1
+  - 1.1.0
   - 1.0.0
 
 plugins:
@@ -108,3 +126,15 @@ config:
         type: integer
         example: ~
         default: "524288"
+      worker_umask:
+        description: |
+          The default umask to use for edge worker when run in daemon mode
+
+          This controls the file-creation mode mask which determines the initial value of file permission bits
+          for newly created files.
+
+          This value is treated as an octal-integer.
+        version_added: ~
+        type: string
+        default: ~
+        example: ~

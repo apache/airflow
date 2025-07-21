@@ -33,8 +33,6 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
 )
 from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.common.types import MenuItem
-from airflow.providers_manager import ProvidersManager
-from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
@@ -264,70 +262,6 @@ class TestBaseAuthManager:
         assert result == expected
 
     @pytest.mark.parametrize(
-        "return_values, expected",
-        [
-            ([False, False], False),
-            ([True, False], False),
-            ([True, True], True),
-        ],
-    )
-    @patch.object(EmptyAuthManager, "is_authorized_connection")
-    def test_batch_is_authorized_connection(
-        self, mock_is_authorized_connection, auth_manager, return_values, expected
-    ):
-        mock_is_authorized_connection.side_effect = return_values
-        result = auth_manager.batch_is_authorized_connection(
-            [
-                {"method": "GET", "details": ConnectionDetails(conn_id="conn1")},
-                {"method": "GET", "details": ConnectionDetails(conn_id="conn2")},
-            ],
-            user=Mock(),
-        )
-        assert result == expected
-
-    @pytest.mark.parametrize(
-        "return_values, expected",
-        [
-            ([False, False], False),
-            ([True, False], False),
-            ([True, True], True),
-        ],
-    )
-    @patch.object(EmptyAuthManager, "is_authorized_pool")
-    def test_batch_is_authorized_pool(self, mock_is_authorized_pool, auth_manager, return_values, expected):
-        mock_is_authorized_pool.side_effect = return_values
-        result = auth_manager.batch_is_authorized_pool(
-            [
-                {"method": "GET", "details": PoolDetails(name="pool1")},
-                {"method": "GET", "details": PoolDetails(name="pool2")},
-            ],
-            user=Mock(),
-        )
-        assert result == expected
-
-    @pytest.mark.parametrize(
-        "return_values, expected",
-        [
-            ([False, False], False),
-            ([True, False], False),
-            ([True, True], True),
-        ],
-    )
-    @patch.object(EmptyAuthManager, "is_authorized_variable")
-    def test_batch_is_authorized_variable(
-        self, mock_is_authorized_variable, auth_manager, return_values, expected
-    ):
-        mock_is_authorized_variable.side_effect = return_values
-        result = auth_manager.batch_is_authorized_variable(
-            [
-                {"method": "GET", "details": VariableDetails(key="var1")},
-                {"method": "GET", "details": VariableDetails(key="var2")},
-            ],
-            user=Mock(),
-        )
-        assert result == expected
-
-    @pytest.mark.parametrize(
         "access_per_dag, dag_ids, expected",
         [
             # No access to any dag
@@ -367,21 +301,3 @@ class TestBaseAuthManager:
         session.execute.return_value = dags
         result = auth_manager.get_authorized_dag_ids(user=user, session=session)
         assert result == expected
-
-
-def test_auth_managers_have_create_token_endpoint(test_client):
-    auth_managers = ProvidersManager().auth_managers
-    auth_managers.append("airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager")
-
-    for auth_manager_module in auth_managers:
-        auth_manager_cls = import_string(auth_manager_module)
-        am = auth_manager_cls()
-        am.init()
-
-        response = test_client.post(
-            "/auth/token",
-            json={"username": "", "password": ""},
-        )
-        assert response.status_code not in [404, 405], (
-            f"The auth manager {auth_manager_module} does not provide an endpoint to create a JWT token. This endpoint should be POST /auth/token"
-        )

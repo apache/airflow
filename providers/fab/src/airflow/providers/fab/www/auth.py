@@ -18,9 +18,9 @@ from __future__ import annotations
 
 import functools
 import logging
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from functools import wraps
-from typing import TYPE_CHECKING, Callable, TypeVar, cast
+from typing import TYPE_CHECKING, TypeVar, cast
 
 from flask import flash, redirect, render_template, request, url_for
 from flask_appbuilder._compat import as_unicode
@@ -46,10 +46,7 @@ from airflow.utils.net import get_hostname
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
     from airflow.api_fastapi.auth.managers.models.batch_apis import (
-        IsAuthorizedConnectionRequest,
         IsAuthorizedDagRequest,
-        IsAuthorizedPoolRequest,
-        IsAuthorizedVariableRequest,
     )
     from airflow.models import DagRun, Pool, TaskInstance, Variable
     from airflow.models.connection import Connection
@@ -61,7 +58,7 @@ log = logging.getLogger(__name__)
 
 
 def get_access_denied_message():
-    return conf.get("webserver", "access_denied_message")
+    return conf.get("fab", "access_denied_message")
 
 
 def has_access_with_pk(f):
@@ -145,7 +142,7 @@ def _has_access(*, is_authorized: bool, func: Callable, args, kwargs):
         return (
             render_template(
                 "airflow/no_roles_permissions.html",
-                hostname=get_hostname() if conf.getboolean("webserver", "EXPOSE_HOSTNAME") else "",
+                hostname=get_hostname() if conf.getboolean("fab", "EXPOSE_HOSTNAME") else "",
                 logout_url=get_fab_auth_manager().get_url_logout(),
             ),
             403,
@@ -170,15 +167,13 @@ def has_access_connection(method: ResourceMethod) -> Callable[[T], T]:
         @wraps(func)
         def decorated(*args, **kwargs):
             connections: set[Connection] = set(args[1])
-            requests: Sequence[IsAuthorizedConnectionRequest] = [
-                {
-                    "method": method,
-                    "details": ConnectionDetails(conn_id=connection.conn_id),
-                }
+            is_authorized = all(
+                get_auth_manager().is_authorized_connection(
+                    method=method,
+                    details=ConnectionDetails(conn_id=connection.conn_id),
+                    user=get_auth_manager().get_user(),
+                )
                 for connection in connections
-            ]
-            is_authorized = get_auth_manager().batch_is_authorized_connection(
-                requests, user=get_auth_manager().get_user()
             )
             return _has_access(
                 is_authorized=is_authorized,
@@ -217,7 +212,7 @@ def has_access_dag(method: ResourceMethod, access_entity: DagAccessEntity | None
                 return (
                     render_template(
                         "airflow/no_roles_permissions.html",
-                        hostname=get_hostname() if conf.getboolean("webserver", "EXPOSE_HOSTNAME") else "",
+                        hostname=get_hostname() if conf.getboolean("fab", "EXPOSE_HOSTNAME") else "",
                         logout_url=get_auth_manager().get_url_logout(),
                     ),
                     403,
@@ -284,15 +279,11 @@ def has_access_pool(method: ResourceMethod) -> Callable[[T], T]:
         @wraps(func)
         def decorated(*args, **kwargs):
             pools: set[Pool] = set(args[1])
-            requests: Sequence[IsAuthorizedPoolRequest] = [
-                {
-                    "method": method,
-                    "details": PoolDetails(name=pool.pool),
-                }
+            is_authorized = all(
+                get_auth_manager().is_authorized_pool(
+                    method=method, details=PoolDetails(name=pool.pool), user=get_auth_manager().get_user()
+                )
                 for pool in pools
-            ]
-            is_authorized = get_auth_manager().batch_is_authorized_pool(
-                requests, user=get_auth_manager().get_user()
             )
             return _has_access(
                 is_authorized=is_authorized,
@@ -310,23 +301,15 @@ def has_access_variable(method: ResourceMethod) -> Callable[[T], T]:
     def has_access_decorator(func: T):
         @wraps(func)
         def decorated(*args, **kwargs):
-            if len(args) == 1:
-                # No items provided
-                is_authorized = get_auth_manager().is_authorized_variable(
-                    method=method, user=get_auth_manager().get_user()
+            variables: set[Variable] = set(args[1])
+            is_authorized = all(
+                get_auth_manager().is_authorized_variable(
+                    method=method,
+                    details=VariableDetails(key=variable.key),
+                    user=get_auth_manager().get_user(),
                 )
-            else:
-                variables: set[Variable] = set(args[1])
-                requests: Sequence[IsAuthorizedVariableRequest] = [
-                    {
-                        "method": method,
-                        "details": VariableDetails(key=variable.key),
-                    }
-                    for variable in variables
-                ]
-                is_authorized = get_auth_manager().batch_is_authorized_variable(
-                    requests, user=get_auth_manager().get_user()
-                )
+                for variable in variables
+            )
             return _has_access(
                 is_authorized=is_authorized,
                 func=func,

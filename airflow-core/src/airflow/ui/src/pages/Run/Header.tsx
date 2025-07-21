@@ -18,11 +18,13 @@
  */
 import { HStack, Text, Box } from "@chakra-ui/react";
 import { useCallback, useState, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { FiBarChart, FiMessageSquare } from "react-icons/fi";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ClearRunButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
+import EditableMarkdownArea from "src/components/EditableMarkdownArea";
 import EditableMarkdownButton from "src/components/EditableMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 import { LimitedItemsList } from "src/components/LimitedItemsList";
@@ -39,6 +41,7 @@ export const Header = ({
   readonly dagRun: DAGRunResponse;
   readonly isRefreshing?: boolean;
 }) => {
+  const { t: translate } = useTranslation();
   const [note, setNote] = useState<string | null>(dagRun.note);
 
   const dagId = dagRun.dag_id;
@@ -66,19 +69,21 @@ export const Header = ({
       <HeaderCard
         actions={
           <>
-            <EditableMarkdownButton
-              header="Dag Run Note"
-              icon={<FiMessageSquare />}
-              isPending={isPending}
-              mdContent={note}
-              onConfirm={onConfirm}
-              placeholder="Add a note..."
-              setMdContent={setNote}
-              text={Boolean(dagRun.note) ? "Note" : "Add a note"}
-              withText={containerWidth > 700}
-            />
-            <ClearRunButton dagRun={dagRun} withText={containerWidth > 700} />
-            <MarkRunAsButton dagRun={dagRun} withText={containerWidth > 700} />
+            {!Boolean(dagRun.note) && (
+              <EditableMarkdownButton
+                header={translate("note.dagRun")}
+                icon={<FiMessageSquare />}
+                isPending={isPending}
+                mdContent={note}
+                onConfirm={onConfirm}
+                placeholder={translate("note.placeholder")}
+                setMdContent={setNote}
+                text={translate("note.add")}
+                withText={containerWidth > 700}
+              />
+            )}
+            <ClearRunButton dagRun={dagRun} isHotkeyEnabled withText={containerWidth > 700} />
+            <MarkRunAsButton dagRun={dagRun} isHotkeyEnabled withText={containerWidth > 700} />
           </>
         }
         icon={<FiBarChart />}
@@ -89,12 +94,12 @@ export const Header = ({
             ? []
             : [
                 {
-                  label: "Logical Date",
+                  label: translate("logicalDate"),
                   value: <Time datetime={dagRun.logical_date} />,
                 },
               ]),
           {
-            label: "Run Type",
+            label: translate("dagRun.runType"),
             value: (
               <HStack>
                 <RunTypeIcon runType={dagRun.run_type} />
@@ -102,11 +107,11 @@ export const Header = ({
               </HStack>
             ),
           },
-          { label: "Start", value: <Time datetime={dagRun.start_date} /> },
-          { label: "End", value: <Time datetime={dagRun.end_date} /> },
-          { label: "Duration", value: `${getDuration(dagRun.start_date, dagRun.end_date)}s` },
+          { label: translate("startDate"), value: <Time datetime={dagRun.start_date} /> },
+          { label: translate("endDate"), value: <Time datetime={dagRun.end_date} /> },
+          { label: translate("duration"), value: getDuration(dagRun.start_date, dagRun.end_date) },
           {
-            label: "Dag Version(s)",
+            label: translate("dagRun.dagVersions"),
             value: (
               <LimitedItemsList
                 items={dagRun.dag_versions.map((version) => (
@@ -119,6 +124,9 @@ export const Header = ({
         ]}
         title={<Time datetime={dagRun.run_after} />}
       />
+      {Boolean(dagRun.note) && (
+        <EditableMarkdownArea mdContent={note} onBlur={onConfirm} setMdContent={setNote} />
+      )}
     </Box>
   );
 };

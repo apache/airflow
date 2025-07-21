@@ -23,10 +23,22 @@
 
 Package ``apache-airflow-providers-edge3``
 
-Release: ``1.0.0``
+Release: ``1.1.2``
 
 
-Handle edge workers on remote sites via HTTP(s) connection and orchestrates work over distributed sites
+Handle edge workers on remote sites via HTTP(s) connection and orchestrates work over distributed sites.
+
+When tasks need to be executed on remote sites where the connection need to pass through
+firewalls or other network restrictions, the Edge Worker can be deployed. The Edge Worker
+is a lightweight process with reduced dependencies. The worker only needs to be able to
+communicate with the central Airflow site via HTTPS.
+
+In the central Airflow site the EdgeExecutor is used to orchestrate the work. The EdgeExecutor
+is a custom executor which is used to schedule tasks on the edge workers. The EdgeExecutor can co-exist
+with other executors (for example CeleryExecutor or KubernetesExecutor) in the same Airflow site.
+
+Additional REST API endpoints are provided to distribute tasks and manage the edge workers. The endpoints
+are provided by the API server.
 
 
 Provider package
@@ -36,7 +48,7 @@ This is a provider package for ``edge3`` provider. All classes for this provider
 are in ``airflow.providers.edge3`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-edge3/1.0.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-edge3/1.1.2/>`_.
 
 Installation
 ------------
@@ -45,7 +57,7 @@ You can install this package on top of an existing Airflow 2 installation (see `
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-edge3``
 
-The package supports the following python versions: 3.9,3.10,3.11,3.12
+The package supports the following python versions: 3.10,3.11,3.12,3.13
 
 Requirements
 ------------
@@ -78,4 +90,4 @@ Dependent package                                                               
 ==============================================================================================  =======
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-edge3/1.0.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-edge3/1.1.2/changelog.html>`_.

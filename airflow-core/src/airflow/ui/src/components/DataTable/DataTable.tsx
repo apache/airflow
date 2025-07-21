@@ -30,6 +30,7 @@ import {
   type Updater,
 } from "@tanstack/react-table";
 import React, { type ReactNode, useCallback, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { CardList } from "src/components/DataTable/CardList";
 import { TableList } from "src/components/DataTable/TableList";
@@ -75,6 +76,7 @@ export const DataTable = <TData,>({
   skeletonCount = 10,
   total = 0,
 }: DataTableProps<TData>) => {
+  const { t: translate } = useTranslation(["common"]);
   const ref = useRef<{ tableRef: TanStackTable<TData> | undefined }>({
     tableRef: undefined,
   });
@@ -142,7 +144,11 @@ export const DataTable = <TData,>({
       {hasRows && display === "card" && cardDef !== undefined ? (
         <CardList cardDef={cardDef} isLoading={isLoading} table={table} />
       ) : undefined}
-      {!hasRows && !Boolean(isLoading) && <Text pt={1}>{noRowsMessage ?? `No ${modelName}s found.`}</Text>}
+      {!hasRows && !Boolean(isLoading) && (
+        <Text pl={4} pt={1}>
+          {noRowsMessage ?? translate("noItemsFound", { modelName })}
+        </Text>
+      )}
       {hasPagination ? (
         <Pagination.Root
           count={table.getRowCount()}

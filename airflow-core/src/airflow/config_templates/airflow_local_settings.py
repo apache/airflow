@@ -180,7 +180,7 @@ if REMOTE_LOGGING:
         )
         remote_task_handler_kwargs = {}
     elif remote_base_log_folder.startswith("gs://"):
-        from airflow.providers.google.cloud.logs.gcs_task_handler import GCSRemoteLogIO
+        from airflow.providers.google.cloud.log.gcs_task_handler import GCSRemoteLogIO
 
         key_path = conf.get_mandatory_value("logging", "google_key_path", fallback=None)
 
@@ -250,7 +250,7 @@ if REMOTE_LOGGING:
             **(
                 {
                     "base_log_folder": BASE_LOG_FOLDER,
-                    "remote_base": remote_base_log_folder,
+                    "remote_base": urlsplit(remote_base_log_folder).path,
                     "delete_local_copy": delete_local_copy,
                 }
                 | remote_task_handler_kwargs

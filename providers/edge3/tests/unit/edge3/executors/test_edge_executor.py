@@ -57,12 +57,14 @@ class TestEdgeExecutor:
 
         return (executor, key)
 
+    @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="_process_tasks is not used in Airflow 3.0+")
     def test__process_tasks_bad_command(self):
         executor, key = self.get_test_executor()
         task_tuple = (key, ["hello", "world"], None, None)
         with pytest.raises(ValueError):
             executor._process_tasks([task_tuple])
 
+    @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="_process_tasks is not used in Airflow 3.0+")
     @pytest.mark.parametrize(
         "pool_slots, expected_concurrency",
         [
@@ -291,6 +293,7 @@ class TestEdgeExecutor:
                 else:
                     assert worker.state == EdgeWorkerState.IDLE
 
+    @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="API only available in Airflow <3.0")
     def test_execute_async(self):
         executor, key = self.get_test_executor()
 
@@ -325,6 +328,7 @@ class TestEdgeExecutor:
                 queue="default",
                 priority_weight=1,
                 start_date=timezone.utcnow(),
+                dag_version_id="4d828a62-a417-4936-a7a6-2b3fabacecab",
             ),
             dag_rel_path="mock.py",
             log_path="mock.log",

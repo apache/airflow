@@ -18,6 +18,7 @@
  */
 import { Box } from "@chakra-ui/react";
 import { useDisclosure } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiPlay } from "react-icons/fi";
 
 import type { DAGResponse, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
@@ -32,15 +33,16 @@ type Props = {
 
 const TriggerDAGButton: React.FC<Props> = ({ dag, withText = true }) => {
   const { onClose, onOpen, open } = useDisclosure();
+  const { t: translate } = useTranslation("components");
 
   return (
     <Box>
       <ActionButton
-        actionName="Trigger Dag"
+        actionName={translate("triggerDag.title")}
         colorPalette="blue"
         icon={<FiPlay />}
         onClick={onOpen}
-        text="Trigger"
+        text={translate("triggerDag.button")}
         variant="solid"
         withText={withText}
       />

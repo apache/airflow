@@ -137,20 +137,6 @@ When you develop providers, you might want to reuse some of the code between tes
 This is possible by placing the code in ``test_utils`` in the ``devel-common/src`` directory.
 The ``tests_common`` module is installed automatically by uv in the uv workspace.
 
-Chicken-egg providers
----------------------
-
-Sometimes, when a provider depends on another provider, and you want to add a new feature that spans across
-two providers, you might need to add a new feature to the "dependent" provider, you need
-to add a new feature to the "dependency" provider as well. This is a chicken-egg problem and by default
-some CI jobs (like generating PyPI constraints) will fail because they cannot use the source version of
-the provider distribution. This is handled by adding the "dependent" provider to the chicken-egg list of
-"providers" in ``dev/breeze/src/airflow_breeze/global_constants.py``. By doing this, the provider is build
-locally from sources rather than downloaded from PyPI when generating constraints.
-
-More information about the chicken-egg providers and how release is handled can be found in
-the `Release providers documentation <../dev/README_RELEASE_PROVIDERS.md#chicken-egg-providers>`_
-
 Developing community managed providers
 --------------------------------------
 
@@ -183,7 +169,7 @@ there where you should add and remove dependencies for providers (following by r
 of Airflow).
 
 The ``provider.yaml`` file is compliant with the schema that is available in
-`json-schema specification <https://github.com/apache/airflow/blob/main/airflow/provider.yaml.schema.json>`_.
+`json-schema specification <https://github.com/apache/airflow/blob/main/airflow-core/src/airflow/provider.yaml.schema.json>`_.
 
 Thanks to that mechanism, you can develop community managed providers in a seamless way directly from
 Airflow sources, without preparing and releasing them as distributions separately, which would be rather

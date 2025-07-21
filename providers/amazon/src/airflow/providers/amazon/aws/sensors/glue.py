@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
@@ -28,16 +27,16 @@ from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.glue import (
     GlueDataQualityRuleRecommendationRunCompleteTrigger,
     GlueDataQualityRuleSetEvaluationRunCompleteTrigger,
+    GlueJobCompleteTrigger,
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
-from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class GlueJobSensor(BaseSensorOperator):
+class GlueJobSensor(AwsBaseSensor[GlueJobHook]):
     """
     Waits for an AWS Glue Job to reach any of the status below.
 
@@ -50,9 +49,29 @@ class GlueJobSensor(BaseSensorOperator):
     :param job_name: The AWS Glue Job unique name
     :param run_id: The AWS Glue current running job identifier
     :param verbose: If True, more Glue Job Run logs show in the Airflow Task Logs.  (default: False)
+    :param deferrable: If True, the sensor will operate in deferrable mode. This mode requires aiobotocore
+        module to be installed.
+        (default: False, but can be overridden in config file by setting default_deferrable to True)
+    :param poke_interval: Polling period in seconds to check for the status of the job. (default: 120)
+    :param max_retries: Number of times before returning the current state. (default: 60)
+
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields: Sequence[str] = ("job_name", "run_id")
+    SUCCESS_STATES = ("SUCCEEDED",)
+    FAILURE_STATES = ("FAILED", "STOPPED", "TIMEOUT")
+
+    aws_hook_class = GlueJobHook
+    template_fields: Sequence[str] = aws_template_fields("job_name", "run_id")
 
     def __init__(
         self,
@@ -60,6 +79,9 @@ class GlueJobSensor(BaseSensorOperator):
         job_name: str,
         run_id: str,
         verbose: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        poke_interval: int = 120,
+        max_retries: int = 60,
         aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
@@ -67,24 +89,47 @@ class GlueJobSensor(BaseSensorOperator):
         self.job_name = job_name
         self.run_id = run_id
         self.verbose = verbose
+        self.deferrable = deferrable
+        self.poke_interval = poke_interval
+        self.max_retries = max_retries
         self.aws_conn_id = aws_conn_id
-        self.success_states: list[str] = ["SUCCEEDED"]
-        self.errored_states: list[str] = ["FAILED", "STOPPED", "TIMEOUT"]
         self.next_log_tokens = GlueJobHook.LogContinuationTokens()
 
-    @cached_property
-    def hook(self):
-        return GlueJobHook(aws_conn_id=self.aws_conn_id)
+    def execute(self, context: Context) -> Any:
+        if self.deferrable:
+            self.defer(
+                trigger=GlueJobCompleteTrigger(
+                    job_name=self.job_name,
+                    run_id=self.run_id,
+                    verbose=self.verbose,
+                    aws_conn_id=self.aws_conn_id,
+                    waiter_delay=int(self.poke_interval),
+                    waiter_max_attempts=self.max_retries,
+                    region_name=self.region_name,
+                ),
+                method_name="execute_complete",
+            )
+        else:
+            super().execute(context=context)
 
-    def poke(self, context: Context):
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        validated_event = validate_execute_complete_event(event)
+
+        if validated_event["status"] != "success":
+            message = f"Error: AWS Glue Job: {validated_event}"
+            raise AirflowException(message)
+
+        self.log.info("AWS Glue Job completed.")
+
+    def poke(self, context: Context) -> bool:
         self.log.info("Poking for job run status :for Glue Job %s and ID %s", self.job_name, self.run_id)
         job_state = self.hook.get_job_state(job_name=self.job_name, run_id=self.run_id)
 
         try:
-            if job_state in self.success_states:
+            if job_state in self.SUCCESS_STATES:
                 self.log.info("Exiting Job %s Run State: %s", self.run_id, job_state)
                 return True
-            if job_state in self.errored_states:
+            if job_state in self.FAILURE_STATES:
                 job_error_message = "Exiting Job %s Run State: %s", self.run_id, job_state
                 self.log.info(job_error_message)
                 raise AirflowException(job_error_message)

@@ -23,11 +23,16 @@ from collections.abc import Iterable, Mapping
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import prestodb
+from deprecated import deprecated
 from prestodb.exceptions import DatabaseError
 from prestodb.transaction import IsolationLevel
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import (
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+    AirflowProviderDeprecationWarning,
+)
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.presto.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -102,7 +107,7 @@ class PrestoHook(DbApiHook):
 
     def get_conn(self) -> Connection:
         """Return a connection object."""
-        db = self.get_connection(self.presto_conn_id)  # type: ignore[attr-defined]
+        db = self.get_connection(self.get_conn_id())
         extra = db.extra_dejson
         auth = None
         if db.password and extra.get("auth") == "kerberos":
@@ -135,7 +140,7 @@ class PrestoHook(DbApiHook):
             catalog=db.extra_dejson.get("catalog", "hive"),
             schema=db.schema,
             auth=auth,
-            isolation_level=self.get_isolation_level(),  # type: ignore[func-returns-value]
+            isolation_level=self.get_isolation_level(),
         )
         if extra.get("verify") is not None:
             # Unfortunately verify parameter is available via public API.
@@ -147,7 +152,7 @@ class PrestoHook(DbApiHook):
 
     def get_isolation_level(self) -> Any:
         """Return an isolation level."""
-        db = self.get_connection(self.presto_conn_id)  # type: ignore[attr-defined]
+        db = self.get_connection(self.get_conn_id())
         isolation_level = db.extra_dejson.get("isolation_level", "AUTOCOMMIT").upper()
         return getattr(IsolationLevel, isolation_level, IsolationLevel.AUTOCOMMIT)
 
@@ -173,8 +178,13 @@ class PrestoHook(DbApiHook):
         except DatabaseError as e:
             raise PrestoException(e)
 
-    def get_pandas_df(self, sql: str = "", parameters=None, **kwargs):
-        import pandas as pd
+    def _get_pandas_df(self, sql: str = "", parameters=None, **kwargs):
+        try:
+            import pandas as pd
+        except ImportError:
+            raise AirflowOptionalProviderFeatureException(
+                "Pandas is not installed. Please install it with `pip install pandas`."
+            )
 
         cursor = self.get_cursor()
         try:
@@ -189,6 +199,40 @@ class PrestoHook(DbApiHook):
         else:
             df = pd.DataFrame(**kwargs)
         return df
+
+    def _get_polars_df(self, sql: str = "", parameters=None, **kwargs):
+        try:
+            import polars as pl
+        except ImportError:
+            raise AirflowOptionalProviderFeatureException(
+                "Polars is not installed. Please install it with `pip install polars`."
+            )
+
+        cursor = self.get_cursor()
+        try:
+            cursor.execute(self.strip_sql_string(sql), parameters)
+            data = cursor.fetchall()
+        except DatabaseError as e:
+            raise PrestoException(e)
+        column_descriptions = cursor.description
+        if data:
+            df = pl.DataFrame(
+                data,
+                schema=[c[0] for c in column_descriptions],
+                orient="row",
+                **kwargs,
+            )
+        else:
+            df = pl.DataFrame(**kwargs)
+        return df
+
+    @deprecated(
+        reason="Replaced by function `get_df`.",
+        category=AirflowProviderDeprecationWarning,
+        action="ignore",
+    )
+    def get_pandas_df(self, sql: str = "", parameters=None, **kwargs):
+        return self._get_pandas_df(sql, parameters, **kwargs)
 
     def insert_rows(
         self,

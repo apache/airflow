@@ -26,6 +26,85 @@
 Changelog
 ---------
 
+7.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Refactor Databricks hook to use HTTP method constants and auto-prepend api/ to endpoint paths (#52385)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix: Unclosed aiohttp ClientSession and TCPConnector in DatabricksRunNowOperator (deferrable=True) (#52119)``
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Disable UP038 ruff rule and revert mandatory 'X | Y' in insintance checks (#52644)``
+* ``Bump pyarrow to 16.1.0 minimum version for several providers (#52635)``
+* ``Upgrade ruff to latest version (0.12.1) (#52562)``
+* ``feat: Add explicit support for DatabricksHook to Openlineage helper (#52253)``
+* ``Replace 'models.BaseOperator' to Task SDK one for DBT & Databricks (#52377)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Use BaseSensorOperator from task sdk in providers (#52296)``
+* ``Enable DatabricksJobRunLink for Databricks plugin, skip provide_session usage in Airflow3 (#52228)``
+* ``Add deprecation to 'airflow/sensors/base.py' (#52249)``
+* ``Bump upper binding on pandas in all providers (#52060)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make sure all test version imports come from test_common (#52425)``
+   * ``Clean up messy default connection overrides in provider tests (#52137)``
+   * ``Remove pytest.mark.db_test where possible from databricks provider. (#52033)``
+   * ``Relax databricks test a bit to support compatibility with older version of it (#51787)``
+
+7.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Add OpenLineage support for DatabricksSQLStatementsOperator (#50891)``
+* ``feat: Add OpenLineage support for DatabricksCopyIntoOperator (#50821)``
+* ``Adding 'DatabricksSQLStatementSensor' Sensor with Deferrability (#49516)``
+
+Misc
+~~~~
+
+* ``Bump some provider dependencies for faster resolution (#51727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+7.4.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.10+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Features
+~~~~~~~~
+
+* ``Upgrade 'DatabricksSqlHook' to support polars (#50523)``
+* ``feat: Add OpenLineage support for DatabricksSqlHook (#50392)``
+* ``enhance: logs SQL before execution in 'snowflake' and 'databricks_sql' (#48942)``
+
+Misc
+~~~~
+
+* ``Remove AIRFLOW_2_10_PLUS conditions (#49877)``
+* ``Bump min Airflow version in providers to 2.10 (#49843)``
+* ``chore: import paths use the stable functions (#49460)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Avoid committing history for providers (#49907)``
+
 7.3.2
 .....
 
