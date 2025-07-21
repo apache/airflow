@@ -19,6 +19,7 @@
   },
   "header": {
     "buttons": {
+      "advanced": "Erweitert",
       "dagDocs": "Dag Dokumentation"
     }
   },
@@ -34,6 +35,7 @@
     },
     "info": "INFO",
     "noTryNumber": "Keine Versuchsnummer",
+    "settings": "Protokoll-Ansicht",
     "viewInExternal": "Protokoll in {{name}} (Versuch {{attempt}}) ansehen",
     "warning": "WARNING"
   },
