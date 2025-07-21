@@ -21,6 +21,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 
 import type { GridRunsResponse } from "openapi/requests";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
+import { useNavigationPreview } from "src/context/navigationPreview";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 
 import { GridButton } from "./GridButton";
@@ -38,6 +39,7 @@ type Props = {
 export const Bar = ({ max, nodes, run }: Props) => {
   const { dagId = "", runId } = useParams();
   const [searchParams] = useSearchParams();
+  const { previewRunId } = useNavigationPreview();
 
   const isSelected = runId === run.run_id;
 
@@ -47,7 +49,8 @@ export const Bar = ({ max, nodes, run }: Props) => {
   return (
     <Box
       _hover={{ bg: "blue.subtle" }}
-      bg={isSelected ? "blue.muted" : undefined}
+      bg={isSelected ? "blue.muted" : previewRunId === run.run_id ? "blue.subtle" : undefined}
+      data-run-id={run.run_id}
       position="relative"
       transition="background-color 0.2s"
     >

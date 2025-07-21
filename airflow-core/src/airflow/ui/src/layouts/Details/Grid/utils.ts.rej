@@ -1,0 +1,92 @@
+diff a/airflow-core/src/airflow/ui/src/layouts/Details/Grid/utils.ts b/airflow-core/src/airflow/ui/src/layouts/Details/Grid/utils.ts	(rejected hunks)
+@@ -24,35 +24,68 @@ export type RunWithDuration = {
+ 
+ export type GridTask = {
+   depth: number;
++  firstChildIndex?: number;
++  isFirstChildOfParent?: boolean;
+   isGroup?: boolean;
+   isOpen?: boolean;
++  parentId?: string;
+ } & NodeResponse;
+ 
+ export const flattenNodes = (nodes: Array<NodeResponse>, openGroupIds: Array<string>, depth: number = 0) => {
+-  let flatNodes: Array<GridTask> = [];
+-  let allGroupIds: Array<string> = [];
+-
+-  nodes.forEach((node) => {
+-    if (node.type === "task") {
+-      if (node.children) {
+-        const { children, ...rest } = node;
+-
+-        flatNodes.push({ ...rest, depth, isGroup: true, isOpen: openGroupIds.includes(node.id) });
+-        allGroupIds.push(node.id);
+-
+-        const { allGroupIds: childGroupIds, flatNodes: childNodes } = flattenNodes(
+-          children,
+-          openGroupIds,
+-          depth + 1,
+-        );
+-
+-        flatNodes = [...flatNodes, ...(openGroupIds.includes(node.id) ? childNodes : [])];
+-        allGroupIds = [...allGroupIds, ...childGroupIds];
+-      } else {
+-        flatNodes.push({ ...node, depth });
++  const flatNodes: Array<GridTask> = [];
++  const allGroupIds: Array<string> = [];
++
++  const processNode = (node: NodeResponse, currentDepth: number, parentId?: string) => {
++    if (node.type !== "task") {
++      return;
++    }
++
++    if (node.children) {
++      const isOpen = openGroupIds.includes(node.id);
++      const groupIndex = flatNodes.length;
++
++      flatNodes.push({
++        ...node,
++        depth: currentDepth,
++        isGroup: true,
++        isOpen,
++        parentId,
++      });
++      allGroupIds.push(node.id);
++
++      if (!isOpen || node.children.length === 0) {
++        return;
+       }
++
++      const firstChildWillBeAtIndex = flatNodes.length;
++
++      node.children.forEach((child) => {
++        processNode(child, currentDepth + 1, node.id);
++      });
++
++      if (flatNodes.length > firstChildWillBeAtIndex) {
++        const groupNode = flatNodes[groupIndex];
++        const firstChild = flatNodes[firstChildWillBeAtIndex];
++
++        if (groupNode) {
++          groupNode.firstChildIndex = firstChildWillBeAtIndex;
++        }
++        if (firstChild) {
++          firstChild.isFirstChildOfParent = true;
++        }
++      }
++
++      return;
+     }
+-  });
++
++    flatNodes.push({
++      ...node,
++      depth: currentDepth,
++      parentId,
++    });
++  };
++
++  nodes.forEach(node => processNode(node, depth));
+ 
+   return { allGroupIds, flatNodes };
+ };

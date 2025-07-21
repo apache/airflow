@@ -25,6 +25,7 @@ import { FiChevronsRight } from "react-icons/fi";
 import { Link, useParams } from "react-router-dom";
 
 import type { GridRunsResponse } from "openapi/requests";
+import { NavigationPreviewProvider } from "src/context/navigationPreview";
 import { useOpenGroups } from "src/context/openGroups";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { useGridStructure } from "src/queries/useGridStructure.ts";
@@ -42,7 +43,7 @@ type Props = {
   readonly limit: number;
 };
 
-export const Grid = ({ limit }: Props) => {
+const GridContent = ({ limit }: Props) => {
   const { t: translate } = useTranslation("dag");
 
   const [selectedIsVisible, setSelectedIsVisible] = useState<boolean | undefined>();
@@ -131,3 +132,9 @@ export const Grid = ({ limit }: Props) => {
     </Flex>
   );
 };
+
+export const Grid = ({ limit }: Props) => (
+  <NavigationPreviewProvider>
+    <GridContent limit={limit} />
+  </NavigationPreviewProvider>
+);

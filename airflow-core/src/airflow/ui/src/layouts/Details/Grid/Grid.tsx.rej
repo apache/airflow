@@ -1,0 +1,73 @@
+diff a/airflow-core/src/airflow/ui/src/layouts/Details/Grid/Grid.tsx b/airflow-core/src/airflow/ui/src/layouts/Details/Grid/Grid.tsx	(rejected hunks)
+@@ -25,7 +25,9 @@ import { FiChevronsRight } from "react-icons/fi";
+ import { Link, useParams } from "react-router-dom";
+ 
+ import { useOpenGroups } from "src/context/openGroups";
++import { NavigationPreviewProvider } from "src/context/navigationPreview";
+ import { useGridNavigation } from "src/hooks/useGridNavigation";
++import { useSmartNavigation } from "src/hooks/navigation/useSmartNavigation";
+ import { useGrid } from "src/queries/useGrid";
+ import { getMetaKey } from "src/utils";
+ 
+@@ -41,7 +43,7 @@ type Props = {
+   readonly limit: number;
+ };
+ 
+-export const Grid = ({ limit }: Props) => {
++const GridContent = ({ limit }: Props) => {
+   const { t: translate } = useTranslation("dag");
+   const { openGroupIds } = useOpenGroups();
+   const { dagId = "" } = useParams();
+@@ -82,8 +84,14 @@ export const Grid = ({ limit }: Props) => {
+     runs,
+   });
+ 
++  useSmartNavigation({
++    flatNodes,
++    isGridFocused,
++    runs,
++  });
++
+   useEffect(() => {
+-    if (gridRef.current && Boolean(runs.length) && Boolean(flatNodes.length)) {
++    if (gridRef.current && runs.length > 0 && flatNodes.length > 0) {
+       gridRef.current.focus();
+       setIsGridFocused(true);
+     }
+@@ -126,7 +134,7 @@ export const Grid = ({ limit }: Props) => {
+       tabIndex={0}
+       width="100%"
+     >
+-      {Boolean(isGridFocused) && (
++      {isGridFocused ? (
+         <Box
+           borderRadius="md"
+           color="gray.400"
+@@ -138,9 +146,10 @@ export const Grid = ({ limit }: Props) => {
+           zIndex={10}
+         >
+           <Text>{translate("navigation.navigation", { arrow: "↑↓←→" })}</Text>
++          <Text>{translate("navigation.longPress", { arrow: "↑↓←→" })}</Text>
+           <Text>{translate("navigation.jump", { arrow: "↑↓←→", metaKey })}</Text>
+         </Box>
+-      )}
++      ) : undefined}
+       <Box flexGrow={1} minWidth={7} position="relative" top="100px">
+         <TaskNames nodes={flatNodes} />
+       </Box>
+@@ -150,13 +159,13 @@ export const Grid = ({ limit }: Props) => {
+           <DurationAxis top="50px" />
+           <DurationAxis top="4px" />
+           <Flex flexDirection="column-reverse" height="100px" position="relative" width="100%">
+-            {Boolean(runs.length) && (
++            {runs.length > 0 ? (
+               <>
+                 <DurationTick bottom="92px" duration={max} />
+                 <DurationTick bottom="46px" duration={max / 2} />
+                 <DurationTick bottom="-4px" duration={0} />
+               </>
+-            )}
++            ) : undefined}
+           </Flex>
+           <Flex flexDirection="row-reverse">
+             {runs.map((dr) => (
