@@ -80,14 +80,14 @@ async def get_user(
         token_str = oauth_token
 
     if not token_str:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Authorization token missing")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
 
     try:
         return await get_auth_manager().get_user_from_token(token_str)
     except ExpiredSignatureError:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Token expired")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired")
     except InvalidTokenError:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Invalid JWT token")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid JWT token")
 
 
 GetUserDep = Annotated[BaseUser, Depends(get_user)]
