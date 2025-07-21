@@ -21,8 +21,7 @@
     "noUncheckedIndexedAccess": true,
     "baseUrl": ".",
     "paths": {
-      "src/*": ["./src/*"],
-      "openapi/*": ["./openapi-gen/*"]
+      "src/*": ["./src/*"]
     }
   },
   "include": ["vite.config.ts"]
