@@ -82,6 +82,7 @@ const ConfigForm = <T extends FieldValues = FieldValues>({
       collapsible
       defaultValue={[flexibleFormDefaultSection]}
       mb={4}
+      overflow="visible"
       size="lg"
       variant="enclosed"
     >
