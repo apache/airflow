@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import os
 import subprocess
-import sys
 from pathlib import Path
 from shutil import copyfile
 
@@ -84,14 +83,8 @@ def test_task_sdk_health(tmp_path_factory, monkeypatch):
         console.print(f"[blue]Installing from: {task_sdk_path}")
 
         try:
-            subprocess.check_call([sys.executable, "-m", "ensurepip", "--upgrade"])
-            console.print("[green]Installed pip")
-
-            console.print("[yellow]Now installing Task SDK with pip...")
-            subprocess.check_call(
-                [sys.executable, "-m", "pip", "install", "--no-deps", str(task_sdk_path)], capture_output=True
-            )
-            console.print("[green]Task SDK installed with pip!")
+            subprocess.check_call(["uv", "pip", "install", "--no-deps", str(task_sdk_path)])
+            console.print("[green]Task SDK installed successfully!")
         except subprocess.CalledProcessError as e:
             console.print(f"[red]Failed to install Task SDK: {e}")
             console.print(f"[red]Command: {e.cmd}")
