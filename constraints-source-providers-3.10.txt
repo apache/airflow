@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-20T19:41:44.798087
+# This constraints file was automatically generated on 2025-07-21T02:23:42.006179
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -455,7 +455,7 @@ pgvector==0.4.1
 pinecone-plugin-interface==0.0.7
 pinecone==7.0.1
 pinotdb==5.6.0
-pipdeptree==2.27.0
+pipdeptree==2.28.0
 platformdirs==4.3.8
 pluggy==1.6.0
 ply==3.11
@@ -529,7 +529,7 @@ python-ldap==3.4.4
 python-multipart==0.0.20
 python-on-whales==0.78.0
 python-slugify==8.0.4
-python-telegram-bot==22.2
+python-telegram-bot==22.3
 python3-saml==1.16.0
 pytz==2025.2
 pywinrm==0.5.0
