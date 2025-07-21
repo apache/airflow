@@ -124,11 +124,10 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.mappedoperator import MappedOperator
-    from airflow.sdk.definitions.taskgroup import MappedTaskGroup
+    from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
     from airflow.serialization.serialized_objects import SerializedBaseOperator
     from airflow.utils.context import Context
-    from airflow.utils.task_group import TaskGroup
 
     Operator: TypeAlias = BaseOperator | MappedOperator
 
