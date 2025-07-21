@@ -17,19 +17,15 @@
 # under the License.
 
 [Unit]
-Description=Airflow celery flower
-After=network.target postgresql.service mysql.service redis.service rabbitmq-server.service
-Wants=postgresql.service mysql.service redis.service rabbitmq-server.service
+Description=Airflow Triggerer
+After=network.target
 
 [Service]
-EnvironmentFile=/etc/sysconfig/airflow
+Environment=AIRFLOW_HOME=/home/airflow/airflow_home
 User=airflow
 Group=airflow
-Type=simple
-ExecStart=/bin/airflow celery flower
-ExecStart=/bin/bash -c 'source /home/airflow/airflow_venv/bin/activate && airflow celery flower'
-Restart=on-failure
-RestartSec=5s
+Restart=always
+ExecStart=/bin/bash -c 'source /home/airflow/airflow_venv/bin/activate && airflow triggerer'
 
 [Install]
 WantedBy=multi-user.target
