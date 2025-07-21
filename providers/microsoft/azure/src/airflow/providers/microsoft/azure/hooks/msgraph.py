@@ -437,7 +437,7 @@ class KiotaRequestAdapterHook(BaseHook):
         method: str = "GET",
         query_parameters: dict[str, Any] | None = None,
         headers: dict[str, str] | None = None,
-        data: dict[str, Any] | str | BytesIO | None = None,
+        data: dict[str, Any] | str | bytes | BytesIO | None = None,
     ) -> RequestInformation:
         request_information = RequestInformation()
         request_information.path_parameters = path_parameters or {}
