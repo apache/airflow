@@ -907,7 +907,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         cluster_state = event["cluster_state"]
         cluster_name = event["cluster_name"]
 
-        if cluster_state == ClusterStatus.State.ERROR:
+        if cluster_state == ClusterStatus.State(ClusterStatus.State.DELETING).name:
             raise AirflowException(f"Cluster is in ERROR state:\n{cluster_name}")
 
         self.log.info("%s completed successfully.", self.task_id)
