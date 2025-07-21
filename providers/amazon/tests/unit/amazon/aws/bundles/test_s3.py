@@ -130,7 +130,7 @@ class TestS3DagBundle:
     @pytest.mark.db_test
     def test_correct_bundle_path_used(self):
         bundle = S3DagBundle(
-            name="test", aws_conn_id=AWS_CONN_ID_DEFAULT, prefix="project1_dags", bucket_name="aiflow_dags"
+            name="test", aws_conn_id=AWS_CONN_ID_DEFAULT, prefix="project1_dags", bucket_name="airflow_dags"
         )
         assert str(bundle.base_dir) == str(bundle.s3_dags_dir)
 
