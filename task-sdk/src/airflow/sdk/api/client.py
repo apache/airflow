@@ -27,8 +27,6 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 import certifi
 import httpx
-import certifi
-import ssl
 import msgspec
 import structlog
 from pydantic import BaseModel
