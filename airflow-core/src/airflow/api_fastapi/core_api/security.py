@@ -75,7 +75,7 @@ async def resolve_user_from_token(token_str: str | None) -> BaseUser:
     try:
         return await get_auth_manager().get_user_from_token(token_str)
     except ExpiredSignatureError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token Expired")
     except InvalidTokenError:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid JWT token")
 
