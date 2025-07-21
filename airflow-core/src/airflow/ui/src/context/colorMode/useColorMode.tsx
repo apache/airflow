@@ -27,9 +27,10 @@ export const COLOR_MODES = {
 export type ColorMode = (typeof COLOR_MODES)[keyof typeof COLOR_MODES];
 
 export const useColorMode = () => {
-  const { setTheme, theme } = useTheme();
+  const { resolvedTheme, setTheme, theme } = useTheme();
 
   return {
+    colorMode: (resolvedTheme ?? "light") as "dark" | "light",
     setColorMode: setTheme,
     theme: theme as ColorMode,
   };
