@@ -21,20 +21,13 @@ from unittest import mock
 
 import pytest
 
-from airflow.models.deadline import DeadlineCallbackState
-from airflow.triggers.deadline import PAYLOAD_BODY_KEY, PAYLOAD_STATUS_KEY, DeadlineCallbackTrigger
+from airflow.triggers.deadline import DeadlineCallbackTrigger
 
 TEST_CALLBACK_PATH = "classpath.test_callback_for_deadline"
 TEST_CALLBACK_KWARGS = {"arg1": "value1"}
-TEST_TRIGGER = DeadlineCallbackTrigger(callback_path=TEST_CALLBACK_PATH, callback_kwargs=TEST_CALLBACK_KWARGS)
 
 
 class TestDeadlineCallbackTrigger:
-    @pytest.fixture
-    def mock_import_string(self):
-        with mock.patch("airflow.triggers.deadline.import_string") as m:
-            yield m
-
     @pytest.mark.parametrize(
         "callback_init_kwargs,expected_serialized_kwargs",
         [
@@ -56,28 +49,20 @@ class TestDeadlineCallbackTrigger:
         }
 
     @pytest.mark.asyncio
-    async def test_run_success(self, mock_import_string):
+    @mock.patch("airflow.triggers.deadline.import_string")
+    async def test_run(self, mock_import_string):
         callback_return_value = "some value"
         mock_callback = mock.AsyncMock(return_value=callback_return_value)
         mock_import_string.return_value = mock_callback
 
-        event = await TEST_TRIGGER.run().asend(None)
+        trigger = DeadlineCallbackTrigger(
+            callback_path=TEST_CALLBACK_PATH,
+            callback_kwargs=TEST_CALLBACK_KWARGS,
+        )
+
+        event = await trigger.run().asend(None)
 
         mock_import_string.assert_called_once_with(TEST_CALLBACK_PATH)
         mock_callback.assert_called_once_with(**TEST_CALLBACK_KWARGS)
 
-        assert event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.SUCCESS
-        assert event.payload[PAYLOAD_BODY_KEY] == callback_return_value
-
-    @pytest.mark.asyncio
-    async def test_run_failure(self, mock_import_string):
-        mock_callback = mock.AsyncMock(side_effect=RuntimeError("Something went wrong"))
-        mock_import_string.return_value = mock_callback
-
-        event = await TEST_TRIGGER.run().asend(None)
-
-        mock_import_string.assert_called_once_with(TEST_CALLBACK_PATH)
-        mock_callback.assert_called_once_with(**TEST_CALLBACK_KWARGS)
-
-        assert event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.FAILED
-        assert PAYLOAD_BODY_KEY in event.payload
+        assert event.payload == {"status": "success", "result": callback_return_value}

@@ -26,11 +26,10 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 from airflow.models import DagRun, Trigger
-from airflow.models.deadline import Deadline, DeadlineCallbackState, ReferenceModels, _fetch_from_db
+from airflow.models.deadline import Deadline, ReferenceModels, _fetch_from_db
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.deadline import DeadlineReference
 from airflow.triggers.base import TriggerEvent
-from airflow.triggers.deadline import PAYLOAD_BODY_KEY, PAYLOAD_STATUS_KEY
 from airflow.utils.state import DagRunState
 
 from tests_common.test_utils import db
@@ -209,56 +208,33 @@ class TestDeadline:
         assert trigger.kwargs["callback_path"] == TEST_CALLBACK_PATH
         assert trigger.kwargs["callback_kwargs"] == TEST_CALLBACK_KWARGS
 
-    @pytest.mark.db_test
-    @pytest.mark.parametrize(
-        "event, none_trigger_expected",
-        [
-            pytest.param(
-                TriggerEvent(
-                    {PAYLOAD_STATUS_KEY: DeadlineCallbackState.SUCCESS, PAYLOAD_BODY_KEY: "test_result"}
-                ),
-                True,
-                id="success_event",
-            ),
-            pytest.param(
-                TriggerEvent(
-                    {PAYLOAD_STATUS_KEY: DeadlineCallbackState.FAILED, PAYLOAD_BODY_KEY: "RuntimeError"}
-                ),
-                True,
-                id="failed_event",
-            ),
-            pytest.param(
-                TriggerEvent({PAYLOAD_STATUS_KEY: DeadlineCallbackState.QUEUED, PAYLOAD_BODY_KEY: ""}),
-                False,
-                id="invalid_event",
-            ),
-            pytest.param(TriggerEvent({PAYLOAD_STATUS_KEY: "unknown_state"}), False, id="unknown_event"),
-        ],
+@pytest.mark.db_test
+@pytest.mark.parametrize(
+    "event, none_trigger_id_expected",
+    [
+        pytest.param(TriggerEvent({"status": "success"}), True, id="success_event"),
+        pytest.param(TriggerEvent({"status": "some status"}), False, id="unknown_event"),
+    ],
+)
+def test_handle_callback_event(self, dagrun, session, event, none_trigger_id_expected):
+    deadline_orm = Deadline(
+        deadline_time=DEFAULT_DATE,
+        callback=TEST_CALLBACK_PATH,
+        dag_id=DAG_ID,
+        dagrun_id=dagrun.id,
     )
-    def test_handle_callback_event(self, dagrun, session, event, none_trigger_expected):
-        deadline_orm = Deadline(
-            deadline_time=DEFAULT_DATE,
-            callback=TEST_CALLBACK_PATH,
-            dag_id=DAG_ID,
-            dagrun_id=dagrun.id,
-        )
-        session.add(deadline_orm)
-        session.flush()
+    session.add(deadline_orm)
+    session.flush()
 
-        deadline_orm.handle_miss(session=session)
-        session.flush()
+    deadline_orm.handle_miss(session=session)
+    session.flush()
 
-        deadline_orm.handle_callback_event(event, session)
-        session.flush()
-
-        assert none_trigger_expected == (deadline_orm.trigger is None)
-
-        status = event.payload[PAYLOAD_STATUS_KEY]
-        if status in set(DeadlineCallbackState):
-            assert deadline_orm.callback_state == status
-        else:
-            assert deadline_orm.callback_state == DeadlineCallbackState.QUEUED
-
+    deadline_orm.handle_callback_event(event, session)
+    session.flush()
+    if none_trigger_id_expected:
+        assert deadline_orm.trigger_id is None
+    else:
+        assert deadline_orm.trigger_id is not None
 
 @pytest.mark.db_test
 class TestCalculatedDeadlineDatabaseCalls:

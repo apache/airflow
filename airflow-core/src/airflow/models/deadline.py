@@ -46,6 +46,7 @@ if TYPE_CHECKING:
     from airflow.triggers.base import TriggerEvent
 
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -83,7 +84,11 @@ class Deadline(Base):
     trigger_id = Column(Integer, ForeignKey("trigger.id"), nullable=True)
     trigger = relationship("Trigger", back_populates="deadline")
 
+<<<<<<< HEAD
     __table_args__ = (Index("deadline_callback_state_time_idx", callback_state, deadline_time, unique=False),)
+=======
+    __table_args__ = (Index("deadline_time_idx", deadline_time, unique=False),)
+>>>>>>> bbbbcea6b9 (AIP-86 - Implement basic functionality for deadline alerts async callbacks (#53201))
 
     def __init__(
         self,
@@ -169,7 +174,11 @@ class Deadline(Base):
         return deleted_count
 
     def handle_miss(self, session: Session):
+<<<<<<< HEAD
         """Handle a missed deadline by creating a trigger to run the callback."""
+=======
+        """Handle a missed deadline by queueing the callback and marking the deadline as missed."""
+>>>>>>> bbbbcea6b9 (AIP-86 - Implement basic functionality for deadline alerts async callbacks (#53201))
         # TODO: check to see if the callback is meant to run in triggerer or executor. For now, the code below assumes it's for the triggerer
         callback_trigger = DeadlineCallbackTrigger(
             callback_path=self.callback,
@@ -180,6 +189,7 @@ class Deadline(Base):
         session.add(trigger_orm)
         session.flush()
         self.trigger_id = trigger_orm.id
+<<<<<<< HEAD
         self.callback_state = DeadlineCallbackState.QUEUED
         session.add(self)
 
@@ -193,6 +203,19 @@ class Deadline(Base):
             session.add(self)
         else:
             logger.error("Unexpected event received: %s", event.payload)
+=======
+        session.add(self)
+
+        # TODO mark deadline as missed
+
+    def handle_callback_event(self, event: TriggerEvent, session: Session):
+        if event.payload["status"] == "success":
+            logger.debug("Deadline callback succeeded")
+            self.trigger = None
+            session.add(self)
+        else:
+            logger.error("Unexpected event received: %s", event)
+>>>>>>> bbbbcea6b9 (AIP-86 - Implement basic functionality for deadline alerts async callbacks (#53201))
 
 
 class ReferenceModels:
