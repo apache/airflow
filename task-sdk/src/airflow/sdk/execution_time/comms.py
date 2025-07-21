@@ -856,15 +856,10 @@ class GetDRCount(BaseModel):
     type: Literal["GetDRCount"] = "GetDRCount"
 
 
-class GetHITLDetailResponsePayload(BaseModel):
-    """Schema for getting the response part of a Human-in-the-loop detail for a specific task instance."""
-
-    ti_id: UUID
-
-
-class GetHITLDetailResponse(GetHITLDetailResponsePayload):
+class GetHITLDetailResponse(BaseModel):
     """Get the response content part of a Human-in-the-loop response."""
 
+    ti_id: UUID
     type: Literal["GetHITLDetailResponse"] = "GetHITLDetailResponse"
 
 
