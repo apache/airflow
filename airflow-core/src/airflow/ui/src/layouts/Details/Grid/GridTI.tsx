@@ -16,22 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge, Flex } from "@chakra-ui/react";
+import { Badge, chakra, Flex } from "@chakra-ui/react";
 import type { MouseEvent } from "react";
-import React from "react";
+import React, { useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router-dom";
 
-import type { TaskInstanceState } from "openapi/requests/types.gen";
+import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { StateIcon } from "src/components/StateIcon";
+import Time from "src/components/Time";
 
 type Props = {
   readonly dagId: string;
+  readonly instance: LightGridTaskInstanceSummary;
   readonly isGroup?: boolean;
   readonly isMapped?: boolean | null;
   readonly label: string;
   readonly runId: string;
   readonly search: string;
-  readonly state?: TaskInstanceState | null;
   readonly taskId: string;
 };
 
@@ -51,8 +53,44 @@ const onMouseLeave = (event: MouseEvent<HTMLDivElement>) => {
   });
 };
 
-const Instance = ({ dagId, isGroup, isMapped, runId, search, state, taskId }: Props) => {
+const Instance = ({ dagId, instance, isGroup, isMapped, runId, search, taskId }: Props) => {
   const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
+  const { t: translate } = useTranslation();
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const tooltipRef = useRef<HTMLElement | undefined>(undefined);
+
+  const onBadgeMouseEnter = (event: MouseEvent<HTMLDivElement>) => {
+    // Clear any existing timeout
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    // Store reference to the tooltip element
+    const tooltip = event.currentTarget.querySelector("#tooltip") as HTMLElement;
+
+    tooltipRef.current = tooltip;
+
+    // Set a new timeout to show the tooltip after 200ms
+    debounceTimeoutRef.current = setTimeout(() => {
+      if (tooltipRef.current) {
+        tooltipRef.current.style.visibility = "visible";
+      }
+    }, 200);
+  };
+
+  const onBadgeMouseLeave = () => {
+    // Clear any existing timeout
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+      debounceTimeoutRef.current = undefined;
+    }
+
+    // Hide the tooltip immediately
+    if (tooltipRef.current) {
+      tooltipRef.current.style.visibility = "hidden";
+      tooltipRef.current = undefined;
+    }
+  };
 
   return (
     <Flex
@@ -78,23 +116,51 @@ const Instance = ({ dagId, isGroup, isMapped, runId, search, state, taskId }: Pr
       >
         <Badge
           borderRadius={4}
-          colorPalette={state === null ? "none" : state}
+          colorPalette={instance.state ?? "none"}
           height="14px"
           minH={0}
-          opacity={state === "success" ? 0.6 : 1}
+          onMouseEnter={onBadgeMouseEnter}
+          onMouseLeave={onBadgeMouseLeave}
           p={0}
+          position="relative"
           variant="solid"
           width="14px"
         >
-          {state === undefined ? undefined : (
-            <StateIcon
-              size={10}
-              state={state}
-              style={{
-                marginLeft: "2px",
-              }}
-            />
-          )}
+          <StateIcon
+            size={10}
+            state={instance.state}
+            style={{
+              marginLeft: "2px",
+            }}
+          />
+          <chakra.span
+            bg="bg.inverted"
+            borderRadius={2}
+            bottom={0}
+            color="fg.inverted"
+            id="tooltip"
+            p={2}
+            position="absolute"
+            right={0}
+            visibility="hidden"
+            zIndex={1}
+          >
+            {translate("taskId")}: {taskId}
+            <br />
+            {translate("state")}: {instance.state}
+            {instance.min_start_date !== null && (
+              <>
+                <br />
+                {translate("startDate")}: <Time datetime={instance.min_start_date} />
+              </>
+            )}
+            {instance.max_end_date !== null && (
+              <>
+                <br />
+                {translate("endDate")}: <Time datetime={instance.max_end_date} />
+              </>
+            )}
+          </chakra.span>
         </Badge>
       </Link>
     </Flex>
