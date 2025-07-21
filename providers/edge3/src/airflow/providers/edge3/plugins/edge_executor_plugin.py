@@ -220,7 +220,9 @@ except AirflowConfigException:
 #                 resulted in a proper API to selective initialize. Maybe backcompat-shim
 #                 is also needed to support Airflow-versions prior the rework.
 if AIRFLOW_V_3_0_PLUS:
-    RUNNING_ON_APISERVER = sys.argv[1] in ["api-server"] if len(sys.argv) > 1 else False
+    RUNNING_ON_APISERVER = (len(sys.argv) > 1 and sys.argv[1] in ["api-server"]) or (
+        len(sys.argv) > 2 and sys.argv[2] == "airflow-core/src/airflow/api_fastapi/main.py"
+    )
 else:
     RUNNING_ON_APISERVER = "gunicorn" in sys.argv[0] and "airflow-webserver" in sys.argv
 
