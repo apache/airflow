@@ -31,7 +31,7 @@ type DeleteDagButtonProps = {
   readonly withText?: boolean;
 } & ButtonProps;
 
-const DeleteDagButton = ({ dagDisplayName, dagId, withText = true, ...rest }: DeleteDagButtonProps) => {
+const DeleteDagButton = ({ dagDisplayName, dagId, width, withText = true }: DeleteDagButtonProps) => {
   const { onClose, onOpen, open } = useDisclosure();
   const navigate = useNavigate();
   const { t: translate } = useTranslation("dags");
@@ -42,18 +42,17 @@ const DeleteDagButton = ({ dagDisplayName, dagId, withText = true, ...rest }: De
       navigate("/dags");
     },
   });
-  const { width } = rest;
 
   return (
-    <Box {...(Boolean(width) ? { width } : {})}>
+    <Box width={width}>
       <ActionButton
         actionName={translate("dagActions.delete.button")}
         colorPalette="red"
         icon={<FiTrash2 />}
         onClick={onOpen}
         text={translate("dagActions.delete.button")}
+        width={width}
         withText={withText}
-        {...(Boolean(width) ? { width } : {})}
       />
 
       <DeleteDialog
