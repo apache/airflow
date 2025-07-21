@@ -23,6 +23,7 @@ from urllib.parse import ParseResult, urljoin, urlparse
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer, OAuth2PasswordBearer
+from fastapi.security.utils import get_authorization_scheme_param
 from jwt import ExpiredSignatureError, InvalidTokenError
 from pydantic import NonNegativeInt
 
@@ -63,7 +64,7 @@ auth_description = (
     "information (such as user identity and scope) to authenticate subsequent requests. "
     "To learn more about Airflow public API authentication, please read https://airflow.apache.org/docs/apache-airflow/stable/security/api.html."
 )
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", description=auth_description)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", description=auth_description, auto_error=False)
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
@@ -95,18 +96,20 @@ GetUserDep = Annotated[BaseUser, Depends(get_user)]
 async def get_user_with_exception_handling(request: Request) -> BaseUser | None:
     # Currently the UI does not support JWT authentication, this method defines a fallback if no token is provided by the UI.
     # We can remove this method when issue https://github.com/apache/airflow/issues/44884 is done.
-    token_str = None
-
     # TODO remove try-except when authentication integrated everywhere, safeguard for non integrated clients and endpoints
-    try:
-        token_str = await oauth2_scheme(request)
-    except HTTPException as e:
-        if e.status_code == status.HTTP_401_UNAUTHORIZED:
-            return None
 
-    if not token_str:  # Handle None or empty token
+    authorization = request.headers.get("Authorization")
+    scheme, param = get_authorization_scheme_param(authorization)
+
+    if not authorization or scheme.lower() != "bearer" or not param:
         return None
-    return await get_user(token_str)
+
+    try:
+        return await get_auth_manager().get_user_from_token(param)
+    except ExpiredSignatureError:
+        return None
+    except InvalidTokenError:
+        return None
 
 
 def requires_access_dag(
