@@ -18,14 +18,14 @@
 from __future__ import annotations
 
 import logging
+import ssl
 import sys
 import uuid
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, TypeVar
 
-import httpx
 import certifi
-import ssl
+import httpx
 import msgspec
 import structlog
 from pydantic import BaseModel
@@ -767,7 +767,7 @@ class Client(httpx.Client):
             kwargs["base_url"] = base_url
             ctx = ssl.create_default_context(cafile=certifi.where())
             if API_SSL_CERT_PATH:
-              ctx.load_verify_locations(API_SSL_CERT_PATH)
+                ctx.load_verify_locations(API_SSL_CERT_PATH)
             kwargs["verify"] = ctx
         pyver = f"{'.'.join(map(str, sys.version_info[:3]))}"
         super().__init__(
