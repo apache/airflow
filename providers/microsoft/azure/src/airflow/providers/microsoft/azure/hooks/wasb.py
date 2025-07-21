@@ -591,7 +591,7 @@ class WasbAsyncHook(WasbHook):
         """Initialize the hook instance."""
         self.conn_id = wasb_conn_id
         self.public_read = public_read
-        self.blob_service_client: AsyncBlobServiceClient = None  # type: ignore
+        self.blob_service_client: AsyncBlobServiceClient | None = None  # type: ignore
 
     async def get_async_conn(self) -> AsyncBlobServiceClient:
         """Return the Async BlobServiceClient object."""
@@ -615,9 +615,8 @@ class WasbAsyncHook(WasbHook):
         tenant = self._get_field(extra, "tenant_id")
         if tenant:
             # use Active Directory auth
-            app_id = conn.login or ""
-            app_secret = conn.password or ""
-
+            app_id = conn.login
+            app_secret = conn.password
             token_credential = AsyncClientSecretCredential(
                 tenant, app_id, app_secret, **client_secret_auth_config
             )
