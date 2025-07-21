@@ -39,9 +39,9 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.providers.fab.www import auth
 else:
     from airflow.www import auth  # type: ignore
+from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.task_group import TaskGroup
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
