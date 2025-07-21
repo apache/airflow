@@ -23,7 +23,6 @@ from urllib.parse import ParseResult, urljoin, urlparse
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer, OAuth2PasswordBearer
-from fastapi.security.utils import get_authorization_scheme_param
 from jwt import ExpiredSignatureError, InvalidTokenError
 from pydantic import NonNegativeInt
 
@@ -94,25 +93,6 @@ async def get_user(
 
 
 GetUserDep = Annotated[BaseUser, Depends(get_user)]
-
-
-async def get_user_with_exception_handling(request: Request) -> BaseUser | None:
-    # Currently the UI does not support JWT authentication, this method defines a fallback if no token is provided by the UI.
-    # We can remove this method when issue https://github.com/apache/airflow/issues/44884 is done.
-    # TODO remove try-except when authentication integrated everywhere, safeguard for non integrated clients and endpoints
-
-    authorization = request.headers.get("Authorization")
-    scheme, param = get_authorization_scheme_param(authorization)
-
-    if not authorization or scheme.lower() != "bearer" or not param:
-        return None
-
-    try:
-        return await get_auth_manager().get_user_from_token(param)
-    except ExpiredSignatureError:
-        return None
-    except InvalidTokenError:
-        return None
 
 
 def requires_access_dag(
