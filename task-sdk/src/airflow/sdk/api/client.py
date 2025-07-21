@@ -25,8 +25,8 @@ import uuid
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, TypeVartests/sdk/api/test_client.py
 
-import httpx
 import certifi
+import httpx
 import msgspec
 import structlog
 from pydantic import BaseModel
@@ -783,6 +783,7 @@ class Client(httpx.Client):
                 kwargs["verify"] = ctx
 
 
+            kwargs["verify"] = ctx
         pyver = f"{'.'.join(map(str, sys.version_info[:3]))}"
         super().__init__(
             auth=auth,
