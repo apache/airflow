@@ -23,7 +23,7 @@ import shutil
 from contextlib import nullcontext
 from copy import copy
 from unittest import mock
-from unittest.mock import ANY, MagicMock
+from unittest.mock import ANY, AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
@@ -935,6 +935,8 @@ class TestKubernetesPodOperatorSystem:
     @mock.patch(f"{POD_MANAGER_CLASS}.await_xcom_sidecar_container_start")
     @mock.patch(f"{POD_MANAGER_CLASS}.extract_xcom")
     @mock.patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
+    @mock.patch(f"{POD_MANAGER_CLASS}.watch_pod_events", new=AsyncMock())
+    @mock.patch(f"{POD_MANAGER_CLASS}.await_pod_start", new=AsyncMock())
     @mock.patch(f"{POD_MANAGER_CLASS}.create_pod", new=MagicMock)
     @mock.patch(HOOK_CLASS)
     def test_pod_template_file(
@@ -1040,6 +1042,8 @@ class TestKubernetesPodOperatorSystem:
         assert expected_dict == actual_pod
 
     @mock.patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
+    @mock.patch(f"{POD_MANAGER_CLASS}.watch_pod_events", new=AsyncMock())
+    @mock.patch(f"{POD_MANAGER_CLASS}.await_pod_start", new=AsyncMock())
     @mock.patch(f"{POD_MANAGER_CLASS}.create_pod", new=MagicMock)
     @mock.patch(HOOK_CLASS)
     def test_pod_priority_class_name(self, hook_mock, await_pod_completion_mock):
