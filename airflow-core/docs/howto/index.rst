@@ -34,6 +34,7 @@ configuring an Airflow environment.
     add-dag-tags
     add-owner-links
     notifications
+    deadline-alerts
     set-config
     set-up-database
     operator/index

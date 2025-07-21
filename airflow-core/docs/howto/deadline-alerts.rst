@@ -1,0 +1,257 @@
+ .. Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+ ..   http://www.apache.org/licenses/LICENSE-2.0
+
+ .. Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+
+Deadline Alerts
+===============
+
+The :class:`~airflow.sdk.definitions.deadline.DeadlineAlert` feature is the next evolution of
+the old SLA.  Deadline Alerts allow you to set time thresholds for your DAG runs and automatically
+respond when those thresholds are exceeded. You can set up Deadline Alerts by choosing a built-in
+reference point, setting an interval, and defining a response using either Airflow's Notifiers or
+a custom callback function.
+
+Creating a Deadline Alert
+-------------------------
+
+To create a Deadline Alert, you'll need to specify three components:
+
+* A reference: When to start counting from
+* An interval: How far before or after the reference point to trigger the alert
+* A callback: What to do when the deadline is exceeded
+
+Here is how Deadlines are calculated:
+
+::
+
+    [Reference] ------ [Interval] ------> [Deadline]
+        ^                                     ^
+        |                                     |
+     Start time                          Trigger point
+
+Here's an example DAG implementation. If the DAG has not finished 15 minutes after it was queued, send an email:
+
+.. code-block:: python
+
+    from datetime import datetime, timedelta
+    from airflow import DAG
+    from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
+    from airflow.providers.smtp.notifications.smtp import SmtpNotifier
+    from airflow.providers.standard.operators.empty import EmptyOperator
+
+    with DAG(
+        dag_id="deadline_alert_example",
+        deadline=DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_QUEUED_AT,
+            interval=timedelta(minutes=15),
+            callback=SmtpNotifier(
+                to="team@example.com",
+                subject="[Alert] DAG {{ dag.dag_id }} exceeded time threshold",
+                html_content="The DAG has been running for more than 15 minutes since being queued.",
+            ),
+        )
+    ):
+        EmptyOperator(task_id="example_task")
+
+The timeline for this example would look like this:
+
+::
+
+    |------|-----------|---------|-----------|--------|
+        Scheduled    Queued    Started    Deadline
+         00:00       00:03      00:05      00:18
+
+Using Built-in References
+-------------------------
+
+Airflow provides several built-in reference points that you can use with DeadlineAlert:
+
+``DeadlineReference.DAGRUN_QUEUED_AT``
+    Measures time from when the DagRun was queued. Useful for monitoring resource constraints.
+
+``DeadlineReference.DAGRUN_LOGICAL_DATE``
+    References when the DAG run was scheduled to start. For example, setting an interval of
+    ``timedelta(minutes=15)`` would trigger the alert if the DAG hasn't completed 15 minutes
+    after it was scheduled to start, regardless of when (or if) it actually began executing.
+    Useful for ensuring scheduled DAGs complete before their next scheduled run.
+
+``DeadlineReference.FIXED_DATETIME``
+    Specifies a fixed point in time. Useful when DAGs must complete by a specific time.
+
+Here's an example using a fixed datetime:
+
+.. code-block:: python
+
+    tomorrow_at_ten = datetime.combine(
+        datetime.now().date() + timedelta(days=1),
+        time(10, 0)
+    )
+
+    with DAG(
+        dag_id="fixed_deadline_alert",
+        deadline=DeadlineAlert(
+            reference=DeadlineReference.FIXED_DATETIME(tomorrow_at_ten),
+            interval=timedelta(minutes=-30),  # Alert 30 minutes before the deadline
+            callback=SmtpNotifier(
+                to="team@example.com",
+                subject="Report will be late",
+                html_content="The report will not be ready 30 minutes before the deadline.",
+            ),
+        )
+    ):
+        EmptyOperator(task_id="example_task")
+
+The timeline for this example would look like this:
+
+::
+
+    |------|----------|---------|----------|--------|
+        Deadline    Queued    Start    Reference
+         08:00      09:15     09:17     10:00
+
+Using Callbacks
+---------------
+
+When a deadline is exceeded, the callback is executed. You can use any async :doc:`Notifier </howto/notifications>`
+or create a custom callback function.
+
+Using Built-in Notifiers
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Here's an example using the Slack notifier if the DagRun has not finished within 30 minutes of it being queued:
+
+.. code-block:: python
+
+    with DAG(
+        dag_id="slack_deadline_alert",
+        deadline=DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_QUEUED_AT,
+            interval=timedelta(minutes=15),
+            callback=SlackNotifier(
+                slack_conn_id="slack_default",
+                channel="#alerts",
+                text="DAG {{ dag.dag_id }} has been running for more than 30 minutes since being queued.",
+                username="Airflow Alerts"
+            ),
+        )
+    ):
+        EmptyOperator(task_id="example_task")
+
+Creating Custom Callbacks
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You can create custom callbacks for more complex handling. The `callback_kwargs` specified in
+the `DeadlineAlert` are passed to the callback function. Async callbacks are recommended, and
+you can use Jinja templating in the `callback_kwargs`:
+
+.. code-block:: python
+
+    from datetime import datetime, timedelta
+    from airflow import DAG
+    from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
+    from airflow.providers.standard.operators.empty import EmptyOperator
+
+    async def custom_callback(**kwargs):
+        """Handle deadline violation with custom logic."""
+        dag_id = kwargs.get('dag_id')
+        alert_type = kwargs.get('alert_type')
+        print(f"Deadline exceeded for DAG {dag_id}!")
+        print(f"Alert type: {alert_type}")
+        # Additional custom handling here
+
+    with DAG(
+        dag_id="custom_deadline_alert",
+        deadline=DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_QUEUED_AT,
+            interval=timedelta(minutes=15),
+            callback=custom_callback,
+            callback_kwargs={'alert_type': 'time_exceeded', 'dag_id': '{{ dag.dag_id }}'},
+        )
+    ):
+        EmptyOperator(task_id="example_task")
+
+In this example, we define an async callback function that will be executed by the Triggerer.
+The `callback_kwargs` are available in the function, and you can use Jinja templating to access
+DAG and runtime information. This allows for dynamic and context-aware alert handling.
+
+Note: Async callbacks are recommended as they will be executed by the Triggerer.
+Ensure any async callback is importable by the Triggerer.
+
+Deadline Calculation
+^^^^^^^^^^^^^^^^^^^^
+
+A deadline's trigger time is calculated by adding the ``interval`` to the datetime returned by
+the ``reference``. For ``FIXED_DATETIME`` references, negative intervals can be particularly
+useful to trigger the callback *before* the reference time.
+
+For example:
+
+.. code-block:: python
+
+    next_meeting = datetime(2025, 06, 26, 9, 30)
+
+    DeadlineAlert(
+        reference=DeadlineReference.FIXED_DATETIME(next_meeting),
+        interval=timedelta(hours=-2),
+        callback=notify_team
+    )
+
+This will trigger the alert 2 hours before the next meeting starts.
+
+For ``DAGRUN_LOGICAL_DATE``, the interval is typically positive, setting a deadline relative
+to when the DAG was scheduled to run. Here's an example:
+
+.. code-block:: python
+
+    DeadlineAlert(
+        reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+        interval=timedelta(hours=1),
+        callback=notify_team
+    )
+
+In this case, if a DAG is scheduled to run daily at midnight, the deadline would be triggered
+if the DAG hasn't completed by 1:00 AM. This is useful for ensuring that scheduled jobs complete
+within a certain timeframe after their intended start time.
+
+The flexibility of combining different references with positive or negative intervals allows
+you to create deadlines that suit a wide variety of operational requirements.
+
+Custom References
+^^^^^^^^^^^^^^^^^
+
+While the built-in references should cover most use cases, and more will be released over time,
+you can create custom references by implementing a class that inherits from DeadlineReference.
+This may be useful if you have calendar integrations or other sources that you want to use as a reference.
+
+.. code-block:: python
+
+    class CustomReference(DeadlineReference):
+        """A deadline reference that uses a custom data source."""
+
+        # Define any required parameters for your reference
+        required_kwargs = {"custom_id"}
+
+        def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
+            """
+            Evaluate the reference time using the provided session and kwargs.
+
+            The session parameter can be used for database queries, and kwargs
+            will contain any required parameters defined in required_kwargs.
+            """
+            custom_id = kwargs["custom_id"]
+            # Your custom logic here to determine the reference time
+            return your_datetime
