@@ -83,6 +83,25 @@ class Context(TypedDict, total=False):
     var: Any
 
 
+def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
+    """
+    Merge parameters into an existing context.
+
+    Like ``dict.update()`` , this take the same parameters, and updates
+    ``context`` in-place.
+
+    This is implemented as a free function because the ``Context`` type is
+    "faked" as a ``TypedDict`` in ``context.pyi``, which cannot have custom
+    functions.
+
+    :meta private:
+    """
+    if not context:
+        context = Context()
+
+    context.update(*args, **kwargs)
+
+
 def get_current_context() -> Context:
     """
     Retrieve the execution context dictionary without altering user method's signature.

@@ -89,6 +89,7 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComSelectSequence, XComModel
+from airflow.sdk.definitions.context import Context
 from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
@@ -130,7 +131,6 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
     from airflow.serialization.serialized_objects import SerializedBaseOperator
-    from airflow.utils.context import Context
 
     Operator: TypeAlias = BaseOperator | MappedOperator
 
@@ -367,10 +367,27 @@ def _get_email_subject_content(
 
     else:
         from airflow.sdk.definitions._internal.templater import SandboxedEnvironment
-        from airflow.utils.context import context_merge
 
         if TYPE_CHECKING:
             assert task_instance.task
+
+        def _context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
+            """
+            Merge parameters into an existing context.
+
+            Like ``dict.update()`` , this take the same parameters, and updates
+            ``context`` in-place.
+
+            This is implemented as a free function because the ``Context`` type is
+            "faked" as a ``TypedDict`` in ``context.pyi``, which cannot have custom
+            functions.
+
+            :meta private:
+            """
+            if not context:
+                context = Context()
+
+            context.update(*args, **kwargs)
 
         # Use the DAG's get_template_env() to set force_sandboxed. Don't add
         # the flag to the function on task object -- that function can be
@@ -381,7 +398,7 @@ def _get_email_subject_content(
         else:
             jinja_env = SandboxedEnvironment(cache_size=0)
         jinja_context = task_instance.get_template_context()
-        context_merge(jinja_context, additional_context)
+        _context_merge(jinja_context, additional_context)
 
         def render(key: str, content: str) -> str:
             if conf.has_option("email", key):
