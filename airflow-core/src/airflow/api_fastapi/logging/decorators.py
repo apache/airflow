@@ -22,7 +22,7 @@ import logging
 from typing import Annotated
 
 import pendulum
-from fastapi import Depends, Request
+from fastapi import Depends, Request, Security
 from pendulum.parsing.exceptions import ParserError
 
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
@@ -78,7 +78,7 @@ def action_logging(event: str | None = None):
     async def log_action(
         request: Request,
         session: SessionDep,
-        user: GetUserDep,
+        user: BaseUser = Security(get_user),
     ):
         """Log user actions."""
         event_name = event or request.scope["endpoint"].__name__
