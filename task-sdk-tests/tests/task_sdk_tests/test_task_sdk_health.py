@@ -17,6 +17,8 @@
 from __future__ import annotations
 
 import os
+import subprocess
+import sys
 from pathlib import Path
 from shutil import copyfile
 
@@ -72,6 +74,28 @@ def test_task_sdk_health(tmp_path_factory, monkeypatch):
         compose.compose.up(detach=True, wait=True)
         console.print("[green]Docker compose started for task SDK test")
 
+        task_sdk_version = os.environ.get("TASK_SDK_VERSION", "1.1.0")
+        console.print(f"[yellow]Installing apache-airflow-task-sdk=={task_sdk_version}...")
+
+        # Right now 1.1.0 is not yet released, and attempting to install 1.0.3 with 3.1.0 with fail due to an imcompat.
+        # For now, installing from git source, will update once the compatibility is regained in 3.1.0
+
+        subprocess.check_call(
+            [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "--no-deps",
+                "git+https://github.com/apache/airflow.git@main#subdirectory=task-sdk",
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        console.print("[green]Task SDK installed successfully")
+
+        # Now import the client after installation
         from airflow.sdk.api.client import Client
 
         client = Client(base_url=f"http://{TASK_SDK_HOST_PORT}/execution", token="not-a-token")
