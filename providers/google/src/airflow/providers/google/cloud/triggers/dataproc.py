@@ -479,8 +479,8 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
                     yield TriggerEvent(
                         {
                             "cluster_name": self.cluster_name,
-                            "cluster_state": ClusterStatus.State.DELETING,
-                            "cluster": cluster,
+                            "cluster_state": ClusterStatus.State(ClusterStatus.State.DELETING).name,
+                            "cluster": Cluster.to_dict(cluster),
                         }
                     )
                     return
@@ -488,14 +488,15 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
                     yield TriggerEvent(
                         {
                             "cluster_name": self.cluster_name,
-                            "cluster_state": state,
-                            "cluster": cluster,
+                            "cluster_state": ClusterStatus.State(state).name,
+                            "cluster": Cluster.to_dict(cluster),
                         }
                     )
                     return
-                self.log.info("Current state is %s", state)
-                self.log.info("Sleeping for %s seconds.", self.polling_interval_seconds)
-                await asyncio.sleep(self.polling_interval_seconds)
+                else:
+                    self.log.info("Current state is %s", state)
+                    self.log.info("Sleeping for %s seconds.", self.polling_interval_seconds)
+                    await asyncio.sleep(self.polling_interval_seconds)
         except asyncio.CancelledError:
             try:
                 if self.delete_on_error and await self.safe_to_cancel():

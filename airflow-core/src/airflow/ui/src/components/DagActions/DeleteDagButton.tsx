@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useDisclosure } from "@chakra-ui/react";
+import { Box, type ButtonProps, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
@@ -29,9 +29,9 @@ type DeleteDagButtonProps = {
   readonly dagDisplayName: string;
   readonly dagId: string;
   readonly withText?: boolean;
-};
+} & ButtonProps;
 
-const DeleteDagButton = ({ dagDisplayName, dagId, withText = true }: DeleteDagButtonProps) => {
+const DeleteDagButton = ({ dagDisplayName, dagId, width, withText = true }: DeleteDagButtonProps) => {
   const { onClose, onOpen, open } = useDisclosure();
   const navigate = useNavigate();
   const { t: translate } = useTranslation("dags");
@@ -44,14 +44,14 @@ const DeleteDagButton = ({ dagDisplayName, dagId, withText = true }: DeleteDagBu
   });
 
   return (
-    <>
+    <Box width={width}>
       <ActionButton
         actionName={translate("dagActions.delete.button")}
         colorPalette="red"
         icon={<FiTrash2 />}
         onClick={onOpen}
         text={translate("dagActions.delete.button")}
-        variant="solid"
+        width={width}
         withText={withText}
       />
 
@@ -64,7 +64,7 @@ const DeleteDagButton = ({ dagDisplayName, dagId, withText = true }: DeleteDagBu
         title={translate("dagActions.delete.button")}
         warningText={translate("dagActions.delete.warning")}
       />
-    </>
+    </Box>
   );
 };
 

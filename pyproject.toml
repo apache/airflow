@@ -151,7 +151,7 @@ packages = []
     "apache-airflow-providers-apache-spark>=4.11.1"
 ]
 "apache.tinkerpop" = [
-    "apache-airflow-providers-apache-tinkerpop"
+    "apache-airflow-providers-apache-tinkerpop>=1.0.0"
 ]
 "apprise" = [
     "apache-airflow-providers-apprise>=1.4.1"
@@ -408,7 +408,7 @@ packages = []
     "apache-airflow-providers-apache-pig>=4.6.0",
     "apache-airflow-providers-apache-pinot>=4.5.1",
     "apache-airflow-providers-apache-spark>=4.11.1",
-    "apache-airflow-providers-apache-tinkerpop",
+    "apache-airflow-providers-apache-tinkerpop>=1.0.0",
     "apache-airflow-providers-apprise>=1.4.1",
     "apache-airflow-providers-arangodb>=2.7.0",
     "apache-airflow-providers-asana>=2.7.0",
@@ -534,7 +534,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.7.21",
+    "uv>=0.8.0",
 ]
 
 
@@ -562,11 +562,9 @@ bypass-selection = true
 # Needed until https://github.com/astral-sh/ruff/issues/8237 is available.
 [tool.black]
 line-length = 110
-target-version = ['py310', 'py311', 'py312']
 
 ## ruff settings ##
 [tool.ruff]
-target-version = "py310"
 line-length = 110
 extend-exclude = [
     ".eggs",
