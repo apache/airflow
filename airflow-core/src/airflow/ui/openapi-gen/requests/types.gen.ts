@@ -496,7 +496,6 @@ export type DAGDetailsResponse = {
     relative_fileloc: string | null;
     fileloc: string;
     description: string | null;
-    deadline: Array<DeadlineAlertResponse> | null;
     timetable_summary: string | null;
     timetable_description: string | null;
     tags: Array<DagTagResponse>;
@@ -568,7 +567,6 @@ export type DAGResponse = {
     relative_fileloc: string | null;
     fileloc: string;
     description: string | null;
-    deadline: Array<DeadlineAlertResponse> | null;
     timetable_summary: string | null;
     timetable_description: string | null;
     tags: Array<DagTagResponse>;
@@ -811,18 +809,6 @@ export type DagVersionResponse = {
  * in the DagWarning model.
  */
 export type DagWarningType = 'asset conflict' | 'non-existent pool';
-
-/**
- * Deadline alert serializer for responses.
- */
-export type DeadlineAlertResponse = {
-    reference: string;
-    interval: string;
-    callback: string;
-    callback_kwargs?: {
-    [key: string]: unknown;
-} | null;
-};
 
 /**
  * Backfill collection serializer for responses in dry-run mode.
@@ -1732,7 +1718,6 @@ export type DAGWithLatestDagRunsResponse = {
     relative_fileloc: string | null;
     fileloc: string;
     description: string | null;
-    deadline: Array<DeadlineAlertResponse> | null;
     timetable_summary: string | null;
     timetable_description: string | null;
     tags: Array<DagTagResponse>;
