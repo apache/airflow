@@ -146,6 +146,7 @@ Debugging Workflow
 4. **Trigger Debugging**
 
    Perform an action that will trigger the code path with your breakpoint:
+
    - For scheduler: Trigger a DAG or wait for scheduled execution
    - For API server: Make an API call
    - For triggerer: Create a deferred task
@@ -154,6 +155,7 @@ Debugging Workflow
 5. **Debug Session**
 
    Once the breakpoint is hit:
+
    - Inspect variables in the Variables panel
    - Use the Debug Console to evaluate expressions
    - Step through code using F10 (step over), F11 (step into), F12 (step out)
