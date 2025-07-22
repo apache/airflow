@@ -40,7 +40,7 @@ DEFAULT_COLORS = {
 }
 
 BOLD_ON = escape_codes["bold"]
-BOLD_OFF = esc("22")
+BOLD_OFF = esc(22)
 
 
 class CustomTTYColoredFormatter(ColoredFormatter, TimezoneAware):
