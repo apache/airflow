@@ -940,7 +940,7 @@ class KubernetesPodOperator(BaseOperator):
         except TaskDeferred:
             raise
         finally:
-            self._clean(event, context, result=xcom_sidecar_output)
+            self._clean(event=event, context=context, result=xcom_sidecar_output)
 
     def _clean(self, event: dict[str, Any], result: dict, context: Context) -> None:
         if event["status"] == "running":
