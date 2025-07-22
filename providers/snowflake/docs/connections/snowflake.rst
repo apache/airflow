@@ -58,6 +58,8 @@ Extra (optional)
     * ``warehouse``: Snowflake warehouse name.
     * ``role``: Snowflake role.
     * ``authenticator``: To connect using OAuth set this parameter ``oauth``.
+    * ``token_endpoint``: Specify token endpoint for external OAuth provider.
+    * ``grant_type``: Specify grant type for OAuth authentication. Currently supported: ``refresh_token`` (default), ``client_credentials``.
     * ``refresh_token``: Specify refresh_token for OAuth connection.
     * ``private_key_file``: Specify the path to the private key file.
     * ``private_key_content``: Specify the content of the private key file in base64 encoded format. You can use the following Python code to encode the private key:

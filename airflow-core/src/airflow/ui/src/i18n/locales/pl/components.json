@@ -1,8 +1,8 @@
 {
   "backfill": {
-    "affectedMultiple": "Zostanie wywołanych {{count}} wykonań.",
+    "affected_one": "Zostanie wywołane 1 wykonanie.",
+    "affected_other": "Zostanie wywołanych {{count}} wykonań.",
     "affectedNone": "Brak wykonań spełniających wybrane kryteria.",
-    "affectedOne": "Zostanie wywołane 1 wykonanie.",
     "backwards": "Uruchom wstecz",
     "dateRange": "Zakres dat",
     "dateRangeFrom": "Od",

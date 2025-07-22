@@ -192,13 +192,6 @@ repos:
         language: python
         additional_dependencies: ['rich>=12.4.4']
         require_serial: true
-      - id: check-imports-in-providers
-        name: Check imports in providers
-        entry: ./scripts/ci/pre_commit/check_imports_in_providers.py
-        language: python
-        additional_dependencies: ['rich>=12.4.4', 'ruff==0.11.2']
-        files: ^providers/.*/src/airflow/providers/.*\.py$
-        require_serial: true
       - id: update-black-version
         name: Update black versions everywhere (manual)
         entry: ./scripts/ci/pre_commit/update_black_version.py
@@ -240,7 +233,8 @@ repos:
         entry: ./scripts/ci/pre_commit/check_deferrable_default.py
         pass_filenames: false
         # libcst doesn't have source wheels for all PY except PY3.12, excluding it
-        additional_dependencies: ['libcst>=1.1.0,!=1.8.0']
+        # libcst 1.8.1 doesn't include typing-extensions which is needed for Python 3.9
+        additional_dependencies: ['libcst>=1.1.0,!=1.8.0,!=1.8.1']
         files: ^(providers/.*/)?airflow/.*/(sensors|operators)/.*\.py$
   - repo: https://github.com/asottile/blacken-docs
     rev: 1.19.1
@@ -414,7 +408,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.11.2']
+        additional_dependencies: ['ruff==0.11.13']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -424,7 +418,7 @@ repos:
         types_or: [python, pyi]
         args: []
         require_serial: true
-        additional_dependencies: ['ruff==0.11.2']
+        additional_dependencies: ['ruff==0.11.13']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$
       - id: replace-bad-characters
         name: Replace bad characters
@@ -1487,4 +1481,11 @@ repos:
         files:
           ^airflow-ctl/src/airflowctl/api/operations.py|airflow-ctl/src/airflowctl/ctl/commands/.*\.py$
         additional_dependencies: ['rich>=12.4.4', 'argcomplete>=1.10']
+      - id: check-imports-in-providers
+        name: Check imports in providers
+        entry: ./scripts/ci/pre_commit/check_imports_in_providers.py
+        language: python
+        additional_dependencies: ['rich>=12.4.4', 'ruff==0.11.13']
+        files: ^providers/.*/src/airflow/providers/.*version_compat.*\.py$
+        require_serial: true
         ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE

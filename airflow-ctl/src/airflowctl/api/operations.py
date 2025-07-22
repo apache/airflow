@@ -37,6 +37,7 @@ from airflowctl.api.datamodels.generated import (
     BulkBodyConnectionBody,
     BulkBodyPoolBody,
     BulkBodyVariableBody,
+    BulkResponse,
     Config,
     ConnectionBody,
     ConnectionCollectionResponse,
@@ -672,11 +673,11 @@ class VariablesOperations(BaseOperations):
         except ServerResponseError as e:
             raise e
 
-    def bulk(self, variables: BulkBodyVariableBody) -> BulkActionResponse | ServerResponseError:
+    def bulk(self, variables: BulkBodyVariableBody) -> BulkResponse | ServerResponseError:
         """CRUD multiple variables."""
         try:
             self.response = self.client.patch("variables", json=variables.model_dump())
-            return BulkActionResponse.model_validate_json(self.response.content)
+            return BulkResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
 

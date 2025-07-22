@@ -136,6 +136,9 @@ class SnowflakeHook(DbApiHook):
                         "session_parameters": "session parameters",
                         "client_request_mfa_token": "client request mfa token",
                         "client_store_temporary_credential": "client store temporary credential (externalbrowser mode)",
+                        "grant_type": "refresh_token client_credentials",
+                        "token_endpoint": "token endpoint",
+                        "refresh_token": "refresh token",
                     },
                     indent=1,
                 ),
@@ -200,18 +203,32 @@ class SnowflakeHook(DbApiHook):
 
         return account_identifier
 
-    def get_oauth_token(self, conn_config: dict | None = None) -> str:
+    def get_oauth_token(
+        self,
+        conn_config: dict | None = None,
+        token_endpoint: str | None = None,
+        grant_type: str = "refresh_token",
+    ) -> str:
         """Generate temporary OAuth access token using refresh token in connection details."""
         if conn_config is None:
             conn_config = self._get_conn_params
 
-        url = f"https://{conn_config['account']}.snowflakecomputing.com/oauth/token-request"
+        url = token_endpoint or f"https://{conn_config['account']}.snowflakecomputing.com/oauth/token-request"
 
         data = {
-            "grant_type": "refresh_token",
-            "refresh_token": conn_config["refresh_token"],
+            "grant_type": grant_type,
             "redirect_uri": conn_config.get("redirect_uri", "https://localhost.com"),
         }
+
+        if grant_type == "refresh_token":
+            data |= {
+                "refresh_token": conn_config["refresh_token"],
+            }
+        elif grant_type == "client_credentials":
+            pass  # no setup necessary for client credentials grant.
+        else:
+            raise ValueError(f"Unknown grant_type: {grant_type}")
+
         response = requests.post(
             url,
             data=data,
@@ -226,7 +243,8 @@ class SnowflakeHook(DbApiHook):
         except requests.exceptions.HTTPError as e:  # pragma: no cover
             msg = f"Response: {e.response.content.decode()} Status Code: {e.response.status_code}"
             raise AirflowException(msg)
-        return response.json()["access_token"]
+        token = response.json()["access_token"]
+        return token
 
     @cached_property
     def _get_conn_params(self) -> dict[str, str | None]:
@@ -329,13 +347,20 @@ class SnowflakeHook(DbApiHook):
         if refresh_token:
             conn_config["refresh_token"] = refresh_token
             conn_config["authenticator"] = "oauth"
+
+        if conn_config.get("authenticator") == "oauth":
+            token_endpoint = self._get_field(extra_dict, "token_endpoint") or ""
             conn_config["client_id"] = conn.login
             conn_config["client_secret"] = conn.password
+            conn_config["token"] = self.get_oauth_token(
+                conn_config=conn_config,
+                token_endpoint=token_endpoint,
+                grant_type=extra_dict.get("grant_type", "refresh_token"),
+            )
+
             conn_config.pop("login", None)
             conn_config.pop("user", None)
             conn_config.pop("password", None)
-
-            conn_config["token"] = self.get_oauth_token(conn_config=conn_config)
 
         # configure custom target hostname and port, if specified
         snowflake_host = extra_dict.get("host")

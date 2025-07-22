@@ -137,6 +137,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             When executing the statement, Snowflake replaces placeholders (? and :name) in
             the statement with these specified values.
         """
+        self.query_ids = []
         conn_config = self._get_conn_params
 
         req_id = uuid.uuid4()
@@ -222,14 +223,21 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         }
         return headers
 
-    def get_oauth_token(self, conn_config: dict[str, Any] | None = None) -> str:
+    def get_oauth_token(
+        self,
+        conn_config: dict[str, Any] | None = None,
+        token_endpoint: str | None = None,
+        grant_type: str = "refresh_token",
+    ) -> str:
         """Generate temporary OAuth access token using refresh token in connection details."""
         warnings.warn(
             "This method is deprecated. Please use `get_oauth_token` method from `SnowflakeHook` instead. ",
             AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
-        return super().get_oauth_token(conn_config=conn_config)
+        return super().get_oauth_token(
+            conn_config=conn_config, token_endpoint=token_endpoint, grant_type=grant_type
+        )
 
     def get_request_url_header_params(self, query_id: str) -> tuple[dict[str, Any], dict[str, Any], str]:
         """

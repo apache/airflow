@@ -130,7 +130,7 @@ the auto-detection.
 The person who triggers the build (release manager) should specify the tag name of the docs to be published
 and the list of documentation packages to be published. Usually it is:
 
-* Airflow: `apache-airflow docker-stack` (later we will add `airflow-ctl` and `task-sdk`)
+* Airflow: `apache-airflow docker-stack task-sdk` (later we will add `airflow-ctl`)
 * Helm chart: `helm-chart`
 * Providers: `provider_id1 provider_id2` or `all providers` if all providers should be published.
 

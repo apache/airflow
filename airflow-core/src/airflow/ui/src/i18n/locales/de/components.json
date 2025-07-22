@@ -1,8 +1,8 @@
 {
   "backfill": {
-    "affectedMultiple": "{{count}} Läufe werden ausgelöst.",
+    "affected_one": "1 Lauf wird ausgelöst.",
+    "affected_other": "{{count}} Läufe werden ausgelöst.",
     "affectedNone": "Keine Läufe entsprechend en Kriterien.",
-    "affectedOne": "1 Lauf wird ausgelöst.",
     "backwards": "Verarbeitung in Rückwärtiger Reihenfolge",
     "dateRange": "Datumsbereich",
     "dateRangeFrom": "Von",

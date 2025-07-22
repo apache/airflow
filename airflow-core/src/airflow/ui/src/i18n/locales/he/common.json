@@ -13,8 +13,8 @@
     "auditLog": "יומן מערכת",
     "xcoms": "(XComs) אקסקום"
   },
-  "dagRun_one": "Dag בודד",
-  "dagRun_other": "Dag אחר",
+  "dagRun_one": "הרצת Dag",
+  "dagRun_other": "הרצות Dags",
   "defaultToGraphView": "תצוגת גרף כברירת מחדל",
   "defaultToGridView": "תצוגת רשת כברירת מחדל",
   "docs": {

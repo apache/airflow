@@ -7,6 +7,8 @@
     "Providers": "Providers",
     "Variables": "Variables"
   },
+  "asset_one": "Asset",
+  "asset_other": "Assets",
   "assetEvent_one": "Asset Event",
   "assetEvent_other": "Asset Events",
   "backfill_one": "Backfill",
@@ -17,6 +19,7 @@
   },
   "dag_one": "Dag",
   "dag_other": "Dags",
+  "dagId": "Dag ID",
   "dagRun_one": "Dag Run",
   "dagRun_other": "Dag Runs",
   "dagWarnings": "Dag warnings/errors",
@@ -128,6 +131,7 @@
   },
   "task_one": "Task",
   "task_other": "Tasks",
+  "taskId": "Task ID",
   "taskInstance_one": "Task Instance",
   "taskInstance_other": "Task Instances",
   "timeRange": {

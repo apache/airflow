@@ -204,6 +204,7 @@ REGULAR_DOC_PACKAGES = [
     "docker-stack",
     "helm-chart",
     "apache-airflow-providers",
+    "task-sdk",
 ]
 
 

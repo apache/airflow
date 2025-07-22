@@ -136,13 +136,16 @@ codegen = [
     "datamodel-code-generator[http]==0.28.2",
     "openapi-spec-validator>=0.7.1",
     "svcs>=25.1.0",
-    "ruff==0.11.2",
+    "ruff==0.11.13",
     "rich>=12.4.4",
 ]
 dev = [
     "apache-airflow-providers-common-sql",
     "apache-airflow-providers-standard",
     "apache-airflow-devel-common",
+]
+docs = [
+    "apache-airflow-devel-common[docs]",
 ]
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,

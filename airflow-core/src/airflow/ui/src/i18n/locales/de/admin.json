@@ -1,0 +1,6 @@
+{
+  "connections":{
+    "test": "Verbindung testen",
+    "testDisabled": "Das Testen von Verbindungen ist deaktiviert. Der Administrator kann via Konfiguration das Testen freischalten."
+  }
+}
