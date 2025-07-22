@@ -1,0 +1,30 @@
+{
+  "consumingDags": "Consuming Dags",
+  "createEvent": {
+    "button": "Create Event",
+    "manual": {
+      "description": "Manually create an Asset Event",
+      "extra": "Asset Event Extra",
+      "label": "Manual"
+    },
+    "materialize": {
+      "description": "Trigger the Dag upstream of this asset",
+      "descriptionWithDag": "Trigger the Dag upstream of this asset: {{dagName}}",
+      "label": "Materialize",
+      "unpauseDag": "Unpause {{dagName}} on trigger"
+    },
+    "success": {
+      "manualDescription": "Manual asset event creation was successful.",
+      "manualTitle": "Asset Event Created",
+      "materializeDescription": "Upstream Dag {{dagId}} was triggered successfully.",
+      "materializeTitle": "Materializing Asset"
+    },
+    "title": "Create Asset Event for {{name}}"
+  },
+  "group": "Group",
+  "lastAssetEvent": "Last Asset Event",
+  "name": "Name",
+  "producingTasks": "Producing Tasks",
+  "scheduledDags": "Scheduled Dags",
+  "searchPlaceholder": "Search Assets"
+}

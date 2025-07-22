@@ -34,9 +34,8 @@ DEFAULT_DATE = datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 
-pytestmark = pytest.mark.db_test
 
-
+@pytest.mark.db_test
 class TestNamedHivePartitionSensor:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}

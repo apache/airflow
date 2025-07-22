@@ -25,15 +25,13 @@ import os
 import sys
 import weakref
 from collections import abc
-from collections.abc import Collection, Iterable, MutableSet
+from collections.abc import Callable, Collection, Iterable, MutableSet
 from datetime import datetime, timedelta
 from inspect import signature
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     ClassVar,
-    Union,
     cast,
     overload,
 )
@@ -51,7 +49,6 @@ from airflow.exceptions import (
     TaskNotFound,
 )
 from airflow.sdk.bases.operator import BaseOperator
-from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 from airflow.sdk.definitions._internal.node import validate_key
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 from airflow.sdk.definitions.asset import AssetAll, BaseAsset
@@ -71,15 +68,17 @@ from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
     from re import Pattern
+    from typing import TypeAlias
 
     from pendulum.tz.timezone import FixedTimezone, Timezone
 
-    from airflow.sdk.definitions.abstractoperator import Operator
     from airflow.sdk.definitions.decorators import TaskDecoratorCollection
+    from airflow.sdk.definitions.edges import EdgeInfoType
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.typing_compat import Self
-    from airflow.utils.types import EdgeInfoType
 
+    Operator: TypeAlias = BaseOperator | MappedOperator
 
 log = logging.getLogger(__name__)
 
@@ -92,9 +91,9 @@ __all__ = [
 
 
 DagStateChangeCallback = Callable[[Context], None]
-ScheduleInterval = Union[None, str, timedelta, relativedelta]
+ScheduleInterval = None | str | timedelta | relativedelta
 
-ScheduleArg = Union[ScheduleInterval, Timetable, BaseAsset, Collection[BaseAsset]]
+ScheduleArg = ScheduleInterval | Timetable | BaseAsset | Collection[BaseAsset]
 
 
 _DAG_HASH_ATTRS = frozenset(
@@ -774,12 +773,20 @@ class DAG:
         :param include_direct_upstream: Include all tasks directly upstream of matched
             and downstream (if include_downstream = True) tasks
         """
-        from airflow.models.mappedoperator import MappedOperator
+        from typing import TypeGuard
+
+        from airflow.sdk.definitions.mappedoperator import MappedOperator
+        from airflow.serialization.serialized_objects import SerializedBaseOperator
+
+        def is_task(obj) -> TypeGuard[Operator]:
+            if isinstance(obj, SerializedBaseOperator):
+                return True  # TODO (GH-52141): Split DAG implementation to straight this up.
+            return isinstance(obj, (BaseOperator, MappedOperator))
 
         # deep-copying self.task_dict and self.task_group takes a long time, and we don't want all
         # the tasks anyway, so we copy the tasks manually later
         memo = {id(self.task_dict): None, id(self.task_group): None}
-        dag = copy.deepcopy(self, memo)  # type: ignore
+        dag = copy.deepcopy(self, memo)
 
         if isinstance(task_ids, str):
             matched_tasks = [t for t in self.tasks if task_ids in t.task_id]
@@ -810,7 +817,7 @@ class DAG:
         direct_upstreams: list[Operator] = []
         if include_direct_upstream:
             for t in itertools.chain(matched_tasks, also_include):
-                upstream = (u for u in t.upstream_list if isinstance(u, (BaseOperator, MappedOperator)))
+                upstream = (u for u in t.upstream_list if is_task(u))
                 direct_upstreams.extend(upstream)
 
         # Make sure to not recursively deepcopy the dag or task_group while copying the task.
@@ -843,7 +850,7 @@ class DAG:
             proxy = weakref.proxy(copied)
 
             for child in group.children.values():
-                if isinstance(child, AbstractOperator):
+                if is_task(child):
                     if child.task_id in dag.task_dict:
                         task = copied.children[child.task_id] = dag.task_dict[child.task_id]
                         task.task_group = proxy
@@ -938,8 +945,8 @@ class DAG:
         ) or task_id in self.task_group.used_group_ids:
             raise DuplicateTaskIdFound(f"Task id '{task_id}' has already been added to the DAG")
         self.task_dict[task_id] = task
-        # TODO: Task-SDK: this type ignore shouldn't be needed!
-        task.dag = self  # type: ignore[assignment]
+
+        task.dag = self
         # Add task_id to used_group_ids to prevent group_id and task_id collisions.
         self.task_group.used_group_ids.add(task_id)
 
@@ -1092,7 +1099,7 @@ class DAG:
                 dags=[self],
                 start_date=logical_date,
                 end_date=logical_date,
-                dag_run_state=False,  # type: ignore
+                dag_run_state=False,
             )
 
             log.debug("Getting dagrun for dag %s", self.dag_id)
@@ -1117,6 +1124,7 @@ class DAG:
                 session=session,
                 conf=run_conf,
                 triggered_by=DagRunTriggeredByType.TEST,
+                triggering_user_name="dag_test",
             )
             # Start a mock span so that one is present and not started downstream. We
             # don't care about otel in dag.test and starting the span during dagrun update
@@ -1243,6 +1251,7 @@ def _run_task(*, ti, run_triggerer=False):
                     run_id=ti.run_id,
                     try_number=ti.try_number,
                     map_index=ti.map_index,
+                    dag_version_id=ti.dag_version_id,
                 ),
                 task=ti.task,
             )
@@ -1285,12 +1294,7 @@ def _run_inline_trigger(trigger):
     import asyncio
 
     async def _run_inline_trigger_main():
-        # We can replace it with `return await anext(trigger.run(), default=None)`
-        # when we drop support for Python 3.9
-        try:
-            return await trigger.run().__anext__()
-        except StopAsyncIteration:
-            return None
+        return await anext(trigger.run(), None)
 
     return asyncio.run(_run_inline_trigger_main())
 

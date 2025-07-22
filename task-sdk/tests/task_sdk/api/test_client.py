@@ -19,19 +19,24 @@ from __future__ import annotations
 
 import json
 import pickle
+from datetime import datetime
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import httpx
 import pytest
 import uuid6
 from task_sdk import make_client, make_client_w_dry_run, make_client_w_responses
+from uuid6 import uuid7
 
 from airflow.sdk.api.client import RemoteValidationError, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
+    AssetEventsResponse,
     AssetResponse,
     ConnectionResponse,
     DagRunState,
     DagRunStateResponse,
+    HITLDetailResponse,
     VariableResponse,
     XComResponse,
 )
@@ -39,12 +44,16 @@ from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     DeferTask,
     ErrorResponse,
+    HITLDetailRequestResult,
     OKResponse,
     RescheduleTask,
     TaskRescheduleStartDate,
 )
 from airflow.utils import timezone
 from airflow.utils.state import TerminalTIState
+
+if TYPE_CHECKING:
+    from time_machine import TimeMachineFixture
 
 
 class TestClient:
@@ -875,6 +884,52 @@ class TestConnectionOperations:
         assert result.error == ErrorType.CONNECTION_NOT_FOUND
 
 
+class TestAssetEventOperations:
+    @pytest.mark.parametrize(
+        "request_params",
+        [
+            ({"name": "this_asset", "uri": "s3://bucket/key"}),
+            ({"alias_name": "this_asset_alias"}),
+        ],
+    )
+    def test_by_name_get_success(self, request_params):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            params = request.url.params
+            if request.url.path == "/asset-events/by-asset":
+                assert params.get("name") == request_params.get("name")
+                assert params.get("uri") == request_params.get("uri")
+            elif request.url.path == "/asset-events/by-asset-alias":
+                assert params.get("name") == request_params.get("alias_name")
+            else:
+                return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+            return httpx.Response(
+                status_code=200,
+                json={
+                    "asset_events": [
+                        {
+                            "id": 1,
+                            "asset": {
+                                "name": "this_asset",
+                                "uri": "s3://bucket/key",
+                                "group": "asset",
+                            },
+                            "created_dagruns": [],
+                            "timestamp": "2023-01-01T00:00:00Z",
+                        }
+                    ]
+                },
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.asset_events.get(**request_params)
+
+        assert isinstance(result, AssetEventsResponse)
+        assert len(result.asset_events) == 1
+        assert result.asset_events[0].asset.name == "this_asset"
+        assert result.asset_events[0].asset.uri == "s3://bucket/key"
+
+
 class TestAssetOperations:
     @pytest.mark.parametrize(
         "request_params",
@@ -1103,3 +1158,101 @@ class TestTaskRescheduleOperations:
 
         assert isinstance(result, TaskRescheduleStartDate)
         assert result.start_date == "2024-01-01T00:00:00Z"
+
+
+class TestHITLOperations:
+    def test_add_response(self) -> None:
+        ti_id = uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path in (f"/hitl-details/{ti_id}"):
+                return httpx.Response(
+                    status_code=201,
+                    json={
+                        "ti_id": str(ti_id),
+                        "options": ["Approval", "Reject"],
+                        "subject": "This is subject",
+                        "body": "This is body",
+                        "defaults": ["Approval"],
+                        "params": None,
+                        "multiple": False,
+                    },
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.hitl.add_response(
+            ti_id=ti_id,
+            options=["Approval", "Reject"],
+            subject="This is subject",
+            body="This is body",
+            defaults=["Approval"],
+            params=None,
+            multiple=False,
+        )
+        assert isinstance(result, HITLDetailRequestResult)
+        assert result.ti_id == ti_id
+        assert result.options == ["Approval", "Reject"]
+        assert result.subject == "This is subject"
+        assert result.body == "This is body"
+        assert result.defaults == ["Approval"]
+        assert result.params is None
+        assert result.multiple is False
+
+    def test_update_response(self, time_machine: TimeMachineFixture) -> None:
+        time_machine.move_to(datetime(2025, 7, 3, 0, 0, 0))
+        ti_id = uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path in (f"/hitl-details/{ti_id}"):
+                return httpx.Response(
+                    status_code=200,
+                    json={
+                        "chosen_options": ["Approval"],
+                        "params_input": {},
+                        "user_id": "admin",
+                        "response_received": True,
+                        "response_at": "2025-07-03T00:00:00Z",
+                    },
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.hitl.update_response(
+            ti_id=ti_id,
+            chosen_options=["Approve"],
+            params_input={},
+        )
+        assert isinstance(result, HITLDetailResponse)
+        assert result.response_received is True
+        assert result.chosen_options == ["Approval"]
+        assert result.params_input == {}
+        assert result.user_id == "admin"
+        assert result.response_at == timezone.datetime(2025, 7, 3, 0, 0, 0)
+
+    def test_get_detail_response(self, time_machine: TimeMachineFixture) -> None:
+        time_machine.move_to(datetime(2025, 7, 3, 0, 0, 0))
+        ti_id = uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path in (f"/hitl-details/{ti_id}"):
+                return httpx.Response(
+                    status_code=200,
+                    json={
+                        "chosen_options": ["Approval"],
+                        "params_input": {},
+                        "user_id": "admin",
+                        "response_received": True,
+                        "response_at": "2025-07-03T00:00:00Z",
+                    },
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.hitl.get_detail_response(ti_id=ti_id)
+        assert isinstance(result, HITLDetailResponse)
+        assert result.response_received is True
+        assert result.chosen_options == ["Approval"]
+        assert result.params_input == {}
+        assert result.user_id == "admin"
+        assert result.response_at == timezone.datetime(2025, 7, 3, 0, 0, 0)

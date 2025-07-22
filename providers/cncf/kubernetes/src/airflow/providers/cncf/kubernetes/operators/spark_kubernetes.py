@@ -255,11 +255,23 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             self.log.info("`try_number` of pod: %s", pod.metadata.labels["try_number"])
         return pod
 
+    def get_or_create_spark_crd(self, context) -> k8s.V1Pod:
+        if self.reattach_on_restart:
+            driver_pod = self.find_spark_job(context)
+            if driver_pod:
+                return driver_pod
+
+        driver_pod, spark_obj_spec = self.launcher.start_spark_job(
+            image=self.image, code_path=self.code_path, startup_timeout=self.startup_timeout_seconds
+        )
+        return driver_pod
+
     def process_pod_deletion(self, pod, *, reraise=True):
         if pod is not None:
             if self.delete_on_termination:
-                self.log.info("Deleting spark job: %s", pod.metadata.name.replace("-driver", ""))
-                self.launcher.delete_spark_job(pod.metadata.name.replace("-driver", ""))
+                pod_name = pod.metadata.name.replace("-driver", "")
+                self.log.info("Deleting spark job: %s", pod_name)
+                self.launcher.delete_spark_job(pod_name)
             else:
                 self.log.info("skipping deleting spark job: %s", pod.metadata.name)
 
@@ -283,36 +295,15 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     def custom_obj_api(self) -> CustomObjectsApi:
         return CustomObjectsApi()
 
-    def get_or_create_spark_crd(self, launcher: CustomObjectLauncher, context) -> k8s.V1Pod:
-        if self.reattach_on_restart:
-            driver_pod = self.find_spark_job(context)
-            if driver_pod:
-                return driver_pod
-
-        driver_pod, spark_obj_spec = launcher.start_spark_job(
-            image=self.image, code_path=self.code_path, startup_timeout=self.startup_timeout_seconds
-        )
-        return driver_pod
-
-    def execute(self, context: Context):
-        self.name = self.create_job_name()
-
+    @cached_property
+    def launcher(self) -> CustomObjectLauncher:
         import copy
-
         template_body = copy.deepcopy(self.template_body)
-
-        if self.reattach_on_restart:
-            task_context_labels = self._get_ti_pod_labels(context)
-
-            existing_pod = self.find_spark_job(context)
-            if existing_pod:
-                self.log.info(
-                    "Found existing Spark driver pod %s. Reattaching to it.", existing_pod.metadata.name
-                )
-                self.pod = existing_pod
-                self.pod_request_obj = None
-                return super().execute(context=context)
-
+        
+        # Add task context labels if reattach is enabled
+        if self.reattach_on_restart and hasattr(self, '_current_context'):
+            task_context_labels = self._get_ti_pod_labels(self._current_context)
+            
             if "spark" not in template_body:
                 template_body["spark"] = {}
 
@@ -333,16 +324,34 @@ class SparkKubernetesOperator(KubernetesPodOperator):
                     spec_dict[component]["labels"] = {}
 
                 spec_dict[component]["labels"].update(task_context_labels)
-
-        self.log.info("Creating sparkApplication.")
-        self.launcher = CustomObjectLauncher(
+        
+        launcher = CustomObjectLauncher(
             name=self.name,
             namespace=self.namespace,
             kube_client=self.client,
             custom_obj_api=self.custom_obj_api,
             template_body=template_body,
         )
-        self.pod = self.get_or_create_spark_crd(self.launcher, context)
+        return launcher
+
+    def execute(self, context: Context):
+        self.name = self.create_job_name()
+        
+        # Store context for launcher property
+        self._current_context = context
+
+        if self.reattach_on_restart:
+            existing_pod = self.find_spark_job(context)
+            if existing_pod:
+                self.log.info(
+                    "Found existing Spark driver pod %s. Reattaching to it.", existing_pod.metadata.name
+                )
+                self.pod = existing_pod
+                self.pod_request_obj = None
+                return super().execute(context=context)
+
+        self.log.info("Creating sparkApplication.")
+        self.pod = self.get_or_create_spark_crd(context)
         self.pod_request_obj = self.launcher.pod_spec
 
         return super().execute(context=context)

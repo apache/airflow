@@ -40,6 +40,7 @@ import AddConnectionButton from "./AddConnectionButton";
 import DeleteConnectionButton from "./DeleteConnectionButton";
 import DeleteConnectionsButton from "./DeleteConnectionsButton";
 import EditConnectionButton from "./EditConnectionButton";
+import { NothingFoundInfo } from "./NothingFoundInfo";
 import TestConnectionButton from "./TestConnectionButton";
 
 export type ConnectionBody = {
@@ -123,7 +124,7 @@ const getColumns = ({
 ];
 
 export const Connections = () => {
-  const { t: translate } = useTranslation("admin");
+  const { t: translate } = useTranslation(["admin", "common"]);
   const { setTableURLState, tableURLState } = useTableURLState();
   const [searchParams, setSearchParams] = useSearchParams();
   const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType = SearchParamsKeys;
@@ -198,6 +199,7 @@ export const Connections = () => {
           isFetching={isFetching}
           isLoading={isLoading}
           modelName={translate("common:admin.Connections")}
+          noRowsMessage={<NothingFoundInfo />}
           onStateChange={setTableURLState}
           total={data?.total_entries ?? 0}
         />
@@ -208,7 +210,7 @@ export const Connections = () => {
             {selectedRows.size} {translate("deleteActions.selected")}
           </ActionBar.SelectionTrigger>
           <ActionBar.Separator />
-          <Tooltip content="Delete selected connections">
+          <Tooltip content={translate("deleteActions.tooltip")}>
             <DeleteConnectionsButton
               clearSelections={clearSelections}
               deleteKeys={[...selectedRows.keys()]}

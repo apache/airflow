@@ -38,7 +38,7 @@ from functools import partial
 from multiprocessing import Pool
 from pathlib import Path
 from subprocess import DEVNULL
-from typing import IO, TYPE_CHECKING, Any, Literal, NamedTuple, Union
+from typing import IO, TYPE_CHECKING, Any, Literal, NamedTuple
 
 import click
 from rich.progress import Progress
@@ -50,16 +50,18 @@ from airflow_breeze.commands.common_options import (
     option_airflow_extras,
     option_allow_pre_releases,
     option_answer,
+    option_builder,
     option_clean_airflow_installation,
     option_commit_sha,
     option_debug_resources,
     option_dry_run,
     option_github_repository,
     option_github_token,
-    option_historical_python_version,
     option_include_not_ready_providers,
     option_include_removed_providers,
     option_include_success_outputs,
+    option_install_airflow_with_constraints,
+    option_install_airflow_with_constraints_default_true,
     option_installation_distribution_format,
     option_mount_sources,
     option_parallelism,
@@ -78,8 +80,6 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_airflow_constraints_mode_ci,
     option_airflow_constraints_mode_update,
     option_airflow_constraints_reference,
-    option_airflow_skip_constraints,
-    option_install_airflow_with_constraints,
     option_install_selected_providers,
     option_providers_constraints_location,
     option_providers_constraints_mode_ci,
@@ -92,13 +92,16 @@ from airflow_breeze.global_constants import (
     ALLOWED_DEBIAN_VERSIONS,
     ALLOWED_DISTRIBUTION_FORMATS,
     ALLOWED_PLATFORMS,
-    ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
+    CONSTRAINTS,
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES,
+    DESTINATION_LOCATIONS,
     MULTI_PLATFORM,
     UV_VERSION,
 )
+from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.prepare_providers.provider_distributions import (
     PrepareReleasePackageErrorBuildingPackageException,
@@ -116,6 +119,7 @@ from airflow_breeze.utils.add_back_references import (
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import MessageType, Output, get_console
+from airflow_breeze.utils.constraints_version_check import constraints_version_check
 from airflow_breeze.utils.custom_param_types import BetterChoice, NotVerifiedBetterChoice
 from airflow_breeze.utils.debug_pyproject_toml import debug_pyproject_tomls
 from airflow_breeze.utils.docker_command_utils import (
@@ -127,7 +131,6 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
-from airflow_breeze.utils.github import download_constraints_file, get_active_airflow_versions
 from airflow_breeze.utils.packages import (
     PackageSuspendedException,
     apply_version_suffix_to_non_provider_pyproject_tomls,
@@ -153,7 +156,6 @@ from airflow_breeze.utils.path_utils import (
     AIRFLOW_CTL_SOURCES_PATH,
     AIRFLOW_DIST_PATH,
     AIRFLOW_ROOT_PATH,
-    CONSTRAINTS_CACHE_PATH,
     OUT_PATH,
     PROVIDER_METADATA_JSON_PATH,
     TASK_SDK_DIST_PATH,
@@ -163,8 +165,10 @@ from airflow_breeze.utils.path_utils import (
 )
 from airflow_breeze.utils.provider_dependencies import (
     DEPENDENCIES,
-    generate_providers_metadata_for_package,
+    generate_providers_metadata_for_provider,
+    get_all_constraint_files_and_airflow_releases,
     get_related_providers,
+    load_constraints,
 )
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.reproducible import get_source_date_epoch, repack_deterministically
@@ -173,8 +177,6 @@ from airflow_breeze.utils.run_utils import (
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 from airflow_breeze.utils.version_utils import (
-    get_latest_airflow_version,
-    get_latest_helm_chart_version,
     is_local_package_version,
 )
 from airflow_breeze.utils.versions import is_pre_release
@@ -220,6 +222,7 @@ option_distribution_format = click.option(
 option_use_local_hatch = click.option(
     "--use-local-hatch",
     is_flag=True,
+    envvar="USE_LOCAL_HATCH",
     help="Use local hatch instead of docker to build the package. You need to have hatch installed.",
 )
 
@@ -241,13 +244,13 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "25.1.1"
-AIRFLOW_UV_VERSION = "0.7.8"
+AIRFLOW_UV_VERSION = "0.8.0"
 AIRFLOW_USE_UV = False
-# TODO(potiuk): automate upgrades of these versions (likely via requirements.txt file)
 GITPYTHON_VERSION = "3.1.44"
-RICH_VERSION = "13.9.4"
+RICH_VERSION = "14.0.0"
 PRE_COMMIT_VERSION = "4.2.0"
-HATCH_VERSION = "1.14.0"
+PRE_COMMIT_UV_VERSION = "4.1.4"
+HATCH_VERSION = "1.14.1"
 PYYAML_VERSION = "6.0.2"
 
 # no need for pre-commit-uv. Those commands will only ever initialize the compile-www-assets
@@ -260,7 +263,7 @@ RUN pip install uv=={UV_VERSION}
 RUN --mount=type=cache,id=cache-airflow-build-dockerfile-installation,target=/root/.cache/ \
   uv pip install --system ignore pip=={AIRFLOW_PIP_VERSION} hatch=={HATCH_VERSION} \
   pyyaml=={PYYAML_VERSION} gitpython=={GITPYTHON_VERSION} rich=={RICH_VERSION} \
-  pre-commit=={PRE_COMMIT_VERSION}
+  pre-commit=={PRE_COMMIT_VERSION} pre-commit-uv=={PRE_COMMIT_UV_VERSION}
 COPY . /opt/airflow
 """
 
@@ -1442,11 +1445,11 @@ SDIST_INSTALL_PROGRESS_REGEXP = r"Processing .*|Requirement already satisfied:.*
 @option_airflow_constraints_location
 @option_airflow_constraints_reference
 @option_airflow_extras
-@option_airflow_skip_constraints
 @option_clean_airflow_installation
 @option_debug_resources
 @option_dry_run
 @option_github_repository
+@option_install_airflow_with_constraints_default_true
 @option_include_success_outputs
 @option_install_selected_providers
 @option_installation_distribution_format
@@ -1467,7 +1470,7 @@ def install_provider_distributions(
     airflow_constraints_location: str,
     airflow_constraints_mode: str,
     airflow_constraints_reference: str,
-    airflow_skip_constraints: bool,
+    install_airflow_with_constraints: bool,
     airflow_extras: str,
     allow_pre_releases: bool,
     clean_airflow_installation: bool,
@@ -1496,7 +1499,7 @@ def install_provider_distributions(
         airflow_constraints_mode=airflow_constraints_mode,
         airflow_constraints_reference=airflow_constraints_reference,
         airflow_extras=airflow_extras,
-        airflow_skip_constraints=airflow_skip_constraints,
+        install_airflow_with_constraints=install_airflow_with_constraints,
         allow_pre_releases=allow_pre_releases,
         # We just want to install the providers by entrypoint
         # we do not need to run any command in the container
@@ -1594,7 +1597,6 @@ def install_provider_distributions(
 @option_airflow_constraints_location
 @option_airflow_constraints_reference
 @option_airflow_extras
-@option_airflow_skip_constraints
 @option_clean_airflow_installation
 @option_dry_run
 @option_github_repository
@@ -1627,7 +1629,6 @@ def verify_provider_distributions(
     providers_constraints_reference: str,
     providers_skip_constraints: bool,
     python: str,
-    airflow_skip_constraints: bool,
     use_airflow_version: str | None,
     allow_pre_releases: bool,
     use_distributions_from_dist: bool,
@@ -1643,7 +1644,6 @@ def verify_provider_distributions(
         airflow_constraints_mode=airflow_constraints_mode,
         airflow_constraints_reference=airflow_constraints_reference,
         airflow_extras=airflow_extras,
-        airflow_skip_constraints=airflow_skip_constraints,
         allow_pre_releases=allow_pre_releases,
         clean_airflow_installation=clean_airflow_installation,
         github_repository=github_repository,
@@ -1976,7 +1976,7 @@ def alias_images(
     get_console().print("[info]Aliasing images with links to the newly created images.[/]")
     for python in python_versions:
         # Always alias the last python version to point to the non-python version
-        if python == ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[-1]:
+        if python == DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES:
             get_console().print(
                 f"[info]Aliasing the {image_prefix}{airflow_version}-python{python} "
                 f"version with {image_prefix}{airflow_version}[/]"
@@ -2000,7 +2000,7 @@ def alias_images(
                     f"{dockerhub_repo}:{airflow_version}-python{python}",
                     f"{dockerhub_repo}:latest-python{python}",
                 )
-            if python == ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[-1]:
+            if python == DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES:
                 alias_image(
                     f"{dockerhub_repo}:{image_prefix}{airflow_version}",
                     f"{dockerhub_repo}:{image_prefix}latest",
@@ -2169,7 +2169,7 @@ def release_prod_images(
         run_command(docker_buildx_command)
         if metadata_file:
             get_console().print(f"[green]Metadata file stored in {metadata_file}")
-        if python == ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[-1] and not metadata_file:
+        if python == DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES and not metadata_file:
             get_console().print(
                 f"[info]Aliasing the latest {python} version to {image_prefix}{airflow_version}[/]"
             )
@@ -2631,7 +2631,8 @@ def print_issue_content(
     if is_helm_chart:
         link = f"https://dist.apache.org/repos/dist/dev/airflow/{current_release}"
         link_text = f"Apache Airflow Helm Chart {current_release.split('/')[-1]}"
-    pr_list = sorted(pull_requests.keys())
+    # Only include PRs that have corresponding user data to avoid KeyError in template
+    pr_list = sorted([pr for pr in pull_requests.keys() if pr in users])
     user_logins: dict[int, str] = {pr: " ".join(f"@{u}" for u in uu) for pr, uu in users.items()}
     all_users: set[str] = set()
     for user_list in users.values():
@@ -2675,11 +2676,13 @@ def print_issue_content(
     "--previous-release",
     type=str,
     help="commit reference (for example hash or tag) of the previous release.",
+    required=True,
 )
 @click.option(
     "--current-release",
     type=str,
     help="commit reference (for example hash or tag) of the current release.",
+    required=True,
 )
 @click.option("--excluded-pr-list", type=str, help="Coma-separated list of PRs to exclude from the issue.")
 @click.option(
@@ -2688,11 +2691,6 @@ def print_issue_content(
     default=None,
     help="Limit PR count processes (useful for testing small subset of PRs).",
 )
-@click.option(
-    "--latest",
-    is_flag=True,
-    help="Run the command against latest released version of airflow helm charts",
-)
 @option_verbose
 def generate_issue_content_helm_chart(
     github_token: str,
@@ -2700,7 +2698,6 @@ def generate_issue_content_helm_chart(
     current_release: str,
     excluded_pr_list: str,
     limit_pr_count: int | None,
-    latest: bool,
 ):
     generate_issue_content(
         github_token,
@@ -2709,7 +2706,6 @@ def generate_issue_content_helm_chart(
         excluded_pr_list,
         limit_pr_count,
         is_helm_chart=True,
-        latest=latest,
     )
 
 
@@ -2731,11 +2727,13 @@ def generate_issue_content_helm_chart(
     "--previous-release",
     type=str,
     help="commit reference (for example hash or tag) of the previous release.",
+    required=True,
 )
 @click.option(
     "--current-release",
     type=str,
     help="commit reference (for example hash or tag) of the current release.",
+    required=True,
 )
 @click.option("--excluded-pr-list", type=str, help="Coma-separated list of PRs to exclude from the issue.")
 @click.option(
@@ -2744,11 +2742,6 @@ def generate_issue_content_helm_chart(
     default=None,
     help="Limit PR count processes (useful for testing small subset of PRs).",
 )
-@click.option(
-    "--latest",
-    is_flag=True,
-    help="Run the command against latest released version of airflow",
-)
 @option_verbose
 def generate_issue_content_core(
     github_token: str,
@@ -2756,7 +2749,6 @@ def generate_issue_content_core(
     current_release: str,
     excluded_pr_list: str,
     limit_pr_count: int | None,
-    latest: bool,
 ):
     generate_issue_content(
         github_token,
@@ -2765,80 +2757,75 @@ def generate_issue_content_core(
         excluded_pr_list,
         limit_pr_count,
         is_helm_chart=False,
-        latest=latest,
     )
-
-
-def get_all_constraint_files(
-    refresh_constraints: bool,
-    python_version: str,
-    github_token: str | None = None,
-) -> tuple[list[str], dict[str, str]]:
-    if refresh_constraints:
-        shutil.rmtree(CONSTRAINTS_CACHE_PATH, ignore_errors=True)
-    all_airflow_versions, airflow_release_dates = get_active_airflow_versions(confirm=False)
-    if not CONSTRAINTS_CACHE_PATH.exists():
-        with ci_group(f"Downloading constraints for all Airflow versions for Python {python_version}"):
-            CONSTRAINTS_CACHE_PATH.mkdir(parents=True, exist_ok=True)
-            for airflow_version in all_airflow_versions:
-                if not download_constraints_file(
-                    airflow_version=airflow_version,
-                    python_version=python_version,
-                    github_token=github_token,
-                    include_provider_dependencies=True,
-                    output_file=CONSTRAINTS_CACHE_PATH
-                    / f"constraints-{airflow_version}-python-{python_version}.txt",
-                ):
-                    get_console().print(
-                        "[warning]Could not download constraints for "
-                        f"Airflow {airflow_version} and Python {python_version}[/]"
-                    )
-    return all_airflow_versions, airflow_release_dates
-
-
-MATCH_CONSTRAINTS_FILE_REGEX = re.compile(r"constraints-(.*)-python-(.*).txt")
-
-
-def load_constraints(python_version: str) -> dict[str, dict[str, str]]:
-    constraints: dict[str, dict[str, str]] = {}
-    for filename in sorted(CONSTRAINTS_CACHE_PATH.glob(f"constraints-*-python-{python_version}.txt")):
-        filename_match = MATCH_CONSTRAINTS_FILE_REGEX.match(filename.name)
-        if filename_match:
-            airflow_version = filename_match.group(1)
-            constraints[airflow_version] = {}
-            for line in filename.read_text().splitlines():
-                if line and not line.startswith("#"):
-                    package, version = line.split("==")
-                    constraints[airflow_version][package] = version
-    return constraints
 
 
 @release_management.command(name="generate-providers-metadata", help="Generates metadata for providers.")
 @click.option(
-    "--refresh-constraints",
+    "--refresh-constraints-and-airflow-releases",
     is_flag=True,
-    help="Refresh constraints before generating metadata",
+    envvar="REFRESH_CONSTRAINTS_AND_AIRFLOW_RELEASES",
+    help="Refresh constraints and airflow_releases before generating metadata",
+)
+@click.option(
+    "--provider-id",
+    type=BetterChoice(get_available_distributions(include_removed=True, include_suspended=True)),
+    envvar="PROVIDER_ID",
+    help="Provider_id to generate metadata for. If not specified, metadata for all packages will be generated. "
+    "This is debug-only option. When this option is specified, the metadata produced for "
+    "the distribution will not be written to the file, but printed via console.",
+)
+@click.option(
+    "--provider-version",
+    type=str,
+    envvar="PROVIDER_VERSION",
+    help="Provider version to generate metadata for. Only used when --provider-id is specified. Limits running "
+    "metadata generation to only this version of the provider.",
 )
 @option_github_token
-@option_historical_python_version
 @option_dry_run
 @option_verbose
-def generate_providers_metadata(refresh_constraints: bool, github_token: str | None, python: str | None):
+def generate_providers_metadata(
+    refresh_constraints_and_airflow_releases: bool,
+    provider_id: str | None,
+    provider_version: str | None,
+    github_token: str | None,
+):
+    import json
+
+    if PROVIDER_METADATA_JSON_PATH.exists():
+        current_metadata = json.loads(PROVIDER_METADATA_JSON_PATH.read_text())
+    else:
+        current_metadata = {}
     metadata_dict: dict[str, dict[str, dict[str, str]]] = {}
-    if python is None:
-        python = DEFAULT_PYTHON_MAJOR_MINOR_VERSION
-    all_airflow_releases, airflow_release_dates = get_all_constraint_files(
-        refresh_constraints=refresh_constraints,
-        python_version=python,
+    all_airflow_releases, airflow_release_dates = get_all_constraint_files_and_airflow_releases(
+        refresh_constraints_and_airflow_releases=refresh_constraints_and_airflow_releases,
+        airflow_constraints_mode=CONSTRAINTS,
         github_token=github_token,
     )
-    constraints = load_constraints(python_version=python)
+    constraints = load_constraints()
+    if provider_id:
+        get_console().print(f"[info]Generating metadata for provider {provider_id} only (for debugging)[/]")
+        result = generate_providers_metadata_for_provider(
+            provider_id,
+            provider_version=provider_version,
+            constraints=constraints,
+            all_airflow_releases=all_airflow_releases,
+            airflow_release_dates=airflow_release_dates,
+            current_metadata=current_metadata,
+        )
+        if result:
+            metadata_dict[provider_id] = result
+        get_console().print(metadata_dict)
+        return
 
     partial_generate_providers_metadata = partial(
-        generate_providers_metadata_for_package,
+        generate_providers_metadata_for_provider,
+        provider_version=None,
         constraints=constraints,
         all_airflow_releases=all_airflow_releases,
         airflow_release_dates=airflow_release_dates,
+        current_metadata=current_metadata,
     )
     package_ids = DEPENDENCIES.keys()
     with Pool() as pool:
@@ -2849,7 +2836,6 @@ def generate_providers_metadata(refresh_constraints: bool, github_token: str | N
     for package_id, result in zip(package_ids, results):
         if result:
             metadata_dict[package_id] = result
-    import json
 
     PROVIDER_METADATA_JSON_PATH.write_text(json.dumps(metadata_dict, indent=4) + "\n")
 
@@ -3757,36 +3743,14 @@ def generate_issue_content(
     excluded_pr_list: str,
     limit_pr_count: int | None,
     is_helm_chart: bool,
-    latest: bool,
 ):
     from github import Github, Issue, PullRequest, UnknownObjectException
 
-    PullRequestOrIssue = Union[PullRequest.PullRequest, Issue.Issue]
+    PullRequestOrIssue = PullRequest.PullRequest | Issue.Issue
     verbose = get_verbose()
 
     previous = previous_release
     current = current_release
-
-    if latest:
-        if is_helm_chart:
-            latest_helm_version = get_latest_helm_chart_version()
-            get_console().print(f"\n[info] Latest stable version of helm chart is {latest_helm_version}\n")
-            previous = f"helm-chart/{latest_helm_version}"
-            current = os.getenv("VERSION", "HEAD")
-            if current == "HEAD":
-                get_console().print(
-                    "\n[warning]Environment variable VERSION not set, setting current release "
-                    "version as 'HEAD' for helm chart release\n"
-                )
-        else:
-            latest_airflow_version = get_latest_airflow_version()
-            previous = str(latest_airflow_version)
-            current = os.getenv("VERSION", "HEAD")
-            if current == "HEAD":
-                get_console().print(
-                    "\n[warning]Environment variable VERSION not set, setting current release "
-                    "version as 'HEAD'\n"
-                )
 
     changes = get_changes(verbose, previous, current, is_helm_chart)
     change_prs = [change.pr for change in changes]
@@ -3898,6 +3862,7 @@ def generate_issue_content(
 @click.option(
     "--destination-location",
     help="Name of the S3 bucket to publish the documentation to.",
+    type=NotVerifiedBetterChoice(DESTINATION_LOCATIONS),
     required=True,
 )
 @click.option(
@@ -3960,3 +3925,64 @@ def publish_docs_to_s3(
             "Please check the version in the docs and try again.[/]"
         )
         sys.exit(1)
+
+
+@release_management.command(
+    name="constraints-version-check", help="Check constraints against released versions of packages."
+)
+@option_builder
+@option_python
+@option_airflow_constraints_mode_ci
+@click.option(
+    "--diff-mode",
+    type=click.Choice(["full", "diff-all", "diff-constraints"], case_sensitive=False),
+    default="full",
+    show_default=True,
+    help="Report mode: full, diff-all, diff-constraints.",
+)
+@click.option(
+    "--package",
+    multiple=True,
+    help="Only check specific package(s). Can be used multiple times.",
+)
+@click.option(
+    "--explain-why/--no-explain-why",
+    default=False,
+    help="Show explanations for outdated packages.",
+)
+@option_github_token
+@option_github_repository
+@option_verbose
+@option_dry_run
+def version_check(
+    python: str,
+    airflow_constraints_mode: str,
+    diff_mode,
+    package: tuple[str],
+    explain_why: bool,
+    github_token: str,
+    github_repository: str,
+    builder: str,
+):
+    perform_environment_checks()
+    fix_ownership_using_docker()
+    cleanup_python_generated_files()
+    build_params = BuildCiParams(
+        github_repository=github_repository,
+        python=python,
+        builder=builder,
+    )
+    rebuild_or_pull_ci_image_if_needed(command_params=build_params)
+    if os.environ.get("CI", "false") == "true":
+        # Show output outside the group in CI
+        print("::endgroup::")
+    selected_packages = set(package) if package else None
+    constraints_version_check(
+        python=python,
+        airflow_constraints_mode=airflow_constraints_mode,
+        diff_mode=diff_mode,
+        selected_packages=selected_packages,
+        explain_why=explain_why,
+        github_token=github_token,
+        github_repository=github_repository,
+    )

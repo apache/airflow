@@ -16,6 +16,7 @@ paths:
       operationId: get_assets
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: limit
         in: query
@@ -119,6 +120,7 @@ paths:
       operationId: get_asset_aliases
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: limit
         in: query
@@ -195,6 +197,7 @@ paths:
       operationId: get_asset_alias
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: asset_alias_id
         in: path
@@ -241,6 +244,7 @@ paths:
       operationId: get_asset_events
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: limit
         in: query
@@ -362,6 +366,7 @@ paths:
       operationId: create_asset_event
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       requestBody:
         required: true
         content:
@@ -408,6 +413,7 @@ paths:
       operationId: materialize_asset
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: asset_id
         in: path
@@ -461,6 +467,7 @@ paths:
       operationId: get_asset_queued_events
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: asset_id
         in: path
@@ -515,6 +522,7 @@ paths:
       operationId: delete_asset_queued_events
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: asset_id
         in: path
@@ -566,6 +574,7 @@ paths:
       operationId: get_asset
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: asset_id
         in: path
@@ -613,6 +622,7 @@ paths:
       operationId: get_dag_asset_queued_events
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -666,6 +676,7 @@ paths:
       operationId: delete_dag_asset_queued_events
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -723,6 +734,7 @@ paths:
       operationId: get_dag_asset_queued_event
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -783,6 +795,7 @@ paths:
       operationId: delete_dag_asset_queued_event
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -845,6 +858,7 @@ paths:
       operationId: list_backfills
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: query
@@ -907,6 +921,7 @@ paths:
       operationId: create_backfill
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       requestBody:
         required: true
         content:
@@ -958,6 +973,7 @@ paths:
       operationId: get_backfill
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: backfill_id
         in: path
@@ -1005,6 +1021,7 @@ paths:
       operationId: pause_backfill
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: backfill_id
         in: path
@@ -1058,6 +1075,7 @@ paths:
       operationId: unpause_backfill
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: backfill_id
         in: path
@@ -1111,6 +1129,7 @@ paths:
       operationId: cancel_backfill
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: backfill_id
         in: path
@@ -1207,6 +1226,7 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /api/v2/connections/{connection_id}:
     delete:
       tags:
@@ -1216,6 +1236,7 @@ paths:
       operationId: delete_connection
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: connection_id
         in: path
@@ -1258,6 +1279,7 @@ paths:
       operationId: get_connection
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: connection_id
         in: path
@@ -1304,6 +1326,7 @@ paths:
       operationId: patch_connection
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: connection_id
         in: path
@@ -1373,6 +1396,7 @@ paths:
       operationId: get_connections
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: limit
         in: query
@@ -1448,6 +1472,7 @@ paths:
       operationId: post_connection
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       requestBody:
         required: true
         content:
@@ -1493,6 +1518,7 @@ paths:
       operationId: bulk_connections
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       requestBody:
         required: true
         content:
@@ -1573,6 +1599,7 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /api/v2/connections/defaults:
     post:
       tags:
@@ -1597,6 +1624,7 @@ paths:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}:
     get:
       tags:
@@ -1605,6 +1633,7 @@ paths:
       operationId: get_dag_run
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -1657,6 +1686,7 @@ paths:
       operationId: delete_dag_run
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -1711,6 +1741,7 @@ paths:
       operationId: patch_dag_run
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -1787,6 +1818,7 @@ paths:
       operationId: get_upstream_asset_events
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -1839,6 +1871,7 @@ paths:
       operationId: clear_dag_run
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -1905,6 +1938,7 @@ paths:
       operationId: get_dag_runs
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -2041,6 +2075,18 @@ paths:
           type: string
           default: id
           title: Order By
+      - name: run_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Run Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       responses:
         '200':
           description: Successful Response
@@ -2080,6 +2126,7 @@ paths:
       operationId: trigger_dag_run
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -2135,6 +2182,91 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/wait:
+    get:
+      tags:
+      - DagRun
+      - experimental
+      summary: 'Experimental: Wait for a dag run to complete, and return task results
+        if requested.'
+      description: "\U0001F6A7 This is an experimental endpoint and may change or\
+        \ be removed without notice."
+      operationId: wait_dag_run_until_finished
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: interval
+        in: query
+        required: true
+        schema:
+          type: number
+          exclusiveMinimum: 0.0
+          description: Seconds to wait between dag run state checks
+          title: Interval
+        description: Seconds to wait between dag run state checks
+      - name: result
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          description: Collect result XCom from task. Can be set multiple times.
+          title: Result
+        description: Collect result XCom from task. Can be set multiple times.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+            application/x-ndjson:
+              schema:
+                type: string
+                example: '{"state": "running"}
+
+                  {"state": "success", "results": {"op": 42}}
+
+                  '
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/dags/{dag_id}/dagRuns/list:
     post:
       tags:
@@ -2144,6 +2276,7 @@ paths:
       operationId: get_list_dag_runs_batch
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -2198,6 +2331,7 @@ paths:
       operationId: get_dag_source
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -2280,6 +2414,7 @@ paths:
       operationId: get_dag_stats
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_ids
         in: query
@@ -2335,6 +2470,7 @@ paths:
       operationId: get_dag_reports
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: subdir
         in: query
@@ -2380,6 +2516,7 @@ paths:
       operationId: get_config
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: section
         in: query
@@ -2462,6 +2599,7 @@ paths:
       operationId: get_config_value
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: section
         in: path
@@ -2542,6 +2680,7 @@ paths:
       operationId: list_dag_warnings
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: query
@@ -2616,6 +2755,7 @@ paths:
       operationId: get_dags
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: limit
         in: query
@@ -2758,6 +2898,14 @@ paths:
           type: string
           default: dag_id
           title: Order By
+      - name: is_favorite
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Favorite
       responses:
         '200':
           description: Successful Response
@@ -2791,6 +2939,7 @@ paths:
       operationId: patch_dags
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: update_mask
         in: query
@@ -2924,6 +3073,7 @@ paths:
       operationId: get_dag
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -2976,6 +3126,7 @@ paths:
       operationId: patch_dag
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -3044,6 +3195,7 @@ paths:
       operationId: delete_dag
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -3096,6 +3248,7 @@ paths:
       operationId: get_dag_details
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -3140,6 +3293,100 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/{dag_id}/favorite:
+    post:
+      tags:
+      - DAG
+      summary: Favorite Dag
+      description: Mark the DAG as favorite.
+      operationId: favorite_dag
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/{dag_id}/unfavorite:
+    post:
+      tags:
+      - DAG
+      summary: Unfavorite Dag
+      description: Unmark the DAG as favorite.
+      operationId: unfavorite_dag
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/eventLogs/{event_log_id}:
     get:
       tags:
@@ -3148,6 +3395,7 @@ paths:
       operationId: get_event_log
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: event_log_id
         in: path
@@ -3195,6 +3443,7 @@ paths:
       operationId: get_event_logs
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: limit
         in: query
@@ -3348,6 +3597,7 @@ paths:
       operationId: get_extra_links
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -3414,6 +3664,7 @@ paths:
       operationId: get_import_error
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: import_error_id
         in: path
@@ -3461,6 +3712,7 @@ paths:
       operationId: get_import_errors
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: limit
         in: query
@@ -3519,6 +3771,7 @@ paths:
       operationId: get_jobs
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: is_alive
         in: query
@@ -3658,6 +3911,7 @@ paths:
       operationId: get_plugins
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: limit
         in: query
@@ -3727,6 +3981,7 @@ paths:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /api/v2/pools/{pool_name}:
     delete:
       tags:
@@ -3736,6 +3991,7 @@ paths:
       operationId: delete_pool
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: pool_name
         in: path
@@ -3784,6 +4040,7 @@ paths:
       operationId: get_pool
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: pool_name
         in: path
@@ -3830,6 +4087,7 @@ paths:
       operationId: patch_pool
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: pool_name
         in: path
@@ -3899,6 +4157,7 @@ paths:
       operationId: get_pools
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: limit
         in: query
@@ -3974,6 +4233,7 @@ paths:
       operationId: post_pool
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       requestBody:
         required: true
         content:
@@ -4019,6 +4279,7 @@ paths:
       operationId: bulk_pools
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       requestBody:
         required: true
         content:
@@ -4059,6 +4320,7 @@ paths:
       operationId: get_providers
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: limit
         in: query
@@ -4110,6 +4372,7 @@ paths:
       operationId: get_xcom_entry
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -4205,6 +4468,7 @@ paths:
       operationId: update_xcom_entry
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -4286,6 +4550,7 @@ paths:
       operationId: get_xcom_entries
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -4383,6 +4648,7 @@ paths:
       operationId: create_xcom_entry
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -4454,6 +4720,7 @@ paths:
       operationId: get_task_instance
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -4512,6 +4779,7 @@ paths:
       operationId: patch_task_instance
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -4606,6 +4874,7 @@ paths:
       operationId: delete_task_instance
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -4673,6 +4942,7 @@ paths:
       operationId: get_mapped_task_instances
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -4901,6 +5171,7 @@ paths:
       operationId: get_task_instance_dependencies_by_map_index
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -4966,6 +5237,7 @@ paths:
       operationId: get_task_instance_dependencies
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5032,6 +5304,7 @@ paths:
       operationId: get_task_instance_tries
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5097,6 +5370,7 @@ paths:
       operationId: get_mapped_task_instance_tries
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5162,6 +5436,7 @@ paths:
       operationId: get_mapped_task_instance
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5226,6 +5501,7 @@ paths:
       operationId: patch_task_instance_by_map_index
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5327,6 +5603,7 @@ paths:
       operationId: get_task_instances
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5568,6 +5845,7 @@ paths:
       operationId: bulk_task_instances
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5621,6 +5899,7 @@ paths:
       operationId: get_task_instances_batch
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5682,6 +5961,7 @@ paths:
       operationId: get_task_instance_try_details
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5753,6 +6033,7 @@ paths:
       operationId: get_mapped_task_instance_try_details
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5824,6 +6105,7 @@ paths:
       operationId: post_clear_task_instances
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5877,6 +6159,7 @@ paths:
       operationId: patch_task_instance_dry_run_by_map_index
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5966,6 +6249,7 @@ paths:
       operationId: patch_task_instance_dry_run
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -6055,6 +6339,7 @@ paths:
       operationId: get_tasks
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -6115,6 +6400,7 @@ paths:
       operationId: get_task
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -6173,6 +6459,7 @@ paths:
       operationId: delete_variable
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: variable_key
         in: path
@@ -6215,6 +6502,7 @@ paths:
       operationId: get_variable
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: variable_key
         in: path
@@ -6261,6 +6549,7 @@ paths:
       operationId: patch_variable
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: variable_key
         in: path
@@ -6330,6 +6619,7 @@ paths:
       operationId: get_variables
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: limit
         in: query
@@ -6399,6 +6689,7 @@ paths:
       operationId: post_variable
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       requestBody:
         required: true
         content:
@@ -6444,6 +6735,7 @@ paths:
       operationId: bulk_variables
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       requestBody:
         required: true
         content:
@@ -6484,6 +6776,7 @@ paths:
       operationId: get_log
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -6508,7 +6801,7 @@ paths:
         required: true
         schema:
           type: integer
-          exclusiveMinimum: 0
+          minimum: 0
           title: Try Number
       - name: full_content
         in: query
@@ -6591,6 +6884,7 @@ paths:
       operationId: get_external_log_url
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -6670,6 +6964,7 @@ paths:
       operationId: reparse_dag_file
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: file_token
         in: path
@@ -6718,6 +7013,7 @@ paths:
       operationId: get_dag_tags
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: limit
         in: query
@@ -6788,6 +7084,7 @@ paths:
       operationId: get_dag_version
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -6845,6 +7142,7 @@ paths:
       operationId: get_dag_versions
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -6926,6 +7224,309 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/hitl-details/{dag_id}/{dag_run_id}/{task_id}:
+    patch:
+      tags:
+      - HumanInTheLoop
+      summary: Update Hitl Detail
+      description: Update a Human-in-the-loop detail.
+      operationId: update_hitl_detail
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateHITLDetailPayload'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HITLDetailResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+      - HumanInTheLoop
+      summary: Get Hitl Detail
+      description: Get a Human-in-the-loop detail of a specific task instance.
+      operationId: get_hitl_detail
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HITLDetail'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/hitl-details/{dag_id}/{dag_run_id}/{task_id}/{map_index}:
+    patch:
+      tags:
+      - HumanInTheLoop
+      summary: Update Mapped Ti Hitl Detail
+      description: Update a Human-in-the-loop detail.
+      operationId: update_mapped_ti_hitl_detail
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: map_index
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Map Index
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateHITLDetailPayload'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HITLDetailResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+      - HumanInTheLoop
+      summary: Get Mapped Ti Hitl Detail
+      description: Get a Human-in-the-loop detail of a specific task instance.
+      operationId: get_mapped_ti_hitl_detail
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: map_index
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Map Index
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HITLDetail'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/hitl-details/:
+    get:
+      tags:
+      - HumanInTheLoop
+      summary: Get Hitl Details
+      description: Get Human-in-the-loop details.
+      operationId: get_hitl_details
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HITLDetailCollection'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /api/v2/monitor/health:
     get:
       tags:
@@ -7029,9 +7630,7 @@ components:
           type: string
           title: Name
         href:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Href
         category:
           anyOf:
@@ -7042,6 +7641,7 @@ components:
       type: object
       required:
       - name
+      - href
       title: AppBuilderMenuItemResponse
       description: Serializer for AppBuilder Menu Item responses.
     AppBuilderViewResponse:
@@ -7229,16 +7829,21 @@ components:
           type: string
           format: date-time
           title: Updated At
-        consuming_dags:
+        scheduled_dags:
           items:
             $ref: '#/components/schemas/DagScheduleAssetReference'
           type: array
-          title: Consuming Dags
+          title: Scheduled Dags
         producing_tasks:
           items:
             $ref: '#/components/schemas/TaskOutletAssetReference'
           type: array
           title: Producing Tasks
+        consuming_tasks:
+          items:
+            $ref: '#/components/schemas/TaskInletAssetReference'
+          type: array
+          title: Consuming Tasks
         aliases:
           items:
             $ref: '#/components/schemas/AssetAliasResponse'
@@ -7256,8 +7861,9 @@ components:
       - group
       - created_at
       - updated_at
-      - consuming_dags
+      - scheduled_dags
       - producing_tasks
+      - consuming_tasks
       - aliases
       title: AssetResponse
       description: Asset serializer for responses.
@@ -8171,6 +8777,13 @@ components:
           - type: string
           - type: 'null'
           title: Description
+        deadline:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/DeadlineAlertResponse'
+            type: array
+          - type: 'null'
+          title: Deadline
         timetable_summary:
           anyOf:
           - type: string
@@ -8338,6 +8951,7 @@ components:
       - relative_fileloc
       - fileloc
       - description
+      - deadline
       - timetable_summary
       - timetable_description
       - tags
@@ -8429,6 +9043,13 @@ components:
           - type: string
           - type: 'null'
           title: Description
+        deadline:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/DeadlineAlertResponse'
+            type: array
+          - type: 'null'
+          title: Deadline
         timetable_summary:
           anyOf:
           - type: string
@@ -8508,6 +9129,7 @@ components:
       - relative_fileloc
       - fileloc
       - description
+      - deadline
       - timetable_summary
       - timetable_description
       - tags
@@ -8645,6 +9267,11 @@ components:
           anyOf:
           - $ref: '#/components/schemas/DagRunTriggeredByType'
           - type: 'null'
+        triggering_user_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Triggering User Name
         conf:
           anyOf:
           - additionalProperties: true
@@ -8685,6 +9312,7 @@ components:
       - run_type
       - state
       - triggered_by
+      - triggering_user_name
       - conf
       - note
       - dag_versions
@@ -9120,6 +9748,31 @@ components:
         This is the set of allowable values for the ``warning_type`` field
 
         in the DagWarning model.'
+    DeadlineAlertResponse:
+      properties:
+        reference:
+          type: string
+          title: Reference
+        interval:
+          type: string
+          format: duration
+          title: Interval
+        callback:
+          type: string
+          title: Callback
+        callback_kwargs:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Callback Kwargs
+      type: object
+      required:
+      - reference
+      - interval
+      - callback
+      title: DeadlineAlertResponse
+      description: Deadline alert serializer for responses.
     DryRunBackfillCollectionResponse:
       properties:
         backfills:
@@ -9246,6 +9899,51 @@ components:
       - url
       title: ExternalLogUrlResponse
       description: Response for the external log URL endpoint.
+    ExternalViewResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+        icon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon
+        icon_dark_mode:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Dark Mode
+        url_route:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Url Route
+        category:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Category
+        destination:
+          type: string
+          enum:
+          - nav
+          - dag
+          - dag_run
+          - task
+          - task_instance
+          title: Destination
+          default: nav
+        href:
+          type: string
+          title: Href
+      additionalProperties: true
+      type: object
+      required:
+      - name
+      - href
+      title: ExternalViewResponse
+      description: Serializer for External View Plugin responses.
     ExtraLinkCollectionResponse:
       properties:
         extra_links:
@@ -9298,6 +9996,112 @@ components:
       - name
       title: FastAPIRootMiddlewareResponse
       description: Serializer for Plugin FastAPI root middleware responses.
+    HITLDetail:
+      properties:
+        task_instance:
+          $ref: '#/components/schemas/TaskInstanceResponse'
+        options:
+          items:
+            type: string
+          type: array
+          title: Options
+        subject:
+          type: string
+          title: Subject
+        body:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Body
+        defaults:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Defaults
+        multiple:
+          type: boolean
+          title: Multiple
+          default: false
+        params:
+          additionalProperties: true
+          type: object
+          title: Params
+        user_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Id
+        response_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Response At
+        chosen_options:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Chosen Options
+        params_input:
+          additionalProperties: true
+          type: object
+          title: Params Input
+        response_received:
+          type: boolean
+          title: Response Received
+          default: false
+      type: object
+      required:
+      - task_instance
+      - options
+      - subject
+      title: HITLDetail
+      description: Schema for Human-in-the-loop detail.
+    HITLDetailCollection:
+      properties:
+        hitl_details:
+          items:
+            $ref: '#/components/schemas/HITLDetail'
+          type: array
+          title: Hitl Details
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - hitl_details
+      - total_entries
+      title: HITLDetailCollection
+      description: Schema for a collection of Human-in-the-loop details.
+    HITLDetailResponse:
+      properties:
+        user_id:
+          type: string
+          title: User Id
+        response_at:
+          type: string
+          format: date-time
+          title: Response At
+        chosen_options:
+          items:
+            type: string
+          type: array
+          title: Chosen Options
+        params_input:
+          additionalProperties: true
+          type: object
+          title: Params Input
+      type: object
+      required:
+      - user_id
+      - response_at
+      - chosen_options
+      title: HITLDetailResponse
+      description: Response of updating a Human-in-the-loop detail.
     HTTPExceptionResponse:
       properties:
         detail:
@@ -9339,42 +10143,6 @@ components:
       - triggerer
       title: HealthInfoResponse
       description: Health serializer for responses.
-    IFrameViewsResponse:
-      properties:
-        name:
-          type: string
-          title: Name
-        src:
-          type: string
-          title: Src
-        icon:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Icon
-        url_route:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Url Route
-        destination:
-          anyOf:
-          - type: string
-            enum:
-            - nav
-            - dag
-            - dag_run
-            - task
-            - task_instance
-          - type: 'null'
-          title: Destination
-      additionalProperties: true
-      type: object
-      required:
-      - name
-      - src
-      title: IFrameViewsResponse
-      description: Serializer for IFrame Plugin responses.
     ImportErrorCollectionResponse:
       properties:
         import_errors:
@@ -9629,11 +10397,18 @@ components:
             $ref: '#/components/schemas/FastAPIRootMiddlewareResponse'
           type: array
           title: Fastapi Root Middlewares
-        iframe_views:
+        external_views:
           items:
-            $ref: '#/components/schemas/IFrameViewsResponse'
+            $ref: '#/components/schemas/ExternalViewResponse'
           type: array
-          title: Iframe Views
+          title: External Views
+          description: Aggregate all external views. Both 'external_views' and 'appbuilder_menu_items'
+            are included here.
+        react_apps:
+          items:
+            $ref: '#/components/schemas/ReactAppResponse'
+          type: array
+          title: React Apps
         appbuilder_views:
           items:
             $ref: '#/components/schemas/AppBuilderViewResponse'
@@ -9644,6 +10419,7 @@ components:
             $ref: '#/components/schemas/AppBuilderMenuItemResponse'
           type: array
           title: Appbuilder Menu Items
+          deprecated: true
         global_operator_extra_links:
           items:
             type: string
@@ -9674,7 +10450,8 @@ components:
       - flask_blueprints
       - fastapi_apps
       - fastapi_root_middlewares
-      - iframe_views
+      - external_views
+      - react_apps
       - appbuilder_views
       - appbuilder_menu_items
       - global_operator_extra_links
@@ -9872,6 +10649,51 @@ components:
       - dag_display_name
       title: QueuedEventResponse
       description: Queued Event serializer for responses..
+    ReactAppResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+        icon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon
+        icon_dark_mode:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Dark Mode
+        url_route:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Url Route
+        category:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Category
+        destination:
+          type: string
+          enum:
+          - nav
+          - dag
+          - dag_run
+          - task
+          - task_instance
+          title: Destination
+          default: nav
+        bundle_url:
+          type: string
+          title: Bundle Url
+      additionalProperties: true
+      type: object
+      required:
+      - name
+      - bundle_url
+      title: ReactAppResponse
+      description: Serializer for React App Plugin responses.
     ReprocessBehavior:
       type: string
       enum:
@@ -9958,6 +10780,31 @@ components:
       - reason
       title: TaskDependencyResponse
       description: Task Dependency serializer for responses.
+    TaskInletAssetReference:
+      properties:
+        dag_id:
+          type: string
+          title: Dag Id
+        task_id:
+          type: string
+          title: Task Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      additionalProperties: false
+      type: object
+      required:
+      - dag_id
+      - task_id
+      - created_at
+      - updated_at
+      title: TaskInletAssetReference
+      description: Task inlet reference serializer for assets.
     TaskInstanceCollectionResponse:
       properties:
         task_instances:
@@ -10137,6 +10984,8 @@ components:
         dag_id:
           type: string
           title: Dag Id
+        dag_version:
+          $ref: '#/components/schemas/DagVersionResponse'
         dag_run_id:
           type: string
           title: Dag Run Id
@@ -10264,15 +11113,12 @@ components:
           anyOf:
           - $ref: '#/components/schemas/JobResponse'
           - type: 'null'
-        dag_version:
-          anyOf:
-          - $ref: '#/components/schemas/DagVersionResponse'
-          - type: 'null'
       type: object
       required:
       - id
       - task_id
       - dag_id
+      - dag_version
       - dag_run_id
       - map_index
       - logical_date
@@ -10301,7 +11147,6 @@ components:
       - rendered_map_index
       - trigger
       - triggerer_job
-      - dag_version
       title: TaskInstanceResponse
       description: TaskInstance serializer for responses.
     TaskInstanceState:
@@ -10786,6 +11631,22 @@ components:
       - latest_triggerer_heartbeat
       title: TriggererInfoResponse
       description: Triggerer info serializer for responses.
+    UpdateHITLDetailPayload:
+      properties:
+        chosen_options:
+          items:
+            type: string
+          type: array
+          title: Chosen Options
+        params_input:
+          additionalProperties: true
+          type: object
+          title: Params Input
+      type: object
+      required:
+      - chosen_options
+      title: UpdateHITLDetailPayload
+      description: Schema for updating the content of a Human-in-the-loop detail.
     ValidationError:
       properties:
         loc:
@@ -11081,3 +11942,6 @@ components:
         password:
           scopes: {}
           tokenUrl: /auth/token
+    HTTPBearer:
+      type: http
+      scheme: bearer

@@ -1,0 +1,30 @@
+{
+  "consumingDags": "Konsumierende Dags",
+  "createEvent": {
+    "button": "Ereignis erstellen",
+    "manual": {
+      "description": "Direkt ein Ereignis zum Datenset (Asset) erstellen",
+      "extra": "Extra Daten zu Ereignis",
+      "label": "Manuell"
+    },
+    "materialize": {
+      "description": "Das Dag das dieses Datenset (Asset) produziert direkt auslösen",
+      "descriptionWithDag": "Das Dag das dieses Datenset produziert auslösen: {{dagName}}",
+      "label": "Materialisieren",
+      "unpauseDag": "Das Dag {{dagName}} beim Auslösen aktivieren"
+    },
+    "success": {
+      "manualDescription": "Das manuelle Erzeugen eines Ereignisses zu dem Datenset (Asset) war erfolgreich.",
+      "manualTitle": "Ereignis zu Datenset erstellt",
+      "materializeDescription": "Produzierendes Dag {{dagId}} wurde erfolgreich ausgelöst.",
+      "materializeTitle": "Datenset wird materialisiert"
+    },
+    "title": "Ereignis zu Datenset (Asset) {{name}} erstellen"
+  },
+  "group": "Gruppe",
+  "lastAssetEvent": "Letztes Ereignis zu Datenset (Asset)",
+  "name": "Name",
+  "producingTasks": "Produzierende Tasks",
+  "scheduledDags": "Geplante Dags",
+  "searchPlaceholder": "Datenset (Asset) suchen"
+}

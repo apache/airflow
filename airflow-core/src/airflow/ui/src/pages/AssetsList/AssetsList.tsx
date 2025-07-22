@@ -44,7 +44,7 @@ const createColumns = (translate: (key: string) => string): Array<ColumnDef<Asse
         <RouterLink to={`/assets/${original.id}`}>{original.name}</RouterLink>
       </Link>
     ),
-    header: () => translate("columns.name"),
+    header: () => translate("name"),
   },
   {
     accessorKey: "last_asset_event",
@@ -59,21 +59,21 @@ const createColumns = (translate: (key: string) => string): Array<ColumnDef<Asse
       return <Time datetime={timestamp} />;
     },
     enableSorting: false,
-    header: () => translate("columns.lastAssetEvent"),
+    header: () => translate("lastAssetEvent"),
   },
   {
     accessorKey: "group",
     enableSorting: false,
-    header: () => translate("columns.group"),
+    header: () => translate("group"),
   },
   {
-    accessorKey: "consuming_dags",
+    accessorKey: "scheduled_dags",
     cell: ({ row: { original } }: AssetRow) =>
-      original.consuming_dags.length ? (
-        <DependencyPopover dependencies={original.consuming_dags} type="Dag" />
+      original.scheduled_dags.length ? (
+        <DependencyPopover dependencies={original.scheduled_dags} type="Dag" />
       ) : undefined,
     enableSorting: false,
-    header: () => translate("columns.consumingDags"),
+    header: () => translate("scheduledDags"),
   },
   {
     accessorKey: "producing_tasks",
@@ -82,7 +82,7 @@ const createColumns = (translate: (key: string) => string): Array<ColumnDef<Asse
         <DependencyPopover dependencies={original.producing_tasks} type="Task" />
       ) : undefined,
     enableSorting: false,
-    header: () => translate("columns.producingTasks"),
+    header: () => translate("producingTasks"),
   },
   {
     accessorKey: "trigger",

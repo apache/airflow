@@ -75,7 +75,7 @@ The first step of a release is to work out what is being included. This differs 
 
 ## Validating completeness of i18n locale files
 
-At this point you should validate the completeness of the i18n locale files - follow the instructions in section 8.1 of the [internationalization (i18n) policy](../airflow-core/src/airflow/ui/src/i18n/README.md) for doing so.
+At this point you should validate the completeness of the i18n locale files - follow the instructions in section 8.1 of the [internationalization (i18n) policy](../airflow-core/src/airflow/ui/public/i18n/README.md) for doing so.
 If there are any incomplete locales, copy the names of the incomplete locales and send out a reminder to the code owners to ensure completion of the translation by a due date of your choice
 before cutting the release candidate (RC).
 The reminder should be sent via dev@airflow.apache.org mailing list, preferably with an accompanying GitHub issue for tracking purposes.
@@ -293,12 +293,6 @@ export AIRFLOW_REPO_ROOT=$(pwd)
 uv tool install -e ./dev/breeze
 ```
 
-or (if you prefer to use pipx):
-
-```shell script
-pipx install -e ./dev/breeze
-```
-
 - For major/minor version release, run the following commands to create the 'test' and 'stable' branches.
 
     ```shell script
@@ -379,8 +373,7 @@ pipx install -e ./dev/breeze
 - Generate the body of the issue using the below command:
 
   ```shell script
-    breeze release-management generate-issue-content-core --previous-release <PREVIOUS_VERSION>
-    --current-release ${VERSION}
+    breeze release-management generate-issue-content-core --previous-release <PREVIOUS_VERSION> --current-release ${VERSION}
     ```
 
 ## Publish release candidate documentation (staging)
@@ -659,11 +652,17 @@ Or update it if you already checked it out:
 svn update .
 ```
 
+Set an environment variable: PATH_TO_SVN to the root of folder where you clone the SVN repository:
+
+``` shell
+export PATH_TO_SVN=<set your path to svn here>
+```
+
 Optionally you can use `check_files.py` script to verify that all expected files are
 present in SVN. This script may help also with verifying installation of the packages.
 
 ```shell script
-python check_files.py airflow -v ${VERSION} -p {PATH_TO_SVN}
+uv run check_files.py airflow -v ${VERSION} -p ${PATH_TO_SVN}
 ```
 
 ## Licence check
@@ -796,7 +795,7 @@ Optionally it can be followed with constraints
 
 ```shell script
 pip install apache-airflow==<VERSION>rc<X> \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-<VERSION>/constraints-3.9.txt"
+  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-<VERSION>/constraints-3.10.txt"
 ```
 
 Note that the constraints contain python version that you are installing it with.
@@ -808,7 +807,7 @@ There is also an easy way of installation with Breeze if you have the latest sou
 Running the following command will use tmux inside breeze, create `admin` user and run Webserver & Scheduler:
 
 ```shell script
-breeze start-airflow --use-airflow-version 2.7.0rc1 --python 3.9 --backend postgres
+breeze start-airflow --use-airflow-version 2.7.0rc1 --python 3.10 --backend postgres
 ```
 
 You can also choose different executors and extras to install when you are installing airflow this way. For
@@ -816,7 +815,7 @@ example in order to run Airflow with CeleryExecutor and install celery, google a
 Airflow 2.7.0, you need to have celery provider installed to run Airflow with CeleryExecutor) you can run:
 
 ```shell script
-breeze start-airflow --use-airflow-version 2.7.0rc1 --python 3.9 --backend postgres \
+breeze start-airflow --use-airflow-version 2.7.0rc1 --python 3.10 --backend postgres \
   --executor CeleryExecutor --airflow-extras "celery,google,amazon"
 ```
 
@@ -919,7 +918,7 @@ the older branches, you should set the "skip" field to true.
 ## Verify production images
 
 ```shell script
-for PYTHON in 3.9 3.10 3.11 3.12
+for PYTHON in 3.10 3.11 3.12 3.13
 do
     docker pull apache/airflow:${VERSION}-python${PYTHON}
     breeze prod-image verify --image-name apache/airflow:${VERSION}-python${PYTHON}

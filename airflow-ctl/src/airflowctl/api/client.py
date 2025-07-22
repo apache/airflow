@@ -22,15 +22,15 @@ import enum
 import json
 import os
 import sys
+from collections.abc import Callable
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Literal, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Literal, ParamSpec, TypeVar, cast
 
 import httpx
 import keyring
 import structlog
 from httpx import URL
 from keyring.errors import NoKeyringError
-from platformdirs import user_config_path
 from uuid6 import uuid7
 
 from airflowctl import __version__ as version
@@ -54,7 +54,6 @@ from airflowctl.exceptions import (
     AirflowCtlException,
     AirflowCtlNotFoundException,
 )
-from airflowctl.typing_compat import ParamSpec
 
 if TYPE_CHECKING:
     # # methodtools doesn't have typestubs, so give a stub
@@ -130,9 +129,8 @@ class Credentials:
 
     def save(self):
         """Save the credentials to keyring and URL to disk as a file."""
-        default_config_dir = user_config_path("airflow", "Apache Software Foundation")
-        if not os.path.exists(default_config_dir):
-            os.makedirs(default_config_dir)
+        default_config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
+        os.makedirs(default_config_dir, exist_ok=True)
         with open(os.path.join(default_config_dir, self.input_cli_config_file), "w") as f:
             json.dump({"api_url": self.api_url}, f)
         try:
@@ -146,7 +144,7 @@ class Credentials:
 
     def load(self) -> Credentials:
         """Load the credentials from keyring and URL from disk file."""
-        default_config_dir = user_config_path("airflow", "Apache Software Foundation")
+        default_config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
         credential_path = os.path.join(default_config_dir, self.input_cli_config_file)
         try:
             with open(credential_path) as f:
@@ -211,73 +209,73 @@ class Client(httpx.Client):
             return f"{base_url}/auth"
         return f"{base_url}/api/v2"
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def login(self):
         """Operations related to authentication."""
         return LoginOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def assets(self):
         """Operations related to assets."""
         return AssetsOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def backfills(self):
         """Operations related to backfills."""
         return BackfillsOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def configs(self):
         """Operations related to configs."""
         return ConfigOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def connections(self):
         """Operations related to connections."""
         return ConnectionsOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def dags(self):
         """Operations related to DAGs."""
         return DagOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def dag_runs(self):
         """Operations related to DAG runs."""
         return DagRunOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def jobs(self):
         """Operations related to jobs."""
         return JobsOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def pools(self):
         """Operations related to pools."""
         return PoolsOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def providers(self):
         """Operations related to providers."""
         return ProvidersOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def variables(self):
         """Operations related to variables."""
         return VariablesOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def version(self):
         """Get the version of the server."""
@@ -295,7 +293,6 @@ def get_client(kind: Literal[ClientKind.CLI, ClientKind.AUTH] = ClientKind.CLI):
     api_client = None
     try:
         # API URL always loaded from the config file, please save with it if you are using other than ClientKind.CLI
-
         credentials = Credentials(client_kind=kind).load()
         api_client = Client(
             base_url=credentials.api_url or "http://localhost:8080",

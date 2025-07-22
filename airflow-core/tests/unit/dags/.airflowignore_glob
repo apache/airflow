@@ -6,10 +6,11 @@
 
 # test ignoring files at all levels
 **/*_dont_*                # ignore all python files at all levels with "dont" in their name
+!**/*_negate_ignore.py
 subdir2/**/test_nested*.py # ignore files in subdir2/subdir3
 
 # test matching and ignoring of path separators
-subdir1/         # ignore all of subdir1
+subdir1/*         # ignore all of subdir1
 subdir2*test*    # this should not match anything in the subdir2 directory
 subdir2?test*    # this should not match anything in the subdir2 directory
 

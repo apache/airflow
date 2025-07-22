@@ -18,7 +18,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, HStack, Link, type SelectValueChangeDetails, Text } from "@chakra-ui/react";
+import { Flex, HStack, Link, type SelectValueChangeDetails, Text, Box } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useCallback } from "react";
@@ -36,6 +36,7 @@ import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
+import { SearchBar } from "src/components/SearchBar";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { Select } from "src/components/ui";
@@ -47,6 +48,7 @@ import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
 type DagRunRow = { row: { original: DAGRunResponse } };
 const {
   END_DATE: END_DATE_PARAM,
+  RUN_ID_PATTERN: RUN_ID_PATTERN_PARAM,
   RUN_TYPE: RUN_TYPE_PARAM,
   START_DATE: START_DATE_PARAM,
   STATE: STATE_PARAM,
@@ -59,7 +61,7 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
         {
           accessorKey: "dag_display_name",
           enableSorting: false,
-          header: translate("dags:runs.columns.dagId"),
+          header: translate("dagId"),
         },
       ]),
   {
@@ -71,7 +73,7 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
         </RouterLink>
       </Link>
     ),
-    header: translate("dags:runs.columns.runAfter"),
+    header: translate("dagRun.runAfter"),
   },
   {
     accessorKey: "state",
@@ -80,7 +82,7 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
         original: { state },
       },
     }) => <StateBadge state={state}>{state}</StateBadge>,
-    header: () => translate("dags:runs.columns.state"),
+    header: () => translate("state"),
   },
   {
     accessorKey: "run_type",
@@ -91,22 +93,28 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
       </HStack>
     ),
     enableSorting: false,
-    header: translate("dags:runs.columns.runType"),
+    header: translate("dagRun.runType"),
+  },
+  {
+    accessorKey: "triggering_user_name",
+    cell: ({ row: { original } }) => <Text>{original.triggering_user_name ?? ""}</Text>,
+    enableSorting: false,
+    header: translate("dagRun.triggeringUser"),
   },
   {
     accessorKey: "start_date",
     cell: ({ row: { original } }) => <Time datetime={original.start_date} />,
-    header: translate("dags:runs.columns.startDate"),
+    header: translate("startDate"),
   },
   {
     accessorKey: "end_date",
     cell: ({ row: { original } }) => <Time datetime={original.end_date} />,
-    header: translate("dags:runs.columns.endDate"),
+    header: translate("endDate"),
   },
   {
     accessorKey: "duration",
     cell: ({ row: { original } }) => renderDuration(original.duration),
-    header: translate("dags:runs.columns.duration"),
+    header: translate("duration"),
   },
   {
     accessorKey: "dag_versions",
@@ -119,7 +127,7 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
       />
     ),
     enableSorting: false,
-    header: translate("dags:runs.columns.dagVersions"),
+    header: translate("dagRun.dagVersions"),
   },
   {
     accessorKey: "conf",
@@ -127,7 +135,7 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
       original.conf && Object.keys(original.conf).length > 0 ? (
         <RenderedJsonField content={original.conf} jsonProps={{ collapsed: true }} />
       ) : undefined,
-    header: translate("dags:runs.columns.conf"),
+    header: translate("dagRun.conf"),
   },
   {
     accessorKey: "actions",
@@ -156,8 +164,10 @@ export const DagRuns = () => {
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-run_after";
 
+  const { pageIndex, pageSize } = pagination;
   const filteredState = searchParams.get(STATE_PARAM);
   const filteredType = searchParams.get(RUN_TYPE_PARAM);
+  const filteredRunIdPattern = searchParams.get(RUN_ID_PATTERN_PARAM);
   const startDate = searchParams.get(START_DATE_PARAM);
   const endDate = searchParams.get(END_DATE_PARAM);
 
@@ -167,16 +177,17 @@ export const DagRuns = () => {
     {
       dagId: dagId ?? "~",
       endDateLte: endDate ?? undefined,
-      limit: pagination.pageSize,
-      offset: pagination.pageIndex * pagination.pageSize,
+      limit: pageSize,
+      offset: pageIndex * pageSize,
       orderBy,
+      runIdPattern: filteredRunIdPattern ?? undefined,
       runType: filteredType === null ? undefined : [filteredType],
       startDateGte: startDate ?? undefined,
       state: filteredState === null ? undefined : [filteredState],
     },
     undefined,
     {
-      enabled: !isNaN(pagination.pageSize),
+      enabled: !isNaN(pageSize),
       refetchInterval: (query) =>
         query.state.data?.dag_runs.some((run) => isStatePending(run.state)) ? refetchInterval : false,
     },
@@ -218,9 +229,34 @@ export const DagRuns = () => {
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
 
+  const handleRunIdPatternChange = useCallback(
+    (value: string) => {
+      if (value === "") {
+        searchParams.delete(RUN_ID_PATTERN_PARAM);
+      } else {
+        searchParams.set(RUN_ID_PATTERN_PARAM, value);
+      }
+      setTableURLState({
+        pagination: { ...pagination, pageIndex: 0 },
+        sorting,
+      });
+      setSearchParams(searchParams);
+    },
+    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
+  );
+
   return (
     <>
-      <Flex gap={1}>
+      <HStack paddingY="4px">
+        <Box>
+          <SearchBar
+            defaultValue={filteredRunIdPattern ?? ""}
+            hideAdvanced
+            hotkeyDisabled={false}
+            onChange={handleRunIdPatternChange}
+            placeHolder={translate("dags:filters.runIdPatternFilter")}
+          />
+        </Box>
         <Select.Root
           collection={stateOptions}
           maxW="200px"
@@ -231,7 +267,7 @@ export const DagRuns = () => {
             <Select.ValueText width="auto">
               {() =>
                 filteredState === null ? (
-                  translate("dags:runs.allStates")
+                  translate("dags:filters.allStates")
                 ) : (
                   <StateBadge state={filteredState as DagRunState}>
                     {translate(`common:states.${filteredState}`)}
@@ -252,17 +288,18 @@ export const DagRuns = () => {
             ))}
           </Select.Content>
         </Select.Root>
+
         <Select.Root
           collection={dagRunTypeOptions}
           maxW="200px"
           onValueChange={handleTypeChange}
           value={[filteredType ?? "all"]}
         >
-          <Select.Trigger colorPalette="blue" isActive={Boolean(filteredState)} minW="max-content">
+          <Select.Trigger colorPalette="blue" isActive={Boolean(filteredType)} minW="max-content">
             <Select.ValueText width="auto">
               {() =>
                 filteredType === null ? (
-                  translate("dags:runs.allRunTypes")
+                  translate("dags:filters.allRunTypes")
                 ) : (
                   <Flex alignItems="center" gap={1}>
                     <RunTypeIcon runType={filteredType as DagRunType} />
@@ -287,7 +324,7 @@ export const DagRuns = () => {
             ))}
           </Select.Content>
         </Select.Root>
-      </Flex>
+      </HStack>
       <DataTable
         columns={runColumns(translate, dagId)}
         data={data?.dag_runs ?? []}

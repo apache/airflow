@@ -26,16 +26,14 @@ from confluent_kafka.admin import AdminClient, NewTopic
 
 from airflow.models import Connection
 from airflow.providers.apache.kafka.hooks.client import KafkaAdminClientHook
-from airflow.utils import db
-
-pytestmark = pytest.mark.db_test
 
 log = logging.getLogger(__name__)
 
 
 class TestKafkaAdminClientHook:
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id="kafka_d",
                 conn_type="kafka",
@@ -45,7 +43,7 @@ class TestKafkaAdminClientHook:
             )
         )
 
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="kafka_bad",
                 conn_type="kafka",

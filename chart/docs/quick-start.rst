@@ -82,7 +82,7 @@ Airflow is working.
 
 .. code-block:: bash
 
-   kubectl port-forward svc/$RELEASE_NAME-webserver 8080:8080 --namespace $NAMESPACE
+   kubectl port-forward svc/$RELEASE_NAME-api-server 8080:8080 --namespace $NAMESPACE
 
 Extending Airflow Image
 -----------------------

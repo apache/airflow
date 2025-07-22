@@ -23,8 +23,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, NoReturn
 
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseSensorOperator
 from airflow.utils import timezone
 
 try:
@@ -100,8 +99,11 @@ class DateTimeSensor(BaseSensorOperator):
 
     @property
     def _moment(self) -> datetime.datetime:
-        if isinstance(self.target_time, datetime.datetime):
-            return self.target_time
+        # Note following is reachable code if Jinja is used for redering template fields and
+        # render_template_as_native_obj=True is used.
+        # In this case, the target_time is already a datetime object.
+        if isinstance(self.target_time, datetime.datetime):  # type:ignore[unreachable]
+            return self.target_time  # type:ignore[unreachable]
 
         return timezone.parse(self.target_time)
 
