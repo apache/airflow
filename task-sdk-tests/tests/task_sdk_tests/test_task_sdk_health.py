@@ -173,8 +173,47 @@ def test_task_sdk_health(tmp_path_factory, monkeypatch):
             raise
 
         import importlib
+        import sys
 
+        # Force refresh of import system
         importlib.invalidate_caches()
+
+        # Verify installation by checking if the package is actually installed
+        console.print("[yellow]Verifying installation...")
+        try:
+            result = subprocess.run(
+                [python_exec, "-c", "import airflow.sdk.api.client; print('✅ Import successful')"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            console.print(f"[green]{result.stdout.strip()}")
+        except subprocess.CalledProcessError as e:
+            console.print("[red]❌ Import verification failed:")
+            console.print(f"[red]Return code: {e.returncode}")
+            console.print(f"[red]Stdout: {e.stdout}")
+            console.print(f"[red]Stderr: {e.stderr}")
+
+            # Try to see what's actually installed
+            try:
+                list_result = subprocess.run(
+                    [python_exec, "-m", "pip", "show", "apache-airflow-task-sdk"],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                console.print(f"[blue]Package info: {list_result.stdout}")
+            except Exception as show_error:
+                console.print(f"[red]Could not get package info: {show_error}")
+
+            raise
+
+        # Force reload sys.path and modules if needed
+        if "/home/runner/work/airflow/airflow/.venv/lib/python3.10/site-packages" not in sys.path:
+            venv_site_packages = f"{python_exec}".replace("/bin/python", "/lib/python3.10/site-packages")
+            if Path(venv_site_packages).exists():
+                sys.path.insert(0, venv_site_packages)
+                console.print(f"[blue]Added to sys.path: {venv_site_packages}")
 
         # Now import the client after installation
         from airflow.sdk.api.client import Client
