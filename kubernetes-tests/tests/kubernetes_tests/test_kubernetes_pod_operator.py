@@ -552,10 +552,11 @@ class TestKubernetesPodOperatorSystem:
                 task_id=str(uuid4()),
                 in_cluster=False,
                 do_xcom_push=False,
+                log_prefix=False,
             )
             context = create_context(k)
             k.execute(context=context)
-            mock_logger.info.assert_any_call("[%s] %s", "base", StringContainingId("retrieved from mount"))
+            mock_logger.info.assert_any_call("%s", StringContainingId("retrieved from mount"))
             actual_pod = self.api_client.sanitize_for_serialization(k.pod)
             self.expected_pod["spec"]["containers"][0]["args"] = args
             self.expected_pod["spec"]["containers"][0]["volumeMounts"] = [
@@ -1429,72 +1430,54 @@ class TestKubernetesPodOperatorSystem:
         )
 
     @pytest.mark.asyncio
-    def test_log_prefix_enabled(self, mock_get_connection, caplog):
-        """Test default behavior with log_prefix=True (container name prefix included)."""
+    @pytest.mark.parametrize(
+        "log_prefix_enabled, log_formatter, expected_log_message_check",
+        [
+            pytest.param(
+                True,
+                None,
+                lambda marker, record_message: f"[base] {marker}" in record_message,
+                id="log_prefix_enabled",
+            ),
+            pytest.param(
+                False,
+                None,
+                lambda marker, record_message: marker in record_message and "[base]" not in record_message,
+                id="log_prefix_disabled",
+            ),
+            pytest.param(
+                False,  # Ignored when log_formatter is provided
+                lambda container_name, message: f"CUSTOM[{container_name}]: {message}",
+                lambda marker, record_message: f"CUSTOM[base]: {marker}" in record_message,
+                id="custom_log_formatter",
+            ),
+        ],
+    )
+    def test_log_output_configurations(
+        self, mock_get_connection, caplog, log_prefix_enabled, log_formatter, expected_log_message_check
+    ):
+        """
+        Tests various log output configurations (log_prefix, log_formatter)
+        for KubernetesPodOperator.
+        """
         marker = f"test_log_{uuid4()}"
         k = KubernetesPodOperator(
             namespace="default",
             image="busybox",
             cmds=["sh", "-cx"],
             arguments=[f"echo {marker}"],
-            labels=self.labels,
+            labels={"test_label": "test"},
             task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
             get_logs=True,
-            log_prefix=True,  # Explicitly set default
+            log_prefix=log_prefix_enabled,
+            log_formatter=log_formatter,
         )
         context = create_context(k)
         with caplog.at_level(logging.INFO, logger="airflow.task.operators"):
             k.execute(context)
-        assert any(f"[base] {marker}" in record.message for record in caplog.records)
-
-    @pytest.mark.asyncio
-    def test_log_prefix_disabled(self, mock_get_connection, caplog):
-        """Test log_prefix=False removes container name prefix."""
-        marker = f"test_log_{uuid4()}"
-        k = KubernetesPodOperator(
-            namespace="default",
-            image="busybox",
-            cmds=["sh", "-cx"],
-            arguments=[f"echo {marker}"],
-            labels=self.labels,
-            task_id=str(uuid4()),
-            in_cluster=False,
-            do_xcom_push=False,
-            get_logs=True,
-            log_prefix=False,
-        )
-        context = create_context(k)
-        with caplog.at_level(logging.INFO, logger="airflow.task.operators"):
-            k.execute(context)
-        assert any(marker in record.message and "[base]" not in record.message for record in caplog.records)
-
-    @pytest.mark.asyncio
-    def test_custom_log_formatter(self, mock_get_connection, caplog):
-        """Test custom log_formatter function."""
-        marker = f"test_log_{uuid4()}"
-
-        def custom_formatter(container_name: str, message: str) -> str:
-            return f"CUSTOM[{container_name}]: {message}"
-
-        k = KubernetesPodOperator(
-            namespace="default",
-            image="busybox",
-            cmds=["sh", "-cx"],
-            arguments=[f"echo {marker}"],
-            labels=self.labels,
-            task_id=str(uuid4()),
-            in_cluster=False,
-            do_xcom_push=False,
-            get_logs=True,
-            log_prefix=False,  # Ignored when log_formatter is provided
-            log_formatter=custom_formatter,
-        )
-        context = create_context(k)
-        with caplog.at_level(logging.INFO, logger="airflow.task.operators"):
-            k.execute(context)
-        assert any(f"CUSTOM[base]: {marker}" in record.message for record in caplog.records)
+        assert any(expected_log_message_check(marker, record.message) for record in caplog.records)
 
 
 # TODO: Task SDK: https://github.com/apache/airflow/issues/45438
