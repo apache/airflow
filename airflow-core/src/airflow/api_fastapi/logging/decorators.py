@@ -19,20 +19,17 @@ from __future__ import annotations
 import itertools
 import json
 import logging
-from typing import Annotated
 
 import pendulum
-from fastapi import Depends, Request, Security
+from fastapi import Request
 from pendulum.parsing.exceptions import ParserError
 
-from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.models import Log
 from airflow.sdk.execution_time import secrets_masker
 
 logger = logging.getLogger(__name__)
-
 
 
 def _mask_connection_fields(extra_fields):
