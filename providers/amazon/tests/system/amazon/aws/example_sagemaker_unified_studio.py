@@ -51,7 +51,7 @@ The setup tasks will set up the project and configure the test runner to emulate
 Then, the SageMakerNotebookOperator will run a test notebook. This should spin up a SageMaker training job, run the notebook, and exit successfully.
 """
 
-DAG_ID = "example_sagemaker_unified_studio"
+DAG_ID = "example_sagemaker_unified_studios"
 
 # Externally fetched variables:
 DOMAIN_ID_KEY = "DOMAIN_ID"
@@ -92,10 +92,6 @@ def get_mwaa_environment_params(
     return parameters
 
 
-def dict_to_ecs_environment(params_dict):
-    return [{"name": key, "value": value} for key, value in params_dict.items()]
-
-
 @task
 def mock_mwaa_environment(parameters: dict):
     """
@@ -133,7 +129,6 @@ with DAG(
     )
 
     setup_mwaa_environment = mock_mwaa_environment(mock_mwaa_environment_params)
-    environment_vars = dict_to_ecs_environment(mock_mwaa_environment_params)
 
     # [START howto_operator_sagemaker_unified_studio_notebook]
     notebook_path = "test_notebook.ipynb"  # This should be the path to your .ipynb, .sqlnb, or .vetl file in your project.
@@ -152,7 +147,13 @@ with DAG(
         waiter_delay=5,  # optional
         deferrable=False,  # optional
         executor_config={  # optional
-            "overrides": {"containerOverrides": {"name": "container", "environment": environment_vars}}
+            "overrides": {
+                "containerOverrides": {
+                    "environment": [
+                        {"name": key, "value": value} for key, value in mock_mwaa_environment_params.items()
+                    ]
+                }
+            }
         },
     )
     # [END howto_operator_sagemaker_unified_studio_notebook]
@@ -161,7 +162,6 @@ with DAG(
         # TEST SETUP
         test_context,
         setup_mwaa_environment,
-        environment_vars,
         # TEST BODY
         run_notebook,
     )
