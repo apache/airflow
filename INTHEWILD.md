@@ -344,6 +344,7 @@ Currently, **officially** using Airflow:
 1. [Menhir Financial](https://www.menhir.ai/) [[@pablo-menhir](https://github.com/pablo-menhir), [@dionisio-menhir](https://github.com/dionisio-menhir) & [@luisjvca-menhir](https://github.com/luisjvca-menhir)]
 1. [Mercadoni](https://www.mercadoni.com.co) [[@demorenoc](https://github.com/demorenoc)]
 1. [Mercari](http://www.mercari.com/) [[@yu-iskw](https://github.com/yu-iskw)]
+1. [Met Office](https://www.metoffice.gov.uk/) [[@MetOffice](https://github.com/MetOffice)]
 1. [MeuVendoo](https://www.meuvendoo.com.br) [[@CarlosDutra](https://github.com/CarlosDutra)]
 1. [MFG Labs](https://github.com/MfgLabs)
 1. [Ministry of Economy of Brazil](https://www.gov.br/economia/) [[@nitaibezerra](https://github.com/nitaibezerra), [@vitorbellini](https://github.com/vitorbellini)]
@@ -468,6 +469,7 @@ Currently, **officially** using Airflow:
 1. [SnapTravel](https://www.snaptravel.com/)
 1. [SocialCops](https://www.socialcops.com/) [[@vinayak-mehta](https://github.com/vinayak-mehta) & [@sharky93](https://github.com/sharky93)]
 1. [Société générale](https://www.societegenerale.fr/) [[@medmrgh](https://github.com/medmrgh) & [@s83](https://github.com/s83)]
+1. [Softwrd](https://softwrd.ai/) [[@softwrdai](https://github.com/softwrdai) & [@Mrrobi](https://github.com/Mrrobi)]
 1. [Spotahome](https://www.spotahome.com/) [[@spotahome](https://github.com/spotahome)]
 1. [SpotHero](https://github.com/spothero) [[@benjigoldberg](https://github.com/benjigoldberg)]
 1. [Spotify](https://github.com/spotify) [[@znichols](https://github.com/znichols)]
