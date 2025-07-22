@@ -24,12 +24,13 @@ import textwrap
 import uuid
 from collections.abc import Callable
 from socket import socketpair
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, BinaryIO
 from unittest.mock import MagicMock, patch
 
 import pytest
 import structlog
 from pydantic import TypeAdapter
+from structlog.typing import FilteringBoundLogger
 
 from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
@@ -80,7 +81,7 @@ def inprocess_client():
     """Provides an in-process Client backed by a single API server."""
     api = InProcessExecutionAPI()
     client = Client(base_url=None, token="", dry_run=True, transport=api.transport)
-    client.base_url = "http://in-process.invalid/"  # type: ignore[assignment]
+    client.base_url = "http://in-process.invalid/"
     return client
 
 
@@ -116,8 +117,8 @@ class TestDagFileProcessor:
         monkeypatch: pytest.MonkeyPatch,
         inprocess_client,
     ):
-        logger = MagicMock()
-        logger_filehandle = MagicMock()
+        logger = MagicMock(spec=FilteringBoundLogger)
+        logger_filehandle = MagicMock(spec=BinaryIO)
 
         def dag_in_a_fn():
             from airflow.sdk import DAG, Variable
@@ -153,8 +154,8 @@ class TestDagFileProcessor:
         monkeypatch: pytest.MonkeyPatch,
         inprocess_client,
     ):
-        logger = MagicMock()
-        logger_filehandle = MagicMock()
+        logger = MagicMock(spec=FilteringBoundLogger)
+        logger_filehandle = MagicMock(spec=BinaryIO)
 
         def dag_in_a_fn():
             from airflow.sdk import DAG, Variable
@@ -185,8 +186,8 @@ class TestDagFileProcessor:
     def test_top_level_variable_set(self, tmp_path: pathlib.Path, inprocess_client):
         from airflow.models.variable import Variable as VariableORM
 
-        logger = MagicMock()
-        logger_filehandle = MagicMock()
+        logger = MagicMock(spec=FilteringBoundLogger)
+        logger_filehandle = MagicMock(spec=BinaryIO)
 
         def dag_in_a_fn():
             from airflow.sdk import DAG, Variable
@@ -222,8 +223,8 @@ class TestDagFileProcessor:
     def test_top_level_variable_delete(self, tmp_path: pathlib.Path, inprocess_client):
         from airflow.models.variable import Variable as VariableORM
 
-        logger = MagicMock()
-        logger_filehandle = MagicMock()
+        logger = MagicMock(spec=FilteringBoundLogger)
+        logger_filehandle = MagicMock(spec=BinaryIO)
 
         def dag_in_a_fn():
             from airflow.sdk import DAG, Variable
@@ -264,8 +265,8 @@ class TestDagFileProcessor:
     def test_top_level_connection_access(
         self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, inprocess_client
     ):
-        logger = MagicMock()
-        logger_filehandle = MagicMock()
+        logger = MagicMock(spec=FilteringBoundLogger)
+        logger_filehandle = MagicMock(spec=BinaryIO)
 
         def dag_in_a_fn():
             from airflow.sdk import DAG, BaseHook
@@ -295,8 +296,8 @@ class TestDagFileProcessor:
         assert result.serialized_dags[0].dag_id == "test_my_conn"
 
     def test_top_level_connection_access_not_found(self, tmp_path: pathlib.Path, inprocess_client):
-        logger = MagicMock()
-        logger_filehandle = MagicMock()
+        logger = MagicMock(spec=FilteringBoundLogger)
+        logger_filehandle = MagicMock(spec=BinaryIO)
 
         def dag_in_a_fn():
             from airflow.sdk import DAG, BaseHook
@@ -343,8 +344,8 @@ class TestDagFileProcessor:
             path=dag1_path,
             bundle_path=tmp_path,
             callbacks=[],
-            logger=MagicMock(),
-            logger_filehandle=MagicMock(),
+            logger=MagicMock(spec=FilteringBoundLogger),
+            logger_filehandle=MagicMock(spec=BinaryIO),
             client=inprocess_client,
         )
         while not proc.is_ready:
@@ -356,7 +357,7 @@ class TestDagFileProcessor:
         assert result.serialized_dags[0].dag_id == "dag_name"
 
     def test__pre_import_airflow_modules_when_disabled(self):
-        logger = MagicMock()
+        logger = MagicMock(spec=FilteringBoundLogger)
         with (
             env_vars({"AIRFLOW__DAG_PROCESSOR__PARSING_PRE_IMPORT_MODULES": "false"}),
             patch("airflow.dag_processing.processor.iter_airflow_imports") as mock_iter,
@@ -367,7 +368,7 @@ class TestDagFileProcessor:
         logger.warning.assert_not_called()
 
     def test__pre_import_airflow_modules_when_enabled(self):
-        logger = MagicMock()
+        logger = MagicMock(spec=FilteringBoundLogger)
         with (
             env_vars({"AIRFLOW__DAG_PROCESSOR__PARSING_PRE_IMPORT_MODULES": "true"}),
             patch("airflow.dag_processing.processor.iter_airflow_imports", return_value=["airflow.models"]),
@@ -379,7 +380,7 @@ class TestDagFileProcessor:
         logger.warning.assert_not_called()
 
     def test__pre_import_airflow_modules_warns_on_missing_module(self):
-        logger = MagicMock()
+        logger = MagicMock(spec=FilteringBoundLogger)
         with (
             env_vars({"AIRFLOW__DAG_PROCESSOR__PARSING_PRE_IMPORT_MODULES": "true"}),
             patch(
@@ -398,7 +399,7 @@ class TestDagFileProcessor:
         assert "test.py" in warning_args[2]
 
     def test__pre_import_airflow_modules_partial_success_and_warning(self):
-        logger = MagicMock()
+        logger = MagicMock(spec=FilteringBoundLogger)
         with (
             env_vars({"AIRFLOW__DAG_PROCESSOR__PARSING_PRE_IMPORT_MODULES": "true"}),
             patch(

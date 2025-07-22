@@ -90,7 +90,7 @@ class OpenLineageAdapter(LoggingMixin):
                     "OpenLineage configuration found. Transport type: `%s`",
                     config.get("transport", {}).get("type", "no type provided"),
                 )
-                self._client = OpenLineageClient(config=config)  # type: ignore[call-arg]
+                self._client = OpenLineageClient(config=config)
             else:
                 self.log.debug(
                     "OpenLineage configuration not found directly in Airflow. "

@@ -476,6 +476,39 @@ def test_is_disabled_empty_conf_option():
     assert is_disabled() is True
 
 
+@mock.patch.dict(os.environ, {_VAR_URL: "", "OPENLINEAGE__TRANSPORT": '{"type": "console"}'}, clear=True)
+@conf_vars(
+    {
+        (_CONFIG_SECTION, _CONFIG_OPTION_CONFIG_PATH): "",
+        (_CONFIG_SECTION, _CONFIG_OPTION_TRANSPORT): "",
+    }
+)
+def test_is_disabled_env_variables_present():
+    assert is_disabled() is False
+
+
+@mock.patch.dict(os.environ, {_VAR_URL: "", "OPENLINEAGE__TRANSPORT": ""}, clear=True)
+@conf_vars(
+    {
+        (_CONFIG_SECTION, _CONFIG_OPTION_CONFIG_PATH): "",
+        (_CONFIG_SECTION, _CONFIG_OPTION_TRANSPORT): "",
+    }
+)
+def test_is_disabled_env_variables_not_present():
+    assert is_disabled() is True
+
+
+@mock.patch.dict(os.environ, {_VAR_URL: "", "OPENLINEAGE__TRANSPOR": '{"type": "console"}'}, clear=True)
+@conf_vars(
+    {
+        (_CONFIG_SECTION, _CONFIG_OPTION_CONFIG_PATH): "",
+        (_CONFIG_SECTION, _CONFIG_OPTION_TRANSPORT): "",
+    }
+)
+def test_is_disabled_env_variables_not_present_typo():
+    assert is_disabled() is True
+
+
 @mock.patch.dict(os.environ, {_VAR_URL: ""}, clear=True)
 @conf_vars(
     {

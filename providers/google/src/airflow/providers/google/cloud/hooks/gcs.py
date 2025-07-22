@@ -31,14 +31,13 @@ from contextlib import contextmanager
 from functools import partial
 from io import BytesIO
 from tempfile import NamedTemporaryFile
-from typing import IO, TYPE_CHECKING, Any, TypeVar, cast, overload
+from typing import IO, TYPE_CHECKING, Any, ParamSpec, TypeVar, cast, overload
 from urllib.parse import urlsplit
 
+# Make mypy happy by importing as aliases
+import google.cloud.storage as storage
 from gcloud.aio.storage import Storage
 from google.api_core.exceptions import GoogleAPICallError, NotFound
-
-# not sure why but mypy complains on missing `storage` but it is clearly there and is importable
-from google.cloud import storage  # type: ignore[attr-defined]
 from google.cloud.exceptions import GoogleCloudError
 from google.cloud.storage.retry import DEFAULT_RETRY
 
@@ -51,7 +50,6 @@ from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseAsyncHook,
     GoogleBaseHook,
 )
-from airflow.typing_compat import ParamSpec
 from airflow.utils import timezone
 from airflow.version import version
 

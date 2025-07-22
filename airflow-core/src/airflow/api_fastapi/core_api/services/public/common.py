@@ -50,11 +50,11 @@ class BulkService(Generic[T], ABC):
                 results[action.action.value] = BulkActionResponse()
 
             if action.action == BulkAction.CREATE:
-                self.handle_bulk_create(action, results[action.action.value])  # type: ignore
+                self.handle_bulk_create(action, results[action.action.value])
             elif action.action == BulkAction.UPDATE:
-                self.handle_bulk_update(action, results[action.action.value])  # type: ignore
+                self.handle_bulk_update(action, results[action.action.value])
             elif action.action == BulkAction.DELETE:
-                self.handle_bulk_delete(action, results[action.action.value])  # type: ignore
+                self.handle_bulk_delete(action, results[action.action.value])
 
         return BulkResponse(**results)
 

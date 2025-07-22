@@ -46,7 +46,7 @@ Die folgenden Begriffe wurden bewusst nicht aus dem Englischen übersetzt:
   "Workflow" wäre vermutlich eher irreführend und es ist anzunehmen dass die
   Nutzer von Airflow den Begriff zuordnen können.
   Der Begriff `Dag` wird in der deutschen Übersetzung im Neutrum verwendet.
-- Log level "CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG" in dags.json
+- Log level "CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG" in dag.json
   Abschnitt "logs": Diese Begriffe werden in den feststehenden Logs im Text
   auch ausgegeben, deswegen werden sie nicht in das Deutsche übertragen.
 

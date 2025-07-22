@@ -316,8 +316,8 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
                     yield TriggerEvent(
                         {
                             "cluster_name": self.cluster_name,
-                            "cluster_state": ClusterStatus.State.DELETING,
-                            "cluster": cluster,
+                            "cluster_state": ClusterStatus.State(ClusterStatus.State.DELETING).name,
+                            "cluster": Cluster.to_dict(cluster),
                         }
                     )
                     return
@@ -325,14 +325,15 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
                     yield TriggerEvent(
                         {
                             "cluster_name": self.cluster_name,
-                            "cluster_state": state,
-                            "cluster": cluster,
+                            "cluster_state": ClusterStatus.State(state).name,
+                            "cluster": Cluster.to_dict(cluster),
                         }
                     )
                     return
-                self.log.info("Current state is %s", state)
-                self.log.info("Sleeping for %s seconds.", self.polling_interval_seconds)
-                await asyncio.sleep(self.polling_interval_seconds)
+                else:
+                    self.log.info("Current state is %s", state)
+                    self.log.info("Sleeping for %s seconds.", self.polling_interval_seconds)
+                    await asyncio.sleep(self.polling_interval_seconds)
         except asyncio.CancelledError:
             try:
                 if self.delete_on_error and await self.safe_to_cancel():
@@ -484,9 +485,9 @@ class DataprocDeleteClusterTrigger(DataprocBaseTrigger):
         try:
             while self.end_time > time.time():
                 cluster = await self.get_async_hook().get_cluster(
-                    region=self.region,  # type: ignore[arg-type]
+                    region=self.region,
                     cluster_name=self.cluster_name,
-                    project_id=self.project_id,  # type: ignore[arg-type]
+                    project_id=self.project_id,
                     metadata=self.metadata,
                 )
                 self.log.info(
