@@ -98,10 +98,10 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
           </Tooltip>
         ) : undefined}
         <PanelGroup
-          autoSaveId={`${dagId}-${dagView}-${direction}`}
+          autoSaveId={`${dagView}-${direction}`}
           dir={direction}
           direction="horizontal"
-          key={`${dagId}-${dagView}-${direction}`}
+          key={`${dagView}-${direction}`}
           ref={panelGroupRef}
         >
           <Panel defaultSize={dagView === "graph" ? 70 : 20} id="main-panel" minSize={6} order={1}>

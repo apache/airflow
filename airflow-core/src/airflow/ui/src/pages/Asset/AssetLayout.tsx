@@ -96,10 +96,10 @@ export const AssetLayout = () => {
       <ProgressBar size="xs" visibility={Boolean(isLoading) ? "visible" : "hidden"} />
       <Box flex={1} minH={0}>
         <PanelGroup
-          autoSaveId={`${assetId}-${direction}`}
+          autoSaveId={`asset-${direction}`}
           dir={direction}
           direction="horizontal"
-          key={`${assetId}-${direction}`}
+          key={`asset-${direction}`}
         >
           <Panel defaultSize={70} minSize={6}>
             <Box height="100%" position="relative" pr={2}>
