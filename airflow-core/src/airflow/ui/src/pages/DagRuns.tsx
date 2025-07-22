@@ -96,6 +96,12 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
     header: translate("dagRun.runType"),
   },
   {
+    accessorKey: "triggering_user_name",
+    cell: ({ row: { original } }) => <Text>{original.triggering_user_name ?? ""}</Text>,
+    enableSorting: false,
+    header: translate("dagRun.triggeringUser"),
+  },
+  {
     accessorKey: "start_date",
     cell: ({ row: { original } }) => <Time datetime={original.start_date} />,
     header: translate("startDate"),

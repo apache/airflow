@@ -20,7 +20,8 @@ from datetime import datetime, timedelta
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
-import ydb
+
+ydb = pytest.importorskip("ydb")
 
 from airflow.models import Connection
 from airflow.models.dag import DAG

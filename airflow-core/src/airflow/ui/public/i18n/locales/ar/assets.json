@@ -25,5 +25,6 @@
   "lastAssetEvent": "آخر حدث أصل",
   "name": "الاسم",
   "producingTasks": "المهام المنتجة",
+  "scheduledDags": "Dags المجدولة",
   "searchPlaceholder": "البحث عن الأصول"
 }

@@ -328,6 +328,9 @@ here so that users affected can find the reason for the changes.
 +--------------+---------------------+-----------------------------------------+------------------------+------------------------------------------------+
 | Date         | Affected images     | Potentially breaking change             | Reason                 | Link to Pull Request / Issue                   |
 +==============+=====================+=========================================+========================+================================================+
+| 19 July 2025 | 3.0.3               | * The ``standard`` provider             | Sensor skipping issue  | https://github.com/apache/airflow/pull/53455   |
+|              |                     |   upgraded from 1.4.0 to 1.4.1          |                        |                                                |
++--------------+---------------------+-----------------------------------------+------------------------+------------------------------------------------+
 | 24 Jun 2025  | 3.0.2               | * The ``fab`` provider                  | FAB provider user      | https://github.com/apache/airflow/issues/51854 |
 |              |                     |   upgraded from 2.2.0 to 2.2.1          | creation did not work  |                                                |
 |              |                     |                                         |                        |                                                |

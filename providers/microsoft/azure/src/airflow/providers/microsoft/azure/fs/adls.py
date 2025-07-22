@@ -73,8 +73,11 @@ def get_fs(conn_id: str | None, storage_options: dict[str, Any] | None = None) -
     if tenant_id is None and password:
         options["account_key"] = password
 
-    # now take any fields from extras and overlay on these
-    # add empty field to remove defaults
+    # Now take any fields from extras and overlay them on top of existing options.
+    # Add empty field to remove defaults.
+    # 'account_host' is included to allow overriding the default Azure Blob endpoint domain
+    # (e.g., to use a private endpoint or custom domain instead of core.windows.net).
+
     fields = [
         "account_name",
         "account_key",
@@ -84,6 +87,7 @@ def get_fs(conn_id: str | None, storage_options: dict[str, Any] | None = None) -
         "workload_identity_client_id",
         "workload_identity_tenant_id",
         "anon",
+        "account_host",
     ]
     for field in fields:
         value = get_field(conn_id=conn_id, conn_type=conn_type, extras=extras, field_name=field)

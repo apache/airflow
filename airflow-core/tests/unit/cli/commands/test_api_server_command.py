@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import sys
 from unittest import mock
 
 import pytest
@@ -296,16 +297,31 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
                 )
             ]
             mock_pid_file.assert_has_calls([mock.call(mock_setup_locations.return_value[0], -1)])
-            assert mock_open.mock_calls == [
-                mock.call(mock_setup_locations.return_value[1], "a"),
-                mock.call().__enter__(),
-                mock.call(mock_setup_locations.return_value[2], "a"),
-                mock.call().__enter__(),
-                mock.call().truncate(0),
-                mock.call().truncate(0),
-                mock.call().__exit__(None, None, None),
-                mock.call().__exit__(None, None, None),
-            ]
+            if sys.version_info >= (3, 13):
+                # extra close is called in Python 3.13+ to close the file descriptors
+                assert mock_open.mock_calls == [
+                    mock.call(mock_setup_locations.return_value[1], "a"),
+                    mock.call().__enter__(),
+                    mock.call(mock_setup_locations.return_value[2], "a"),
+                    mock.call().__enter__(),
+                    mock.call().truncate(0),
+                    mock.call().truncate(0),
+                    mock.call().__exit__(None, None, None),
+                    mock.call().close(),
+                    mock.call().__exit__(None, None, None),
+                    mock.call().close(),
+                ]
+            else:
+                assert mock_open.mock_calls == [
+                    mock.call(mock_setup_locations.return_value[1], "a"),
+                    mock.call().__enter__(),
+                    mock.call(mock_setup_locations.return_value[2], "a"),
+                    mock.call().__enter__(),
+                    mock.call().truncate(0),
+                    mock.call().truncate(0),
+                    mock.call().__exit__(None, None, None),
+                    mock.call().__exit__(None, None, None),
+                ]
         else:
             assert mock_daemon.mock_calls == []
             mock_setup_locations.mock_calls == []

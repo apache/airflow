@@ -25,8 +25,8 @@ from airflow.models.xcom_arg import XComArg
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import Label
+from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.utils.dag_edges import dag_edges
-from airflow.utils.task_group import TaskGroup
 
 DEFAULT_ARGS = {
     "owner": "test",

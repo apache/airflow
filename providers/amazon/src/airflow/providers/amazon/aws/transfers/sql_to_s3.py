@@ -69,6 +69,7 @@ class SqlToS3Operator(BaseOperator):
     :param sql_hook_params: Extra config params to be passed to the underlying hook.
         Should match the desired hook constructor params.
     :param parameters: (optional) the parameters to render the SQL query with.
+    :param read_pd_kwargs: arguments to include in DataFrame when ``pd.read_sql()`` is called.
     :param aws_conn_id: reference to a specific S3 connection
     :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
@@ -97,6 +98,7 @@ class SqlToS3Operator(BaseOperator):
     template_fields_renderers = {
         "query": "sql",
         "pd_kwargs": "json",
+        "read_pd_kwargs": "json",
     }
 
     def __init__(
@@ -108,6 +110,7 @@ class SqlToS3Operator(BaseOperator):
         sql_conn_id: str,
         sql_hook_params: dict | None = None,
         parameters: None | Mapping[str, Any] | list | tuple = None,
+        read_pd_kwargs: dict | None = None,
         replace: bool = False,
         aws_conn_id: str | None = "aws_default",
         verify: bool | str | None = None,
@@ -127,6 +130,7 @@ class SqlToS3Operator(BaseOperator):
         self.replace = replace
         self.pd_kwargs = pd_kwargs or {}
         self.parameters = parameters
+        self.read_pd_kwargs = read_pd_kwargs or {}
         self.max_rows_per_file = max_rows_per_file
         self.groupby_kwargs = groupby_kwargs or {}
         self.sql_hook_params = sql_hook_params
@@ -161,7 +165,7 @@ class SqlToS3Operator(BaseOperator):
             raise AirflowOptionalProviderFeatureException(e)
 
         for col in df:
-            if df[col].dtype.name == "object" and file_format == "parquet":
+            if df[col].dtype.name == "object" and file_format == FILE_FORMAT.PARQUET:
                 # if the type wasn't identified or converted, change it to a string so if can still be
                 # processed.
                 df[col] = df[col].astype(str)
@@ -185,9 +189,12 @@ class SqlToS3Operator(BaseOperator):
     def execute(self, context: Context) -> None:
         sql_hook = self._get_hook()
         s3_conn = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
-        data_df = sql_hook.get_df(sql=self.query, parameters=self.parameters, df_type="pandas")
+        data_df = sql_hook.get_df(
+            sql=self.query, parameters=self.parameters, df_type="pandas", **self.read_pd_kwargs
+        )
         self.log.info("Data from SQL obtained")
-        self._fix_dtypes(data_df, self.file_format)
+        if ("dtype_backend", "pyarrow") not in self.read_pd_kwargs.items():
+            self._fix_dtypes(data_df, self.file_format)
         file_options = FILE_OPTIONS_MAP[self.file_format]
 
         for group_name, df in self._partition_dataframe(df=data_df):
