@@ -19,7 +19,7 @@
   },
   "header": {
     "buttons": {
-      "dagDocs": "Documentacion del DAG"
+      "dagDocs": "Documentacion del Dag"
     }
   },
   "logs": {
@@ -51,12 +51,12 @@
       "showGrid": "Mostrar Grilla"
     },
     "dagRuns": {
-      "label": "Número de Ejecuciones de DAG"
+      "label": "Número de Ejecuciones de Dag"
     },
     "dependencies": {
       "label": "Dependencias",
       "options": {
-        "allDagDependencies": "Todas las Dependencias de DAG",
+        "allDagDependencies": "Todas las Dependencias de Dag",
         "externalConditions": "Condiciones Externas",
         "onlyTasks": "Solo tareas"
       },
@@ -70,11 +70,11 @@
   "parse": {
     "toaster": {
       "error": {
-        "description": "El DAG no pudo ser reparado. Puede haber solicitudes de reparsing pendientes por procesar.",
-        "title": "El DAG no pudo ser reparado"
+        "description": "El Dag no pudo ser reparado. Puede haber solicitudes de reparsing pendientes por procesar.",
+        "title": "El Dag no pudo ser reparado"
       },
       "success": {
-        "description": "El DAG debería reparsearse pronto.",
+        "description": "El Dag debería reparsearse pronto.",
         "title": "Solicitud de reparsing enviada exitosamente"
       }
     }

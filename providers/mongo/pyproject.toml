@@ -47,6 +47,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.10"
@@ -61,7 +62,7 @@ dependencies = [
     # mongomock does not work with pymongo 4.11.
     # See https://github.com/apache/airflow/issues/46215 and this one can be removed after
     # https://github.com/mongomock/mongomock/issues/912 is closed by mongomock.
-    "pymongo>=4.0.0,<4.11.0",
+    "pymongo>=4.3.0,<4.11.0",
 ]
 
 [dependency-groups]
@@ -70,7 +71,7 @@ dev = [
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
-    "mongomock>=4.0.0",
+    "mongomock>=4.3.0",
 ]
 
 # To build docs:

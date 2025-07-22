@@ -135,7 +135,10 @@ def configure_git_connection_for_dag_bundle(session):
         }
     ):
         yield
-
+    # in case no flush or commit was executed after the "session.add" above, we need to flush the session
+    # manually here to make sure that the added connection will be deleted by query(Connection).delete()
+    # in the`clear_db_connections` function below
+    session.flush()
     clear_db_connections(False)
 
 

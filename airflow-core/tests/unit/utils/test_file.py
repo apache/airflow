@@ -131,12 +131,10 @@ class TestListPyFilesPath:
             "test_ignore_this.py",
             "test_prev_dagrun_dep.py",
             "test_nested_dag.py",
+            "test_dont_ignore.py",
             ".airflowignore",
         ]
-        should_not_ignore = [
-            "test_on_kill.py",
-            "test_dont_ignore_this.py",
-        ]
+        should_not_ignore = ["test_on_kill.py", "test_negate_ignore.py", "test_nested_negate_ignore.py"]
         files = list(find_path_from_directory(TEST_DAGS_FOLDER, ".airflowignore_glob", "glob"))
 
         assert files
@@ -234,6 +232,7 @@ class TestListPyFilesPath:
             "test_invalid_param4.py",
             "test_nested_dag.py",
             "test_imports.py",
+            "test_nested_negate_ignore.py",
             "file_no_airflow_dag.py",  # no_dag test case in test_zip folder
             "test.py",  # no_dag test case in test_zip_module folder
             "__init__.py",

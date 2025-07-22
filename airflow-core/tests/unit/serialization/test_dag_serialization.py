@@ -68,6 +68,7 @@ from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
 from airflow.sdk.definitions.asset import Asset, AssetUniqueKey
 from airflow.sdk.definitions.param import Param, ParamsDict
+from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.security import permissions
 from airflow.serialization.enums import Encoding
 from airflow.serialization.json_schema import load_dag_schema_dict
@@ -84,7 +85,6 @@ from airflow.triggers.base import StartTriggerArgs
 from airflow.utils import timezone
 from airflow.utils.module_loading import qualname
 from airflow.utils.operator_resources import Resources
-from airflow.utils.task_group import TaskGroup
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
@@ -93,7 +93,6 @@ from tests_common.test_utils.mock_operators import (
     AirflowLink2,
     CustomOperator,
     GithubLink,
-    GoogleLink,
     MockOperator,
 )
 from tests_common.test_utils.timetables import (
@@ -385,6 +384,12 @@ def get_excluded_patterns() -> Generator[str, None, None]:
         if python_version in provider_info.get("excluded-python-versions"):
             provider_path = provider.replace(".", "/")
             yield f"providers/{provider_path}"
+    current_python_version = sys.version_info[:2]
+    if current_python_version >= (3, 13):
+        # We should remove google when ray is fixed to work with Python 3.13
+        # and yandex when it is fixed to work with Python 3.13
+        yield "providers/google/tests/system/google/"
+        yield "providers/yandex/tests/system/yandex/"
 
 
 def collect_dags(dag_folder=None):
@@ -598,9 +603,10 @@ class TestStringifiedDAGs:
                 task["__var"] = dict(sorted(task["__var"].items(), key=lambda x: x[0]))
                 tasks.append(task)
             dag_dict["dag"]["tasks"] = tasks
-            dag_dict["dag"]["access_control"]["__var"]["test_role"]["__var"] = sorted(
-                dag_dict["dag"]["access_control"]["__var"]["test_role"]["__var"]
-            )
+            if "access_control" in dag_dict["dag"]:
+                dag_dict["dag"]["access_control"]["__var"]["test_role"]["__var"] = sorted(
+                    dag_dict["dag"]["access_control"]["__var"]["test_role"]["__var"]
+                )
             return dag_dict
 
         expected = copy.deepcopy(expected)
@@ -1228,10 +1234,14 @@ class TestStringifiedDAGs:
 
             link = simple_task.get_extra_links(ti, name)
             assert link == expected
+        current_python_version = sys.version_info[:2]
+        if current_python_version >= (3, 13):
+            # TODO(potiuk) We should bring it back when ray is supported on Python 3.13
+            # Test Deserialized link registered via Airflow Plugin
+            from tests_common.test_utils.mock_operators import GoogleLink
 
-        # Test Deserialized link registered via Airflow Plugin
-        link = simple_task.get_extra_links(ti, GoogleLink.name)
-        assert link == "https://www.google.com"
+            link = simple_task.get_extra_links(ti, GoogleLink.name)
+            assert link == "https://www.google.com"
 
     class ClassWithCustomAttributes:
         """

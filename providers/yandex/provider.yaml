@@ -60,6 +60,9 @@ versions:
   - 1.0.1
   - 1.0.0
 
+excluded-python-versions:
+  - "3.13"
+
 integrations:
   - integration-name: Yandex.Cloud
     external-doc-url: https://cloud.yandex.com/

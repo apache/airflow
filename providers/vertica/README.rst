@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow 2 installation (see `
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-vertica``
 
-The package supports the following python versions: 3.10,3.11,3.12
+The package supports the following python versions: 3.10,3.11,3.12,3.13
 
 Requirements
 ------------
@@ -55,7 +55,7 @@ PIP package                              Version required
 =======================================  ==================
 ``apache-airflow``                       ``>=2.10.0``
 ``apache-airflow-providers-common-sql``  ``>=1.26.0``
-``vertica-python``                       ``>=0.6.0``
+``vertica-python``                       ``>=1.3.0``
 =======================================  ==================
 
 Cross provider package dependencies
