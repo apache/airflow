@@ -2,8 +2,8 @@
   "assetSchedule": "{{count}} sur {{total}} assets mis à jour",
   "dagActions": {
     "delete": {
-      "button": "Supprimer le DAG",
-      "warning": "Cela supprimera toutes les métadonnées liées au DAG, y compris les exécutions et les tâches."
+      "button": "Supprimer le Dag",
+      "warning": "Cela supprimera toutes les métadonnées liées au Dag, y compris les exécutions et les tâches."
     }
   },
   "filters": {
@@ -61,7 +61,7 @@
   "search": {
     "advanced": "Recherche avancée",
     "clear": "Effacer la recherche",
-    "dags": "Rechercher des DAGs",
+    "dags": "Rechercher des Dags",
     "hotkey": "+K",
     "tasks": "Rechercher des tâches"
   },

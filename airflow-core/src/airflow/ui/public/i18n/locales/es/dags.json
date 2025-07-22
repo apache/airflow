@@ -2,8 +2,8 @@
   "assetSchedule": "{{count}} de {{total}} assets actualizados",
   "dagActions": {
     "delete": {
-      "button": "Eliminar DAG",
-      "warning": "Esto eliminará toda la metadata relacionada con el DAG, incluyendo Ejecuciones y Tareas."
+      "button": "Eliminar Dag",
+      "warning": "Esto eliminará toda la metadata relacionada con el Dag, incluyendo Ejecuciones y Tareas."
     }
   },
   "filters": {
@@ -61,7 +61,7 @@
   "search": {
     "advanced": "Búsqueda Avanzada",
     "clear": "Limpiar búsqueda",
-    "dags": "Buscar DAGs",
+    "dags": "Buscar Dags",
     "hotkey": "+K",
     "tasks": "Buscar Tareas"
   },
@@ -79,8 +79,8 @@
       "desc": "Ordenar por Estado de Ejecución (Z-A)"
     },
     "nextDagRun": {
-      "asc": "Ordenar por Ejecución de DAG (Más Antiguo-Más Reciente)",
-      "desc": "Ordenar por Ejecución de DAG (Más Reciente-Más Antiguo)"
+      "asc": "Ordenar por Ejecución de Dag (Más Antiguo-Más Reciente)",
+      "desc": "Ordenar por Ejecución de Dag (Más Reciente-Más Antiguo)"
     },
     "placeholder": "Ordenar por"
   }

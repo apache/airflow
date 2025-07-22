@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,17 +15,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
 
-from datetime import timedelta
+[Unit]
+Description=Airflow API Server
+After=network.target
 
-from airflow.api_fastapi.core_api.base import BaseModel
+[Service]
+Environment=AIRFLOW_HOME=/home/airflow/airflow_home
+User=airflow
+Group=airflow
+Restart=always
+ExecStart=/bin/bash -c 'source /home/airflow/airflow_venv/bin/activate && airflow api'
 
-
-class DeadlineAlertResponse(BaseModel):
-    """Deadline alert serializer for responses."""
-
-    reference: str
-    interval: timedelta
-    callback: str
-    callback_kwargs: dict | None = None
+[Install]
+WantedBy=multi-user.target

@@ -29,8 +29,10 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import UUIDType
 
+from airflow.models import Trigger
 from airflow.models.base import Base, StringID
 from airflow.settings import json
+from airflow.triggers.deadline import DeadlineCallbackTrigger
 from airflow.utils import timezone
 from airflow.utils.decorators import classproperty
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -39,6 +41,8 @@ from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+
+    from airflow.triggers.base import TriggerEvent
 
 
 logger = logging.getLogger(__name__)
@@ -63,6 +67,10 @@ class Deadline(Base):
     callback_kwargs = Column(sqlalchemy_jsonfield.JSONField(json=json))
 
     dagrun = relationship("DagRun", back_populates="deadlines")
+
+    # The Trigger where the callback is running
+    trigger_id = Column(Integer, ForeignKey("trigger.id"), nullable=True)
+    trigger = relationship("Trigger", back_populates="deadline")
 
     __table_args__ = (Index("deadline_time_idx", deadline_time, unique=False),)
 
@@ -149,6 +157,30 @@ class Deadline(Base):
             session.refresh(dagrun)
 
         return deleted_count
+
+    def handle_miss(self, session: Session):
+        """Handle a missed deadline by queueing the callback and marking the deadline as missed."""
+        # TODO: check to see if the callback is meant to run in triggerer or executor. For now, the code below assumes it's for the triggerer
+        callback_trigger = DeadlineCallbackTrigger(
+            callback_path=self.callback,
+            callback_kwargs=self.callback_kwargs,
+        )
+
+        trigger_orm = Trigger.from_object(callback_trigger)
+        session.add(trigger_orm)
+        session.flush()
+        self.trigger_id = trigger_orm.id
+        session.add(self)
+
+        # TODO mark deadline as missed
+
+    def handle_callback_event(self, event: TriggerEvent, session: Session):
+        if event.payload["status"] == "success":
+            logger.debug("Deadline callback succeeded")
+            self.trigger = None
+            session.add(self)
+        else:
+            logger.error("Unexpected event received: %s", event)
 
 
 class ReferenceModels:

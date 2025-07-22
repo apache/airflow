@@ -25,10 +25,11 @@ import time_machine
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
-from airflow.models import DagRun
+from airflow.models import DagRun, Trigger
 from airflow.models.deadline import Deadline, ReferenceModels, _fetch_from_db
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.deadline import DeadlineReference
+from airflow.triggers.base import TriggerEvent
 from airflow.utils.state import DagRunState
 
 from tests_common.test_utils import db
@@ -39,9 +40,6 @@ RUN_ID = 1
 INVALID_DAG_ID = "invalid_dag_id"
 INVALID_RUN_ID = 2
 
-TEST_CALLBACK_PATH = f"{__name__}.test_callback_for_deadline"
-TEST_CALLBACK_KWARGS = {"arg1": "value1"}
-
 REFERENCE_TYPES = [
     pytest.param(DeadlineReference.DAGRUN_LOGICAL_DATE, id="logical_date"),
     pytest.param(DeadlineReference.DAGRUN_QUEUED_AT, id="queued_at"),
@@ -49,9 +47,13 @@ REFERENCE_TYPES = [
 ]
 
 
-def test_callback_for_deadline():
+async def callback_for_deadline():
     """Used in a number of tests to confirm that Deadlines and DeadlineAlerts function correctly."""
     pass
+
+
+TEST_CALLBACK_PATH = f"{__name__}.{callback_for_deadline.__name__}"
+TEST_CALLBACK_KWARGS = {"arg1": "value1"}
 
 
 def _clean_db():
@@ -183,6 +185,56 @@ class TestDeadline:
             == f"[DagRun Deadline] Dag: {deadline_orm.dag_id} Run: {deadline_orm.dagrun_id} needed by "
             f"{deadline_orm.deadline_time} or run: {TEST_CALLBACK_PATH}()"
         )
+
+    @pytest.mark.db_test
+    def test_handle_miss_async_callback(self, dagrun, session):
+        deadline_orm = Deadline(
+            deadline_time=DEFAULT_DATE,
+            callback=TEST_CALLBACK_PATH,
+            callback_kwargs=TEST_CALLBACK_KWARGS,
+            dag_id=DAG_ID,
+            dagrun_id=dagrun.id,
+        )
+        session.add(deadline_orm)
+        session.flush()
+
+        deadline_orm.handle_miss(session=session)
+        session.flush()
+
+        assert deadline_orm.trigger_id is not None
+
+        trigger = session.query(Trigger).filter(Trigger.id == deadline_orm.trigger_id).one()
+        assert trigger is not None
+        assert trigger.kwargs["callback_path"] == TEST_CALLBACK_PATH
+        assert trigger.kwargs["callback_kwargs"] == TEST_CALLBACK_KWARGS
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        "event, none_trigger_id_expected",
+        [
+            pytest.param(TriggerEvent({"status": "success"}), True, id="success_event"),
+            pytest.param(TriggerEvent({"status": "some status"}), False, id="unknown_event"),
+        ],
+    )
+    def test_handle_callback_event(self, dagrun, session, event, none_trigger_id_expected):
+        deadline_orm = Deadline(
+            deadline_time=DEFAULT_DATE,
+            callback=TEST_CALLBACK_PATH,
+            dag_id=DAG_ID,
+            dagrun_id=dagrun.id,
+        )
+        session.add(deadline_orm)
+        session.flush()
+
+        deadline_orm.handle_miss(session=session)
+        session.flush()
+
+        deadline_orm.handle_callback_event(event, session)
+        session.flush()
+        if none_trigger_id_expected:
+            assert deadline_orm.trigger_id is None
+        else:
+            assert deadline_orm.trigger_id is not None
 
 
 @pytest.mark.db_test

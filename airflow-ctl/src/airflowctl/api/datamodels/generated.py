@@ -201,6 +201,13 @@ class ClearTaskInstancesBody(BaseModel):
     include_downstream: Annotated[bool | None, Field(title="Include Downstream")] = False
     include_future: Annotated[bool | None, Field(title="Include Future")] = False
     include_past: Annotated[bool | None, Field(title="Include Past")] = False
+    run_on_latest_version: Annotated[
+        bool | None,
+        Field(
+            description="(Experimental) Run on the latest bundle version of the DAG after clearing the task instances.",
+            title="Run On Latest Version",
+        ),
+    ] = False
 
 
 class Value(RootModel[list]):
@@ -308,6 +315,13 @@ class DAGRunClearBody(BaseModel):
     )
     dry_run: Annotated[bool | None, Field(title="Dry Run")] = True
     only_failed: Annotated[bool | None, Field(title="Only Failed")] = False
+    run_on_latest_version: Annotated[
+        bool | None,
+        Field(
+            description="(Experimental) Run on the latest bundle version of the DAG after clearing the DAG Run.",
+            title="Run On Latest Version",
+        ),
+    ] = False
 
 
 class DAGRunPatchStates(str, Enum):
@@ -466,17 +480,6 @@ class DagWarningType(str, Enum):
 
     ASSET_CONFLICT = "asset conflict"
     NON_EXISTENT_POOL = "non-existent pool"
-
-
-class DeadlineAlertResponse(BaseModel):
-    """
-    Deadline alert serializer for responses.
-    """
-
-    reference: Annotated[str, Field(title="Reference")]
-    interval: Annotated[timedelta, Field(title="Interval")]
-    callback: Annotated[str, Field(title="Callback")]
-    callback_kwargs: Annotated[dict[str, Any] | None, Field(title="Callback Kwargs")] = None
 
 
 class DryRunBackfillResponse(BaseModel):
@@ -1258,7 +1261,6 @@ class DAGDetailsResponse(BaseModel):
     relative_fileloc: Annotated[str | None, Field(title="Relative Fileloc")] = None
     fileloc: Annotated[str, Field(title="Fileloc")]
     description: Annotated[str | None, Field(title="Description")] = None
-    deadline: Annotated[list[DeadlineAlertResponse] | None, Field(title="Deadline")] = None
     timetable_summary: Annotated[str | None, Field(title="Timetable Summary")] = None
     timetable_description: Annotated[str | None, Field(title="Timetable Description")] = None
     tags: Annotated[list[DagTagResponse], Field(title="Tags")]
@@ -1315,7 +1317,6 @@ class DAGResponse(BaseModel):
     relative_fileloc: Annotated[str | None, Field(title="Relative Fileloc")] = None
     fileloc: Annotated[str, Field(title="Fileloc")]
     description: Annotated[str | None, Field(title="Description")] = None
-    deadline: Annotated[list[DeadlineAlertResponse] | None, Field(title="Deadline")] = None
     timetable_summary: Annotated[str | None, Field(title="Timetable Summary")] = None
     timetable_description: Annotated[str | None, Field(title="Timetable Description")] = None
     tags: Annotated[list[DagTagResponse], Field(title="Tags")]

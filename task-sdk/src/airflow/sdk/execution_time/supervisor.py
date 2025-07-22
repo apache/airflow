@@ -1402,20 +1402,17 @@ class InProcessTestSupervisor(ActivitySubprocess):
 
     @staticmethod
     def _api_client(dag=None):
-        from airflow.models.dagbag import DagBag
         from airflow.sdk.api.client import Client
 
         api = in_process_api_server()
         if dag is not None:
             from airflow.api_fastapi.common.dagbag import dag_bag_from_app
-            from airflow.serialization.serialized_objects import SerializedDAG
+            from airflow.jobs.scheduler_job_runner import SchedulerDagBag
 
-            # This is needed since the Execution API server uses the DagBag in its "state".
+            # This is needed since the Execution API server uses the SchedulerDagBag in its "state".
             # This `app.state.dag_bag` is used to get some DAG properties like `fail_fast`.
-            dag_bag = DagBag(include_examples=False, collect_dags=False, load_op_links=False)
+            dag_bag = SchedulerDagBag()
 
-            # Mimic the behavior of the DagBag in the API server by converting the DAG to a SerializedDAG
-            dag_bag.dags[dag.dag_id] = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
             api.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag
 
         client = Client(base_url=None, token="", dry_run=True, transport=api.transport)
