@@ -20,7 +20,7 @@ import os
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Literal, Union
+from typing import TYPE_CHECKING, Annotated, Literal
 
 import structlog
 from pydantic import BaseModel, Field
@@ -55,7 +55,7 @@ class TaskInstance(BaseModel):
     """Schema for TaskInstance with minimal required fields needed for Executors and Task SDK."""
 
     id: uuid.UUID
-
+    dag_version_id: uuid.UUID
     task_id: str
     dag_id: str
     run_id: str
@@ -69,7 +69,6 @@ class TaskInstance(BaseModel):
 
     parent_context_carrier: dict | None = None
     context_carrier: dict | None = None
-    queued_dttm: datetime | None = None
 
     # TODO: Task-SDK: Can we replace TastInstanceKey with just the uuid across the codebase?
     @property
@@ -160,6 +159,6 @@ class RunTrigger(BaseModel):
 
 
 All = Annotated[
-    Union[ExecuteTask, RunTrigger],
+    ExecuteTask | RunTrigger,
     Field(discriminator="type"),
 ]

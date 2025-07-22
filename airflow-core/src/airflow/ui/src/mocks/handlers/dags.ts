@@ -21,7 +21,7 @@
 import { http, HttpResponse, type HttpHandler } from "msw";
 
 export const handlers: Array<HttpHandler> = [
-  http.get("/ui/dags/recent_dag_runs", ({ request }) => {
+  http.get("/ui/dags", ({ request }) => {
     const url = new URL(request.url);
     const lastDagRunState = url.searchParams.get("last_dag_run_state");
     const successDag = {

@@ -104,7 +104,6 @@ class MLEngineCreateModelOperator(GoogleCloudBaseOperator):
         if project_id:
             MLEngineModelLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
                 model_id=self.model["name"],
             )

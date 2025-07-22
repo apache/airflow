@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Button, createListCollection, HStack, VStack, Heading } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 
 import { useTaskInstanceServiceGetMappedTaskInstanceTries } from "openapi/queries";
 import type { TaskInstanceHistoryResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
@@ -33,6 +34,7 @@ type Props = {
 };
 
 export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstance }: Props) => {
+  const { t: translate } = useTranslation("components");
   const {
     dag_id: dagId,
     dag_run_id: dagRunId,
@@ -41,9 +43,7 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
     task_id: taskId,
     try_number: finalTryNumber,
   } = taskInstance;
-
   const refetchInterval = useAutoRefresh({ dagId });
-
   const { data: tiHistory } = useTaskInstanceServiceGetMappedTaskInstanceTries(
     {
       dagId,
@@ -84,7 +84,7 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
 
   return (
     <VStack alignItems="flex-start" gap={1} mb={3}>
-      <Heading size="md">Task Tries</Heading>
+      <Heading size="md">{translate("taskTries")}</Heading>
       {showDropdown ? (
         <Select.Root
           collection={tryOptions}

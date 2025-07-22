@@ -22,7 +22,8 @@ from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTr
 
 
 @mock.patch(
-    "airflow.providers.common.messaging.providers.MESSAGE_QUEUE_PROVIDERS", new_callable=mock.PropertyMock
+    "airflow.providers.common.messaging.triggers.msg_queue.MESSAGE_QUEUE_PROVIDERS",
+    new_callable=mock.PropertyMock,
 )
 def test_provider_integrations(_):
     trigger = MessageQueueTrigger(queue="any queue")

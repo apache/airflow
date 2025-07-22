@@ -22,11 +22,11 @@ from azure.common.client_factory import get_client_from_auth_file, get_client_fr
 from azure.common.credentials import ServicePrincipalCredentials
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     AzureIdentityCredentialAdapter,
     add_managed_identity_connection_widgets,
 )
+from airflow.providers.microsoft.azure.version_compat import BaseHook
 
 
 class AzureBaseHook(BaseHook):
@@ -41,7 +41,7 @@ class AzureBaseHook(BaseHook):
         which refers to the information to connect to the service.
     """
 
-    conn_name_attr = "azure_conn_id"
+    conn_name_attr = "conn_id"
     default_conn_name = "azure_default"
     conn_type = "azure"
     hook_name = "Azure"

@@ -17,19 +17,23 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Callable
 from functools import wraps
 from inspect import signature
-from typing import TYPE_CHECKING, Callable, TypeVar, cast
+from typing import TYPE_CHECKING, TypeVar, cast
 from urllib.parse import urlsplit
 
 import oss2
 from oss2.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+from airflow.providers.alibaba.version_compat import BaseHook
 
 if TYPE_CHECKING:
-    from airflow.models.connection import Connection
+    try:
+        from airflow.sdk import Connection
+    except ImportError:
+        from airflow.models.connection import Connection  # type: ignore[assignment]
 
 T = TypeVar("T", bound=Callable)
 
@@ -79,7 +83,7 @@ def unify_bucket_name_and_key(func: T) -> T:
 class OSSHook(BaseHook):
     """Interact with Alibaba Cloud OSS, using the oss2 library."""
 
-    conn_name_attr = "alibabacloud_conn_id"
+    conn_name_attr = "oss_conn_id"
     default_conn_name = "oss_default"
     conn_type = "oss"
     hook_name = "OSS"

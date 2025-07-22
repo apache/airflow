@@ -24,13 +24,14 @@ import yaml
 from kubernetes.client import models as k8s
 from sqlalchemy.orm import make_transient
 
-from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
-from airflow.providers.cncf.kubernetes.template_rendering import render_k8s_pod_yaml
+from airflow.models.renderedtifields import RenderedTaskInstanceFields, RenderedTaskInstanceFields as RTIF
+from airflow.providers.cncf.kubernetes.template_rendering import get_rendered_k8s_spec, render_k8s_pod_yaml
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.version import version
 
 from tests_common.test_utils.compat import BashOperator
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
 
@@ -46,6 +47,29 @@ def test_render_k8s_pod_yaml(pod_mutation_hook, create_task_instance):
         task_id="op1",
         logical_date=DEFAULT_DATE,
     )
+
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.executors import workloads
+
+        workload = workloads.ExecuteTask.make(ti)
+        rendered_args = [
+            "python",
+            "-m",
+            "airflow.sdk.execution_time.execute_workload",
+            "--json-string",
+            workload.model_dump_json(),
+        ]
+    else:
+        rendered_args = [
+            "airflow",
+            "tasks",
+            "run",
+            "test_render_k8s_pod_yaml",
+            "op1",
+            "test_run_id",
+            "--subdir",
+            mock.ANY,
+        ]
 
     expected_pod_spec = {
         "metadata": {
@@ -70,16 +94,7 @@ def test_render_k8s_pod_yaml(pod_mutation_hook, create_task_instance):
         "spec": {
             "containers": [
                 {
-                    "args": [
-                        "airflow",
-                        "tasks",
-                        "run",
-                        "test_render_k8s_pod_yaml",
-                        "op1",
-                        "test_run_id",
-                        "--subdir",
-                        mock.ANY,
-                    ],
+                    "args": rendered_args,
                     "name": "base",
                     "env": [{"name": "AIRFLOW_IS_K8S_EXECUTOR_POD", "value": "True"}],
                 }
@@ -147,6 +162,39 @@ def test_render_k8s_pod_yaml_with_custom_pod_template_and_pod_override(
     # was overridden by the pod_override
     assert ti_pod_yaml["metadata"]["labels"]["custom_label"] == "override"
     assert ti_pod_yaml["metadata"]["annotations"]["test"] == "annotation"
+
+
+@pytest.mark.skipif(
+    AIRFLOW_V_3_0_PLUS,
+    reason="This test is only needed for Airflow 2 - we can remove it after "
+    "only Airflow 3 is supported in providers",
+)
+@mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})
+@mock.patch.object(RenderedTaskInstanceFields, "get_k8s_pod_yaml")
+@mock.patch("airflow.providers.cncf.kubernetes.template_rendering.render_k8s_pod_yaml")
+def test_get_rendered_k8s_spec(render_k8s_pod_yaml, rtif_get_k8s_pod_yaml, create_task_instance):
+    # Create new TI for the same Task
+    ti = create_task_instance()
+
+    mock.patch.object(ti, "render_k8s_pod_yaml", autospec=True)
+
+    fake_spec = {"ermagawds": "pods"}
+
+    session = mock.Mock()
+
+    rtif_get_k8s_pod_yaml.return_value = fake_spec
+    assert get_rendered_k8s_spec(ti, session=session) == fake_spec
+
+    rtif_get_k8s_pod_yaml.assert_called_once_with(ti, session=session)
+    render_k8s_pod_yaml.assert_not_called()
+
+    # Now test that when we _dont_ find it in the DB, it calls render_k8s_pod_yaml
+    rtif_get_k8s_pod_yaml.return_value = None
+    render_k8s_pod_yaml.return_value = fake_spec
+
+    assert get_rendered_k8s_spec(session) == fake_spec
+
+    render_k8s_pod_yaml.assert_called_once()
 
 
 @mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})

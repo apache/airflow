@@ -37,7 +37,7 @@ from google.cloud.dataflow_v1beta3 import (
 )
 from google.cloud.dataflow_v1beta3.types import JobMessageImportance
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.apache.beam.hooks.beam import run_beam_command
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
@@ -662,78 +662,6 @@ class TestDataflowTemplateHook:
             cancel_timeout=DEFAULT_CANCEL_TIMEOUT,
         )
         jobs_controller.cancel()
-
-    @mock.patch(DATAFLOW_STRING.format("_DataflowJobsController"))
-    @mock.patch(DATAFLOW_STRING.format("DataflowHook.provide_authorized_gcloud"))
-    @mock.patch(DATAFLOW_STRING.format("DataflowHook.get_conn"))
-    @mock.patch(DATAFLOW_STRING.format("subprocess.run"))
-    def test_start_sql_job_failed_to_run(
-        self, mock_run, mock_get_conn, mock_provide_authorized_gcloud, mock_controller
-    ):
-        test_job = {"id": "TEST_JOB_ID"}
-        mock_controller.return_value.get_jobs.return_value = [test_job]
-        mock_run.return_value = mock.MagicMock(
-            stdout=f"{TEST_JOB_ID}\n".encode(), stderr=f"{TEST_JOB_ID}\n".encode(), returncode=0
-        )
-        on_new_job_callback = mock.MagicMock()
-
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            result = self.dataflow_hook.start_sql_job(
-                job_name=TEST_SQL_JOB_NAME,
-                query=TEST_SQL_QUERY,
-                options=TEST_SQL_OPTIONS,
-                location=TEST_LOCATION,
-                project_id=TEST_PROJECT,
-                on_new_job_callback=on_new_job_callback,
-            )
-        mock_run.assert_called_once_with(
-            [
-                "gcloud",
-                "dataflow",
-                "sql",
-                "query",
-                TEST_SQL_QUERY,
-                "--project=test-project",
-                "--format=value(job.id)",
-                "--job-name=test-sql-job-name",
-                "--region=custom-location",
-                "--bigquery-project=test-project",
-                "--bigquery-dataset=test-dataset",
-                "--bigquery-table=beam_output",
-                "--bigquery-write-disposition=write-truncate",
-            ],
-            capture_output=True,
-        )
-        mock_controller.assert_called_once_with(
-            dataflow=mock_get_conn.return_value,
-            job_id=TEST_JOB_ID,
-            location=TEST_LOCATION,
-            poll_sleep=10,
-            project_number=TEST_PROJECT,
-            num_retries=5,
-            drain_pipeline=False,
-            wait_until_finished=None,
-        )
-        mock_controller.return_value.wait_for_done.assert_called_once()
-        assert result == test_job
-
-    @mock.patch(DATAFLOW_STRING.format("DataflowHook.get_conn"))
-    @mock.patch(DATAFLOW_STRING.format("DataflowHook.provide_authorized_gcloud"))
-    @mock.patch(DATAFLOW_STRING.format("subprocess.run"))
-    def test_start_sql_job(self, mock_run, mock_provide_authorized_gcloud, mock_get_conn):
-        mock_run.return_value = mock.MagicMock(
-            stdout=f"{TEST_JOB_ID}\n".encode(), stderr=f"{TEST_JOB_ID}\n".encode(), returncode=1
-        )
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            with pytest.raises(AirflowException):
-                self.dataflow_hook.start_sql_job(
-                    job_name=TEST_SQL_JOB_NAME,
-                    query=TEST_SQL_QUERY,
-                    options=TEST_SQL_OPTIONS,
-                    location=TEST_LOCATION,
-                    project_id=TEST_PROJECT,
-                    on_new_job_callback=mock.MagicMock(),
-                )
 
     def test_extract_job_id_raises_exception(self):
         with pytest.raises(AirflowException):
@@ -1695,7 +1623,6 @@ class TestDataflow:
         )
         assert found_job_id is None
 
-    @pytest.mark.db_test
     @mock.patch("subprocess.Popen")
     @mock.patch("select.select")
     def test_dataflow_wait_for_done_logging(self, mock_select, mock_popen, caplog):

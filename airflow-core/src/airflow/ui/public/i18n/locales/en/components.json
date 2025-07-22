@@ -1,0 +1,134 @@
+{
+  "backfill": {
+    "affected_one": "1 run will be triggered.",
+    "affected_other": "{{count}} runs will be triggered.",
+    "affectedNone": "No runs matching selected criteria.",
+    "allRuns": "All Runs",
+    "backwards": "Run Backwards",
+    "dateRange": "Date Range",
+    "dateRangeFrom": "From",
+    "dateRangeTo": "To",
+    "errorStartDateBeforeEndDate": "Start Date must be before the End Date",
+    "maxRuns": "Max Active Runs",
+    "missingAndErroredRuns": "Missing and Errored Runs",
+    "missingRuns": "Missing Runs",
+    "reprocessBehavior": "Reprocess Behavior",
+    "run": "Run Backfill",
+    "selectDescription": "Run this Dag for a range of dates",
+    "selectLabel": "Backfill",
+    "title": "Run Backfill",
+    "toaster": {
+      "success": {
+        "description": "Backfill jobs have been successfully triggered.",
+        "title": "Backfill generated"
+      }
+    },
+    "tooltip": "Backfill requires a schedule",
+    "unpause": "Unpause {{dag_display_name}} on trigger",
+    "validation": {
+      "datesRequired": "Both Data Interval Start Date and End Date must be provided.",
+      "startBeforeEnd": "Data Interval Start Date must be less than or equal to Data Interval End Date."
+    }
+  },
+  "banner": {
+    "backfillInProgress": "Backfill in progress",
+    "cancel": "Cancel backfill",
+    "pause": "Pause backfill",
+    "unpause": "Unpause backfill"
+  },
+  "clipboard": {
+    "copy": "Copy"
+  },
+  "close": "Close",
+  "configForm": {
+    "advancedOptions": "Advanced Options",
+    "configJson": "Configuration JSON",
+    "invalidJson": "Invalid JSON format: {{errorMessage}}"
+  },
+  "dagWarnings": {
+    "error_one": "1 Error",
+    "errorAndWarning": "1 Error and {{warningText}}",
+    "warning_one": "1 Warning",
+    "warning_other": "{{count}} Warnings"
+  },
+  "durationChart": {
+    "duration": "Duration (seconds)",
+    "lastDagRun_one": "Last Dag Run",
+    "lastDagRun_other": "Last {{count}} Dag Runs",
+    "lastTaskInstance_one": "Last Task Instance",
+    "lastTaskInstance_other": "Last {{count}} Task Instances",
+    "queuedDuration": "Queued Duration",
+    "runAfter": "Run After",
+    "runDuration": "Run Duration"
+  },
+  "fileUpload": {
+    "files_other": "{{count}} files"
+  },
+  "flexibleForm": {
+    "placeholder": "Select Value",
+    "placeholderArray": "Enter each string on a new line",
+    "placeholderExamples": "Start typing to see options",
+    "placeholderMulti": "Select one or multiple values",
+    "validationErrorArrayNotArray": "Value must be an array.",
+    "validationErrorArrayNotNumbers": "All elements in the array must be numbers.",
+    "validationErrorArrayNotObject": "All elements in the array must be objects.",
+    "validationErrorRequired": "This field is required"
+  },
+  "graph": {
+    "directionDown": "Top to Bottom",
+    "directionLeft": "Right to Left",
+    "directionRight": "Left to Right",
+    "directionUp": "Bottom to Top",
+    "downloadImage": "Download graph image",
+    "downloadImageError": "Failed to download graph image.",
+    "downloadImageErrorTitle": "Download Failed",
+    "otherDagRuns": "+Other Dag Runs",
+    "taskCount_one": "{{count}} Task",
+    "taskCount_other": "{{count}} Tasks",
+    "taskGroup": "Task Group"
+  },
+  "limitedList": "+{{count}} more",
+  "logs": {
+    "file": "File",
+    "location": "line {{line}} in {{name}}"
+  },
+  "reparseDag": "Reparse Dag",
+  "sortedAscending": "sorted ascending",
+  "sortedDescending": "sorted descending",
+  "sortedUnsorted": "unsorted",
+  "taskTries": "Task Tries",
+  "toggleCardView": "Show card view",
+  "toggleTableView": "Show table view",
+  "triggerDag": {
+    "button": "Trigger",
+    "loading": "Loading Dag information...",
+    "loadingFailed": "Failed to load Dag information. Please try again.",
+    "runIdHelp": "Optional - will be generated if not provided",
+    "selectDescription": "Trigger a single run of this Dag",
+    "selectLabel": "Single Run",
+    "title": "Trigger Dag",
+    "toaster": {
+      "success": {
+        "description": "Dag run has been successfully triggered.",
+        "title": "Dag Run Triggered"
+      }
+    },
+    "unpause": "Unpause {{dagDisplayName}} on trigger"
+  },
+  "trimText": {
+    "details": "Details",
+    "empty": "Empty",
+    "noContent": "No content available."
+  },
+  "versionDetails": {
+    "bundleLink": "Bundle Link",
+    "bundleName": "Bundle Name",
+    "bundleVersion": "Bundle Version",
+    "createdAt": "Created At",
+    "versionId": "Version ID"
+  },
+  "versionSelect": {
+    "dagVersion": "Dag Version",
+    "versionCode": "v{{versionCode}}"
+  }
+}

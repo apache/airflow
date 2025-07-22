@@ -131,7 +131,7 @@ def repack_deterministically(
         temp_file = f"{dest_archive}.temp~"
         with os.fdopen(os.open(temp_file, os.O_WRONLY | os.O_CREAT, 0o644), "wb") as out_file:
             with gzip.GzipFile(fileobj=out_file, mtime=0, mode="wb") as gzip_file:
-                with tarfile.open(fileobj=gzip_file, mode="w:") as tar_file:  # type: ignore
+                with tarfile.open(fileobj=gzip_file, mode="w:") as tar_file:
                     for entry in file_list:
                         arcname = entry
                         if prepend_path is not None:

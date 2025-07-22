@@ -23,11 +23,11 @@ from typing import TYPE_CHECKING
 from kubernetes import client
 
 from airflow.exceptions import AirflowException
+from airflow.providers.apache.flink.version_compat import BaseSensorOperator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
-from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.apache.flink.version_compat import Context
 
 
 class FlinkKubernetesSensor(BaseSensorOperator):

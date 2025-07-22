@@ -17,9 +17,9 @@
 # under the License.
 
 # /// script
-# requires-python = ">=3.9"
+# requires-python = ">=3.10"
 # dependencies = [
-#   "packaging>=23.2",
+#   "packaging>=25",
 #   "requests>=2.28.1",
 #   "rich>=13.3.5",
 # ]
@@ -31,7 +31,7 @@ import sys
 from pathlib import Path
 
 import requests
-from packaging.version import Version
+from packaging.version import Version, parse
 from rich.console import Console
 
 console = Console(color_system="standard", stderr=True, width=400)
@@ -45,25 +45,27 @@ def check_airflow_version(airflow_version: Version) -> tuple[str, bool]:
     returns: tuple containing the version and a boolean indicating if it's latest.
     """
     latest = False
-    url = "https://pypi.org/pypi/apache-airflow/json"
-    max_versions_shown = 30
     try:
-        response = requests.get(url)
+        response = requests.get(
+            "https://pypi.org/pypi/apache-airflow/json", headers={"User-Agent": "Python requests"}
+        )
         response.raise_for_status()
         data = response.json()
         latest_version = Version(data["info"]["version"])
-        valid_versions = list(reversed(data["releases"].keys()))[:max_versions_shown]
-        if str(airflow_version) not in valid_versions:
-            console.print(f"[red]Version {airflow_version} is not a valid Airflow version")
-            console.print(
-                f"Available versions: (first available {max_versions_shown} versions):", valid_versions
-            )
+        all_versions = sorted(
+            (parse(v) for v in data["releases"].keys()),
+            reverse=True,
+        )
+        if airflow_version not in all_versions:
+            console.print(f"[red]Version {airflow_version} is not a valid Airflow release version.")
+            console.print("[yellow]Available versions (latest 30 shown):")
+            console.print([str(v) for v in all_versions[:30]])
             sys.exit(1)
         if airflow_version == latest_version:
             latest = True
-        # find requires-python = "~=VERSION" in pyproject.toml file of airflow
+        # find requires-python = ">=VERSION" in pyproject.toml file of airflow
         pyproject_toml_conntent = (Path(__file__).parents[2] / "pyproject.toml").read_text()
-        matched_version = re.search('requires-python = "~=([0-9]+.[0-9]+)', pyproject_toml_conntent)
+        matched_version = re.search('requires-python = ">=([0-9]+.[0-9]+)', pyproject_toml_conntent)
         if matched_version:
             min_version = matched_version.group(1)
         else:

@@ -33,7 +33,6 @@ from airflow.models import Connection
 from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.common.sql.hooks.sql import DbApiHook, resolve_dialects
-from airflow.utils.session import provide_session
 
 from tests_common.test_utils.common_sql import mock_db_hook
 from tests_common.test_utils.providers import get_provider_min_airflow_version
@@ -49,15 +48,18 @@ class DBApiHookForTests(DbApiHook):
     get_conn = MagicMock(name="conn")
 
 
-@provide_session
 @pytest.fixture(autouse=True)
-def create_connection(session):
-    conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
-    conn.host = HOST
-    conn.login = None
-    conn.password = PASSWORD
-    conn.extra = None
-    session.commit()
+def create_connection(create_connection_without_db):
+    create_connection_without_db(
+        Connection(
+            conn_id=DEFAULT_CONN_ID,
+            conn_type="sqlite",
+            host=HOST,
+            login=None,
+            password=PASSWORD,
+            extra=None,
+        )
+    )
 
 
 def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
@@ -313,11 +315,16 @@ class TestDbApiHook:
     @pytest.mark.parametrize(
         "df_type, expected_type",
         [
+            ("test_default_df_type", pd.DataFrame),
             ("pandas", pd.DataFrame),
             ("polars", pl.DataFrame),
         ],
     )
     def test_get_df_with_df_type(db, df_type, expected_type):
         dbapi_hook = mock_db_hook(DbApiHook)
-        df = dbapi_hook.get_df("SQL", df_type=df_type)
-        assert isinstance(df, expected_type)
+        if df_type == "test_default_df_type":
+            df = dbapi_hook.get_df("SQL")
+            assert isinstance(df, pd.DataFrame)
+        else:
+            df = dbapi_hook.get_df("SQL", df_type=df_type)
+            assert isinstance(df, expected_type)

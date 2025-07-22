@@ -20,6 +20,7 @@ export COLOR_RED=$'\e[31m'
 export COLOR_BLUE=$'\e[34m'
 export COLOR_YELLOW=$'\e[33m'
 export COLOR_RESET=$'\e[0m'
+export COLOR_GREEN=$'\e[32m'
 
 if [[ ! "$#" -eq 2 ]]; then
     echo "${COLOR_RED}You must provide 2 arguments: Group, Scope!.${COLOR_RESET}"
@@ -50,11 +51,6 @@ function core_tests() {
     elif [[ "${TEST_SCOPE}" == "Quarantined" ]]; then
         set -x
         breeze testing core-tests --test-type "All-Quarantined" || true
-        RESULT=$?
-        set +x
-    elif [[ "${TEST_SCOPE}" == "ARM collection" ]]; then
-        set -x
-        breeze testing core-tests --collect-only --remove-arm-packages --test-type "All" --no-db-reset
         RESULT=$?
         set +x
     elif [[  "${TEST_SCOPE}" == "System" ]]; then
@@ -100,11 +96,6 @@ function providers_tests() {
         breeze testing providers-tests --test-type "All-Quarantined" || true
         RESULT=$?
         set +x
-    elif [[ "${TEST_SCOPE}" == "ARM collection" ]]; then
-        set -x
-        breeze testing providers-tests --collect-only --remove-arm-packages --test-type "All" --no-db-reset
-        RESULT=$?
-        set +x
     else
         echo "Unknown test scope: ${TEST_SCOPE}"
         set -e
@@ -117,7 +108,7 @@ function providers_tests() {
         echo
         exit "${RESULT}"
     fi
-    echo "${COLOR_GREEB}Providers tests completed successfully${COLOR_RESET}"
+    echo "${COLOR_GREEN}Providers tests completed successfully${COLOR_RESET}"
 }
 
 
@@ -127,6 +118,15 @@ function task_sdk_tests() {
     breeze testing task-sdk-tests
     set +x
     echo "${COLOR_BLUE}Task SDK tests completed${COLOR_RESET}"
+}
+
+function go_sdk_tests() {
+    echo "${COLOR_BLUE}Running Go SDK tests${COLOR_RESET}"
+    set -x
+    cd go-sdk
+    go test -v ./...
+    set +x
+    echo "${COLOR_BLUE}Go SDK tests completed${COLOR_RESET}"
 }
 
 
@@ -146,6 +146,8 @@ function run_tests() {
         providers_tests
     elif [[ "${TEST_GROUP}" == "task-sdk" ]]; then
         task_sdk_tests
+    elif [[ "${TEST_GROUP}" == "go-sdk" ]]; then
+        go_sdk_tests
     elif [[ "${TEST_GROUP}" == "airflow-ctl" ]]; then
         airflow_ctl_tests
     else

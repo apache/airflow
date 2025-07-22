@@ -101,20 +101,42 @@ export const TrendCountChart = ({ endDate, events, startDate }: Props) => {
   const chartRef = useRef<ChartJS<"line">>();
 
   // Get raw color values instead of CSS variables
-  const [bgLight, bgDark, lineLight, lineDark] = useToken("colors", [
+  const [bgLightGreen, bgDarkGreen, lineLightGreen, lineDarkGreen] = useToken("colors", [
+    "green.100",
+    "green.800",
+    "green.500",
+    "green.400",
+  ]);
+
+  const [bgLightRed, bgDarkRed, lineLightRed, lineDarkRed] = useToken("colors", [
     "red.100",
     "red.800",
     "red.500",
     "red.400",
   ]);
 
-  const backgroundColor = colorMode === "light" ? bgLight : bgDark;
-  const lineColor = colorMode === "light" ? lineLight : lineDark;
-
   const intervalData = useMemo(
     () => aggregateEventsIntoIntervals(events, startDate, endDate),
     [events, startDate, endDate],
   );
+
+  const backgroundColor =
+    colorMode === "light"
+      ? intervalData.some((value) => value > 0)
+        ? bgLightRed
+        : bgLightGreen
+      : intervalData.some((value) => value > 0)
+        ? bgDarkRed
+        : bgDarkGreen;
+
+  const lineColor =
+    colorMode === "light"
+      ? intervalData.some((value) => value > 0)
+        ? lineLightRed
+        : lineLightGreen
+      : intervalData.some((value) => value > 0)
+        ? lineDarkRed
+        : lineDarkGreen;
 
   // Cleanup chart instance on unmount
   useEffect(

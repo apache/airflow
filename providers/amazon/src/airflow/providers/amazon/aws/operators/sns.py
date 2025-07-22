@@ -53,6 +53,10 @@ class SnsPublishOperator(AwsBaseOperator[SnsHook]):
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    :param message_deduplication_id: Every message must have a unique message_deduplication_id.
+        This parameter applies only to FIFO (first-in-first-out) topics.
+    :param message_group_id: Tag that specifies that a message belongs to a specific message group.
+        This parameter applies only to FIFO (first-in-first-out) topics.
     """
 
     aws_hook_class = SnsHook
@@ -61,6 +65,8 @@ class SnsPublishOperator(AwsBaseOperator[SnsHook]):
         "message",
         "subject",
         "message_attributes",
+        "message_deduplication_id",
+        "message_group_id",
     )
     template_fields_renderers = {"message_attributes": "json"}
 
@@ -71,6 +77,8 @@ class SnsPublishOperator(AwsBaseOperator[SnsHook]):
         message: str,
         subject: str | None = None,
         message_attributes: dict | None = None,
+        message_deduplication_id: str | None = None,
+        message_group_id: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -78,15 +86,19 @@ class SnsPublishOperator(AwsBaseOperator[SnsHook]):
         self.message = message
         self.subject = subject
         self.message_attributes = message_attributes
+        self.message_deduplication_id = message_deduplication_id
+        self.message_group_id = message_group_id
 
     def execute(self, context: Context):
         self.log.info(
-            "Sending SNS notification to %s using %s:\nsubject=%s\nattributes=%s\nmessage=%s",
+            "Sending SNS notification to %s using %s:\nsubject=%s\nattributes=%s\nmessage=%s\nmessage_deduplication_id=%s\nmessage_group_id=%s",
             self.target_arn,
             self.aws_conn_id,
             self.subject,
             self.message_attributes,
             self.message,
+            self.message_deduplication_id,
+            self.message_group_id,
         )
 
         return self.hook.publish_to_target(
@@ -94,4 +106,6 @@ class SnsPublishOperator(AwsBaseOperator[SnsHook]):
             message=self.message,
             subject=self.subject,
             message_attributes=self.message_attributes,
+            message_deduplication_id=self.message_deduplication_id,
+            message_group_id=self.message_group_id,
         )

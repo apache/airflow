@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -150,9 +150,17 @@ class ManagedKafkaCreateClusterOperator(ManagedKafkaBaseOperator):
         self.cluster_id = cluster_id
         self.request_id = request_id
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "location": self.location,
+            "cluster_id": self.cluster_id,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
         self.log.info("Creating an Apache Kafka cluster.")
-        ApacheKafkaClusterLink.persist(context=context, task_instance=self, cluster_id=self.cluster_id)
+        ApacheKafkaClusterLink.persist(context=context)
         try:
             operation = self.hook.create_cluster(
                 project_id=self.project_id,
@@ -227,8 +235,14 @@ class ManagedKafkaListClustersOperator(ManagedKafkaBaseOperator):
         self.filter = filter
         self.order_by = order_by
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
-        ApacheKafkaClusterListLink.persist(context=context, task_instance=self)
+        ApacheKafkaClusterListLink.persist(context=context)
         self.log.info("Listing Clusters from location %s.", self.location)
         try:
             cluster_list_pager = self.hook.list_clusters(
@@ -242,8 +256,7 @@ class ManagedKafkaListClustersOperator(ManagedKafkaBaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-            self.xcom_push(
-                context=context,
+            context["ti"].xcom_push(
                 key="cluster_page",
                 value=types.ListClustersResponse.to_dict(cluster_list_pager._response),
             )
@@ -285,12 +298,16 @@ class ManagedKafkaGetClusterOperator(ManagedKafkaBaseOperator):
         super().__init__(*args, **kwargs)
         self.cluster_id = cluster_id
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "location": self.location,
+            "cluster_id": self.cluster_id,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
-        ApacheKafkaClusterLink.persist(
-            context=context,
-            task_instance=self,
-            cluster_id=self.cluster_id,
-        )
+        ApacheKafkaClusterLink.persist(context=context)
         self.log.info("Getting Cluster: %s", self.cluster_id)
         try:
             cluster = self.hook.get_cluster(
@@ -362,12 +379,16 @@ class ManagedKafkaUpdateClusterOperator(ManagedKafkaBaseOperator):
         self.update_mask = update_mask
         self.request_id = request_id
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "location": self.location,
+            "cluster_id": self.cluster_id,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
-        ApacheKafkaClusterLink.persist(
-            context=context,
-            task_instance=self,
-            cluster_id=self.cluster_id,
-        )
+        ApacheKafkaClusterLink.persist(context=context)
         self.log.info("Updating an Apache Kafka cluster.")
         try:
             operation = self.hook.update_cluster(
@@ -497,14 +518,18 @@ class ManagedKafkaCreateTopicOperator(ManagedKafkaBaseOperator):
         self.topic_id = topic_id
         self.topic = topic
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "location": self.location,
+            "cluster_id": self.cluster_id,
+            "topic_id": self.topic_id,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
         self.log.info("Creating an Apache Kafka topic.")
-        ApacheKafkaTopicLink.persist(
-            context=context,
-            task_instance=self,
-            cluster_id=self.cluster_id,
-            topic_id=self.topic_id,
-        )
+        ApacheKafkaTopicLink.persist(context=context)
         try:
             topic_obj = self.hook.create_topic(
                 project_id=self.project_id,
@@ -574,8 +599,16 @@ class ManagedKafkaListTopicsOperator(ManagedKafkaBaseOperator):
         self.page_size = page_size
         self.page_token = page_token
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "location": self.location,
+            "cluster_id": self.cluster_id,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
-        ApacheKafkaClusterLink.persist(context=context, task_instance=self, cluster_id=self.cluster_id)
+        ApacheKafkaClusterLink.persist(context=context)
         self.log.info("Listing Topics for cluster %s.", self.cluster_id)
         try:
             topic_list_pager = self.hook.list_topics(
@@ -588,8 +621,7 @@ class ManagedKafkaListTopicsOperator(ManagedKafkaBaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-            self.xcom_push(
-                context=context,
+            context["ti"].xcom_push(
                 key="topic_page",
                 value=types.ListTopicsResponse.to_dict(topic_list_pager._response),
             )
@@ -636,13 +668,17 @@ class ManagedKafkaGetTopicOperator(ManagedKafkaBaseOperator):
         self.cluster_id = cluster_id
         self.topic_id = topic_id
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "location": self.location,
+            "cluster_id": self.cluster_id,
+            "topic_id": self.topic_id,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
-        ApacheKafkaTopicLink.persist(
-            context=context,
-            task_instance=self,
-            cluster_id=self.cluster_id,
-            topic_id=self.topic_id,
-        )
+        ApacheKafkaTopicLink.persist(context=context)
         self.log.info("Getting Topic: %s", self.topic_id)
         try:
             topic = self.hook.get_topic(
@@ -707,13 +743,17 @@ class ManagedKafkaUpdateTopicOperator(ManagedKafkaBaseOperator):
         self.topic = topic
         self.update_mask = update_mask
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "location": self.location,
+            "cluster_id": self.cluster_id,
+            "topic_id": self.topic_id,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
-        ApacheKafkaTopicLink.persist(
-            context=context,
-            task_instance=self,
-            cluster_id=self.cluster_id,
-            topic_id=self.topic_id,
-        )
+        ApacheKafkaTopicLink.persist(context=context)
         self.log.info("Updating an Apache Kafka topic.")
         try:
             topic_obj = self.hook.update_topic(
@@ -833,8 +873,16 @@ class ManagedKafkaListConsumerGroupsOperator(ManagedKafkaBaseOperator):
         self.page_size = page_size
         self.page_token = page_token
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "location": self.location,
+            "cluster_id": self.cluster_id,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
-        ApacheKafkaClusterLink.persist(context=context, task_instance=self, cluster_id=self.cluster_id)
+        ApacheKafkaClusterLink.persist(context=context)
         self.log.info("Listing Consumer Groups for cluster %s.", self.cluster_id)
         try:
             consumer_group_list_pager = self.hook.list_consumer_groups(
@@ -847,8 +895,7 @@ class ManagedKafkaListConsumerGroupsOperator(ManagedKafkaBaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-            self.xcom_push(
-                context=context,
+            context["ti"].xcom_push(
                 key="consumer_group_page",
                 value=types.ListConsumerGroupsResponse.to_dict(consumer_group_list_pager._response),
             )
@@ -895,13 +942,17 @@ class ManagedKafkaGetConsumerGroupOperator(ManagedKafkaBaseOperator):
         self.cluster_id = cluster_id
         self.consumer_group_id = consumer_group_id
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "location": self.location,
+            "cluster_id": self.cluster_id,
+            "consumer_group_id": self.consumer_group_id,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
-        ApacheKafkaConsumerGroupLink.persist(
-            context=context,
-            task_instance=self,
-            cluster_id=self.cluster_id,
-            consumer_group_id=self.consumer_group_id,
-        )
+        ApacheKafkaConsumerGroupLink.persist(context=context)
         self.log.info("Getting Consumer Group: %s", self.consumer_group_id)
         try:
             consumer_group = self.hook.get_consumer_group(
@@ -971,13 +1022,17 @@ class ManagedKafkaUpdateConsumerGroupOperator(ManagedKafkaBaseOperator):
         self.consumer_group = consumer_group
         self.update_mask = update_mask
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "location": self.location,
+            "cluster_id": self.cluster_id,
+            "consumer_group_id": self.consumer_group_id,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
-        ApacheKafkaConsumerGroupLink.persist(
-            context=context,
-            task_instance=self,
-            cluster_id=self.cluster_id,
-            consumer_group_id=self.consumer_group_id,
-        )
+        ApacheKafkaConsumerGroupLink.persist(context=context)
         self.log.info("Updating an Apache Kafka consumer group.")
         try:
             consumer_group_obj = self.hook.update_consumer_group(

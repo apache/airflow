@@ -157,7 +157,7 @@ class BaseParameters:
     help="Your LDAP Apache username",
     required=True,
 )
-@click.password_option(  # type: ignore
+@click.password_option(
     "-p",
     "--apache_password",
     prompt="Apache Password",
@@ -184,7 +184,7 @@ class BaseParameters:
     help="Release Candidate Version",
     required=True,
 )
-@click.option(  # type: ignore
+@click.option(
     "-n",
     "--name",
     prompt="Your Name",

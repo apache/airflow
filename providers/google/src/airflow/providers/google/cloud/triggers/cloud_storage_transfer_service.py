@@ -68,7 +68,7 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
             },
         )
 
-    async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         """Get current data storage transfer jobs and yields a TriggerEvent."""
         async_hook: CloudDataTransferServiceAsyncHook = self.get_async_hook()
 

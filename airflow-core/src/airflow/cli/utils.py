@@ -44,13 +44,12 @@ def is_stdout(fileio: IOBase) -> bool:
     with argparse.FileType points to stdout (by setting the path to ``-``). This
     is why there is no equivalent for stderr; argparse does not allow using it.
 
-    .. warning:: *fileio* must be open for this check to be successful.
     """
-    return fileio.fileno() == sys.stdout.fileno()
+    return fileio is sys.stdout
 
 
 def print_export_output(command_type: str, exported_items: Collection, file: TextIOWrapper):
-    if not file.closed and is_stdout(file):
+    if is_stdout(file):
         print(f"\n{len(exported_items)} {command_type} successfully exported.", file=sys.stderr)
     else:
         print(f"{len(exported_items)} {command_type} successfully exported to {file.name}.")

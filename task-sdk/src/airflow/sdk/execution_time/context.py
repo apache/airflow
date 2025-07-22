@@ -39,6 +39,7 @@ from airflow.sdk.definitions.asset import (
     BaseAssetUniqueKey,
 )
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+from airflow.sdk.execution_time.secrets_masker import mask_secret
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -124,7 +125,8 @@ def _get_connection(conn_id: str) -> Connection:
     # enabled only if SecretCache.init() has been called first
 
     # iterate over configured backends if not in cache (or expired)
-    for secrets_backend in ensure_secrets_backend_loaded():
+    backends = ensure_secrets_backend_loaded()
+    for secrets_backend in backends:
         try:
             conn = secrets_backend.get_connection(conn_id=conn_id)
             if conn:
@@ -136,10 +138,11 @@ def _get_connection(conn_id: str) -> Connection:
                 type(secrets_backend).__name__,
             )
 
-    log.debug(
-        "Connection not found in any of the configured Secrets Backends. Trying to retrieve from API server",
-        conn_id=conn_id,
-    )
+    if backends:
+        log.debug(
+            "Connection not found in any of the configured Secrets Backends. Trying to retrieve from API server",
+            conn_id=conn_id,
+        )
 
     # TODO: This should probably be moved to a separate module like `airflow.sdk.execution_time.comms`
     #   or `airflow.sdk.execution_time.connection`
@@ -149,13 +152,7 @@ def _get_connection(conn_id: str) -> Connection:
     from airflow.sdk.execution_time.comms import ErrorResponse, GetConnection
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-    # Since Triggers can hit this code path via `sync_to_async` (which uses threads internally)
-    # we need to make sure that we "atomically" send a request and get the response to that
-    # back so that two triggers don't end up interleaving requests and create a possible
-    # race condition where the wrong trigger reads the response.
-    with SUPERVISOR_COMMS.lock:
-        SUPERVISOR_COMMS.send_request(log=log, msg=GetConnection(conn_id=conn_id))
-        msg = SUPERVISOR_COMMS.get_message()
+    msg = SUPERVISOR_COMMS.send(GetConnection(conn_id=conn_id))
 
     if isinstance(msg, ErrorResponse):
         raise AirflowRuntimeError(msg)
@@ -170,12 +167,18 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
     # enabled only if SecretCache.init() has been called first
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
 
-    var_val = None
+    backends = ensure_secrets_backend_loaded()
     # iterate over backends if not in cache (or expired)
-    for secrets_backend in ensure_secrets_backend_loaded():
+    for secrets_backend in backends:
         try:
-            var_val = secrets_backend.get_variable(key=key)  # type: ignore[assignment]
+            var_val = secrets_backend.get_variable(key=key)
             if var_val is not None:
+                if deserialize_json:
+                    import json
+
+                    var_val = json.loads(var_val)
+                if isinstance(var_val, str):
+                    mask_secret(var_val, key)
                 return var_val
         except Exception:
             log.exception(
@@ -183,10 +186,11 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
                 type(secrets_backend).__name__,
             )
 
-    log.debug(
-        "Variable not found in any of the configured Secrets Backends. Trying to retrieve from API server",
-        key=key,
-    )
+    if backends:
+        log.debug(
+            "Variable not found in any of the configured Secrets Backends. Trying to retrieve from API server",
+            key=key,
+        )
 
     # TODO: This should probably be moved to a separate module like `airflow.sdk.execution_time.comms`
     #   or `airflow.sdk.execution_time.variable`
@@ -196,13 +200,7 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
     from airflow.sdk.execution_time.comms import ErrorResponse, GetVariable
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-    # Since Triggers can hit this code path via `sync_to_async` (which uses threads internally)
-    # we need to make sure that we "atomically" send a request and get the response to that
-    # back so that two triggers don't end up interleaving requests and create a possible
-    # race condition where the wrong trigger reads the response.
-    with SUPERVISOR_COMMS.lock:
-        SUPERVISOR_COMMS.send_request(log=log, msg=GetVariable(key=key))
-        msg = SUPERVISOR_COMMS.get_message()
+    msg = SUPERVISOR_COMMS.send(GetVariable(key=key))
 
     if isinstance(msg, ErrorResponse):
         raise AirflowRuntimeError(msg)
@@ -252,11 +250,7 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
     except Exception as e:
         log.exception(e)
 
-    # It is best to have lock everywhere or nowhere on the SUPERVISOR_COMMS, lock was
-    # primarily added for triggers but it doesn't make sense to have it in some places
-    # and not in the rest. A lot of this will be simplified by https://github.com/apache/airflow/issues/46426
-    with SUPERVISOR_COMMS.lock:
-        SUPERVISOR_COMMS.send_request(log=log, msg=PutVariable(key=key, value=value, description=description))
+    SUPERVISOR_COMMS.send(PutVariable(key=key, value=value, description=description))
 
 
 def _delete_variable(key: str) -> None:
@@ -268,12 +262,7 @@ def _delete_variable(key: str) -> None:
     from airflow.sdk.execution_time.comms import DeleteVariable
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-    # It is best to have lock everywhere or nowhere on the SUPERVISOR_COMMS, lock was
-    # primarily added for triggers but it doesn't make sense to have it in some places
-    # and not in the rest. A lot of this will be simplified by https://github.com/apache/airflow/issues/46426
-    with SUPERVISOR_COMMS.lock:
-        SUPERVISOR_COMMS.send_request(log=log, msg=DeleteVariable(key=key))
-        msg = SUPERVISOR_COMMS.get_message()
+    msg = SUPERVISOR_COMMS.send(DeleteVariable(key=key))
     if TYPE_CHECKING:
         assert isinstance(msg, OKResponse)
 
@@ -282,7 +271,9 @@ class ConnectionAccessor:
     """Wrapper to access Connection entries in template."""
 
     def __getattr__(self, conn_id: str) -> Any:
-        return _get_connection(conn_id)
+        from airflow.sdk.definitions.connection import Connection
+
+        return Connection.get(conn_id)
 
     def __repr__(self) -> str:
         return "<ConnectionAccessor (dynamic access)>"
@@ -337,9 +328,9 @@ class MacrosAccessor:
     def __getattr__(self, item: str) -> Any:
         # Lazily load Macros module
         if not self._macros_module:
-            import airflow.sdk.definitions.macros
+            import airflow.sdk.execution_time.macros
 
-            self._macros_module = airflow.sdk.definitions.macros
+            self._macros_module = airflow.sdk.execution_time.macros
         return getattr(self._macros_module, item)
 
     def __repr__(self) -> str:
@@ -376,23 +367,29 @@ class _AssetRefResolutionMixin:
     @staticmethod
     def _get_asset_from_db(name: str | None = None, uri: str | None = None) -> Asset:
         from airflow.sdk.definitions.asset import Asset
-        from airflow.sdk.execution_time.comms import ErrorResponse, GetAssetByName, GetAssetByUri
+        from airflow.sdk.execution_time.comms import (
+            ErrorResponse,
+            GetAssetByName,
+            GetAssetByUri,
+            ToSupervisor,
+        )
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
+        msg: ToSupervisor
         if name:
-            SUPERVISOR_COMMS.send_request(log=log, msg=GetAssetByName(name=name))
+            msg = GetAssetByName(name=name)
         elif uri:
-            SUPERVISOR_COMMS.send_request(log=log, msg=GetAssetByUri(uri=uri))
+            msg = GetAssetByUri(uri=uri)
         else:
             raise ValueError("Either name or uri must be provided")
 
-        msg = SUPERVISOR_COMMS.get_message()
-        if isinstance(msg, ErrorResponse):
-            raise AirflowRuntimeError(msg)
+        resp = SUPERVISOR_COMMS.send(msg)
+        if isinstance(resp, ErrorResponse):
+            raise AirflowRuntimeError(resp)
 
         if TYPE_CHECKING:
-            assert isinstance(msg, AssetResult)
-        return Asset(**msg.model_dump(exclude={"type"}))
+            assert isinstance(resp, AssetResult)
+        return Asset(**resp.model_dump(exclude={"type"}))
 
 
 @attrs.define
@@ -526,9 +523,11 @@ class InletEventsAccessors(
             ErrorResponse,
             GetAssetEventByAsset,
             GetAssetEventByAssetAlias,
+            ToSupervisor,
         )
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
+        msg: ToSupervisor
         if isinstance(key, int):  # Support index access; it's easier for trivial cases.
             obj = self._inlets[key]
             if not isinstance(obj, (Asset, AssetAlias, AssetRef)):
@@ -538,31 +537,33 @@ class InletEventsAccessors(
 
         if isinstance(obj, Asset):
             asset = self._assets[AssetUniqueKey.from_asset(obj)]
-            SUPERVISOR_COMMS.send_request(log=log, msg=GetAssetEventByAsset(name=asset.name, uri=asset.uri))
+            msg = GetAssetEventByAsset(name=asset.name, uri=asset.uri)
         elif isinstance(obj, AssetNameRef):
             try:
                 asset = next(a for k, a in self._assets.items() if k.name == obj.name)
             except StopIteration:
                 raise KeyError(obj) from None
-            SUPERVISOR_COMMS.send_request(log=log, msg=GetAssetEventByAsset(name=asset.name, uri=None))
+            msg = GetAssetEventByAsset(name=asset.name, uri=None)
         elif isinstance(obj, AssetUriRef):
             try:
                 asset = next(a for k, a in self._assets.items() if k.uri == obj.uri)
             except StopIteration:
                 raise KeyError(obj) from None
-            SUPERVISOR_COMMS.send_request(log=log, msg=GetAssetEventByAsset(name=None, uri=asset.uri))
+            msg = GetAssetEventByAsset(name=None, uri=asset.uri)
         elif isinstance(obj, AssetAlias):
             asset_alias = self._asset_aliases[AssetAliasUniqueKey.from_asset_alias(obj)]
-            SUPERVISOR_COMMS.send_request(log=log, msg=GetAssetEventByAssetAlias(alias_name=asset_alias.name))
+            msg = GetAssetEventByAssetAlias(alias_name=asset_alias.name)
+        else:
+            raise TypeError(f"`key` is of unknown type ({type(key).__name__})")
 
-        msg = SUPERVISOR_COMMS.get_message()
-        if isinstance(msg, ErrorResponse):
-            raise AirflowRuntimeError(msg)
+        resp = SUPERVISOR_COMMS.send(msg)
+        if isinstance(resp, ErrorResponse):
+            raise AirflowRuntimeError(resp)
 
         if TYPE_CHECKING:
-            assert isinstance(msg, AssetEventsResult)
+            assert isinstance(resp, AssetEventsResult)
 
-        return list(msg.iter_asset_event_results())
+        return list(resp.iter_asset_event_results())
 
 
 @attrs.define
@@ -619,8 +620,7 @@ def get_previous_dagrun_success(ti_id: UUID) -> PrevSuccessfulDagRunResponse:
     )
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-    SUPERVISOR_COMMS.send_request(log=log, msg=GetPrevSuccessfulDagRun(ti_id=ti_id))
-    msg = SUPERVISOR_COMMS.get_message()
+    msg = SUPERVISOR_COMMS.send(GetPrevSuccessfulDagRun(ti_id=ti_id))
 
     if TYPE_CHECKING:
         assert isinstance(msg, PrevSuccessfulDagRunResult)
@@ -697,7 +697,7 @@ def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool 
         (task, "owner", "AIRFLOW_CONTEXT_DAG_OWNER"),
         (task_instance, "dag_id", "AIRFLOW_CONTEXT_DAG_ID"),
         (task_instance, "task_id", "AIRFLOW_CONTEXT_TASK_ID"),
-        (task_instance, "logical_date", "AIRFLOW_CONTEXT_LOGICAL_DATE"),
+        (dag_run, "logical_date", "AIRFLOW_CONTEXT_LOGICAL_DATE"),
         (task_instance, "try_number", "AIRFLOW_CONTEXT_TRY_NUMBER"),
         (dag_run, "run_id", "AIRFLOW_CONTEXT_DAG_RUN_ID"),
     ]

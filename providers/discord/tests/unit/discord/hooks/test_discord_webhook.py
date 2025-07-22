@@ -24,9 +24,6 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.discord.hooks.discord_webhook import DiscordWebhookHook
-from airflow.utils import db
-
-pytestmark = pytest.mark.db_test
 
 
 class TestDiscordWebhookHook:
@@ -49,8 +46,9 @@ class TestDiscordWebhookHook:
 
     expected_payload = json.dumps(expected_payload_dict)
 
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id="default-discord-webhook",
                 conn_type="discord",

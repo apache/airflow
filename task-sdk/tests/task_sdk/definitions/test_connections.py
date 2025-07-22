@@ -23,9 +23,10 @@ from urllib.parse import urlparse
 import pytest
 
 from airflow.configuration import initialize_secrets_backends
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.sdk import Connection
-from airflow.sdk.execution_time.comms import ConnectionResult
+from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
 from tests_common.test_utils.config import conf_vars
@@ -104,7 +105,7 @@ class TestConnections:
 
     def test_conn_get(self, mock_supervisor_comms):
         conn_result = ConnectionResult(conn_id="mysql_conn", conn_type="mysql", host="mysql", port=3306)
-        mock_supervisor_comms.get_message.return_value = conn_result
+        mock_supervisor_comms.send.return_value = conn_result
 
         conn = Connection.get(conn_id="mysql_conn")
         assert conn is not None
@@ -120,6 +121,13 @@ class TestConnections:
             port=3306,
             extra=None,
         )
+
+    def test_conn_get_not_found(self, mock_supervisor_comms):
+        error_response = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
+        mock_supervisor_comms.send.return_value = error_response
+
+        with pytest.raises(AirflowNotFoundException, match="The conn_id `mysql_conn` isn't defined"):
+            _ = Connection.get(conn_id="mysql_conn")
 
 
 class TestConnectionsFromSecrets:

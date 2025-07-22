@@ -17,11 +17,11 @@
  * under the License.
  */
 import { Skeleton, Text } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui";
-import { capitalize } from "src/utils";
 
 export const HealthBadge = ({
   isLoading,
@@ -34,6 +34,8 @@ export const HealthBadge = ({
   readonly status?: string | null;
   readonly title: string;
 }) => {
+  const { t: translate } = useTranslation("dashboard");
+
   if (isLoading) {
     return <Skeleton borderRadius="full" height={8} width={24} />;
   }
@@ -44,13 +46,18 @@ export const HealthBadge = ({
     <Tooltip
       content={
         <div>
-          <Text>Status: {capitalize(status)}</Text>
           <Text>
-            Last Heartbeat: <Time datetime={latestHeartbeat} />
+            {translate("health.status")}
+            {": "}
+            {translate(`health.${status}`)}
+          </Text>
+          <Text hidden={latestHeartbeat === undefined}>
+            {translate("health.lastHeartbeat")}
+            {": "}
+            <Time datetime={latestHeartbeat} />
           </Text>
         </div>
       }
-      disabled={!Boolean(latestHeartbeat)}
     >
       <StateBadge size="lg" state={state} variant="surface">
         {title}

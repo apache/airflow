@@ -27,7 +27,7 @@ Operators for Google Cloud Memorystore service.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.memcache_v1beta2.types import cloud_memcache
@@ -133,6 +133,13 @@ class CloudMemorystoreCreateInstanceOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "instance_id": self.instance_id,
+            "location_id": self.location,
+        }
+
     def execute(self, context: Context):
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
@@ -148,9 +155,6 @@ class CloudMemorystoreCreateInstanceOperator(GoogleCloudBaseOperator):
         )
         RedisInstanceDetailsLink.persist(
             context=context,
-            task_instance=self,
-            instance_id=self.instance_id,
-            location_id=self.location,
             project_id=self.project_id or hook.project_id,
         )
         return Instance.to_dict(result)
@@ -304,6 +308,13 @@ class CloudMemorystoreExportInstanceOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "instance_id": self.instance,
+            "location_id": self.location,
+        }
+
     def execute(self, context: Context) -> None:
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
@@ -320,9 +331,6 @@ class CloudMemorystoreExportInstanceOperator(GoogleCloudBaseOperator):
         )
         RedisInstanceDetailsLink.persist(
             context=context,
-            task_instance=self,
-            instance_id=self.instance,
-            location_id=self.location,
             project_id=self.project_id or hook.project_id,
         )
 
@@ -397,6 +405,13 @@ class CloudMemorystoreFailoverInstanceOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "instance_id": self.instance,
+            "location_id": self.location,
+        }
+
     def execute(self, context: Context) -> None:
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
@@ -412,9 +427,6 @@ class CloudMemorystoreFailoverInstanceOperator(GoogleCloudBaseOperator):
         )
         RedisInstanceDetailsLink.persist(
             context=context,
-            task_instance=self,
-            instance_id=self.instance,
-            location_id=self.location,
             project_id=self.project_id or hook.project_id,
         )
 
@@ -482,6 +494,13 @@ class CloudMemorystoreGetInstanceOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "instance_id": self.instance,
+            "location_id": self.location,
+        }
+
     def execute(self, context: Context):
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
@@ -496,9 +515,6 @@ class CloudMemorystoreGetInstanceOperator(GoogleCloudBaseOperator):
         )
         RedisInstanceDetailsLink.persist(
             context=context,
-            task_instance=self,
-            instance_id=self.instance,
-            location_id=self.location,
             project_id=self.project_id or hook.project_id,
         )
         return Instance.to_dict(result)
@@ -577,6 +593,13 @@ class CloudMemorystoreImportOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "instance_id": self.instance,
+            "location_id": self.location,
+        }
+
     def execute(self, context: Context) -> None:
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
@@ -592,9 +615,6 @@ class CloudMemorystoreImportOperator(GoogleCloudBaseOperator):
         )
         RedisInstanceDetailsLink.persist(
             context=context,
-            task_instance=self,
-            instance_id=self.instance,
-            location_id=self.location,
             project_id=self.project_id or hook.project_id,
         )
 
@@ -680,7 +700,6 @@ class CloudMemorystoreListInstancesOperator(GoogleCloudBaseOperator):
         )
         RedisInstanceListLink.persist(
             context=context,
-            task_instance=self,
             project_id=self.project_id or hook.project_id,
         )
         instances = [Instance.to_dict(a) for a in result]
@@ -789,7 +808,6 @@ class CloudMemorystoreUpdateInstanceOperator(GoogleCloudBaseOperator):
         location_id, instance_id = res.name.split("/")[-3::2]
         RedisInstanceDetailsLink.persist(
             context=context,
-            task_instance=self,
             instance_id=self.instance_id or instance_id,
             location_id=self.location or location_id,
             project_id=self.project_id or hook.project_id,
@@ -882,7 +900,6 @@ class CloudMemorystoreScaleInstanceOperator(GoogleCloudBaseOperator):
         location_id, instance_id = res.name.split("/")[-3::2]
         RedisInstanceDetailsLink.persist(
             context=context,
-            task_instance=self,
             instance_id=self.instance_id or instance_id,
             location_id=self.location or location_id,
             project_id=self.project_id or hook.project_id,
@@ -1002,7 +1019,6 @@ class CloudMemorystoreCreateInstanceAndImportOperator(GoogleCloudBaseOperator):
         )
         RedisInstanceDetailsLink.persist(
             context=context,
-            task_instance=self,
             instance_id=self.instance_id,
             location_id=self.location,
             project_id=self.project_id or hook.project_id,
@@ -1171,6 +1187,14 @@ class CloudMemorystoreMemcachedApplyParametersOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "instance_id": self.instance_id,
+            "location_id": self.location,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
         hook = CloudMemorystoreMemcachedHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
@@ -1185,13 +1209,7 @@ class CloudMemorystoreMemcachedApplyParametersOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        MemcachedInstanceDetailsLink.persist(
-            context=context,
-            task_instance=self,
-            instance_id=self.instance_id,
-            location_id=self.location,
-            project_id=self.project_id,
-        )
+        MemcachedInstanceDetailsLink.persist(context=context)
 
 
 class CloudMemorystoreMemcachedCreateInstanceOperator(GoogleCloudBaseOperator):
@@ -1263,6 +1281,13 @@ class CloudMemorystoreMemcachedCreateInstanceOperator(GoogleCloudBaseOperator):
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "instance_id": self.instance_id,
+            "location_id": self.location,
+        }
+
     def execute(self, context: Context):
         hook = CloudMemorystoreMemcachedHook(gcp_conn_id=self.gcp_conn_id)
         result = hook.create_instance(
@@ -1276,9 +1301,6 @@ class CloudMemorystoreMemcachedCreateInstanceOperator(GoogleCloudBaseOperator):
         )
         MemcachedInstanceDetailsLink.persist(
             context=context,
-            task_instance=self,
-            instance_id=self.instance_id,
-            location_id=self.location,
             project_id=self.project_id or hook.project_id,
         )
         return cloud_memcache.Instance.to_dict(result)
@@ -1410,6 +1432,13 @@ class CloudMemorystoreMemcachedGetInstanceOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "instance_id": self.instance,
+            "location_id": self.location,
+        }
+
     def execute(self, context: Context):
         hook = CloudMemorystoreMemcachedHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
@@ -1424,9 +1453,6 @@ class CloudMemorystoreMemcachedGetInstanceOperator(GoogleCloudBaseOperator):
         )
         MemcachedInstanceDetailsLink.persist(
             context=context,
-            task_instance=self,
-            instance_id=self.instance,
-            location_id=self.location,
             project_id=self.project_id or hook.project_id,
         )
         return cloud_memcache.Instance.to_dict(result)
@@ -1506,7 +1532,6 @@ class CloudMemorystoreMemcachedListInstancesOperator(GoogleCloudBaseOperator):
         )
         MemcachedInstanceListLink.persist(
             context=context,
-            task_instance=self,
             project_id=self.project_id or hook.project_id,
         )
         instances = [cloud_memcache.Instance.to_dict(a) for a in result]
@@ -1612,7 +1637,6 @@ class CloudMemorystoreMemcachedUpdateInstanceOperator(GoogleCloudBaseOperator):
         location_id, instance_id = res.name.split("/")[-3::2]
         MemcachedInstanceDetailsLink.persist(
             context=context,
-            task_instance=self,
             instance_id=self.instance_id or instance_id,
             location_id=self.location or location_id,
             project_id=self.project_id or hook.project_id,
@@ -1688,6 +1712,14 @@ class CloudMemorystoreMemcachedUpdateParametersOperator(GoogleCloudBaseOperator)
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "instance_id": self.instance_id,
+            "location_id": self.location,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
         hook = CloudMemorystoreMemcachedHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
@@ -1702,10 +1734,4 @@ class CloudMemorystoreMemcachedUpdateParametersOperator(GoogleCloudBaseOperator)
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        MemcachedInstanceDetailsLink.persist(
-            context=context,
-            task_instance=self,
-            instance_id=self.instance_id,
-            location_id=self.location,
-            project_id=self.project_id,
-        )
+        MemcachedInstanceDetailsLink.persist(context=context)

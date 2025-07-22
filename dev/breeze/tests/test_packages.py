@@ -84,6 +84,7 @@ def test_get_available_packages_include_non_provider_doc_packages_and_all_provid
 def test_get_short_package_name():
     assert get_short_package_name("apache-airflow") == "apache-airflow"
     assert get_short_package_name("docker-stack") == "docker-stack"
+    assert get_short_package_name("task-sdk") == "task-sdk"
     assert get_short_package_name("apache-airflow-providers-amazon") == "amazon"
     assert get_short_package_name("apache-airflow-providers-apache-hdfs") == "apache.hdfs"
 
@@ -96,6 +97,7 @@ def test_error_on_get_short_package_name():
 def test_get_long_package_name():
     assert get_long_package_name("apache-airflow") == "apache-airflow"
     assert get_long_package_name("docker-stack") == "docker-stack"
+    assert get_long_package_name("task-sdk") == "task-sdk"
     assert get_long_package_name("amazon") == "apache-airflow-providers-amazon"
     assert get_long_package_name("apache.hdfs") == "apache-airflow-providers-apache-hdfs"
 
@@ -250,7 +252,7 @@ def test_validate_provider_info_with_schema():
     "provider_id, min_version",
     [
         ("amazon", "2.10.0"),
-        ("fab", "3.0.0"),
+        ("fab", "3.0.2"),
     ],
 )
 def test_get_min_airflow_version(provider_id: str, min_version: str):
@@ -305,8 +307,12 @@ def _check_dependency_modified_properly(
     if dependency.startswith("apache-airflow"):
         if should_airflow_dependencies_be_modified:
             if ">=" in dependency:
+                dependency = dependency.split(";")[0]
+                modified_dependency = modified_dependency.split(";")[0]
                 assert modified_dependency == f"{dependency}{floored_version_suffix}"
             elif "==" in dependency:
+                dependency = dependency.split(";")[0]
+                modified_dependency = modified_dependency.split(";")[0]
                 assert modified_dependency == f"{dependency}{version_suffix}"
             else:
                 assert modified_dependency == dependency

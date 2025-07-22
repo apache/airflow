@@ -87,5 +87,5 @@ class TestSageMakerEndpointSensor:
         assert mock_describe.call_count == 3
 
         # make sure the hook was initialized with the specific params
-        calls = [mock.call(aws_conn_id="aws_test")]
+        calls = [mock.call(aws_conn_id="aws_test", config=None, verify=None, region_name=None)]
         hook_init.assert_has_calls(calls)

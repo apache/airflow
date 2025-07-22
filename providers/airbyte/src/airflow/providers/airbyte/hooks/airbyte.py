@@ -23,9 +23,10 @@ from typing import Any, TypeVar
 from airbyte_api import AirbyteAPI
 from airbyte_api.api import CancelJobRequest, GetJobRequest
 from airbyte_api.models import JobCreateRequest, JobStatusEnum, JobTypeEnum, SchemeClientCredentials, Security
+from requests import Session
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+from airflow.providers.airbyte.version_compat import BaseHook
 
 T = TypeVar("T", bound=Any)
 
@@ -63,6 +64,7 @@ class AirbyteHook(BaseHook):
         conn_params["client_id"] = conn.login
         conn_params["client_secret"] = conn.password
         conn_params["token_url"] = conn.schema or "v1/applications/token"
+        conn_params["proxies"] = conn.extra_dejson.get("proxies", None)
 
         return conn_params
 
@@ -74,9 +76,15 @@ class AirbyteHook(BaseHook):
             token_url=self.conn["token_url"],
         )
 
+        client = None
+        if self.conn["proxies"]:
+            client = Session()
+            client.proxies = self.conn["proxies"]
+
         return AirbyteAPI(
             server_url=self.conn["host"],
             security=Security(client_credentials=credentials),
+            client=client,
         )
 
     @classmethod

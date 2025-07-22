@@ -1,0 +1,71 @@
+[
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflowDagRun": {
+                    "dag": {
+                        "timetable": {
+                            "event_dates": [
+                                "2095-03-03T08:27:00-06:00",
+                                "2095-03-17T08:27:00-05:00",
+                                "2095-03-22T20:50:00-05:00"
+                            ],
+                            "restrict_to_events": false
+                        },
+                        "timetable_summary": "My Team's Baseball Games"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_schedule_timetable_dag"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "dag": {
+                        "timetable": {
+                            "event_dates": [
+                                "2095-03-03T08:27:00-06:00",
+                                "2095-03-17T08:27:00-05:00",
+                                "2095-03-22T20:50:00-05:00"
+                            ],
+                            "restrict_to_events": false
+                        },
+                        "timetable_summary": "My Team's Baseball Games"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_schedule_timetable_dag.do_nothing_task"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "dag": {
+                        "timetable": {
+                            "event_dates": [
+                                "2095-03-03T08:27:00-06:00",
+                                "2095-03-17T08:27:00-05:00",
+                                "2095-03-22T20:50:00-05:00"
+                            ],
+                            "restrict_to_events": false
+                        },
+                        "timetable_summary": "My Team's Baseball Games"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_schedule_timetable_dag.do_nothing_task"
+        }
+    }
+]

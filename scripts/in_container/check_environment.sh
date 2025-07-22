@@ -31,13 +31,21 @@ EXIT_CODE=0
 
 . "$( dirname "${BASH_SOURCE[0]}" )/check_connectivity.sh"
 
+export COLOR_YELLOW=$'\e[33m'
+export COLOR_RESET=$'\e[0m'
+
 function check_service {
     local label=$1
     local call=$2
     local max_check=${3:=1}
+    local initial_delay="${4:-0}"
 
-   check_service_connection "${label}" "${call}" "${max_check}"
-   EXIT_CODE=$?
+    if [[ ${initial_delay} != 0 ]]; then
+        echo "${COLOR_YELLOW}Adding initial delay. Waiting ${initial_delay} seconds before checking ${label}.${COLOR_RESET}"
+        sleep "${initial_delay}"
+    fi
+    check_service_connection "${label}" "${call}" "${max_check}"
+    EXIT_CODE=$?
 }
 
 function check_db_backend {
@@ -53,10 +61,16 @@ function check_db_backend {
     elif [[ ${BACKEND} == "sqlite" ]]; then
         return
     elif [[ ${BACKEND} == "none" ]]; then
-        echo "${COLOR_YELLOW}WARNING: Using no database backend!${COLOR_RESET}"
-        return
+        echo "${COLOR_YELLOW}WARNING: Using no database backend${COLOR_RESET}"
+
+        if [[ ${START_AIRFLOW=} == "true" ]]; then
+            echo "${COLOR_RED}ERROR: 'start-airflow' cannot be used with --backend=none${COLOR_RESET}"
+            echo "${COLOR_RED}Supported values are: [postgres,mysql,sqlite]${COLOR_RESET}"
+            echo "${COLOR_RED}Please specify one using '--backend'${COLOR_RESET}"
+            exit 1
+        fi
     else
-        echo "Unknown backend. Supported values: [postgres,mysql,mssql,sqlite]. Current value: [${BACKEND}]"
+        echo "${COLOR_RED}ERROR: Unknown backend. Supported values: [postgres,mysql,sqlite]. Current value: [${BACKEND}]${COLOR_RESET}"
         exit 1
     fi
 }
@@ -174,8 +188,8 @@ if [[ ${INTEGRATION_YDB} == "true" ]]; then
     check_service "YDB Cluster" "run_nc ydb 2136" 50
 fi
 
-if [[ ${INTEGRATION_GREMLIN} == "true" ]]; then
-    check_service "gremlin" "run_nc gremlin 8182" 50
+if [[ ${INTEGRATION_TINKERPOP} == "true" ]]; then
+    check_service "gremlin" "run_nc gremlin 8182" 100 30
 fi
 
 if [[ ${EXIT_CODE} != 0 ]]; then

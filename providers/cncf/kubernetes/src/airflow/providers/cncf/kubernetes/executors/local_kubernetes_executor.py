@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from deprecated import deprecated
 
@@ -26,17 +26,20 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
-    from airflow.executors.base_executor import (
-        CommandType,
-        EventBufferValueType,
-        QueuedTaskInstanceType,
-    )
+    from airflow.executors.base_executor import EventBufferValueType
     from airflow.executors.local_executor import LocalExecutor
-    from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
+    from airflow.models.taskinstance import (  # type: ignore[attr-defined]
+        SimpleTaskInstance,
+        TaskInstance,
+        TaskInstanceKey,
+    )
+
+    CommandType = Sequence[str]
 
 
 class LocalKubernetesExecutor(BaseExecutor):
@@ -63,7 +66,18 @@ class LocalKubernetesExecutor(BaseExecutor):
 
     KUBERNETES_QUEUE = conf.get("local_kubernetes_executor", "kubernetes_queue")
 
-    def __init__(self, local_executor: LocalExecutor, kubernetes_executor: KubernetesExecutor):
+    def __init__(
+        self,
+        local_executor: LocalExecutor | None = None,
+        kubernetes_executor: KubernetesExecutor | None = None,
+    ):
+        if AIRFLOW_V_3_0_PLUS or not local_executor or not kubernetes_executor:
+            raise RuntimeError(
+                f"{self.__class__.__name__} does not support Airflow 3.0+. See "
+                "https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/executor/index.html#using-multiple-executors-concurrently"
+                " how to use multiple executors concurrently."
+            )
+
         super().__init__()
         self._job_id: int | str | None = None
         self.local_executor = local_executor
@@ -81,7 +95,7 @@ class LocalKubernetesExecutor(BaseExecutor):
         """Not implemented for hybrid executors."""
 
     @property
-    def queued_tasks(self) -> dict[TaskInstanceKey, QueuedTaskInstanceType]:
+    def queued_tasks(self) -> dict[TaskInstanceKey, Any]:
         """Return queued tasks from local and kubernetes executor."""
         queued_tasks = self.local_executor.queued_tasks.copy()
         # TODO: fix this, there is misalignment between the types of queued_tasks so it is likely wrong
@@ -145,7 +159,7 @@ class LocalKubernetesExecutor(BaseExecutor):
         """Queues command via local or kubernetes executor."""
         executor = self._router(task_instance)
         self.log.debug("Using executor: %s for %s", executor.__class__.__name__, task_instance.key)
-        executor.queue_command(task_instance, command, priority, queue)
+        executor.queue_command(task_instance, command, priority, queue)  # type: ignore[union-attr]
 
     def queue_task_instance(
         self,
@@ -161,7 +175,7 @@ class LocalKubernetesExecutor(BaseExecutor):
         **kwargs,
     ) -> None:
         """Queues task instance via local or kubernetes executor."""
-        from airflow.models.taskinstance import SimpleTaskInstance
+        from airflow.models.taskinstance import SimpleTaskInstance  # type: ignore[attr-defined]
 
         executor = self._router(SimpleTaskInstance.from_ti(task_instance))
         self.log.debug(
@@ -171,7 +185,7 @@ class LocalKubernetesExecutor(BaseExecutor):
         if not hasattr(task_instance, "pickle_id"):
             del kwargs["pickle_id"]
 
-        executor.queue_task_instance(
+        executor.queue_task_instance(  # type: ignore[union-attr]
             task_instance=task_instance,
             mark_success=mark_success,
             ignore_all_deps=ignore_all_deps,

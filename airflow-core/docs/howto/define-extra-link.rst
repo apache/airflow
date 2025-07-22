@@ -21,7 +21,7 @@
 Define an operator extra link
 =============================
 
-If you want to add further links to operators you can define them via a plugin or provider package.
+If you want to add extra links to operators you can define them via a plugin or provider package.
 Extra links will be displayed in task details page in Grid view.
 
 .. image:: ../img/operator_extra_link.png
@@ -60,7 +60,8 @@ The following code shows how to add extra links to an operator via Plugins:
             GoogleLink(),
         ]
 
-.. note:: Operator Extra Links should be registered via Airflow Plugins or custom Airflow Provider to work.
+The extra links defined via custom Airflow Provider or Airflow operators will be pushed as an xcom to the XCom table in
+metadata DB during task execution. During display in the grid view, this xcom is retrieved and displayed.
 
 You can also add a global operator extra link that will be available to
 all the operators through an Airflow plugin or through Airflow providers. You can learn more about it in the
@@ -93,7 +94,7 @@ tasks using :class:`~airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSToS3Ope
   class S3LogLink(BaseOperatorLink):
       name = "S3"
 
-      # Add list of all the operators to which you want to add this OperatorLinks
+      # Add list of all the operators to which you want to add this extra link
       # Example: operators = [GCSToS3Operator, GCSToBigQueryOperator]
       operators = [GCSToS3Operator]
 
@@ -120,9 +121,9 @@ tasks using :class:`~airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSToS3Ope
 
 **Overriding Operator Links of Existing Operators**:
 
-It is also possible to replace a built in link on an operator via a Plugin. For example
+It is also possible to replace a built-in link on an operator via a Plugin. For example
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryExecuteQueryOperator` includes a link to the Google Cloud
-Console, but if we wanted to change that link we could:
+Console, but if we wanted to change that link we could do:
 
 .. code-block:: python
 
@@ -173,7 +174,7 @@ specify the list of operators that provide extra link capability. This happens b
 class name in the ``provider-info`` information stored in your Provider's package meta-data:
 
 Example meta-data required in your provider-info dictionary (this is part of the meta-data returned
-by ``apache-airflow-providers-google`` provider currently:
+by ``apache-airflow-providers-google`` provider currently):
 
 .. code-block:: yaml
 

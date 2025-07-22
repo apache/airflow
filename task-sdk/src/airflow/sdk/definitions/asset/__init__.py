@@ -23,7 +23,8 @@ import operator
 import os
 import urllib.parse
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Literal, Union, overload
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, overload
 
 import attrs
 
@@ -57,8 +58,12 @@ __all__ = [
     "AssetWatcher",
 ]
 
+from airflow.configuration import conf
 
 log = logging.getLogger(__name__)
+
+
+SQL_ALCHEMY_CONN = conf.get("database", "SQL_ALCHEMY_CONN", fallback="NOT AVAILABLE")
 
 
 @attrs.define(frozen=True)
@@ -86,6 +91,18 @@ class AssetUniqueKey(attrs.AttrsInstance):
     def to_str(self) -> str:
         return json.dumps(attrs.asdict(self))
 
+    @staticmethod
+    def from_profile(profile: AssetProfile) -> AssetUniqueKey:
+        if profile.name and profile.uri:
+            return AssetUniqueKey(name=profile.name, uri=profile.uri)
+
+        if name := profile.name:
+            return AssetUniqueKey(name=name, uri=name)
+        if uri := profile.uri:
+            return AssetUniqueKey(name=uri, uri=uri)
+
+        raise ValueError("name and uri cannot both be empty")
+
 
 @attrs.define(frozen=True)
 class AssetAliasUniqueKey:
@@ -105,7 +122,7 @@ class AssetAliasUniqueKey:
         return AssetAlias(name=self.name)
 
 
-BaseAssetUniqueKey = Union[AssetUniqueKey, AssetAliasUniqueKey]
+BaseAssetUniqueKey = AssetUniqueKey | AssetAliasUniqueKey
 
 
 def normalize_noop(parts: SplitResult) -> SplitResult:
@@ -179,7 +196,9 @@ def _validate_identifier(instance, attribute, value):
         raise ValueError(f"{type(instance).__name__} {attribute.name} cannot exceed 1500 characters")
     if value.isspace():
         raise ValueError(f"{type(instance).__name__} {attribute.name} cannot be just whitespace")
-    if not value.isascii():
+    ## We use latin1_general_cs to store the name (and group, asset values etc) on MySQL.
+    ## relaxing this check for non mysql backend
+    if SQL_ALCHEMY_CONN.startswith("mysql") and not value.isascii():
         raise ValueError(f"{type(instance).__name__} {attribute.name} must only consist of ASCII characters")
     return value
 
@@ -614,7 +633,7 @@ class AssetBooleanCondition(BaseAsset):
 class AssetAny(AssetBooleanCondition):
     """Use to combine assets schedule references in an "or" relationship."""
 
-    agg_func = any
+    agg_func = any  # type: ignore[assignment]
 
     def __or__(self, other: BaseAsset) -> BaseAsset:
         if not isinstance(other, BaseAsset):
@@ -637,7 +656,7 @@ class AssetAny(AssetBooleanCondition):
 class AssetAll(AssetBooleanCondition):
     """Use to combine assets schedule references in an "and" relationship."""
 
-    agg_func = all
+    agg_func = all  # type: ignore[assignment]
 
     def __and__(self, other: BaseAsset) -> BaseAsset:
         if not isinstance(other, BaseAsset):

@@ -841,3 +841,57 @@ These are all available flags of ``release-management publish-docs-to-s3`` comma
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_publish-docs-to-s3.svg
   :width: 100%
   :alt: Breeze Publish documentation to S3
+
+
+Trigger GitHub Actions docs publish workflow
+"""""""""""""""""""""""""""""""""""""""""""""
+To trigger the GitHub Actions workflow that publishes the documentation to S3, you can use the
+``breeze workflow-run publish-docs`` command.
+
+These are all available flags of ``workflow-run`` command:
+
+.. image:: ./images/output_workflow-run.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_workflow-run.svg
+  :width: 100%
+  :alt: Workflow run command
+
+
+.. code-block:: bash
+
+     breeze workflow-run publish-docs --ref <ref> --exclude-docs <exclude-docs> --site-env <site-env> --refresh-site --skip-write-to-stable-folder <docs_packages>
+
+     example:
+      breeze workflow-run publish-docs --ref providers-amazon/1.0.0 --site-env live --refresh-site --skip-write-to-stable-folder amazon apache.kafka
+
+``--ref`` specifies the Git reference tag checkout and build docs.
+``--exclude-docs`` specifies the documentation packages to exclude from the publish process.
+``--site-env`` specifies the environment to use for the site (e.g., auto, live, staging). the default is auto, based on the ref it decides live or staging.
+``--refresh-site`` specifies whether to refresh the site after publishing the documentation. This triggers workflow on apache/airflow-site repository to refresh the site.
+``--skip-write-to-stable-folder`` specifies the documentation packages to skip writing to the stable folder.
+
+
+These are all available flags of ``workflow-run publish-docs`` command:
+
+.. image:: ./images/output_workflow-run_publish-docs.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_workflow-run_publish-docs.svg
+  :width: 100%
+  :alt: Breeze workflow-run publish-docs
+
+Constraints version check
+"""""""""""""""""""""""""
+
+To check if the constraints files are up to date in the current Airflow version, you can use the
+``breeze release-management check-constraints-updates`` command.
+
+These are all available flags of ``check-constraints-updates`` command:
+
+.. image:: ./images/output_release-management_constraints-version-check.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_constraints-version-check.svg
+  :width: 100%
+  :alt: Breeze constraints version check
+
+Example usage:
+
+.. code-block:: bash
+
+     breeze release-management constraints-version-check --python 3.10 --airflow-constraints-mode constraints-source-providers --explain-why

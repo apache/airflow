@@ -27,7 +27,6 @@ from fastapi.testclient import TestClient
 from airflow.api_fastapi.app import create_app
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.models import Connection
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 
 from tests_common.test_utils.config import conf_vars
@@ -136,12 +135,15 @@ def configure_git_connection_for_dag_bundle(session):
         }
     ):
         yield
-
+    # in case no flush or commit was executed after the "session.add" above, we need to flush the session
+    # manually here to make sure that the added connection will be deleted by query(Connection).delete()
+    # in the`clear_db_connections` function below
+    session.flush()
     clear_db_connections(False)
 
 
 @pytest.fixture
-def make_dag_with_multiple_versions(dag_maker, configure_git_connection_for_dag_bundle):
+def make_dag_with_multiple_versions(dag_maker, configure_git_connection_for_dag_bundle, session):
     """
     Create DAG with multiple versions
 
@@ -151,17 +153,19 @@ def make_dag_with_multiple_versions(dag_maker, configure_git_connection_for_dag_
     """
     dag_id = "dag_with_multiple_versions"
     for version_number in range(1, 4):
-        with dag_maker(dag_id) as dag:
+        with dag_maker(
+            dag_id,
+            session=session,
+            bundle_version=f"some_commit_hash{version_number}",
+        ):
             for task_number in range(version_number):
                 EmptyOperator(task_id=f"task{task_number + 1}")
-        SerializedDagModel.write_dag(
-            dag, bundle_name="dag_maker", bundle_version=f"some_commit_hash{version_number}"
-        )
         dag_maker.create_dagrun(
             run_id=f"run{version_number}",
             logical_date=datetime.datetime(2020, 1, version_number, tzinfo=datetime.timezone.utc),
+            session=session,
         )
-        dag.sync_to_db()
+        session.commit()
 
 
 @pytest.fixture(scope="module")
@@ -170,3 +174,15 @@ def dagbag():
 
     parse_and_sync_to_db(os.devnull, include_examples=True)
     return DagBag(read_dags_from_db=True)
+
+
+@pytest.fixture
+def get_execution_app():
+    def _get_execution_app(test_client):
+        test_app = test_client.app
+        for route in test_app.router.routes:
+            if route.path == "/execution":
+                return route.app
+        raise RuntimeError("Execution app not found at /execution")
+
+    return _get_execution_app

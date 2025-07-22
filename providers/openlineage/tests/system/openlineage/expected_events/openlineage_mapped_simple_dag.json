@@ -1,0 +1,38 @@
+[
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "mapped": "{{ result == true }}"
+                    },
+                    "taskInstance": {
+                        "map_index": 1
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_mapped_simple_dag.add_one"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "mapped": "{{ result == true }}"
+                    },
+                    "taskInstance": {
+                        "map_index": 1
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_mapped_simple_dag.add_one"
+        }
+    }
+]

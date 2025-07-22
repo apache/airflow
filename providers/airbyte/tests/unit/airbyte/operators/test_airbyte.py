@@ -19,15 +19,12 @@ from __future__ import annotations
 
 from unittest import mock
 
-import pytest
 from airbyte_api.models import JobCreateRequest, JobResponse, JobStatusEnum, JobTypeEnum
 
 from airflow.models import Connection
 from airflow.providers.airbyte.operators.airbyte import AirbyteTriggerSyncOperator
-from airflow.utils import db
 
 
-@pytest.mark.db_test
 class TestAirbyteTriggerSyncOp:
     """
     Test execute function from Airbyte Operator
@@ -41,9 +38,9 @@ class TestAirbyteTriggerSyncOp:
 
     @mock.patch("airbyte_api.jobs.Jobs.create_job")
     @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.wait_for_job", return_value=None)
-    def test_execute(self, mock_wait_for_job, mock_submit_sync_connection):
+    def test_execute(self, mock_wait_for_job, mock_submit_sync_connection, create_connection_without_db):
         conn = Connection(conn_id=self.airbyte_conn_id, conn_type="airbyte", host="airbyte.com")
-        db.merge_conn(conn)
+        create_connection_without_db(conn)
         mock_response = mock.Mock()
         mock_response.job_response = JobResponse(
             connection_id="connection-mock",
@@ -71,9 +68,9 @@ class TestAirbyteTriggerSyncOp:
         )
 
     @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.cancel_job")
-    def test_on_kill(self, mock_cancel_job):
+    def test_on_kill(self, mock_cancel_job, create_connection_without_db):
         conn = Connection(conn_id=self.airbyte_conn_id, conn_type="airbyte", host="airbyte.com")
-        db.merge_conn(conn)
+        create_connection_without_db(conn)
 
         op = AirbyteTriggerSyncOperator(
             task_id="test_Airbyte_op",

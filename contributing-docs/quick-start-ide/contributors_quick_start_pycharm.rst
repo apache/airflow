@@ -51,7 +51,7 @@ airflow core. If you plan to work on providers, at this time you can install dep
 
       $ uv sync --all-packages
 
-Or for specific provider and it's cross-provider dependencies:
+Or for specific provider and its cross-provider dependencies:
 
     .. code-block:: bash
 

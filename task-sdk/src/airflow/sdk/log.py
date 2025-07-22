@@ -24,9 +24,10 @@ import os
 import re
 import sys
 import warnings
+from collections.abc import Callable
 from functools import cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, BinaryIO, Callable, Generic, TextIO, TypeVar, cast
+from typing import TYPE_CHECKING, Any, BinaryIO, Generic, TextIO, TypeVar, cast
 
 import msgspec
 import structlog
@@ -140,7 +141,7 @@ class StdBinaryStreamHandler(logging.StreamHandler):
 
 
 @cache
-def logging_processors(enable_pretty_log: bool, mask_secrets: bool = True):
+def logging_processors(enable_pretty_log: bool, mask_secrets: bool = True, colored_console_log: bool = True):
     if enable_pretty_log:
         timestamper = structlog.processors.MaybeTimeStamper(fmt="%Y-%m-%d %H:%M:%S.%f")
     else:
@@ -176,20 +177,34 @@ def logging_processors(enable_pretty_log: bool, mask_secrets: bool = True):
     )
 
     if enable_pretty_log:
-        rich_exc_formatter = structlog.dev.RichTracebackFormatter(
-            # These values are picked somewhat arbitrarily to produce useful-but-compact tracebacks. If
-            # we ever need to change these then they should be configurable.
-            extra_lines=0,
-            max_frames=30,
-            indent_guides=False,
-            suppress=suppress,
-        )
-        my_styles = structlog.dev.ConsoleRenderer.get_default_level_styles()
-        my_styles["debug"] = structlog.dev.CYAN
+        if colored_console_log:
+            rich_exc_formatter = structlog.dev.RichTracebackFormatter(
+                # These values are picked somewhat arbitrarily to produce useful-but-compact tracebacks. If
+                # we ever need to change these then they should be configurable.
+                extra_lines=0,
+                max_frames=30,
+                indent_guides=False,
+                suppress=suppress,
+            )
+            my_styles = structlog.dev.ConsoleRenderer.get_default_level_styles()
+            my_styles["debug"] = structlog.dev.CYAN
 
-        console = structlog.dev.ConsoleRenderer(
-            exception_formatter=rich_exc_formatter, level_styles=my_styles
-        )
+            console = structlog.dev.ConsoleRenderer(
+                exception_formatter=rich_exc_formatter, level_styles=my_styles
+            )
+        else:
+            # Create a console renderer without colors - use the same RichTracebackFormatter
+            # but rely on ConsoleRenderer(colors=False) to disable colors
+            rich_exc_formatter = structlog.dev.RichTracebackFormatter(
+                extra_lines=0,
+                max_frames=30,
+                indent_guides=False,
+                suppress=suppress,
+            )
+            console = structlog.dev.ConsoleRenderer(
+                colors=False,
+                exception_formatter=rich_exc_formatter,
+            )
         processors.append(console)
         return processors, {
             "timestamper": timestamper,
@@ -252,14 +267,20 @@ def configure_logging(
     output: BinaryIO | TextIO | None = None,
     cache_logger_on_first_use: bool = True,
     sending_to_supervisor: bool = False,
+    colored_console_log: bool | None = None,
 ):
     """Set up struct logging and stdlib logging config."""
     if log_level == "DEFAULT":
         log_level = "INFO"
-        if "airflow.configuration" in sys.modules:
-            from airflow.configuration import conf
+        from airflow.configuration import conf
 
-            log_level = conf.get("logging", "logging_level", fallback="INFO")
+        log_level = conf.get("logging", "logging_level", fallback="INFO")
+
+    # If colored_console_log is not explicitly set, read from configuration
+    if colored_console_log is None:
+        from airflow.configuration import conf
+
+        colored_console_log = conf.getboolean("logging", "colored_console_log", fallback=True)
 
     lvl = structlog.stdlib.NAME_TO_LEVEL[log_level.lower()]
 
@@ -267,7 +288,9 @@ def configure_logging(
         formatter = "colored"
     else:
         formatter = "plain"
-    processors, named = logging_processors(enable_pretty_log, mask_secrets=not sending_to_supervisor)
+    processors, named = logging_processors(
+        enable_pretty_log, mask_secrets=not sending_to_supervisor, colored_console_log=colored_console_log
+    )
     timestamper = named["timestamper"]
 
     pre_chain: list[structlog.typing.Processor] = [

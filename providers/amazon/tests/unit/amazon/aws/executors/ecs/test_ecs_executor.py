@@ -22,8 +22,8 @@ import logging
 import os
 import re
 import time
+from collections.abc import Callable
 from functools import partial
-from typing import Callable
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -60,8 +60,6 @@ from airflow.version import version as airflow_version_str
 from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-pytestmark = pytest.mark.db_test
 
 airflow_version = VersionInfo(*map(int, airflow_version_str.split(".")[:3]))
 
@@ -1249,6 +1247,7 @@ class TestAwsEcsExecutor:
             "test failure" in caplog.messages[0]
         )
 
+    @pytest.mark.skip(reason="Adopting task instances hasn't been ported over to Airflow 3 yet")
     def test_try_adopt_task_instances(self, mock_executor):
         """Test that executor can adopt orphaned task instances from a SchedulerJob shutdown event."""
         mock_executor.ecs.describe_tasks.return_value = {

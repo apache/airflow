@@ -22,6 +22,7 @@ import pytest
 
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.asset.decorators import _AssetMainOperator, asset
+from airflow.sdk.definitions.decorators import task
 from airflow.sdk.execution_time.comms import AssetResult, GetAssetByName
 
 
@@ -159,6 +160,27 @@ class TestAssetDecorator:
             == "positional-only argument 'self' without a default is not supported in @asset"
         )
 
+    def test_with_task_decorator(self, func_fixer):
+        @task(retries=3)
+        @func_fixer
+        def _example_task_func():
+            return "This is example_task"
+
+        asset_definition = asset(name="asset", dag_id="dag", schedule=None)(_example_task_func)
+        assert asset_definition.name == "asset"
+        assert asset_definition._source.dag_id == "dag"
+        assert asset_definition._function == _example_task_func
+
+    def test_with_task_decorator_and_outlets(self, func_fixer):
+        @task(retries=3, outlets=Asset(name="a"))
+        @func_fixer
+        def _example_task_func():
+            return "This is example_task"
+
+        with pytest.raises(TypeError) as err:
+            asset(schedule=None)(_example_task_func)
+        assert err.value.args[0] == "@task decorator with 'outlets' argument is not supported in @asset"
+
     @pytest.mark.parametrize(
         "provided_uri, expected_uri",
         [
@@ -222,6 +244,36 @@ class TestAssetDefinition:
         )
         from_definition.assert_called_once_with(asset_definition)
 
+    @mock.patch("airflow.sdk.bases.decorator._TaskDecorator.__call__")
+    @mock.patch("airflow.sdk.definitions.dag.DAG")
+    def test_with_task_decorator(self, DAG, __call__, func_fixer):
+        @task(retries=3)
+        @func_fixer
+        def _example_task_func():
+            return "This is example_task"
+
+        asset_definition = asset(schedule=None, uri="s3://bucket/object", group="MLModel", extra={"k": "v"})(
+            _example_task_func
+        )
+
+        DAG.assert_called_once_with(
+            dag_id="example_asset_func",
+            dag_display_name="example_asset_func",
+            description=None,
+            schedule=None,
+            catchup=False,
+            is_paused_upon_creation=None,
+            on_failure_callback=None,
+            on_success_callback=None,
+            params=None,
+            access_control=None,
+            owner_links={},
+            tags=set(),
+            auto_register=True,
+        )
+        __call__.assert_called_once_with()
+        assert asset_definition._function.kwargs["outlets"] == [asset_definition]
+
 
 class TestMultiAssetDefinition:
     @mock.patch("airflow.sdk.definitions.asset.decorators._AssetMainOperator.from_definition")
@@ -248,6 +300,37 @@ class TestMultiAssetDefinition:
             auto_register=True,
         )
         from_definition.assert_called_once_with(definition)
+
+    @mock.patch("airflow.sdk.bases.decorator._TaskDecorator.__call__")
+    @mock.patch("airflow.sdk.definitions.dag.DAG")
+    def test_with_task_decorator(self, DAG, __call__, func_fixer):
+        @task(retries=3)
+        @func_fixer
+        def _example_task_func():
+            return "This is example_task"
+
+        definition = asset.multi(
+            schedule=None,
+            outlets=[Asset(name="a"), Asset(name="b")],
+        )(_example_task_func)
+
+        DAG.assert_called_once_with(
+            dag_id="example_asset_func",
+            dag_display_name="example_asset_func",
+            description=None,
+            schedule=None,
+            catchup=False,
+            is_paused_upon_creation=None,
+            on_failure_callback=None,
+            on_success_callback=None,
+            params=None,
+            access_control=None,
+            owner_links={},
+            tags=set(),
+            auto_register=True,
+        )
+        __call__.assert_called_once_with()
+        assert definition._function.kwargs["outlets"] == [Asset(name="a"), Asset(name="b")]
 
 
 class Test_AssetMainOperator:
@@ -285,7 +368,6 @@ class Test_AssetMainOperator:
         assert op.python_callable == example_asset_func_with_valid_arg_as_inlet_asset
         assert op._definition_name == "example_asset_func"
 
-    @mock.patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True)
     def test_determine_kwargs(
         self,
         mock_supervisor_comms,
@@ -295,7 +377,7 @@ class Test_AssetMainOperator:
             example_asset_func_with_valid_arg_as_inlet_asset
         )
 
-        mock_supervisor_comms.get_message.side_effect = [
+        mock_supervisor_comms.send.side_effect = [
             AssetResult(
                 name="example_asset_func",
                 uri="s3://bucket/object",
@@ -326,15 +408,11 @@ class Test_AssetMainOperator:
         }
 
         assert mock_supervisor_comms.mock_calls == [
-            mock.call.send_request(mock.ANY, GetAssetByName(name="example_asset_func")),
-            mock.call.get_message(),
-            mock.call.send_request(mock.ANY, GetAssetByName(name="inlet_asset_1")),
-            mock.call.get_message(),
-            mock.call.send_request(mock.ANY, GetAssetByName(name="inlet_asset_2")),
-            mock.call.get_message(),
+            mock.call.send(GetAssetByName(name="example_asset_func")),
+            mock.call.send(GetAssetByName(name="inlet_asset_1")),
+            mock.call.send(GetAssetByName(name="inlet_asset_2")),
         ]
 
-    @mock.patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True)
     def test_determine_kwargs_defaults(
         self,
         mock_supervisor_comms,
@@ -342,7 +420,7 @@ class Test_AssetMainOperator:
     ):
         asset_definition = asset(schedule=None)(example_asset_func_with_valid_arg_as_inlet_asset_and_default)
 
-        mock_supervisor_comms.get_message.side_effect = [
+        mock_supervisor_comms.send.side_effect = [
             AssetResult(name="inlet_asset_1", uri="s3://bucket/object1", group="asset", extra=None),
         ]
 
@@ -360,6 +438,5 @@ class Test_AssetMainOperator:
         }
 
         assert mock_supervisor_comms.mock_calls == [
-            mock.call.send_request(mock.ANY, GetAssetByName(name="inlet_asset_1")),
-            mock.call.get_message(),
+            mock.call.send(GetAssetByName(name="inlet_asset_1")),
         ]

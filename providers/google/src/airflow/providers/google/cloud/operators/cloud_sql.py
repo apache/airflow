@@ -28,7 +28,6 @@ from googleapiclient.errors import HttpError
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
 from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLDatabaseHook, CloudSQLHook
 from airflow.providers.google.cloud.links.cloud_sql import CloudSQLInstanceDatabaseLink, CloudSQLInstanceLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
@@ -36,6 +35,7 @@ from airflow.providers.google.cloud.triggers.cloud_sql import CloudSQLExportTrig
 from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldValidator
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, get_field
 from airflow.providers.google.common.links.storage import FileDetailsLink
+from airflow.providers.google.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from airflow.models import Connection
@@ -285,6 +285,12 @@ class CloudSQLBaseOperator(GoogleCloudBaseOperator):
                 return False
             raise e
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "instance": self.instance,
+        }
+
     def execute(self, context: Context):
         pass
 
@@ -384,8 +390,6 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
 
         CloudSQLInstanceLink.persist(
             context=context,
-            task_instance=self,
-            cloud_sql_instance=self.instance,
             project_id=self.project_id or hook.project_id,
         )
 
@@ -479,8 +483,6 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
             )
         CloudSQLInstanceLink.persist(
             context=context,
-            task_instance=self,
-            cloud_sql_instance=self.instance,
             project_id=self.project_id or hook.project_id,
         )
 
@@ -714,8 +716,6 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
         )
         CloudSQLInstanceDatabaseLink.persist(
             context=context,
-            task_instance=self,
-            cloud_sql_instance=self.instance,
             project_id=self.project_id or hook.project_id,
         )
         if self._check_if_db_exists(database, hook):
@@ -822,8 +822,6 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
             )
         CloudSQLInstanceDatabaseLink.persist(
             context=context,
-            task_instance=self,
-            cloud_sql_instance=self.instance,
             project_id=self.project_id or hook.project_id,
         )
         return hook.patch_database(
@@ -1004,13 +1002,10 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
         )
         CloudSQLInstanceLink.persist(
             context=context,
-            task_instance=self,
-            cloud_sql_instance=self.instance,
             project_id=self.project_id or hook.project_id,
         )
         FileDetailsLink.persist(
             context=context,
-            task_instance=self,
             uri=self.body["exportContext"]["uri"][5:],
             project_id=self.project_id or hook.project_id,
         )
@@ -1147,13 +1142,10 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
         )
         CloudSQLInstanceLink.persist(
             context=context,
-            task_instance=self,
-            cloud_sql_instance=self.instance,
             project_id=self.project_id or hook.project_id,
         )
         FileDetailsLink.persist(
             context=context,
-            task_instance=self,
             uri=self.body["importContext"]["uri"][5:],
             project_id=self.project_id or hook.project_id,
         )

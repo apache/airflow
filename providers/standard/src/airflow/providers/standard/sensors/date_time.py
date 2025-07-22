@@ -23,8 +23,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, NoReturn
 
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseSensorOperator
+from airflow.utils import timezone
 
 try:
     from airflow.triggers.base import StartTriggerArgs
@@ -40,8 +40,6 @@ except ImportError:
         next_kwargs: dict[str, Any] | None = None
         timeout: datetime.timedelta | None = None
 
-
-from airflow.utils import timezone
 
 if TYPE_CHECKING:
     try:
@@ -99,6 +97,16 @@ class DateTimeSensor(BaseSensorOperator):
         self.log.info("Checking if the time (%s) has come", self.target_time)
         return timezone.utcnow() > timezone.parse(self.target_time)
 
+    @property
+    def _moment(self) -> datetime.datetime:
+        # Note following is reachable code if Jinja is used for redering template fields and
+        # render_template_as_native_obj=True is used.
+        # In this case, the target_time is already a datetime object.
+        if isinstance(self.target_time, datetime.datetime):  # type:ignore[unreachable]
+            return self.target_time  # type:ignore[unreachable]
+
+        return timezone.parse(self.target_time)
+
 
 class DateTimeSensorAsync(DateTimeSensor):
     """
@@ -145,11 +153,11 @@ class DateTimeSensorAsync(DateTimeSensor):
         self.defer(
             method_name="execute_complete",
             trigger=DateTimeTrigger(
-                moment=timezone.parse(self.target_time),
+                moment=self._moment,
                 end_from_trigger=self.end_from_trigger,
             )
             if AIRFLOW_V_3_0_PLUS
-            else DateTimeTrigger(moment=timezone.parse(self.target_time)),
+            else DateTimeTrigger(moment=self._moment),
         )
 
     def execute_complete(self, context: Context, event: Any = None) -> None:

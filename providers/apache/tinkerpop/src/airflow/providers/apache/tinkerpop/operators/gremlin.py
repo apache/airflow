@@ -18,8 +18,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from airflow.models import BaseOperator
 from airflow.providers.apache.tinkerpop.hooks.gremlin import GremlinHook
+from airflow.providers.apache.tinkerpop.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     try:

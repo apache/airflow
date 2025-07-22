@@ -16,7 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useDisclosure } from "@chakra-ui/react";
+import { Box, type ButtonProps, useDisclosure } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 
@@ -28,12 +29,12 @@ type DeleteDagButtonProps = {
   readonly dagDisplayName: string;
   readonly dagId: string;
   readonly withText?: boolean;
-};
+} & ButtonProps;
 
-const DeleteDagButton = ({ dagDisplayName, dagId, withText = true }: DeleteDagButtonProps) => {
+const DeleteDagButton = ({ dagDisplayName, dagId, width, withText = true }: DeleteDagButtonProps) => {
   const { onClose, onOpen, open } = useDisclosure();
   const navigate = useNavigate();
-
+  const { t: translate } = useTranslation("dags");
   const { isPending, mutate: deleteDag } = useDeleteDag({
     dagId,
     onSuccessConfirm: () => {
@@ -43,14 +44,14 @@ const DeleteDagButton = ({ dagDisplayName, dagId, withText = true }: DeleteDagBu
   });
 
   return (
-    <>
+    <Box width={width}>
       <ActionButton
-        actionName="Delete DAG"
+        actionName={translate("dagActions.delete.button")}
         colorPalette="red"
         icon={<FiTrash2 />}
         onClick={onOpen}
-        text="Delete DAG"
-        variant="solid"
+        text={translate("dagActions.delete.button")}
+        width={width}
         withText={withText}
       />
 
@@ -60,10 +61,10 @@ const DeleteDagButton = ({ dagDisplayName, dagId, withText = true }: DeleteDagBu
         onDelete={() => deleteDag({ dagId })}
         open={open}
         resourceName={dagDisplayName}
-        title="Delete DAG"
-        warningText="This will remove all metadata related to the DAG, including DAG Runs and Tasks."
+        title={translate("dagActions.delete.button")}
+        warningText={translate("dagActions.delete.warning")}
       />
-    </>
+    </Box>
   );
 };
 

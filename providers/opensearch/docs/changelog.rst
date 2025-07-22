@@ -27,6 +27,42 @@
 Changelog
 ---------
 
+1.7.1
+.....
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Disable UP038 ruff rule and revert mandatory 'X | Y' in insintance checks (#52644)``
+* ``Provider Migration: Update opensearch for Airflow 3.0 compatibility (#52609)``
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Clean up remaining DB-dependent tests from OpenSearch provider (#52235)``
+   * ``DEL: pytestmark in test_opensearch.py (#52213)``
+   * ``Updating opensearch systest to setup connections using ENV (#52077)``
+   * ``Introducing fixture to create 'Connections' without DB in provider tests (#51930)``
+
+1.7.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.10+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Misc
+~~~~
+
+* ``Remove AIRFLOW_2_10_PLUS conditions (#49877)``
+* ``Bump min Airflow version in providers to 2.10 (#49843)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Avoid committing history for providers (#49907)``
+
 1.6.3
 .....
 

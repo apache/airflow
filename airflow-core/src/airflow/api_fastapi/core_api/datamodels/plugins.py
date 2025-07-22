@@ -17,9 +17,9 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
-from pydantic import BeforeValidator, ConfigDict, field_validator
+from pydantic import BeforeValidator, ConfigDict, Field, field_validator, model_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.plugins_manager import AirflowPluginSource
@@ -65,8 +65,37 @@ class AppBuilderMenuItemResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     name: str
-    href: str | None = None
+    href: str
     category: str | None = None
+
+
+class BaseUIResponse(BaseModel):
+    """Base serializer for UI Plugin responses."""
+
+    model_config = ConfigDict(extra="allow")
+
+    name: str
+    icon: str | None = None
+    icon_dark_mode: str | None = None
+    url_route: str | None = None
+    category: str | None = None
+    destination: Literal["nav", "dag", "dag_run", "task", "task_instance"] = "nav"
+
+
+class ExternalViewResponse(BaseUIResponse):
+    """Serializer for External View Plugin responses."""
+
+    model_config = ConfigDict(extra="allow")
+
+    href: str
+
+
+class ReactAppResponse(BaseUIResponse):
+    """Serializer for React App Plugin responses."""
+
+    model_config = ConfigDict(extra="allow")
+
+    bundle_url: str
 
 
 class PluginResponse(BaseModel):
@@ -77,8 +106,14 @@ class PluginResponse(BaseModel):
     flask_blueprints: list[str]
     fastapi_apps: list[FastAPIAppResponse]
     fastapi_root_middlewares: list[FastAPIRootMiddlewareResponse]
+    external_views: list[ExternalViewResponse] = Field(
+        description="Aggregate all external views. Both 'external_views' and 'appbuilder_menu_items' are included here."
+    )
+    react_apps: list[ReactAppResponse]
     appbuilder_views: list[AppBuilderViewResponse]
-    appbuilder_menu_items: list[AppBuilderMenuItemResponse]
+    appbuilder_menu_items: list[AppBuilderMenuItemResponse] = Field(
+        deprecated="Kept for backward compatibility, use `external_views` instead.",
+    )
     global_operator_extra_links: list[str]
     operator_extra_links: list[str]
     source: Annotated[str, BeforeValidator(coerce_to_string)]
@@ -90,6 +125,12 @@ class PluginResponse(BaseModel):
     def convert_source(cls, data: Any) -> Any:
         if isinstance(data, AirflowPluginSource):
             return str(data)
+        return data
+
+    @model_validator(mode="before")
+    @classmethod
+    def convert_external_views(cls, data: Any) -> Any:
+        data["external_views"] = [*data["external_views"], *data["appbuilder_menu_items"]]
         return data
 
 

@@ -51,11 +51,11 @@ class TestHiveToDynamoDBOperator:
         assert hook.get_conn() is not None
 
     @mock.patch(
-        "airflow.providers.apache.hive.hooks.hive.HiveServer2Hook.get_pandas_df",
+        "airflow.providers.apache.hive.hooks.hive.HiveServer2Hook.get_df",
         return_value=pd.DataFrame(data=[("1", "sid")], columns=["id", "name"]),
     )
     @mock_aws
-    def test_get_records_with_schema(self, mock_get_pandas_df):
+    def test_get_records_with_schema(self, mock_get_df):
         # this table needs to be created in production
         self.hook.get_conn().create_table(
             TableName="test_airflow",
@@ -81,11 +81,11 @@ class TestHiveToDynamoDBOperator:
         assert table.item_count == 1
 
     @mock.patch(
-        "airflow.providers.apache.hive.hooks.hive.HiveServer2Hook.get_pandas_df",
+        "airflow.providers.apache.hive.hooks.hive.HiveServer2Hook.get_df",
         return_value=pd.DataFrame(data=[("1", "sid"), ("1", "gupta")], columns=["id", "name"]),
     )
     @mock_aws
-    def test_pre_process_records_with_schema(self, mock_get_pandas_df):
+    def test_pre_process_records_with_schema(self, mock_get_df):
         # this table needs to be created in production
         self.hook.get_conn().create_table(
             TableName="test_airflow",

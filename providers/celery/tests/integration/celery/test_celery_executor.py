@@ -30,12 +30,14 @@ from unittest import mock
 # leave this it is used by the test worker
 import celery.contrib.testing.tasks  # noqa: F401
 import pytest
+import uuid6
 from celery import Celery
 from celery.backends.base import BaseBackend, BaseKeyValueStoreBackend
 from celery.backends.database import DatabaseBackend
 from celery.contrib.testing.worker import start_worker
 from kombu.asynchronous import set_event_loop
 from kubernetes.client import models as k8s
+from uuid6 import uuid7
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
@@ -160,6 +162,7 @@ class TestCeleryExecutor:
 
             with start_worker(app=app, logfile=sys.stdout, loglevel="info"):
                 ti = workloads.TaskInstance.model_construct(
+                    id=uuid7(),
                     task_id="success",
                     dag_id="id",
                     run_id="abc",
@@ -218,7 +221,10 @@ class TestCeleryExecutor:
                 dag=DAG(dag_id="dag_id"),
                 start_date=datetime.now(),
             )
-            ti = TaskInstance(task=task, run_id="abc")
+            if AIRFLOW_V_3_0_PLUS:
+                ti = TaskInstance(task=task, run_id="abc", dag_version_id=uuid6.uuid7())
+            else:
+                ti = TaskInstance(task=task, run_id="abc")
             workload = workloads.ExecuteTask.model_construct(
                 ti=workloads.TaskInstance.model_validate(ti, from_attributes=True),
             )
@@ -254,7 +260,10 @@ class TestCeleryExecutor:
                 dag=DAG(dag_id="id"),
                 start_date=datetime.now(),
             )
-            ti = TaskInstance(task=task, run_id="abc")
+            if AIRFLOW_V_3_0_PLUS:
+                ti = TaskInstance(task=task, run_id="abc", dag_version_id=uuid6.uuid7())
+            else:
+                ti = TaskInstance(task=task, run_id="abc")
             workload = workloads.ExecuteTask.model_construct(
                 ti=workloads.TaskInstance.model_validate(ti, from_attributes=True),
             )

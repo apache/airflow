@@ -18,13 +18,14 @@
  */
 import { Box, Editable, Text, VStack } from "@chakra-ui/react";
 import type { ChangeEvent } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { DAGRunResponse, TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
 import ReactMarkdown from "src/components/ReactMarkdown";
 import { Accordion } from "src/components/ui";
 
 import { DataTable } from "../DataTable";
-import { columns } from "./columns";
+import { getColumns } from "./columns";
 
 type Props = {
   readonly affectedTasks?: TaskInstanceCollectionResponse;
@@ -36,6 +37,7 @@ type Props = {
 // TODO: Make a front-end only unconnected table component with client side ordering and pagination
 const ActionAccordion = ({ affectedTasks, note, setNote }: Props) => {
   const showTaskSection = affectedTasks !== undefined;
+  const { t: translate } = useTranslation();
 
   return (
     <Accordion.Root
@@ -47,15 +49,20 @@ const ActionAccordion = ({ affectedTasks, note, setNote }: Props) => {
       {showTaskSection ? (
         <Accordion.Item key="tasks" value="tasks">
           <Accordion.ItemTrigger>
-            <Text fontWeight="bold">Affected Tasks: {affectedTasks.total_entries}</Text>
+            <Text fontWeight="bold">
+              {translate("dags:runAndTaskActions.affectedTasks.title", {
+                count: affectedTasks.total_entries,
+              })}
+            </Text>
           </Accordion.ItemTrigger>
           <Accordion.ItemContent>
             <Box maxH="400px" overflowY="scroll">
               <DataTable
-                columns={columns}
+                columns={getColumns(translate)}
                 data={affectedTasks.task_instances}
                 displayMode="table"
-                modelName="Task Instance"
+                modelName={translate("common:taskInstance_other")}
+                noRowsMessage={translate("dags:runAndTaskActions.affectedTasks.noItemsFound")}
                 total={affectedTasks.total_entries}
               />
             </Box>
@@ -64,7 +71,7 @@ const ActionAccordion = ({ affectedTasks, note, setNote }: Props) => {
       ) : undefined}
       <Accordion.Item key="note" value="note">
         <Accordion.ItemTrigger>
-          <Text fontWeight="bold">Note</Text>
+          <Text fontWeight="bold">{translate("note.label")}</Text>
         </Accordion.ItemTrigger>
         <Accordion.ItemContent>
           <Editable.Root
@@ -83,14 +90,14 @@ const ActionAccordion = ({ affectedTasks, note, setNote }: Props) => {
               {Boolean(note) ? (
                 <ReactMarkdown>{note}</ReactMarkdown>
               ) : (
-                <Text color="fg.subtle">Add a note...</Text>
+                <Text color="fg.subtle">{translate("note.placeholder")}</Text>
               )}
             </Editable.Preview>
             <Editable.Textarea
               data-testid="notes-input"
               height="200px"
               overflowY="auto"
-              placeholder="Add a note..."
+              placeholder={translate("note.placeholder")}
               resize="none"
             />
           </Editable.Root>

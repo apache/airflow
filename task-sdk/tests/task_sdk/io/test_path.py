@@ -325,7 +325,7 @@ class TestLocalPath:
 class TestBackwardsCompatibility:
     @pytest.fixture(autouse=True)
     def reset(self):
-        from airflow.io import _register_filesystems
+        from airflow.sdk.io.fs import _register_filesystems
 
         _register_filesystems.cache_clear()
         yield

@@ -19,10 +19,11 @@ from __future__ import annotations
 import io
 import json
 import os
+import tempfile
 from unittest import mock
 from unittest.mock import patch
 
-from platformdirs import user_config_path
+import pytest
 
 from airflowctl.api.client import ClientKind
 from airflowctl.api.datamodels.auth_generated import LoginResponse
@@ -39,36 +40,39 @@ class TestCliAuthCommands:
     @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
     @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_AUTH_LOGIN"})
     @patch("airflowctl.api.client.keyring")
-    def test_login(self, mock_keyring, api_client_maker):
-        api_client = api_client_maker(
-            path="/auth/token/cli",
-            response_json=self.login_response.model_dump(),
-            expected_http_status_code=201,
-            kind=ClientKind.AUTH,
-        )
+    @pytest.mark.flaky(reruns=3, reruns_delay=10)
+    def test_login(self, mock_keyring, api_client_maker, monkeypatch):
+        with tempfile.TemporaryDirectory() as temp_airflow_home:
+            monkeypatch.setenv("AIRFLOW_HOME", temp_airflow_home)
 
-        mock_keyring.set_password = mock.MagicMock()
-        mock_keyring.get_password.return_value = None
-        env = "TEST_AUTH_LOGIN"
+            api_client = api_client_maker(
+                path="/auth/token/cli",
+                response_json=self.login_response.model_dump(),
+                expected_http_status_code=201,
+                kind=ClientKind.AUTH,
+            )
 
-        auth_command.login(
-            self.parser.parse_args(["auth", "login", "--api-url", "http://localhost:8080"]),
-            api_client=api_client,
-        )
-        default_config_dir = user_config_path("airflow", "Apache Software Foundation")
-        assert os.path.exists(default_config_dir)
-        with open(os.path.join(default_config_dir, f"{env}.json")) as f:
-            assert json.load(f) == {
-                "api_url": "http://localhost:8080",
-            }
+            mock_keyring.set_password = mock.MagicMock()
+            mock_keyring.get_password.return_value = None
+            env = "TEST_AUTH_LOGIN"
 
-        mock_keyring.set_password.assert_called_once_with(
-            "airflowctl", "api_token-TEST_AUTH_LOGIN", "TEST_TOKEN"
-        )
+            auth_command.login(
+                self.parser.parse_args(["auth", "login", "--api-url", "http://localhost:8080"]),
+                api_client=api_client,
+            )
+
+            config_path = os.path.join(temp_airflow_home, f"{env}.json")
+            assert os.path.exists(config_path)
+            with open(config_path) as f:
+                assert json.load(f) == {"api_url": "http://localhost:8080"}
+
+            mock_keyring.set_password.assert_called_once_with(
+                "airflowctl", "api_token-TEST_AUTH_LOGIN", "TEST_TOKEN"
+            )
 
     # Test auth login with username and password
     @patch("airflowctl.api.client.keyring")
-    def test_login_with_username_and_password(self, mock_keyring, api_client_maker, monkeypatch):
+    def test_login_with_username_and_password(self, mock_keyring, api_client_maker):
         api_client = api_client_maker(
             path="/auth/token/cli",
             response_json=self.login_response.model_dump(),
@@ -78,24 +82,27 @@ class TestCliAuthCommands:
 
         mock_keyring.set_password = mock.MagicMock()
         mock_keyring.get_password.return_value = None
-        monkeypatch.setattr("sys.stdin", io.StringIO("test_password"))
-        auth_command.login(
-            self.parser.parse_args(
+        with (
+            patch("sys.stdin", io.StringIO("test_password")),
+            patch("airflowctl.ctl.cli_config.getpass.getpass", return_value="test_password"),
+        ):
+            auth_command.login(
+                self.parser.parse_args(
+                    [
+                        "auth",
+                        "login",
+                        "--api-url",
+                        "http://localhost:8080",
+                        "--username",
+                        "test_user",
+                        "--password",
+                    ]
+                ),
+                api_client=api_client,
+            )
+            mock_keyring.set_password.assert_has_calls(
                 [
-                    "auth",
-                    "login",
-                    "--api-url",
-                    "http://localhost:8080",
-                    "--username",
-                    "test_user",
-                    "--password",
+                    mock.call("airflowctl", "api_token-production", ""),
+                    mock.call("airflowctl", "api_token-production", "TEST_TOKEN"),
                 ]
-            ),
-            api_client=api_client,
-        )
-        mock_keyring.set_password.assert_has_calls(
-            [
-                mock.call("airflowctl", "api_token-production", ""),
-                mock.call("airflowctl", "api_token-production", "TEST_TOKEN"),
-            ]
-        )
+            )

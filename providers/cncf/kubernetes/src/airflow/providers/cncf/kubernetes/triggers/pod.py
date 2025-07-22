@@ -75,6 +75,7 @@ class KubernetesPodTrigger(BaseTrigger):
     :param logging_interval: number of seconds to wait before kicking it back to
         the operator to print latest logs. If ``None`` will wait until container done.
     :param last_log_time: where to resume logs from
+    :param trigger_kwargs: additional keyword parameters to send in the event
     """
 
     def __init__(
@@ -94,6 +95,7 @@ class KubernetesPodTrigger(BaseTrigger):
         on_finish_action: str = "delete_pod",
         last_log_time: DateTime | None = None,
         logging_interval: int | None = None,
+        trigger_kwargs: dict | None = None,
     ):
         super().__init__()
         self.pod_name = pod_name
@@ -111,6 +113,7 @@ class KubernetesPodTrigger(BaseTrigger):
         self.last_log_time = last_log_time
         self.logging_interval = logging_interval
         self.on_finish_action = OnFinishAction(on_finish_action)
+        self.trigger_kwargs = trigger_kwargs or {}
 
         self._since_time = None
 
@@ -134,10 +137,11 @@ class KubernetesPodTrigger(BaseTrigger):
                 "on_finish_action": self.on_finish_action.value,
                 "last_log_time": self.last_log_time,
                 "logging_interval": self.logging_interval,
+                "trigger_kwargs": self.trigger_kwargs,
             },
         )
 
-    async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         """Get current pod status and yield a TriggerEvent."""
         self.log.info("Checking pod %r in namespace %r.", self.pod_name, self.pod_namespace)
         try:
@@ -149,6 +153,7 @@ class KubernetesPodTrigger(BaseTrigger):
                         "namespace": self.pod_namespace,
                         "name": self.pod_name,
                         "message": "All containers inside pod have started successfully.",
+                        **self.trigger_kwargs,
                     }
                 )
             elif state == ContainerState.FAILED:
@@ -158,6 +163,7 @@ class KubernetesPodTrigger(BaseTrigger):
                         "namespace": self.pod_namespace,
                         "name": self.pod_name,
                         "message": "pod failed",
+                        **self.trigger_kwargs,
                     }
                 )
             else:
@@ -172,6 +178,7 @@ class KubernetesPodTrigger(BaseTrigger):
                     "namespace": self.pod_namespace,
                     "status": "timeout",
                     "message": message,
+                    **self.trigger_kwargs,
                 }
             )
             return
@@ -183,6 +190,7 @@ class KubernetesPodTrigger(BaseTrigger):
                     "status": "error",
                     "message": str(e),
                     "stack_trace": traceback.format_exc(),
+                    **self.trigger_kwargs,
                 }
             )
             return
@@ -234,6 +242,7 @@ class KubernetesPodTrigger(BaseTrigger):
                         "namespace": self.pod_namespace,
                         "name": self.pod_name,
                         "last_log_time": self.last_log_time,
+                        **self.trigger_kwargs,
                     }
                 )
             if container_state == ContainerState.FAILED:
@@ -244,6 +253,7 @@ class KubernetesPodTrigger(BaseTrigger):
                         "name": self.pod_name,
                         "message": "Container state failed",
                         "last_log_time": self.last_log_time,
+                        **self.trigger_kwargs,
                     }
                 )
             self.log.debug("Container is not completed and still working.")
@@ -254,6 +264,7 @@ class KubernetesPodTrigger(BaseTrigger):
                         "last_log_time": self.last_log_time,
                         "namespace": self.pod_namespace,
                         "name": self.pod_name,
+                        **self.trigger_kwargs,
                     }
                 )
             self.log.debug("Sleeping for %s seconds.", self.poll_interval)

@@ -43,7 +43,7 @@ each line in detail.
 Understanding the DAG Definition File
 -------------------------------------
 Think of the Airflow Python script as a configuration file that lays out the structure of your DAG in code. The actual
-tasks you define here run in a different environment, which means this script isn't meant for data processing. It's main
+tasks you define here run in a different environment, which means this script isn't meant for data processing. Its main
 job is to define the DAG object, and it needs to evaluate quickly since the DAG File Processor checks it regularly for
 any changes.
 
@@ -90,7 +90,7 @@ Next, we'll need to create a DAG object to house our tasks. We'll provide a uniq
 Understanding Operators
 -----------------------
 An operator represents a unit of work in Airflow. They are the building blocks of your workflows, allowing you to
-define what tasks will be executed. While we can use operators for many tasks, Airflow also offers the :doc:`Taskflow API <taskflow>`
+define what tasks will be executed. While we can use operators for many tasks, Airflow also offers the :doc:`TaskFlow API <taskflow>`
 for a more Pythonic way to define workflows, which we'll touch on later.
 
 All operators derive from the ``BaseOperator``, which includes the essential arguments needed to run tasks in Airflow.
@@ -173,7 +173,7 @@ documentation at the start of your DAG file.
 
 Setting up Dependencies
 -----------------------
-In Airflow, tasks can depend on one another. For instance, if you have tasks ``t1``, ``t2``, and ``t3``, you can defined
+In Airflow, tasks can depend on one another. For instance, if you have tasks ``t1``, ``t2``, and ``t3``, you can define
 their dependencies in several ways:
 
 .. code-block:: python
@@ -211,7 +211,7 @@ Working with Time Zones
 -----------------------
 
 Creating a time zone aware DAG is straightforward. Just ensure you use time zone aware dates
-with ``pendulum``. Avoid using the standard library
+with `pendulum <https://github.com/python-pendulum/pendulum>`_. Avoid using the standard library
 `timezone <https://docs.python.org/3/library/datetime.html#timezone-objects>`_ as they have known limitations.
 
 Recap

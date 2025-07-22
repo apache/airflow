@@ -51,12 +51,20 @@ To do so, you need to set the following setting in your ``airflow.cfg``::
         }
       }
 
+- Some parts of the UI are rendered inside iframes (Auth managers security links for instance), you need to make sure that you are not setting a restricted CSP for iframe rendering
+  such as ``frame-ancestors 'none'``. You can set the CSP header in your reverse proxy configuration, for example::
+
+      add_header Content-Security-Policy "frame-ancestors 'self';";
+
 - Use ``--proxy-headers`` CLI flag to tell Uvicorn to respect these headers: ``airflow api-server --proxy-headers``
 
 - If your proxy server is not on the same host (or in the same docker container) as Airflow, then you will need to
   set the ``FORWARDED_ALLOW_IPS`` environment variable so Uvicorn knows who to trust this header from. See
   `Uvicorn's docs <https://www.uvicorn.org/deployment/#proxies-and-forwarded-headers>`_. For the full options you can pass here.
   (Please note the ``--forwarded-allow-ips`` CLI option does not exist in Airflow.)
+
+- Please make sure your proxy does not enforce http-only status on the Set-Cookie headers.
+  Airflow frontend needs to access the cookies through javascript, and a http-only flag would disturb this functionality.
 
 .. spelling::
 

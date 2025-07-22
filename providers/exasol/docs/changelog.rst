@@ -27,6 +27,45 @@
 Changelog
 ---------
 
+4.8.1
+.....
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.9 (#52072)``
+* ``Bump upper binding on pandas in all providers (#52060)``
+* ``Bump pyexasol>=0.26.0 (#51838)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Clean up messy default connection overrides in provider tests (#52137)``
+   * ``Remove pytest.mark.db_test: exasol (#52057)``
+
+4.8.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.10+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Misc
+~~~~
+
+* ``Update Exasol provider dependencies and deprecate get_pandas_df method (#50017)``
+* ``Bump min Airflow version in providers to 2.10 (#49843)``
+* ``chore: import paths use the stable functions (#49460)``
+
+Doc-only
+~~~~~~~~
+
+* ``add exasol operators doc and example & refactor trino (#49679)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Avoid committing history for providers (#49907)``
+
 4.7.5
 .....
 

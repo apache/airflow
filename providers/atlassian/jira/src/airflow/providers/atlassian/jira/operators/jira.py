@@ -17,11 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any
 
-from airflow.models import BaseOperator
 from airflow.providers.atlassian.jira.hooks.jira import JiraHook
+from airflow.providers.atlassian.jira.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -80,7 +80,7 @@ class JiraOperator(BaseOperator):
         jira_result: Any = getattr(resource, self.method_name)(**self.jira_method_args)
 
         output = jira_result.get("id", None) if isinstance(jira_result, dict) else None
-        self.xcom_push(context, key="id", value=output)
+        context["task_instance"].xcom_push(key="id", value=output)
 
         if self.result_processor:
             return self.result_processor(context, jira_result)

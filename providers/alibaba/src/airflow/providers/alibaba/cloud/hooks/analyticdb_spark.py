@@ -34,7 +34,7 @@ from alibabacloud_adb20211201.models import (
 from alibabacloud_tea_openapi.models import Config
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+from airflow.providers.alibaba.version_compat import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
@@ -71,7 +71,7 @@ class AnalyticDBSparkHook(BaseHook, LoggingMixin):
 
     TERMINAL_STATES = {AppState.COMPLETED, AppState.FAILED, AppState.FATAL, AppState.KILLED}
 
-    conn_name_attr = "alibabacloud_conn_id"
+    conn_name_attr = "adb_spark_conn_id"
     default_conn_name = "adb_spark_default"
     conn_type = "adb_spark"
     hook_name = "AnalyticDB Spark"

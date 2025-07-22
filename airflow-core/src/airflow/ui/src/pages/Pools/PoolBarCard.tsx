@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, Flex, HStack, Text, VStack } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 
 import type { PoolResponse } from "openapi/requests/types.gen";
 import { PoolBar } from "src/components/PoolBar";
@@ -30,40 +31,44 @@ type PoolBarCardProps = {
   readonly pool: PoolResponse;
 };
 
-const PoolBarCard = ({ pool }: PoolBarCardProps) => (
-  <Box borderColor="border.emphasized" borderRadius={8} borderWidth={1} mb={2} overflow="hidden">
-    <Flex alignItems="center" bg="bg.muted" justifyContent="space-between" p={4}>
-      <VStack align="start" flex="1">
-        <HStack justifyContent="space-between" width="100%">
-          <Text fontSize="lg" fontWeight="bold" whiteSpace="normal" wordBreak="break-word">
-            {pool.name} ({pool.slots} slots)
-            {pool.include_deferred ? (
-              <Tooltip content="Deferred Slots Included">
-                <StateIcon size={18} state="deferred" style={{ display: "inline", marginLeft: 6 }} />
-              </Tooltip>
-            ) : undefined}
-          </Text>
-          <HStack gap={0}>
-            <EditPoolButton pool={pool} />
-            {pool.name === "default_pool" ? undefined : (
-              <DeletePoolButton poolName={pool.name} withText={false} />
-            )}
-          </HStack>
-        </HStack>
-        {pool.description ?? (
-          <Text color="gray.fg" fontSize="sm">
-            {pool.description}
-          </Text>
-        )}
-      </VStack>
-    </Flex>
+const PoolBarCard = ({ pool }: PoolBarCardProps) => {
+  const { t: translate } = useTranslation("admin");
 
-    <Box margin={4}>
-      <Flex bg="gray.muted" borderRadius="md" h="20px" overflow="hidden" w="100%">
-        <PoolBar pool={pool} totalSlots={pool.slots} />
+  return (
+    <Box borderColor="border.emphasized" borderRadius={8} borderWidth={1} mb={2} overflow="hidden">
+      <Flex alignItems="center" bg="bg.muted" justifyContent="space-between" p={4}>
+        <VStack align="start" flex="1">
+          <HStack justifyContent="space-between" width="100%">
+            <Text fontSize="lg" fontWeight="bold" whiteSpace="normal" wordBreak="break-word">
+              {pool.name} ({pool.slots} {translate("pools.form.slots")})
+              {pool.include_deferred ? (
+                <Tooltip content={translate("pools.deferredSlotsIncluded")}>
+                  <StateIcon size={18} state="deferred" style={{ display: "inline", marginLeft: 6 }} />
+                </Tooltip>
+              ) : undefined}
+            </Text>
+            <HStack gap={0}>
+              <EditPoolButton pool={pool} />
+              {pool.name === "default_pool" ? undefined : (
+                <DeletePoolButton poolName={pool.name} withText={false} />
+              )}
+            </HStack>
+          </HStack>
+          {pool.description ?? (
+            <Text color="gray.fg" fontSize="sm">
+              {pool.description}
+            </Text>
+          )}
+        </VStack>
       </Flex>
+
+      <Box margin={4}>
+        <Flex bg="gray.muted" borderRadius="md" h="20px" overflow="hidden" w="100%">
+          <PoolBar pool={pool} totalSlots={pool.slots} />
+        </Flex>
+      </Box>
     </Box>
-  </Box>
-);
+  );
+};
 
 export default PoolBarCard;

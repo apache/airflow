@@ -25,9 +25,6 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.datadog.sensors.datadog import DatadogSensor
-from airflow.utils import db
-
-pytestmark = pytest.mark.db_test
 
 at_least_one_event = [
     {
@@ -68,8 +65,9 @@ zero_events: list = []
 
 
 class TestDatadogSensor:
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id="datadog_default",
                 conn_type="datadog",

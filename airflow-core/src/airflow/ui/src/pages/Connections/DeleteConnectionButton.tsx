@@ -16,7 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, useDisclosure, Text, VStack, Heading } from "@chakra-ui/react";
+import { Flex, useDisclosure, Text, VStack, Heading, Code } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiTrash } from "react-icons/fi";
 
 import { Button, Dialog } from "src/components/ui";
@@ -29,6 +30,7 @@ type Props = {
 };
 
 const DeleteConnectionButton = ({ connectionId, disabled }: Props) => {
+  const { t: translate } = useTranslation("admin");
   const { onClose, onOpen, open } = useDisclosure();
   const { isPending, mutate } = useDeleteConnection({
     onSuccessConfirm: onClose,
@@ -37,13 +39,13 @@ const DeleteConnectionButton = ({ connectionId, disabled }: Props) => {
   return (
     <>
       <ActionButton
-        actionName="Delete Connection"
+        actionName={translate("connections.delete.title")}
         disabled={disabled}
         icon={<FiTrash />}
         onClick={() => {
           onOpen();
         }}
-        text="Delete Connection"
+        text={translate("connections.delete.title")}
         withText={false}
       />
 
@@ -51,7 +53,7 @@ const DeleteConnectionButton = ({ connectionId, disabled }: Props) => {
         <Dialog.Content backdrop>
           <Dialog.Header>
             <VStack align="start" gap={4}>
-              <Heading size="xl">Delete Connection</Heading>
+              <Heading size="xl">{translate("connections.delete.deleteConnection", { count: 1 })}</Heading>
             </VStack>
           </Dialog.Header>
 
@@ -59,10 +61,14 @@ const DeleteConnectionButton = ({ connectionId, disabled }: Props) => {
 
           <Dialog.Body width="full">
             <Text color="gray.solid" fontSize="md" fontWeight="semibold" mb={4}>
-              You are about to delete connection having ID <strong>{connectionId}</strong>.
+              {translate("connections.delete.firstConfirmMessage_one")}
               <br />
-              This action is permanent and cannot be undone.{" "}
-              <strong>Are you sure you want to proceed?</strong>
+              <Code mb={2} mt={2} p={4}>
+                {connectionId}
+              </Code>
+              <br />
+              {translate("deleteActions.modal.secondConfirmMessage")}
+              <strong>{translate("deleteActions.modal.thirdConfirmMessage")}</strong>
             </Text>
             <Flex justifyContent="end" mt={3}>
               <Button
@@ -74,7 +80,7 @@ const DeleteConnectionButton = ({ connectionId, disabled }: Props) => {
                   });
                 }}
               >
-                <FiTrash /> <Text fontWeight="bold">Yes, Delete</Text>
+                <FiTrash /> <Text fontWeight="bold">{translate("deleteActions.modal.confirmButton")}</Text>
               </Button>
             </Flex>
           </Dialog.Body>

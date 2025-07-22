@@ -160,7 +160,7 @@ PKG-INFO
 # Openapi files
 .openapi-generator-ignore
 version.txt
-v1*.yaml
+v2*.yaml
 _private_ui*.yaml
 
 # Front end generated files
@@ -171,3 +171,11 @@ pnpm-lock.yaml
 # python generated file
 generated.py
 auth_generated.py
+
+# hash files
+www-hash.txt
+
+# go setup files
+go.mod
+go.sum
+mocks/*

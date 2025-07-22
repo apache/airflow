@@ -1,0 +1,136 @@
+{
+  "backfill": {
+    "affected_one": "1 Lauf wird ausgelöst.",
+    "affected_other": "{{count}} Läufe werden ausgelöst.",
+    "affectedNone": "Keine Läufe entsprechen den Kriterien.",
+    "allRuns": "Alle Läufe",
+    "backwards": "Verarbeitung in Rückwärtiger Reihenfolge",
+    "dateRange": "Datumsbereich",
+    "dateRangeFrom": "Von",
+    "dateRangeTo": "Bis",
+    "errorStartDateBeforeEndDate": "Das Startdatum muss vor dem Enddatum liegen.",
+    "maxRuns": "Anzahl aktiver paralleler Läufe",
+    "missingAndErroredRuns": "Fehlende und fehlgeschlagene Läufe",
+    "missingRuns": "Fehlende Läufe",
+    "reprocessBehavior": "Auffüll-Modus",
+    "run": "Auffüllung starten",
+    "selectDescription": "Dieses Dag für einen Datumsbereich in der Vergangenheit ausführen",
+    "selectLabel": "Auffüllen",
+    "title": "Auffüllung starten",
+    "toaster": {
+      "success": {
+        "description": "Auffüllungsaufträge wurden erfolgreich angestoßen.",
+        "title": "Auffüllung gestartet"
+      }
+    },
+    "tooltip": "Auffüllung benötigt eine Zeitplanung",
+    "unpause": "Dag {{dag_display_name}} beim Start der Auffüllung aktiv schalten",
+    "validation": {
+      "datesRequired": "Sowohl Start- als auch Enddatum müssen angegeben werden.",
+      "startBeforeEnd": "Das Startdatum muss vor oder auf dem Enddatum liegen."
+    }
+  },
+  "banner": {
+    "backfillInProgress": "Auffüllung läuft",
+    "cancel": "Auffüllung abbrechen",
+    "pause": "Auffüllung pausieren",
+    "unpause": "Auffüllung weiterführen"
+  },
+  "clipboard": {
+    "copy": "Kopieren"
+  },
+  "close": "Schließen",
+  "configForm": {
+    "advancedOptions": "Erweiterte Optionen",
+    "configJson": "JSON der Konfiguration",
+    "invalidJson": "Ungültiges JSON Format: {{errorMessage}}"
+  },
+  "dagWarnings": {
+    "error_one": "1 Fehler",
+    "error_other": "{{count}} Fehler",
+    "errorAndWarning": "1 Fehler und {{warningText}}",
+    "warning_one": "1 Warnung",
+    "warning_other": "{{count}} Warnungen"
+  },
+  "durationChart": {
+    "duration": "Laufzeit (Sekunden)",
+    "lastDagRun_one": "Letzter Dag Lauf",
+    "lastDagRun_other": "Letzte {{count}} Dag Läufe",
+    "lastTaskInstance_one": "Letzte Task Instanz",
+    "lastTaskInstance_other": "Letzte {{count}} Task Instanzen",
+    "queuedDuration": "Zeit in der Warteschlange",
+    "runAfter": "Lauf ab",
+    "runDuration": "Laufzeit"
+  },
+  "fileUpload": {
+    "files_one": "1 Datei",
+    "files_other": "{{count}} Dateien"
+  },
+  "flexibleForm": {
+    "placeholder": "Wählen Sie einen Wert",
+    "placeholderArray": "Fügen Sie einen Eintrag pro Zeile um eine Liste zu erzeugen",
+    "placeholderExamples": "Tippen Sie ein paar Buchstaben für Vorschläge",
+    "placeholderMulti": "Wählen Sie einen oder mehrere Werte",
+    "validationErrorArrayNotArray": "Die Daten sind keine Liste.",
+    "validationErrorArrayNotNumbers": "Alle Elemente in der Liste müssen numerisch sein.",
+    "validationErrorArrayNotObject": "Alle Elemente in der Liste müssen Objekte (Dictionary) sein.",
+    "validationErrorRequired": "Dieses Feld ist ein Pflichtfeld und muss gefüllt werden"
+  },
+  "graph": {
+    "directionDown": "Von Oben nach Unten",
+    "directionLeft": "Von Rechts nach Links",
+    "directionRight": "Von Links nach Rechts",
+    "directionUp": "Von Unten nach Oben",
+    "downloadImage": "Graph-Bild herunterladen",
+    "downloadImageError": "Herunterladn des Graph-Bild fehlgeschlagen.",
+    "downloadImageErrorTitle": "Herunterladen fehlgeschlagen",
+    "otherDagRuns": "+Weitere Dag Läufe",
+    "taskCount_one": "{{count}} Task",
+    "taskCount_other": "{{count}} Tasks",
+    "taskGroup": "Task Gruppe"
+  },
+  "limitedList": "+{{count}} mehr",
+  "logs": {
+    "file": "Datei",
+    "location": "Zeile {{line}} in {{name}}"
+  },
+  "reparseDag": "Dag neu parsen",
+  "sortedAscending": "aufsteigend sortier",
+  "sortedDescending": "absteigend sortier",
+  "sortedUnsorted": "unsortiert",
+  "taskTries": "Versuch des Tasks",
+  "toggleCardView": "Kachelansicht anzeigen",
+  "toggleTableView": "Tabellenansicht anzeigen",
+  "triggerDag": {
+    "button": "Auslösen",
+    "loading": "Lade DAG Information...",
+    "loadingFailed": "Das Laden der DAG Information fehlgeschlagen. Bitt versuchen Sie es noch einmal.",
+    "runIdHelp": "Optional - wird automatisch erzeugt wenn nicht angegeben",
+    "selectDescription": "Einen einzelnen Lauf dieses Dag auslösen",
+    "selectLabel": "Einzelner Lauf",
+    "title": "Dag Auslösen",
+    "toaster": {
+      "success": {
+        "description": "Dag-Lauf wurde erfolgreich ausgelöst.",
+        "title": "Dag-Lauf ausgelöst"
+      }
+    },
+    "unpause": "Dag {{dagDisplayName}} beim Auslösen des Laufes aktiv schalten"
+  },
+  "trimText": {
+    "details": "Details",
+    "empty": "Leer",
+    "noContent": "Kein Inhalt verfügbar."
+  },
+  "versionDetails": {
+    "bundleLink": "Bündel-Link",
+    "bundleName": "Bündel Name",
+    "bundleVersion": "Bündel Version",
+    "createdAt": "Erstellt um",
+    "versionId": "Versions-ID"
+  },
+  "versionSelect": {
+    "dagVersion": "Dag Version",
+    "versionCode": "v{{versionCode}}"
+  }
+}

@@ -20,105 +20,20 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Literal
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.google.cloud.hooks.vertex_ai.generative_model import GenerativeModelHook
+from google.api_core import exceptions
+
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.providers.google.cloud.hooks.vertex_ai.generative_model import (
+    ExperimentRunHook,
+    GenerativeModelHook,
+)
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.deprecated import deprecated
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-
-@deprecated(
-    planned_removal_date="April 09, 2025",
-    use_instead="GenerativeModelGenerateContentOperator",
-    category=AirflowProviderDeprecationWarning,
-)
-class TextGenerationModelPredictOperator(GoogleCloudBaseOperator):
-    """
-    Uses the Vertex AI PaLM API to generate natural language text.
-
-    :param project_id: Required. The ID of the Google Cloud project that the
-        service belongs to (templated).
-    :param location: Required. The ID of the Google Cloud location that the
-        service belongs to (templated).
-    :param prompt: Required. Inputs or queries that a user or a program gives
-        to the Vertex AI PaLM API, in order to elicit a specific response (templated).
-    :param pretrained_model: By default uses the pre-trained model `text-bison`,
-        optimized for performing natural language tasks such as classification,
-        summarization, extraction, content creation, and ideation.
-    :param temperature: Temperature controls the degree of randomness in token
-        selection. Defaults to 0.0.
-    :param max_output_tokens: Token limit determines the maximum amount of text
-        output. Defaults to 256.
-    :param top_p: Tokens are selected from most probable to least until the sum
-        of their probabilities equals the top_p value. Defaults to 0.8.
-    :param top_k: A top_k of 1 means the selected token is the most probable
-        among all tokens. Defaults to 0.4.
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :param impersonation_chain: Optional service account to impersonate using short-term
-        credentials, or chained list of accounts required to get the access_token
-        of the last account in the list, which will be impersonated in the request.
-        If set as a string, the account must grant the originating account
-        the Service Account Token Creator IAM role.
-        If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
-        account from the list granting this role to the originating account (templated).
-    """
-
-    template_fields = ("location", "project_id", "impersonation_chain", "prompt")
-
-    def __init__(
-        self,
-        *,
-        project_id: str,
-        location: str,
-        prompt: str,
-        pretrained_model: str = "text-bison",
-        temperature: float = 0.0,
-        max_output_tokens: int = 256,
-        top_p: float = 0.8,
-        top_k: int = 40,
-        gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: str | Sequence[str] | None = None,
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.project_id = project_id
-        self.location = location
-        self.prompt = prompt
-        self.pretrained_model = pretrained_model
-        self.temperature = temperature
-        self.max_output_tokens = max_output_tokens
-        self.top_p = top_p
-        self.top_k = top_k
-        self.gcp_conn_id = gcp_conn_id
-        self.impersonation_chain = impersonation_chain
-
-    def execute(self, context: Context):
-        self.hook = GenerativeModelHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
-
-        self.log.info("Submitting prompt")
-        response = self.hook.text_generation_model_predict(
-            project_id=self.project_id,
-            location=self.location,
-            prompt=self.prompt,
-            pretrained_model=self.pretrained_model,
-            temperature=self.temperature,
-            max_output_tokens=self.max_output_tokens,
-            top_p=self.top_p,
-            top_k=self.top_k,
-        )
-
-        self.log.info("Model response: %s", response)
-        self.xcom_push(context, key="model_response", value=response)
-
-        return response
 
 
 class TextEmbeddingModelGetEmbeddingsOperator(GoogleCloudBaseOperator):
@@ -130,9 +45,8 @@ class TextEmbeddingModelGetEmbeddingsOperator(GoogleCloudBaseOperator):
     :param location: Required. The ID of the Google Cloud location that the
         service belongs to (templated).
     :param prompt: Required. Inputs or queries that a user or a program gives
-        to the Vertex AI PaLM API, in order to elicit a specific response (templated).
-    :param pretrained_model: By default uses the pre-trained model `textembedding-gecko`,
-        optimized for performing text embeddings.
+        to the Vertex AI Generative Model API, in order to elicit a specific response (templated).
+    :param pretrained_model: Required. Model, optimized for performing text embeddings.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -152,7 +66,7 @@ class TextEmbeddingModelGetEmbeddingsOperator(GoogleCloudBaseOperator):
         project_id: str,
         location: str,
         prompt: str,
-        pretrained_model: str = "textembedding-gecko",
+        pretrained_model: str,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -180,7 +94,7 @@ class TextEmbeddingModelGetEmbeddingsOperator(GoogleCloudBaseOperator):
         )
 
         self.log.info("Model response: %s", response)
-        self.xcom_push(context, key="model_response", value=response)
+        context["ti"].xcom_push(key="model_response", value=response)
 
         return response
 
@@ -199,10 +113,9 @@ class GenerativeModelGenerateContentOperator(GoogleCloudBaseOperator):
     :param safety_settings: Optional. Per request settings for blocking unsafe content.
     :param tools: Optional. A list of tools available to the model during evaluation, such as a data store.
     :param system_instruction: Optional. An instruction given to the model to guide its behavior.
-    :param pretrained_model: By default uses the pre-trained model `gemini-pro`,
-        supporting prompts with text-only input, including natural language
-        tasks, multi-turn text and code chat, and code generation. It can
-        output text and code.
+    :param pretrained_model: Required. The name of the model to use for content generation,
+        which can be a text-only or multimodal model. For example, `gemini-pro` or
+        `gemini-pro-vision`.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -226,7 +139,7 @@ class GenerativeModelGenerateContentOperator(GoogleCloudBaseOperator):
         generation_config: dict | None = None,
         safety_settings: dict | None = None,
         system_instruction: str | None = None,
-        pretrained_model: str = "gemini-pro",
+        pretrained_model: str,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -260,7 +173,7 @@ class GenerativeModelGenerateContentOperator(GoogleCloudBaseOperator):
         )
 
         self.log.info("Model response: %s", response)
-        self.xcom_push(context, key="model_response", value=response)
+        context["ti"].xcom_push(key="model_response", value=response)
 
         return response
 
@@ -310,7 +223,7 @@ class SupervisedFineTuningTrainOperator(GoogleCloudBaseOperator):
         tuned_model_display_name: str | None = None,
         validation_dataset: str | None = None,
         epochs: int | None = None,
-        adapter_size: int | None = None,
+        adapter_size: Literal[1, 4, 8, 16] | None = None,
         learning_rate_multiplier: float | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -349,8 +262,8 @@ class SupervisedFineTuningTrainOperator(GoogleCloudBaseOperator):
         self.log.info("Tuned Model Name: %s", response.tuned_model_name)
         self.log.info("Tuned Model Endpoint Name: %s", response.tuned_model_endpoint_name)
 
-        self.xcom_push(context, key="tuned_model_name", value=response.tuned_model_name)
-        self.xcom_push(context, key="tuned_model_endpoint_name", value=response.tuned_model_endpoint_name)
+        context["ti"].xcom_push(key="tuned_model_name", value=response.tuned_model_name)
+        context["ti"].xcom_push(key="tuned_model_endpoint_name", value=response.tuned_model_endpoint_name)
 
         result = {
             "tuned_model_name": response.tuned_model_name,
@@ -370,10 +283,9 @@ class CountTokensOperator(GoogleCloudBaseOperator):
         service belongs to (templated).
     :param contents: Required. The multi-part content of a message that a user or a program
         gives to the generative model, in order to elicit a specific response.
-    :param pretrained_model: By default uses the pre-trained model `gemini-pro`,
-        supporting prompts with text-only input, including natural language
-        tasks, multi-turn text and code chat, and code generation. It can
-        output text and code.
+    :param pretrained_model: Required. Model, supporting prompts with text-only input,
+        including natural language tasks, multi-turn text and code chat,
+        and code generation. It can output text and code.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -393,7 +305,7 @@ class CountTokensOperator(GoogleCloudBaseOperator):
         project_id: str,
         location: str,
         contents: list,
-        pretrained_model: str = "gemini-pro",
+        pretrained_model: str,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -421,8 +333,8 @@ class CountTokensOperator(GoogleCloudBaseOperator):
         self.log.info("Total tokens: %s", response.total_tokens)
         self.log.info("Total billable characters: %s", response.total_billable_characters)
 
-        self.xcom_push(context, key="total_tokens", value=response.total_tokens)
-        self.xcom_push(context, key="total_billable_characters", value=response.total_billable_characters)
+        context["ti"].xcom_push(key="total_tokens", value=response.total_tokens)
+        context["ti"].xcom_push(key="total_billable_characters", value=response.total_billable_characters)
 
 
 class RunEvaluationOperator(GoogleCloudBaseOperator):
@@ -562,8 +474,8 @@ class CreateCachedContentOperator(GoogleCloudBaseOperator):
         project_id: str,
         location: str,
         model_name: str,
-        system_instruction: str | None = None,
-        contents: list | None = None,
+        system_instruction: Any | None = None,
+        contents: list[Any] | None = None,
         ttl_hours: float = 1,
         display_name: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -674,3 +586,73 @@ class GenerateFromCachedContentOperator(GoogleCloudBaseOperator):
         self.log.info("Cached Content Response: %s", cached_content_text)
 
         return cached_content_text
+
+
+@deprecated(
+    planned_removal_date="January 3, 2026",
+    use_instead="airflow.providers.google.cloud.operators.vertex_ai.experiment_service.DeleteExperimentRunOperator",
+    category=AirflowProviderDeprecationWarning,
+)
+class DeleteExperimentRunOperator(GoogleCloudBaseOperator):
+    """
+    Use the Rapid Evaluation API to evaluate a model.
+
+    :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+    :param location: Required. The ID of the Google Cloud location that the service belongs to.
+    :param experiment_name: Required. The name of the evaluation experiment.
+    :param experiment_run_name: Required. The specific run name or ID for this experiment.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields = (
+        "location",
+        "project_id",
+        "impersonation_chain",
+        "experiment_name",
+        "experiment_run_name",
+    )
+
+    def __init__(
+        self,
+        *,
+        project_id: str,
+        location: str,
+        experiment_name: str,
+        experiment_run_name: str,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.location = location
+        self.experiment_name = experiment_name
+        self.experiment_run_name = experiment_run_name
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: Context) -> None:
+        self.hook = ExperimentRunHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+        try:
+            self.hook.delete_experiment_run(
+                project_id=self.project_id,
+                location=self.location,
+                experiment_name=self.experiment_name,
+                experiment_run_name=self.experiment_run_name,
+            )
+        except exceptions.NotFound:
+            raise AirflowException(f"Experiment Run with name {self.experiment_run_name} not found")
+
+        self.log.info("Deleted experiment run: %s", self.experiment_run_name)

@@ -25,39 +25,39 @@ export const taskInstanceStateOptions = createListCollection<{
   value: TaskInstanceState | "all" | "none";
 }>({
   items: [
-    { label: "All States", value: "all" },
-    { label: "Scheduled", value: "scheduled" },
-    { label: "Queued", value: "queued" },
-    { label: "Running", value: "running" },
-    { label: "Success", value: "success" },
-    { label: "Restarting", value: "restarting" },
-    { label: "Failed", value: "failed" },
-    { label: "Up For Retry", value: "up_for_retry" },
-    { label: "Up For Reschedule", value: "up_for_reschedule" },
-    { label: "Upstream failed", value: "upstream_failed" },
-    { label: "Skipped", value: "skipped" },
-    { label: "Deferred", value: "deferred" },
-    { label: "Removed", value: "removed" },
-    { label: "No Status", value: "none" },
+    { label: "dags:filters.allStates", value: "all" },
+    { label: "common:states.scheduled", value: "scheduled" },
+    { label: "common:states.queued", value: "queued" },
+    { label: "common:states.running", value: "running" },
+    { label: "common:states.success", value: "success" },
+    { label: "common:states.restarting", value: "restarting" },
+    { label: "common:states.failed", value: "failed" },
+    { label: "common:states.up_for_retry", value: "up_for_retry" },
+    { label: "common:states.up_for_reschedule", value: "up_for_reschedule" },
+    { label: "common:states.upstream_failed", value: "upstream_failed" },
+    { label: "common:states.skipped", value: "skipped" },
+    { label: "common:states.deferred", value: "deferred" },
+    { label: "common:states.removed", value: "removed" },
+    { label: "common:states.none", value: "none" },
   ],
 });
 
 export const dagRunStateOptions = createListCollection({
   items: [
-    { label: "All States", value: "all" },
-    { label: "Queued", value: "queued" },
-    { label: "Running", value: "running" },
-    { label: "Failed", value: "failed" },
-    { label: "Success", value: "success" },
+    { label: "dags:filters.allStates", value: "all" },
+    { label: "common:states.queued", value: "queued" },
+    { label: "common:states.running", value: "running" },
+    { label: "common:states.failed", value: "failed" },
+    { label: "common:states.success", value: "success" },
   ],
 });
 
 export const dagRunTypeOptions = createListCollection({
   items: [
-    { label: "All Run Types", value: "all" },
-    { label: "Backfill", value: "backfill" },
-    { label: "Manual", value: "manual" },
-    { label: "Scheduled", value: "scheduled" },
-    { label: "Asset Triggered", value: "asset_triggered" },
+    { label: "dags:filters.allRunTypes", value: "all" },
+    { label: "common:runTypes.backfill", value: "backfill" },
+    { label: "common:runTypes.manual", value: "manual" },
+    { label: "common:runTypes.scheduled", value: "scheduled" },
+    { label: "common:runTypes.asset_triggered", value: "asset_triggered" },
   ],
 });

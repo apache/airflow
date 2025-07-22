@@ -59,15 +59,24 @@ deployment on a `Kubernetes <http://kubernetes.io>`__ cluster using the
 Requirements
 ------------
 
--  Kubernetes 1.29+ cluster
+-  Kubernetes 1.30+ cluster
 -  Helm 3.10+
 -  PV provisioner support in the underlying infrastructure (optionally)
 
 Features
 --------
 
-* Supported executors: ``LocalExecutor``, ``CeleryExecutor``, ``KubernetesExecutor``, ``LocalKubernetesExecutor``, ``CeleryKubernetesExecutor``
-* Supported Airflow version: ``1.10+``, ``2.0+``
+* Supported executors (all Airflow versions): ``LocalExecutor``, ``CeleryExecutor``, ``KubernetesExecutor``
+* Supported hybrid static executors (Airflow version ``2.X.X``): ``LocalKubernetesExecutor``, ``CeleryKubernetesExecutor``
+* Supported Hybrid Executors (``2.10+``)
+* Supported AWS executors with AWS provider version ``8.21.0+``:
+   * ``airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor``
+   * ``airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor``
+* Supported AWS executors with AWS provider version ``9.9.0+``:
+   * ``airflow.providers.amazon.aws.executors.aws_lambda.lambda_executor.AwsLambdaExecutor``
+* Supported Edge executor with edge3 provider version ``1.0.0+``:
+   * ``airflow.providers.edge3.executors.EdgeExecutor``
+* Supported Airflow version: ``1.10+``, ``2.0+``, ``3.0+``
 * Supported database backend: ``PostgreSQL``, ``MySQL``
 * Autoscaling for ``CeleryExecutor`` provided by KEDA
 * ``PostgreSQL`` and ``PgBouncer`` with a battle-tested configuration
@@ -80,6 +89,8 @@ Features
 * Administrator account creation during deployment
 * Kerberos secure configuration
 * One-command deployment for any type of executor. You don't need to provide other services e.g. Redis/Database to test the Airflow.
+
+.. _helm_chart_install:
 
 Installing the Chart
 --------------------

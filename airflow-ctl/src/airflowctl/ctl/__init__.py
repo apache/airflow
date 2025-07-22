@@ -19,4 +19,4 @@
 # https://github.com/microsoft/pyright/issues/9439#issuecomment-2468990559
 from __future__ import annotations
 
-__path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
+__path__ = __import__("pkgutil").extend_path(__path__, __name__)

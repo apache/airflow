@@ -17,7 +17,7 @@
 #
 # PEP 723 compliant inline script metadata (not yet widely supported)
 # /// script
-# requires-python = ">=3.9"
+# requires-python = ">=3.10"
 # dependencies = [
 #   "apache-airflow-client",
 #   "rich",
@@ -41,8 +41,8 @@ try:
 except ImportError:
     print("Output will not be colored. Please install rich to get colored output: `pip install rich`")
     pass
-from airflow_client.client.api import config_api, dag_api, dag_run_api
-from airflow_client.client.model.dag_run import DAGRun
+from airflow_client.client.api import config_api, dag_api, dag_run_api, task_api
+from airflow_client.client.models.trigger_dag_run_post_body import TriggerDAGRunPostBody
 
 # The client must use the authentication and authorization parameters
 # in accordance with the API server security policy.
@@ -63,9 +63,7 @@ from airflow_client.client.model.dag_run import DAGRun
 
 
 access_token = generate_access_token("admin", "admin", "localhost:8080")
-configuration = airflow_client.client.Configuration(
-    host="http://localhost:8080/api/v2",
-)
+configuration = airflow_client.client.Configuration(host="http://localhost:8080", access_token=access_token)
 
 # Make sure in the [core] section, the  `load_examples` config is set to True in your airflow.cfg
 # or AIRFLOW__CORE__LOAD_EXAMPLES environment variable set to True
@@ -75,9 +73,7 @@ DAG_ID = "example_simplest_dag"
 # Enter a context with an instance of the API client
 @pytest.mark.execution_timeout(400)
 def test_python_client():
-    with airflow_client.client.ApiClient(
-        configuration, header_name="Authorization", header_value=f"Bearer {access_token}"
-    ) as api_client:
+    with airflow_client.client.ApiClient(configuration) as api_client:
         errors = False
 
         print("[blue]Getting DAG list")
@@ -97,7 +93,8 @@ def test_python_client():
 
         print("[blue]Getting Tasks for a DAG")
         try:
-            api_response = dag_api_instance.get_tasks(DAG_ID)
+            task_api_instance = task_api.TaskApi(api_client)
+            api_response = task_api_instance.get_tasks(DAG_ID)
             print(api_response)
         except airflow_client.client.exceptions.OpenApiException as e:
             print(f"[red]Exception when calling DagAPI->get_tasks: {e}\n")
@@ -106,15 +103,15 @@ def test_python_client():
             print("[green]Getting Tasks successful")
 
         print("[blue]Triggering a DAG run")
-        dag_run_api_instance = dag_run_api.DAGRunApi(api_client)
+        dag_run_api_instance = dag_run_api.DagRunApi(api_client)
         try:
             # Create a DAGRun object (no dag_id should be specified because it is read-only property of DAGRun)
             # dag_run id is generated randomly to allow multiple executions of the script
-            dag_run = DAGRun(
+            dag_run = TriggerDAGRunPostBody(
                 dag_run_id="some_test_run_" + uuid.uuid4().hex,
                 logical_date=None,
             )
-            api_response = dag_run_api_instance.post_dag_run(DAG_ID, dag_run)
+            api_response = dag_run_api_instance.trigger_dag_run(DAG_ID, dag_run)
             print(api_response)
         except airflow_client.client.exceptions.OpenApiException as e:
             print(f"[red]Exception when calling DAGRunAPI->post_dag_run: {e}\n")

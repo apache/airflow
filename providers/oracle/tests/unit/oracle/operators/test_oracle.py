@@ -27,6 +27,8 @@ from airflow.models import TaskInstance
 from airflow.providers.oracle.hooks.oracle import OracleHook
 from airflow.providers.oracle.operators.oracle import OracleStoredProcedureOperator
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
 
 class TestOracleStoredProcedureOperator:
     @mock.patch.object(OracleHook, "run", autospec=OracleHook.run)
@@ -53,7 +55,6 @@ class TestOracleStoredProcedureOperator:
             handler=mock.ANY,
         )
 
-    @pytest.mark.db_test
     @mock.patch.object(OracleHook, "callproc", autospec=OracleHook.callproc)
     def test_push_oracle_exit_to_xcom(self, mock_callproc, request, dag_maker):
         # Test pulls the value previously pushed to xcom and checks if it's the same
@@ -65,12 +66,20 @@ class TestOracleStoredProcedureOperator:
         error = f"ORA-{ora_exit_code}: This is a five-digit ORA error code"
         mock_callproc.side_effect = oracledb.DatabaseError(error)
 
-        with dag_maker(dag_id=f"dag_{request.node.name}"):
+        if AIRFLOW_V_3_0_PLUS:
+            run_task = request.getfixturevalue("run_task")
             task = OracleStoredProcedureOperator(
                 procedure=procedure, oracle_conn_id=oracle_conn_id, parameters=parameters, task_id=task_id
             )
-        dr = dag_maker.create_dagrun(run_id=task_id)
-        ti = TaskInstance(task=task, run_id=dr.run_id)
-        with pytest.raises(oracledb.DatabaseError, match=re.escape(error)):
-            ti.run()
-        assert ti.xcom_pull(task_ids=task.task_id, key="ORA") == ora_exit_code
+            run_task(task=task)
+            assert run_task.xcom.get(task_id=task.task_id, key="ORA") == ora_exit_code
+        else:
+            with dag_maker(dag_id=f"dag_{request.node.name}"):
+                task = OracleStoredProcedureOperator(
+                    procedure=procedure, oracle_conn_id=oracle_conn_id, parameters=parameters, task_id=task_id
+                )
+            dr = dag_maker.create_dagrun(run_id=task_id)
+            ti = TaskInstance(task=task, run_id=dr.run_id)
+            with pytest.raises(oracledb.DatabaseError, match=re.escape(error)):
+                ti.run()
+            assert ti.xcom_pull(task_ids=task.task_id, key="ORA") == ora_exit_code

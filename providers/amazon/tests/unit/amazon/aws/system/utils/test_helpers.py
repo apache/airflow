@@ -82,9 +82,9 @@ class TestAmazonSystemTestHelpers:
         utils._fetch_from_ssm.cache_clear()
 
         result = (
-            utils.fetch_variable("some_key", default_value)
+            utils.fetch_variable(key="some_key", test_name=TEST_NAME, default_value=default_value)
             if default_value
-            else utils.fetch_variable(ANY_STR)
+            else utils.fetch_variable(key=ANY_STR, test_name=TEST_NAME)
         )
 
         utils._fetch_from_ssm.cache_clear()
@@ -93,7 +93,7 @@ class TestAmazonSystemTestHelpers:
     def test_fetch_variable_no_value_found_raises_exception(self):
         # This would be the (None, None, None) test case from above.
         with pytest.raises(ValueError) as raised_exception:
-            utils.fetch_variable(ANY_STR)
+            utils.fetch_variable(key=ANY_STR, test_name=TEST_NAME)
 
         assert NO_VALUE_MSG.format(key=ANY_STR) in str(raised_exception.value)
 
@@ -136,13 +136,13 @@ class TestAmazonSystemTestHelpers:
 
     def test_set_env_id_generates_if_required(self):
         # No environment variable nor SSM value has been found
-        result = set_env_id()
+        result = set_env_id(TEST_NAME)
 
         assert len(result) == DEFAULT_ENV_ID_LEN + len(DEFAULT_ENV_ID_PREFIX)
         assert result.isalnum()
         assert result.islower()
 
     def test_set_env_id_exports_environment_variable(self):
-        env_id = set_env_id()
+        env_id = set_env_id(TEST_NAME)
 
         assert os.environ[ENV_ID_ENVIRON_KEY] == env_id

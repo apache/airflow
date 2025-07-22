@@ -44,7 +44,7 @@ with DAG(
 
         hook = PineconeHook()
         pod_spec = hook.get_pod_spec_obj()
-        hook.create_index(index_name=index_name, dimension=768, spec=pod_spec)
+        hook.create_index(index_name=index_name, dimension=1024, spec=pod_spec)
 
     embed_task = CohereEmbeddingOperator(
         task_id="embed_task",

@@ -20,8 +20,12 @@ name: PROD images extra checks
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      amd-runners:
-        description: "The array of labels (in json form) determining public AMD runners."
+      runners:
+        description: "The array of labels (in json form) determining runners."
+        required: true
+        type: string
+      platform:
+        description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
         required: true
         type: string
       python-versions:
@@ -34,10 +38,6 @@ on:  # yamllint disable-line rule:truthy
         type: string
       branch:
         description: "Branch used to run the CI jobs in (main/v*_*_test)."
-        required: true
-        type: string
-      use-uv:
-        description: "Whether to use uv to build the image (true/false)"
         required: true
         type: string
       upgrade-to-newer-dependencies:
@@ -62,18 +62,18 @@ jobs:
   myssql-client-image:
     uses: ./.github/workflows/prod-image-build.yml
     with:
-      amd-runners: ${{ inputs.amd-runners }}
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
       build-type: "MySQL Client"
       upload-image-artifact: "false"
       upload-package-artifact: "false"
       install-mysql-client-type: "mysql"
       python-versions: ${{ inputs.python-versions }}
-      default-python-version: ${{ inputs.default-python-version }}
-      platform: "linux/amd64"
+      default-python-version: "${{ inputs.default-python-version }}"
       branch: ${{ inputs.branch }}
       # Always build images during the extra checks and never push them
       push-image: "false"
-      use-uv: ${{ inputs.use-uv }}
+      use-uv: "true"
       upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
       constraints-branch: ${{ inputs.constraints-branch }}
       docker-cache: ${{ inputs.docker-cache }}
@@ -83,14 +83,14 @@ jobs:
   pip-image:
     uses: ./.github/workflows/prod-image-build.yml
     with:
-      amd-runners: ${{ inputs.amd-runners }}
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
       build-type: "pip"
       upload-image-artifact: "false"
       upload-package-artifact: "false"
       install-mysql-client-type: "mysql"
       python-versions: ${{ inputs.python-versions }}
-      default-python-version: ${{ inputs.default-python-version }}
-      platform: "linux/amd64"
+      default-python-version: "${{ inputs.default-python-version }}"
       branch: ${{ inputs.branch }}
       # Always build images during the extra checks and never push them
       push-image: "false"

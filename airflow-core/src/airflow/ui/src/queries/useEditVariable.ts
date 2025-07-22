@@ -18,6 +18,7 @@
  */
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useVariableServiceGetVariablesKey, useVariableServicePatchVariable } from "openapi/queries";
 import { toaster } from "src/components/ui";
@@ -33,6 +34,7 @@ export const useEditVariable = (
 ) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
+  const { t: translate } = useTranslation(["common", "admin"]);
 
   const onSuccess = async () => {
     await queryClient.invalidateQueries({
@@ -40,8 +42,12 @@ export const useEditVariable = (
     });
 
     toaster.create({
-      description: "Variable has been edited successfully",
-      title: "Variable Edit Request Submitted",
+      description: translate("toaster.edit.success.description", {
+        resourceName: translate("admin:variables.variable_one"),
+      }),
+      title: translate("toaster.edit.success.title", {
+        resourceName: translate("admin:variables.variable_one"),
+      }),
       type: "success",
     });
 

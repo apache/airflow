@@ -22,14 +22,15 @@ from __future__ import annotations
 import csv
 import json
 from collections.abc import Sequence
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from databricks.sql.utils import ParamEscaper
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
+from airflow.providers.databricks.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -106,7 +107,8 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
         self.catalog = catalog
         self.schema = schema
 
-    def get_db_hook(self) -> DatabricksSqlHook:
+    @cached_property
+    def _hook(self) -> DatabricksSqlHook:
         hook_params = {
             "http_path": self.http_path,
             "session_configuration": self.session_configuration,
@@ -119,6 +121,9 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
             **self.hook_params,
         }
         return DatabricksSqlHook(self.databricks_conn_id, **hook_params)
+
+    def get_db_hook(self) -> DatabricksSqlHook:
+        return self._hook
 
     def _should_run_output_processing(self) -> bool:
         return self.do_xcom_push or bool(self._output_path)
@@ -272,8 +277,13 @@ class DatabricksCopyIntoOperator(BaseOperator):
         self._client_parameters = client_parameters or {}
         if force_copy is not None:
             self._copy_options["force"] = "true" if force_copy else "false"
+        self._sql: str | None = None
 
     def _get_hook(self) -> DatabricksSqlHook:
+        return self._hook
+
+    @cached_property
+    def _hook(self) -> DatabricksSqlHook:
         return DatabricksSqlHook(
             self.databricks_conn_id,
             http_path=self._http_path,
@@ -349,12 +359,116 @@ FILEFORMAT = {self._file_format}
         return sql.strip()
 
     def execute(self, context: Context) -> Any:
-        sql = self._create_sql_query()
-        self.log.info("Executing: %s", sql)
+        self._sql = self._create_sql_query()
+        self.log.info("Executing: %s", self._sql)
         hook = self._get_hook()
-        hook.run(sql)
+        hook.run(self._sql)
 
     def on_kill(self) -> None:
         # NB: on_kill isn't required for this operator since query cancelling gets
         # handled in `DatabricksSqlHook.run()` method which is called in `execute()`
         ...
+
+    def _build_input_openlineage_dataset(self) -> tuple[Any, list[Any]]:
+        """Parse file_location to build the OpenLineage input dataset."""
+        from urllib.parse import urlparse
+
+        from airflow.providers.common.compat.openlineage.facet import Dataset, Error
+
+        try:
+            uri = urlparse(self.file_location)
+
+            # Only process schemes we know produce valid OL datasets with current implementation
+            if uri.scheme not in ("s3", "s3a", "s3n", "gs", "abfss", "wasbs"):
+                raise ValueError(f"Unsupported scheme: `{uri.scheme}` in `{self.file_location}`")
+
+            namespace = f"{uri.scheme}://{uri.netloc}"
+            name = uri.path.strip("/")
+            if name in ("", "."):
+                name = "/"
+            return Dataset(namespace=namespace, name=name), []
+        except Exception as e:
+            self.log.debug("Failed to parse file_location: `%s`, error: %s", self.file_location, str(e))
+            extraction_errors = [
+                Error(errorMessage=str(e), stackTrace=None, task=self.file_location, taskNumber=None)
+            ]
+            return None, extraction_errors
+
+    def _build_output_openlineage_dataset(self, namespace: str) -> tuple[Any, list[Any]]:
+        """Build output OpenLineage dataset from table information."""
+        from airflow.providers.common.compat.openlineage.facet import Dataset, Error
+
+        try:
+            table_parts = self.table_name.split(".")
+            if len(table_parts) == 3:  # catalog.schema.table
+                catalog, schema, table = table_parts
+            elif len(table_parts) == 2:  # schema.table
+                catalog = None
+                schema, table = table_parts
+            else:
+                catalog = None
+                schema = None
+                table = self.table_name
+
+            hook = self._get_hook()
+            schema = schema or hook.get_openlineage_default_schema()  # Fallback to default schema
+            catalog = catalog or hook.catalog  # Fallback to default catalog, if provided
+
+            # Combine schema/table with optional catalog for final dataset name
+            fq_name = table
+            if schema:
+                fq_name = f"{schema}.{fq_name}"
+            if catalog:
+                fq_name = f"{catalog}.{fq_name}"
+
+            return Dataset(namespace=namespace, name=fq_name), []
+        except Exception as e:
+            self.log.debug("Failed to construct output dataset: `%s`, error: %s", self.table_name, str(e))
+            extraction_errors = [
+                Error(errorMessage=str(e), stackTrace=None, task=self.table_name, taskNumber=None)
+            ]
+            return None, extraction_errors
+
+    def get_openlineage_facets_on_complete(self, _):
+        """Implement _on_complete as we are attaching query id."""
+        from airflow.providers.common.compat.openlineage.facet import (
+            ExternalQueryRunFacet,
+            ExtractionErrorRunFacet,
+            SQLJobFacet,
+        )
+        from airflow.providers.openlineage.extractors import OperatorLineage
+        from airflow.providers.openlineage.sqlparser import SQLParser
+
+        if not self._sql:
+            self.log.warning("No SQL query found, returning empty OperatorLineage.")
+            return OperatorLineage()
+
+        hook = self._get_hook()
+        run_facets = {}
+
+        connection = hook.get_connection(self.databricks_conn_id)
+        database_info = hook.get_openlineage_database_info(connection)
+        dbx_namespace = SQLParser.create_namespace(database_info)
+
+        if hook.query_ids:
+            run_facets["externalQuery"] = ExternalQueryRunFacet(
+                externalQueryId=hook.query_ids[0], source=dbx_namespace
+            )
+
+        input_dataset, extraction_errors = self._build_input_openlineage_dataset()
+        output_dataset, output_errors = self._build_output_openlineage_dataset(dbx_namespace)
+        extraction_errors.extend(output_errors)
+
+        if extraction_errors:
+            run_facets["extractionError"] = ExtractionErrorRunFacet(
+                totalTasks=1,
+                failedTasks=len(extraction_errors),
+                errors=extraction_errors,
+            )
+
+        return OperatorLineage(
+            inputs=[input_dataset] if input_dataset else [],
+            outputs=[output_dataset] if output_dataset else [],
+            job_facets={"sql": SQLJobFacet(query=SQLParser.normalize_sql(self._sql))},
+            run_facets=run_facets,
+        )

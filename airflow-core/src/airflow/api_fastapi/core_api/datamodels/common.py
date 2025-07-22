@@ -23,7 +23,7 @@ Common Data Models for Airflow REST API.
 from __future__ import annotations
 
 import enum
-from typing import Annotated, Any, Generic, TypeVar, Union
+from typing import Annotated, Any, Generic, Literal, TypeVar, Union
 
 from pydantic import Discriminator, Field, Tag
 
@@ -34,7 +34,7 @@ T = TypeVar("T")
 K = TypeVar("K")
 
 
-class BulkAction(enum.Enum):
+class BulkAction(str, enum.Enum):
     """Bulk Action to be performed on the used model."""
 
     CREATE = "create"
@@ -66,6 +66,7 @@ class BulkBaseAction(StrictBaseModel, Generic[T]):
 class BulkCreateAction(BulkBaseAction[T]):
     """Bulk Create entity serializer for request bodies."""
 
+    action: Literal[BulkAction.CREATE] = Field(description="The action to be performed on the entities.")
     entities: list[T] = Field(..., description="A list of entities to be created.")
     action_on_existence: BulkActionOnExistence = BulkActionOnExistence.FAIL
 
@@ -73,6 +74,7 @@ class BulkCreateAction(BulkBaseAction[T]):
 class BulkUpdateAction(BulkBaseAction[T]):
     """Bulk Update entity serializer for request bodies."""
 
+    action: Literal[BulkAction.UPDATE] = Field(description="The action to be performed on the entities.")
     entities: list[T] = Field(..., description="A list of entities to be updated.")
     action_on_non_existence: BulkActionNotOnExistence = BulkActionNotOnExistence.FAIL
 
@@ -80,6 +82,7 @@ class BulkUpdateAction(BulkBaseAction[T]):
 class BulkDeleteAction(BulkBaseAction[T]):
     """Bulk Delete entity serializer for request bodies."""
 
+    action: Literal[BulkAction.DELETE] = Field(description="The action to be performed on the entities.")
     entities: list[str] = Field(..., description="A list of entity id/key to be deleted.")
     action_on_non_existence: BulkActionNotOnExistence = BulkActionNotOnExistence.FAIL
 

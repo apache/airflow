@@ -30,7 +30,7 @@ from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.auth.transport import requests as google_requests
 
 # not sure why but mypy complains on missing `container_v1` but it is clearly there and is importable
-from google.cloud import exceptions  # type: ignore[attr-defined]
+from google.cloud import exceptions
 from google.cloud.container_v1 import ClusterManagerAsyncClient, ClusterManagerClient
 from google.cloud.container_v1.types import Cluster, Operation
 from kubernetes import client
@@ -498,7 +498,7 @@ class GKEKubernetesAsyncHook(GoogleBaseAsyncHook, AsyncKubernetesHook):
         )
 
     @contextlib.asynccontextmanager
-    async def get_conn(self) -> async_client.ApiClient:  # type: ignore[override]
+    async def get_conn(self) -> async_client.ApiClient:
         kube_client = None
         try:
             kube_client = await self._load_config()

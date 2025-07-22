@@ -33,7 +33,10 @@ DEFAULT_YDB_GRPCS_PORT: int = 2135
 if TYPE_CHECKING:
     from ydb_dbapi import Cursor as DbApiCursor
 
-    from airflow.models.connection import Connection
+    try:
+        from airflow.sdk import Connection
+    except ImportError:
+        from airflow.models.connection import Connection  # type: ignore[assignment]
 
 
 class YDBCursor:

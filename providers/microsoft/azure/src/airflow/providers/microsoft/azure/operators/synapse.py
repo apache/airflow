@@ -22,14 +22,16 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import urlencode
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
-from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.synapse import (
     AzureSynapseHook,
     AzureSynapsePipelineHook,
     AzureSynapsePipelineRunException,
     AzureSynapsePipelineRunStatus,
     AzureSynapseSparkBatchRunStatus,
+)
+from airflow.providers.microsoft.azure.version_compat import (
+    BaseHook,
+    BaseOperator,
 )
 
 if TYPE_CHECKING:
@@ -44,7 +46,7 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperatorLink
     from airflow.sdk.execution_time.xcom import XCom
 else:
-    from airflow.models import XCom  # type: ignore[no-redef]
+    from airflow.models import XCom
     from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
 
 

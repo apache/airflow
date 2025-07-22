@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NoReturn
 
 from sqlalchemy import create_engine
 
@@ -73,7 +73,7 @@ class DrillHook(DbApiHook):
         e.g: ``drill://localhost:8047/dfs``
         """
         conn_md = self.get_connection(self.get_conn_id())
-        host = conn_md.host
+        host = conn_md.host or ""
         if conn_md.port is not None:
             host += f":{conn_md.port}"
         conn_type = conn_md.conn_type or "drill"
@@ -83,14 +83,12 @@ class DrillHook(DbApiHook):
 
     # The superclass DbApiHook's method implementation has a return type `None` and mypy fails saying
     # return type `NotImplementedError` is incompatible with it. Hence, we ignore the mypy error here.
-    def set_autocommit(  # type: ignore[override]
-        self, conn: Connection, autocommit: bool
-    ) -> NotImplementedError:
+    def set_autocommit(self, conn: Connection, autocommit: bool) -> NoReturn:
         raise NotImplementedError("There are no transactions in Drill.")
 
     # The superclass DbApiHook's method implementation has a return type `None` and mypy fails saying
     # return type `NotImplementedError` is incompatible with it. Hence, we ignore the mypy error here.
-    def insert_rows(  # type: ignore[override]
+    def insert_rows(
         self,
         table: str,
         rows: Iterable[tuple[str]],

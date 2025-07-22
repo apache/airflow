@@ -17,25 +17,19 @@
  * under the License.
  */
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 import {
   UseDagRunServiceGetDagRunKeyFn,
   useDagRunServiceGetDagRunsKey,
   useDagRunServicePatchDagRun,
-  UseGridServiceGridDataKeyFn,
   useTaskInstanceServiceGetTaskInstancesKey,
+  UseGridServiceGetGridRunsKeyFn,
+  UseGridServiceGetGridTiSummariesKeyFn,
 } from "openapi/queries";
 import { toaster } from "src/components/ui";
 
 import { useClearDagRunDryRunKey } from "./useClearDagRunDryRun";
-
-const onError = () => {
-  toaster.create({
-    description: "Patch Dag Run request failed",
-    title: "Failed to patch the Dag Run",
-    type: "error",
-  });
-};
 
 export const usePatchDagRun = ({
   dagId,
@@ -47,6 +41,17 @@ export const usePatchDagRun = ({
   onSuccess?: () => void;
 }) => {
   const queryClient = useQueryClient();
+  const { t: translate } = useTranslation();
+
+  const onError = (error: Error) => {
+    toaster.create({
+      description: error.message,
+      title: translate("toaster.update.error", {
+        resourceName: translate("dagRun_one"),
+      }),
+      type: "error",
+    });
+  };
 
   const onSuccessFn = async () => {
     const queryKeys = [
@@ -54,7 +59,8 @@ export const usePatchDagRun = ({
       [useDagRunServiceGetDagRunsKey],
       [useTaskInstanceServiceGetTaskInstancesKey, { dagId, dagRunId }],
       [useClearDagRunDryRunKey, dagId],
-      UseGridServiceGridDataKeyFn({ dagId }, [{ dagId }]),
+      UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
+      UseGridServiceGetGridTiSummariesKeyFn({ dagId, runId: dagRunId }, [{ dagId, runId: dagRunId }]),
     ];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));

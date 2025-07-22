@@ -28,11 +28,10 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import dateutil
+import google.cloud.storage as storage
 import pytest
 from google.api_core.exceptions import GoogleAPICallError
-
-# dynamic storage type in google.cloud needs to be type-ignored
-from google.cloud import exceptions, storage  # type: ignore[attr-defined]
+from google.cloud.exceptions import NotFound
 from google.cloud.storage.retry import DEFAULT_RETRY
 
 from airflow.exceptions import AirflowException
@@ -559,9 +558,9 @@ class TestGCSHook:
         bucket_method = mock_service.return_value.bucket
         blob = bucket_method.return_value.blob
         delete_method = blob.return_value.delete
-        delete_method.side_effect = exceptions.NotFound(message="Not Found")
+        delete_method.side_effect = NotFound(message="Not Found")
 
-        with pytest.raises(exceptions.NotFound):
+        with pytest.raises(NotFound):
             self.gcs_hook.delete(bucket_name=test_bucket, object_name=test_object)
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
@@ -596,12 +595,9 @@ class TestGCSHook:
         mock_service.return_value.bucket.assert_called_once_with(test_bucket, user_project=None)
         mock_service.return_value.bucket.return_value.delete.assert_called_once()
 
-    @pytest.mark.db_test
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_delete_nonexisting_bucket(self, mock_service, caplog):
-        mock_service.return_value.bucket.return_value.delete.side_effect = exceptions.NotFound(
-            message="Not Found"
-        )
+        mock_service.return_value.bucket.return_value.delete.side_effect = NotFound(message="Not Found")
         test_bucket = "test bucket"
         with caplog.at_level(logging.INFO):
             self.gcs_hook.delete_bucket(bucket_name=test_bucket)
@@ -1198,6 +1194,30 @@ class TestGCSHookUpload:
         self.gcs_hook.upload(test_bucket, test_object, data=testdata_string)
 
         upload_method.assert_called_once_with(testdata_string, content_type="text/plain", timeout=60)
+
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_upload_empty_filename(self, mock_service):
+        test_bucket = "test_bucket"
+        test_object = "test_object"
+
+        upload_method = mock_service.return_value.bucket.return_value.blob.return_value.upload_from_filename
+
+        self.gcs_hook.upload(test_bucket, test_object, filename="")
+
+        upload_method.assert_called_once_with(
+            filename="", content_type="application/octet-stream", timeout=60
+        )
+
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_upload_empty_data(self, mock_service):
+        test_bucket = "test_bucket"
+        test_object = "test_object"
+
+        upload_method = mock_service.return_value.bucket.return_value.blob.return_value.upload_from_string
+
+        self.gcs_hook.upload(test_bucket, test_object, data="")
+
+        upload_method.assert_called_once_with("", content_type="text/plain", timeout=60)
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_upload_data_bytes(self, mock_service, testdata_bytes):

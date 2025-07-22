@@ -21,13 +21,13 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIHook
 from airflow.providers.microsoft.azure.triggers.powerbi import (
     PowerBIDatasetListTrigger,
     PowerBITrigger,
     PowerBIWorkspaceListTrigger,
 )
+from airflow.providers.microsoft.azure.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from msgraph_core import APIVersion
@@ -50,7 +50,7 @@ class PowerBILink(BaseOperatorLink):
 
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey):
         url = (
-            "https://app.powerbi.com"  # type: ignore[attr-defined]
+            "https://app.powerbi.com"
             f"/groups/{operator.group_id}/datasets/{operator.dataset_id}"  # type: ignore[attr-defined]
             "/details?experience=power-bi"
         )
@@ -72,6 +72,7 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
     :param timeout: Time in seconds to wait for a dataset to reach a terminal status for asynchronous waits. Used only if ``wait_for_termination`` is True.
     :param check_interval: Number of seconds to wait before rechecking the
         refresh status.
+    :param request_body: Additional arguments to pass to the request body, as described in https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/refresh-dataset-in-group#request-body.
     """
 
     template_fields: Sequence[str] = (
@@ -92,6 +93,7 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
         proxies: dict | None = None,
         api_version: APIVersion | str | None = None,
         check_interval: int = 60,
+        request_body: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -102,6 +104,7 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
         self.conn_id = conn_id
         self.timeout = timeout
         self.check_interval = check_interval
+        self.request_body = request_body
 
     @property
     def proxies(self) -> dict | None:
@@ -124,6 +127,7 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
                     api_version=self.api_version,
                     check_interval=self.check_interval,
                     wait_for_termination=self.wait_for_termination,
+                    request_body=self.request_body,
                 ),
                 method_name=self.get_refresh_status.__name__,
             )
@@ -137,8 +141,7 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
             dataset_refresh_id = event["dataset_refresh_id"]
 
         if dataset_refresh_id:
-            self.xcom_push(
-                context=context,
+            context["ti"].xcom_push(
                 key=f"{self.task_id}.powerbi_dataset_refresh_Id",
                 value=dataset_refresh_id,
             )
@@ -164,8 +167,7 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event:
-            self.xcom_push(
-                context=context,
+            context["ti"].xcom_push(
                 key=f"{self.task_id}.powerbi_dataset_refresh_status",
                 value=event["dataset_refresh_status"],
             )
@@ -231,8 +233,7 @@ class PowerBIWorkspaceListOperator(BaseOperator):
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event:
-            self.xcom_push(
-                context=context,
+            context["ti"].xcom_push(
                 key=f"{self.task_id}.powerbi_workspace_ids",
                 value=event["workspace_ids"],
             )
@@ -302,8 +303,7 @@ class PowerBIDatasetListOperator(BaseOperator):
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event:
-            self.xcom_push(
-                context=context,
+            context["ti"].xcom_push(
                 key=f"{self.task_id}.powerbi_dataset_ids",
                 value=event["dataset_ids"],
             )

@@ -19,6 +19,7 @@
 import { Flex, Box, Text } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import duration from "dayjs/plugin/duration";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
@@ -35,11 +36,16 @@ export const RecentRuns = ({
 }: {
   readonly latestRuns: DAGWithLatestDagRunsResponse["latest_dag_runs"];
 }) => {
-  if (!latestRuns.length) {
+  const { t: translate } = useTranslation();
+
+  // Because of the styling (`row-reverse`), we need to reverse the runs so that the most recent run is on the right.
+  const reversedRuns = [...latestRuns].reverse();
+
+  if (!reversedRuns.length) {
     return undefined;
   }
 
-  const runsWithDuration = latestRuns.map((run) => ({
+  const runsWithDuration = reversedRuns.map((run) => ({
     ...run,
     duration: dayjs.duration(dayjs(run.end_date).diff(run.start_date)).asSeconds(),
   }));
@@ -55,21 +61,25 @@ export const RecentRuns = ({
         <Tooltip
           content={
             <Box>
-              <Text>State: {run.state}</Text>
               <Text>
-                Run After: <Time datetime={run.run_after} />
+                {translate("state")}: {translate(`common:states.${run.state}`)}
+              </Text>
+              <Text>
+                {translate("dagRun.runAfter")}: <Time datetime={run.run_after} />
               </Text>
               {run.start_date === null ? undefined : (
                 <Text>
-                  Start Date: <Time datetime={run.start_date} />
+                  {translate("startDate")}: <Time datetime={run.start_date} />
                 </Text>
               )}
               {run.end_date === null ? undefined : (
                 <Text>
-                  End Date: <Time datetime={run.end_date} />
+                  {translate("endDate")}: <Time datetime={run.end_date} />
                 </Text>
               )}
-              <Text>Duration: {getDuration(run.start_date, run.end_date)}</Text>
+              <Text>
+                {translate("duration")}: {getDuration(run.start_date, run.end_date)}
+              </Text>
             </Box>
           }
           key={run.dag_run_id}

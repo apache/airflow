@@ -1,7 +1,7 @@
 {
   "inputs": [
     {
-      "inputFile": "../api_fastapi/core_api/openapi/v1-rest-api-generated.yaml"
+      "inputFile": "../api_fastapi/core_api/openapi/v2-rest-api-generated.yaml"
     },
     {
       "inputFile": "../api_fastapi/core_api/openapi/_private_ui.yaml"

@@ -35,7 +35,12 @@ from airflow.providers.google.cloud.triggers.cloud_storage_transfer_service impo
     CloudStorageTransferServiceCheckJobStatusTrigger,
 )
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseSensorOperator
+else:
+    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

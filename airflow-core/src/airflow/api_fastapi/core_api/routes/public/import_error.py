@@ -22,7 +22,7 @@ from operator import itemgetter
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import and_, select
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.models.batch_apis import IsAuthorizedDagRequest
@@ -151,15 +151,23 @@ def get_import_errors(
     # if the user doesn't have access to all DAGs, only display errors from visible DAGs
     readable_dag_ids = auth_manager.get_authorized_dag_ids(method="GET", user=user)
     # Build a cte that fetches dag_ids for each file location
-    visiable_files_cte = (
-        select(DagModel.fileloc, DagModel.dag_id).where(DagModel.dag_id.in_(readable_dag_ids)).cte()
+    visible_files_cte = (
+        select(DagModel.relative_fileloc, DagModel.dag_id, DagModel.bundle_name)
+        .where(DagModel.dag_id.in_(readable_dag_ids))
+        .cte()
     )
 
     # Prepare the import errors query by joining with the cte.
     # Each returned row will be a tuple: (ParseImportError, dag_id)
     import_errors_stmt = (
-        select(ParseImportError, visiable_files_cte.c.dag_id)
-        .join(visiable_files_cte, ParseImportError.filename == visiable_files_cte.c.fileloc)
+        select(ParseImportError, visible_files_cte.c.dag_id)
+        .join(
+            visible_files_cte,
+            and_(
+                ParseImportError.filename == visible_files_cte.c.relative_fileloc,
+                ParseImportError.bundle_name == visible_files_cte.c.bundle_name,
+            ),
+        )
         .order_by(ParseImportError.id)
     )
 

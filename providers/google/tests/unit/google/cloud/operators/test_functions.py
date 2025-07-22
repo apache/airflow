@@ -32,6 +32,8 @@ from airflow.providers.google.cloud.operators.functions import (
 )
 from airflow.version import version
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
 EMPTY_CONTENT = b""
 MOCK_RESP_404 = httplib2.Response({"status": 404})
 
@@ -342,7 +344,6 @@ class TestGcfFunctionDeploy:
         with pytest.raises(AirflowException, match=message):
             op.execute(None)
 
-    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "source_code, message",
         [
@@ -694,9 +695,8 @@ class TestGcfFunctionDelete:
 
 
 class TestGcfFunctionInvokeOperator:
-    @mock.patch("airflow.providers.google.cloud.operators.functions.GoogleCloudBaseOperator.xcom_push")
     @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
-    def test_execute(self, mock_gcf_hook, mock_xcom):
+    def test_execute(self, mock_gcf_hook):
         exec_id = "exec_id"
         mock_gcf_hook.return_value.call_function.return_value = {"executionId": exec_id}
 
@@ -716,8 +716,11 @@ class TestGcfFunctionInvokeOperator:
             gcp_conn_id=gcp_conn_id,
             impersonation_chain=impersonation_chain,
         )
-        context = mock.MagicMock()
-        op.execute(context=context)
+        mock_ti = mock.MagicMock()
+        mock_context = {"ti": mock_ti}
+        if not AIRFLOW_V_3_0_PLUS:
+            mock_context["task"] = op
+        op.execute(mock_context)
 
         mock_gcf_hook.assert_called_once_with(
             api_version=api_version,
@@ -729,12 +732,7 @@ class TestGcfFunctionInvokeOperator:
             function_id=function_id, input_data=payload, location=GCP_LOCATION, project_id=GCP_PROJECT_ID
         )
 
-        mock_xcom.assert_called_with(
-            context,
-            key="cloud_functions_details",
-            value={
-                "location": GCP_LOCATION,
-                "function_name": function_id,
-                "project_id": GCP_PROJECT_ID,
-            },
+        mock_ti.xcom_push.assert_any_call(
+            key="execution_id",
+            value=exec_id,
         )

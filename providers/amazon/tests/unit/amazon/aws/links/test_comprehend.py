@@ -20,12 +20,16 @@ from airflow.providers.amazon.aws.links.comprehend import (
     ComprehendDocumentClassifierLink,
     ComprehendPiiEntitiesDetectionLink,
 )
-from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.amazon.aws.links.test_base_aws import BaseAwsLinksTestCase
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.comms import XComResult
+
+import pytest
+
+pytestmark = pytest.mark.db_test
 
 
 class TestComprehendPiiEntitiesDetectionLink(BaseAwsLinksTestCase):
@@ -34,7 +38,7 @@ class TestComprehendPiiEntitiesDetectionLink(BaseAwsLinksTestCase):
     def test_extra_link(self, mock_supervisor_comms):
         test_job_id = "123-345-678"
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
-            mock_supervisor_comms.get_message.return_value = XComResult(
+            mock_supervisor_comms.send.return_value = XComResult(
                 key=self.link_class.key,
                 value={
                     "region_name": "eu-west-1",
@@ -61,7 +65,7 @@ class TestComprehendDocumentClassifierLink(BaseAwsLinksTestCase):
             "arn:aws:comprehend:us-east-1:0123456789:document-classifier/test-custom-document-classifier"
         )
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
-            mock_supervisor_comms.get_message.return_value = XComResult(
+            mock_supervisor_comms.send.return_value = XComResult(
                 key=self.link_class.key,
                 value={
                     "region_name": "us-east-1",

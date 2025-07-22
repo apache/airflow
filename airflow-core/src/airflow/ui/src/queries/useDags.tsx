@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useDagServiceGetDags, useDagsServiceRecentDagRuns } from "openapi/queries";
+import { useDagServiceGetDagsUi } from "openapi/queries";
 import type { DagRunState, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
@@ -24,34 +24,52 @@ export type DagWithLatest = {
   last_run_start_date: string;
 } & DAGWithLatestDagRunsResponse;
 
-export const useDags = (
-  searchParams: {
-    dagDisplayNamePattern?: string;
-    dagIdPattern?: string;
-    lastDagRunState?: DagRunState;
-    limit?: number;
-    offset?: number;
-    onlyActive?: boolean;
-    orderBy?: string;
-    owners?: Array<string>;
-    paused?: boolean;
-    tags?: Array<string>;
-  } = {},
-) => {
-  const { data, error, isFetching, isLoading } = useDagServiceGetDags(searchParams);
-
+export const useDags = ({
+  dagDisplayNamePattern,
+  dagIdPattern,
+  dagRunsLimit,
+  excludeStale = true,
+  isFavorite,
+  lastDagRunState,
+  limit,
+  offset,
+  orderBy,
+  owners,
+  paused,
+  tags,
+  tagsMatchMode,
+}: {
+  dagDisplayNamePattern?: string;
+  dagIdPattern?: string;
+  dagRunsLimit: number;
+  excludeStale?: boolean;
+  isFavorite?: boolean;
+  lastDagRunState?: DagRunState;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  owners?: Array<string>;
+  paused?: boolean;
+  tags?: Array<string>;
+  tagsMatchMode?: "all" | "any";
+}) => {
   const refetchInterval = useAutoRefresh({});
 
-  const { orderBy, ...runsParams } = searchParams;
-  const {
-    data: runsData,
-    error: runsError,
-    isFetching: isRunsFetching,
-    isLoading: isRunsLoading,
-  } = useDagsServiceRecentDagRuns(
+  const { data, error, isFetching, isLoading } = useDagServiceGetDagsUi(
     {
-      ...runsParams,
-      dagRunsLimit: 14,
+      dagDisplayNamePattern,
+      dagIdPattern,
+      dagRunsLimit,
+      excludeStale,
+      isFavorite,
+      lastDagRunState,
+      limit,
+      offset,
+      orderBy,
+      owners,
+      paused,
+      tags,
+      tagsMatchMode,
     },
     undefined,
     {
@@ -64,24 +82,10 @@ export const useDags = (
     },
   );
 
-  const dags = (data?.dags ?? []).map((dag) => {
-    const dagWithRuns = runsData?.dags.find((runsDag) => runsDag.dag_id === dag.dag_id);
-
-    return {
-      // eslint-disable-next-line unicorn/no-null
-      asset_expression: null,
-      latest_dag_runs: [],
-      ...dagWithRuns,
-      ...dag,
-      // We need last_run_start_date to exist on the object in order for react-table sort to work correctly
-      last_run_start_date: "",
-    };
-  });
-
   return {
-    data: { dags, total_entries: data?.total_entries ?? 0 },
-    error: error ?? runsError,
-    isFetching: isFetching || isRunsFetching,
-    isLoading: isLoading || isRunsLoading,
+    data,
+    error,
+    isFetching,
+    isLoading,
   };
 };

@@ -48,6 +48,14 @@ def _get_logical_date(task_instance):
     return date
 
 
+def _get_dag_run_clear_number(task_instance):
+    # todo: remove when min airflow version >= 3.0
+    if AIRFLOW_V_3_0_PLUS:
+        dagrun = task_instance.get_template_context()["dag_run"]
+        return dagrun.clear_number
+    return task_instance.dag_run.clear_number
+
+
 @require_openlineage_version(provider_min_version="2.3.0")
 def generate_openlineage_events_from_dbt_cloud_run(
     operator: DbtCloudRunJobOperator | DbtCloudJobRunSensor, task_instance: TaskInstance
@@ -105,7 +113,7 @@ def generate_openlineage_events_from_dbt_cloud_run(
     try:
         log.debug("Retrieving information about catalog artifact from DBT.")
         catalog = operator.hook.get_job_run_artifact(operator.run_id, path="catalog.json").json()["data"]
-    except Exception:  # type: ignore
+    except Exception:
         log.info(
             "Openlineage could not find DBT catalog artifact, usually available when docs are generated."
             "Proceeding with metadata extraction. "
@@ -144,7 +152,7 @@ def generate_openlineage_events_from_dbt_cloud_run(
     root_parent_run_id = OpenLineageAdapter.build_dag_run_id(
         dag_id=task_instance.dag_id,
         logical_date=_get_logical_date(task_instance),
-        clear_number=task_instance.dag_run.clear_number,
+        clear_number=_get_dag_run_clear_number(task_instance),
     )
 
     parent_job = ParentRunMetadata(
@@ -155,7 +163,7 @@ def generate_openlineage_events_from_dbt_cloud_run(
         root_parent_job_name=task_instance.dag_id,
         root_parent_job_namespace=namespace(),
     )
-    client = get_openlineage_listener().adapter.get_or_create_openlineage_client()
+    adapter = get_openlineage_listener().adapter
 
     # process each step in loop, sending generated events in the same order as steps
     for counter, artifacts in enumerate(step_artifacts, 1):
@@ -185,7 +193,7 @@ def generate_openlineage_events_from_dbt_cloud_run(
         log.debug("Found %s OpenLineage events for artifact no. %s.", len(events), counter)
 
         for event in events:
-            client.emit(event=event)
+            adapter.emit(event=event)
         log.debug("Emitted all OpenLineage events for artifact no. %s.", counter)
 
     log.info("OpenLineage has successfully finished processing information about DBT job run.")

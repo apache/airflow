@@ -17,14 +17,14 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.sdk import get_current_context
+from airflow.sdk import BaseOperator, get_current_context
 from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
+from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
@@ -117,75 +117,65 @@ def test_convert_variable_result_to_variable_with_deserialize_json():
 
 
 class TestAirflowContextHelpers:
-    def setup_method(self):
-        self.dag_id = "dag_id"
-        self.task_id = "task_id"
-        self.try_number = 1
-        self.logical_date = "2017-05-21T00:00:00"
-        self.dag_run_id = "dag_run_id"
-        self.owner = ["owner1", "owner2"]
-        self.email = ["email1@test.com"]
-        self.context = {
-            "dag_run": mock.MagicMock(
-                name="dag_run",
-                run_id=self.dag_run_id,
-                logical_date=datetime.strptime(self.logical_date, "%Y-%m-%dT%H:%M:%S"),
-            ),
-            "task_instance": mock.MagicMock(
-                name="task_instance",
-                task_id=self.task_id,
-                dag_id=self.dag_id,
-                try_number=self.try_number,
-                logical_date=datetime.strptime(self.logical_date, "%Y-%m-%dT%H:%M:%S"),
-            ),
-            "task": mock.MagicMock(name="task", owner=self.owner, email=self.email),
-        }
-
     def test_context_to_airflow_vars_empty_context(self):
         assert context_to_airflow_vars({}) == {}
 
-    def test_context_to_airflow_vars_all_context(self):
-        assert context_to_airflow_vars(self.context) == {
-            "airflow.ctx.dag_id": self.dag_id,
-            "airflow.ctx.logical_date": self.logical_date,
-            "airflow.ctx.task_id": self.task_id,
-            "airflow.ctx.dag_run_id": self.dag_run_id,
-            "airflow.ctx.try_number": str(self.try_number),
+    def test_context_to_airflow_vars_all_context(self, create_runtime_ti):
+        task = BaseOperator(
+            task_id="test_context_vars",
+            owner=["owner1", "owner2"],
+            email="email1@test.com",
+        )
+
+        rti = create_runtime_ti(
+            task=task,
+            dag_id="dag_id",
+            run_id="dag_run_id",
+            logical_date="2017-05-21T00:00:00Z",
+            try_number=1,
+        )
+        context = rti.get_template_context()
+        assert context_to_airflow_vars(context) == {
+            "airflow.ctx.dag_id": "dag_id",
+            "airflow.ctx.logical_date": "2017-05-21T00:00:00+00:00",
+            "airflow.ctx.task_id": "test_context_vars",
+            "airflow.ctx.dag_run_id": "dag_run_id",
+            "airflow.ctx.try_number": "1",
             "airflow.ctx.dag_owner": "owner1,owner2",
             "airflow.ctx.dag_email": "email1@test.com",
         }
 
-        assert context_to_airflow_vars(self.context, in_env_var_format=True) == {
-            "AIRFLOW_CTX_DAG_ID": self.dag_id,
-            "AIRFLOW_CTX_LOGICAL_DATE": self.logical_date,
-            "AIRFLOW_CTX_TASK_ID": self.task_id,
-            "AIRFLOW_CTX_TRY_NUMBER": str(self.try_number),
-            "AIRFLOW_CTX_DAG_RUN_ID": self.dag_run_id,
+        assert context_to_airflow_vars(context, in_env_var_format=True) == {
+            "AIRFLOW_CTX_DAG_ID": "dag_id",
+            "AIRFLOW_CTX_LOGICAL_DATE": "2017-05-21T00:00:00+00:00",
+            "AIRFLOW_CTX_TASK_ID": "test_context_vars",
+            "AIRFLOW_CTX_TRY_NUMBER": "1",
+            "AIRFLOW_CTX_DAG_RUN_ID": "dag_run_id",
             "AIRFLOW_CTX_DAG_OWNER": "owner1,owner2",
             "AIRFLOW_CTX_DAG_EMAIL": "email1@test.com",
         }
 
-    def test_context_to_airflow_vars_with_default_context_vars(self):
+    def test_context_to_airflow_vars_from_policy(self):
         with mock.patch("airflow.settings.get_airflow_context_vars") as mock_method:
             airflow_cluster = "cluster-a"
             mock_method.return_value = {"airflow_cluster": airflow_cluster}
 
-            context_vars = context_to_airflow_vars(self.context)
+            context_vars = context_to_airflow_vars({})
             assert context_vars["airflow.ctx.airflow_cluster"] == airflow_cluster
 
-            context_vars = context_to_airflow_vars(self.context, in_env_var_format=True)
+            context_vars = context_to_airflow_vars({}, in_env_var_format=True)
             assert context_vars["AIRFLOW_CTX_AIRFLOW_CLUSTER"] == airflow_cluster
 
         with mock.patch("airflow.settings.get_airflow_context_vars") as mock_method:
             mock_method.return_value = {"airflow_cluster": [1, 2]}
             with pytest.raises(TypeError) as error:
-                context_to_airflow_vars(self.context)
+                context_to_airflow_vars({})
             assert str(error.value) == "value of key <airflow_cluster> must be string, not <class 'list'>"
 
         with mock.patch("airflow.settings.get_airflow_context_vars") as mock_method:
             mock_method.return_value = {1: "value"}
             with pytest.raises(TypeError) as error:
-                context_to_airflow_vars(self.context)
+                context_to_airflow_vars({})
             assert str(error.value) == "key <1> must be string"
 
 
@@ -201,7 +191,7 @@ class TestConnectionAccessor:
         # Conn from the supervisor / API Server
         conn_result = ConnectionResult(conn_id="mysql_conn", conn_type="mysql", host="mysql", port=3306)
 
-        mock_supervisor_comms.get_message.return_value = conn_result
+        mock_supervisor_comms.send.return_value = conn_result
 
         # Fetch the connection; triggers __getattr__
         conn = accessor.mysql_conn
@@ -214,7 +204,7 @@ class TestConnectionAccessor:
         accessor = ConnectionAccessor()
         conn_result = ConnectionResult(conn_id="mysql_conn", conn_type="mysql", host="mysql", port=3306)
 
-        mock_supervisor_comms.get_message.return_value = conn_result
+        mock_supervisor_comms.send.return_value = conn_result
 
         conn = accessor.get("mysql_conn")
         assert conn == Connection(conn_id="mysql_conn", conn_type="mysql", host="mysql", port=3306)
@@ -227,7 +217,7 @@ class TestConnectionAccessor:
             error=ErrorType.CONNECTION_NOT_FOUND, detail={"conn_id": "nonexistent_conn"}
         )
 
-        mock_supervisor_comms.get_message.return_value = error_response
+        mock_supervisor_comms.send.return_value = error_response
 
         conn = accessor.get("nonexistent_conn", default_conn=default_conn)
         assert conn == default_conn
@@ -244,7 +234,7 @@ class TestConnectionAccessor:
             extra='{"extra_key": "extra_value"}',
         )
 
-        mock_supervisor_comms.get_message.return_value = conn_result
+        mock_supervisor_comms.send.return_value = conn_result
 
         # Fetch the connection's dejson; triggers __getattr__
         dejson = accessor.mysql_conn.extra_dejson
@@ -262,7 +252,7 @@ class TestConnectionAccessor:
             conn_id="mysql_conn", conn_type="mysql", host="mysql", port=3306, extra="This is not JSON!"
         )
 
-        mock_supervisor_comms.get_message.return_value = conn_result
+        mock_supervisor_comms.send.return_value = conn_result
 
         # Fetch the connection's dejson; triggers __getattr__
         dejson = accessor.mysql_conn.extra_dejson
@@ -285,7 +275,7 @@ class TestVariableAccessor:
         # Variable from the supervisor / API Server
         var_result = VariableResult(key="test_key", value="test_value")
 
-        mock_supervisor_comms.get_message.return_value = var_result
+        mock_supervisor_comms.send.return_value = var_result
 
         # Fetch the variable; triggers __getattr__
         value = accessor.test_key
@@ -297,7 +287,7 @@ class TestVariableAccessor:
         accessor = VariableAccessor(deserialize_json=False)
         var_result = VariableResult(key="test_key", value="test_value")
 
-        mock_supervisor_comms.get_message.return_value = var_result
+        mock_supervisor_comms.send.return_value = var_result
 
         val = accessor.get("test_key")
         assert val == var_result.value
@@ -308,7 +298,7 @@ class TestVariableAccessor:
         accessor = VariableAccessor(deserialize_json=False)
         error_response = ErrorResponse(error=ErrorType.VARIABLE_NOT_FOUND, detail={"test_key": "test_value"})
 
-        mock_supervisor_comms.get_message.return_value = error_response
+        mock_supervisor_comms.send.return_value = error_response
 
         val = accessor.get("nonexistent_var_key", default="default_value")
         assert val == "default_value"
@@ -378,7 +368,7 @@ class TestOutletEventAccessor:
         ),
     )
     def test_add(self, add_arg, key, asset_alias_events, mock_supervisor_comms):
-        mock_supervisor_comms.get_message.return_value = AssetResponse(name="name", uri="uri", group="")
+        mock_supervisor_comms.send.return_value = AssetResponse(name="name", uri="uri", group="")
 
         outlet_event_accessor = OutletEventAccessor(key=key, extra={})
         outlet_event_accessor.add(add_arg)
@@ -409,7 +399,7 @@ class TestOutletEventAccessor:
         ),
     )
     def test_add_with_db(self, add_arg, key, asset_alias_events, mock_supervisor_comms):
-        mock_supervisor_comms.get_message.return_value = AssetResponse(name="name", uri="uri", group="")
+        mock_supervisor_comms.send.return_value = AssetResponse(name="name", uri="uri", group="")
 
         outlet_event_accessor = OutletEventAccessor(key=key, extra={"not": ""})
         outlet_event_accessor.add(add_arg, extra={})
@@ -508,11 +498,11 @@ class TestTriggeringAssetEventsAccessor:
         resolved_asset,
         result_indexes,
     ):
-        mock_supervisor_comms.get_message.return_value = resolved_asset
+        mock_supervisor_comms.send.return_value = resolved_asset
         expected = [AssetEventDagRunReferenceResult.model_validate(event_data[i]) for i in result_indexes]
         assert accessor[Asset.ref(name=name)] == expected
-        assert len(mock_supervisor_comms.send_request.mock_calls) == 1
-        assert mock_supervisor_comms.send_request.mock_calls[0].kwargs["msg"] == GetAssetByName(name=name)
+
+        mock_supervisor_comms.send.assert_called_once_with(GetAssetByName(name=name, type="GetAssetByName"))
         assert _AssetRefResolutionMixin._asset_ref_cache
 
     @pytest.mark.parametrize(
@@ -531,11 +521,10 @@ class TestTriggeringAssetEventsAccessor:
         resolved_asset,
         result_indexes,
     ):
-        mock_supervisor_comms.get_message.return_value = resolved_asset
+        mock_supervisor_comms.send.return_value = resolved_asset
         expected = [AssetEventDagRunReferenceResult.model_validate(event_data[i]) for i in result_indexes]
         assert accessor[Asset.ref(uri=uri)] == expected
-        assert len(mock_supervisor_comms.send_request.mock_calls) == 1
-        assert mock_supervisor_comms.send_request.mock_calls[0].kwargs["msg"] == GetAssetByUri(uri=uri)
+        mock_supervisor_comms.send.assert_called_once_with(GetAssetByUri(uri=uri))
         assert _AssetRefResolutionMixin._asset_ref_cache
 
     def test_source_task_instance_xcom_pull(self, mock_supervisor_comms, accessor):
@@ -545,22 +534,19 @@ class TestTriggeringAssetEventsAccessor:
         assert source == AssetEventSourceTaskInstance(dag_id="d1", task_id="t2", run_id="r1", map_index=-1)
 
         mock_supervisor_comms.reset_mock()
-        mock_supervisor_comms.get_message.side_effect = [
-            XComResult(key="return_value", value="__example_xcom_value__"),
+        mock_supervisor_comms.send.side_effect = [
+            XComResult(key=BaseXCom.XCOM_RETURN_KEY, value="__example_xcom_value__"),
         ]
         assert source.xcom_pull() == "__example_xcom_value__"
-        assert mock_supervisor_comms.send_request.mock_calls == [
-            mock.call(
-                log=mock.ANY,
-                msg=GetXCom(
-                    key="return_value",
-                    dag_id="d1",
-                    run_id="r1",
-                    task_id="t2",
-                    map_index=-1,
-                ),
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=GetXCom(
+                key=BaseXCom.XCOM_RETURN_KEY,
+                dag_id="d1",
+                run_id="r1",
+                task_id="t2",
+                map_index=-1,
             ),
-        ]
+        )
 
 
 TEST_ASSET = Asset(name="test_uri", uri="test://test")
@@ -604,7 +590,7 @@ class TestOutletEventAccessors:
         assert len(outlet_event_accessors) == 0
 
         # Asset from the API Server via the supervisor
-        mock_supervisor_comms.get_message.return_value = AssetResult(
+        mock_supervisor_comms.send.return_value = AssetResult(
             name=asset.name,
             uri=asset.uri,
             group=asset.group,
@@ -639,7 +625,7 @@ class TestOutletEventAccessors:
 class TestInletEventAccessor:
     @pytest.fixture
     def sample_inlet_evnets_accessor(self, mock_supervisor_comms):
-        mock_supervisor_comms.get_message.side_effect = [
+        mock_supervisor_comms.send.side_effect = [
             AssetResult(name="test_uri", uri="test://test", group="asset"),
             AssetResult(name="test_uri", uri="test://test", group="asset"),
         ]
@@ -667,7 +653,7 @@ class TestInletEventAccessor:
             asset=AssetResponse(name="test", uri="test", group="asset"),
         )
         events_result = AssetEventsResult(asset_events=[asset_event_resp])
-        mock_supervisor_comms.get_message.side_effect = [events_result] * 4
+        mock_supervisor_comms.send.side_effect = [events_result] * 4
 
         assert sample_inlet_evnets_accessor[key] == [asset_event_resp]
 
@@ -695,7 +681,7 @@ class TestInletEventAccessor:
         assert mocked__getitem__.call_args[0][0] == TEST_ASSET_ALIAS
 
     def test_source_task_instance_xcom_pull(self, sample_inlet_evnets_accessor, mock_supervisor_comms):
-        mock_supervisor_comms.get_message.side_effect = [
+        mock_supervisor_comms.send.side_effect = [
             AssetEventsResult(
                 asset_events=[
                     AssetEventResponse(
@@ -718,9 +704,7 @@ class TestInletEventAccessor:
             )
         ]
         events = sample_inlet_evnets_accessor[Asset.ref(name="test_uri")]
-        assert mock_supervisor_comms.send_request.mock_calls == [
-            mock.call(log=mock.ANY, msg=GetAssetEventByAsset(name="test_uri", uri=None)),
-        ]
+        mock_supervisor_comms.send.assert_called_once_with(GetAssetEventByAsset(name="test_uri", uri=None))
 
         assert len(events) == 2
         assert events[1].source_task_instance is None
@@ -734,19 +718,16 @@ class TestInletEventAccessor:
         )
 
         mock_supervisor_comms.reset_mock()
-        mock_supervisor_comms.get_message.side_effect = [
-            XComResult(key="return_value", value="__example_xcom_value__"),
+        mock_supervisor_comms.send.side_effect = [
+            XComResult(key=BaseXCom.XCOM_RETURN_KEY, value="__example_xcom_value__"),
         ]
         assert source.xcom_pull() == "__example_xcom_value__"
-        assert mock_supervisor_comms.send_request.mock_calls == [
-            mock.call(
-                log=mock.ANY,
-                msg=GetXCom(
-                    key="return_value",
-                    dag_id="__dag__",
-                    run_id="__run__",
-                    task_id="__task__",
-                    map_index=0,
-                ),
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=GetXCom(
+                key=BaseXCom.XCOM_RETURN_KEY,
+                dag_id="__dag__",
+                run_id="__run__",
+                task_id="__task__",
+                map_index=0,
             ),
-        ]
+        )

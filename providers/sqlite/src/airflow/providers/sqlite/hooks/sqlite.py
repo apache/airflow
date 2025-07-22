@@ -46,10 +46,7 @@ class SqliteHook(DbApiHook):
 
     def get_uri(self) -> str:
         """Override DbApiHook get_uri method for get_sqlalchemy_engine()."""
-        conn_id = self.get_conn_id()
-        airflow_conn = self.get_connection(conn_id)
-        if airflow_conn.conn_type is None:
-            airflow_conn.conn_type = self.conn_type
+        airflow_conn = self.get_connection(self.get_conn_id())
         airflow_uri = unquote(airflow_conn.get_uri())
         # For sqlite, there is no schema in the connection URI. So we need to drop the trailing slash.
         airflow_sqlite_uri = airflow_uri.replace("/?", "?")

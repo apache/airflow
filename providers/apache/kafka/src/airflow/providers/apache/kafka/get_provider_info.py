@@ -63,7 +63,10 @@ def get_provider_info():
         "triggers": [
             {
                 "integration-name": "Apache Kafka",
-                "python-modules": ["airflow.providers.apache.kafka.triggers.await_message"],
+                "python-modules": [
+                    "airflow.providers.apache.kafka.triggers.await_message",
+                    "airflow.providers.apache.kafka.triggers.msg_queue",
+                ],
             }
         ],
         "connection-types": [
@@ -72,4 +75,5 @@ def get_provider_info():
                 "connection-type": "kafka",
             }
         ],
+        "queues": ["airflow.providers.apache.kafka.queues.kafka.KafkaMessageQueueProvider"],
     }

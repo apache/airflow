@@ -153,7 +153,7 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
         )
 
     @cached_property
-    def hook(self) -> GKEKubernetesAsyncHook:  # type: ignore[override]
+    def hook(self) -> GKEKubernetesAsyncHook:
         return GKEKubernetesAsyncHook(
             cluster_url=self._cluster_url,
             ssl_ca_cert=self._ssl_ca_cert,
@@ -200,7 +200,7 @@ class GKEOperationTrigger(BaseTrigger):
             },
         )
 
-    async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         """Get operation status and yields corresponding event."""
         hook = self._get_hook()
         try:
@@ -303,7 +303,7 @@ class GKEJobTrigger(BaseTrigger):
             },
         )
 
-    async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         """Get current job status and yield a TriggerEvent."""
         if self.get_logs or self.do_xcom_push:
             pod = await self.hook.get_pod(name=self.pod_name, namespace=self.pod_namespace)

@@ -33,6 +33,7 @@ from airflow_breeze.prepare_providers.provider_documentation import (
     _get_change_from_line,
     _get_changes_classified,
     _get_git_log_command,
+    classification_result,
     get_most_impactful_change,
     get_version_tag,
 )
@@ -391,3 +392,80 @@ def test_version_bump_for_provider_documentation(initial_version, bump_index, ex
 )
 def test_get_most_impactful_change(changes, expected):
     assert get_most_impactful_change(changes) == expected
+
+
+@pytest.mark.parametrize(
+    "provider_id, changed_files, expected",
+    [
+        pytest.param("slack", ["providers/slack/docs/slack.rst"], "documentation", id="only_docs"),
+        pytest.param(
+            "slack", ["providers/slack/tests/test_slack.py"], "test_or_example_only", id="only_tests"
+        ),
+        pytest.param(
+            "slack",
+            ["providers/slack/src/airflow/providers/slack/example_dags/example_notify.py"],
+            "test_or_example_only",
+            id="only_example_dags",
+        ),
+        pytest.param(
+            "slack",
+            [
+                "providers/slack/tests/test_slack.py",
+                "providers/slack/src/airflow/providers/slack/example_dags/example_notify.py",
+            ],
+            "test_or_example_only",
+            id="tests_and_example_dags",
+        ),
+        pytest.param(
+            "slack",
+            [
+                "providers/slack/tests/test_slack.py",
+                "providers/slack/docs/slack.rst",
+            ],
+            "documentation",
+            id="docs_and_tests",
+        ),
+        pytest.param(
+            "slack",
+            [
+                "providers/slack/src/airflow/providers/slack/hooks/slack.py",
+                "providers/slack/tests/test_slack.py",
+            ],
+            "other",
+            id="real_code_and_tests",
+        ),
+        pytest.param(
+            "slack",
+            [
+                "providers/slack/src/airflow/providers/slack/hooks/slack.py",
+                "providers/slack/tests/test_slack.py",
+                "providers/slack/docs/slack.rst",
+            ],
+            "other",
+            id="docs_and_real_code",
+        ),
+        pytest.param(
+            "google",
+            [
+                "providers/google/tests/some_test.py",
+                "providers/amazon/tests/test_something.py",
+            ],
+            "test_or_example_only",
+            id="tests_in_multiple_providers",
+        ),
+        pytest.param(
+            "amazon",
+            [
+                "providers/google/tests/some_test.py",
+                "providers/amazon/tests/test_something.py",
+            ],
+            "test_or_example_only",
+            id="tests_in_multiple_providers",
+        ),
+        pytest.param("slack", ["airflow/utils/db.py"], "other", id="non_provider_file"),
+        pytest.param("slack", [], "other", id="empty_commit"),
+    ],
+)
+def test_classify_provider_pr_files_logic(provider_id, changed_files, expected):
+    result = classification_result(provider_id, changed_files)
+    assert result == expected

@@ -18,8 +18,9 @@ from __future__ import annotations
 
 import inspect
 import re
+from collections.abc import Callable
 from datetime import date, datetime
-from typing import Any, Callable
+from typing import Any
 
 from deprecated import deprecated as standard_deprecated
 from deprecated.classic import ClassicAdapter

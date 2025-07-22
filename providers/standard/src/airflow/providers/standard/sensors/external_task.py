@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -20,24 +19,36 @@ from __future__ import annotations
 import datetime
 import os
 import warnings
-from collections.abc import Collection, Iterable
-from typing import TYPE_CHECKING, Any, Callable, ClassVar
+from collections.abc import Callable, Collection, Iterable
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowSkipException
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
+from airflow.providers.standard.exceptions import (
+    DuplicateStateError,
+    ExternalDagDeletedError,
+    ExternalDagFailedError,
+    ExternalDagNotFoundError,
+    ExternalTaskFailedError,
+    ExternalTaskGroupFailedError,
+    ExternalTaskGroupNotFoundError,
+    ExternalTaskNotFoundError,
+)
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.external_task import WorkflowTrigger
 from airflow.providers.standard.utils.sensor_helper import _get_count, _get_external_task_group_task_ids
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.standard.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    BaseOperator,
+    BaseOperatorLink,
+    BaseSensorOperator,
+)
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.state import State, TaskInstanceState
 
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.bases.sensor import BaseSensorOperator
-else:
-    from airflow.sensors.base import BaseSensorOperator
+if not AIRFLOW_V_3_0_PLUS:
     from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
@@ -45,19 +56,10 @@ if TYPE_CHECKING:
 
     from airflow.models.taskinstancekey import TaskInstanceKey
 
-    try:
-        from airflow.sdk import BaseOperator
+    if AIRFLOW_V_3_0_PLUS:
         from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.models.baseoperator import BaseOperator
+    else:
         from airflow.utils.context import Context
-
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperatorLink
-else:
-    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
 
 
 class ExternalDagLink(BaseOperatorLink):
@@ -190,7 +192,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         total_states = set(self.allowed_states + self.skipped_states + self.failed_states)
 
         if len(total_states) != len(self.allowed_states) + len(self.skipped_states) + len(self.failed_states):
-            raise AirflowException(
+            raise DuplicateStateError(
                 "Duplicate values provided across allowed_states, skipped_states and failed_states."
             )
 
@@ -251,12 +253,13 @@ class ExternalTaskSensor(BaseSensorOperator):
 
     def _get_dttm_filter(self, context):
         logical_date = context.get("logical_date")
-        if logical_date is None:
-            dag_run = context.get("dag_run")
-            if TYPE_CHECKING:
-                assert dag_run
+        if AIRFLOW_V_3_0_PLUS:
+            if logical_date is None:
+                dag_run = context.get("dag_run")
+                if TYPE_CHECKING:
+                    assert dag_run
 
-            logical_date = dag_run.run_after
+                logical_date = dag_run.run_after
         if self.execution_delta:
             dttm = logical_date - self.execution_delta
         elif self.execution_date_fn:
@@ -356,7 +359,7 @@ class ExternalTaskSensor(BaseSensorOperator):
                         f"Some of the external tasks {self.external_task_ids} "
                         f"in DAG {self.external_dag_id} failed. Skipping due to soft_fail."
                     )
-                raise AirflowException(
+                raise ExternalTaskFailedError(
                     f"Some of the external tasks {self.external_task_ids} "
                     f"in DAG {self.external_dag_id} failed."
                 )
@@ -366,7 +369,7 @@ class ExternalTaskSensor(BaseSensorOperator):
                         f"The external task_group '{self.external_task_group_id}' "
                         f"in DAG '{self.external_dag_id}' failed. Skipping due to soft_fail."
                     )
-                raise AirflowException(
+                raise ExternalTaskGroupFailedError(
                     f"The external task_group '{self.external_task_group_id}' "
                     f"in DAG '{self.external_dag_id}' failed."
                 )
@@ -374,7 +377,7 @@ class ExternalTaskSensor(BaseSensorOperator):
                 raise AirflowSkipException(
                     f"The external DAG {self.external_dag_id} failed. Skipping due to soft_fail."
                 )
-            raise AirflowException(f"The external DAG {self.external_dag_id} failed.")
+            raise ExternalDagFailedError(f"The external DAG {self.external_dag_id} failed.")
 
     def _handle_skipped_states(self, count_skipped: float | int) -> None:
         """Handle skipped states and raise appropriate exceptions."""
@@ -419,7 +422,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         else:
             dttm_filter = self._get_dttm_filter(context)
             logical_or_execution_dates = (
-                {"logical_dates": dttm_filter} if AIRFLOW_V_3_0_PLUS else {"execution_date": dttm_filter}
+                {"logical_dates": dttm_filter} if AIRFLOW_V_3_0_PLUS else {"execution_dates": dttm_filter}
             )
             self.defer(
                 timeout=self.execution_timeout,
@@ -443,10 +446,14 @@ class ExternalTaskSensor(BaseSensorOperator):
             self.log.info("External tasks %s has executed successfully.", self.external_task_ids)
         elif event["status"] == "skipped":
             raise AirflowSkipException("External job has skipped skipping.")
+        elif event["status"] == "failed":
+            if self.soft_fail:
+                raise AirflowSkipException("External job has failed skipping.")
+            raise ExternalDagFailedError("External job has failed.")
         else:
             if self.soft_fail:
                 raise AirflowSkipException("External job has failed skipping.")
-            raise AirflowException(
+            raise ExternalTaskNotFoundError(
                 "Error occurred while trying to retrieve task status. Please, check the "
                 "name of executed task and Dag."
             )
@@ -455,23 +462,31 @@ class ExternalTaskSensor(BaseSensorOperator):
         dag_to_wait = DagModel.get_current(self.external_dag_id, session)
 
         if not dag_to_wait:
-            raise AirflowException(f"The external DAG {self.external_dag_id} does not exist.")
+            raise ExternalDagNotFoundError(f"The external DAG {self.external_dag_id} does not exist.")
 
         if not os.path.exists(correct_maybe_zipped(dag_to_wait.fileloc)):
-            raise AirflowException(f"The external DAG {self.external_dag_id} was deleted.")
+            raise ExternalDagDeletedError(f"The external DAG {self.external_dag_id} was deleted.")
 
         if self.external_task_ids:
             refreshed_dag_info = DagBag(dag_to_wait.fileloc).get_dag(self.external_dag_id)
+            if not refreshed_dag_info:
+                raise ExternalDagNotFoundError(
+                    f"The external DAG {self.external_dag_id} could not be loaded."
+                )
             for external_task_id in self.external_task_ids:
                 if not refreshed_dag_info.has_task(external_task_id):
-                    raise AirflowException(
+                    raise ExternalTaskNotFoundError(
                         f"The external task {external_task_id} in DAG {self.external_dag_id} does not exist."
                     )
 
         if self.external_task_group_id:
             refreshed_dag_info = DagBag(dag_to_wait.fileloc).get_dag(self.external_dag_id)
+            if not refreshed_dag_info:
+                raise ExternalDagNotFoundError(
+                    f"The external DAG {self.external_dag_id} could not be loaded."
+                )
             if not refreshed_dag_info.has_task_group(self.external_task_group_id):
-                raise AirflowException(
+                raise ExternalTaskGroupNotFoundError(
                     f"The external task group '{self.external_task_group_id}' in "
                     f"DAG '{self.external_dag_id}' does not exist."
                 )

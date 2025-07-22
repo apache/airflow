@@ -38,10 +38,10 @@ from airflow.cli.commands import dag_command
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.dag import _run_inline_trigger
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.sdk import task
+from airflow.sdk.definitions.dag import _run_inline_trigger
 from airflow.triggers.base import TriggerEvent
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -617,38 +617,37 @@ class TestCliDags:
             is None
         )
 
-    @mock.patch("airflow.cli.commands.dag_command._parse_and_get_dag")
-    def test_dag_test(self, mock_parse_and_get_dag):
+    @mock.patch("airflow.cli.commands.dag_command.get_dag")
+    def test_dag_test(self, mock_get_dag):
         cli_args = self.parser.parse_args(["dags", "test", "example_bash_operator", DEFAULT_DATE.isoformat()])
         dag_command.dag_test(cli_args)
 
-        mock_parse_and_get_dag.assert_has_calls(
+        mock_get_dag.assert_has_calls(
             [
-                mock.call("example_bash_operator"),
+                mock.call(bundle_names=None, dag_id="example_bash_operator", dagfile_path=None),
                 mock.call().__bool__(),
                 mock.call().test(
                     logical_date=timezone.parse(DEFAULT_DATE.isoformat()),
                     run_conf=None,
                     use_executor=False,
                     mark_success_pattern=None,
-                    session=mock.ANY,
                 ),
             ]
         )
 
-    @mock.patch("airflow.cli.commands.dag_command._parse_and_get_dag")
-    def test_dag_test_fail_raise_error(self, mock_parse_and_get_dag):
+    @mock.patch("airflow.cli.commands.dag_command.get_dag")
+    def test_dag_test_fail_raise_error(self, mock_get_dag):
         logical_date_str = DEFAULT_DATE.isoformat()
-        mock_parse_and_get_dag.return_value.test.return_value = DagRun(
+        mock_get_dag.return_value.test.return_value = DagRun(
             dag_id="example_bash_operator", logical_date=DEFAULT_DATE, state=DagRunState.FAILED
         )
         cli_args = self.parser.parse_args(["dags", "test", "example_bash_operator", logical_date_str])
         with pytest.raises(SystemExit, match=r"DagRun failed"):
             dag_command.dag_test(cli_args)
 
-    @mock.patch("airflow.cli.commands.dag_command._parse_and_get_dag")
+    @mock.patch("airflow.cli.commands.dag_command.get_dag")
     @mock.patch("airflow.utils.timezone.utcnow")
-    def test_dag_test_no_logical_date(self, mock_utcnow, mock_parse_and_get_dag):
+    def test_dag_test_no_logical_date(self, mock_utcnow, mock_get_dag):
         now = pendulum.now()
         mock_utcnow.return_value = now
         cli_args = self.parser.parse_args(["dags", "test", "example_bash_operator"])
@@ -657,22 +656,21 @@ class TestCliDags:
 
         dag_command.dag_test(cli_args)
 
-        mock_parse_and_get_dag.assert_has_calls(
+        mock_get_dag.assert_has_calls(
             [
-                mock.call("example_bash_operator"),
+                mock.call(bundle_names=None, dag_id="example_bash_operator", dagfile_path=None),
                 mock.call().__bool__(),
                 mock.call().test(
                     logical_date=mock.ANY,
                     run_conf=None,
                     use_executor=False,
-                    session=mock.ANY,
                     mark_success_pattern=None,
                 ),
             ]
         )
 
-    @mock.patch("airflow.cli.commands.dag_command._parse_and_get_dag")
-    def test_dag_test_conf(self, mock_parse_and_get_dag):
+    @mock.patch("airflow.cli.commands.dag_command.get_dag")
+    def test_dag_test_conf(self, mock_get_dag):
         cli_args = self.parser.parse_args(
             [
                 "dags",
@@ -685,26 +683,23 @@ class TestCliDags:
         )
         dag_command.dag_test(cli_args)
 
-        mock_parse_and_get_dag.assert_has_calls(
+        mock_get_dag.assert_has_calls(
             [
-                mock.call("example_bash_operator"),
+                mock.call(bundle_names=None, dag_id="example_bash_operator", dagfile_path=None),
                 mock.call().__bool__(),
                 mock.call().test(
                     logical_date=timezone.parse(DEFAULT_DATE.isoformat()),
                     run_conf={"dag_run_conf_param": "param_value"},
                     use_executor=False,
-                    session=mock.ANY,
                     mark_success_pattern=None,
                 ),
             ]
         )
 
     @mock.patch("airflow.cli.commands.dag_command.render_dag", return_value=MagicMock(source="SOURCE"))
-    @mock.patch("airflow.cli.commands.dag_command._parse_and_get_dag")
-    def test_dag_test_show_dag(self, mock_parse_and_get_dag, mock_render_dag):
-        mock_parse_and_get_dag.return_value.test.return_value.run_id = (
-            "__test_dag_test_show_dag_fake_dag_run_run_id__"
-        )
+    @mock.patch("airflow.cli.commands.dag_command.get_dag")
+    def test_dag_test_show_dag(self, mock_get_dag, mock_render_dag):
+        mock_get_dag.return_value.test.return_value.run_id = "__test_dag_test_show_dag_fake_dag_run_run_id__"
 
         cli_args = self.parser.parse_args(
             ["dags", "test", "example_bash_operator", DEFAULT_DATE.isoformat(), "--show-dagrun"]
@@ -714,21 +709,99 @@ class TestCliDags:
 
         output = stdout.getvalue()
 
-        mock_parse_and_get_dag.assert_has_calls(
+        mock_get_dag.assert_has_calls(
             [
-                mock.call("example_bash_operator"),
+                mock.call(bundle_names=None, dag_id="example_bash_operator", dagfile_path=None),
                 mock.call().__bool__(),
                 mock.call().test(
                     logical_date=timezone.parse(DEFAULT_DATE.isoformat()),
                     run_conf=None,
                     use_executor=False,
-                    session=mock.ANY,
                     mark_success_pattern=None,
                 ),
             ]
         )
-        mock_render_dag.assert_has_calls([mock.call(mock_parse_and_get_dag.return_value, tis=[])])
+        mock_render_dag.assert_has_calls([mock.call(mock_get_dag.return_value, tis=[])])
         assert "SOURCE" in output
+
+    @mock.patch("airflow.models.dagbag.DagBag")
+    def test_dag_test_with_bundle_name(self, mock_dagbag, configure_dag_bundles):
+        """Test that DAG can be tested using bundle name."""
+        mock_dagbag.return_value.get_dag.return_value.test.return_value = DagRun(
+            dag_id="test_example_bash_operator", logical_date=DEFAULT_DATE, state=DagRunState.SUCCESS
+        )
+
+        cli_args = self.parser.parse_args(
+            [
+                "dags",
+                "test",
+                "test_example_bash_operator",
+                DEFAULT_DATE.isoformat(),
+                "--bundle-name",
+                "testing",
+            ]
+        )
+
+        with configure_dag_bundles({"testing": TEST_DAGS_FOLDER}):
+            dag_command.dag_test(cli_args)
+
+        mock_dagbag.assert_called_once_with(
+            bundle_path=TEST_DAGS_FOLDER,
+            dag_folder=TEST_DAGS_FOLDER,
+            include_examples=False,
+        )
+
+    @mock.patch("airflow.models.dagbag.DagBag")
+    def test_dag_test_with_dagfile_path(self, mock_dagbag, configure_dag_bundles):
+        """Test that DAG can be tested using dagfile path."""
+        mock_dagbag.return_value.get_dag.return_value.test.return_value = DagRun(
+            dag_id="test_example_bash_operator", logical_date=DEFAULT_DATE, state=DagRunState.SUCCESS
+        )
+
+        dag_file = TEST_DAGS_FOLDER / "test_example_bash_operator.py"
+
+        cli_args = self.parser.parse_args(
+            ["dags", "test", "test_example_bash_operator", "--dagfile-path", str(dag_file)]
+        )
+        with configure_dag_bundles({"testing": TEST_DAGS_FOLDER}):
+            dag_command.dag_test(cli_args)
+
+        mock_dagbag.assert_called_once_with(
+            bundle_path=TEST_DAGS_FOLDER,
+            dag_folder=str(dag_file),
+            include_examples=False,
+        )
+
+    @mock.patch("airflow.models.dagbag.DagBag")
+    def test_dag_test_with_both_bundle_and_dagfile_path(self, mock_dagbag, configure_dag_bundles):
+        """Test that DAG can be tested using both bundle name and dagfile path."""
+        mock_dagbag.return_value.get_dag.return_value.test.return_value = DagRun(
+            dag_id="test_example_bash_operator", logical_date=DEFAULT_DATE, state=DagRunState.SUCCESS
+        )
+
+        dag_file = TEST_DAGS_FOLDER / "test_example_bash_operator.py"
+
+        cli_args = self.parser.parse_args(
+            [
+                "dags",
+                "test",
+                "test_example_bash_operator",
+                DEFAULT_DATE.isoformat(),
+                "--bundle-name",
+                "testing",
+                "--dagfile-path",
+                str(dag_file),
+            ]
+        )
+
+        with configure_dag_bundles({"testing": TEST_DAGS_FOLDER}):
+            dag_command.dag_test(cli_args)
+
+        mock_dagbag.assert_called_once_with(
+            bundle_path=TEST_DAGS_FOLDER,
+            dag_folder=str(dag_file),
+            include_examples=False,
+        )
 
     @mock.patch("airflow.models.dag._get_or_create_dagrun")
     def test_dag_test_with_custom_timetable(self, mock__get_or_create_dagrun):
@@ -773,7 +846,9 @@ class TestCliDags:
         assert e.payload == now
 
     def test_dag_test_no_triggerer_running(self, dag_maker):
-        with mock.patch("airflow.models.dag._run_inline_trigger", wraps=_run_inline_trigger) as mock_run:
+        with mock.patch(
+            "airflow.sdk.definitions.dag._run_inline_trigger", wraps=_run_inline_trigger
+        ) as mock_run:
             with dag_maker() as dag:
 
                 @task
@@ -799,19 +874,23 @@ class TestCliDags:
                             self.defer(trigger=trigger, method_name="execute")
                             return
                         print("RESUMING")
-                        return self.tfield + 1
+                        assert self.tfield + 1 == 3
 
                 task_one = one()
                 task_two = two(task_one)
                 op = MyOp(task_id="abc", tfield=task_two)
                 task_two >> op
             dr = dag.test()
-            assert mock_run.call_args_list[0] == ((trigger,), {})
+
+            trigger_arg = mock_run.call_args_list[0].args[0]
+            assert isinstance(trigger_arg, DateTimeTrigger)
+            assert trigger_arg.moment == trigger.moment
+
             tis = dr.get_task_instances()
             assert next(x for x in tis if x.task_id == "abc").state == "success"
 
-    @mock.patch("airflow.models.taskinstance.TaskInstance._execute_task_with_callbacks")
-    def test_dag_test_with_mark_success(self, mock__execute_task_with_callbacks):
+    @mock.patch("airflow.sdk.execution_time.task_runner._execute_task")
+    def test_dag_test_with_mark_success(self, mock__execute_task):
         """
         option `--mark-success-pattern` should mark matching tasks as success without executing them.
         """
@@ -828,8 +907,22 @@ class TestCliDags:
         dag_command.dag_test(cli_args)
 
         # only second operator was actually executed, first one was marked as success
-        assert len(mock__execute_task_with_callbacks.call_args_list) == 1
-        assert mock__execute_task_with_callbacks.call_args_list[0].kwargs["self"].task_id == "dummy_operator"
+        assert len(mock__execute_task.call_args_list) == 1
+        assert mock__execute_task.call_args_list[0].kwargs["ti"].task_id == "dummy_operator"
+
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_get_dag_excludes_examples_with_bundle(self, configure_testing_dag_bundle):
+        """Test that example DAGs are excluded when bundle names are passed."""
+        from airflow.utils.cli import get_dag
+
+        with configure_testing_dag_bundle(TEST_DAGS_FOLDER / "test_sensor.py"):
+            # example DAG should not be found since include_examples=False
+            with pytest.raises(AirflowException, match="could not be found"):
+                get_dag(bundle_names=["testing"], dag_id="example_simplest_dag")
+
+            # However, "test_sensor.py" should exist
+            dag = get_dag(bundle_names=["testing"], dag_id="test_sensor")
+            assert dag.dag_id == "test_sensor"
 
 
 class TestCliDagsReserialize:

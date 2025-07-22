@@ -15,20 +15,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Hook for Web HDFS."""
-
 from __future__ import annotations
 
 import logging
 import socket
-from typing import Any
+from typing import Any, cast
 
 import requests
 from hdfs import HdfsError, InsecureClient
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+from airflow.providers.apache.hdfs.version_compat import BaseHook
 
 log = logging.getLogger(__name__)
 
@@ -76,7 +74,7 @@ class WebHDFSHook(BaseHook):
 
     def _find_valid_server(self) -> Any:
         connection = self.get_connection(self.webhdfs_conn_id)
-        namenodes = connection.host.split(",")
+        namenodes = cast("str", connection.host).split(",")
         for namenode in namenodes:
             host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.log.info("Trying to connect to %s:%s", namenode, connection.port)
@@ -86,10 +84,10 @@ class WebHDFSHook(BaseHook):
                     self.log.info("Trying namenode %s", namenode)
                     client = self._get_client(
                         namenode,
-                        connection.port,
-                        connection.login,
-                        connection.get_password(),
-                        connection.schema,
+                        cast("int", connection.port),
+                        cast("str", connection.login),
+                        connection.password,
+                        cast("str", connection.schema),
                         connection.extra_dejson,
                     )
                     client.status("/")
@@ -132,6 +130,14 @@ class WebHDFSHook(BaseHook):
                     session.cert = (cert, key)
                 else:
                     session.cert = cert
+
+        cookies = extra_dejson.get("cookies", False)
+        if cookies:
+            session.cookies.update(cookies)
+
+        headers = extra_dejson.get("headers", False)
+        if extra_dejson.get("headers", False):
+            session.headers.update(headers)
 
         if port is not None:
             connection_str += f":{port}"

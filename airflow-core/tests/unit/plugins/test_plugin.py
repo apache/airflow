@@ -19,7 +19,52 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 from flask import Blueprint
-from flask_appbuilder import BaseView as AppBuilderBaseView, expose
+
+try:
+    # if flask_appbuilder is installed, we can use AppBuilderBaseView
+    from flask_appbuilder import BaseView as AppBuilderBaseView, expose
+
+    # Creating a flask appbuilder BaseView
+    class PluginTestAppBuilderBaseView(AppBuilderBaseView):
+        default_view = "test"
+
+        @expose("/")
+        def test(self):
+            return self.render_template("test_plugin/test.html", content="Hello galaxy!")
+
+    v_appbuilder_view = PluginTestAppBuilderBaseView()
+    v_appbuilder_package = {
+        "name": "Test View",
+        "category": "Test Plugin",
+        "view": v_appbuilder_view,
+        "label": "Test Label",
+    }
+
+    v_nomenu_appbuilder_package = {"view": v_appbuilder_view}
+
+    # Creating flask appbuilder Menu Items
+    appbuilder_mitem = {
+        "name": "Google",
+        "href": "https://www.google.com",
+        "category": "Search",
+    }
+    appbuilder_mitem_toplevel = {
+        "name": "apache",
+        "href": "https://www.apache.org/",
+        "label": "The Apache Software Foundation",
+    }
+    is_flask_appbuilder_installed = True
+    v_appbuilder_packages = [v_appbuilder_package]
+    v_appbuilder_menu_items = [appbuilder_mitem, appbuilder_mitem_toplevel]
+except ImportError as e:
+    if "flask_appbuilder" not in str(e):
+        raise Exception("The import error should be about flask_appbuilder") from e
+    # flask_appbuilder is not installed, so we cannot use AppBuilderBaseView
+    AppBuilderBaseView = None
+    is_flask_appbuilder_installed = False
+    v_appbuilder_packages = []
+    v_appbuilder_menu_items = []
+
 from starlette.middleware.base import BaseHTTPMiddleware
 
 # This is the class you derive to create a plugin
@@ -43,37 +88,6 @@ from unit.listeners.class_listener import ClassBasedListener
 def plugin_macro():
     pass
 
-
-# Creating a flask appbuilder BaseView
-class PluginTestAppBuilderBaseView(AppBuilderBaseView):
-    default_view = "test"
-
-    @expose("/")
-    def test(self):
-        return self.render_template("test_plugin/test.html", content="Hello galaxy!")
-
-
-v_appbuilder_view = PluginTestAppBuilderBaseView()
-v_appbuilder_package = {
-    "name": "Test View",
-    "category": "Test Plugin",
-    "view": v_appbuilder_view,
-    "label": "Test Label",
-}
-
-v_nomenu_appbuilder_package = {"view": v_appbuilder_view}
-
-# Creating flask appbuilder Menu Items
-appbuilder_mitem = {
-    "name": "Google",
-    "href": "https://www.google.com",
-    "category": "Search",
-}
-appbuilder_mitem_toplevel = {
-    "name": "apache",
-    "href": "https://www.apache.org/",
-    "label": "The Apache Software Foundation",
-}
 
 # Creating a flask blueprint to integrate the templates and static folder
 bp = Blueprint(
@@ -102,6 +116,24 @@ middleware_with_metadata = {
     "name": "Name of the Middleware",
 }
 
+external_view_with_metadata = {
+    "name": "Test IFrame Airflow Docs",
+    "href": "https://airflow.apache.org/",
+    "icon": "https://raw.githubusercontent.com/lucide-icons/lucide/refs/heads/main/icons/plug.svg",
+    "url_route": "test_iframe_plugin",
+    "destination": "nav",
+    "category": "browse",
+}
+
+react_app_with_metadata = {
+    "name": "Test React App",
+    "bundle_url": "https://example.com/test-plugin-bundle.js",
+    "icon": "https://raw.githubusercontent.com/lucide-icons/lucide/refs/heads/main/icons/plug.svg",
+    "url_route": "test_react_app",
+    "destination": "nav",
+    "category": "browse",
+}
+
 
 # Extend an existing class to avoid the need to implement the full interface
 class CustomCronDataIntervalTimetable(CronDataIntervalTimetable):
@@ -120,8 +152,10 @@ class AirflowTestPlugin(AirflowPlugin):
     flask_blueprints = [bp]
     fastapi_apps = [app_with_metadata]
     fastapi_root_middlewares = [middleware_with_metadata]
-    appbuilder_views = [v_appbuilder_package]
-    appbuilder_menu_items = [appbuilder_mitem, appbuilder_mitem_toplevel]
+    external_views = [external_view_with_metadata]
+    react_apps = [react_app_with_metadata]
+    appbuilder_views = v_appbuilder_packages
+    appbuilder_menu_items = v_appbuilder_menu_items
     global_operator_extra_links = [
         AirflowLink(),
         GithubLink(),

@@ -24,6 +24,7 @@ import pytest
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG, DagRun, TaskInstance
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 from airflow.providers.amazon.aws.operators.athena import AthenaOperator
 from airflow.providers.amazon.aws.triggers.athena import AthenaTrigger
@@ -235,6 +236,12 @@ class TestAthenaOperator:
     ):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         if AIRFLOW_V_3_0_PLUS:
+            from airflow.models.dag_version import DagVersion
+
+            self.dag.sync_to_db()
+            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
+            dag_version = DagVersion.get_latest_version(self.dag.dag_id)
+            ti = TaskInstance(task=self.athena, dag_version_id=dag_version.id)
             dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 logical_date=timezone.utcnow(),
@@ -250,7 +257,7 @@ class TestAthenaOperator:
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
             )
-        ti = TaskInstance(task=self.athena)
+            ti = TaskInstance(task=self.athena)
         ti.dag_run = dag_run
         session.add(ti)
         session.commit()

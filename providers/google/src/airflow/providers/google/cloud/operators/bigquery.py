@@ -34,7 +34,7 @@ from google.cloud.bigquery.table import RowIterator, Table, TableListItem, Table
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
-from airflow.providers.common.sql.operators.sql import (  # type: ignore[attr-defined] # for _parse_boolean
+from airflow.providers.common.sql.operators.sql import (  # for _parse_boolean
     SQLCheckOperator,
     SQLColumnCheckOperator,
     SQLIntervalCheckOperator,
@@ -59,7 +59,6 @@ from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryValueCheckTrigger,
 )
 from airflow.providers.google.cloud.utils.bigquery import convert_job_id
-from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.utils.helpers import exactly_one
 
@@ -93,16 +92,34 @@ class IfExistAction(enum.Enum):
     SKIP = "skip"
 
 
+class _BigQueryHookWithFlexibleProjectId(BigQueryHook):
+    @property
+    def project_id(self) -> str:
+        _, project_id = self.get_credentials_and_project_id()
+        return project_id or PROVIDE_PROJECT_ID
+
+    @project_id.setter
+    def project_id(self, value: str) -> None:
+        cached_creds, _ = self.get_credentials_and_project_id()
+        self._cached_project_id = value or PROVIDE_PROJECT_ID
+        self._cached_credntials = cached_creds
+
+
 class _BigQueryDbHookMixin:
-    def get_db_hook(self: BigQueryCheckOperator) -> BigQueryHook:  # type:ignore[misc]
+    def get_db_hook(self: BigQueryCheckOperator) -> _BigQueryHookWithFlexibleProjectId:  # type:ignore[misc]
         """Get BigQuery DB Hook."""
-        return BigQueryHook(
+        hook = _BigQueryHookWithFlexibleProjectId(
             gcp_conn_id=self.gcp_conn_id,
             use_legacy_sql=self.use_legacy_sql,
             location=self.location,
             impersonation_chain=self.impersonation_chain,
             labels=self.labels,
         )
+
+        # mypy assuming project_id is read only, as project_id is a property in GoogleBaseHook.
+        if self.project_id:
+            hook.project_id = self.project_id  # type:ignore[misc]
+        return hook
 
 
 class _BigQueryOperatorsEncryptionConfigurationMixin:
@@ -190,6 +207,7 @@ class BigQueryCheckOperator(
         https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs.
         For example, [{ 'name': 'corpus', 'parameterType': { 'type': 'STRING' },
         'parameterValue': { 'value': 'romeoandjuliet' } }]. (templated)
+    :param project_id: Google Cloud Project where the job is running
     """
 
     template_fields: Sequence[str] = (
@@ -208,6 +226,7 @@ class BigQueryCheckOperator(
         *,
         sql: str,
         gcp_conn_id: str = "google_cloud_default",
+        project_id: str = PROVIDE_PROJECT_ID,
         use_legacy_sql: bool = True,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
@@ -228,6 +247,7 @@ class BigQueryCheckOperator(
         self.deferrable = deferrable
         self.poll_interval = poll_interval
         self.query_params = query_params
+        self.project_id = project_id
 
     def _submit_job(
         self,
@@ -243,7 +263,7 @@ class BigQueryCheckOperator(
 
         return hook.insert_job(
             configuration=configuration,
-            project_id=hook.project_id,
+            project_id=self.project_id,
             location=self.location,
             job_id=job_id,
             nowait=True,
@@ -257,6 +277,8 @@ class BigQueryCheckOperator(
                 gcp_conn_id=self.gcp_conn_id,
                 impersonation_chain=self.impersonation_chain,
             )
+            if self.project_id is None:
+                self.project_id = hook.project_id
             job = self._submit_job(hook, job_id="")
             context["ti"].xcom_push(key="job_id", value=job.job_id)
             if job.running():
@@ -265,7 +287,7 @@ class BigQueryCheckOperator(
                     trigger=BigQueryCheckTrigger(
                         conn_id=self.gcp_conn_id,
                         job_id=job.job_id,
-                        project_id=hook.project_id,
+                        project_id=self.project_id,
                         location=self.location or hook.location,
                         poll_interval=self.poll_interval,
                         impersonation_chain=self.impersonation_chain,
@@ -288,9 +310,7 @@ class BigQueryCheckOperator(
         if not records:
             raise AirflowException(f"The following query returned zero rows: {self.sql}")
         if not all(records):
-            self._raise_exception(  # type: ignore[attr-defined]
-                f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}"
-            )
+            self._raise_exception(f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}")
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
         """
@@ -342,6 +362,7 @@ class BigQueryValueCheckOperator(
     :param deferrable: Run operator in the deferrable mode.
     :param poll_interval: (Deferrable mode only) polling period in seconds to
         check for the status of job.
+    :param project_id: Google Cloud Project where the job is running
     """
 
     template_fields: Sequence[str] = (
@@ -363,6 +384,7 @@ class BigQueryValueCheckOperator(
         tolerance: Any = None,
         encryption_configuration: dict | None = None,
         gcp_conn_id: str = "google_cloud_default",
+        project_id: str = PROVIDE_PROJECT_ID,
         use_legacy_sql: bool = True,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
@@ -380,6 +402,7 @@ class BigQueryValueCheckOperator(
         self.labels = labels
         self.deferrable = deferrable
         self.poll_interval = poll_interval
+        self.project_id = project_id
 
     def _submit_job(
         self,
@@ -398,18 +421,19 @@ class BigQueryValueCheckOperator(
 
         return hook.insert_job(
             configuration=configuration,
-            project_id=hook.project_id,
+            project_id=self.project_id,
             location=self.location,
             job_id=job_id,
             nowait=True,
         )
 
-    def execute(self, context: Context) -> None:  # type: ignore[override]
+    def execute(self, context: Context) -> None:
         if not self.deferrable:
             super().execute(context=context)
         else:
             hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
-
+            if self.project_id is None:
+                self.project_id = hook.project_id
             job = self._submit_job(hook, job_id="")
             context["ti"].xcom_push(key="job_id", value=job.job_id)
             if job.running():
@@ -418,7 +442,7 @@ class BigQueryValueCheckOperator(
                     trigger=BigQueryValueCheckTrigger(
                         conn_id=self.gcp_conn_id,
                         job_id=job.job_id,
-                        project_id=hook.project_id,
+                        project_id=self.project_id,
                         location=self.location or hook.location,
                         sql=self.sql,
                         pass_value=self.pass_value,
@@ -575,6 +599,9 @@ class BigQueryIntervalCheckOperator(
             hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
             self.log.info("Using ratio formula: %s", self.ratio_formula)
 
+            if self.project_id is None:
+                self.project_id = hook.project_id
+
             self.log.info("Executing SQL check: %s", self.sql1)
             job_1 = self._submit_job(hook, sql=self.sql1, job_id="")
             context["ti"].xcom_push(key="job_id", value=job_1.job_id)
@@ -587,7 +614,7 @@ class BigQueryIntervalCheckOperator(
                     conn_id=self.gcp_conn_id,
                     first_job_id=job_1.job_id,
                     second_job_id=job_2.job_id,
-                    project_id=hook.project_id,
+                    project_id=self.project_id,
                     table=self.table,
                     location=self.location or hook.location,
                     metrics_thresholds=self.metrics_thresholds,
@@ -654,6 +681,7 @@ class BigQueryColumnCheckOperator(
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param labels: a dictionary containing labels for the table, passed to BigQuery
+    :param project_id: Google Cloud Project where the job is running
     """
 
     template_fields: Sequence[str] = tuple(set(SQLColumnCheckOperator.template_fields) | {"gcp_conn_id"})
@@ -670,6 +698,7 @@ class BigQueryColumnCheckOperator(
         accept_none: bool = True,
         encryption_configuration: dict | None = None,
         gcp_conn_id: str = "google_cloud_default",
+        project_id: str = PROVIDE_PROJECT_ID,
         use_legacy_sql: bool = True,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
@@ -695,6 +724,7 @@ class BigQueryColumnCheckOperator(
         self.location = location
         self.impersonation_chain = impersonation_chain
         self.labels = labels
+        self.project_id = project_id
 
     def _submit_job(
         self,
@@ -706,7 +736,7 @@ class BigQueryColumnCheckOperator(
         self.include_encryption_configuration(configuration, "query")
         return hook.insert_job(
             configuration=configuration,
-            project_id=hook.project_id,
+            project_id=self.project_id,
             location=self.location,
             job_id=job_id,
             nowait=False,
@@ -715,6 +745,9 @@ class BigQueryColumnCheckOperator(
     def execute(self, context=None):
         """Perform checks on the given columns."""
         hook = self.get_db_hook()
+
+        if self.project_id is None:
+            self.project_id = hook.project_id
         failed_tests = []
 
         job = self._submit_job(hook, job_id="")
@@ -786,6 +819,7 @@ class BigQueryTableCheckOperator(
         account from the list granting this role to the originating account (templated).
     :param labels: a dictionary containing labels for the table, passed to BigQuery
     :param encryption_configuration: (Optional) Custom encryption configuration (e.g., Cloud KMS keys).
+    :param project_id: Google Cloud Project where the job is running
 
         .. code-block:: python
 
@@ -805,6 +839,7 @@ class BigQueryTableCheckOperator(
         checks: dict,
         partition_clause: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
+        project_id: str = PROVIDE_PROJECT_ID,
         use_legacy_sql: bool = True,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
@@ -819,6 +854,7 @@ class BigQueryTableCheckOperator(
         self.impersonation_chain = impersonation_chain
         self.labels = labels
         self.encryption_configuration = encryption_configuration
+        self.project_id = project_id
 
     def _submit_job(
         self,
@@ -832,7 +868,7 @@ class BigQueryTableCheckOperator(
 
         return hook.insert_job(
             configuration=configuration,
-            project_id=hook.project_id,
+            project_id=self.project_id,
             location=self.location,
             job_id=job_id,
             nowait=False,
@@ -841,6 +877,8 @@ class BigQueryTableCheckOperator(
     def execute(self, context=None):
         """Execute the given checks on the table."""
         hook = self.get_db_hook()
+        if self.project_id is None:
+            self.project_id = hook.project_id
         job = self._submit_job(hook, job_id="")
         context["ti"].xcom_push(key="job_id", value=job.job_id)
         records = job.result().to_dataframe()
@@ -1117,7 +1155,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
                     "BigQueryHook.list_rows() returns iterator when return_iterator is False (default)"
                 )
             self.log.info("Total extracted rows: %s", len(rows))
-
+            table_data: list[dict[str, Any]] | list[Any]
             if self.as_dict:
                 table_data = [dict(row) for row in rows]
             else:
@@ -1285,7 +1323,6 @@ class BigQueryCreateTableOperator(GoogleCloudBaseOperator):
             if self._table:
                 persist_kwargs = {
                     "context": context,
-                    "task_instance": self,
                     "project_id": self._table.to_api_repr()["tableReference"]["projectId"],
                     "dataset_id": self._table.to_api_repr()["tableReference"]["datasetId"],
                     "table_id": self._table.to_api_repr()["tableReference"]["tableId"],
@@ -1304,7 +1341,6 @@ class BigQueryCreateTableOperator(GoogleCloudBaseOperator):
                 self.log.info(error_msg)
                 persist_kwargs = {
                     "context": context,
-                    "task_instance": self,
                     "project_id": self.project_id or bq_hook.project_id,
                     "dataset_id": self.dataset_id,
                     "table_id": self.table_id,
@@ -1328,610 +1364,6 @@ class BigQueryCreateTableOperator(GoogleCloudBaseOperator):
         if not self._table:
             self.log.debug("OpenLineage did not find `self._table` attribute.")
             return OperatorLineage()
-
-        output_dataset = Dataset(
-            namespace=BIGQUERY_NAMESPACE,
-            name=f"{self._table.project}.{self._table.dataset_id}.{self._table.table_id}",
-            facets=get_facets_from_bq_table(self._table),
-        )
-
-        return OperatorLineage(outputs=[output_dataset])
-
-
-@deprecated(
-    planned_removal_date="July 30, 2025",
-    use_instead="airflow.providers.google.cloud.operators.bigquery.BigQueryCreateTableOperator",
-    category=AirflowProviderDeprecationWarning,
-)
-class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
-    """
-    Creates a new table in the specified BigQuery dataset, optionally with schema.
-
-    The schema to be used for the BigQuery table may be specified in one of
-    two ways. You may either directly pass the schema fields in, or you may
-    point the operator to a Google Cloud Storage object name. The object in
-    Google Cloud Storage must be a JSON file with the schema fields in it.
-    You can also create a table without schema.
-
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BigQueryCreateEmptyTableOperator`
-
-    :param project_id: The project to create the table into. (templated)
-    :param dataset_id: The dataset to create the table into. (templated)
-    :param table_id: The Name of the table to be created. (templated)
-    :param table_resource: Table resource as described in documentation:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#Table
-        If provided all other parameters are ignored. (templated)
-    :param schema_fields: If set, the schema field list as defined here:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schema
-
-        **Example**::
-
-            schema_fields = [
-                {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
-                {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
-            ]
-
-    :param gcs_schema_object: Full path to the JSON file containing
-        schema (templated). For
-        example: ``gs://test-bucket/dir1/dir2/employee_schema.json``
-    :param time_partitioning: configure optional time partitioning fields i.e.
-        partition by field, type and  expiration as per API specifications.
-
-        .. seealso::
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#timePartitioning
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud and
-        interact with the Bigquery service.
-    :param google_cloud_storage_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-        and interact with the Google Cloud Storage service.
-    :param labels: a dictionary containing labels for the table, passed to BigQuery
-
-    **Example (with schema JSON in GCS)**::
-
-        CreateTable = BigQueryCreateEmptyTableOperator(
-            task_id="BigQueryCreateEmptyTableOperator_task",
-            dataset_id="ODS",
-            table_id="Employees",
-            project_id="internal-gcp-project",
-            gcs_schema_object="gs://schema-bucket/employee_schema.json",
-            gcp_conn_id="airflow-conn-id",
-            google_cloud_storage_conn_id="airflow-conn-id",
-        )
-
-    **Corresponding Schema file** (``employee_schema.json``)::
-
-        [
-            {"mode": "NULLABLE", "name": "emp_name", "type": "STRING"},
-            {"mode": "REQUIRED", "name": "salary", "type": "INTEGER"},
-        ]
-
-    **Example (with schema in the DAG)**::
-
-        CreateTable = BigQueryCreateEmptyTableOperator(
-            task_id="BigQueryCreateEmptyTableOperator_task",
-            dataset_id="ODS",
-            table_id="Employees",
-            project_id="internal-gcp-project",
-            schema_fields=[
-                {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
-                {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
-            ],
-            gcp_conn_id="airflow-conn-id-account",
-            google_cloud_storage_conn_id="airflow-conn-id",
-        )
-
-    :param view: (Optional) A dictionary containing definition for the view.
-        If set, it will create a view instead of a table:
-
-        .. seealso::
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#ViewDefinition
-    :param materialized_view: (Optional) The materialized view definition.
-    :param encryption_configuration: (Optional) Custom encryption configuration (e.g., Cloud KMS keys).
-
-        .. code-block:: python
-
-            encryption_configuration = {
-                "kmsKeyName": "projects/PROJECT/locations/LOCATION/keyRings/KEY_RING/cryptoKeys/KEY",
-            }
-    :param location: The location used for the operation.
-    :param cluster_fields: (Optional) The fields used for clustering.
-            BigQuery supports clustering for both partitioned and
-            non-partitioned tables.
-
-            .. seealso::
-                https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#clustering.fields
-    :param impersonation_chain: Optional service account to impersonate using short-term
-        credentials, or chained list of accounts required to get the access_token
-        of the last account in the list, which will be impersonated in the request.
-        If set as a string, the account must grant the originating account
-        the Service Account Token Creator IAM role.
-        If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
-        account from the list granting this role to the originating account (templated).
-    :param if_exists: What should Airflow do if the table exists. If set to `log`, the TI will be passed to
-        success and an error message will be logged. Set to `ignore` to ignore the error, set to `fail` to
-        fail the TI, and set to `skip` to skip it.
-    :param exists_ok: Deprecated - use `if_exists="ignore"` instead.
-    """
-
-    template_fields: Sequence[str] = (
-        "dataset_id",
-        "table_id",
-        "table_resource",
-        "project_id",
-        "gcs_schema_object",
-        "labels",
-        "view",
-        "materialized_view",
-        "impersonation_chain",
-    )
-    template_fields_renderers = {"table_resource": "json", "materialized_view": "json"}
-    ui_color = BigQueryUIColors.TABLE.value
-    operator_extra_links = (BigQueryTableLink(),)
-
-    def __init__(
-        self,
-        *,
-        dataset_id: str,
-        table_id: str,
-        table_resource: dict[str, Any] | None = None,
-        project_id: str = PROVIDE_PROJECT_ID,
-        schema_fields: list | None = None,
-        gcs_schema_object: str | None = None,
-        time_partitioning: dict | None = None,
-        gcp_conn_id: str = "google_cloud_default",
-        google_cloud_storage_conn_id: str = "google_cloud_default",
-        labels: dict | None = None,
-        view: dict | None = None,
-        materialized_view: dict | None = None,
-        encryption_configuration: dict | None = None,
-        location: str | None = None,
-        cluster_fields: list[str] | None = None,
-        impersonation_chain: str | Sequence[str] | None = None,
-        if_exists: str = "log",
-        bigquery_conn_id: str | None = None,
-        exists_ok: bool | None = None,
-        **kwargs,
-    ) -> None:
-        if bigquery_conn_id:
-            warnings.warn(
-                "The bigquery_conn_id parameter has been deprecated. Use the gcp_conn_id parameter instead.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            gcp_conn_id = bigquery_conn_id
-
-        super().__init__(**kwargs)
-
-        self.project_id = project_id
-        self.dataset_id = dataset_id
-        self.table_id = table_id
-        self.schema_fields = schema_fields
-        self.gcs_schema_object = gcs_schema_object
-        self.gcp_conn_id = gcp_conn_id
-        self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
-        self.time_partitioning = time_partitioning or {}
-        self.labels = labels
-        self.view = view
-        self.materialized_view = materialized_view
-        self.encryption_configuration = encryption_configuration
-        self.location = location
-        self.cluster_fields = cluster_fields
-        self.table_resource = table_resource
-        self.impersonation_chain = impersonation_chain
-        self._table: Table | None = None
-        if exists_ok is not None:
-            warnings.warn(
-                "`exists_ok` parameter is deprecated, please use `if_exists`",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            self.if_exists = IfExistAction.IGNORE if exists_ok else IfExistAction.LOG
-        else:
-            self.if_exists = IfExistAction(if_exists)
-
-    def execute(self, context: Context) -> None:
-        bq_hook = BigQueryHook(
-            gcp_conn_id=self.gcp_conn_id,
-            location=self.location,
-            impersonation_chain=self.impersonation_chain,
-        )
-
-        if not self.schema_fields and self.gcs_schema_object:
-            gcs_bucket, gcs_object = _parse_gcs_url(self.gcs_schema_object)
-            gcs_hook = GCSHook(
-                gcp_conn_id=self.google_cloud_storage_conn_id,
-                impersonation_chain=self.impersonation_chain,
-            )
-            schema_fields_string = gcs_hook.download_as_byte_array(gcs_bucket, gcs_object).decode("utf-8")
-            schema_fields = json.loads(schema_fields_string)
-        else:
-            schema_fields = self.schema_fields
-
-        try:
-            self.log.info("Creating table")
-            # Save table as attribute for further use by OpenLineage
-            self._table = bq_hook.create_empty_table(
-                project_id=self.project_id,
-                dataset_id=self.dataset_id,
-                table_id=self.table_id,
-                schema_fields=schema_fields,
-                time_partitioning=self.time_partitioning,
-                cluster_fields=self.cluster_fields,
-                labels=self.labels,
-                view=self.view,
-                materialized_view=self.materialized_view,
-                encryption_configuration=self.encryption_configuration,
-                table_resource=self.table_resource,
-                exists_ok=self.if_exists == IfExistAction.IGNORE,
-            )
-            if self._table:
-                persist_kwargs = {
-                    "context": context,
-                    "task_instance": self,
-                    "project_id": self._table.to_api_repr()["tableReference"]["projectId"],
-                    "dataset_id": self._table.to_api_repr()["tableReference"]["datasetId"],
-                    "table_id": self._table.to_api_repr()["tableReference"]["tableId"],
-                }
-                self.log.info(
-                    "Table %s.%s.%s created successfully",
-                    self._table.project,
-                    self._table.dataset_id,
-                    self._table.table_id,
-                )
-            else:
-                raise AirflowException("Table creation failed.")
-        except Conflict:
-            error_msg = f"Table {self.dataset_id}.{self.table_id} already exists."
-            if self.if_exists == IfExistAction.LOG:
-                self.log.info(error_msg)
-                persist_kwargs = {
-                    "context": context,
-                    "task_instance": self,
-                    "project_id": self.project_id or bq_hook.project_id,
-                    "dataset_id": self.dataset_id,
-                    "table_id": self.table_id,
-                }
-            elif self.if_exists == IfExistAction.FAIL:
-                raise AirflowException(error_msg)
-            else:
-                raise AirflowSkipException(error_msg)
-
-        BigQueryTableLink.persist(**persist_kwargs)
-
-    def get_openlineage_facets_on_complete(self, _):
-        """Implement _on_complete as we will use table resource returned by create method."""
-        from airflow.providers.common.compat.openlineage.facet import Dataset
-        from airflow.providers.google.cloud.openlineage.utils import (
-            BIGQUERY_NAMESPACE,
-            get_facets_from_bq_table,
-        )
-        from airflow.providers.openlineage.extractors import OperatorLineage
-
-        if not self._table:
-            self.log.debug("OpenLineage did not find `self._table` attribute.")
-            return OperatorLineage()
-
-        output_dataset = Dataset(
-            namespace=BIGQUERY_NAMESPACE,
-            name=f"{self._table.project}.{self._table.dataset_id}.{self._table.table_id}",
-            facets=get_facets_from_bq_table(self._table),
-        )
-
-        return OperatorLineage(outputs=[output_dataset])
-
-
-@deprecated(
-    planned_removal_date="July 30, 2025",
-    use_instead="airflow.providers.google.cloud.operators.bigquery.BigQueryCreateTableOperator",
-    category=AirflowProviderDeprecationWarning,
-)
-class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
-    """
-    Create a new external table with data from Google Cloud Storage.
-
-    The schema to be used for the BigQuery table may be specified in one of
-    two ways. You may either directly pass the schema fields in, or you may
-    point the operator to a Google Cloud Storage object name. The object in
-    Google Cloud Storage must be a JSON file with the schema fields in it.
-
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BigQueryCreateExternalTableOperator`
-
-    :param bucket: The bucket to point the external table to. (templated)
-    :param source_objects: List of Google Cloud Storage URIs to point
-        table to. If source_format is 'DATASTORE_BACKUP', the list must only contain a single URI.
-    :param destination_project_dataset_table: The dotted ``(<project>.)<dataset>.<table>``
-        BigQuery table to load data into (templated). If ``<project>`` is not included,
-        project will be the project defined in the connection json.
-    :param schema_fields: If set, the schema field list as defined here:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schema
-
-        **Example**::
-
-            schema_fields = [
-                {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
-                {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
-            ]
-
-        Should not be set when source_format is 'DATASTORE_BACKUP'.
-    :param table_resource: Table resource as described in documentation:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#Table
-        If provided all other parameters are ignored. External schema from object will be resolved.
-    :param schema_object: If set, a GCS object path pointing to a .json file that
-        contains the schema for the table. (templated)
-    :param gcs_schema_bucket: GCS bucket name where the schema JSON is stored (templated).
-        The default value is self.bucket.
-    :param source_format: File format of the data.
-    :param autodetect: Try to detect schema and format options automatically.
-        The schema_fields and schema_object options will be honored when specified explicitly.
-        https://cloud.google.com/bigquery/docs/schema-detect#schema_auto-detection_for_external_data_sources
-    :param compression: (Optional) The compression type of the data source.
-        Possible values include GZIP and NONE.
-        The default value is NONE.
-        This setting is ignored for Google Cloud Bigtable,
-        Google Cloud Datastore backups and Avro formats.
-    :param skip_leading_rows: Number of rows to skip when loading from a CSV.
-    :param field_delimiter: The delimiter to use for the CSV.
-    :param max_bad_records: The maximum number of bad records that BigQuery can
-        ignore when running the job.
-    :param quote_character: The value that is used to quote data sections in a CSV file.
-    :param allow_quoted_newlines: Whether to allow quoted newlines (true) or not (false).
-    :param allow_jagged_rows: Accept rows that are missing trailing optional columns.
-        The missing values are treated as nulls. If false, records with missing trailing
-        columns are treated as bad records, and if there are too many bad records, an
-        invalid error is returned in the job result. Only applicable to CSV, ignored
-        for other formats.
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud and
-        interact with the Bigquery service.
-    :param google_cloud_storage_conn_id: (Optional) The connection ID used to connect to Google Cloud
-        and interact with the Google Cloud Storage service.
-    :param src_fmt_configs: configure optional fields specific to the source format
-    :param labels: a dictionary containing labels for the table, passed to BigQuery
-    :param encryption_configuration: (Optional) Custom encryption configuration (e.g., Cloud KMS keys).
-
-        .. code-block:: python
-
-            encryption_configuration = {
-                "kmsKeyName": "projects/PROJECT/locations/LOCATION/keyRings/KEY_RING/cryptoKeys/KEY",
-            }
-    :param location: The location used for the operation.
-    :param impersonation_chain: Optional service account to impersonate using short-term
-        credentials, or chained list of accounts required to get the access_token
-        of the last account in the list, which will be impersonated in the request.
-        If set as a string, the account must grant the originating account
-        the Service Account Token Creator IAM role.
-        If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
-        account from the list granting this role to the originating account (templated).
-    """
-
-    template_fields: Sequence[str] = (
-        "bucket",
-        "source_objects",
-        "schema_object",
-        "gcs_schema_bucket",
-        "destination_project_dataset_table",
-        "labels",
-        "table_resource",
-        "impersonation_chain",
-    )
-    template_fields_renderers = {"table_resource": "json"}
-    ui_color = BigQueryUIColors.TABLE.value
-    operator_extra_links = (BigQueryTableLink(),)
-
-    def __init__(
-        self,
-        *,
-        bucket: str | None = None,
-        source_objects: list[str] | None = None,
-        destination_project_dataset_table: str | None = None,
-        table_resource: dict[str, Any] | None = None,
-        schema_fields: list | None = None,
-        schema_object: str | None = None,
-        gcs_schema_bucket: str | None = None,
-        source_format: str | None = None,
-        autodetect: bool = False,
-        compression: str | None = None,
-        skip_leading_rows: int | None = None,
-        field_delimiter: str | None = None,
-        max_bad_records: int = 0,
-        quote_character: str | None = None,
-        allow_quoted_newlines: bool = False,
-        allow_jagged_rows: bool = False,
-        gcp_conn_id: str = "google_cloud_default",
-        google_cloud_storage_conn_id: str = "google_cloud_default",
-        src_fmt_configs: dict | None = None,
-        labels: dict | None = None,
-        encryption_configuration: dict | None = None,
-        location: str | None = None,
-        impersonation_chain: str | Sequence[str] | None = None,
-        bigquery_conn_id: str | None = None,
-        **kwargs,
-    ) -> None:
-        if bigquery_conn_id:
-            warnings.warn(
-                "The bigquery_conn_id parameter has been deprecated. Use the gcp_conn_id parameter instead.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            gcp_conn_id = bigquery_conn_id
-
-        super().__init__(**kwargs)
-
-        self.table_resource = table_resource
-        self.bucket = bucket or ""
-        self.source_objects = source_objects or []
-        self.schema_object = schema_object or None
-        self.gcs_schema_bucket = gcs_schema_bucket or ""
-        self.destination_project_dataset_table = destination_project_dataset_table or ""
-
-        # BQ config
-        kwargs_passed = any(
-            [
-                destination_project_dataset_table,
-                schema_fields,
-                source_format,
-                compression,
-                skip_leading_rows,
-                field_delimiter,
-                max_bad_records,
-                autodetect,
-                quote_character,
-                allow_quoted_newlines,
-                allow_jagged_rows,
-                src_fmt_configs,
-                labels,
-                encryption_configuration,
-            ]
-        )
-
-        if not table_resource:
-            warnings.warn(
-                "Passing table parameters via keywords arguments will be deprecated. "
-                "Please provide table definition using `table_resource` parameter.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            if not bucket:
-                raise ValueError("`bucket` is required when not using `table_resource`.")
-            if not gcs_schema_bucket:
-                gcs_schema_bucket = bucket
-            if not source_objects:
-                raise ValueError("`source_objects` is required when not using `table_resource`.")
-            if not source_format:
-                source_format = "CSV"
-            if not compression:
-                compression = "NONE"
-            if not skip_leading_rows:
-                skip_leading_rows = 0
-            if not field_delimiter:
-                field_delimiter = ","
-            if not destination_project_dataset_table:
-                raise ValueError(
-                    "`destination_project_dataset_table` is required when not using `table_resource`."
-                )
-            self.bucket = bucket
-            self.source_objects = source_objects
-            self.schema_object = schema_object
-            self.gcs_schema_bucket = gcs_schema_bucket
-            self.destination_project_dataset_table = destination_project_dataset_table
-            self.schema_fields = schema_fields
-            self.source_format = source_format
-            self.compression = compression
-            self.skip_leading_rows = skip_leading_rows
-            self.field_delimiter = field_delimiter
-            self.table_resource = None
-        else:
-            pass
-
-        if table_resource and kwargs_passed:
-            raise ValueError("You provided both `table_resource` and exclusive keywords arguments.")
-
-        self.max_bad_records = max_bad_records
-        self.quote_character = quote_character
-        self.allow_quoted_newlines = allow_quoted_newlines
-        self.allow_jagged_rows = allow_jagged_rows
-        self.gcp_conn_id = gcp_conn_id
-        self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
-        self.autodetect = autodetect
-
-        self.src_fmt_configs = src_fmt_configs or {}
-        self.labels = labels
-        self.encryption_configuration = encryption_configuration
-        self.location = location
-        self.impersonation_chain = impersonation_chain
-        self._table: Table | None = None
-
-    def execute(self, context: Context) -> None:
-        bq_hook = BigQueryHook(
-            gcp_conn_id=self.gcp_conn_id,
-            location=self.location,
-            impersonation_chain=self.impersonation_chain,
-        )
-        if self.table_resource:
-            # Save table as attribute for further use by OpenLineage
-            self._table = bq_hook.create_empty_table(
-                table_resource=self.table_resource,
-            )
-            if self._table:
-                BigQueryTableLink.persist(
-                    context=context,
-                    task_instance=self,
-                    dataset_id=self._table.dataset_id,
-                    project_id=self._table.project,
-                    table_id=self._table.table_id,
-                )
-            return
-
-        if not self.schema_fields and self.schema_object and self.source_format != "DATASTORE_BACKUP":
-            gcs_hook = GCSHook(
-                gcp_conn_id=self.google_cloud_storage_conn_id,
-                impersonation_chain=self.impersonation_chain,
-            )
-            schema_fields = json.loads(
-                gcs_hook.download(self.gcs_schema_bucket, self.schema_object).decode("utf-8")
-            )
-        else:
-            schema_fields = self.schema_fields
-
-        source_uris = [f"gs://{self.bucket}/{source_object}" for source_object in self.source_objects]
-
-        project_id, dataset_id, table_id = bq_hook.split_tablename(
-            table_input=self.destination_project_dataset_table,
-            default_project_id=bq_hook.project_id or "",
-        )
-
-        external_data_configuration = {
-            "source_uris": source_uris,
-            "source_format": self.source_format,
-            "autodetect": self.autodetect,
-            "compression": self.compression,
-            "maxBadRecords": self.max_bad_records,
-        }
-        if self.source_format == "CSV":
-            external_data_configuration["csvOptions"] = {
-                "fieldDelimiter": self.field_delimiter,
-                "skipLeadingRows": self.skip_leading_rows,
-                "quote": self.quote_character,
-                "allowQuotedNewlines": self.allow_quoted_newlines,
-                "allowJaggedRows": self.allow_jagged_rows,
-            }
-
-        table_resource = {
-            "tableReference": {
-                "projectId": project_id,
-                "datasetId": dataset_id,
-                "tableId": table_id,
-            },
-            "labels": self.labels,
-            "schema": {"fields": schema_fields},
-            "externalDataConfiguration": external_data_configuration,
-            "location": self.location,
-            "encryptionConfiguration": self.encryption_configuration,
-        }
-
-        # Save table as attribute for further use by OpenLineage
-        self._table = bq_hook.create_empty_table(table_resource=table_resource)
-        if self._table:
-            BigQueryTableLink.persist(
-                context=context,
-                task_instance=self,
-                dataset_id=self._table.dataset_id,
-                project_id=self._table.project,
-                table_id=self._table.table_id,
-            )
-
-    def get_openlineage_facets_on_complete(self, _):
-        """Implement _on_complete as we will use table resource returned by create method."""
-        from airflow.providers.common.compat.openlineage.facet import Dataset
-        from airflow.providers.google.cloud.openlineage.utils import (
-            BIGQUERY_NAMESPACE,
-            get_facets_from_bq_table,
-        )
-        from airflow.providers.openlineage.extractors import OperatorLineage
 
         output_dataset = Dataset(
             namespace=BIGQUERY_NAMESPACE,
@@ -2116,7 +1548,6 @@ class BigQueryCreateEmptyDatasetOperator(GoogleCloudBaseOperator):
             )
             persist_kwargs = {
                 "context": context,
-                "task_instance": self,
                 "project_id": dataset["datasetReference"]["projectId"],
                 "dataset_id": dataset["datasetReference"]["datasetId"],
             }
@@ -2128,7 +1559,6 @@ class BigQueryCreateEmptyDatasetOperator(GoogleCloudBaseOperator):
             )
             persist_kwargs = {
                 "context": context,
-                "task_instance": self,
                 "project_id": project_id,
                 "dataset_id": dataset_id,
             }
@@ -2200,7 +1630,6 @@ class BigQueryGetDatasetOperator(GoogleCloudBaseOperator):
         dataset_api_repr = dataset.to_api_repr()
         BigQueryDatasetLink.persist(
             context=context,
-            task_instance=self,
             dataset_id=dataset_api_repr["datasetReference"]["datasetId"],
             project_id=dataset_api_repr["datasetReference"]["projectId"],
         )
@@ -2349,7 +1778,6 @@ class BigQueryUpdateTableOperator(GoogleCloudBaseOperator):
         if self._table:
             BigQueryTableLink.persist(
                 context=context,
-                task_instance=self,
                 dataset_id=self._table["tableReference"]["datasetId"],
                 project_id=self._table["tableReference"]["projectId"],
                 table_id=self._table["tableReference"]["tableId"],
@@ -2452,7 +1880,6 @@ class BigQueryUpdateDatasetOperator(GoogleCloudBaseOperator):
         dataset_api_repr = dataset.to_api_repr()
         BigQueryDatasetLink.persist(
             context=context,
-            task_instance=self,
             dataset_id=dataset_api_repr["datasetReference"]["datasetId"],
             project_id=dataset_api_repr["datasetReference"]["projectId"],
         )
@@ -2624,7 +2051,6 @@ class BigQueryUpsertTableOperator(GoogleCloudBaseOperator):
         if self._table:
             BigQueryTableLink.persist(
                 context=context,
-                task_instance=self,
                 dataset_id=self._table["tableReference"]["datasetId"],
                 project_id=self._table["tableReference"]["projectId"],
                 table_id=self._table["tableReference"]["tableId"],
@@ -2754,7 +2180,6 @@ class BigQueryUpdateTableSchemaOperator(GoogleCloudBaseOperator):
         if self._table:
             BigQueryTableLink.persist(
                 context=context,
-                task_instance=self,
                 dataset_id=self._table["tableReference"]["datasetId"],
                 project_id=self._table["tableReference"]["projectId"],
                 table_id=self._table["tableReference"]["tableId"],
@@ -3000,7 +2425,6 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
                             table = job_configuration[job_type][table_prop]
                             persist_kwargs = {
                                 "context": context,
-                                "task_instance": self,
                                 "project_id": self.project_id,
                                 "table_id": table,
                             }
@@ -3014,7 +2438,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
 
         if self.project_id:
             job_id_path = convert_job_id(
-                job_id=self.job_id,  # type: ignore[arg-type]
+                job_id=self.job_id,
                 project_id=self.project_id,
                 location=self.location,
             )
@@ -3022,7 +2446,6 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
 
         persist_kwargs = {
             "context": context,
-            "task_instance": self,
             "project_id": self.project_id,
             "location": self.location,
             "job_id": self.job_id,

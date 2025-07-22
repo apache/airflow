@@ -145,7 +145,6 @@ class StackdriverListAlertPoliciesOperator(GoogleCloudBaseOperator):
         )
         StackdriverPoliciesLink.persist(
             context=context,
-            operator_instance=self,
             project_id=self.project_id or self.hook.project_id,
         )
         return [AlertPolicy.to_dict(policy) for policy in result]
@@ -228,7 +227,6 @@ class StackdriverEnableAlertPoliciesOperator(GoogleCloudBaseOperator):
         )
         StackdriverPoliciesLink.persist(
             context=context,
-            operator_instance=self,
             project_id=self.project_id or self.hook.project_id,
         )
 
@@ -311,7 +309,6 @@ class StackdriverDisableAlertPoliciesOperator(GoogleCloudBaseOperator):
         )
         StackdriverPoliciesLink.persist(
             context=context,
-            operator_instance=self,
             project_id=self.project_id or self.hook.project_id,
         )
 
@@ -394,7 +391,6 @@ class StackdriverUpsertAlertOperator(GoogleCloudBaseOperator):
         )
         StackdriverPoliciesLink.persist(
             context=context,
-            operator_instance=self,
             project_id=self.project_id or self.hook.project_id,
         )
 
@@ -580,7 +576,6 @@ class StackdriverListNotificationChannelsOperator(GoogleCloudBaseOperator):
         )
         StackdriverNotificationsLink.persist(
             context=context,
-            operator_instance=self,
             project_id=self.project_id or self.hook.project_id,
         )
         return [NotificationChannel.to_dict(channel) for channel in channels]
@@ -666,7 +661,6 @@ class StackdriverEnableNotificationChannelsOperator(GoogleCloudBaseOperator):
         )
         StackdriverNotificationsLink.persist(
             context=context,
-            operator_instance=self,
             project_id=self.project_id or self.hook.project_id,
         )
 
@@ -751,7 +745,6 @@ class StackdriverDisableNotificationChannelsOperator(GoogleCloudBaseOperator):
         )
         StackdriverNotificationsLink.persist(
             context=context,
-            operator_instance=self,
             project_id=self.project_id or self.hook.project_id,
         )
 
@@ -838,7 +831,6 @@ class StackdriverUpsertNotificationChannelOperator(GoogleCloudBaseOperator):
         )
         StackdriverNotificationsLink.persist(
             context=context,
-            operator_instance=self,
             project_id=self.project_id or self.hook.project_id,
         )
 

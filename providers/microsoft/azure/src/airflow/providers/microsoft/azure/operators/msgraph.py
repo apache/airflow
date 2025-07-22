@@ -18,23 +18,21 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from contextlib import suppress
 from copy import deepcopy
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
 )
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred
-from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 from airflow.providers.microsoft.azure.triggers.msgraph import (
     MSGraphTrigger,
     ResponseSerializer,
 )
-from airflow.utils.xcom import XCOM_RETURN_KEY
+from airflow.providers.microsoft.azure.version_compat import XCOM_RETURN_KEY, BaseOperator
 
 if TYPE_CHECKING:
     from io import BytesIO
@@ -308,7 +306,7 @@ class MSGraphAsyncOperator(BaseOperator):
                 self.key,
                 value,
             )
-            self.xcom_push(context=context, key=self.key, value=value)
+            context["ti"].xcom_push(key=self.key, value=value)
 
     @staticmethod
     def paginate(
@@ -322,7 +320,7 @@ class MSGraphAsyncOperator(BaseOperator):
             if top and odata_count:
                 if len(response.get("value", [])) == top and context:
                     results = operator.pull_xcom(context)
-                    skip = sum([len(result["value"]) for result in results]) + top if results else top  # type: ignore
+                    skip = sum([len(result["value"]) for result in results]) + top if results else top
                     query_parameters["$skip"] = skip
                     return operator.url, query_parameters
         return response.get("@odata.nextLink"), operator.query_parameters

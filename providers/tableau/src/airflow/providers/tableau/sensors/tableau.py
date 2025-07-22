@@ -24,7 +24,7 @@ from airflow.providers.tableau.hooks.tableau import (
     TableauJobFailedException,
     TableauJobFinishCode,
 )
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.tableau.version_compat import BaseSensorOperator
 
 if TYPE_CHECKING:
     try:

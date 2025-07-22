@@ -29,8 +29,11 @@ from dateutil.parser import parse
 from jinja2 import Environment
 
 from airflow.models.operator import BaseOperator
-from airflow.models.variable import Variable
-from airflow.utils.session import create_session
+
+try:
+    from airflow.sdk import Variable
+except ImportError:
+    from airflow.models.variable import Variable
 
 if TYPE_CHECKING:
     try:
@@ -181,11 +184,20 @@ class OpenLineageTestOperator(BaseOperator):
 
     It compares expected event templates set on initialization with ones emitted by OpenLineage integration
     and stored in Variables by VariableTransport.
+
+    Note:
+        If `clear_variables` is True, only the Airflow Variables listed in `event_templates`
+        (or derived from `file_path`) will be deleted - those that are supposed to be checked by the Operator.
+        We won't remove all Airflow Variables to avoid interfering with other instances of this Operator
+        running in parallel on different DAGs. Running continuous system tests without clearing Variables
+        may lead to leftover or growing Variables size. We recommend implementing a process to remove all
+        Airflow Variables after all system tests have run to ensure a clean environment for each test run.
+
     :param event_templates: dictionary where key is the key used by VariableTransport in format of <DAG_ID>.<TASK_ID>.event.<EVENT_TYPE>, and value is event template (fragment) that need to be in received events.
     :param file_path: alternatively, file_path pointing to file with event templates will be used
     :param env: jinja environment used to render event templates
     :param allow_duplicate_events: if set to True, allows multiple events for the same key
-    :param clear_variables: if set to True, clears all variables after checking events
+    :param clear_variables: if set to True, clears only variables to be checked after all events are checked or if any check fails
     :raises: ValueError if the received events do not match with expected ones.
     """
 
@@ -210,20 +222,32 @@ class OpenLineageTestOperator(BaseOperator):
     def execute(self, context: Context) -> None:
         if self.file_path is not None:
             self.event_templates = {}
-            with open(self.file_path) as f:  # type: ignore[arg-type]
+            self.log.info("Reading OpenLineage event templates from file `%s`", self.file_path)
+            with open(self.file_path) as f:
                 events = json.load(f)
             for event in events:
+                # Just a single event per job and event type is loaded as this is the most common scenario
                 key = event["job"]["name"] + ".event." + event["eventType"].lower()
                 self.event_templates[key] = event
-        for key, template in self.event_templates.items():  # type: ignore[union-attr]
-            send_event = Variable.get(key=key, deserialize_json=True)
-            self.log.info("Events: %s, %s, %s", send_event, len(send_event), type(send_event))
-            if len(send_event) == 0:
-                raise ValueError(f"No event for key {key}")
-            if len(send_event) != 1 and not self.multiple_events:
-                raise ValueError(f"Expected one event for key {key}, got {len(send_event)}")
-            if not match(template, json.loads(send_event[0]), self.env):
-                raise ValueError("Event received does not match one specified in test")
-        if self.delete:
-            with create_session() as session:
-                session.query(Variable).delete()
+        try:
+            for key, template in self.event_templates.items():  # type: ignore[union-attr]
+                log.info("Checking key: `%s`", key)
+                actual_events = Variable.get(key=key, deserialize_json=True)
+                self.log.info(
+                    "Events: len=`%s`, type=`%s`, value=%s",
+                    len(actual_events),
+                    type(actual_events),
+                    actual_events,
+                )
+                if len(actual_events) == 0:
+                    raise ValueError(f"No event for key {key}")
+                if len(actual_events) != 1 and not self.multiple_events:
+                    raise ValueError(f"Expected one event for key {key}, got {len(actual_events)}")
+                # Last event is checked against the template, this will allow to f.e. check change in try_num
+                if not match(template, json.loads(actual_events[-1]), self.env):
+                    raise ValueError("Event received does not match one specified in test")
+        finally:
+            if self.delete:
+                for key in self.event_templates:  # type: ignore[union-attr]
+                    log.info("Removing variable `%s`", key)
+                    Variable.delete(key=key)

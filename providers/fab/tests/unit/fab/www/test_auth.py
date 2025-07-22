@@ -135,11 +135,11 @@ def get_variable():
     [
         (
             "has_access_connection",
-            "batch_is_authorized_connection",
+            "is_authorized_connection",
             "get_connection",
         ),
-        ("has_access_pool", "batch_is_authorized_pool", "get_pool"),
-        ("has_access_variable", "batch_is_authorized_variable", "get_variable"),
+        ("has_access_pool", "is_authorized_pool", "get_pool"),
+        ("has_access_variable", "is_authorized_variable", "get_variable"),
     ],
 )
 class TestHasAccessWithDetails:
@@ -188,7 +188,6 @@ class TestHasAccessWithDetails:
 @pytest.mark.parametrize(
     "dag_access_entity",
     [
-        DagAccessEntity.SLA_MISS,
         DagAccessEntity.XCOM,
         DagAccessEntity.RUN,
         DagAccessEntity.TASK_INSTANCE,

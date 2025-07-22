@@ -20,19 +20,19 @@ from __future__ import annotations
 import functools
 import operator
 from collections.abc import Iterable, Sized
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import attrs
 
 if TYPE_CHECKING:
+    from typing import TypeGuard
+
     from sqlalchemy.orm import Session
 
     from airflow.models.xcom_arg import SchedulerXComArg
-    from airflow.typing_compat import TypeGuard
 
 from airflow.sdk.definitions._internal.expandinput import (
     DictOfListsExpandInput,
-    ExpandInput,
     ListOfDictsExpandInput,
     MappedArgument,
     NotFullyPopulated,
@@ -61,6 +61,8 @@ def _needs_run_time_resolution(v: OperatorExpandArgument) -> TypeGuard[MappedArg
 @attrs.define
 class SchedulerDictOfListsExpandInput:
     value: dict
+
+    EXPAND_INPUT_TYPE: ClassVar[str] = "dict-of-lists"
 
     def _iter_parse_time_resolved_kwargs(self) -> Iterable[tuple[str, Sized]]:
         """Generate kwargs with values available on parse-time."""
@@ -114,6 +116,8 @@ class SchedulerDictOfListsExpandInput:
 class SchedulerListOfDictsExpandInput:
     value: list
 
+    EXPAND_INPUT_TYPE: ClassVar[str] = "list-of-dicts"
+
     def get_parse_time_mapped_ti_count(self) -> int:
         if isinstance(self.value, Sized):
             return len(self.value)
@@ -130,11 +134,13 @@ class SchedulerListOfDictsExpandInput:
         return length
 
 
-_EXPAND_INPUT_TYPES = {
+_EXPAND_INPUT_TYPES: dict[str, type[SchedulerExpandInput]] = {
     "dict-of-lists": SchedulerDictOfListsExpandInput,
     "list-of-dicts": SchedulerListOfDictsExpandInput,
 }
 
+SchedulerExpandInput = SchedulerDictOfListsExpandInput | SchedulerListOfDictsExpandInput
 
-def create_expand_input(kind: str, value: Any) -> ExpandInput:
+
+def create_expand_input(kind: str, value: Any) -> SchedulerExpandInput:
     return _EXPAND_INPUT_TYPES[kind](value)

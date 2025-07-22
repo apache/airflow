@@ -79,6 +79,7 @@ class TestWasbHook:
         self.public_read_conn_id = "pub_read_id"
         self.public_read_conn_id_without_host = "pub_read_id_without_host"
         self.managed_identity_conn_id = "managed_identity_conn_id"
+        self.account_key_conn_id = "account_key_conn_id"
         self.authority = "https://test_authority.com"
 
         self.proxies = PROXIES
@@ -134,6 +135,12 @@ class TestWasbHook:
                 conn_id=self.managed_identity_conn_id,
                 conn_type=self.connection_type,
                 extra={"proxies": self.proxies},
+            ),
+            Connection(
+                conn_id=self.account_key_conn_id,
+                conn_type=self.connection_type,
+                login="testaccount",
+                extra={"account_key": "test_account_key", "proxies": self.proxies},
             ),
             Connection(
                 conn_id="sas_conn_id",
@@ -221,6 +228,16 @@ class TestWasbHook:
             credential="spam-egg",
             tenant_id="token",
             proxies=self.proxies,
+        )
+
+    def test_account_key_connection(self, mocked_blob_service_client):
+        """Test that account_key from extra is used when no password is provided."""
+        WasbHook(wasb_conn_id=self.account_key_conn_id).get_conn()
+        mocked_blob_service_client.assert_called_once_with(
+            account_url="https://testaccount.blob.core.windows.net/",
+            credential="test_account_key",
+            proxies=self.proxies,
+            account_key="test_account_key",
         )
 
     @pytest.mark.parametrize(
@@ -331,6 +348,7 @@ class TestWasbHook:
             "azure_shared_key_test",
             "ad_conn_id",
             "managed_identity_conn_id",
+            "account_key_conn_id",
             "sas_conn_id",
             "extra__wasb__sas_conn_id",
             "http_sas_conn_id",
@@ -659,6 +677,7 @@ class TestWasbHook:
             "azure_shared_key_test",
             "ad_conn_id",
             "managed_identity_conn_id",
+            "account_key_conn_id",
             "sas_conn_id",
             "extra__wasb__sas_conn_id",
             "http_sas_conn_id",

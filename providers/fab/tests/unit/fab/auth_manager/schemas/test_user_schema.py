@@ -48,14 +48,14 @@ def configured_app(minimal_app_for_auth_api):
     )
     yield app
 
-    delete_role(app, "TestRole")  # type:ignore
+    delete_role(app, "TestRole")
 
 
 class TestUserBase:
     @pytest.fixture(autouse=True)
     def setup_attrs(self, configured_app) -> None:
         self.app = configured_app
-        self.client = self.app.test_client()  # type:ignore
+        self.client = self.app.test_client()
         self.role = self.app.appbuilder.sm.find_role("TestRole")
         self.session = self.app.appbuilder.get_session
 

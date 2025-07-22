@@ -17,6 +17,7 @@
  * under the License.
  */
 import { useDisclosure } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
 import DeleteDialog from "src/components/DeleteDialog";
@@ -29,6 +30,7 @@ type Props = {
 };
 
 const DeletePoolButton = ({ poolName, withText = false }: Props) => {
+  const { t: translate } = useTranslation("admin");
   const { onClose, onOpen, open } = useDisclosure();
   const { isPending, mutate } = useDeletePool({
     onSuccessConfirm: onClose,
@@ -37,11 +39,11 @@ const DeletePoolButton = ({ poolName, withText = false }: Props) => {
   return (
     <>
       <ActionButton
-        actionName="Delete Pool"
+        actionName={translate("pools.delete.title")}
         colorPalette="red"
         icon={<FiTrash2 />}
         onClick={onOpen}
-        text="Delete Pool"
+        text={translate("pools.delete.warning")}
         variant="solid"
         withText={withText}
       />
@@ -52,8 +54,8 @@ const DeletePoolButton = ({ poolName, withText = false }: Props) => {
         onDelete={() => mutate({ poolName })}
         open={open}
         resourceName={poolName}
-        title="Delete Pool"
-        warningText="This will remove all metadata related to the pool and may affect tasks using this pool."
+        title={translate("pools.delete.title")}
+        warningText={translate("pools.delete.warning")}
       />
     </>
   );

@@ -23,15 +23,15 @@ import pytest
 
 from airflow.models import Connection
 from airflow.providers.apache.kafka.hooks.client import KafkaAdminClientHook
-from airflow.utils import db
 
 client_config = {"socket.timeout.ms": 1000, "bootstrap.servers": "broker:29092", "group.id": "my-group"}
 
 
 @pytest.mark.integration("kafka")
 class TestKafkaAdminClientHook:
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id="kafka_d",
                 conn_type="kafka",

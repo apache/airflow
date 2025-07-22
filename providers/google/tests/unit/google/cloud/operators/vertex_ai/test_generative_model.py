@@ -20,10 +20,6 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import (
-    AirflowProviderDeprecationWarning,
-)
-
 # For no Pydantic environment, we need to skip the tests
 pytest.importorskip("google.cloud.aiplatform_v1")
 pytest.importorskip("google.cloud.aiplatform_v1beta1")
@@ -31,15 +27,16 @@ vertexai = pytest.importorskip("vertexai.generative_models")
 from vertexai.generative_models import HarmBlockThreshold, HarmCategory, Part, Tool, grounding
 from vertexai.preview.evaluation import MetricPromptTemplateExamples
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.operators.vertex_ai.generative_model import (
     CountTokensOperator,
     CreateCachedContentOperator,
+    DeleteExperimentRunOperator,
     GenerateFromCachedContentOperator,
     GenerativeModelGenerateContentOperator,
     RunEvaluationOperator,
     SupervisedFineTuningTrainOperator,
     TextEmbeddingModelGetEmbeddingsOperator,
-    TextGenerationModelPredictOperator,
 )
 
 VERTEX_AI_PATH = "airflow.providers.google.cloud.operators.vertex_ai.{}"
@@ -53,64 +50,6 @@ IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 def assert_warning(msg: str, warnings):
     assert any(msg in str(w) for w in warnings)
-
-
-class TestVertexAITextGenerationModelPredictOperator:
-    prompt = "In 10 words or less, what is Apache Airflow?"
-    pretrained_model = "text-bison"
-    temperature = 0.0
-    max_output_tokens = 256
-    top_p = 0.8
-    top_k = 40
-
-    def test_deprecation_warning(self):
-        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
-            TextGenerationModelPredictOperator(
-                task_id=TASK_ID,
-                project_id=GCP_PROJECT,
-                location=GCP_LOCATION,
-                prompt=self.prompt,
-                pretrained_model=self.pretrained_model,
-                temperature=self.temperature,
-                max_output_tokens=self.max_output_tokens,
-                top_p=self.top_p,
-                top_k=self.top_k,
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-            )
-            assert_warning("GenerativeModelGenerateContentOperator", warnings)
-
-    @mock.patch(VERTEX_AI_PATH.format("generative_model.GenerativeModelHook"))
-    def test_execute(self, mock_hook):
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            op = TextGenerationModelPredictOperator(
-                task_id=TASK_ID,
-                project_id=GCP_PROJECT,
-                location=GCP_LOCATION,
-                prompt=self.prompt,
-                pretrained_model=self.pretrained_model,
-                temperature=self.temperature,
-                max_output_tokens=self.max_output_tokens,
-                top_p=self.top_p,
-                top_k=self.top_k,
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-            )
-        op.execute(context={"ti": mock.MagicMock()})
-        mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
-        mock_hook.return_value.text_generation_model_predict.assert_called_once_with(
-            project_id=GCP_PROJECT,
-            location=GCP_LOCATION,
-            prompt=self.prompt,
-            pretrained_model=self.pretrained_model,
-            temperature=self.temperature,
-            max_output_tokens=self.max_output_tokens,
-            top_p=self.top_p,
-            top_k=self.top_k,
-        )
 
 
 class TestVertexAITextEmbeddingModelGetEmbeddingsOperator:
@@ -417,4 +356,33 @@ class TestVertexAIGenerateFromCachedContentOperator:
             contents=contents,
             generation_config=None,
             safety_settings=None,
+        )
+
+
+class TestVertexAIDeleteExperimentRunOperator:
+    @mock.patch(VERTEX_AI_PATH.format("generative_model.ExperimentRunHook"))
+    def test_execute(self, mock_hook):
+        test_experiment_name = "test_experiment_name"
+        test_experiment_run_name = "test_experiment_run_name"
+
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op = DeleteExperimentRunOperator(
+                task_id=TASK_ID,
+                project_id=GCP_PROJECT,
+                location=GCP_LOCATION,
+                experiment_name=test_experiment_name,
+                experiment_run_name=test_experiment_run_name,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
+            )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.delete_experiment_run.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            experiment_name=test_experiment_name,
+            experiment_run_name=test_experiment_run_name,
         )

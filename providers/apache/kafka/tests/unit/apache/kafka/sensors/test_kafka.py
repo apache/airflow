@@ -25,10 +25,6 @@ import pytest
 from airflow.exceptions import TaskDeferred
 from airflow.models import Connection
 from airflow.providers.apache.kafka.sensors.kafka import AwaitMessageSensor, AwaitMessageTriggerFunctionSensor
-from airflow.utils import db
-
-pytestmark = pytest.mark.db_test
-
 
 log = logging.getLogger(__name__)
 
@@ -42,8 +38,9 @@ class TestSensors:
     Test Sensors
     """
 
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id="kafka_d",
                 conn_type="kafka",

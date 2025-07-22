@@ -18,6 +18,7 @@
  */
 import { Heading, Text, HStack } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
 import { PiFilePy } from "react-icons/pi";
 
@@ -39,6 +40,7 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ impor
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredErrors, setFilteredErrors] = useState(importErrors);
+  const { t: translate } = useTranslation(["dashboard", "components"]);
 
   const startRange = (page - 1) * PAGE_LIMIT;
   const endRange = startRange + PAGE_LIMIT;
@@ -64,14 +66,14 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ impor
         <Dialog.Header display="flex" justifyContent="space-between">
           <HStack fontSize="xl">
             <LuFileWarning />
-            <Heading>Dag Import Errors</Heading>
+            <Heading>{translate("importErrors.dagImportError", { count: importErrors.length })}</Heading>
           </HStack>
           <SearchBar
             buttonProps={{ disabled: true }}
             defaultValue={searchQuery}
             hideAdvanced
             onChange={setSearchQuery}
-            placeHolder="Search by file"
+            placeHolder={translate("importErrors.searchByFile")}
           />
         </Dialog.Header>
 
@@ -82,12 +84,19 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ impor
             {visibleItems.map((importError) => (
               <Accordion.Item key={importError.import_error_id} value={importError.filename}>
                 <Accordion.ItemTrigger cursor="pointer">
+                  <Text display="flex" fontWeight="bold">
+                    {translate("components:versionDetails.bundleName")}
+                    {": "}
+                    {importError.bundle_name}
+                  </Text>
                   <PiFilePy />
                   {importError.filename}
                 </Accordion.ItemTrigger>
                 <Accordion.ItemContent>
                   <Text color="fg.muted" fontSize="sm" mb={1}>
-                    Timestamp: <Time datetime={importError.timestamp} />
+                    {translate("importErrors.timestamp")}
+                    {": "}
+                    <Time datetime={importError.timestamp} />
                   </Text>
                   <Text color="fg.error" fontSize="sm" whiteSpace="pre-wrap">
                     <code>{importError.stack_trace}</code>

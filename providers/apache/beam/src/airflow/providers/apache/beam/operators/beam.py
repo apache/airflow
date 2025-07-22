@@ -24,19 +24,19 @@ import os
 import stat
 import tempfile
 from abc import ABC, ABCMeta, abstractmethod
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import ExitStack
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from packaging.version import parse as parse_version
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
-from airflow.models import BaseOperator
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
 from airflow.providers.apache.beam.triggers.beam import BeamJavaPipelineTrigger, BeamPythonPipelineTrigger
+from airflow.providers.apache.beam.version_compat import BaseOperator
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.helpers import convert_camel_to_snake, exactly_one
 from airflow.version import version
@@ -214,7 +214,8 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
         if all([new_value, not self._dataflow_job_id, self._execute_context]):
             # push job_id as soon as it's ready, to let Sensors work before the job finished
             # and job_id pushed as returned value item.
-            self.xcom_push(context=self._execute_context, key="dataflow_job_id", value=new_value)
+            # Use task instance to push XCom (works for both Airflow 2.x and 3.x)
+            self._execute_context["ti"].xcom_push(key="dataflow_job_id", value=new_value)
         self._dataflow_job_id = new_value
 
     def _cast_dataflow_config(self):
@@ -275,6 +276,14 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
             process_line_callback,
             is_dataflow_job_id_exist_callback,
         )
+
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "project_id": self.dataflow_config.project_id,
+            "region": self.dataflow_config.location,
+            "job_id": self.dataflow_job_id,
+        }
 
     def execute_complete(self, context: Context, event: dict[str, Any]):
         """
@@ -443,13 +452,7 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
             )
 
         location = self.dataflow_config.location or DEFAULT_DATAFLOW_LOCATION
-        DataflowJobLink.persist(
-            self,
-            context,
-            self.dataflow_config.project_id,
-            location,
-            self.dataflow_job_id,
-        )
+        DataflowJobLink.persist(context=context, region=location)
 
         if self.deferrable:
             trigger_args = {
@@ -626,13 +629,7 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
                     is_dataflow_job_id_exist_callback=self.is_dataflow_job_id_exist_callback,
                 )
             if self.dataflow_job_name and self.dataflow_config.location:
-                DataflowJobLink.persist(
-                    self,
-                    context,
-                    self.dataflow_config.project_id,
-                    self.dataflow_config.location,
-                    self.dataflow_job_id,
-                )
+                DataflowJobLink.persist(context=context)
                 if self.deferrable:
                     trigger_args = {
                         "job_id": self.dataflow_job_id,
@@ -795,14 +792,7 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
                         variables=snake_case_pipeline_options,
                         process_line_callback=process_line_callback,
                     )
-
-                DataflowJobLink.persist(
-                    self,
-                    context,
-                    self.dataflow_config.project_id,
-                    self.dataflow_config.location,
-                    self.dataflow_job_id,
-                )
+                DataflowJobLink.persist(context=context)
                 if dataflow_job_name and self.dataflow_config.location:
                     self.dataflow_hook.wait_for_done(
                         job_name=dataflow_job_name,

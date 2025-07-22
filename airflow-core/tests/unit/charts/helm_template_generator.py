@@ -34,7 +34,7 @@ api_client = ApiClient()
 
 CHART_DIR = Path(__file__).resolve().parents[4] / "chart"
 
-DEFAULT_KUBERNETES_VERSION = "1.29.1"
+DEFAULT_KUBERNETES_VERSION = "1.30.13"
 BASE_URL_SPEC = (
     f"https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/"
     f"v{DEFAULT_KUBERNETES_VERSION}-standalone-strict"
@@ -146,7 +146,7 @@ def render_chart(
             raise HelmFailedError(result.returncode, result.args, result.stdout, result.stderr)
         templates = result.stdout
         k8s_objects = yaml.full_load_all(templates)
-        k8s_objects = [k8s_object for k8s_object in k8s_objects if k8s_object]  # type: ignore
+        k8s_objects = [k8s_object for k8s_object in k8s_objects if k8s_object]
         for k8s_object in k8s_objects:
             validate_k8s_object(k8s_object, kubernetes_version)
         return k8s_objects

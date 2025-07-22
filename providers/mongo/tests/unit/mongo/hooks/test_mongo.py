@@ -22,14 +22,13 @@ from typing import TYPE_CHECKING
 
 import pymongo
 import pytest
+from pymongo.errors import CollectionInvalid
 
 from airflow.exceptions import AirflowConfigException
 from airflow.models import Connection
 from airflow.providers.mongo.hooks.mongo import MongoHook
 
 from tests_common.test_utils.compat import connection_as_json
-
-pytestmark = pytest.mark.db_test
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -386,6 +385,36 @@ class TestMongoHook:
 
         results = self.hook.distinct(collection, "test_id", {"test_status": "failure"})
         assert len(results) == 1
+
+    def test_create_standard_collection(self):
+        mock_client = mongomock.MongoClient()
+        self.hook.get_conn = lambda: mock_client
+        self.hook.connection.schema = "test_db"
+
+        collection = self.hook.create_collection(mongo_collection="plain_collection")
+        assert collection.name == "plain_collection"
+        assert "plain_collection" in mock_client["test_db"].list_collection_names()
+
+    def test_return_if_exists_true_returns_existing(self):
+        mock_client = mongomock.MongoClient()
+        self.hook.get_conn = lambda: mock_client
+        self.hook.connection.schema = "test_db"
+
+        first = self.hook.create_collection(mongo_collection="foo")
+        second = self.hook.create_collection(mongo_collection="foo", return_if_exists=True)
+
+        assert first.full_name == second.full_name
+        assert "foo" in mock_client["test_db"].list_collection_names()
+
+    def test_return_if_exists_false_raises(self):
+        mock_client = mongomock.MongoClient()
+        self.hook.get_conn = lambda: mock_client
+        self.hook.connection.schema = "test_db"
+
+        self.hook.create_collection(mongo_collection="bar")
+
+        with pytest.raises(CollectionInvalid):
+            self.hook.create_collection(mongo_collection="bar", return_if_exists=False)
 
 
 def test_context_manager():

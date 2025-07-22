@@ -26,40 +26,51 @@ from airbyte_api.models import JobResponse, JobStatusEnum, JobTypeEnum
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
-from airflow.utils import db
-
-# those tests will not work with database isolation because they mock requests
-pytestmark = pytest.mark.db_test
 
 
-@pytest.mark.db_test
 class TestAirbyteHook:
     """
     Test all functions from Airbyte Hook
     """
 
+    conn_type = "airbyte"
     airbyte_conn_id = "airbyte_conn_id_test"
+    airbyte_conn_id_with_proxy = "airbyte_conn_id_test_with_proxy"
     connection_id = "conn_test_sync"
     job_id = 1
+    host = "http://test-airbyte:8000/public/v1/api/"
+    port = 8001
     sync_connection_endpoint = "http://test-airbyte:8001/api/v1/connections/sync"
     get_job_endpoint = "http://test-airbyte:8001/api/v1/jobs/get"
     cancel_job_endpoint = "http://test-airbyte:8001/api/v1/jobs/cancel"
 
     health_endpoint = "http://test-airbyte:8001/api/v1/health"
+    _mock_proxy = {"proxies": {"http": "http://proxy:8080", "https": "https://proxy:8080"}}
     _mock_sync_conn_success_response_body = {"job": {"id": 1}}
     _mock_job_status_success_response_body = {"job": {"status": "succeeded"}}
     _mock_job_cancel_status = "cancelled"
 
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
-                conn_id="airbyte_conn_id_test",
-                conn_type="airbyte",
-                host="http://test-airbyte:8000/public/v1/api/",
-                port=8001,
+                conn_id=self.airbyte_conn_id,
+                conn_type=self.conn_type,
+                host=self.host,
+                port=self.port,
+            )
+        )
+        create_connection_without_db(
+            Connection(
+                conn_id=self.airbyte_conn_id_with_proxy,
+                conn_type=self.conn_type,
+                host=self.host,
+                port=self.port,
+                extra=self._mock_proxy,
             )
         )
         self.hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id)
+        self.hook_with_proxy = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id_with_proxy)
 
     def return_value_get_job(self, status):
         response = mock.Mock()
@@ -86,7 +97,7 @@ class TestAirbyteHook:
         mock_response = mock.AsyncMock()
         mock_response.job_response = JobResponse(
             connection_id="connection-mock",
-            job_id="1",
+            job_id=1,
             start_time="today",
             job_type=JobTypeEnum.SYNC,
             status=JobStatusEnum.RUNNING,
@@ -100,7 +111,7 @@ class TestAirbyteHook:
         mock_response = mock.Mock()
         mock_response.job_response = JobResponse(
             connection_id="connection-mock",
-            job_id="1",
+            job_id=1,
             start_time="today",
             job_type=JobTypeEnum.SYNC,
             status=JobStatusEnum.CANCELLED,
@@ -202,3 +213,14 @@ class TestAirbyteHook:
         status, msg = self.hook.test_connection()
         assert status is False
         assert msg == '{"message": "internal server error"}'
+
+    def test_create_api_session_with_proxy(self):
+        """
+        Test the creation of the API session with proxy settings.
+        """
+        # Create a new AirbyteHook instance
+        hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id_with_proxy)
+
+        # Check if the session is created correctly
+        assert hook.airbyte_api is not None
+        assert hook.airbyte_api.sdk_configuration.client.proxies == self._mock_proxy["proxies"]

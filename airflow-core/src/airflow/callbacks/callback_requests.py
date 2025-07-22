@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated, Literal, Union
+from typing import TYPE_CHECKING, Annotated, Literal
 
 from pydantic import BaseModel, Field
 
@@ -61,6 +61,8 @@ class TaskCallbackRequest(BaseCallbackRequest):
     """Simplified Task Instance representation"""
     task_callback_type: TaskInstanceState | None = None
     """Whether on success, on failure, on retry"""
+    context_from_server: ti_datamodel.TIRunContext | None = None
+    """Task execution context from the Server"""
     type: Literal["TaskCallbackRequest"] = "TaskCallbackRequest"
 
     @property
@@ -86,6 +88,6 @@ class DagCallbackRequest(BaseCallbackRequest):
 
 
 CallbackRequest = Annotated[
-    Union[DagCallbackRequest, TaskCallbackRequest],
+    DagCallbackRequest | TaskCallbackRequest,
     Field(discriminator="type"),
 ]

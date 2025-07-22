@@ -18,9 +18,10 @@
  */
 import { Heading, VStack, HStack, Spinner, Center, Text } from "@chakra-ui/react";
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useDagServiceGetDag } from "openapi/queries";
-import { Dialog } from "src/components/ui";
+import { Dialog, Tooltip } from "src/components/ui";
 import { RadioCardItem, RadioCardRoot } from "src/components/ui/RadioCard";
 
 import RunBackfillForm from "../DagActions/RunBackfillForm";
@@ -46,6 +47,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
   onClose,
   open,
 }) => {
+  const { t: translate } = useTranslation("components");
   const [runMode, setRunMode] = useState<RunMode>(RunMode.SINGLE);
   const {
     data: dag,
@@ -62,14 +64,17 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
   );
 
   const hasSchedule = dag?.timetable_summary !== null;
+  const maxDisplayLength = 59; // hard-coded length to prevent dag name overflowing the modal
+  const nameOverflowing = dagDisplayName.length > maxDisplayLength;
 
   return (
     <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl" unmountOnExit>
       <Dialog.Content backdrop>
         <Dialog.Header paddingBottom={0}>
-          <VStack align="start" gap={2} width="100%">
+          <VStack align="start" gap={2} width="100%" wordBreak="break-all">
             <Heading size="xl">
-              {runMode === RunMode.SINGLE ? "Trigger DAG" : "Run Backfill"} - {dagDisplayName}
+              {runMode === RunMode.SINGLE ? translate("triggerDag.title") : translate("backfill.title")} -{" "}
+              {nameOverflowing ? <br /> : undefined} {dagDisplayName}
             </Heading>
           </VStack>
         </Dialog.Header>
@@ -81,16 +86,16 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
             <Center py={6}>
               <VStack>
                 <Spinner size="lg" />
-                <Text mt={2}>Loading DAG information...</Text>
+                <Text mt={2}>{translate("triggerDag.loading")}</Text>
               </VStack>
             </Center>
           ) : isError ? (
             <Center py={6}>
-              <Text color="red.500">Failed to load DAG information. Please try again.</Text>
+              <Text color="red.500">{translate("triggerDag.loadingFailed")}</Text>
             </Center>
           ) : (
             <>
-              {dag && hasSchedule ? (
+              {dag ? (
                 <RadioCardRoot
                   my={4}
                   onChange={(event) => {
@@ -100,21 +105,30 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
                 >
                   <HStack align="stretch">
                     <RadioCardItem
-                      description="Trigger a single run of this DAG"
-                      label="Single Run"
+                      description={translate("triggerDag.selectDescription")}
+                      label={translate("triggerDag.selectLabel")}
                       value={RunMode.SINGLE}
                     />
-                    <RadioCardItem
-                      description="Run this DAG for a range of dates"
-                      label="Backfill"
-                      value={RunMode.BACKFILL}
-                    />
+                    <Tooltip content={translate("backfill.tooltip")} disabled={hasSchedule}>
+                      <RadioCardItem
+                        description={translate("backfill.selectDescription")}
+                        disabled={!hasSchedule}
+                        label={translate("backfill.selectLabel")}
+                        value={RunMode.BACKFILL}
+                      />
+                    </Tooltip>
                   </HStack>
                 </RadioCardRoot>
               ) : undefined}
 
               {runMode === RunMode.SINGLE ? (
-                <TriggerDAGForm dagId={dagId} isPaused={isPaused} onClose={onClose} open={open} />
+                <TriggerDAGForm
+                  dagDisplayName={dagDisplayName}
+                  dagId={dagId}
+                  isPaused={isPaused}
+                  onClose={onClose}
+                  open={open}
+                />
               ) : (
                 hasSchedule && dag && <RunBackfillForm dag={dag} onClose={onClose} />
               )}

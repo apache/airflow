@@ -24,7 +24,7 @@ from typing import Any
 import pagerduty
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+from airflow.providers.pagerduty.version_compat import BaseHook
 
 
 class PagerdutyHook(BaseHook):
@@ -76,23 +76,26 @@ class PagerdutyHook(BaseHook):
             ),
         }
 
-    def __init__(self, token: str | None = None, pagerduty_conn_id: str | None = None) -> None:
+    def __init__(self, token: str = "", pagerduty_conn_id: str | None = None) -> None:
         super().__init__()
         self.routing_key = None
-        self._client = None
+        self.token = ""
+        self._client: pagerduty.RestApiV2Client | None = None
 
         if pagerduty_conn_id is not None:
             conn = self.get_connection(pagerduty_conn_id)
-            self.token = conn.get_password()
+            password = conn.password
+            if password is not None:
+                self.token = password
 
             routing_key = conn.extra_dejson.get("routing_key")
             if routing_key:
                 self.routing_key = routing_key
 
-        if token is not None:  # token takes higher priority
+        if token != "":  # token takes higher priority
             self.token = token
 
-        if self.token is None:
+        if self.token == "":
             raise AirflowException("Cannot get token: No valid api token nor pagerduty_conn_id supplied.")
 
     def client(self) -> pagerduty.RestApiV2Client:

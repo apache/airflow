@@ -22,6 +22,8 @@ import logging
 import os
 from unittest import mock
 
+import pandas as pd
+import polars as pl
 import psycopg2.extras
 import pytest
 import sqlalchemy
@@ -32,6 +34,8 @@ from airflow.models import Connection
 from airflow.providers.postgres.dialects.postgres import PostgresDialect
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils.types import NOTSET
+
+from tests_common.test_utils.common_sql import mock_db_hook
 
 INSERT_SQL_STATEMENT = "INSERT INTO connection (id, conn_id, conn_type, description, host, {}, login, password, port, is_encrypted, is_extra_encrypted, extra) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
 
@@ -516,6 +520,36 @@ class TestPostgresHook:
             assert expected_serialized == raw_cell.adapted
         else:
             assert expected_serialized == raw_cell
+
+    @pytest.mark.parametrize(
+        "df_type, expected_type",
+        [
+            ("pandas", pd.DataFrame),
+            ("polars", pl.DataFrame),
+        ],
+    )
+    @mock.patch("airflow.providers.postgres.hooks.postgres.PostgresHook._get_polars_df")
+    @mock.patch("pandas.io.sql.read_sql")
+    @mock.patch("airflow.providers.postgres.hooks.postgres.PostgresHook.get_sqlalchemy_engine")
+    def test_get_df_with_df_type(
+        self, mock_get_engine, mock_read_sql, mock_polars_df, df_type, expected_type
+    ):
+        hook = mock_db_hook(PostgresHook)
+        mock_read_sql.return_value = pd.DataFrame()
+        mock_polars_df.return_value = pl.DataFrame()
+        sql = "SELECT * FROM table"
+        if df_type == "pandas":
+            mock_conn = mock.MagicMock()
+            mock_engine = mock.MagicMock()
+            mock_engine.connect.return_value.__enter__.return_value = mock_conn
+            mock_get_engine.return_value = mock_engine
+            df = hook.get_df(sql, df_type="pandas")
+            mock_read_sql.assert_called_once_with(sql, con=mock_conn, params=None)
+            assert isinstance(df, expected_type)
+        elif df_type == "polars":
+            df = hook.get_df(sql, df_type="polars")
+            mock_polars_df.assert_called_once_with(sql, None)
+            assert isinstance(df, expected_type)
 
     def test_insert_rows(self):
         table = "table"

@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, TypeAlias
 
 import kubernetes.client as k8s
 import kubernetes_asyncio.client as async_k8s
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
     from airflow.utils.context import Context
 
-client_type = Union[k8s.CoreV1Api, async_k8s.CoreV1Api]
+client_type: TypeAlias = k8s.CoreV1Api | async_k8s.CoreV1Api
 
 
 class ExecutionMode(str, Enum):

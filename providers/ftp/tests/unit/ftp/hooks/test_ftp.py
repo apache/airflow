@@ -141,21 +141,20 @@ class TestFTPHook:
             assert msg == "Test"
 
 
-@pytest.mark.db_test
 class TestIntegrationFTPHook:
-    def setup_method(self):
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
         from airflow.models import Connection
-        from airflow.utils import db
 
-        db.merge_conn(
+        create_connection_without_db(
             Connection(conn_id="ftp_passive", conn_type="ftp", host="localhost", extra='{"passive": true}')
         )
 
-        db.merge_conn(
+        create_connection_without_db(
             Connection(conn_id="ftp_active", conn_type="ftp", host="localhost", extra='{"passive": false}')
         )
 
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="ftp_custom_port",
                 conn_type="ftp",
@@ -165,7 +164,7 @@ class TestIntegrationFTPHook:
             )
         )
 
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="ftp_custom_port_and_login",
                 conn_type="ftp",

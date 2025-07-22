@@ -25,16 +25,63 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+import requests
+
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.vertex_ai.generative_model import (
     SupervisedFineTuningTrainOperator,
 )
 
+
+def get_actual_model() -> str:
+    source_model: str | None = None
+    try:
+        response = requests.get(
+            "https://generativelanguage.googleapis.com/v1/models", {"key": GEMINI_API_KEY}
+        )
+        response.raise_for_status()
+        available_models = response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching models from API: {e}")
+        return ""
+    for model in available_models.get("models", []):
+        try:
+            model_name = model["name"].split("/")[-1]
+            splited_model_name = model_name.split("-")
+            if not splited_model_name[-1].isdigit():
+                # We are not using model aliases because sometimes it is not guaranteed to work
+                continue
+            if not source_model and "flash" in model_name:
+                source_model = model_name
+            elif (
+                source_model
+                and "flash" in model_name
+                and float(source_model.split("-")[1]) < float(splited_model_name[1])
+            ):
+                source_model = model_name
+            elif (
+                source_model
+                and "flash" in model_name
+                and (
+                    float(source_model.split("-")[1]) == float(splited_model_name[1])
+                    and int(splited_model_name[-1]) > int(source_model.split("-")[-1])
+                )
+            ):
+                source_model = model_name
+        except (ValueError, IndexError) as e:
+            print(f"Could not parse model name '{model.get('name')}'. Skipping. Error: {e}")
+            continue
+    if not source_model:
+        raise ValueError("Source model not found")
+    return source_model
+
+
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 DAG_ID = "vertex_ai_generative_model_tuning_dag"
 REGION = "us-central1"
-SOURCE_MODEL = "gemini-1.0-pro-002"
-TRAIN_DATASET = "gs://cloud-samples-data/ai-platform/generative_ai/sft_train_data.jsonl"
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+SOURCE_MODEL = get_actual_model()
+TRAIN_DATASET = "gs://cloud-samples-data/ai-platform/generative_ai/gemini-2_0/text/sft_train_data.jsonl"
 TUNED_MODEL_DISPLAY_NAME = "my_tuned_gemini_model"
 
 with DAG(

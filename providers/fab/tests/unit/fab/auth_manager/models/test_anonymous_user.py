@@ -25,7 +25,7 @@ with ignore_provider_compatibility_error("2.9.0+", __file__):
 
 class TestAnonymousUser:
     def test_roles(self):
-        roles = {"role1"}
+        roles = ["role1"]
         user = AnonymousUser()
         user.roles = roles
         assert user.roles == roles

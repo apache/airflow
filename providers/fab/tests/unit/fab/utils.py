@@ -242,11 +242,11 @@ def capture_templates(app):
         def record(sender, template, context, **extra):
             recorded.append(_TemplateWithContext(template, context))
 
-        flask.template_rendered.connect(record, app)  # type: ignore
+        flask.template_rendered.connect(record, app)
         try:
             yield recorded
         finally:
-            flask.template_rendered.disconnect(record, app)  # type: ignore
+            flask.template_rendered.disconnect(record, app)
 
         assert recorded, "Failed to catch the templates"
 

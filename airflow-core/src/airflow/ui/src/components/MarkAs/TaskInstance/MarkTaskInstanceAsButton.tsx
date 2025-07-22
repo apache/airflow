@@ -18,57 +18,95 @@
  */
 import { Box, useDisclosure } from "@chakra-ui/react";
 import { useState } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
+import { useTranslation } from "react-i18next";
 import { MdArrowDropDown } from "react-icons/md";
 
 import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
-import { Menu } from "src/components/ui";
+import { Menu, Tooltip } from "src/components/ui";
 import ActionButton from "src/components/ui/ActionButton";
 
 import { allowedStates } from "../utils";
 import MarkTaskInstanceAsDialog from "./MarkTaskInstanceAsDialog";
 
 type Props = {
+  readonly isHotkeyEnabled?: boolean;
   readonly taskInstance: TaskInstanceResponse;
   readonly withText?: boolean;
 };
 
-const MarkTaskInstanceAsButton = ({ taskInstance, withText = true }: Props) => {
+const MarkTaskInstanceAsButton = ({ isHotkeyEnabled = false, taskInstance, withText = true }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
+  const { t: translate } = useTranslation();
 
   const [state, setState] = useState<TaskInstanceState>("success");
+
+  useHotkeys(
+    "shift+f",
+    () => {
+      setState("failed");
+      onOpen();
+    },
+    { enabled: isHotkeyEnabled && taskInstance.state !== "failed" },
+  );
+
+  useHotkeys(
+    "shift+s",
+    () => {
+      setState("success");
+      onOpen();
+    },
+    { enabled: isHotkeyEnabled && taskInstance.state !== "success" },
+  );
 
   return (
     <Box>
       <Menu.Root positioning={{ gutter: 0, placement: "bottom" }}>
         <Menu.Trigger asChild>
           <ActionButton
-            actionName="Mark Task Instance as..."
+            actionName={translate("dags:runAndTaskActions.markAs.button", {
+              type: translate("taskInstance_one"),
+            })}
             flexDirection="row-reverse"
             icon={<MdArrowDropDown />}
-            text="Mark Task Instance as..."
+            text={translate("dags:runAndTaskActions.markAs.button", { type: translate("taskInstance_one") })}
             withText={withText}
           />
         </Menu.Trigger>
         <Menu.Content>
-          {allowedStates.map((menuState) => (
-            <Menu.Item
-              asChild
-              disabled={taskInstance.state === menuState}
-              key={menuState}
-              onClick={() => {
-                if (taskInstance.state !== menuState) {
-                  setState(menuState);
-                  onOpen();
-                }
-              }}
-              value={menuState}
-            >
-              <StateBadge my={1} state={menuState}>
-                {menuState}
-              </StateBadge>
-            </Menu.Item>
-          ))}
+          {allowedStates.map((menuState) => {
+            const content = translate(
+              `dags:runAndTaskActions.markAs.buttonTooltip.${menuState === "success" ? "success" : "failed"}`,
+            );
+
+            return (
+              <Tooltip
+                closeDelay={100}
+                content={content}
+                disabled={!isHotkeyEnabled || taskInstance.state === menuState}
+                key={menuState}
+                openDelay={100}
+              >
+                <Menu.Item
+                  asChild
+                  disabled={taskInstance.state === menuState}
+                  key={menuState}
+                  onClick={() => {
+                    if (taskInstance.state !== menuState) {
+                      setState(menuState);
+                      onOpen();
+                    }
+                  }}
+                  value={menuState}
+                >
+                  <StateBadge my={1} state={menuState}>
+                    {translate(`common:states.${menuState}`)}
+                  </StateBadge>
+                </Menu.Item>
+              </Tooltip>
+            );
+          })}
         </Menu.Content>
       </Menu.Root>
 

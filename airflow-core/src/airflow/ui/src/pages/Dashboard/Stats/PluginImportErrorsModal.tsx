@@ -18,6 +18,7 @@
  */
 import { Heading, Text, HStack } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
 import { PiFilePy } from "react-icons/pi";
 
@@ -39,6 +40,7 @@ export const PluginImportErrorsModal: React.FC<PluginImportErrorsModalProps> = (
   onClose,
   open,
 }) => {
+  const { t: translate } = useTranslation("admin");
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredErrors, setFilteredErrors] = useState(importErrors);
@@ -67,14 +69,14 @@ export const PluginImportErrorsModal: React.FC<PluginImportErrorsModalProps> = (
         <Dialog.Header display="flex" justifyContent="space-between">
           <HStack fontSize="xl">
             <LuFileWarning />
-            <Heading>Plugin Import Errors</Heading>
+            <Heading>{translate("plugins.importError_one")}</Heading>
           </HStack>
           <SearchBar
             buttonProps={{ disabled: true }}
             defaultValue={searchQuery}
             hideAdvanced
             onChange={setSearchQuery}
-            placeHolder="Search by file"
+            placeHolder={translate("plugins.searchPlaceholder")}
           />
         </Dialog.Header>
 

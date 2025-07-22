@@ -23,17 +23,19 @@ import os
 import selectors
 import time
 from collections.abc import AsyncIterator
+from socket import socket
 from typing import TYPE_CHECKING, Any
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pendulum
 import pytest
 from asgiref.sync import sync_to_async
+from structlog.typing import FilteringBoundLogger
 
 from airflow.executors import workloads
-from airflow.hooks.base import BaseHook
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import (
+    TriggerCommsDecoder,
     TriggererJobRunner,
     TriggerRunner,
     TriggerRunnerSupervisor,
@@ -43,11 +45,14 @@ from airflow.models import DagModel, DagRun, TaskInstance, Trigger
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
+from airflow.models.dag_version import DagVersion
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.variable import Variable
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
+from airflow.sdk import BaseHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
 from airflow.utils import timezone
@@ -71,17 +76,17 @@ pytestmark = pytest.mark.db_test
 @pytest.fixture(autouse=True)
 def clean_database():
     """Fixture that cleans the database before and after every test."""
+    clear_db_connections()
     clear_db_runs()
     clear_db_dags()
     clear_db_xcom()
     clear_db_variables()
-    clear_db_connections()
     yield  # Test runs here
+    clear_db_connections()
     clear_db_runs()
     clear_db_dags()
     clear_db_xcom()
     clear_db_variables()
-    clear_db_connections()
 
 
 def create_trigger_in_db(session, trigger, operator=None):
@@ -102,10 +107,12 @@ def create_trigger_in_db(session, trigger, operator=None):
     else:
         operator = BaseOperator(task_id="test_ti", dag=dag)
     session.add(dag_model)
+    SerializedDagModel.write_dag(dag, bundle_name="testing")
     session.add(run)
     session.add(trigger_orm)
     session.flush()
-    task_instance = TaskInstance(operator, run_id=run.run_id)
+    dag_version = DagVersion.get_latest_version(dag.dag_id)
+    task_instance = TaskInstance(operator, run_id=run.run_id, dag_version_id=dag_version.id)
     task_instance.trigger_id = trigger_orm.id
     session.add(task_instance)
     session.commit()
@@ -165,14 +172,18 @@ def supervisor_builder(mocker, session):
             session.flush()
 
         process = mocker.Mock(spec=psutil.Process, pid=10 * job.id + 1)
+        # Create a mock stdin that has both write and sendall methods
+        mock_stdin = mocker.Mock(spec=socket)
+        mock_stdin.write = mocker.Mock()
+        mock_stdin.sendall = mocker.Mock()
+
         proc = TriggerRunnerSupervisor(
-            process_log=mocker.Mock(),
+            process_log=mocker.Mock(spec=FilteringBoundLogger),
             id=job.id,
             job=job,
             pid=process.pid,
-            stdin=mocker.Mock(),
+            stdin=mock_stdin,
             process=process,
-            requests_fd=-1,
             capacity=10,
         )
         # Mock the selector
@@ -248,8 +259,10 @@ class TestTriggerRunner:
     @pytest.mark.asyncio
     async def test_run_inline_trigger_canceled(self, session) -> None:
         trigger_runner = TriggerRunner()
-        trigger_runner.triggers = {1: {"task": MagicMock(), "name": "mock_name", "events": 0}}
-        mock_trigger = MagicMock()
+        trigger_runner.triggers = {
+            1: {"task": MagicMock(spec=asyncio.Task), "name": "mock_name", "events": 0}
+        }
+        mock_trigger = MagicMock(spec=BaseTrigger)
         mock_trigger.timeout_after = None
         mock_trigger.run.side_effect = asyncio.CancelledError()
 
@@ -259,8 +272,10 @@ class TestTriggerRunner:
     @pytest.mark.asyncio
     async def test_run_inline_trigger_timeout(self, session, cap_structlog) -> None:
         trigger_runner = TriggerRunner()
-        trigger_runner.triggers = {1: {"task": MagicMock(), "name": "mock_name", "events": 0}}
-        mock_trigger = MagicMock()
+        trigger_runner.triggers = {
+            1: {"task": MagicMock(spec=asyncio.Task), "name": "mock_name", "events": 0}
+        }
+        mock_trigger = MagicMock(spec=BaseTrigger)
         mock_trigger.timeout_after = timezone.utcnow() - datetime.timedelta(hours=1)
         mock_trigger.run.side_effect = asyncio.CancelledError()
 
@@ -302,10 +317,9 @@ class TestTriggerRunner:
             id=1, ti=None, classpath="fake.classpath", encrypted_kwargs={}
         )
         trigger_runner = TriggerRunner()
-        trigger_runner.requests_sock = MagicMock()
-        trigger_runner.response_sock = AsyncMock()
-        trigger_runner.response_sock.readline.return_value = (
-            b'{"type": "TriggerStateSync", "to_create": [], "to_cancel": []}\n'
+        trigger_runner.comms_decoder = AsyncMock(spec=TriggerCommsDecoder)
+        trigger_runner.comms_decoder.asend.return_value = messages.TriggerStateSync(
+            to_create=[], to_cancel=[]
         )
 
         trigger_runner.to_create.append(workload)
@@ -316,9 +330,9 @@ class TestTriggerRunner:
         await trigger_runner.sync_state_to_supervisor(ids)
 
         # Check that we sent the right info in the failure message
-        assert trigger_runner.requests_sock.write.call_count == 1
-        blob = trigger_runner.requests_sock.write.mock_calls[0].args[0]
-        msg = messages.TriggerStateChanges.model_validate_json(blob)
+        assert trigger_runner.comms_decoder.asend.call_count == 1
+        msg = trigger_runner.comms_decoder.asend.mock_calls[0].args[0]
+        assert isinstance(msg, messages.TriggerStateChanges)
 
         assert msg.events is None
         assert msg.failures is not None
@@ -326,6 +340,51 @@ class TestTriggerRunner:
         trigger_id, traceback = msg.failures[0]
         assert trigger_id == 1
         assert traceback[-1] == "ModuleNotFoundError: No module named 'fake'\n"
+
+    @pytest.mark.asyncio
+    async def test_trigger_kwargs_serialization_cleanup(self, session):
+        """
+        Test that trigger kwargs are properly cleaned of serialization artifacts
+        (__var, __type keys).
+        """
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        kw = {"simple": "test", "tuple": (), "dict": {}, "list": []}
+
+        serialized_kwargs = BaseSerialization.serialize(kw)
+
+        trigger_orm = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs=serialized_kwargs)
+        session.add(trigger_orm)
+        session.commit()
+
+        stored_kwargs = trigger_orm.kwargs
+        assert stored_kwargs == {
+            "Encoding.TYPE": "dict",
+            "Encoding.VAR": {
+                "dict": {"Encoding.TYPE": "dict", "Encoding.VAR": {}},
+                "list": [],
+                "simple": "test",
+                "tuple": {"Encoding.TYPE": "tuple", "Encoding.VAR": []},
+            },
+        }
+
+        runner = TriggerRunner()
+        runner.to_create.append(
+            workloads.RunTrigger.model_construct(
+                id=trigger_orm.id,
+                ti=None,
+                classpath=trigger_orm.classpath,
+                encrypted_kwargs=trigger_orm.encrypted_kwargs,
+            )
+        )
+
+        await runner.create_triggers()
+        assert trigger_orm.id in runner.triggers
+        trigger_instance = runner.triggers[trigger_orm.id]["task"]
+
+        # The test passes if no exceptions were raised during trigger creation
+        trigger_instance.cancel()
+        await runner.cleanup_finished_triggers()
 
 
 @pytest.mark.asyncio
@@ -352,17 +411,20 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder):
     trigger_orm = Trigger.from_object(trigger)
     session.add(trigger_orm)
     session.flush()
-
-    dag = DagModel(dag_id="test-dag")
+    dag = DAG(dag_id="test-dag")
+    dm = DagModel(dag_id="test-dag")
+    session.add(dm)
+    SerializedDagModel.write_dag(dag, bundle_name="testing")
     dag_run = DagRun(dag.dag_id, run_id="abc", run_type="none", run_after=timezone.utcnow())
+    dag_version = DagVersion.get_latest_version(dag.dag_id)
     ti = TaskInstance(
         PythonOperator(task_id="dummy-task", python_callable=print),
         run_id=dag_run.run_id,
         state=TaskInstanceState.DEFERRED,
+        dag_version_id=dag_version.id,
     )
     ti.dag_id = dag.dag_id
     ti.trigger_id = trigger_orm.id
-    session.add(dag)
     session.add(dag_run)
     session.add(ti)
 
@@ -552,6 +614,7 @@ def test_failed_trigger(session, dag_maker, supervisor_builder):
                 )
             ],
         ),
+        req_id=1,
         log=MagicMock(),
     )
 
@@ -622,10 +685,6 @@ class DummyTriggerRunnerSupervisor(TriggerRunnerSupervisor):
         super().handle_events()
 
 
-@pytest.mark.xfail(
-    reason="We know that test is flaky and have no time to fix it before 3.0. "
-    "We should fix it later. TODO: AIP-72"
-)
 @pytest.mark.asyncio
 @pytest.mark.execution_timeout(20)
 async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_maker):
@@ -649,7 +708,16 @@ async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_m
     task_instance.trigger_id = trigger_orm.id
 
     # Create the appropriate Connection, Variable and XCom
-    connection = Connection(conn_id="test_connection", conn_type="http")
+    connection = Connection(
+        conn_id="test_connection",
+        conn_type="http",
+        schema="https",
+        login="user",
+        password="pass",
+        extra={"key": "value"},
+        port=443,
+        host="example.com",
+    )
     variable = Variable(key="test_variable", val="some_variable_value")
     XComModel.set(
         key="test_xcom",
@@ -679,12 +747,12 @@ async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_m
                 "conn_id": "test_connection",
                 "conn_type": "http",
                 "description": None,
-                "host": None,
-                "schema": None,
-                "login": None,
-                "password": None,
-                "port": None,
-                "extra": None,
+                "host": "example.com",
+                "schema": "https",
+                "login": "user",
+                "password": "pass",
+                "port": 443,
+                "extra": '{"key": "value"}',
             },
             "variable": "some_variable_value",
             "xcom": '"some_xcom_value"',
@@ -726,13 +794,8 @@ class CustomTriggerDagRun(BaseTrigger):
         yield TriggerEvent({"count": dag_run_states_count, "dag_run_state": dag_run_state})
 
 
-@pytest.mark.xfail(
-    reason="We know that test is flaky and have no time to fix it before 3.0. "
-    "We should fix it later. TODO: AIP-72"
-)
 @pytest.mark.asyncio
-@pytest.mark.flaky(reruns=2, reruns_delay=10)
-@pytest.mark.execution_timeout(30)
+@pytest.mark.execution_timeout(10)
 async def test_trigger_can_fetch_trigger_dag_run_count_and_state_in_deferrable(session, dag_maker):
     """Checks that the trigger will successfully fetch the count of trigger DAG runs."""
     # Create the test DAG and task
@@ -822,13 +885,8 @@ class CustomTriggerWorkflowStateTrigger(BaseTrigger):
         yield TriggerEvent({"ti_count": ti_count, "dr_count": dr_count, "task_states": task_states})
 
 
-@pytest.mark.xfail(
-    reason="We know that test is flaky and have no time to fix it before 3.0. "
-    "We should fix it later. TODO: AIP-72"
-)
 @pytest.mark.asyncio
-@pytest.mark.flaky(reruns=2, reruns_delay=10)
-@pytest.mark.execution_timeout(30)
+@pytest.mark.execution_timeout(10)
 async def test_trigger_can_fetch_dag_run_count_ti_count_in_deferrable(session, dag_maker):
     """Checks that the trigger will successfully fetch the count of DAG runs, Task count and task states."""
     # Create the test DAG and task

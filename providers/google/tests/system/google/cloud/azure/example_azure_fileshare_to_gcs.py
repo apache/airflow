@@ -50,7 +50,7 @@ with DAG(
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket",
         bucket_name=BUCKET_NAME,
-        project_id=PROJECT_ID,  # type: ignore[arg-type]
+        project_id=PROJECT_ID,
     )
 
     # [START howto_operator_azure_fileshare_to_gcs_basic]

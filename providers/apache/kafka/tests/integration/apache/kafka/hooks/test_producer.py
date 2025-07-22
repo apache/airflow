@@ -24,7 +24,6 @@ import pytest
 from airflow.models import Connection
 from airflow.providers.apache.kafka.hooks.client import KafkaAdminClientHook
 from airflow.providers.apache.kafka.hooks.produce import KafkaProducerHook
-from airflow.utils import db
 
 log = logging.getLogger(__name__)
 config = {"bootstrap.servers": "broker:29092", "group.id": "hook.producer.integration.test"}
@@ -36,8 +35,9 @@ class TestProducerHook:
     Test consumer hook.
     """
 
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id="kafka_default",
                 conn_type="kafka",

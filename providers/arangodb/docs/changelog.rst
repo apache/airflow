@@ -28,6 +28,41 @@
 Changelog
 ---------
 
+2.8.1
+.....
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Replace 'models.BaseOperator' to Task SDK one for Asana & Arangodb (#52374)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Use BaseSensorOperator from task sdk in providers (#52296)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove pytest db markers from arangodb provider (#52102)``
+   * ``Introducing fixture to create 'Connections' without DB in provider tests (#51930)``
+   * ``Move example_dags in standard provider to example_dags in sources (#51260)``
+   * ``Prepare release for June 2025 provider wave (#51724)``
+
+2.8.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.10+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Misc
+~~~~
+
+* ``Bump min Airflow version in providers to 2.10 (#49843)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Avoid committing history for providers (#49907)``
+
 2.7.4
 .....
 

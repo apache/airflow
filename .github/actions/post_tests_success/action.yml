@@ -44,10 +44,12 @@ runs:
         mkdir ./files/coverage-reports
         mv ./files/coverage*.xml ./files/coverage-reports/ || true
     - name: "Upload all coverage reports to codecov"
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238
       env:
         CODECOV_TOKEN: ${{ inputs.codecov-token }}
-      if: env.ENABLE_COVERAGE == 'true' && env.TEST_TYPES != 'Helm' && inputs.python-version != '3.12'
+      if: >
+        env.ENABLE_COVERAGE == 'true' && env.TEST_TYPES != 'Helm' && inputs.python-version != '3.12'
+        && inputs.python-version != '3.13'
       with:
         name: coverage-${{env.JOB_ID}}
         flags: python-${{ env.PYTHON_MAJOR_MINOR_VERSION }},${{ env.BACKEND }}-${{ env.BACKEND_VERSION }}

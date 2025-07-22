@@ -24,10 +24,11 @@ import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
 
 type Props = {
   readonly content: object;
+  readonly enableClipboard?: boolean;
   readonly jsonProps?: Omit<ReactJsonViewProps, "src">;
 } & FlexProps;
 
-const RenderedJsonField = ({ content, jsonProps, ...rest }: Props) => {
+const RenderedJsonField = ({ content, enableClipboard = true, jsonProps, ...rest }: Props) => {
   const contentFormatted = JSON.stringify(content, undefined, 4);
   const { theme } = useTheme();
 
@@ -46,9 +47,11 @@ const RenderedJsonField = ({ content, jsonProps, ...rest }: Props) => {
         theme={theme === "dark" ? "monokai" : "rjv-default"}
         {...jsonProps}
       />
-      <ClipboardRoot value={contentFormatted}>
-        <ClipboardIconButton h={7} minW={7} />
-      </ClipboardRoot>
+      {enableClipboard ? (
+        <ClipboardRoot value={contentFormatted}>
+          <ClipboardIconButton h={7} minW={7} />
+        </ClipboardRoot>
+      ) : undefined}
     </Flex>
   );
 };

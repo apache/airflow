@@ -19,14 +19,14 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from deprecated import deprecated
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
-from airflow.providers.celery.executors.celery_executor import CeleryExecutor
+from airflow.providers.celery.executors.celery_executor import AIRFLOW_V_3_0_PLUS, CeleryExecutor
 
 try:
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
@@ -38,13 +38,14 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 if TYPE_CHECKING:
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
-    from airflow.executors.base_executor import (
-        CommandType,
-        EventBufferValueType,
-        QueuedTaskInstanceType,
+    from airflow.executors.base_executor import EventBufferValueType
+    from airflow.models.taskinstance import (  # type: ignore[attr-defined]
+        SimpleTaskInstance,
+        TaskInstance,
     )
-    from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
+
+    CommandType = Sequence[str]
 
 
 class CeleryKubernetesExecutor(BaseExecutor):
@@ -75,7 +76,18 @@ class CeleryKubernetesExecutor(BaseExecutor):
     def kubernetes_queue(self) -> str:
         return conf.get("celery_kubernetes_executor", "kubernetes_queue")
 
-    def __init__(self, celery_executor: CeleryExecutor, kubernetes_executor: KubernetesExecutor):
+    def __init__(
+        self,
+        celery_executor: CeleryExecutor | None = None,
+        kubernetes_executor: KubernetesExecutor | None = None,
+    ):
+        if AIRFLOW_V_3_0_PLUS or not kubernetes_executor or not celery_executor:
+            raise RuntimeError(
+                f"{self.__class__.__name__} does not support Airflow 3.0+. See "
+                "https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/executor/index.html#using-multiple-executors-concurrently"
+                " how to use multiple executors concurrently."
+            )
+
         super().__init__()
         self._job_id: int | str | None = None
         self.celery_executor = celery_executor
@@ -93,12 +105,12 @@ class CeleryKubernetesExecutor(BaseExecutor):
         """Not implemented for hybrid executors."""
 
     @property
-    def queued_tasks(self) -> dict[TaskInstanceKey, QueuedTaskInstanceType]:
+    def queued_tasks(self) -> dict[TaskInstanceKey, Any]:
         """Return queued tasks from celery and kubernetes executor."""
         queued_tasks = self.celery_executor.queued_tasks.copy()
-        queued_tasks.update(self.kubernetes_executor.queued_tasks)  # type: ignore[arg-type]
+        queued_tasks.update(self.kubernetes_executor.queued_tasks)
 
-        return queued_tasks  # type: ignore[return-value]
+        return queued_tasks
 
     @queued_tasks.setter
     def queued_tasks(self, value) -> None:
@@ -155,7 +167,7 @@ class CeleryKubernetesExecutor(BaseExecutor):
         """Queues command via celery or kubernetes executor."""
         executor = self._router(task_instance)
         self.log.debug("Using executor: %s for %s", executor.__class__.__name__, task_instance.key)
-        executor.queue_command(task_instance, command, priority, queue)
+        executor.queue_command(task_instance, command, priority, queue)  # type: ignore[union-attr]
 
     def queue_task_instance(
         self,
@@ -171,7 +183,7 @@ class CeleryKubernetesExecutor(BaseExecutor):
         **kwargs,
     ) -> None:
         """Queues task instance via celery or kubernetes executor."""
-        from airflow.models.taskinstance import SimpleTaskInstance
+        from airflow.models.taskinstance import SimpleTaskInstance  # type: ignore[attr-defined]
 
         executor = self._router(SimpleTaskInstance.from_ti(task_instance))
         self.log.debug(
@@ -182,7 +194,7 @@ class CeleryKubernetesExecutor(BaseExecutor):
         if not hasattr(task_instance, "pickle_id"):
             del kwargs["pickle_id"]
 
-        executor.queue_task_instance(
+        executor.queue_task_instance(  # type: ignore[union-attr]
             task_instance=task_instance,
             mark_success=mark_success,
             ignore_all_deps=ignore_all_deps,

@@ -104,7 +104,7 @@ class TestManagedKafkaCreateClusterOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock(), "task": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.create_cluster.assert_called_once_with(
             location=GCP_LOCATION,
@@ -142,7 +142,7 @@ class TestManagedKafkaListClustersOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock(), "task": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.list_clusters.assert_called_once_with(
             location=GCP_LOCATION,
@@ -172,7 +172,7 @@ class TestManagedKafkaGetClusterOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock(), "task": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.get_cluster.assert_called_once_with(
             location=GCP_LOCATION,
@@ -202,7 +202,7 @@ class TestManagedKafkaUpdateClusterOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock(), "task": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.update_cluster.assert_called_once_with(
             project_id=GCP_PROJECT,
@@ -262,7 +262,7 @@ class TestManagedKafkaCreateTopicOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock(), "task": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.create_topic.assert_called_once_with(
             location=GCP_LOCATION,
@@ -297,7 +297,7 @@ class TestManagedKafkaListTopicsOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock(), "task": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.list_topics.assert_called_once_with(
             location=GCP_LOCATION,
@@ -327,7 +327,7 @@ class TestManagedKafkaGetTopicOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock(), "task": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.get_topic.assert_called_once_with(
             location=GCP_LOCATION,
@@ -358,7 +358,7 @@ class TestManagedKafkaUpdateTopicOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock(), "task": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.update_topic.assert_called_once_with(
             project_id=GCP_PROJECT,
@@ -422,7 +422,7 @@ class TestManagedKafkaListConsumerGroupsOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock(), "task": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.list_consumer_groups.assert_called_once_with(
             location=GCP_LOCATION,
@@ -452,7 +452,7 @@ class TestManagedKafkaGetConsumerGroupOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock(), "task": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.get_consumer_group.assert_called_once_with(
             location=GCP_LOCATION,
@@ -483,7 +483,7 @@ class TestManagedKafkaUpdateConsumerGroupOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock(), "task": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.update_consumer_group.assert_called_once_with(
             project_id=GCP_PROJECT,

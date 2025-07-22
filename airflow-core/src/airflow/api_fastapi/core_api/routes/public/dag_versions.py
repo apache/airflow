@@ -18,10 +18,12 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
+from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     FilterParam,
@@ -58,7 +60,11 @@ def get_dag_version(
     session: SessionDep,
 ) -> DagVersionResponse:
     """Get one Dag Version."""
-    dag_version = session.scalar(select(DagVersion).filter_by(dag_id=dag_id, version_number=version_number))
+    dag_version = session.scalar(
+        select(DagVersion)
+        .filter_by(dag_id=dag_id, version_number=version_number)
+        .options(joinedload(DagVersion.dag_model))
+    )
 
     if dag_version is None:
         raise HTTPException(
@@ -80,10 +86,9 @@ def get_dag_version(
 )
 def get_dag_versions(
     dag_id: str,
+    session: SessionDep,
     limit: QueryLimit,
     offset: QueryOffset,
-    session: SessionDep,
-    request: Request,
     version_number: Annotated[
         FilterParam[int], Depends(filter_param_factory(DagVersion.version_number, int))
     ],
@@ -97,16 +102,17 @@ def get_dag_versions(
             SortParam(["id", "version_number", "bundle_name", "bundle_version"], DagVersion).dynamic_depends()
         ),
     ],
+    dag_bag: DagBagDep,
 ) -> DAGVersionCollectionResponse:
     """
     Get all DAG Versions.
 
     This endpoint allows specifying `~` as the dag_id to retrieve DAG Versions for all DAGs.
     """
-    query = select(DagVersion)
+    query = select(DagVersion).options(joinedload(DagVersion.dag_model))
 
     if dag_id != "~":
-        dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+        dag: DAG = dag_bag.get_dag(dag_id)
         if not dag:
             raise HTTPException(status.HTTP_404_NOT_FOUND, f"The DAG with dag_id: `{dag_id}` was not found")
 

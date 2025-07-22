@@ -24,9 +24,9 @@ import os
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from pinecone import Pinecone, PodSpec, ServerlessSpec
+from pinecone import Pinecone, PodSpec, PodType, ServerlessSpec
 
-from airflow.hooks.base import BaseHook
+from airflow.providers.pinecone.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from pinecone import Vector
@@ -127,7 +127,7 @@ class PineconeHook(BaseHook):
 
     @cached_property
     def conn(self) -> Connection:
-        return self.get_connection(self.conn_id)
+        return self.get_connection(self.conn_id)  # type: ignore[return-value]
 
     def test_connection(self) -> tuple[bool, str]:
         try:
@@ -182,7 +182,7 @@ class PineconeHook(BaseHook):
         replicas: int | None = None,
         shards: int | None = None,
         pods: int | None = None,
-        pod_type: str | None = "p1.x1",
+        pod_type: str | PodType = PodType.P1_X1,
         metadata_config: dict | None = None,
         source_collection: str | None = None,
         environment: str | None = None,
@@ -203,7 +203,7 @@ class PineconeHook(BaseHook):
             replicas=replicas,
             shards=shards,
             pods=pods,
-            pod_type=pod_type,
+            pod_type=pod_type if isinstance(pod_type, PodType) else PodType(pod_type),
             metadata_config=metadata_config,
             source_collection=source_collection,
         )

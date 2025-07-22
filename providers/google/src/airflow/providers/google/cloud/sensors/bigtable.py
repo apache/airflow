@@ -20,7 +20,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import google.api_core.exceptions
 from google.cloud.bigtable import enums
@@ -30,7 +30,12 @@ from airflow.providers.google.cloud.hooks.bigtable import BigtableHook
 from airflow.providers.google.cloud.links.bigtable import BigtableTablesLink
 from airflow.providers.google.cloud.operators.bigtable import BigtableValidationMixin
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseSensorOperator
+else:
+    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -89,6 +94,13 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "instance_id": self.instance_id,
+            "project_id": self.project_id,
+        }
+
     def poke(self, context: Context) -> bool:
         hook = BigtableHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -119,5 +131,5 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
             return False
 
         self.log.info("Table '%s' is replicated.", self.table_id)
-        BigtableTablesLink.persist(context=context, task_instance=self)
+        BigtableTablesLink.persist(context=context)
         return True
