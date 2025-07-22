@@ -2813,3 +2813,94 @@ def test_teardown_and_fail_fast(dag_maker):
         "tg_2.my_teardown": "skipped",
         "tg_2.my_work": "skipped",
     }
+
+    def test_dagrun_callback_context_has_dag_run(self, dag_maker, session):
+        """Test that DAG callbacks have access to dag_run in their context."""
+
+        # Track what we receive in the callback context
+        received_context = {}
+
+        def on_success_callable(context):
+            nonlocal received_context
+            received_context = context.copy()
+            # Verify dag_run is present and accessible
+            assert "dag_run" in context, "dag_run should be present in DAG callback context"
+            assert context["dag_run"].dag_id == "test_dagrun_callback_context_has_dag_run"
+            assert context["dag_run"].run_id == context["run_id"]
+            # Test accessing dag_run properties
+            assert context["dag_run"].state == DagRunState.SUCCESS
+            assert context["dag_run"].logical_date is not None
+
+        def on_failure_callable(context):
+            nonlocal received_context
+            received_context = context.copy()
+            # Verify dag_run is present and accessible
+            assert "dag_run" in context, "dag_run should be present in DAG callback context"
+            assert context["dag_run"].dag_id == "test_dagrun_callback_context_has_dag_run"
+            assert context["dag_run"].run_id == context["run_id"]
+            # Test accessing dag_run properties
+            assert context["dag_run"].state == DagRunState.FAILED
+            assert context["dag_run"].logical_date is not None
+
+        with dag_maker(
+            dag_id="test_dagrun_callback_context_has_dag_run",
+            schedule=datetime.timedelta(days=1),
+            start_date=datetime.datetime(2017, 1, 1),
+            on_success_callback=on_success_callable,
+            on_failure_callback=on_failure_callable,
+        ) as dag:
+            pass
+
+        dag_task1 = EmptyOperator(task_id="test_task1", dag=dag)
+        dag_task2 = EmptyOperator(task_id="test_task2", dag=dag)
+        dag_task1.set_downstream(dag_task2)
+
+        # Test success callback
+        initial_task_states_success = {
+            "test_task1": TaskInstanceState.SUCCESS,
+            "test_task2": TaskInstanceState.SUCCESS,
+        }
+
+        # Scheduler uses Serialized DAG -- so use that instead of the Actual DAG
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
+        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states_success, session=session)
+
+        # Execute the callback directly to test the context
+        dag_run.handle_dag_callback(dag=dag, success=True, reason="success")
+
+        # Verify the context contains all expected keys
+        assert "dag" in received_context
+        assert "dag_run" in received_context
+        assert "run_id" in received_context
+        assert "reason" in received_context
+
+        # Verify dag_run is the same object as the dag_run instance
+        assert received_context["dag_run"] is dag_run
+        assert received_context["run_id"] == str(dag_run.run_id)
+        assert received_context["reason"] == "success"
+
+        # Reset for failure test
+        received_context = {}
+
+        # Test failure callback
+        initial_task_states_failure = {
+            "test_task1": TaskInstanceState.SUCCESS,
+            "test_task2": TaskInstanceState.FAILED,
+        }
+
+        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states_failure, session=session)
+
+        # Execute the callback directly to test the context
+        dag_run.handle_dag_callback(dag=dag, success=False, reason="task_failure")
+
+        # Verify the context contains all expected keys
+        assert "dag" in received_context
+        assert "dag_run" in received_context
+        assert "run_id" in received_context
+        assert "reason" in received_context
+
+        # Verify dag_run is the same object as the dag_run instance
+        assert received_context["dag_run"] is dag_run
+        assert received_context["run_id"] == str(dag_run.run_id)
+        assert received_context["reason"] == "task_failure"

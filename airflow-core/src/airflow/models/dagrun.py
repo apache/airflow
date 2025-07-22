@@ -1356,6 +1356,7 @@ class DagRun(Base, LoggingMixin):
             "dag": dag,
             "run_id": str(self.run_id),
             "reason": reason,
+            "dag_run": self,
         }
 
         callbacks = dag.on_success_callback if success else dag.on_failure_callback
