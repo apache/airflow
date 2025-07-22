@@ -63,10 +63,6 @@ import structlog
 from fastapi import Body
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, TypeAdapter, field_serializer
 
-from airflow.api_fastapi.execution_api.datamodels.hitl import (
-    GetHITLDetailResponsePayload,
-    UpdateHITLDetailPayload,
-)
 from airflow.sdk.api.datamodels._generated import (
     AssetEventDagRunReference,
     AssetEventResponse,
@@ -88,6 +84,7 @@ from airflow.sdk.api.datamodels._generated import (
     TISkippedDownstreamTasksStatePayload,
     TISuccessStatePayload,
     TriggerDAGRunPayload,
+    UpdateHITLDetailPayload,
     VariableResponse,
     XComResponse,
     XComSequenceIndexResponse,
@@ -234,15 +231,16 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         length = int.from_bytes(len_bytes, byteorder="big")
 
         buffer = bytearray(length)
-        nread = self.socket.recv_into(buffer)
-        if nread != length:
-            raise RuntimeError(
-                f"unable to read full response in child. (We read {nread}, but expected {length})"
-            )
-        if nread == 0:
-            raise EOFError(f"Request socket closed before response was complete ({self.id_counter=})")
+        mv = memoryview(buffer)
 
-        resp = self.resp_decoder.decode(buffer)
+        pos = 0
+        while pos < length:
+            nread = self.socket.recv_into(mv[pos:])
+            if nread == 0:
+                raise EOFError(f"Request socket closed before response was complete ({self.id_counter=})")
+            pos += nread
+
+        resp = self.resp_decoder.decode(mv)
         if maxfds:
             return resp, fds or []
         return resp
@@ -858,9 +856,10 @@ class GetDRCount(BaseModel):
     type: Literal["GetDRCount"] = "GetDRCount"
 
 
-class GetHITLDetailResponse(GetHITLDetailResponsePayload):
+class GetHITLDetailResponse(BaseModel):
     """Get the response content part of a Human-in-the-loop response."""
 
+    ti_id: UUID
     type: Literal["GetHITLDetailResponse"] = "GetHITLDetailResponse"
 
 

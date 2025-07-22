@@ -42,11 +42,13 @@ if AIRFLOW_V_3_0_PLUS:
         BaseSensorOperator,
     )
 else:
-    from airflow.models import BaseOperator, BaseOperatorLink  # type: ignore[no-redef]
+    from airflow.models import BaseOperator, BaseOperatorLink
     from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
 
 if AIRFLOW_V_3_1_PLUS:
-    from airflow.models.xcom import XCOM_RETURN_KEY
+    from airflow.sdk.bases.xcom import BaseXCom
+
+    XCOM_RETURN_KEY = BaseXCom.XCOM_RETURN_KEY
     from airflow.sdk import BaseHook
 else:
     from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]

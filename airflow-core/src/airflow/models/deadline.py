@@ -24,13 +24,15 @@ from typing import TYPE_CHECKING, Any
 
 import sqlalchemy_jsonfield
 import uuid6
-from sqlalchemy import Column, ForeignKey, Index, Integer, String, select
+from sqlalchemy import Column, ForeignKey, Index, Integer, String, and_, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import UUIDType
 
+from airflow.models import Trigger
 from airflow.models.base import Base, StringID
 from airflow.settings import json
+from airflow.triggers.deadline import DeadlineCallbackTrigger
 from airflow.utils import timezone
 from airflow.utils.decorators import classproperty
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -39,6 +41,8 @@ from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+
+    from airflow.triggers.base import TriggerEvent
 
 
 logger = logging.getLogger(__name__)
@@ -63,6 +67,10 @@ class Deadline(Base):
     callback_kwargs = Column(sqlalchemy_jsonfield.JSONField(json=json))
 
     dagrun = relationship("DagRun", back_populates="deadlines")
+
+    # The Trigger where the callback is running
+    trigger_id = Column(Integer, ForeignKey("trigger.id"), nullable=True)
+    trigger = relationship("Trigger", back_populates="deadline")
 
     __table_args__ = (Index("deadline_time_idx", deadline_time, unique=False),)
 
@@ -97,6 +105,82 @@ class Deadline(Base):
             f"[{resource_type} Deadline] {resource_details} needed by "
             f"{self.deadline_time} or run: {self.callback}({callback_kwargs})"
         )
+
+    @classmethod
+    @provide_session
+    def prune_deadlines(cls, *, session: Session, conditions: dict[Column, Any]) -> int:
+        """
+        Remove deadlines from the table which match the provided conditions and return the number removed.
+
+        NOTE: This should only be used to remove deadlines which are associated with
+            successful DagRuns. If the deadline was missed, it will be handled by the
+            scheduler.
+        TODO:  Create the missed_deadlines table (Ramit)
+
+        :param conditions: Dictionary of conditions to evaluate against.
+        :param session: Session to use.
+        """
+        from airflow.models import DagRun  # Avoids circular import
+
+        # Assemble the filter conditions.
+        filter_conditions = [column == value for column, value in conditions.items()]
+        if not filter_conditions:
+            return 0
+
+        try:
+            # Get deadlines which match the provided conditions and their associated DagRuns.
+            deadline_dagrun_pairs = (
+                session.query(Deadline, DagRun).join(DagRun).filter(and_(*filter_conditions)).all()
+            )
+        except AttributeError as e:
+            logger.exception("Error resolving deadlines: %s", e)
+            raise
+
+        if not deadline_dagrun_pairs:
+            return 0
+
+        deleted_count = 0
+        dagruns_to_refresh = set()
+
+        for deadline, dagrun in deadline_dagrun_pairs:
+            if dagrun.end_date <= deadline.deadline_time:
+                # If the DagRun finished before the Deadline:
+                session.delete(deadline)
+                deleted_count += 1
+                dagruns_to_refresh.add(dagrun)
+        session.flush()
+
+        logger.debug("%d deadline records were deleted matching the conditions %s", deleted_count, conditions)
+
+        # Refresh any affected DAG runs.
+        for dagrun in dagruns_to_refresh:
+            session.refresh(dagrun)
+
+        return deleted_count
+
+    def handle_miss(self, session: Session):
+        """Handle a missed deadline by queueing the callback and marking the deadline as missed."""
+        # TODO: check to see if the callback is meant to run in triggerer or executor. For now, the code below assumes it's for the triggerer
+        callback_trigger = DeadlineCallbackTrigger(
+            callback_path=self.callback,
+            callback_kwargs=self.callback_kwargs,
+        )
+
+        trigger_orm = Trigger.from_object(callback_trigger)
+        session.add(trigger_orm)
+        session.flush()
+        self.trigger_id = trigger_orm.id
+        session.add(self)
+
+        # TODO mark deadline as missed
+
+    def handle_callback_event(self, event: TriggerEvent, session: Session):
+        if event.payload["status"] == "success":
+            logger.debug("Deadline callback succeeded")
+            self.trigger = None
+            session.add(self)
+        else:
+            logger.error("Unexpected event received: %s", event)
 
 
 class ReferenceModels:

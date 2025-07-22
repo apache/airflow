@@ -62,6 +62,7 @@ CREATE_REPO_ENDPOINT = ("POST", "2.0/repos")
 
 LIST_JOBS_ENDPOINT = ("GET", "2.1/jobs/list")
 LIST_PIPELINES_ENDPOINT = ("GET", "2.0/pipelines")
+LIST_SQL_ENDPOINTS_ENDPOINT = ("GET", "2.0/sql/endpoints")
 
 WORKSPACE_GET_STATUS_ENDPOINT = ("GET", "2.0/workspace/get-status")
 
@@ -770,7 +771,7 @@ class DatabricksHook(BaseDatabricksHook):
         :param json: payload
         :return: json containing permission specification
         """
-        return self._do_api_call(("PATCH", f"api/2.0/permissions/jobs/{job_id}"), json)
+        return self._do_api_call(("PATCH", f"2.0/permissions/jobs/{job_id}"), json)
 
     def post_sql_statement(self, json: dict[str, Any]) -> str:
         """

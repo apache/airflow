@@ -371,10 +371,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
         client = Client(base_url=None, token="", dry_run=True, transport=in_process_api_server().transport)
         # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
-        client.base_url = "http://in-process.invalid./"  # type: ignore[assignment]
+        client.base_url = "http://in-process.invalid./"
         return client
 
-    def _handle_request(self, msg: ToTriggerSupervisor, log: FilteringBoundLogger, req_id: int) -> None:  # type: ignore[override]
+    def _handle_request(self, msg: ToTriggerSupervisor, log: FilteringBoundLogger, req_id: int) -> None:
         from airflow.sdk.api.datamodels._generated import (
             ConnectionResponse,
             TaskStatesResponse,
@@ -589,7 +589,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         cancel_trigger_ids = self.running_triggers - requested_trigger_ids
         # Bulk-fetch new trigger records
         new_triggers = Trigger.bulk_fetch(new_trigger_ids)
-        triggers_with_assets = Trigger.fetch_trigger_ids_with_asset()
+        trigger_ids_with_non_task_associations = Trigger.fetch_trigger_ids_with_non_task_associations()
         to_create: list[workloads.RunTrigger] = []
         # Add in new triggers
         for new_id in new_trigger_ids:
@@ -600,11 +600,11 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
             new_trigger_orm = new_triggers[new_id]
 
-            # If the trigger is not associated to a task or an asset, this means the TaskInstance
+            # If the trigger is not associated to a task, an asset, or a deadline, this means the TaskInstance
             # row was updated by either Trigger.submit_event or Trigger.submit_failure
             # and can happen when a single trigger Job is being run on multiple TriggerRunners
             # in a High-Availability setup.
-            if new_trigger_orm.task_instance is None and new_id not in triggers_with_assets:
+            if new_trigger_orm.task_instance is None and new_id not in trigger_ids_with_non_task_associations:
                 log.info(
                     (
                         "TaskInstance Trigger is None. It was likely updated by another trigger job. "

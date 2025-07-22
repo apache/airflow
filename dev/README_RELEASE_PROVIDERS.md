@@ -1012,7 +1012,7 @@ pip install apache-airflow-providers-<provider>==<VERSION>rc<X>
 ### Installing with Breeze
 
 ```shell
-breeze start-airflow --use-airflow-version 2.2.4 --python 3.10 --backend postgres \
+breeze start-airflow --use-airflow-version 2.10.3 --python 3.10 --backend postgres \
     --load-example-dags --load-default-connections
 ```
 
@@ -1353,7 +1353,7 @@ git pull apache main
 current_date=$(date '+%Y-%m-%d%n')
 branch="update-providers-metadata-${current_date}"
 git checkout -b "${branch}"
-breeze release-management generate-providers-metadata --refresh-constraints
+breeze release-management generate-providers-metadata --refresh-constraints-and-airflow-releases
 git add -p .
 git commit -m "Update providers metadata ${current_date}"
 git push --set-upstream origin "${branch}"

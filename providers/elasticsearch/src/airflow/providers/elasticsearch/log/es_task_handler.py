@@ -185,7 +185,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         )
 
         self.formatter: logging.Formatter
-        self.handler: logging.FileHandler | logging.StreamHandler  # type: ignore[assignment]
+        self.handler: logging.FileHandler | logging.StreamHandler | None = None
         self._doc_type_map: dict[Any, Any] = {}
         self._doc_type: list[Any] = []
 
@@ -380,11 +380,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                         sources=[host for host in logs_by_host.keys()],
                     ),  # type: ignore[call-arg]
                     StructuredLogMessage(event="::endgroup::"),
-                ]  # type: ignore[misc]
+                ]
 
                 message = header + [
                     StructuredLogMessage(event=concat_logs(hits)) for hits in logs_by_host.values()
-                ]  # type: ignore[misc]
+                ]
             else:
                 message = [
                     (host, concat_logs(hits))  # type: ignore[misc]
@@ -426,7 +426,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         index_patterns = self._get_index_patterns(ti)
         try:
-            max_log_line = self.client.count(index=index_patterns, query=query)["count"]  # type: ignore
+            max_log_line = self.client.count(index=index_patterns, query=query)["count"]
         except NotFoundError as e:
             self.log.exception("The target index pattern %s does not exist", index_patterns)
             raise e
@@ -513,7 +513,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         # Reopen the file stream, because FileHandler.close() would be called
         # first in logging.shutdown() and the stream in it would be set to None.
-        if self.handler.stream is None or self.handler.stream.closed:  # type: ignore[attr-defined]
+        if self.handler.stream is None or self.handler.stream.closed:
             self.handler.stream = self.handler._open()  # type: ignore[union-attr]
 
         # Mark the end of file using end of log mark,

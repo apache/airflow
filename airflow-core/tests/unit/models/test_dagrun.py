@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import datetime
+from collections import defaultdict
 from collections.abc import Mapping
 from functools import reduce
 from typing import TYPE_CHECKING
@@ -31,7 +32,6 @@ from sqlalchemy.orm import joinedload
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun, DagRunNote
@@ -42,7 +42,7 @@ from airflow.models.taskreschedule import TaskReschedule
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator, ShortCircuitOperator
-from airflow.sdk import setup, task, task_group, teardown
+from airflow.sdk import BaseOperator, setup, task, task_group, teardown
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
@@ -336,7 +336,7 @@ class TestDagRun:
         assert dr.state == DagRunState.RUNNING
 
         ti_op2.set_state(state=None, session=session)
-        ti_op2.task.trigger_rule = "invalid"  # type: ignore
+        ti_op2.task.trigger_rule = "invalid"
         dr.update_state(session=session)
         assert dr.state == DagRunState.FAILED
 
@@ -1256,13 +1256,14 @@ class TestDagRun:
         def on_success_callable(context):
             assert context["dag_run"].dag_id == "test_dagrun_success_callback"
 
+        future_date = datetime.datetime.now() + datetime.timedelta(days=365)
+
         with dag_maker(
             dag_id="test_dagrun_success_callback",
             schedule=datetime.timedelta(days=1),
-            start_date=datetime.datetime(2017, 1, 1),
             on_success_callback=on_success_callable,
             deadline=DeadlineAlert(
-                reference=DeadlineReference.FIXED_DATETIME(DEFAULT_DATE),
+                reference=DeadlineReference.FIXED_DATETIME(future_date),
                 interval=datetime.timedelta(hours=1),
                 callback=test_callback_for_deadline,
             ),
@@ -1277,7 +1278,7 @@ class TestDagRun:
             "test_state_succeeded2": TaskInstanceState.SUCCESS,
         }
 
-        # Scheduler uses Serialized DAG -- so use that instead of the Actual DAG
+        # Scheduler uses Serialized DAG -- so use that instead of the Actual DAG.
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
         dag_run = session.merge(dag_run)
@@ -1979,6 +1980,7 @@ def test_schedule_tis_map_index(dag_maker, session):
     assert ti2.state == TaskInstanceState.SUCCESS
 
 
+@pytest.mark.need_serialized_dag
 def test_schedule_tis_start_trigger(dag_maker, session):
     """
     Test that an operator with start_trigger_args set can be directly deferred during scheduling.
@@ -2001,12 +2003,13 @@ def test_schedule_tis_start_trigger(dag_maker, session):
             pass
 
     with dag_maker(session=session):
-        task = TestOperator(task_id="test_task")
+        TestOperator(task_id="test_task")
 
     dr: DagRun = dag_maker.create_dagrun()
-    dag_version = DagVersion.get_latest_version(dag_id=dr.dag_id)
-    ti = TI(task=task, run_id=dr.run_id, state=None, dag_version_id=dag_version.id)
+    ti = dr.get_task_instance("test_task")
     assert ti.state is None
+
+    ti.task = dr.dag.get_task("test_task")
     dr.schedule_tis((ti,), session=session)
     assert ti.state == TaskInstanceState.DEFERRED
 
@@ -2741,3 +2744,72 @@ def test_dag_run_id_config(session, dag_maker, pattern, run_id, result):
         else:
             with pytest.raises(ValueError):
                 dag_maker.create_dagrun(run_id=run_id, run_type=run_type)
+
+
+def _get_states(dr):
+    """
+    For a given dag run, get a dict of states.
+
+    Example::
+        {
+            "my_setup": "success",
+            "my_teardown": {0: "success", 1: "success", 2: "success"},
+            "my_work": "failed",
+        }
+    """
+    ti_dict = defaultdict(dict)
+    for ti in dr.get_task_instances():
+        if ti.map_index == -1:
+            ti_dict[ti.task_id] = ti.state
+        else:
+            ti_dict[ti.task_id][ti.map_index] = ti.state
+    return dict(ti_dict)
+
+
+@pytest.mark.db_test
+@pytest.mark.need_serialized_dag(False)
+def test_teardown_and_fail_fast(dag_maker):
+    """
+    when fail_fast enabled, teardowns should run according to their setups.
+    in this case, the second teardown skips because its setup skips.
+    """
+    from airflow.sdk import task as task_decorator
+    from airflow.sdk.definitions.taskgroup import TaskGroup
+
+    with dag_maker(fail_fast=True) as dag:
+        for num in (1, 2):
+            with TaskGroup(f"tg_{num}"):
+
+                @task_decorator
+                def my_setup():
+                    print("setting up multiple things")
+                    return [1, 2, 3]
+
+                @task_decorator
+                def my_work(val):
+                    print(f"doing work with multiple things: {val}")
+                    raise ValueError("this fails")
+                    return val
+
+                @task_decorator
+                def my_teardown():
+                    print("teardown")
+
+                s = my_setup()
+                t = my_teardown().as_teardown(setups=s)
+                with t:
+                    my_work(s)
+
+    tg1, tg2 = dag.task_group.children.values()
+    tg1 >> tg2
+
+    dr = dag.test()
+    states = _get_states(dr)
+    assert states == {
+        "tg_1.my_setup": "success",
+        "tg_1.my_teardown": "success",
+        "tg_1.my_work": "failed",
+        "tg_2.my_setup": "skipped",
+        "tg_2.my_teardown": "skipped",
+        "tg_2.my_work": "skipped",
+    }

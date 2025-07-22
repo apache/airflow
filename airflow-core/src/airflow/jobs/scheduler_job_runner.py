@@ -1001,7 +1001,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             self._run_scheduler_loop()
 
-            settings.Session.remove()  # type: ignore
+            settings.Session.remove()
         except Exception:
             self.log.exception("Exception when executing SchedulerJob._run_scheduler_loop")
             raise

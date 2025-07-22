@@ -25,7 +25,7 @@ from collections.abc import Iterator
 if sys.version_info >= (3, 12):
     from importlib import metadata
 else:
-    import importlib_metadata as metadata  # type: ignore[no-redef]
+    import importlib_metadata as metadata
 
 log = logging.getLogger(__name__)
 

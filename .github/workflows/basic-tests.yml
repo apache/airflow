@@ -293,9 +293,13 @@ jobs:
           --hook-stage manual update-installers-and-pre-commit || true
         if: always()
         env:
+          UPGRADE_UV: "true"
+          UPGRADE_PYTHON: "false"
+          UPGRADE_GOLANG: "true"
           UPGRADE_PIP: "false"
           UPGRADE_PRE_COMMIT: "false"
           UPGRADE_NODE_LTS: "false"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: "Run automated upgrade for pip, pre-commit and node (failing if needed)"
         run: >
           pre-commit run
@@ -303,9 +307,13 @@ jobs:
           --hook-stage manual update-installers-and-pre-commit
         if: always()
         env:
+          UPGRADE_UV: "false"
+          UPGRADE_PYTHON: "true"
+          UPGRADE_GOLANG: "false"
           UPGRADE_PIP: "true"
           UPGRADE_PRE_COMMIT: "true"
           UPGRADE_NODE_LTS: "true"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   test-airflow-release-commands:
     timeout-minutes: 80
@@ -356,7 +364,7 @@ jobs:
         run: |
           git remote add apache https://github.com/apache/airflow.git
           git fetch apache --tags
-          breeze release-management generate-providers-metadata --refresh-constraints
+          breeze release-management generate-providers-metadata --refresh-constraints-and-airflow-releases
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: "Fetch all git tags for origin"
