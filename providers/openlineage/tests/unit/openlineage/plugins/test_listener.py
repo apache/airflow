@@ -21,6 +21,7 @@ from collections import defaultdict
 from collections.abc import Callable
 from concurrent.futures import Future
 from contextlib import suppress
+from datetime import datetime
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock, patch
@@ -876,6 +877,8 @@ class TestOpenLineageListenerAirflow2:
     def test_listener_on_dag_run_state_changes(self, mock_emit, method, dag_run_state, create_task_instance):
         mock_executor = MockExecutor()
         ti = create_task_instance(dag_id="dag", task_id="op")
+        ti.start_date = datetime(2020, 1, 1, tzinfo=timezone.utc)
+        ti.end_date = datetime(2020, 1, 1, 1, tzinfo=timezone.utc)
         # Change the state explicitly to set end_date following the logic in the method
         ti.dag_run.set_state(dag_run_state)
         with mock.patch(
@@ -1799,6 +1802,8 @@ class TestOpenLineageListenerAirflow3:
     def test_listener_on_dag_run_state_changes(self, mock_emit, method, dag_run_state, create_task_instance):
         mock_executor = MockExecutor()
         ti = create_task_instance(dag_id="dag", task_id="op")
+        ti.start_date = datetime(2020, 1, 1, tzinfo=timezone.utc)
+        ti.end_date = datetime(2020, 1, 1, 1, tzinfo=timezone.utc)
         # Change the state explicitly to set end_date following the logic in the method
         ti.dag_run.set_state(dag_run_state)
         with mock.patch(

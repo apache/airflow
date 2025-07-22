@@ -734,6 +734,12 @@ def get_airflow_state_run_facet(
         "airflowState": AirflowStateRunFacet(
             dagRunState=dag_run_state,
             tasksState={ti.task_id: ti.state for ti in tis},
+            tasksDuration={
+                ti.task_id: ti.duration
+                if ti.duration is not None
+                else (ti.end_date - ti.start_date).total_seconds()
+                for ti in tis
+            },
         )
     }
 
