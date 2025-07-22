@@ -123,6 +123,17 @@ if [[ ${STANDALONE_DAG_PROCESSOR} == "true" ]]; then
     tmux send-keys 'airflow dag-processor' C-m
 fi
 
+if [[ ${STANDALONE_DAG_PROCESSOR} == "true" ]]; then
+    tmux select-pane -t 2
+    tmux split-window -h
+    tmux set-option -p @airflow_component "Go worker"
+    tmux send-keys "cd go-sdk" C-m
+    tmux send-keys "go run ./example/main.go run \
+  --broker-address=localhost:${REDIS_HOST_PORT} \
+  --queues default \
+  --execution-api-url http://localhost:${REDIS_HOST_PORT}/execution" C-m
+fi
+
 # Attach Session, on the Main window
 tmux select-pane -t 0
 tmux send-keys "/opt/airflow/scripts/in_container/run_tmux_welcome.sh" C-m

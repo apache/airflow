@@ -970,6 +970,13 @@ function environment_initialization() {
         export AIRFLOW__SCHEDULER__STANDALONE_DAG_PROCESSOR=True
     fi
 
+    if [[ ${GO_WORKER=} == "true" ]]; then
+        echo
+        echo "${COLOR_BLUE}Starting go worker${COLOR_RESET}"
+        echo
+        export AIRFLOW__SCHEDULER__GO_WORKER=True
+    fi
+
     RUN_TESTS=${RUN_TESTS:="false"}
     CI=${CI:="false"}
 
