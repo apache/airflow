@@ -55,7 +55,10 @@ class DAGRunClearBody(StrictBaseModel):
 
     dry_run: bool = True
     only_failed: bool = False
-    run_on_latest_version: bool = False
+    run_on_latest_version: bool = Field(
+        default=False,
+        description="(Experimental) Run on the latest bundle version of the DAG after clearing the DAG Run.",
+    )
 
 
 class DAGRunResponse(BaseModel):

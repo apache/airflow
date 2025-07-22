@@ -389,6 +389,9 @@ export type ClearTaskInstancesBody = {
     include_downstream?: boolean;
     include_future?: boolean;
     include_past?: boolean;
+    /**
+     * (Experimental) Run on the latest bundle version of the DAG after clearing the task instances.
+     */
     run_on_latest_version?: boolean;
 };
 
@@ -595,6 +598,9 @@ export type DAGResponse = {
 export type DAGRunClearBody = {
     dry_run?: boolean;
     only_failed?: boolean;
+    /**
+     * (Experimental) Run on the latest bundle version of the DAG after clearing the DAG Run.
+     */
     run_on_latest_version?: boolean;
 };
 
