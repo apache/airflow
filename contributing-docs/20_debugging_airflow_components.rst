@@ -116,35 +116,6 @@ Setting up VSCode for Remote Debugging
    These ports are exposed from the Breeze container to your host machine, allowing your IDE
    to connect to the debugger running inside the container.
 
-Overriding Default Debug Ports
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-You can override the default debug ports by setting environment variables in ``files/airflow-breeze-config/environment_variables.env``:
-
-.. code-block:: bash
-
-    # Override debug ports
-    BREEZE_DEBUG_SCHEDULER_PORT=9888
-    BREEZE_DEBUG_DAG_PROCESSOR_PORT=9889
-    BREEZE_DEBUG_TRIGGERER_PORT=9890
-    BREEZE_DEBUG_APISERVER_PORT=9891
-    BREEZE_DEBUG_CELERY_WORKER_PORT=9892
-    BREEZE_DEBUG_EDGE_PORT=9893
-
-If you override the default ports, make sure to update your VSCode launch configurations
-with the new port numbers.
-
-.. note::
-
-   Run ``python setup_vscode.py`` to automatically create debug configurations for all Airflow components.
-
-When you start Airflow with debugging enabled, Breeze will output information about the debug ports
-in the startup logs. Look for messages like:
-
-.. code-block:: text
-
-    [2024-01-01 12:00:00,000] {scheduler_job.py:123} INFO - Debugger listening on port 50231
-    [2024-01-01 12:00:00,000] {triggerer_job.py:456} INFO - Debugger listening on port 50233
 
 Debugging Workflow
 ------------------
