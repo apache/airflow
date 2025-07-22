@@ -44,7 +44,7 @@ else:
         from airflow.sdk import DAG, chain, task, task_group
     else:
         # Airflow 2.10 compat
-        from airflow.decorators import task, task_group
+        from airflow.decorators import task, task_group  # type: ignore[attr-defined,no-redef]
         from airflow.models.baseoperator import chain
         from airflow.models.dag import DAG
 from airflow.utils.trigger_rule import TriggerRule

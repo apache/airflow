@@ -34,7 +34,11 @@ else:
         from airflow.sdk import DAG, chain, task
     else:
         # Airflow 2.10 compat
-        from airflow.decorators import task
+        try:
+            from airflow.sdk import task
+        except ImportError:
+            # Airflow 2 path
+            from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
         from airflow.models.baseoperator import chain
         from airflow.models.dag import DAG
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
