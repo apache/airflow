@@ -90,6 +90,10 @@ def test_task_sdk_health(tmp_path_factory, monkeypatch):
             console.print(f"[red]Command: {e.cmd}")
             raise
 
+        import importlib
+
+        importlib.invalidate_caches()
+
         # Now import the client after installation
         from airflow.sdk.api.client import Client
 
