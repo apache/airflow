@@ -343,6 +343,10 @@ def get_dag_runs(
     session: SessionDep,
     dag_bag: DagBagDep,
     run_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(DagRun.run_id, "run_id_pattern"))],
+    triggering_user_name_pattern: Annotated[
+        _SearchParam,
+        Depends(search_param_factory(DagRun.triggering_user_name, "triggering_user_name_pattern")),
+    ],
 ) -> DAGRunCollectionResponse:
     """
     Get all DAG Runs.
@@ -370,6 +374,7 @@ def get_dag_runs(
             run_type,
             readable_dag_runs_filter,
             run_id_pattern,
+            triggering_user_name_pattern,
         ],
         order_by=order_by,
         offset=offset,
