@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-22T13:53:22.750225
+# This constraints file was automatically generated on 2025-07-22T19:43:53.205462
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -187,7 +187,7 @@ email_validator==2.2.0
 entrypoints==0.4
 eralchemy2==1.4.1
 et_xmlfile==2.0.0
-eventlet==0.40.1
+eventlet==0.40.2
 execnet==2.1.1
 executing==2.2.0
 facebook_business==23.0.1
@@ -401,9 +401,9 @@ oauthlib==3.3.1
 openai==1.97.1
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
-openlineage-integration-common==1.35.0
-openlineage-python==1.35.0
-openlineage_sql==1.35.0
+openlineage-integration-common==1.36.0
+openlineage-python==1.36.0
+openlineage_sql==1.36.0
 openpyxl==3.1.5
 opensearch-py==3.0.0
 opentelemetry-api==1.35.0
