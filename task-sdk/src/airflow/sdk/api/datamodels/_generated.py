@@ -102,23 +102,6 @@ class ConnectionResponse(BaseModel):
     extra: Annotated[str | None, Field(title="Extra")] = None
 
 
-class CreateHITLDetailPayload(BaseModel):
-    """
-    Add the input request part of a Human-in-the-loop response.
-    """
-
-    ti_id: Annotated[UUID, Field(title="Ti Id")]
-    options: Annotated[list[str], Field(title="Options")]
-    subject: Annotated[str, Field(title="Subject")]
-    body: Annotated[str | None, Field(title="Body")] = None
-    defaults: Annotated[list[str] | None, Field(title="Defaults")] = None
-    multiple: Annotated[bool | None, Field(title="Multiple")] = False
-    params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
-    type: Annotated[Literal["CreateHITLDetailPayload"] | None, Field(title="Type")] = (
-        "CreateHITLDetailPayload"
-    )
-
-
 class DagRunAssetReference(BaseModel):
     """
     DagRun serializer for asset responses.
@@ -368,15 +351,14 @@ class TriggerDAGRunPayload(BaseModel):
     reset_dag_run: Annotated[bool | None, Field(title="Reset Dag Run")] = False
 
 
-class UpdateHITLDetail(BaseModel):
+class UpdateHITLDetailPayload(BaseModel):
     """
-    Update the response content part of an existing Human-in-the-loop response.
+    Schema for writing the response part of a Human-in-the-loop detail for a specific task instance.
     """
 
     ti_id: Annotated[UUID, Field(title="Ti Id")]
     chosen_options: Annotated[list[str], Field(title="Chosen Options")]
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
-    type: Annotated[Literal["UpdateHITLDetail"] | None, Field(title="Type")] = "UpdateHITLDetail"
 
 
 class ValidationError(BaseModel):
