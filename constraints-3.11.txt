@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-21T13:58:20.559259
+# This constraints file was automatically generated on 2025-07-22T07:56:26.144078
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -770,7 +770,7 @@ types-aiofiles==24.1.0.20250708
 types-certifi==2021.10.8.3
 types-cffi==1.17.0.20250523
 types-croniter==6.0.0.20250626
-types-docutils==0.21.0.20250715
+types-docutils==0.21.0.20250722
 types-paramiko==3.5.0.20250708
 types-protobuf==6.30.2.20250703
 types-pyOpenSSL==24.1.0.20240722
@@ -820,6 +820,6 @@ ydb==3.21.6
 zeep==4.3.1
 zenpy==2.0.56
 zipp==3.23.0
-zope.event==5.1
+zope.event==5.1.1
 zope.interface==7.2
 zstandard==0.23.0

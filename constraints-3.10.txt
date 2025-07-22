@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-21T13:58:25.513964
+# This constraints file was automatically generated on 2025-07-22T07:59:20.315215
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -514,7 +514,7 @@ mypy-boto3-redshift-data==1.39.0
 mypy-boto3-s3==1.39.5
 mypy==1.17.0
 mypy_extensions==1.1.0
-mysql-connector-python==9.3.0
+mysql-connector-python==9.4.0
 mysqlclient==2.2.7
 nbclient==0.10.2
 nbconvert==7.16.6
@@ -771,7 +771,7 @@ types-aiofiles==24.1.0.20250708
 types-certifi==2021.10.8.3
 types-cffi==1.17.0.20250523
 types-croniter==6.0.0.20250626
-types-docutils==0.21.0.20250715
+types-docutils==0.21.0.20250722
 types-paramiko==3.5.0.20250708
 types-protobuf==6.30.2.20250703
 types-pyOpenSSL==24.1.0.20240722
@@ -821,6 +821,6 @@ ydb==3.21.6
 zeep==4.3.1
 zenpy==2.0.56
 zipp==3.23.0
-zope.event==5.1
+zope.event==5.1.1
 zope.interface==7.2
 zstandard==0.23.0
