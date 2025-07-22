@@ -97,6 +97,11 @@ namespace-packages = ["src/airflow"]
 
 [tool.ruff.lint.per-file-ignores]
 
+# Allow Task SDK to import from its own modules (prevents TID251 violations)
+"src/**" = ["TID251"]
+"tests/**" = ["TID251"]
+"docs/**" = ["TID251"]
+
 # Ignore Doc rules et al for anything outside of tests
 "!src/*" = ["D", "TID253", "S101", "TRY002"]
 

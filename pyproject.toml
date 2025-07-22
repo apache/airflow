@@ -802,9 +802,6 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 # mechanism and whole .pyi is really "type-checking" only
 "providers/common/sql/src/airflow/providers/common/sql/hooks/sql.pyi" = ["TID253"]
 
-# Allow Task SDK and its tests to import from task SDK
-"task-sdk/**" = ["TID251"]
-
 # Example dags will be using imports from task SDK
 "airflow-core/src/airflow/example_dags/*" = ["TID251"]
 
