@@ -942,7 +942,7 @@ class KubernetesPodOperator(BaseOperator):
         finally:
             self._clean(event=event, context=context, result=xcom_sidecar_output)
 
-    def _clean(self, event: dict[str, Any], result: dict, context: Context) -> None:
+    def _clean(self, event: dict[str, Any], result: dict | None, context: Context) -> None:
         if event["status"] == "running":
             return
         istio_enabled = self.is_istio_enabled(self.pod)
@@ -997,7 +997,7 @@ class KubernetesPodOperator(BaseOperator):
             )
 
     def post_complete_action(
-        self, *, pod: k8s.V1Pod, remote_pod: k8s.V1Pod, context: Context, result: dict, **kwargs
+        self, *, pod: k8s.V1Pod, remote_pod: k8s.V1Pod, context: Context, result: dict | None, **kwargs
     ) -> None:
         """Actions that must be done after operator finishes logic of the deferrable_execution."""
         self.cleanup(
