@@ -214,8 +214,9 @@ class TestDataprocClusterTrigger:
         return_value=asyncio.Future(),
     )
     @mock.patch("google.auth.default")
+    @mock.patch.object(DataprocClusterTrigger, "log")
     async def test_async_cluster_trigger_run_returns_error_event(
-        self, mock_auth, mock_delete_cluster, mock_fetch_cluster, cluster_trigger, async_get_cluster, caplog
+        self, mock_log, mock_auth, mock_delete_cluster, mock_fetch_cluster, cluster_trigger, caplog
     ):
         mock_credentials = mock.MagicMock()
         mock_credentials.universe_domain = "googleapis.com"
