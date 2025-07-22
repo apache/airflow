@@ -22,6 +22,7 @@ paths:
                 $ref: '#/components/schemas/MenuItemCollectionResponse'
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /ui/next_run_assets/{dag_id}:
     get:
       tags:
@@ -30,6 +31,7 @@ paths:
       operationId: next_run_assets
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -74,6 +76,7 @@ paths:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /ui/connections/hook_meta:
     get:
       tags:
@@ -94,6 +97,7 @@ paths:
                 title: Response Hook Meta Data
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /ui/dags:
     get:
       tags:
@@ -103,6 +107,7 @@ paths:
       operationId: get_dags_ui
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_runs_limit
         in: query
@@ -248,6 +253,7 @@ paths:
       operationId: get_dependencies
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: node_id
         in: query
@@ -285,6 +291,7 @@ paths:
       operationId: historical_metrics
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: start_date
         in: query
@@ -335,6 +342,7 @@ paths:
                 $ref: '#/components/schemas/DashboardDagStatsResponse'
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /ui/structure/structure_data:
     get:
       tags:
@@ -344,6 +352,7 @@ paths:
       operationId: structure_data
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: query
@@ -415,6 +424,7 @@ paths:
       operationId: list_backfills_ui
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: limit
         in: query
@@ -483,6 +493,7 @@ paths:
       operationId: get_dag_structure
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -568,6 +579,7 @@ paths:
       operationId: get_grid_runs
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -675,6 +687,7 @@ paths:
       operationId: get_grid_ti_summaries
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -726,6 +739,7 @@ paths:
       operationId: get_latest_run
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -771,6 +785,7 @@ paths:
       operationId: get_calendar
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -2159,3 +2174,6 @@ components:
         password:
           scopes: {}
           tokenUrl: /auth/token
+    HTTPBearer:
+      type: http
+      scheme: bearer
