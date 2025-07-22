@@ -1566,7 +1566,7 @@ repos:
           uv run -p 3.12 --no-dev --no-progress --active --group codegen --project apache-airflow-ctl --directory airflow-ctl/ datamodel-codegen &&
            uv run -p 3.12 --no-dev --no-progress --active --group codegen --project apache-airflow-ctl --directory airflow-ctl/ datamodel-codegen --input="../airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/v2-simple-auth-manager-generated.yaml" --output="src/airflowctl/api/datamodels/auth_generated.py"'
         pass_filenames: false
-        files: ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/.*\.py$|^airflow-core/src/airflow/api_fastapi/auth/managers/simple/datamodels/.*\.py$
+        files: ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/.*\.py$| ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/(datamodels|routes|services|openapi)/.*\.py$
         require_serial: true
       - id: update-er-diagram
         name: Update ER diagram
