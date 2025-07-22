@@ -51,7 +51,7 @@ The setup tasks will set up the project and configure the test runner to emulate
 Then, the SageMakerNotebookOperator will run a test notebook. This should spin up a SageMaker training job, run the notebook, and exit successfully.
 """
 
-DAG_ID = "example_sagemaker_unified_studios"
+DAG_ID = "example_sagemaker_unified_studio"
 
 # Externally fetched variables:
 DOMAIN_ID_KEY = "DOMAIN_ID"
