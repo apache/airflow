@@ -77,7 +77,7 @@ def action_logging(event: str | None = None):
     async def log_action(
         request: Request,
         session: SessionDep,
-        user: BaseUser = Security(get_user),
+        user: GetUserDep,
     ):
         """Log user actions."""
         event_name = event or request.scope["endpoint"].__name__
