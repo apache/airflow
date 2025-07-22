@@ -21,7 +21,8 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.api_fastapi.common.dagbag import create_dag_bag, dag_bag_from_app
+from airflow.api_fastapi.common.dagbag import dag_bag_from_app
+from airflow.jobs.scheduler_job_runner import SchedulerDagBag
 from airflow.utils import timezone
 from airflow.utils.state import State
 
@@ -106,9 +107,7 @@ class TestTIUpdateState:
             start_date=instant,
         )
 
-        dag = ti.task.dag
-        dagbag = create_dag_bag()
-        dagbag.dags = {dag.dag_id: dag}
+        dagbag = SchedulerDagBag()
         execution_app = get_execution_app(ver_client)
         execution_app.dependency_overrides[dag_bag_from_app] = lambda: dagbag
         session.commit()

@@ -1480,8 +1480,7 @@ class TestDag:
 
     def test_dag_test_basic(self):
         dag = DAG(dag_id="test_local_testing_conn_file", schedule=None, start_date=DEFAULT_DATE)
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+
         mock_object = mock.MagicMock()
 
         @task_decorator
@@ -1491,14 +1490,14 @@ class TestDag:
 
         with dag:
             check_task()
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
 
         dag.test()
         mock_object.assert_called_once()
 
     def test_dag_test_with_dependencies(self):
         dag = DAG(dag_id="test_local_testing_conn_file", schedule=None, start_date=DEFAULT_DATE)
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
         mock_object = mock.MagicMock()
 
         @task_decorator
@@ -1512,6 +1511,9 @@ class TestDag:
 
         with dag:
             check_task_2(check_task())
+
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
 
         dag.test()
         mock_object.assert_called_with("output of first task")
@@ -1538,8 +1540,6 @@ class TestDag:
 
         mock_task_object_1 = mock.MagicMock()
         mock_task_object_2 = mock.MagicMock()
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
 
         @task_decorator
         def check_task():
@@ -1553,7 +1553,8 @@ class TestDag:
 
         with dag:
             check_task_2(check_task())
-
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
         dr = dag.test()
 
         ti1 = dr.get_task_instance("check_task")

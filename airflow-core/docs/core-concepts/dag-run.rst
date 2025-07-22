@@ -167,6 +167,8 @@ the errors after going through the logs, you can re-run the tasks by clearing th
 scheduled date. Clearing a task instance creates a record of the task instance.
 The ``try_number`` of the current task instance is incremented, the ``max_tries`` set to ``0`` and the state set to ``None``, which causes the task to re-run.
 
+An experimental feature in Airflow 3.1.0 allows you to clear the task instances and re-run with the latest bundle version.
+
 Click on the failed task in the Tree or Graph views and then click on **Clear**.
 The executor will re-run it.
 
