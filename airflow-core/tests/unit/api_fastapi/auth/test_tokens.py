@@ -243,7 +243,7 @@ async def test_jwt_generate_validate_roundtrip_with_jwks(private_key, algorithm,
 def test_is_cookie_secure(request_scheme: str, api_ssl_cert_setting: str, expected: bool) -> None:
     from tests_common.test_utils.config import conf_vars
 
-    with conf_vars({("api", "ssl_cert"): str(api_ssl_cert_setting)}):
+    with conf_vars({("api", "ssl_cert"): api_ssl_cert_setting}):
         actual = is_cookie_secure(request_scheme=request_scheme)
         assert actual == expected
 
