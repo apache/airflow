@@ -33,7 +33,6 @@ from airflow.sdk.execution_time import secrets_masker
 
 logger = logging.getLogger(__name__)
 
-GetUserDep = Annotated[BaseUser, Depends(get_user)]
 
 
 def _mask_connection_fields(extra_fields):
