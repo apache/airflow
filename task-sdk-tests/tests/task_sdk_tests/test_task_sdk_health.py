@@ -17,14 +17,13 @@
 from __future__ import annotations
 
 import os
-import subprocess
 from pathlib import Path
 from shutil import copyfile
 
 from python_on_whales import DockerClient, docker
 from rich.console import Console
 
-from task_sdk_tests.constants import AIRFLOW_ROOT_PATH, TASK_SDK_API_VERSION, TASK_SDK_HOST_PORT
+from task_sdk_tests.constants import TASK_SDK_API_VERSION, TASK_SDK_HOST_PORT
 
 console = Console(width=400, color_system="standard")
 
@@ -99,7 +98,7 @@ def debug_environment():
     console.print("[yellow]================================")
 
 
-def test_task_sdk_health(tmp_path_factory, monkeypatch):
+def test_task_sdk_health(tmp_path_factory, monkeypatch, install_task_sdk):
     """Test Task SDK health check using docker-compose environment."""
     tmp_dir = tmp_path_factory.mktemp("airflow-task-sdk-test")
     console.print(f"[yellow]Tests are run in {tmp_dir}")
@@ -122,83 +121,18 @@ def test_task_sdk_health(tmp_path_factory, monkeypatch):
         compose.compose.up(detach=True, wait=True)
         console.print("[green]Docker compose started for task SDK test")
 
-        task_sdk_version = os.environ.get("TASK_SDK_VERSION", "1.1.0")
-        console.print(f"[yellow]Installing apache-airflow-task-sdk=={task_sdk_version}...")
-
-        # Right now 1.1.0 is not yet released, and attempting to install 1.0.3 with 3.1.0 with fail due to an imcompat.
-        # For now, installing from local path, will update once the compatibility is regained in 3.1.0
-
-        task_sdk_path = AIRFLOW_ROOT_PATH / "task-sdk"
-        console.print(f"[blue]Installing from: {task_sdk_path}")
+        # Task SDK is already installed via fixture, so we can import it directly
+        console.print("[yellow]Importing Task SDK client (installed via fixture)...")
 
         try:
-            import sys
+            from airflow.sdk.api.client import Client
 
-            # Install directly to current UV environment (no --python flag needed)
-            # When running under `uv run pytest`, we're already in UV's isolated environment
-            console.print("[blue]Installing to current UV environment...")
-            console.print(f"[blue]Current Python: {sys.executable}")
-
-            try:
-                # Install to current environment without --python flag
-                cmd = ["uv", "pip", "install", str(task_sdk_path)]
-                console.print(f"[cyan]Running command: {' '.join(cmd)}")
-                subprocess.check_call(cmd)
-                console.print("[green]Task SDK installed successfully to UV environment!")
-            except (subprocess.CalledProcessError, FileNotFoundError) as uv_error:
-                console.print(f"[yellow]UV installation failed: {uv_error}")
-                console.print("[yellow]Trying fallback with pip in current environment...")
-
-                # Fallback to pip in current environment
-                cmd = [sys.executable, "-m", "pip", "install", str(task_sdk_path)]
-                console.print(f"[cyan]Running fallback command: {' '.join(cmd)}")
-                subprocess.check_call(cmd)
-                console.print("[green]Task SDK installed successfully with pip!")
-
-        except subprocess.CalledProcessError as e:
-            console.print(f"[red]Failed to install Task SDK: {e}")
-            console.print(f"[red]Command: {e.cmd}")
+            console.print("[green]✅ Task SDK client imported successfully!")
+        except ImportError as e:
+            console.print(f"[red]❌ Failed to import Task SDK client: {e}")
             raise
 
-        import importlib
-        import sys
-
-        # Force refresh of import system
-        importlib.invalidate_caches()
-
-        # Verify installation by checking if the package is actually installed
-        console.print("[yellow]Verifying installation...")
-        try:
-            result = subprocess.run(
-                [sys.executable, "-c", "import airflow.sdk.api.client; print('✅ Import successful')"],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-            console.print(f"[green]{result.stdout.strip()}")
-        except subprocess.CalledProcessError as e:
-            console.print("[red]❌ Import verification failed:")
-            console.print(f"[red]Return code: {e.returncode}")
-            console.print(f"[red]Stdout: {e.stdout}")
-            console.print(f"[red]Stderr: {e.stderr}")
-
-            # Try to see what's actually installed
-            try:
-                list_result = subprocess.run(
-                    [sys.executable, "-m", "pip", "show", "apache-airflow-task-sdk"],
-                    capture_output=True,
-                    text=True,
-                    check=False,
-                )
-                console.print(f"[blue]Package info: {list_result.stdout}")
-            except Exception as show_error:
-                console.print(f"[red]Could not get package info: {show_error}")
-
-            raise
-
-        # Now import the client after installation
-        from airflow.sdk.api.client import Client
-
+        # Create client and make health check request
         client = Client(base_url=f"http://{TASK_SDK_HOST_PORT}/execution", token="not-a-token")
 
         console.print("[yellow]Making health check request...")
