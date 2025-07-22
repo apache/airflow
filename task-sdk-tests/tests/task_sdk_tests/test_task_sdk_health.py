@@ -65,11 +65,21 @@ def debug_environment():
     console.print(f"[blue]VIRTUAL_ENV: {os.environ.get('VIRTUAL_ENV', 'Not set')}")
     console.print(f"[blue]PYTHONPATH: {os.environ.get('PYTHONPATH', 'Not set')}")
 
+    # Check if Python executable exists and what it points to
+    console.print(f"[blue]Python executable exists: {Path(sys.executable).exists()}")
+    if Path(sys.executable).is_symlink():
+        console.print(f"[blue]Python executable is symlink to: {Path(sys.executable).readlink()}")
+
     # Check what UV sees
     try:
         uv_python = subprocess.check_output(["uv", "python", "find"], text=True).strip()
         console.print(f"[cyan]UV Python: {uv_python}")
         console.print(f"[green]Match: {uv_python == sys.executable}")
+
+        # Check if UV's Python exists and what it points to
+        console.print(f"[cyan]UV Python exists: {Path(uv_python).exists()}")
+        if Path(uv_python).is_symlink():
+            console.print(f"[cyan]UV Python is symlink to: {Path(uv_python).readlink()}")
     except Exception as e:
         console.print(f"[red]UV Python error: {e}")
 
@@ -80,6 +90,11 @@ def debug_environment():
         console.print(f"[green]✅ airflow already available: {airflow.__file__}")
     except ImportError:
         console.print("[red]❌ airflow not available in current environment")
+
+    # Check if we can import sys after UV operations
+    console.print("[blue]sys.path first few entries:")
+    for i, path in enumerate(sys.path[:5]):
+        console.print(f"  {i}: {path}")
 
     console.print("[yellow]================================")
 
@@ -123,8 +138,30 @@ def test_task_sdk_health(tmp_path_factory, monkeypatch):
         try:
             import sys
 
-            subprocess.check_call(["uv", "pip", "install", "--python", sys.executable, str(task_sdk_path)])
-            console.print("[green]Task SDK installed successfully!")
+            # Ensure UV uses the exact same Python executable as the current test
+            # by using the absolute path and verifying it exists
+            python_exec = sys.executable
+            if not Path(python_exec).exists():
+                console.print(f"[red]Python executable not found: {python_exec}")
+                raise FileNotFoundError(f"Python executable not found: {python_exec}")
+
+            console.print(f"[blue]Using Python executable: {python_exec}")
+
+            try:
+                cmd = ["uv", "pip", "install", "--python", python_exec, str(task_sdk_path)]
+                console.print(f"[cyan]Running command: {' '.join(cmd)}")
+                subprocess.check_call(cmd)
+                console.print("[green]Task SDK installed successfully with UV!")
+            except (subprocess.CalledProcessError, FileNotFoundError) as uv_error:
+                console.print(f"[yellow]UV installation failed: {uv_error}")
+                console.print("[yellow]Trying fallback with regular pip...")
+
+                # Fallback to regular pip using the exact same Python executable
+                cmd = [python_exec, "-m", "pip", "install", str(task_sdk_path)]
+                console.print(f"[cyan]Running fallback command: {' '.join(cmd)}")
+                subprocess.check_call(cmd)
+                console.print("[green]Task SDK installed successfully with pip!")
+
         except subprocess.CalledProcessError as e:
             console.print(f"[red]Failed to install Task SDK: {e}")
             console.print(f"[red]Command: {e.cmd}")
