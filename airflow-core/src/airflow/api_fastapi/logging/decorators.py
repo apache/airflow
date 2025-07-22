@@ -27,7 +27,7 @@ from pendulum.parsing.exceptions import ParserError
 
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.common.db.common import SessionDep
-from airflow.api_fastapi.core_api.security import get_user
+from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.models import Log
 from airflow.sdk.execution_time import secrets_masker
 
