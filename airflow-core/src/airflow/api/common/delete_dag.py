@@ -71,16 +71,16 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session: Session =
     models_for_deletion = [TaskInstance, DagRun] + [
         model
         for model in get_sqla_model_classes()
-        if hasattr(model, "dag_id")
-        and (not keep_records_in_log or model.__name__ != "Log")
+        if (not keep_records_in_log or model.__name__ != "Log")
         and model.__name__ not in ["TaskInstance", "DagRun"]
     ]
 
     count = 0
     for model in models_for_deletion:
-        count += session.execute(
-            delete(model).where(model.dag_id == dag_id).execution_options(synchronize_session="fetch")
-        ).rowcount
+        if hasattr(model, "dag_id"):
+            count += session.execute(
+                delete(model).where(model.dag_id == dag_id).execution_options(synchronize_session="fetch")
+            ).rowcount
 
     # Delete entries in Import Errors table for a deleted DAG
     # This handles the case when the dag_id is changed in the file
