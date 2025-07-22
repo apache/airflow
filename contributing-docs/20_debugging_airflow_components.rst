@@ -112,12 +112,13 @@ Setting up VSCode for Remote Debugging
    Each component uses a different debug port. These ports are automatically assigned by Breeze
    when you start Airflow with debugging enabled:
 
-   * **Scheduler**: 50231 - Main scheduler process that monitors DAGs and triggers task instances
-   * **DAG Processor**: 50232 - Standalone DAG processor service (when enabled)
-   * **Triggerer**: 50233 - Triggerer service that handles deferred tasks and triggers
-   * **API Server**: 50234 - Airflow REST API server for web interface and API calls
-   * **Celery Worker**: 50235 - Celery worker processes (when using CeleryExecutor)
-   * **Edge Worker**: 50236 - Edge worker service (when using EdgeExecutor)
+   * **Scheduler**: 50231
+   * **DAG Processor**: 50232
+   * **Triggerer**: 50233
+   * **API Server**: 50234
+   * **Celery Worker**: 50235
+   * **Edge Worker**: 50236
+   * **Web Server**: 50237
 
    These ports are exposed from the Breeze container to your host machine, allowing your IDE
    to connect to the debugger running inside the container.
