@@ -134,38 +134,26 @@ def test_task_sdk_health(tmp_path_factory, monkeypatch):
         try:
             import sys
 
-            # Try the exact Python executable that pytest is using first
-            python_exec = sys.executable
-            console.print(f"[blue]Using Python executable: {python_exec}")
+            # Install directly to current UV environment (no --python flag needed)
+            # When running under `uv run pytest`, we're already in UV's isolated environment
+            console.print("[blue]Installing to current UV environment...")
+            console.print(f"[blue]Current Python: {sys.executable}")
 
             try:
-                cmd = ["uv", "pip", "install", "--python", python_exec, str(task_sdk_path)]
+                # Install to current environment without --python flag
+                cmd = ["uv", "pip", "install", str(task_sdk_path)]
                 console.print(f"[cyan]Running command: {' '.join(cmd)}")
                 subprocess.check_call(cmd)
-                console.print("[green]Task SDK installed successfully with UV!")
+                console.print("[green]Task SDK installed successfully to UV environment!")
             except (subprocess.CalledProcessError, FileNotFoundError) as uv_error:
-                console.print(f"[yellow]UV installation failed with original path: {uv_error}")
+                console.print(f"[yellow]UV installation failed: {uv_error}")
+                console.print("[yellow]Trying fallback with pip in current environment...")
 
-                # Try with resolved path as fallback
-                resolved_python = str(Path(sys.executable).resolve())
-                if resolved_python != python_exec:
-                    console.print(f"[yellow]Trying with resolved path: {resolved_python}")
-                    try:
-                        cmd = ["uv", "pip", "install", "--python", resolved_python, str(task_sdk_path)]
-                        subprocess.check_call(cmd)
-                        console.print("[green]Task SDK installed successfully with UV using resolved path!")
-                    except (subprocess.CalledProcessError, FileNotFoundError):
-                        console.print("[yellow]UV failed, trying fallback with regular pip...")
-                        cmd = [python_exec, "-m", "pip", "install", str(task_sdk_path)]
-                        console.print(f"[cyan]Running fallback command: {' '.join(cmd)}")
-                        subprocess.check_call(cmd)
-                        console.print("[green]Task SDK installed successfully with pip!")
-                else:
-                    console.print("[yellow]Trying fallback with regular pip...")
-                    cmd = [python_exec, "-m", "pip", "install", str(task_sdk_path)]
-                    console.print(f"[cyan]Running fallback command: {' '.join(cmd)}")
-                    subprocess.check_call(cmd)
-                    console.print("[green]Task SDK installed successfully with pip!")
+                # Fallback to pip in current environment
+                cmd = [sys.executable, "-m", "pip", "install", str(task_sdk_path)]
+                console.print(f"[cyan]Running fallback command: {' '.join(cmd)}")
+                subprocess.check_call(cmd)
+                console.print("[green]Task SDK installed successfully with pip!")
 
         except subprocess.CalledProcessError as e:
             console.print(f"[red]Failed to install Task SDK: {e}")
@@ -182,7 +170,7 @@ def test_task_sdk_health(tmp_path_factory, monkeypatch):
         console.print("[yellow]Verifying installation...")
         try:
             result = subprocess.run(
-                [python_exec, "-c", "import airflow.sdk.api.client; print('✅ Import successful')"],
+                [sys.executable, "-c", "import airflow.sdk.api.client; print('✅ Import successful')"],
                 capture_output=True,
                 text=True,
                 check=True,
@@ -197,7 +185,7 @@ def test_task_sdk_health(tmp_path_factory, monkeypatch):
             # Try to see what's actually installed
             try:
                 list_result = subprocess.run(
-                    [python_exec, "-m", "pip", "show", "apache-airflow-task-sdk"],
+                    [sys.executable, "-m", "pip", "show", "apache-airflow-task-sdk"],
                     capture_output=True,
                     text=True,
                     check=False,
@@ -207,13 +195,6 @@ def test_task_sdk_health(tmp_path_factory, monkeypatch):
                 console.print(f"[red]Could not get package info: {show_error}")
 
             raise
-
-        # Force reload sys.path and modules if needed
-        if "/home/runner/work/airflow/airflow/.venv/lib/python3.10/site-packages" not in sys.path:
-            venv_site_packages = f"{python_exec}".replace("/bin/python", "/lib/python3.10/site-packages")
-            if Path(venv_site_packages).exists():
-                sys.path.insert(0, venv_site_packages)
-                console.print(f"[blue]Added to sys.path: {venv_site_packages}")
 
         # Now import the client after installation
         from airflow.sdk.api.client import Client
