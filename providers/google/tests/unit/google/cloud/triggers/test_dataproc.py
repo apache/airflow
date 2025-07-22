@@ -54,6 +54,14 @@ TEST_OPERATION_NAME = "name"
 TEST_JOB_ID = "test-job-id"
 RETRY = mock.MagicMock(Retry)
 METADATA = [("key", "value")]
+TEST_RUNNING_CLUSTER = Cluster(
+    cluster_name=TEST_CLUSTER_NAME,
+    status=ClusterStatus(state=ClusterStatus.State.RUNNING),
+)
+TEST_ERROR_CLUSTER = Cluster(
+    cluster_name=TEST_CLUSTER_NAME,
+    status=ClusterStatus(state=ClusterStatus.State.ERROR),
+)
 
 
 @pytest.fixture
