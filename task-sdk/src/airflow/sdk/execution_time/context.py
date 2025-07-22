@@ -200,6 +200,17 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
     from airflow.sdk.execution_time.comms import ErrorResponse, GetVariable
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
+    if SUPERVISOR_COMMS is None:
+        # if this happens, that means that we are not in task_runner scope and most likely are in the
+        # dag parser scope, which means that SUPERVISOR_COMMS won't work as it connects to a socket on the
+        # task_runner, and hence we throw the notfound error, during runtime, the variable might work
+        raise AirflowRuntimeError(
+            ErrorResponse(
+                error=ErrorType.VARIABLE_NOT_FOUND,
+                detail={"message": "Variable not found in any airflow backend"},
+            )
+        )
+
     msg = SUPERVISOR_COMMS.send(GetVariable(key=key))
 
     if isinstance(msg, ErrorResponse):
@@ -221,7 +232,7 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
 
     from airflow.sdk.execution_time.comms import PutVariable
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
-    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+    from airflow.sdk.execution_time.supervisor_comms import SUPERVISOR_COMMS
 
     # check for write conflicts on the worker
     for secrets_backend in ensure_secrets_backend_loaded():
