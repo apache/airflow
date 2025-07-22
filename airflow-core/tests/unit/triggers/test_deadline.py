@@ -21,13 +21,20 @@ from unittest import mock
 
 import pytest
 
-from airflow.triggers.deadline import DeadlineCallbackTrigger
+from airflow.models.deadline import DeadlineCallbackState
+from airflow.triggers.deadline import PAYLOAD_BODY_KEY, PAYLOAD_STATUS_KEY, DeadlineCallbackTrigger
 
 TEST_CALLBACK_PATH = "classpath.test_callback_for_deadline"
 TEST_CALLBACK_KWARGS = {"arg1": "value1"}
+TEST_TRIGGER = DeadlineCallbackTrigger(callback_path=TEST_CALLBACK_PATH, callback_kwargs=TEST_CALLBACK_KWARGS)
 
 
 class TestDeadlineCallbackTrigger:
+    @pytest.fixture
+    def mock_import_string(self):
+        with mock.patch("airflow.triggers.deadline.import_string") as m:
+            yield m
+
     @pytest.mark.parametrize(
         "callback_init_kwargs,expected_serialized_kwargs",
         [
@@ -49,20 +56,54 @@ class TestDeadlineCallbackTrigger:
         }
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.triggers.deadline.import_string")
-    async def test_run(self, mock_import_string):
+    async def test_run_success(self, mock_import_string):
         callback_return_value = "some value"
         mock_callback = mock.AsyncMock(return_value=callback_return_value)
         mock_import_string.return_value = mock_callback
 
-        trigger = DeadlineCallbackTrigger(
-            callback_path=TEST_CALLBACK_PATH,
-            callback_kwargs=TEST_CALLBACK_KWARGS,
-        )
-
-        event = await trigger.run().asend(None)
+        event = await TEST_TRIGGER.run().asend(None)
 
         mock_import_string.assert_called_once_with(TEST_CALLBACK_PATH)
         mock_callback.assert_called_once_with(**TEST_CALLBACK_KWARGS)
 
-        assert event.payload == {"status": "success", "result": callback_return_value}
+        assert event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.SUCCESS
+        assert event.payload[PAYLOAD_BODY_KEY] == callback_return_value
+
+    @pytest.mark.asyncio
+    async def test_run_import_error(self, mock_import_string):
+        mock_import_string.side_effect = ImportError("No module named 'classpath'")
+
+        event = await TEST_TRIGGER.run().asend(None)
+
+        mock_import_string.assert_called_once_with(TEST_CALLBACK_PATH)
+
+        assert event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.NOT_FOUND
+        assert PAYLOAD_BODY_KEY in event.payload
+
+    @pytest.mark.asyncio
+    async def test_run_not_awaitable(self, mock_import_string):
+        mock_callback = mock.AsyncMock(
+            side_effect=TypeError("object str can't be used in 'await' expression")
+        )
+        mock_import_string.return_value = mock_callback
+
+        event = await TEST_TRIGGER.run().asend(None)
+
+        mock_import_string.assert_called_once_with(TEST_CALLBACK_PATH)
+        mock_callback.assert_called_once_with(**TEST_CALLBACK_KWARGS)
+
+        assert event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.NOT_AWAITABLE
+        assert PAYLOAD_BODY_KEY in event.payload
+
+    @pytest.mark.asyncio
+    async def test_run_other_failure(self, mock_import_string):
+        mock_callback = mock.AsyncMock(side_effect=RuntimeError("Something went wrong"))
+        mock_import_string.return_value = mock_callback
+
+        event = await TEST_TRIGGER.run().asend(None)
+
+        mock_import_string.assert_called_once_with(TEST_CALLBACK_PATH)
+        mock_callback.assert_called_once_with(**TEST_CALLBACK_KWARGS)
+
+        assert event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.OTHER_FAILURE
+        assert PAYLOAD_BODY_KEY in event.payload

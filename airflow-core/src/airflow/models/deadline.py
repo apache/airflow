@@ -20,6 +20,7 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 import sqlalchemy_jsonfield
@@ -32,7 +33,7 @@ from sqlalchemy_utils import UUIDType
 from airflow.models import Trigger
 from airflow.models.base import Base, StringID
 from airflow.settings import json
-from airflow.triggers.deadline import DeadlineCallbackTrigger
+from airflow.triggers.deadline import PAYLOAD_BODY_KEY, PAYLOAD_STATUS_KEY, DeadlineCallbackTrigger
 from airflow.utils import timezone
 from airflow.utils.decorators import classproperty
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -46,6 +47,16 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
+
+
+class DeadlineCallbackState(str, Enum):
+    """All possible states of deadline callbacks."""
+
+    QUEUED = "queued"
+    SUCCESS = "success"
+    NOT_FOUND = "not_found"
+    NOT_AWAITABLE = "not_awaitable"
+    OTHER_FAILURE = "failed"
 
 
 class Deadline(Base):
@@ -65,6 +76,8 @@ class Deadline(Base):
     callback = Column(String(500), nullable=False)
     # Serialized kwargs to pass to the callback.
     callback_kwargs = Column(sqlalchemy_jsonfield.JSONField(json=json))
+    # The state of the deadline callback
+    callback_state = Column(String(20))
 
     dagrun = relationship("DagRun", back_populates="deadlines")
 
@@ -72,7 +85,7 @@ class Deadline(Base):
     trigger_id = Column(Integer, ForeignKey("trigger.id"), nullable=True)
     trigger = relationship("Trigger", back_populates="deadline")
 
-    __table_args__ = (Index("deadline_time_idx", deadline_time, unique=False),)
+    __table_args__ = (Index("deadline_callback_state_time_idx", callback_state, deadline_time, unique=False),)
 
     def __init__(
         self,
@@ -159,7 +172,7 @@ class Deadline(Base):
         return deleted_count
 
     def handle_miss(self, session: Session):
-        """Handle a missed deadline by queueing the callback and marking the deadline as missed."""
+        """Handle a missed deadline by creating a trigger to run the callback."""
         # TODO: check to see if the callback is meant to run in triggerer or executor. For now, the code below assumes it's for the triggerer
         callback_trigger = DeadlineCallbackTrigger(
             callback_path=self.callback,
@@ -170,17 +183,33 @@ class Deadline(Base):
         session.add(trigger_orm)
         session.flush()
         self.trigger_id = trigger_orm.id
+        self.callback_state = DeadlineCallbackState.QUEUED
         session.add(self)
 
-        # TODO mark deadline as missed
-
     def handle_callback_event(self, event: TriggerEvent, session: Session):
-        if event.payload["status"] == "success":
-            logger.debug("Deadline callback succeeded")
-            self.trigger = None
-            session.add(self)
-        else:
-            logger.error("Unexpected event received: %s", event)
+        match event.payload[PAYLOAD_STATUS_KEY]:
+            case DeadlineCallbackState.SUCCESS:
+                logger.debug(
+                    "Deadline callback completed with return value: %s", event.payload[PAYLOAD_BODY_KEY]
+                )
+                self.trigger = None
+            case DeadlineCallbackState.NOT_FOUND:
+                logger.error(
+                    "Could not import deadline callback on the triggerer: %s", event.payload[PAYLOAD_BODY_KEY]
+                )
+                self.trigger = None
+            case DeadlineCallbackState.NOT_AWAITABLE:
+                logger.error("Deadline callback not awaitable: %s", event.payload[PAYLOAD_BODY_KEY])
+                self.trigger = None
+            case DeadlineCallbackState.OTHER_FAILURE:
+                logger.error("Deadline callback failed with exception: %s", event.payload[PAYLOAD_BODY_KEY])
+                self.trigger = None
+            case _:
+                logger.error("Unexpected event received: %s", event.payload)
+                return
+
+        self.callback_state = event.payload[PAYLOAD_STATUS_KEY]
+        session.add(self)
 
 
 class ReferenceModels:

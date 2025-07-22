@@ -24,7 +24,10 @@ from typing import Any
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.module_loading import import_string
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
+
+PAYLOAD_STATUS_KEY = "state"
+PAYLOAD_BODY_KEY = "body"
 
 
 class DeadlineCallbackTrigger(BaseTrigger):
@@ -42,6 +45,23 @@ class DeadlineCallbackTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        callback = import_string(self.callback_path)
-        result = await callback(**self.callback_kwargs)
-        yield TriggerEvent({"status": "success", "result": result})
+        from airflow.models.deadline import DeadlineCallbackState  # to avoid cyclic imports
+
+        try:
+            callback = import_string(self.callback_path)
+            result = await callback(**self.callback_kwargs)
+            yield TriggerEvent({PAYLOAD_STATUS_KEY: DeadlineCallbackState.SUCCESS, PAYLOAD_BODY_KEY: result})
+        except ImportError as e:
+            yield TriggerEvent(
+                {PAYLOAD_STATUS_KEY: DeadlineCallbackState.NOT_FOUND, PAYLOAD_BODY_KEY: str(e)}
+            )
+        except Exception as e:
+            if isinstance(e, TypeError) and "await" in str(e):
+                yield TriggerEvent(
+                    {PAYLOAD_STATUS_KEY: DeadlineCallbackState.NOT_AWAITABLE, PAYLOAD_BODY_KEY: str(e)}
+                )
+            else:
+                log.exception(e)
+                yield TriggerEvent(
+                    {PAYLOAD_STATUS_KEY: DeadlineCallbackState.OTHER_FAILURE, PAYLOAD_BODY_KEY: str(e)}
+                )
