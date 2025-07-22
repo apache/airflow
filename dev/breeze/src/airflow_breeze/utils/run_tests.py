@@ -111,9 +111,11 @@ def run_docker_compose_tests(
     if test_type == "task-sdk-integration":
         test_path = Path("tests") / "task_sdk_tests" / "test_task_sdk_health.py"
         cwd = TASK_SDK_TESTS_ROOT_PATH.as_posix()
+        cmd = ["pytest", str(test_path), "-s", *pytest_args, *extra_pytest_args]
     else:  # docker-compose
         test_path = Path("tests") / "docker_tests" / "test_docker_compose_quick_start.py"
         cwd = DOCKER_TESTS_ROOT_PATH.as_posix()
+        cmd = ["uv", "run", "pytest", str(test_path), "-s", *pytest_args, *extra_pytest_args]
 
     env = os.environ.copy()
     env["DOCKER_IMAGE"] = image_name
@@ -123,7 +125,7 @@ def run_docker_compose_tests(
         env["INCLUDE_SUCCESS_OUTPUTS"] = "true"
     # since we are only running one test, we can print output directly with pytest -s
     command_result = run_command(
-        ["uv", "run", "pytest", str(test_path), "-s", *pytest_args, *extra_pytest_args],
+        cmd,
         env=env,
         check=False,
         cwd=cwd,
