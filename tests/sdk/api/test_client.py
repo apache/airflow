@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
 import tempfile
@@ -21,10 +22,15 @@ import tempfile
 from airflow.sdk.api.client import Client
 
 
-def test_client_loads_custom_ssl_certificate(monkeypatch):
-    with tempfile.NamedTemporaryFile("w") as cert_file:
-        cert_file.write("-----BEGIN CERTIFICATE-----\n...dummy...\n-----END CERTIFICATE-----")
-        cert_file.flush()
-        monkeypatch.setenv("AIRFLOW__API__SSL_CERT", cert_file.name)
-        client = Client(token="abc", base_url="https://localhost")
-        assert client is not None
+class TestClientSSL:
+    """Test loading a custom SSL certificate via environment variable in the API client."""
+
+    def test_client_loads_custom_ssl_certificate(self, monkeypatch):
+        """Should load client with custom SSL cert path from environment variable."""
+        with tempfile.NamedTemporaryFile("w") as cert_file:
+            cert_file.write("-----BEGIN CERTIFICATE-----\n...FAKE-CERT-HERE...\n-----END CERTIFICATE-----")
+            cert_file.flush()
+            monkeypatch.setenv("AIRFLOW__API__SSL_CERT", cert_file.name)
+            client = Client(token="abc", base_url="https://localhost")
+            if client is None:
+                raise AssertionError("Client failed to initialize")

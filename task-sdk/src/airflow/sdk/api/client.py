@@ -16,9 +16,10 @@
 # under the License.
 
 from __future__ import annotations
-import os
+
 import logging
 import ssl
+import os
 import sys
 import uuid
 from http import HTTPStatus
