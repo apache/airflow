@@ -387,6 +387,7 @@ BREEZE_DEBUG_TRIGGERER_PORT = "50233"
 BREEZE_DEBUG_APISERVER_PORT = "50234"
 BREEZE_DEBUG_CELERY_WORKER_PORT = "50235"
 BREEZE_DEBUG_EDGE_PORT = "50236"
+BREEZE_DEBUG_WEBSERVER_PORT = "50237"
 
 CELERY_BROKER_URLS_MAP = {"rabbitmq": "amqp://guest:guest@rabbitmq:5672", "redis": "redis://redis:6379/0"}
 SQLITE_URL = "sqlite:////root/airflow/sqlite/airflow.db"

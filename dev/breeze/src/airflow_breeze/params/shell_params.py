@@ -43,6 +43,7 @@ from airflow_breeze.global_constants import (
     BREEZE_DEBUG_EDGE_PORT,
     BREEZE_DEBUG_SCHEDULER_PORT,
     BREEZE_DEBUG_TRIGGERER_PORT,
+    BREEZE_DEBUG_WEBSERVER_PORT,
     CELERY_BROKER_URLS_MAP,
     CELERY_EXECUTOR,
     DEFAULT_CELERY_BROKER,
@@ -684,6 +685,7 @@ class ShellParams:
         _set_var(env, "BREEZE_DEBUG_APISERVER_PORT", None, BREEZE_DEBUG_APISERVER_PORT)
         _set_var(env, "BREEZE_DEBUG_CELERY_WORKER_PORT", None, BREEZE_DEBUG_CELERY_WORKER_PORT)
         _set_var(env, "BREEZE_DEBUG_EDGE_PORT", None, BREEZE_DEBUG_EDGE_PORT)
+        _set_var(env, "BREEZE_DEBUG_WEBSERVER_PORT", None, BREEZE_DEBUG_WEBSERVER_PORT)
 
         _set_var(env, "BREEZE_DEBUGGER", None, self.debugger)
 

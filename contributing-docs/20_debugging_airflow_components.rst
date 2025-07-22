@@ -40,6 +40,9 @@ To start Airflow with debugging enabled, use the ``--debug`` flag to specify whi
     # Debug with CeleryExecutor
     breeze start-airflow -b postgres -P 17 --executor CeleryExecutor  --debug scheduler --debug dag-processor --debug api-server --debug triggerer --debug celery-worker
 
+    # Debug Webserver for Airflow 2.x
+    breeze start-airflow --debug webserver
+
 Available Components for Debugging
 ----------------------------------
 
