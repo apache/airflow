@@ -158,9 +158,8 @@ class BaseOperations:
         offset: int = 0,
         limit: int = 50,
         params: dict | None = None,
-        **kwargs,
     ) -> T | ServerResponseError:
-        shared_params = {**(params or {}), **kwargs}
+        shared_params = {**(params or {})}
         try:
             self.response = self.client.get(path, params=shared_params)
             first_pass = data_model.model_validate_json(self.response.content)
@@ -171,7 +170,6 @@ class BaseOperations:
                 if key != "total_entries" and isinstance(value, list):
                     break
             entry_list = getattr(first_pass, key)
-            total_entries = first_pass.total_entries  # type: ignore[attr-defined]
             if total_entries < limit:
                 return first_pass
             offset = offset + limit
