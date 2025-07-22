@@ -138,9 +138,8 @@ def test_task_sdk_health(tmp_path_factory, monkeypatch):
         try:
             import sys
 
-            # Ensure UV uses the exact same Python executable as the current test
-            # by using the absolute path and verifying it exists
-            python_exec = sys.executable
+            # Use the resolved path to ensure UV and test use the same Python
+            python_exec = str(Path(sys.executable).resolve())
             if not Path(python_exec).exists():
                 console.print(f"[red]Python executable not found: {python_exec}")
                 raise FileNotFoundError(f"Python executable not found: {python_exec}")
