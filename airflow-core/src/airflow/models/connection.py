@@ -21,6 +21,7 @@ import json
 import logging
 import re
 import sys
+import warnings
 from contextlib import suppress
 from json import JSONDecodeError
 from typing import Any
@@ -464,10 +465,15 @@ class Connection(Base, LoggingMixin):
         # If this is set it means are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
         # and should use the Task SDK API server path
         if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
-            # TODO: AIP 72: Add deprecation here once we move this module to task sdk.
             from airflow.sdk import Connection as TaskSDKConnection
             from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 
+            warnings.warn(
+                "Using Connection.get_connection_from_secrets from `airflow.models` is deprecated."
+                "Please use `from airflow.sdk import Connection` instead",
+                DeprecationWarning,
+                stacklevel=1,
+            )
             try:
                 conn = TaskSDKConnection.get(conn_id=conn_id)
                 if isinstance(conn, TaskSDKConnection):
