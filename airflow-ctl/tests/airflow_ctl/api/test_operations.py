@@ -125,7 +125,7 @@ class TestBaseOperations:
     @pytest.mark.parametrize(
         "total_entries, offset, limit, expected_response",
         [
-            (0, 0, 50, [HelloCollectionResponse(hello=[], total_entries=0)]),
+            (0, 0, 50, []),
             (1, 0, 50, [HelloCollectionResponse(hello=["hello"], total_entries=1)]),
             (3, 2, 50, [HelloCollectionResponse(hello=["hello"], total_entries=3)]),
             (
@@ -133,9 +133,12 @@ class TestBaseOperations:
                 5,
                 5,
                 [
-                    (HelloCollectionResponse(hello=["hello"], total_entries=20)),
-                    (HelloCollectionResponse(hello=["hello"], total_entries=20)),
-                    (HelloCollectionResponse(hello=["hello"], total_entries=20)),
+                    ("hello", ["hello"]),
+                    ("total_entries", 20),
+                    ("hello", ["hello"]),
+                    ("total_entries", 20),
+                    ("hello", ["hello"]),
+                    ("total_entries", 20),
                 ],
             ),
             (2, 3, 50, []),
@@ -148,22 +151,25 @@ class TestBaseOperations:
         if total_entries < limit:
             if offset < total_entries:
                 if offset == 0:
-                    mocked_response.append([HelloCollectionResponse(hello=["hello"], total_entries=1)])
+                    mocked_response.extend([HelloCollectionResponse(hello=["hello"], total_entries=1)])
                     mock_operation.execute_list.return_value = mocked_response
                 elif offset > 0:
-                    mocked_response.append([HelloCollectionResponse(hello=["hello"], total_entries=3)])
+                    mocked_response.extend([HelloCollectionResponse(hello=["hello"], total_entries=3)])
                     mock_operation.execute_list.return_value = mocked_response
             else:
-                mocked_response.append([])
+                mocked_response.extend([])
                 mock_operation.execute_list.return_value = mocked_response
         else:
             while offset < total_entries:
                 response = HelloCollectionResponse(hello=["hello"], total_entries=total_entries)
-                mocked_response.append(response)
+                mocked_response.extend(response)
                 offset += limit
             mock_operation.execute_list.return_value = mocked_response
-        assert mock_operation.execute_list(
-            path="", data_model=HelloCollectionResponse, offset=offset, limit=limit
+        assert (
+            mock_operation.execute_list(
+                path="", data_model=HelloCollectionResponse, offset=offset, limit=limit
+            )
+            == expected_response
         )
 
 

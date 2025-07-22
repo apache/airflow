@@ -170,8 +170,6 @@ class BaseOperations:
                 if key != "total_entries" and isinstance(value, list):
                     break
             entry_list = getattr(first_pass, key)
-            if total_entries < limit:
-                return first_pass
             offset = offset + limit
             while offset < total_entries:
                 loop_params = {**shared_params, "offset": offset}
