@@ -802,6 +802,24 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 # mechanism and whole .pyi is really "type-checking" only
 "providers/common/sql/src/airflow/providers/common/sql/hooks/sql.pyi" = ["TID253"]
 
+# Allow Task SDK and its tests to import from task SDK
+"task-sdk/**" = ["TID251"]
+
+# devel-common has test utilities, ok to have SDK imports here
+"devel-common/**" = ["TID251"]
+
+# Allow providers to import from Task SDK because they are consumers of the task SDK
+"providers/**" = ["TID251"]
+
+#Ideally, we shouldn't have any imports from airflow-core in the airflow-core tests, but should be OK for now
+"airflow-core/tests/**" = ["TID251"]
+
+# TODO: check usages here
+"scripts/**" = ["TID251"]
+"dev/**" = ["TID251"]
+"performance/**" = ["TID251"]
+"kubernetes-tests/tests/kubernetes_tests/test_kubernetes_pod_operator.py" = ["TID251"]
+
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.
 ban-relative-imports = "all"
@@ -856,6 +874,9 @@ banned-module-level-imports = ["numpy", "pandas", "polars"]
 "sqlalchemy.ext.declarative.has_inherited_table".msg = "Use `sqlalchemy.orm.has_inherited_table`. Moved in SQLAlchemy 2.0"
 "sqlalchemy.ext.declarative.synonym_for".msg = "Use `sqlalchemy.orm.synonym_for`. Moved in SQLAlchemy 2.0"
 "providers".msg = "You should not import 'providers' as a Python module. Imports in providers should be done starting from 'src' or `tests' folders, for example 'from airflow.providers.airbyte'  or 'from unit.airbyte' or 'from system.airbyte'"
+# Task SDK import restrictions to prevent core from importing from SDK
+"airflow.sdk".msg = "Airflow core should not import from Task SDK modules."
+"airflow.sdk.*".msg = "Airflow core should not import from Task SDK modules."
 
 [tool.ruff.lint.flake8-type-checking]
 exempt-modules = ["typing", "typing_extensions"]
