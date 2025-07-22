@@ -1022,9 +1022,13 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     ):
         # Note: Metaclass handles passing in the DAG/TaskGroup from active context manager, if any
 
-        self.task_id = task_group.child_id(task_id) if task_group else task_id
-        if not self.__from_mapped and task_group:
+        # Only apply task_group prefix if this operator was not created from a mapped operator
+        # Mapped operators already have the prefix applied during their creation
+        if task_group and not self.__from_mapped:
+            self.task_id = task_group.child_id(task_id)
             task_group.add(self)
+        else:
+            self.task_id = task_id
 
         super().__init__()
         self.task_group = task_group
