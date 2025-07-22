@@ -139,22 +139,22 @@ Debugging Workflow
 
 3. **Attach Debugger**
 
-   * Open the Debug panel in VSCode (Ctrl+Shift+D / Cmd+Shift+D)
-   * Select the appropriate debug configuration (e.g., "Debug Airflow Scheduler")
-   * Click the green play button or press F5
+   - Open the Debug panel in VSCode (Ctrl+Shift+D / Cmd+Shift+D)
+   - Select the appropriate debug configuration (e.g., "Debug Airflow Scheduler")
+   - Click the green play button or press F5
 
 4. **Trigger Debugging**
 
    Perform an action that will trigger the code path with your breakpoint:
-   * For scheduler: Trigger a DAG or wait for scheduled execution
-   * For API server: Make an API call
-   * For triggerer: Create a deferred task
-   * For DAG processor: Parse a DAG file
+   - For scheduler: Trigger a DAG or wait for scheduled execution
+   - For API server: Make an API call
+   - For triggerer: Create a deferred task
+   - For DAG processor: Parse a DAG file
 
 5. **Debug Session**
 
    Once the breakpoint is hit:
-   * Inspect variables in the Variables panel
-   * Use the Debug Console to evaluate expressions
-   * Step through code using F10 (step over), F11 (step into), F12 (step out)
-   * Continue execution with F5
+   - Inspect variables in the Variables panel
+   - Use the Debug Console to evaluate expressions
+   - Step through code using F10 (step over), F11 (step into), F12 (step out)
+   - Continue execution with F5
