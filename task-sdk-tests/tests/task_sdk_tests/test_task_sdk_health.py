@@ -52,6 +52,42 @@ def print_diagnostics(compose, compose_version, docker_version):
         console.print(f"  Error getting logs: {e}")
 
 
+def debug_environment():
+    """Debug the Python environment setup in CI."""
+    import os
+    import subprocess
+    import sys
+
+    console.print("[yellow]===== CI ENVIRONMENT DEBUG =====")
+    console.print(f"[blue]Python executable: {sys.executable}")
+    console.print(f"[blue]Python version: {sys.version}")
+    console.print(f"[blue]Working directory: {os.getcwd()}")
+    console.print(f"[blue]VIRTUAL_ENV: {os.environ.get('VIRTUAL_ENV', 'Not set')}")
+    console.print(f"[blue]PYTHONPATH: {os.environ.get('PYTHONPATH', 'Not set')}")
+
+    # Check what UV sees
+    try:
+        uv_python = subprocess.check_output(["uv", "python", "find"], text=True).strip()
+        console.print(f"[cyan]UV Python: {uv_python}")
+        console.print(f"[green]Match: {uv_python == sys.executable}")
+    except Exception as e:
+        console.print(f"[red]UV Python error: {e}")
+
+    # Check what's installed in current environment
+    try:
+        import airflow
+
+        console.print(f"[green]✅ airflow already available: {airflow.__file__}")
+    except ImportError:
+        console.print("[red]❌ airflow not available in current environment")
+
+    console.print("[yellow]================================")
+
+
+# Add this call before your installation attempt
+debug_environment()
+
+
 def test_task_sdk_health(tmp_path_factory, monkeypatch):
     """Test Task SDK health check using docker-compose environment."""
     tmp_dir = tmp_path_factory.mktemp("airflow-task-sdk-test")
@@ -69,6 +105,8 @@ def test_task_sdk_health(tmp_path_factory, monkeypatch):
     # Initialize Docker client
     compose = DockerClient(compose_files=[str(tmp_docker_compose_file)])
 
+    debug_environment()
+
     try:
         compose.compose.up(detach=True, wait=True)
         console.print("[green]Docker compose started for task SDK test")
@@ -83,7 +121,9 @@ def test_task_sdk_health(tmp_path_factory, monkeypatch):
         console.print(f"[blue]Installing from: {task_sdk_path}")
 
         try:
-            subprocess.check_call(["uv", "pip", "install", str(task_sdk_path)])
+            import sys
+
+            subprocess.check_call(["uv", "pip", "install", "--python", sys.executable, str(task_sdk_path)])
             console.print("[green]Task SDK installed successfully!")
         except subprocess.CalledProcessError as e:
             console.print(f"[red]Failed to install Task SDK: {e}")
