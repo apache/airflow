@@ -39,6 +39,7 @@ import { Tooltip } from "src/components/ui/Tooltip";
 import { OpenGroupsProvider } from "src/context/openGroups";
 
 import { DagBreadcrumb } from "./DagBreadcrumb";
+import { Gantt } from "./Gantt/Gantt";
 import { Graph } from "./Graph";
 import { Grid } from "./Grid";
 import { NavTabs } from "./NavTabs";
@@ -59,6 +60,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const panelGroupRef = useRef(null);
   const [dagView, setDagView] = useLocalStorage<"graph" | "grid">(`dag_view-${dagId}`, defaultDagView);
   const [limit, setLimit] = useLocalStorage<number>(`dag_runs_limit-${dagId}`, 10);
+  const [showGantt, setShowGantt] = useLocalStorage<boolean>(`show_gantt-${dagId}`, true);
 
   const { fitView, getZoom } = useReactFlow();
 
@@ -100,7 +102,10 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
           </Tooltip>
         ) : undefined}
         <PanelGroup autoSaveId={dagId} direction="horizontal" ref={panelGroupRef}>
-          <Panel defaultSize={dagView === "graph" ? 70 : 20} minSize={6}>
+          <Panel
+            defaultSize={dagView === "graph" ? 70 : 20}
+            minSize={showGantt && dagView === "grid" ? 60 : 20}
+          >
             <Box height="100%" overflowY="auto" position="relative" pr={2}>
               <PanelButtons
                 dagView={dagView}
@@ -108,8 +113,17 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                 panelGroupRef={panelGroupRef}
                 setDagView={setDagView}
                 setLimit={setLimit}
+                setShowGantt={setShowGantt}
+                showGantt={showGantt}
               />
-              {dagView === "graph" ? <Graph /> : <Grid limit={limit} />}
+              {dagView === "graph" ? (
+                <Graph />
+              ) : (
+                <HStack>
+                  <Grid limit={limit} />
+                  {showGantt ? <Gantt limit={limit} /> : undefined}
+                </HStack>
+              )}
             </Box>
           </Panel>
           {!isRightPanelCollapsed && (
