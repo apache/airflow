@@ -99,10 +99,6 @@ def debug_environment():
     console.print("[yellow]================================")
 
 
-# Add this call before your installation attempt
-debug_environment()
-
-
 def test_task_sdk_health(tmp_path_factory, monkeypatch):
     """Test Task SDK health check using docker-compose environment."""
     tmp_dir = tmp_path_factory.mktemp("airflow-task-sdk-test")
@@ -138,12 +134,8 @@ def test_task_sdk_health(tmp_path_factory, monkeypatch):
         try:
             import sys
 
-            # Use the resolved path to ensure UV and test use the same Python
-            python_exec = str(Path(sys.executable).resolve())
-            if not Path(python_exec).exists():
-                console.print(f"[red]Python executable not found: {python_exec}")
-                raise FileNotFoundError(f"Python executable not found: {python_exec}")
-
+            # Try the exact Python executable that pytest is using first
+            python_exec = sys.executable
             console.print(f"[blue]Using Python executable: {python_exec}")
 
             try:
@@ -152,14 +144,28 @@ def test_task_sdk_health(tmp_path_factory, monkeypatch):
                 subprocess.check_call(cmd)
                 console.print("[green]Task SDK installed successfully with UV!")
             except (subprocess.CalledProcessError, FileNotFoundError) as uv_error:
-                console.print(f"[yellow]UV installation failed: {uv_error}")
-                console.print("[yellow]Trying fallback with regular pip...")
+                console.print(f"[yellow]UV installation failed with original path: {uv_error}")
 
-                # Fallback to regular pip using the exact same Python executable
-                cmd = [python_exec, "-m", "pip", "install", str(task_sdk_path)]
-                console.print(f"[cyan]Running fallback command: {' '.join(cmd)}")
-                subprocess.check_call(cmd)
-                console.print("[green]Task SDK installed successfully with pip!")
+                # Try with resolved path as fallback
+                resolved_python = str(Path(sys.executable).resolve())
+                if resolved_python != python_exec:
+                    console.print(f"[yellow]Trying with resolved path: {resolved_python}")
+                    try:
+                        cmd = ["uv", "pip", "install", "--python", resolved_python, str(task_sdk_path)]
+                        subprocess.check_call(cmd)
+                        console.print("[green]Task SDK installed successfully with UV using resolved path!")
+                    except (subprocess.CalledProcessError, FileNotFoundError):
+                        console.print("[yellow]UV failed, trying fallback with regular pip...")
+                        cmd = [python_exec, "-m", "pip", "install", str(task_sdk_path)]
+                        console.print(f"[cyan]Running fallback command: {' '.join(cmd)}")
+                        subprocess.check_call(cmd)
+                        console.print("[green]Task SDK installed successfully with pip!")
+                else:
+                    console.print("[yellow]Trying fallback with regular pip...")
+                    cmd = [python_exec, "-m", "pip", "install", str(task_sdk_path)]
+                    console.print(f"[cyan]Running fallback command: {' '.join(cmd)}")
+                    subprocess.check_call(cmd)
+                    console.print("[green]Task SDK installed successfully with pip!")
 
         except subprocess.CalledProcessError as e:
             console.print(f"[red]Failed to install Task SDK: {e}")
