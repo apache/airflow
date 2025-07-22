@@ -27,9 +27,9 @@ from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.execution_api.datamodels.hitl import (
     HITLDetailRequest,
     HITLDetailResponse,
+    UpdateHITLDetailPayload,
 )
 from airflow.models.hitl import HITLDetail
-from airflow.sdk.execution_time.comms import CreateHITLDetailPayload, UpdateHITLDetail
 
 router = APIRouter()
 
@@ -42,7 +42,7 @@ log = structlog.get_logger(__name__)
 )
 def add_hitl_detail(
     task_instance_id: UUID,
-    payload: CreateHITLDetailPayload,
+    payload: HITLDetailRequest,
     session: SessionDep,
 ) -> HITLDetailRequest:
     """Get Human-in-the-loop detail for a specific Task Instance."""
@@ -71,7 +71,7 @@ def add_hitl_detail(
 @router.patch("/{task_instance_id}")
 def update_hitl_detail(
     task_instance_id: UUID,
-    payload: UpdateHITLDetail,
+    payload: UpdateHITLDetailPayload,
     session: SessionDep,
 ) -> HITLDetailResponse:
     """Update the response part of a Human-in-the-loop detail for a specific Task Instance."""
