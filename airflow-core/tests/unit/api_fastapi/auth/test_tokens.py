@@ -34,6 +34,7 @@ from airflow.api_fastapi.auth.tokens import (
     JWTValidator,
     generate_private_key,
     get_sig_validation_args,
+    is_cookie_secure,
     key_to_jwk_dict,
     key_to_pem,
 )
@@ -228,6 +229,23 @@ async def test_jwt_generate_validate_roundtrip_with_jwks(private_key, algorithm,
             **get_sig_validation_args(make_secret_key_if_needed=False),
         )
         assert await validator.avalidated_claims(token)
+
+
+@pytest.mark.parametrize(
+    "request_scheme, api_ssl_cert_setting, expected",
+    [
+        ("http", "", False),
+        ("http", "/fake/cert.crt", True),
+        ("https", "", True),
+        ("https", "/fake/cert.crt", True),
+    ],
+)
+def test_is_cookie_secure(request_scheme: str, api_ssl_cert_setting: str, expected: bool) -> None:
+    from tests_common.test_utils.config import conf_vars
+
+    with conf_vars({("api", "ssl_cert"): str(api_ssl_cert_setting)}):
+        actual = is_cookie_secure(request_scheme=request_scheme)
+        assert actual == expected
 
 
 @pytest.fixture(scope="session")

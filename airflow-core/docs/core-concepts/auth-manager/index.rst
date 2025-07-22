@@ -162,11 +162,12 @@ cookie named ``_token`` before redirecting to the Airflow UI. The Airflow UI wil
 .. code-block:: python
 
     from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
+    from airflow.api_fastapi.auth.tokens import is_cookie_secure
 
     response = RedirectResponse(url="/")
-
-    secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
-    response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
+    response.set_cookie(
+        COOKIE_NAME_JWT_TOKEN, token, secure=is_cookie_secure(request_scheme=request.base_url.scheme)
+    )
     return response
 
 .. note::

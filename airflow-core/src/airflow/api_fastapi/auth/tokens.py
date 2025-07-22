@@ -34,6 +34,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
+from airflow.configuration import conf
 from airflow.utils import timezone
 
 if TYPE_CHECKING:
@@ -579,3 +580,10 @@ def get_sig_validation_args(make_secret_key_if_needed: bool = True) -> dict[str,
         }
 
     return {"secret_key": get_signing_key("api_auth", "jwt_secret", make_secret_key_if_needed)}
+
+
+def is_cookie_secure(request_scheme: str) -> bool:
+    """Return `True` if the cookie in the auth response should be set as `secure`. Otherwise return `False`."""
+    # The default config has this as an empty string, so we can't use `has_option`.
+    # And look at the request info (needs `--proxy-headers` flag to api-server)
+    return request_scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))

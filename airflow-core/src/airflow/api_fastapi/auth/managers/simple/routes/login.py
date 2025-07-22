@@ -23,6 +23,7 @@ from starlette.responses import RedirectResponse
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.auth.managers.simple.datamodels.login import LoginBody, LoginResponse
 from airflow.api_fastapi.auth.managers.simple.services.login import SimpleAuthManagerLogin
+from airflow.api_fastapi.auth.tokens import is_cookie_secure
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.configuration import conf
@@ -60,15 +61,10 @@ def create_token_all_admins() -> LoginResponse:
 def login_all_admins(request: Request) -> RedirectResponse:
     """Login the user with no credentials."""
     response = RedirectResponse(url=conf.get("api", "base_url", fallback="/"))
-
-    # The default config has this as an empty string, so we can't use `has_option`.
-    # And look at the request info (needs `--proxy-headers` flag to api-server)
-    secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
-
     response.set_cookie(
         COOKIE_NAME_JWT_TOKEN,
         SimpleAuthManagerLogin.create_token_all_admins(),
-        secure=secure,
+        secure=is_cookie_secure(request.base_url.scheme),
     )
     return response
 

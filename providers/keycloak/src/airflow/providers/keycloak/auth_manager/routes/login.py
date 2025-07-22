@@ -24,6 +24,7 @@ from starlette.responses import HTMLResponse, RedirectResponse
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
+from airflow.api_fastapi.auth.tokens import is_cookie_secure
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.configuration import conf
 from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import KeycloakAuthManager
@@ -67,6 +68,7 @@ def login_callback(request: Request):
     token = get_auth_manager().generate_jwt(user)
 
     response = RedirectResponse(url=conf.get("api", "base_url", fallback="/"), status_code=303)
-    secure = bool(conf.get("api", "ssl_cert", fallback=""))
-    response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
+    response.set_cookie(
+        COOKIE_NAME_JWT_TOKEN, token, secure=is_cookie_secure(request_scheme=request.base_url.scheme)
+    )
     return response
