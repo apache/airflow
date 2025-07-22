@@ -32,6 +32,7 @@ from typing import (
 
 from databricks import sql
 from databricks.sql.types import Row
+from sqlalchemy.engine import URL
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.handlers import return_single_query_results
@@ -170,6 +171,37 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         if self._sql_conn is None:
             raise AirflowException("SQL connection is not initialized")
         return cast("AirflowConnection", self._sql_conn)
+
+    @property
+    def sqlalchemy_url(self) -> URL:
+        """
+        Return a Sqlalchemy.engine.URL object from the connection.
+
+        :return: the extracted sqlalchemy.engine.URL object.
+        """
+        conn = self.get_conn()
+        url_query = {
+            "http_path": self._http_path,
+            "catalog": self.catalog,
+            "schema": self.schema,
+        }
+        url_query = {k: v for k, v in url_query.items() if v is not None}
+        return URL.create(
+            drivername="databricks",
+            username="token",
+            password=conn.password,
+            host=conn.host,
+            port=conn.port,
+            query=url_query,
+        )
+
+    def get_uri(self) -> str:
+        """
+        Extract the URI from the connection.
+
+        :return: the extracted uri.
+        """
+        return self.sqlalchemy_url.render_as_string(hide_password=False)
 
     @overload
     def run(
