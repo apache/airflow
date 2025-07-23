@@ -111,10 +111,8 @@ def run_docker_compose_tests(
     if test_type == "task-sdk-integration":
         test_path = Path("tests") / "task_sdk_tests" / "test_task_sdk_health.py"
         cwd = TASK_SDK_TESTS_ROOT_PATH.as_posix()
-        import shutil
 
-        python_cmd = shutil.which("python3") or shutil.which("python") or "python3"
-        cmd = [python_cmd, "-m", "pytest", str(test_path), "-s", *pytest_args, *extra_pytest_args]
+        cmd = ["uv", "run", "python", "-m", "pytest", str(test_path), "-s", *pytest_args, *extra_pytest_args]
     else:  # docker-compose
         test_path = Path("tests") / "docker_tests" / "test_docker_compose_quick_start.py"
         cwd = DOCKER_TESTS_ROOT_PATH.as_posix()
