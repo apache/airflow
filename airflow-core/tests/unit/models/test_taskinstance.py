@@ -34,6 +34,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from airflow import settings
+from airflow._shared.timezones import timezone
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -79,7 +80,6 @@ from airflow.ti_deps.dependencies_states import RUNNABLE_STATES
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
-from airflow.utils import timezone
 from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.span_status import SpanStatus

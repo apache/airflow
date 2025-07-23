@@ -52,6 +52,7 @@ from airflow.sdk import (
     dag as dag_decorator,
     get_current_context,
     task as task_decorator,
+    timezone,
 )
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
@@ -121,7 +122,6 @@ from airflow.sdk.execution_time.task_runner import (
     startup,
 )
 from airflow.sdk.execution_time.xcom import XCom
-from airflow.utils import timezone
 from airflow.utils.types import NOTSET, ArgNotSet
 
 from tests_common.test_utils.mock_operators import AirflowLink
@@ -1139,7 +1139,6 @@ class TestRuntimeTaskInstance:
 
     def test_get_context_with_ti_context_from_server(self, create_runtime_ti, mock_supervisor_comms):
         """Test the context keys are added when sent from API server (mocked)"""
-        from airflow.utils import timezone
 
         task = BaseOperator(task_id="hello")
 

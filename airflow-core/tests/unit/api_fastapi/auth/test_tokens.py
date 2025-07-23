@@ -27,6 +27,7 @@ import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 
+from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import (
     JWKS,
     InvalidClaimError,
@@ -37,7 +38,6 @@ from airflow.api_fastapi.auth.tokens import (
     key_to_jwk_dict,
     key_to_pem,
 )
-from airflow.utils import timezone
 
 from tests_common.test_utils.config import conf_vars
 

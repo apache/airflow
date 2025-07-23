@@ -26,6 +26,7 @@ from unittest import mock
 from unittest.mock import ANY, AsyncMock, MagicMock
 from uuid import uuid4
 
+import pendulum
 import pytest
 from kubernetes import client
 from kubernetes.client import V1EnvVar, V1PodSecurityContext, V1SecurityContext, models as k8s
@@ -54,7 +55,7 @@ def create_context(task) -> Context:
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
     dag = DAG(dag_id="dag", schedule=None)
-    logical_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=timezone.parse_timezone("Europe/Amsterdam"))
+    logical_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=pendulum.timezone("Europe/Amsterdam"))
 
     if AIRFLOW_V_3_0_PLUS:
         dag_run = DagRun(

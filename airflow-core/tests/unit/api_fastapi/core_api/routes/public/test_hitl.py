@@ -21,8 +21,8 @@ from unittest import mock
 import pytest
 from sqlalchemy.orm import Session
 
+from airflow._shared.timezones.timezone import utcnow
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.timezone import utcnow
 
 from tests_common.test_utils.db import AIRFLOW_V_3_1_PLUS
 

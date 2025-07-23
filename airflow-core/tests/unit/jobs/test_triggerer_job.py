@@ -32,6 +32,7 @@ import pytest
 from asgiref.sync import sync_to_async
 from structlog.typing import FilteringBoundLogger
 
+from airflow._shared.timezones import timezone
 from airflow.executors import workloads
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import (
@@ -55,7 +56,6 @@ from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDe
 from airflow.sdk import BaseHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
-from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
 

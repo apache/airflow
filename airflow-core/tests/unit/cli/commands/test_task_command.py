@@ -32,6 +32,7 @@ from unittest import mock
 
 import pytest
 
+from airflow._shared.timezones import timezone
 from airflow.cli import cli_parser
 from airflow.cli.commands import task_command
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
@@ -42,7 +43,6 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.serialization.serialized_objects import SerializedDAG
-from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType

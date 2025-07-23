@@ -26,6 +26,7 @@ import pendulum
 import pytest
 import time_machine
 
+from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.cli.cli_config import DefaultHelpParser, GroupCommand
 from airflow.cli.cli_parser import AirflowHelpFormatter
@@ -34,7 +35,6 @@ from airflow.executors.base_executor import BaseExecutor, RunningRetryAttemptTyp
 from airflow.executors.local_executor import LocalExecutor
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
-from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
 
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker

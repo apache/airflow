@@ -31,6 +31,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import OperationalError, SAWarning
 
 import airflow.dag_processing.collection
+from airflow._shared.timezones import timezone as tz
 from airflow.configuration import conf
 from airflow.dag_processing.collection import (
     AssetModelOperation,
@@ -54,7 +55,6 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.temporal import TimeDeltaTrigger
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetWatcher
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
-from airflow.utils import timezone as tz
 
 from tests_common.test_utils.db import (
     clear_db_assets,

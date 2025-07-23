@@ -19,8 +19,8 @@ from __future__ import annotations
 
 import pytest
 
+from airflow._shared.timezones import timezone
 from airflow.sdk import DAG, task
-from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2025, 1, 1)
 

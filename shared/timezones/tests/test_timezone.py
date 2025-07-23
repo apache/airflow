@@ -23,8 +23,8 @@ import pendulum
 import pytest
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
-from airflow.utils import timezone
-from airflow.utils.timezone import coerce_datetime, parse_timezone
+from airflow_shared.timezones import timezone
+from airflow_shared.timezones.timezone import coerce_datetime, parse_timezone
 
 CET = Timezone("Europe/Paris")
 EAT = Timezone("Africa/Nairobi")  # Africa/Nairobi

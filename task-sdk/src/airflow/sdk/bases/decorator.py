@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, Protocol, T
 import attr
 import typing_extensions
 
+from airflow.sdk import timezone
 from airflow.sdk.bases.operator import (
     BaseOperator,
     coerce_resources,
@@ -46,7 +47,6 @@ from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.mappedoperator import MappedOperator, ensure_xcomarg_return_value
 from airflow.sdk.definitions.xcom_arg import XComArg
-from airflow.utils import timezone
 from airflow.utils.context import KNOWN_CONTEXT_KEYS
 from airflow.utils.decorators import remove_task_decorator
 from airflow.utils.helpers import prevent_duplicates

@@ -28,6 +28,7 @@ from kubernetes.client import models as k8s
 from pendulum.tz.timezone import FixedTimezone, Timezone
 from uuid6 import uuid7
 
+from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.exceptions import (
     AirflowException,
@@ -65,7 +66,6 @@ from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.serialized_objects import BaseSerialization, LazyDeserializedDAG, SerializedDAG
 from airflow.timetables.base import DataInterval
 from airflow.triggers.base import BaseTrigger
-from airflow.utils import timezone
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.operator_resources import Resources
 from airflow.utils.state import DagRunState, State

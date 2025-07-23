@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import pathlib
 
-from airflow.utils import timezone
+from airflow._shared.timezones import timezone
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 TEST_DAGS_FOLDER = pathlib.Path(__file__).parent.with_name("dags")
