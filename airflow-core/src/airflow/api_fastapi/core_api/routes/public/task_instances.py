@@ -714,15 +714,31 @@ def post_clear_task_instances(
             task_ids.extend(tid for tid in dag.task_dict if tid != task_id)
     if dag is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG {dag_id} not found")
-    task_instances = dag.clear(
-        dry_run=True,
-        run_id=None if past or future else dag_run_id,
-        task_ids=task_ids,
-        dag_bag=dag_bag,
-        session=session,
-        run_on_latest_version=body.run_on_latest_version,
-        **body.model_dump(include={"start_date", "end_date", "only_failed", "only_running"}),
-    )
+
+    # Prepare common parameters
+    common_params = {
+        "dry_run": True,
+        "task_ids": task_ids,
+        "dag_bag": dag_bag,
+        "session": session,
+        "run_on_latest_version": body.run_on_latest_version,
+        "only_failed": body.only_failed,
+        "only_running": body.only_running,
+    }
+
+    if dag_run_id is not None and not (past or future):
+        # Use run_id-based clearing when we have a specific dag_run_id and not using past/future
+        task_instances = dag.clear(
+            **common_params,
+            run_id=dag_run_id,
+        )
+    else:
+        # Use date-based clearing when no dag_run_id or when past/future is specified
+        task_instances = dag.clear(
+            **common_params,
+            start_date=body.start_date,
+            end_date=body.end_date,
+        )
 
     if not dry_run:
         clear_task_instances(
