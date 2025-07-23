@@ -385,13 +385,14 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
                 # Flatten all hits, filter to only desired fields, and construct StructuredLogMessage objects
                 message = header + [
-                    StructuredLogMessage(**{k: v for k, v in hit.to_dict().items() if k in TASK_LOG_FIELDS})
+                    StructuredLogMessage(**{k: v for k, v in hit.to_dict().items() if k.lower() in TASK_LOG_FIELDS})
                     for hits in logs_by_host.values()
                     for hit in hits
                 ]
             else:
                 message = [
-                    (host, concat_logs(hits)) for host, hits in logs_by_host.items()  # type: ignore[misc]
+                    (host, concat_logs(hits))
+                    for host, hits in logs_by_host.items()  # type: ignore[misc]
                 ]
         else:
             message = []
