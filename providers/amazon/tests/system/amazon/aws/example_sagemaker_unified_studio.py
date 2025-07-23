@@ -163,11 +163,16 @@ with DAG(
         deferrable=False,  # optional
         executor_config={  # optional
             "overrides": {
-                "containerOverrides": {
-                    "environment": [
-                        {"name": str(key), "value": str(value)} for key, value in mock_mwaa_environment_params.items()
-                    ]
-                }
+                "containerOverrides": [
+                    {
+                        "environment": [
+                            {
+                                "name": str(key),
+                                "value": str(value)
+                            } for key, value in mock_mwaa_environment_params.items()
+                        ]
+                    }
+                ]
             }
         },
     )
