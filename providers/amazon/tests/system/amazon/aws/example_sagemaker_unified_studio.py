@@ -39,7 +39,21 @@ else:
         from airflow.models.dag import DAG
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 import logging
+import sys
+
+# Set logging for multiple loggers
 logging.getLogger().setLevel(logging.DEBUG)
+logging.getLogger('airflow').setLevel(logging.DEBUG)
+logging.getLogger('airflow.task').setLevel(logging.DEBUG)
+
+# Also set the handler level
+for handler in logging.getLogger().handlers:
+    handler.setLevel(logging.DEBUG)
+
+# Force console output as well
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setLevel(logging.DEBUG)
+logging.getLogger().addHandler(console_handler)
 """
 Prerequisites: The account which runs this test must manually have the following:
 1. An IAM IDC organization set up in the testing region with a user initialized
