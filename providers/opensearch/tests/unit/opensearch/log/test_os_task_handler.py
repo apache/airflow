@@ -189,15 +189,16 @@ class TestOpensearchTaskHandler:
             ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
         )
 
-        expected_msg = "Some Message 1"
         if AIRFLOW_V_3_0_PLUS:
             logs = list(logs)
+            expected_msg = "Some Message 1"
             assert logs[0].event == "::group::Log message source details"
             assert logs[0].sources == ["http://localhost"]
             assert logs[1].event == "::endgroup::"
             assert logs[2].event == expected_msg
             metadata = metadatas
         else:
+            expected_msg = "Some Message 1\nAnother Some Message 2"
             assert len(logs) == 1
             assert len(logs) == len(metadatas)
             assert len(logs[0]) == 1
@@ -216,15 +217,16 @@ class TestOpensearchTaskHandler:
                 ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
             )
 
-        expected_msg = "Some Message 1"
         if AIRFLOW_V_3_0_PLUS:
             logs = list(logs)
+            expected_msg = "Some Message 1"
             assert logs[0].event == "::group::Log message source details"
             assert logs[0].sources == ["http://localhost"]
             assert logs[1].event == "::endgroup::"
             assert logs[2].event == expected_msg
             metadata = metadatas
         else:
+            expected_msg = "Some Message 1\nAnother Some Message 2"
             assert len(logs) == 1
             assert len(logs) == len(metadatas)
             assert len(logs[0]) == 1
@@ -352,9 +354,9 @@ class TestOpensearchTaskHandler:
     def test_read_with_none_metadata(self, ti):
         logs, metadatas = self.os_task_handler.read(ti, 1)
 
-        expected_message = "Some Message 1"
         if AIRFLOW_V_3_0_PLUS:
             logs = list(logs)
+            expected_message = "Some Message 1"
             assert logs[0].event == "::group::Log message source details"
             assert logs[0].sources == ["http://localhost"]
             assert logs[1].event == "::endgroup::"
@@ -362,6 +364,7 @@ class TestOpensearchTaskHandler:
 
             metadata = metadatas
         else:
+            expected_message = "Some Message 1\nAnother Some Message 2"
             assert len(logs) == 1
             assert len(logs) == len(metadatas)
             assert len(logs[0]) == 1
