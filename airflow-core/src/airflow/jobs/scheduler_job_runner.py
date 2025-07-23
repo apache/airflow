@@ -1999,17 +1999,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             try:
                 dag = self.scheduler_dag_bag.get_dag(dag_run=ti.dag_run, session=session)
                 task = dag.get_task(ti.task_id)
-                self.log.info("2026")
             except Exception:
-                self.log.info("2028")
                 self.log.warning(
                     "The DAG or task could not be found. If a failure or retry callback exists, it will not be run.",
                     exc_info=True,
                 )
             else:
-                self.log.info("20131")
                 if task.on_failure_callback:
-                    self.log.info("2034")
                     request = TaskCallbackRequest(
                         filepath=ti.dag_model.relative_fileloc,
                         bundle_name=ti.dag_version.bundle_name,
