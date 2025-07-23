@@ -275,3 +275,75 @@ in your private GitHub repo.
 
 You should take this a step further and set ``dags.gitSync.knownHosts`` so you are not susceptible to man-in-the-middle
 attacks. This process is documented in the :ref:`production guide <production-guide:knownhosts>`.
+
+Mounting dags from a private GitHub repo using GitHub App authentication
+-----------------------------------------------------------------------
+
+GitHub App authentication provides a more secure and scalable way to authenticate with GitHub repositories compared to SSH keys or personal access tokens. This method is particularly useful for organizations that want to manage repository access programmatically.
+
+First, create a GitHub App in your GitHub organization:
+
+1. Go to GitHub Settings → Developer settings → GitHub Apps → New GitHub App
+2. Set the required permissions:
+   - Repository permissions: Contents (Read), Metadata (Read)
+3. Generate and download the private key
+4. Install the app to your organization or specific repositories
+5. Note the App ID and Installation ID
+
+Convert your GitHub App private key to base64:
+
+.. code-block:: bash
+
+    base64 <your-github-app-private-key.pem> -w 0 > temp.txt
+
+Create a Kubernetes secret with the private key:
+
+.. code-block:: bash
+
+    kubectl create secret generic airflow-github-app-secret \
+      --from-literal=githubAppPrivateKey="<base64-encoded-private-key>"
+
+Configure your ``override-values.yaml`` file:
+
+.. code-block:: yaml
+
+    dags:
+      gitSync:
+        enabled: true
+        repo: https://github.com/<organization>/<private-repo-name>.git
+        branch: <branch-name>
+        subPath: ""
+        # GitHub App authentication
+        githubAppSecret: airflow-github-app-secret
+        githubAppId: <your-app-id>
+        githubAppInstallationId: <your-installation-id>
+        # Optional: for GitHub Enterprise
+        # githubAppBaseUrl: https://github.enterprise.com/api/v3/
+
+Deploy Airflow with GitHub App authentication:
+
+.. code-block:: bash
+
+    helm upgrade --install airflow apache-airflow/airflow -f override-values.yaml
+
+**Alternative Configuration Options:**
+
+You can use ``githubAppClientId`` instead of ``githubAppId``:
+
+.. code-block:: yaml
+
+    dags:
+      gitSync:
+        enabled: true
+        repo: https://github.com/<organization>/<private-repo-name>.git
+        githubAppSecret: airflow-github-app-secret
+        githubAppClientId: <your-client-id>  # Alternative to githubAppId
+        githubAppInstallationId: <your-installation-id>
+
+**Benefits of GitHub App Authentication:**
+
+- **Enhanced Security**: Private keys can be rotated without affecting SSH configurations
+- **Fine-grained Permissions**: Apps can be granted specific repository permissions
+- **Audit Trail**: GitHub provides detailed logs of app usage
+- **Scalability**: Apps can be installed across multiple repositories easily
+- **Token Management**: Automatic token refresh and expiration handling
