@@ -24,7 +24,7 @@ import pytest
 from airflow.providers.amazon.aws.hooks.mwaa import MwaaHook
 from airflow.providers.amazon.aws.triggers.mwaa import MwaaDagRunCompletedTrigger, MwaaTaskCompletedTrigger
 from airflow.triggers.base import TriggerEvent
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.state import DagRunState
 
 from unit.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 
@@ -129,7 +129,6 @@ class TestMwaaDagRunCompletedTrigger:
 
 
 class TestMwaaTaskCompletedTrigger:
-
     def test_overwritten_conn_passed_to_hook(self):
         OVERWRITTEN_CONN = "new-conn-id"
         op = MwaaTaskCompletedTrigger(**TRIGGER_TASK_KWARGS, aws_conn_id=OVERWRITTEN_CONN)
