@@ -38,6 +38,8 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,
     AssetResponse,
     ConnectionResponse,
+    CreateHITLDetailPayload,
+    DagRunResponse,
     DagRunStateResponse,
     DagRunType,
     HITLDetailResponse,
@@ -563,6 +565,11 @@ class DagRunOperations:
 
     def __init__(self, client: Client):
         self.client = client
+
+    def get(self, dag_id: str, run_id: str) -> DagRunResponse:
+        """Get a DAG run via the API server."""
+        resp = self.client.get(f"dag-runs/{dag_id}/{run_id}")
+        return DagRunResponse.model_validate_json(resp.read())
 
     def trigger(
         self,

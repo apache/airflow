@@ -26,7 +26,11 @@ from sqlalchemy import func, select
 from airflow.api.common.trigger_dag import trigger_dag
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
-from airflow.api_fastapi.execution_api.datamodels.dagrun import DagRunStateResponse, TriggerDAGRunPayload
+from airflow.api_fastapi.execution_api.datamodels.dagrun import (
+    DagRunResponse,
+    DagRunStateResponse,
+    TriggerDAGRunPayload,
+)
 from airflow.exceptions import DagRunAlreadyExists
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
@@ -36,6 +40,55 @@ router = APIRouter()
 
 
 log = logging.getLogger(__name__)
+
+
+@router.get(
+    "/{dag_id}/{run_id}",
+    responses={
+        status.HTTP_404_NOT_FOUND: {"description": "DAG Run not found for the given dag_id and run_id"},
+    },
+)
+def get_dag_run(
+    dag_id: str,
+    run_id: str,
+    session: SessionDep,
+) -> DagRunResponse:
+    """Get a DAG Run."""
+    dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id))
+    if dag_run is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail={
+                "reason": "not_found",
+                "message": f"The DagRun with dag_id: `{dag_id}` and run_id: `{run_id}` was not found",
+            },
+        )
+
+    # Calculate duration for the response
+    duration = None
+    if dag_run.end_date and dag_run.start_date:
+        duration = (dag_run.end_date - dag_run.start_date).total_seconds()
+
+    # Create response with calculated duration
+    response_data = {
+        "dag_id": dag_run.dag_id,
+        "run_id": dag_run.run_id,
+        "logical_date": dag_run.logical_date,
+        "data_interval_start": dag_run.data_interval_start,
+        "data_interval_end": dag_run.data_interval_end,
+        "run_after": dag_run.run_after,
+        "start_date": dag_run.start_date,
+        "end_date": dag_run.end_date,
+        "clear_number": dag_run.clear_number,
+        "run_type": dag_run.run_type,
+        "conf": dag_run.conf,
+        "state": dag_run.state,
+        "queued_at": dag_run.queued_at,
+        "last_scheduling_decision": dag_run.last_scheduling_decision,
+        "duration": duration,
+    }
+
+    return DagRunResponse.model_validate(response_data)
 
 
 @router.post(
