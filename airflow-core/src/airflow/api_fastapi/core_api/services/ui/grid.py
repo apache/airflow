@@ -25,9 +25,8 @@ import structlog
 from airflow.api_fastapi.common.parameters import state_priority
 from airflow.models.taskmap import TaskMap
 from airflow.sdk.definitions.mappedoperator import MappedOperator
-from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
+from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup, get_task_group_children_getter
 from airflow.serialization.serialized_objects import SerializedBaseOperator
-from airflow.utils.task_group import get_task_group_children_getter
 
 log = structlog.get_logger(logger_name=__name__)
 

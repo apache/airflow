@@ -47,13 +47,13 @@ export const TaskInstancesColumn = ({ nodes, runId, taskInstances }: Props) => {
     return (
       <GridTI
         dagId={dagId}
+        instance={taskInstance}
         isGroup={node.isGroup}
         isMapped={node.is_mapped}
         key={node.id}
         label={node.label}
         runId={runId}
         search={search}
-        state={taskInstance.state}
         taskId={node.id}
       />
     );

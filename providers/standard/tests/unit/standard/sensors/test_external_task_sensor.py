@@ -66,7 +66,6 @@ from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.timetables.base import DataInterval
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.task_group import TaskGroup
 from airflow.utils.timezone import coerce_datetime, datetime
 from airflow.utils.types import DagRunType
 
@@ -79,7 +78,14 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import task as task_deco
     from airflow.utils.types import DagRunTriggeredByType
 else:
-    from airflow.decorators import task as task_deco
+    from airflow.decorators import task as task_deco  # type: ignore[attr-defined,no-redef]
+
+try:
+    from airflow.sdk.definitions.taskgroup import TaskGroup
+except ImportError:
+    # Fallback for Airflow < 3.1
+    from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
+
 pytestmark = pytest.mark.db_test
 
 

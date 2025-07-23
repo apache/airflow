@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 import boto3
 import pendulum
 
@@ -32,18 +30,14 @@ from airflow.providers.amazon.aws.operators.s3 import (
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-if TYPE_CHECKING:
-    from airflow.decorators import task
-    from airflow.models.baseoperator import chain
-    from airflow.models.dag import DAG
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import DAG, chain, task
 else:
-    if AIRFLOW_V_3_0_PLUS:
-        from airflow.sdk import DAG, chain, task
-    else:
-        # Airflow 2.10 compat
-        from airflow.decorators import task
-        from airflow.models.baseoperator import chain
-        from airflow.models.dag import DAG
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
+    from airflow.models.baseoperator import chain  # type: ignore[attr-defined,no-redef]
+    from airflow.models.dag import DAG  # type: ignore[attr-defined,no-redef,assignment]
+
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import SystemTestContextBuilder
@@ -174,7 +168,6 @@ with DAG(DAG_ID, schedule="@once", start_date=pendulum.datetime(2023, 1, 1, tz="
     # This test needs watcher in order to properly mark success/failure
     # when "tearDown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
-
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
