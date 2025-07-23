@@ -21,6 +21,7 @@ from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
+import time_machine
 
 from airflow.configuration import conf
 from airflow.models.taskinstancekey import TaskInstanceKey
@@ -275,9 +276,7 @@ class TestEdgeExecutor:
                 )
                 session.commit()
 
-        with patch(
-            "airflow.utils.timezone.utcnow", return_value=datetime(2023, 1, 1, 1, 0, 0, tzinfo=timezone.utc)
-        ):
+        with time_machine.travel(datetime(2023, 1, 1, 1, 0, 0, tzinfo=timezone.utc), tick=False):
             with conf_vars({("edge", "heartbeat_interval"): "10"}):
                 executor.sync()
 
