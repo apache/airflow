@@ -38,7 +38,8 @@ else:
         from airflow.models.baseoperator import chain
         from airflow.models.dag import DAG
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
-
+import logging
+logging.getLogger().setLevel(logging.DEBUG)
 """
 Prerequisites: The account which runs this test must manually have the following:
 1. An IAM IDC organization set up in the testing region with a user initialized
