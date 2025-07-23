@@ -29,10 +29,10 @@ import sys
 import textwrap
 import warnings
 from collections import Counter
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from enum import Enum
 from functools import cache
-from typing import Any, Callable
+from typing import Any
 
 import jsonschema
 import yaml
@@ -41,7 +41,7 @@ from rich.console import Console
 from tabulate import tabulate
 
 from airflow.cli.commands.info_command import Architecture
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
 from airflow.providers_manager import ProvidersManager
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent.resolve()))
@@ -61,6 +61,9 @@ DEPRECATED_MODULES = [
     "airflow.providers.tabular.hooks.tabular",
     "airflow.providers.yandex.hooks.yandexcloud_dataproc",
     "airflow.providers.yandex.operators.yandexcloud_dataproc",
+    "airflow.providers.google.cloud.hooks.datacatalog",
+    "airflow.providers.google.cloud.operators.datacatalog",
+    "airflow.providers.google.cloud.links.datacatalog",
 ]
 
 KNOWN_DEPRECATED_CLASSES = [
@@ -243,6 +246,8 @@ def check_if_object_exist(
                 return num_errors
         else:
             raise RuntimeError(f"Wrong enum {object_type}???")
+    except AirflowOptionalProviderFeatureException as e:
+        console.print(f"[yellow]Skipping {object_name} check as it is optional feature[/]:", e)
     except Exception as e:
         errors.append(
             f"The `{object_name}` object in {resource_type} list in {yaml_file_path} does not exist "

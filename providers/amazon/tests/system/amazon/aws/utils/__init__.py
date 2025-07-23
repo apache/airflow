@@ -29,11 +29,16 @@ from uuid import uuid4
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
 
-from airflow.decorators import task
+try:
+    from airflow.sdk import task
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.providers.amazon.aws.hooks.ssm import SsmHook
-from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.state import DagRunState, State
 from airflow.utils.trigger_rule import TriggerRule
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from botocore.client import BaseClient

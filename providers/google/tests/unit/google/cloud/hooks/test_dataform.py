@@ -28,9 +28,6 @@ from airflow.providers.google.cloud.hooks.dataform import DataformHook
 
 from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
-pytestmark = pytest.mark.db_test
-
-
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 DATAFORM_STRING = "airflow.providers.google.cloud.hooks.dataform.{}"
 

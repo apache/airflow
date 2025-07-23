@@ -17,42 +17,71 @@
 from __future__ import annotations
 
 import types
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING, cast
 
 from airflow.exceptions import AirflowException
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.sdk.bases.operator import BaseOperator
+from airflow.sdk.definitions._internal.setup_teardown import SetupTeardownContext
 from airflow.sdk.definitions.decorators.task_group import _TaskGroupFactory
-from airflow.utils.setup_teardown import SetupTeardownContext
 
 if TYPE_CHECKING:
+    from airflow.sdk.bases.decorator import _TaskDecorator
     from airflow.sdk.definitions.xcom_arg import XComArg
 
-if AIRFLOW_V_3_0_PLUS:
+try:
     from airflow.providers.standard.decorators.python import python_task
-else:
+except (ImportError, AttributeError):
     from airflow.decorators import python_task  # type: ignore
 
 
 def setup_task(func: Callable) -> Callable:
+    """
+    Decorate a function to mark it as a setup task.
+
+    A setup task runs before all other tasks in its DAG or TaskGroup context
+    and can perform initialization or resource preparation.
+
+    Example::
+
+        @setup
+        def initialize_context(...):
+            ...
+    """
     # Using FunctionType here since _TaskDecorator is also a callable
     if isinstance(func, types.FunctionType):
         func = python_task(func)
     if isinstance(func, _TaskGroupFactory):
         raise AirflowException("Task groups cannot be marked as setup or teardown.")
-    func.is_setup = True  # type: ignore[attr-defined]
+    func = cast("_TaskDecorator", func)
+    func.is_setup = True
     return func
 
 
 def teardown_task(_func=None, *, on_failure_fail_dagrun: bool = False) -> Callable:
+    """
+    Decorate a function to mark it as a teardown task.
+
+    A teardown task runs after all main tasks in its DAG or TaskGroup context.
+    If ``on_failure_fail_dagrun=True``, a failure in teardown will mark the DAG run as failed.
+
+    Example::
+
+        @teardown(on_failure_fail_dagrun=True)
+        def cleanup(...):
+            ...
+    """
+
     def teardown(func: Callable) -> Callable:
         # Using FunctionType here since _TaskDecorator is also a callable
         if isinstance(func, types.FunctionType):
             func = python_task(func)
         if isinstance(func, _TaskGroupFactory):
             raise AirflowException("Task groups cannot be marked as setup or teardown.")
-        func.is_teardown = True  # type: ignore[attr-defined]
-        func.on_failure_fail_dagrun = on_failure_fail_dagrun  # type: ignore[attr-defined]
+        func = cast("_TaskDecorator", func)
+
+        func.is_teardown = True
+        func.on_failure_fail_dagrun = on_failure_fail_dagrun
         return func
 
     if _func is None:

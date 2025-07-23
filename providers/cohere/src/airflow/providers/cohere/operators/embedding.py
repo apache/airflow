@@ -21,18 +21,13 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from airflow.models import BaseOperator
 from airflow.providers.cohere.hooks.cohere import CohereHook
+from airflow.providers.cohere.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from cohere.core.request_options import RequestOptions
-    from cohere.types import EmbedByTypeResponseEmbeddings
 
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.cohere.version_compat import Context
 
 
 class CohereEmbeddingOperator(BaseOperator):
@@ -91,6 +86,13 @@ class CohereEmbeddingOperator(BaseOperator):
             request_options=self.request_options,
         )
 
-    def execute(self, context: Context) -> EmbedByTypeResponseEmbeddings:
+    def execute(self, context: Context) -> list[list[float]]:
         """Embed texts using Cohere embed services."""
-        return self.hook.create_embeddings(self.input_text)
+        embedding_response = self.hook.create_embeddings(self.input_text)
+        # NOTE: Return type `EmbedByTypeResponseEmbeddings` was removed temporarily due to limitations
+        # in XCom serialization/deserialization of complex types like Cohere embeddings and Pydantic models.
+        #
+        # Tracking issue: https://github.com/apache/airflow/issues/50867
+        # Once that issue is resolved, XCom (de)serialization of such types will be supported, and
+        # we can safely restore the `EmbedByTypeResponseEmbeddings` return type here.
+        return embedding_response

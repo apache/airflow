@@ -22,8 +22,17 @@ from __future__ import annotations
 import dataclasses
 from typing import Any
 
-import vertex_ray
-from google._upb._message import ScalarMapContainer  # type: ignore[attr-defined]
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+try:
+    import vertex_ray
+    from google._upb._message import ScalarMapContainer  # type: ignore[attr-defined]
+except ImportError:
+    # Fallback for environments where the upb module is not available.
+    raise AirflowOptionalProviderFeatureException(
+        "google._upb._message.ScalarMapContainer is not available. "
+        "Please install the ray package to use this feature."
+    )
 from google.cloud import aiplatform
 from google.cloud.aiplatform.vertex_ray.util import resources
 from google.cloud.aiplatform_v1 import (

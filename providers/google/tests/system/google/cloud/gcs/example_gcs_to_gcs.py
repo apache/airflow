@@ -27,10 +27,15 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
-from airflow.decorators import task
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import task
+else:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
-from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.google.cloud.operators.gcs import (
     GCSCreateBucketOperator,
     GCSDeleteBucketOperator,
@@ -58,14 +63,8 @@ HOME = "/home/airflow/gcs"
 PREFIX = f"{HOME}/data/{DAG_ID}_{ENV_ID}/"
 
 
-def _unwrap_xcom(result):
-    if AIRFLOW_V_3_0_PLUS:
-        return result
-    return result[0]
-
-
 def _assert_copied_files_exist(ti):
-    objects = _unwrap_xcom(ti.xcom_pull(task_ids=["list_objects"], key="return_value"))
+    objects = ti.xcom_pull("list_objects")
 
     assert PREFIX + OBJECT_1 in objects
     assert f"{PREFIX}subdir/{OBJECT_1}" in objects
@@ -299,7 +298,6 @@ with DAG(
     # This test needs watcher in order to properly mark success/failure
     # when "tearDown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
-
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 

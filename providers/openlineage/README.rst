@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-openlineage``
 
-Release: ``2.3.0``
+Release: ``2.5.0``
 
 
 `OpenLineage <https://openlineage.io/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``openlineage`` provider. All classes for this pr
 are in ``airflow.providers.openlineage`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.3.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.5.0/>`_.
 
 Installation
 ------------
@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow 2 installation (see `
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-openlineage``
 
-The package supports the following python versions: 3.9,3.10,3.11,3.12
+The package supports the following python versions: 3.10,3.11,3.12,3.13
 
 Requirements
 ------------
@@ -57,8 +57,8 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-sql``     ``>=1.20.0``
 ``apache-airflow-providers-common-compat``  ``>=1.4.0``
 ``attrs``                                   ``>=22.2``
-``openlineage-integration-common``          ``>=1.31.0``
-``openlineage-python``                      ``>=1.31.0``
+``openlineage-integration-common``          ``>=1.34.0``
+``openlineage-python``                      ``>=1.34.0``
 ==========================================  ==================
 
 Cross provider package dependencies
@@ -82,4 +82,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.3.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.5.0/changelog.html>`_.

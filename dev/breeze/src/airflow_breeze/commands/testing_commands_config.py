@@ -65,6 +65,7 @@ TEST_UPGRADING_PACKAGES: dict[str, str | list[str]] = {
     "name": "Upgrading/downgrading/removing selected packages",
     "options": [
         "--upgrade-boto",
+        "--upgrade-sqlalchemy",
         "--downgrade-sqlalchemy",
         "--downgrade-pendulum",
     ],
@@ -89,6 +90,7 @@ TEST_ADVANCED_FLAGS_FOR_INSTALLATION: dict[str, str | list[str]] = {
         "--install-airflow-with-constraints",
         "--distribution-format",
         "--use-airflow-version",
+        "--allow-pre-releases",
         "--use-distributions-from-dist",
     ],
 }
@@ -183,16 +185,13 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         TEST_ADVANCED_FLAGS,
     ],
     "breeze testing airflow-ctl-tests": [
-        TEST_OPTIONS_NON_DB,
         {
             "name": "Test environment",
             "options": [
                 "--python",
-                "--forward-credentials",
-                "--force-sa-warnings",
+                "--parallelism",
             ],
         },
-        TEST_ADVANCED_FLAGS,
     ],
     "breeze testing core-integration-tests": [
         TEST_OPTIONS_DB,

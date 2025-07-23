@@ -18,7 +18,11 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow.decorators import dag, setup, task, teardown
+try:
+    from airflow.sdk import dag, setup, task, teardown
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import dag, setup, task, teardown  # type: ignore[attr-defined,no-redef]
 from airflow.providers.cohere.operators.embedding import CohereEmbeddingOperator
 from airflow.providers.weaviate.operators.weaviate import WeaviateIngestOperator
 
@@ -72,7 +76,6 @@ def example_weaviate_cohere():
         data = json.load(Path("jeopardy_data_without_vectors.json").open())
         embedded_data = ti.xcom_pull(task_ids="embedding_using_xcom_data", key="return_value")
         for i, vector in enumerate(embedded_data):
-            vector = vector.float_
             data[i]["Vector"] = vector[0]
         return data
 

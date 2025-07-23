@@ -23,10 +23,10 @@ import tarfile
 import tempfile
 import time
 from collections import Counter, namedtuple
-from collections.abc import AsyncGenerator, Generator
+from collections.abc import AsyncGenerator, Callable, Generator
 from datetime import datetime
 from functools import partial
-from typing import Any, Callable, cast
+from typing import Any, cast
 
 from asgiref.sync import sync_to_async
 from botocore.exceptions import ClientError

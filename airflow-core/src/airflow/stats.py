@@ -19,7 +19,8 @@ from __future__ import annotations
 
 import logging
 import socket
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
 from airflow.metrics.base_stats_logger import NoStatsLogger

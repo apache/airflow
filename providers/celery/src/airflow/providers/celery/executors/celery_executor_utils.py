@@ -32,7 +32,7 @@ import traceback
 import warnings
 from collections.abc import Mapping, MutableMapping, Sequence
 from concurrent.futures import ProcessPoolExecutor
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any
 
 from celery import Celery, Task, states as celery_states
 from celery.backends.base import BaseKeyValueStoreBackend
@@ -60,22 +60,21 @@ except ImportError:
 log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from typing import TypeAlias
+
     from celery.result import AsyncResult
 
     from airflow.executors import workloads
     from airflow.executors.base_executor import EventBufferValueType
     from airflow.models.taskinstance import TaskInstanceKey
-    from airflow.typing_compat import TypeAlias
 
     # We can't use `if AIRFLOW_V_3_0_PLUS` conditions in type checks, so unfortunately we just have to define
     # the type as the union of both kinds
     CommandType = Sequence[str]
 
-    TaskInstanceInCelery: TypeAlias = tuple[
-        TaskInstanceKey, Union[workloads.All, CommandType], Optional[str], Task
-    ]
+    TaskInstanceInCelery: TypeAlias = tuple[TaskInstanceKey, workloads.All | CommandType, str | None, Task]
 
-    TaskTuple = tuple[TaskInstanceKey, CommandType, Optional[str], Optional[Any]]
+    TaskTuple = tuple[TaskInstanceKey, CommandType, str | None, Any | None]
 
 OPERATION_TIMEOUT = conf.getfloat("celery", "operation_timeout")
 
@@ -287,7 +286,7 @@ def send_task_to_executor(
 
     # The type is right for the version, but the type cannot be defined correctly for Airflow 2 and 3
     # concurrently;
-    return key, args, result  # type: ignore[return-value]
+    return key, args, result
 
 
 def fetch_celery_task_state(async_result: AsyncResult) -> tuple[str, str | ExceptionWithTraceback, Any]:

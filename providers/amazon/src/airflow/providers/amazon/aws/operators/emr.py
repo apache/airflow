@@ -89,9 +89,9 @@ class EmrAddStepsOperator(AwsBaseOperator[EmrHook]):
     :param steps: boto3 style steps or reference to a steps file (must be '.json') to
         be added to the jobflow. (templated)
     :param wait_for_completion: If True, the operator will wait for all the steps to be completed.
+        Defaults to False. Note: When deferrable=True, this parameter will not take effect.
     :param execution_role_arn: The ARN of the runtime role for a step on the cluster.
     :param do_xcom_push: if True, job_flow_id is pushed to XCom with key job_flow_id.
-    :param wait_for_completion: Whether to wait for job run completion. (default: True)
     :param deferrable: If True, the operator will wait asynchronously for the job to complete.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False)
@@ -970,7 +970,7 @@ class EmrServerlessCreateApplicationOperator(AwsBaseOperator[EmrServerlessHook])
 
     :param release_label: The EMR release version associated with the application.
     :param job_type: The type of application you want to start, such as Spark or Hive.
-    :param wait_for_completion: If true, wait for the Application to start before returning. Default to True.
+    :param wait_for_completion: If true, wait for the Application to start before returning. Defaults to True.
         If set to False, ``waiter_max_attempts`` and ``waiter_delay`` will only be applied when
         waiting for the application to be in the ``CREATED`` state.
     :param client_request_token: The client idempotency token of the application to create.
@@ -984,9 +984,10 @@ class EmrServerlessCreateApplicationOperator(AwsBaseOperator[EmrServerlessHook])
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
     :param verify: Whether or not to verify SSL certificates. See:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
-    :waiter_max_attempts: Number of times the waiter should poll the application to check the state.
-        If not set, the waiter will use its default value.
+    :param waiter_max_attempts: Number of times the waiter should poll the application to check the state.
+        Defaults to 25 if not set.
     :param waiter_delay: Number of seconds between polling the state of the application.
+        Defaults to 60 seconds if not set.
     :param deferrable: If True, the operator will wait asynchronously for application to be created.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False, but can be overridden in config file by setting default_deferrable to True)
@@ -1117,8 +1118,8 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
       Its value must be unique for each request.
     :param config: Optional dictionary for arbitrary parameters to the boto API start_job_run call.
     :param wait_for_completion: If true, waits for the job to start before returning. Defaults to True.
-        If set to False, ``waiter_countdown`` and ``waiter_check_interval_seconds`` will only be applied
-        when waiting for the application be to in the ``STARTED`` state.
+        If set to False, ``waiter_max_attempts`` and ``waiter_delay`` will only be applied
+        when waiting for the application to be in the ``STARTED`` state.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -1128,9 +1129,10 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
     :param verify: Whether or not to verify SSL certificates. See:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param name: Name for the EMR Serverless job. If not provided, a default name will be assigned.
-    :waiter_max_attempts: Number of times the waiter should poll the application to check the state.
-        If not set, the waiter will use its default value.
+    :param waiter_max_attempts: Number of times the waiter should poll the application to check the state.
+        Defaults to 25 if not set.
     :param waiter_delay: Number of seconds between polling the state of the job run.
+        Defaults to 60 seconds if not set.
     :param deferrable: If True, the operator will wait asynchronously for the crawl to complete.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False, but can be overridden in config file by setting default_deferrable to True)
@@ -1438,10 +1440,10 @@ class EmrServerlessStopApplicationOperator(AwsBaseOperator[EmrServerlessHook]):
         Otherwise, trying to stop an app with running jobs will return an error.
         If you want to wait for the jobs to finish gracefully, use
         :class:`airflow.providers.amazon.aws.sensors.emr.EmrServerlessJobSensor`
-    :waiter_max_attempts: Number of times the waiter should poll the application to check the state.
-        Default is 25.
+    :param waiter_max_attempts: Number of times the waiter should poll the application to check the state.
+        Defaults to 25 if not set.
     :param waiter_delay: Number of seconds between polling the state of the application.
-        Default is 60 seconds.
+        Defaults to 60 seconds if not set.
     :param deferrable: If True, the operator will wait asynchronously for the application to stop.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False, but can be overridden in config file by setting default_deferrable to True)
@@ -1573,10 +1575,10 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
     :param verify: Whether or not to verify SSL certificates. See:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
-    :waiter_max_attempts: Number of times the waiter should poll the application to check the state.
-        Defaults to 25.
+    :param waiter_max_attempts: Number of times the waiter should poll the application to check the state.
+        Defaults to 25 if not set.
     :param waiter_delay: Number of seconds between polling the state of the application.
-        Defaults to 60 seconds.
+        Defaults to 60 seconds if not set.
     :param deferrable: If True, the operator will wait asynchronously for application to be deleted.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False, but can be overridden in config file by setting default_deferrable to True)

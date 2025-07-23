@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Code, Flex, Heading, Text, VStack, useDisclosure } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiTrash, FiTrash2 } from "react-icons/fi";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -29,6 +30,7 @@ type Props = {
 };
 
 const DeleteConnectionsButton = ({ clearSelections, deleteKeys: connectionIds }: Props) => {
+  const { t: translate } = useTranslation("admin");
   const { onClose, onOpen, open } = useDisclosure();
   const { error, isPending, mutate } = useBulkDeleteConnections({
     clearSelections,
@@ -41,15 +43,17 @@ const DeleteConnectionsButton = ({ clearSelections, deleteKeys: connectionIds }:
 
   return (
     <>
-      <Button aria-label="Delete selected connections" onClick={onOpen} size="sm" variant="outline">
-        <FiTrash2 /> Delete
+      <Button aria-label={translate("deleteActions.button")} onClick={onOpen} size="sm" variant="outline">
+        <FiTrash2 /> {translate("deleteActions.button")}
       </Button>
 
       <Dialog.Root onOpenChange={onClose} open={open} size="xl">
         <Dialog.Content backdrop>
           <Dialog.Header>
             <VStack align="start" gap={4}>
-              <Heading size="xl">Delete Connection{connectionIds.length > 1 ? "s" : ""}</Heading>
+              <Heading size="xl">
+                {translate("connections.delete.deleteConnection", { count: connectionIds.length })}
+              </Heading>
             </VStack>
           </Dialog.Header>
 
@@ -57,17 +61,14 @@ const DeleteConnectionsButton = ({ clearSelections, deleteKeys: connectionIds }:
 
           <Dialog.Body width="full">
             <Text color="gray.solid" fontSize="md" fontWeight="semibold" mb={4}>
-              You are about to delete{" "}
-              <strong>
-                {connectionIds.length} connection{connectionIds.length > 1 ? "s" : ""}.
-              </strong>
+              {translate("connections.delete.firstConfirmMessage", { count: connectionIds.length })}
               <br />
               <Code mb={2} mt={2} p={4}>
                 {connectionIds.join(", ")}
               </Code>
               <br />
-              This action is permanent and cannot be undone.{" "}
-              <strong>Are you sure you want to proceed?</strong>
+              {translate("deleteActions.modal.secondConfirmMessage")}
+              <strong>{translate("deleteActions.modal.thirdConfirmMessage")}</strong>
             </Text>
             <ErrorAlert error={error} />
             <Flex justifyContent="end" mt={3}>
@@ -78,7 +79,7 @@ const DeleteConnectionsButton = ({ clearSelections, deleteKeys: connectionIds }:
                   mutate({ requestBody: { actions: [{ action: "delete", entities: connectionIds }] } });
                 }}
               >
-                <FiTrash /> <Text as="span">Yes, Delete</Text>
+                <FiTrash /> <Text as="span">{translate("deleteActions.modal.confirmButton")}</Text>
               </Button>
             </Flex>
           </Dialog.Body>

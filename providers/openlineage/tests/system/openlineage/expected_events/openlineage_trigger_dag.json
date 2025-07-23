@@ -16,7 +16,7 @@
                         "owner": "airflow",
                         "owner_links": {},
                         "start_date": "{{ is_datetime(result) }}",
-                        "tags": "[]",
+                        "tags": "{{ result[1:-1].split(', ') | sort == ['\"with\\'quote\"', \"'first'\", \"'second@'\", '\\'z\"e\\''] }}",
                         "timetable": {}
                     },
                     "dagRun": {
@@ -53,6 +53,12 @@
             "namespace": "{{ result is string }}",
             "name": "openlineage_trigger_dag_child__notrigger",
             "facets": {
+                "documentation": {
+                  "description": "MD DAG doc",
+                  "contentType": "text/markdown",
+                  "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                  "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/DocumentationJobFacet.json\\#\\/\\$defs\\/DocumentationJobFacet\") }}"
+                },
                 "jobType": {
                     "integration": "AIRFLOW",
                     "jobType": "DAG",
@@ -68,6 +74,32 @@
                     ],
                     "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
                     "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/OwnershipJobFacet.json\\#\\/\\$defs\\/OwnershipJobFacet\") }}"
+                },
+                "tags": {
+                  "tags": [
+                      {
+                          "key": "first",
+                          "value": "first",
+                          "source": "AIRFLOW"
+                      },
+                      {
+                          "key": "second@",
+                          "value": "second@",
+                          "source": "AIRFLOW"
+                      },
+                      {
+                          "key": "with'quote",
+                          "value": "with'quote",
+                          "source": "AIRFLOW"
+                      },
+                      {
+                          "key": "z\"e",
+                          "value": "z\"e",
+                          "source": "AIRFLOW"
+                      }
+                  ],
+                  "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                  "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/TagsJobFacet.json\\#\\/\\$defs\\/TagsJobFacet\") }}"
                 },
                 "airflow": {
                     "taskGroups": {},
@@ -113,7 +145,7 @@
                         "owner": "airflow",
                         "owner_links": {},
                         "start_date": "{{ is_datetime(result) }}",
-                        "tags": "[]",
+                        "tags": "{{ result[1:-1].split(', ') | sort == ['\"with\\'quote\"', \"'first'\", \"'second@'\", '\\'z\"e\\''] }}",
                         "timetable": {}
                     },
                     "dagRun": {
@@ -132,6 +164,12 @@
                     "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
                     "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/[\\d-]+\\/OpenLineage.json\\#\\/\\$defs\\/RunFacet\") }}"
                 },
+                "nominalTime": {
+                    "nominalEndTime": "{{ is_datetime(result) }}",
+                    "nominalStartTime": "{{ is_datetime(result) }}",
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/NominalTimeRunFacet.json\\#\\/\\$defs\\/NominalTimeRunFacet$\") }}"
+                },
                 "processing_engine": {
                     "name": "Airflow",
                     "openlineageAdapterVersion": "{{ regex_match(result, \"^[\\d]+\\.[\\d]+\\.[\\d]+.*\") }}",
@@ -145,6 +183,12 @@
             "namespace": "{{ result is string }}",
             "name": "openlineage_trigger_dag_child__notrigger",
             "facets": {
+                "documentation": {
+                  "description": "MD DAG doc",
+                  "contentType": "text/markdown",
+                  "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                  "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/DocumentationJobFacet.json\\#\\/\\$defs\\/DocumentationJobFacet\") }}"
+                },
                 "ownership": {
                     "owners": [
                         {
@@ -153,6 +197,32 @@
                     ],
                     "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
                     "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/OwnershipJobFacet.json\\#\\/\\$defs\\/OwnershipJobFacet\") }}"
+                },
+                "tags": {
+                  "tags": [
+                      {
+                          "key": "first",
+                          "value": "first",
+                          "source": "AIRFLOW"
+                      },
+                      {
+                          "key": "second@",
+                          "value": "second@",
+                          "source": "AIRFLOW"
+                      },
+                      {
+                          "key": "with'quote",
+                          "value": "with'quote",
+                          "source": "AIRFLOW"
+                      },
+                      {
+                          "key": "z\"e",
+                          "value": "z\"e",
+                          "source": "AIRFLOW"
+                      }
+                  ],
+                  "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                  "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/TagsJobFacet.json\\#\\/\\$defs\\/TagsJobFacet\") }}"
                 },
                 "jobType": {
                     "integration": "AIRFLOW",

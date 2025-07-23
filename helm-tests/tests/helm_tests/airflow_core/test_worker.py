@@ -1283,26 +1283,107 @@ class TestWorkerServiceAccount:
                     "labels": {"test_label": "test_label_value"},
                 },
             },
-            show_only=["templates/workers/worker-service.yaml"],
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
         )
 
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
 
     @pytest.mark.parametrize(
-        "executor, creates_service_account",
+        "executor",
         [
-            ("LocalExecutor", False),
-            ("CeleryExecutor", True),
-            ("CeleryKubernetesExecutor", True),
-            ("CeleryExecutor,KubernetesExecutor", True),
-            ("KubernetesExecutor", True),
-            ("LocalKubernetesExecutor", True),
+            "CeleryKubernetesExecutor",
+            "CeleryExecutor,KubernetesExecutor",
+            "KubernetesExecutor",
+            "LocalKubernetesExecutor",
         ],
     )
-    def test_should_create_worker_service_account_for_specific_executors(
-        self, executor, creates_service_account
+    @pytest.mark.parametrize(
+        "workers_values, obj",
+        [
+            ({"serviceAccount": {"create": True}}, "worker"),
+            (
+                {
+                    "useWorkerDedicatedServiceAccounts": True,
+                    "kubernetes": {"serviceAccount": {"create": True}},
+                },
+                "worker-kubernetes",
+            ),
+        ],
+    )
+    def test_should_create_worker_service_account_for_specific_kubernetes_executors(
+        self, executor, workers_values, obj
     ):
+        docs = render_chart(
+            values={
+                "executor": executor,
+                "workers": workers_values,
+            },
+            show_only=[f"templates/workers/{obj}-serviceaccount.yaml"],
+        )
+
+        assert len(docs) == 1
+        assert jmespath.search("kind", docs[0]) == "ServiceAccount"
+
+    @pytest.mark.parametrize(
+        "executor",
+        [
+            "CeleryExecutor",
+            "CeleryKubernetesExecutor",
+            "CeleryExecutor,KubernetesExecutor",
+        ],
+    )
+    @pytest.mark.parametrize(
+        "workers_values, obj",
+        [
+            ({"serviceAccount": {"create": True}}, "worker"),
+            (
+                {
+                    "useWorkerDedicatedServiceAccounts": True,
+                    "celery": {"serviceAccount": {"create": True}},
+                },
+                "worker-celery",
+            ),
+        ],
+    )
+    def test_should_create_worker_service_account_for_specific_celery_executors(
+        self, executor, workers_values, obj
+    ):
+        docs = render_chart(
+            values={
+                "executor": executor,
+                "workers": workers_values,
+            },
+            show_only=[f"templates/workers/{obj}-serviceaccount.yaml"],
+        )
+
+        assert len(docs) == 1
+        assert jmespath.search("kind", docs[0]) == "ServiceAccount"
+
+    def test_worker_service_account_creation_for_local_executor(self):
+        docs = render_chart(
+            values={
+                "executor": "LocalExecutor",
+                "workers": {
+                    "serviceAccount": {"create": True},
+                },
+            },
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
+
+        assert len(docs) == 0
+
+    @pytest.mark.parametrize(
+        "executor",
+        [
+            "CeleryExecutor",
+            "CeleryKubernetesExecutor",
+            "CeleryExecutor,KubernetesExecutor",
+            "KubernetesExecutor",
+            "LocalKubernetesExecutor",
+        ],
+    )
+    def test_worker_service_account_labels_per_executor(self, executor):
         docs = render_chart(
             values={
                 "executor": executor,
@@ -1313,12 +1394,11 @@ class TestWorkerServiceAccount:
             },
             show_only=["templates/workers/worker-serviceaccount.yaml"],
         )
-        if creates_service_account:
-            assert jmespath.search("kind", docs[0]) == "ServiceAccount"
-            assert "test_label" in jmespath.search("metadata.labels", docs[0])
-            assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
-        else:
-            assert docs == []
+
+        assert len(docs) == 1
+        assert jmespath.search("kind", docs[0]) == "ServiceAccount"
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
 
     def test_default_automount_service_account_token(self):
         docs = render_chart(
@@ -1331,13 +1411,75 @@ class TestWorkerServiceAccount:
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
-    def test_overridden_automount_service_account_token(self):
+    @pytest.mark.parametrize(
+        "workers_values, obj",
+        [
+            (
+                {"useWorkerDedicatedServiceAccounts": True, "celery": {"serviceAccount": {"create": True}}},
+                "worker-celery",
+            ),
+            (
+                {
+                    "useWorkerDedicatedServiceAccounts": True,
+                    "kubernetes": {"serviceAccount": {"create": True}},
+                },
+                "worker-kubernetes",
+            ),
+        ],
+    )
+    def test_dedicated_service_account_token_automount(self, workers_values, obj):
         docs = render_chart(
             values={
-                "workers": {
-                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
-                },
+                "executor": "CeleryExecutor,KubernetesExecutor",
+                "workers": workers_values,
             },
-            show_only=["templates/workers/worker-serviceaccount.yaml"],
+            show_only=[f"templates/workers/{obj}-serviceaccount.yaml"],
+        )
+        assert len(docs) == 1
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is True
+
+    @pytest.mark.parametrize(
+        "workers_values, obj",
+        [
+            ({"serviceAccount": {"create": True, "automountServiceAccountToken": False}}, "worker"),
+            (
+                {
+                    "useWorkerDedicatedServiceAccounts": True,
+                    "celery": {"serviceAccount": {"create": True, "automountServiceAccountToken": False}},
+                },
+                "worker-celery",
+            ),
+            (
+                {
+                    "serviceAccount": {"create": True, "automountServiceAccountToken": True},
+                    "useWorkerDedicatedServiceAccounts": True,
+                    "celery": {"serviceAccount": {"create": True, "automountServiceAccountToken": False}},
+                },
+                "worker-celery",
+            ),
+            (
+                {
+                    "useWorkerDedicatedServiceAccounts": True,
+                    "kubernetes": {"serviceAccount": {"create": True, "automountServiceAccountToken": False}},
+                },
+                "worker-kubernetes",
+            ),
+            (
+                {
+                    "serviceAccount": {"create": True, "automountServiceAccountToken": True},
+                    "useWorkerDedicatedServiceAccounts": True,
+                    "kubernetes": {"serviceAccount": {"create": True, "automountServiceAccountToken": False}},
+                },
+                "worker-kubernetes",
+            ),
+        ],
+    )
+    def test_overridden_automount_service_account_token(self, workers_values, obj):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor,KubernetesExecutor",
+                "workers": workers_values,
+            },
+            show_only=[f"templates/workers/{obj}-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False
