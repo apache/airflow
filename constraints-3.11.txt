@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-23T02:26:36.201085
+# This constraints file was automatically generated on 2025-07-23T19:48:20.237449
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -88,7 +88,7 @@ alibabacloud-tea==0.4.3
 alibabacloud_endpoint_util==0.0.4
 alibabacloud_gateway_spi==0.0.3
 alibabacloud_openapi_util==0.2.2
-alibabacloud_tea_openapi==0.3.16
+alibabacloud_tea_openapi==0.4.0
 alibabacloud_tea_util==0.3.13
 alibabacloud_tea_xml==0.0.3
 aliyun-python-sdk-core==2.16.0
@@ -281,6 +281,7 @@ cron-descriptor==1.4.5
 croniter==6.0.0
 cryptography==42.0.8
 curlify==3.0.0
+darabonba-core==1.0.2
 databricks-sql-connector==4.0.5
 databricks-sqlalchemy==1.0.2
 dataclasses-json==0.6.7
@@ -336,11 +337,11 @@ gitdb==4.0.12
 google-ads==27.0.0
 google-analytics-admin==0.24.1
 google-api-core==2.25.1
-google-api-python-client==2.176.0
+google-api-python-client==2.177.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.40.3
-google-cloud-aiplatform==1.104.0
+google-cloud-aiplatform==1.105.0
 google-cloud-alloydb==0.4.8
 google-cloud-appengine-logging==1.6.2
 google-cloud-audit-log==0.3.2
@@ -352,7 +353,7 @@ google-cloud-bigquery==3.35.0
 google-cloud-bigtable==2.31.0
 google-cloud-build==3.31.2
 google-cloud-compute==1.33.0
-google-cloud-container==2.58.0
+google-cloud-container==2.59.0
 google-cloud-core==2.4.3
 google-cloud-datacatalog==3.27.1
 google-cloud-dataflow-client==0.9.0
@@ -648,7 +649,7 @@ pytz==2025.2
 pywinrm==0.5.0
 pyzmq==27.0.0
 qdrant-client==1.15.0
-ray==2.42.0
+ray==2.47.1
 reactivex==4.0.4
 readme_renderer==44.0
 redis==5.2.1
