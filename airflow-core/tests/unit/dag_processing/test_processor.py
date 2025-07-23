@@ -50,6 +50,7 @@ from airflow.models import DagBag, DagRun
 from airflow.models.baseoperator import BaseOperator
 from airflow.sdk import DAG
 from airflow.sdk.api.client import Client
+from airflow.sdk.api.datamodels._generated import DagRunState
 from airflow.sdk.execution_time import comms
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -691,6 +692,7 @@ class TestExecuteTaskCallbacks:
             logical_date=timezone.utcnow(),
             start_date=timezone.utcnow(),
             run_type="manual",
+            state=DagRunState.RUNNING,
         )
         dag_run.run_after = timezone.utcnow()
 

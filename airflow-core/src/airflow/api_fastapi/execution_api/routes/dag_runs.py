@@ -27,9 +27,11 @@ from airflow.api.common.trigger_dag import trigger_dag
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.execution_api.datamodels.dagrun import DagRunStateResponse, TriggerDAGRunPayload
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun
 from airflow.exceptions import DagRunAlreadyExists
 from airflow.models.dag import DagModel
-from airflow.models.dagrun import DagRun
+from airflow.models.dagrun import DagRun as DagRunModel
+from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType
 
 router = APIRouter()
@@ -123,7 +125,9 @@ def clear_dag_run(
         )
     from airflow.jobs.scheduler_job_runner import SchedulerDagBag
 
-    dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id))
+    dag_run = session.scalar(
+        select(DagRunModel).where(DagRunModel.dag_id == dag_id, DagRunModel.run_id == run_id)
+    )
     dag_bag = SchedulerDagBag()
     dag = dag_bag.get_dag(dag_run=dag_run, session=session)
     if not dag:
@@ -150,7 +154,9 @@ def get_dagrun_state(
     session: SessionDep,
 ) -> DagRunStateResponse:
     """Get a DAG Run State."""
-    dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id))
+    dag_run = session.scalar(
+        select(DagRunModel).where(DagRunModel.dag_id == dag_id, DagRunModel.run_id == run_id)
+    )
     if dag_run is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
@@ -172,16 +178,45 @@ def get_dr_count(
     states: Annotated[list[str] | None, Query()] = None,
 ) -> int:
     """Get the count of DAG runs matching the given criteria."""
-    query = select(func.count()).select_from(DagRun).where(DagRun.dag_id == dag_id)
+    query = select(func.count()).select_from(DagRunModel).where(DagRunModel.dag_id == dag_id)
 
     if logical_dates:
-        query = query.where(DagRun.logical_date.in_(logical_dates))
+        query = query.where(DagRunModel.logical_date.in_(logical_dates))
 
     if run_ids:
-        query = query.where(DagRun.run_id.in_(run_ids))
+        query = query.where(DagRunModel.run_id.in_(run_ids))
 
     if states:
-        query = query.where(DagRun.state.in_(states))
+        query = query.where(DagRunModel.state.in_(states))
 
     count = session.scalar(query)
     return count or 0
+
+
+@router.get("/{dag_id}/previous", status_code=status.HTTP_200_OK)
+def get_previous_dagrun(
+    dag_id: str,
+    logical_date: UtcDateTime,
+    session: SessionDep,
+    state: Annotated[DagRunState | None, Query()] = None,
+) -> DagRun | None:
+    """Get the previous DAG run before the given logical date, optionally filtered by state."""
+    query = (
+        select(DagRunModel)
+        .where(
+            DagRunModel.dag_id == dag_id,
+            DagRunModel.logical_date < logical_date,
+        )
+        .order_by(DagRunModel.logical_date.desc())
+        .limit(1)
+    )
+
+    if state:
+        query = query.where(DagRunModel.state == state)
+
+    dag_run = session.scalar(query)
+
+    if not dag_run:
+        return None
+
+    return DagRun.model_validate(dag_run)
