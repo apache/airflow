@@ -133,9 +133,8 @@ class TestMwaaTaskCompletedTrigger:
         trigger = MwaaTaskCompletedTrigger(**TRIGGER_TASK_KWARGS)
         # Two defensive assertions that should fail if more success or failure states are added to make sure the expected set of success and failure states is kept in sync.
         assert trigger.success_states == {
-            TaskInstanceState.SUCCESS,
-            TaskInstanceState.SKIPPED,
-            TaskInstanceState.REMOVED,
+            TaskInstanceState.SUCCESS.value,
+            TaskInstanceState.SKIPPED.value,
         }
         assert trigger.failure_states == {TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED}
         acceptors = trigger.waiter_config_overrides["acceptors"]
@@ -174,7 +173,7 @@ class TestMwaaTaskCompletedTrigger:
                 "matcher": "path",
                 "argument": "RestApiResponse.state",
                 "expected": TaskInstanceState.REMOVED.value,
-                "state": "success",
+                "state": "retry",
             },
             {
                 "matcher": "path",

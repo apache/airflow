@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.mwaa import MwaaHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
-from airflow.utils.state import DagRunState, IntermediateTIState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
@@ -149,9 +149,8 @@ class MwaaTaskCompletedTrigger(AwsBaseWaiterTrigger):
         if len(self.success_states & self.failure_states):
             raise ValueError("success_states and failure_states must not have any values in common")
 
-        in_progress_states = set(state.value for state in IntermediateTIState).union(
-            {TaskInstanceState.RUNNING.value}
-        )
+        in_progress_states = {s.value for s in TaskInstanceState} - self.success_states - self.failure_states
+
         super().__init__(
             serialized_fields={
                 "external_env_name": external_env_name,
