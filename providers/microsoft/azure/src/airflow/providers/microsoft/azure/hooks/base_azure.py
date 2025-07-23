@@ -124,14 +124,7 @@ class AzureBaseHook(BaseHook):
             subscription_id=subscription_id,
         )
 
-    def get_credential(
-        self, *, conn: Connection | None = None
-    ) -> (
-        ServicePrincipalCredentials
-        | AzureIdentityCredentialAdapter
-        | ClientSecretCredential
-        | DefaultAzureCredential
-    ):
+    def get_credential(self, *, conn: Connection | None = None) -> Any:
         """
         Get Azure credential object for the connection.
 
@@ -154,8 +147,8 @@ class AzureBaseHook(BaseHook):
             self.log.info("Getting credentials using specific credentials and subscription_id.")
             if use_azure_identity_object:
                 credential = ClientSecretCredential(
-                    client_id=conn.login,
-                    client_secret=conn.password,
+                    client_id=conn.login,  # type: ignore[arg-type]
+                    client_secret=conn.password,  # type: ignore[arg-type]
                     tenant_id=tenant,  # type: ignore[arg-type]
                 )
             else:
