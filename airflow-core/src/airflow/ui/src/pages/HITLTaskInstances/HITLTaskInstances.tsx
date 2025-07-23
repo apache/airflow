@@ -16,28 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Link } from "@chakra-ui/react";
-import { Heading } from "@chakra-ui/react";
+import { Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams } from "react-router-dom";
 
 import { useHumanInTheLoopServiceGetHitlDetails } from "openapi/queries";
-import type { HITLDetail } from "openapi/requests/types.gen";
+import type { HITLDetail, TaskInstanceResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
-import { Dialog } from "src/components/ui";
 import { useAutoRefresh } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
-import HITLResponseButton from "./HITLResponseButton";
-import { HITLResponseForm } from "./HITLResponseForm";
-import { useHITLResponseState } from "./useHITLResponseState";
+// Helper function to get HITL response link - redirect to HITL response tab
+const getHITLResponseLink = (taskInstance: TaskInstanceResponse) => {
+  const baseLink = getTaskInstanceLink(taskInstance);
+
+  return `${baseLink}/hitl-response`;
+};
 
 type TaskInstanceRow = { row: { original: HITLDetail } };
 
@@ -53,17 +54,15 @@ const taskInstanceColumns = ({
   translate: TFunction;
 }): Array<ColumnDef<HITLDetail>> => [
   {
-    accessorKey: "actions",
-    cell: ({ row }) => (
-      <Flex justifyContent="end">
-        <HITLResponseButton taskInstance={row.original.task_instance} withText={false} />
-      </Flex>
+    accessorKey: "subject",
+    cell: ({ row: { original } }: TaskInstanceRow) => (
+      <Link asChild color="fg.info" fontWeight="bold">
+        <RouterLink to={getHITLResponseLink(original.task_instance)}>
+          <TruncatedText text={original.subject} />
+        </RouterLink>
+      </Link>
     ),
-    enableSorting: false,
-    header: "",
-    meta: {
-      skeletonWidth: 10,
-    },
+    header: translate("Subject"),
   },
   ...(Boolean(dagId)
     ? []
@@ -99,11 +98,7 @@ const taskInstanceColumns = ({
         {
           accessorKey: "task_display_name",
           cell: ({ row: { original } }: TaskInstanceRow) => (
-            <Link asChild color="fg.info" fontWeight="bold">
-              <RouterLink to={getTaskInstanceLink(original.task_instance)}>
-                <TruncatedText text={original.task_instance.task_display_name} />
-              </RouterLink>
-            </Link>
+            <TruncatedText text={original.task_instance.task_display_name} />
           ),
           enableSorting: false,
           header: translate("taskId"),
@@ -151,12 +146,6 @@ export const HITLTaskInstances = () => {
   //   searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
   // );
 
-  const {
-    isOpen: isHITLResponseFormOpen,
-    onClose: onHITLResponseFormClose,
-    taskInstance: hitlTaskInstance,
-  } = useHITLResponseState();
-
   const refetchInterval = useAutoRefresh({});
 
   const { data, error, isLoading } = useHumanInTheLoopServiceGetHitlDetails(
@@ -182,39 +171,20 @@ export const HITLTaskInstances = () => {
   });
 
   return (
-    <>
-      <DataTable
-        columns={taskInstanceColumns({
-          dagId,
-          runId,
-          taskId: Boolean(groupId) ? undefined : taskId,
-          translate,
-        })}
-        data={filteredData ?? []}
-        errorMessage={<ErrorAlert error={error} />}
-        initialState={tableURLState}
-        isLoading={isLoading}
-        modelName={translate("common:taskInstance_other")}
-        onStateChange={setTableURLState}
-        total={filteredData?.length}
-      />
-      <Dialog.Root
-        lazyMount
-        onOpenChange={onHITLResponseFormClose}
-        open={isHITLResponseFormOpen}
-        size="xl"
-        unmountOnExit
-      >
-        <Dialog.Content backdrop>
-          <Dialog.Header>
-            <Heading>{translate("hitl:response.title", { taskId: hitlTaskInstance?.task_id })}</Heading>
-          </Dialog.Header>
-          <Dialog.CloseTrigger />
-          <Dialog.Body>
-            <HITLResponseForm />
-          </Dialog.Body>
-        </Dialog.Content>
-      </Dialog.Root>
-    </>
+    <DataTable
+      columns={taskInstanceColumns({
+        dagId,
+        runId,
+        taskId: Boolean(groupId) ? undefined : taskId,
+        translate,
+      })}
+      data={filteredData ?? []}
+      errorMessage={<ErrorAlert error={error} />}
+      initialState={tableURLState}
+      isLoading={isLoading}
+      modelName={translate("common:taskInstance_other")}
+      onStateChange={setTableURLState}
+      total={filteredData?.length}
+    />
   );
 };

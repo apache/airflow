@@ -54,6 +54,7 @@ import { Overview as TaskOverview } from "src/pages/Task/Overview";
 import { TaskInstance, Logs } from "src/pages/TaskInstance";
 import { AssetEvents as TaskInstanceAssetEvents } from "src/pages/TaskInstance/AssetEvents";
 import { Details as TaskInstanceDetails } from "src/pages/TaskInstance/Details";
+import { HITLResponse } from "src/pages/TaskInstance/HITLResponse";
 import { RenderedTemplates } from "src/pages/TaskInstance/RenderedTemplates";
 import { TaskInstances } from "src/pages/TaskInstances";
 import { Variables } from "src/pages/Variables";
@@ -74,8 +75,8 @@ const taskInstanceRoutes = [
   { element: <TaskInstanceDetails />, path: "details" },
   { element: <RenderedTemplates />, path: "rendered_templates" },
   { element: <TaskInstances />, path: "task_instances" },
-  { element: <HITLTaskInstances />, path: "hitl" },
   { element: <TaskInstanceAssetEvents />, path: "asset_events" },
+  { element: <HITLResponse />, path: "hitl-response" },
   pluginRoute,
 ];
 

@@ -43,6 +43,7 @@ export const TaskInstance = () => {
   const externalTabs = usePluginTabs("task_instance");
 
   const tabs = [
+    { icon: <FiUser />, label: "HITL Response", value: "hitl-response" },
     { icon: <MdReorder />, label: translate("tabs.logs"), value: "" },
     {
       icon: <PiBracketsCurlyBold />,
@@ -50,7 +51,6 @@ export const TaskInstance = () => {
       value: "rendered_templates",
     },
     { icon: <MdSyncAlt />, label: translate("tabs.xcom"), value: "xcom" },
-    { icon: <FiUser />, label: translate("tabs.hitlTaskInstances"), value: "hitl" },
     { icon: <FiDatabase />, label: translate("tabs.assetEvents"), value: "asset_events" },
     { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
     { icon: <FiCode />, label: translate("tabs.code"), value: "code" },
@@ -121,7 +121,7 @@ export const TaskInstance = () => {
   }
 
   const displayTabs = newTabs.filter((tab) => {
-    if (tab.value === "hitl" && !hasHitlForTask) {
+    if (tab.value === "hitl-response" && !hasHitlForTask) {
       return false;
     }
 
