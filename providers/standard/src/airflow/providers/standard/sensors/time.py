@@ -122,7 +122,7 @@ class TimeSensor(BaseSensorOperator):
                 method_name="execute_complete",
             )
 
-    def execute_complete(self, context: Context) -> None:
+    def execute_complete(self, context: Context, event: Any = None) -> None:
         return
 
     def poke(self, context: Context) -> bool:
