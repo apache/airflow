@@ -25,8 +25,7 @@ import { MdDetails, MdOutlineEventNote } from "react-icons/md";
 import { RiArrowGoBackFill } from "react-icons/ri";
 import { useParams } from "react-router-dom";
 
-import { useDagServiceGetDagDetails, useDagServiceGetDagsUi } from "openapi/queries";
-import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+import { useDagServiceGetDagDetails, useDagServiceGetLatestRunInfo } from "openapi/queries";
 import { TaskIcon } from "src/assets/TaskIcon";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
@@ -64,47 +63,40 @@ export const Dag = () => {
   const refetchInterval = useAutoRefresh({ dagId });
   const [hasPendingRuns, setHasPendingRuns] = useState<boolean | undefined>(false);
 
-  // TODO: replace with with a list dag runs by dag id request
-  const {
-    data: runsData,
-    error: runsError,
-    isLoading: isLoadingRuns,
-  } = useDagServiceGetDagsUi({ dagIds: [dagId], dagRunsLimit: 1 }, undefined, {
-    enabled: Boolean(dagId),
-    refetchInterval: (query) => {
-      setHasPendingRuns(
-        query.state.data?.dags
-          .find((recentDag) => recentDag.dag_id === dagId)
-          ?.latest_dag_runs.some((run) => isStatePending(run.state)),
-      );
-
-      return hasPendingRuns ? refetchInterval : false;
-    },
-  });
-
-  // Ensures continuous refresh to detect new runs when there's no pending state and new runs are initiated from other page
+  // Ensures continuous refresh to detect new runs when there's no
+  // pending state and new runs are initiated from other page
   useRefreshOnNewDagRuns(dagId, hasPendingRuns);
 
-  let dagWithRuns = runsData?.dags.find((recentDag) => recentDag.dag_id === dagId);
-
-  if (dagWithRuns === undefined && dag !== undefined) {
-    dagWithRuns = {
-      latest_dag_runs: [],
-      ...dag,
-    } satisfies DAGWithLatestDagRunsResponse;
-  }
-
   const displayTabs = tabs.filter((tab) => !(dag?.timetable_summary === null && tab.value === "backfills"));
+
+  const {
+    data: latestRuns,
+    error: runsError,
+    isLoading: isLoadingRuns,
+  } = useDagServiceGetLatestRunInfo(
+    {
+      dagId,
+    },
+    undefined,
+    {
+      enabled: Boolean(dagId),
+      refetchInterval: (query) => {
+        setHasPendingRuns(query.state.data?.some((run) => isStatePending(run.state)));
+
+        return hasPendingRuns ? refetchInterval : false;
+      },
+    },
+  );
+
+  const [latestRun] = latestRuns ?? [];
 
   return (
     <ReactFlowProvider>
       <DetailsLayout error={error ?? runsError} isLoading={isLoading || isLoadingRuns} tabs={displayTabs}>
         <Header
           dag={dag}
-          dagWithRuns={dagWithRuns}
-          isRefreshing={Boolean(
-            dagWithRuns?.latest_dag_runs.some((dr) => isStatePending(dr.state)) && Boolean(refetchInterval),
-          )}
+          isRefreshing={Boolean(isStatePending(latestRun?.state) && Boolean(refetchInterval))}
+          latestRunInfo={latestRun}
         />
       </DetailsLayout>
     </ReactFlowProvider>
