@@ -43,6 +43,7 @@ from airflow.dag_processing.processor import (
     DagFileParseRequest,
     DagFileParsingResult,
     DagFileProcessorProcess,
+    _execute_dag_callbacks,
     _execute_task_callbacks,
     _parse_file,
     _pre_import_airflow_modules,
@@ -819,3 +820,214 @@ class TestExecuteTaskCallbacks:
         _execute_task_callbacks(dagbag, request, log)
 
         assert call_count == 2
+
+    def test_execute_dag_callbacks_with_dag_run_data(self, spy_agency):
+        """Test _execute_dag_callbacks with dag_run data in the request."""
+        called = False
+        context_received = None
+
+        def on_success(context):
+            nonlocal called, context_received
+            called = True
+            context_received = context
+
+        with DAG(dag_id="test_dag", on_success_callback=on_success) as dag:
+            BaseOperator(task_id="test_task")
+
+        def fake_collect_dags(self, *args, **kwargs):
+            self.dags[dag.dag_id] = dag
+
+        spy_agency.spy_on(DagBag.collect_dags, call_fake=fake_collect_dags, owner=DagBag)
+
+        dagbag = DagBag()
+        dagbag.collect_dags()
+
+        # Create serialized dag_run data
+        dag_run_data = {
+            "dag_id": "test_dag",
+            "run_id": "test_run_2024-01-01T00:00:00+00:00",
+            "state": "success",
+            "logical_date": "2024-01-01T00:00:00+00:00",
+            "start_date": "2024-01-01T00:00:00+00:00",
+            "end_date": "2024-01-01T01:00:00+00:00",
+            "run_type": "manual",
+            "run_after": "2024-01-01T00:00:00+00:00",
+            "conf": {"key": "value"},
+            "data_interval_start": "2024-01-01T00:00:00+00:00",
+            "data_interval_end": "2024-01-02T00:00:00+00:00",
+        }
+
+        request = DagCallbackRequest(
+            filepath="test.py",
+            msg="DAG succeeded",
+            dag_id="test_dag",
+            run_id="test_run_2024-01-01T00:00:00+00:00",
+            bundle_name="testing",
+            bundle_version=None,
+            is_failure_callback=False,
+            dag_run=dag_run_data,
+        )
+
+        log = structlog.get_logger()
+        _execute_dag_callbacks(dagbag, request, log)
+
+        assert called is True
+        assert context_received is not None
+        assert context_received["dag"] == dag
+        assert context_received["run_id"] == "test_run_2024-01-01T00:00:00+00:00"
+        assert context_received["reason"] == "DAG succeeded"
+
+        # Verify dag_run data is present and accessible
+        assert "dag_run" in context_received
+        dag_run_context = context_received["dag_run"]
+        assert dag_run_context["dag_id"] == "test_dag"
+        assert dag_run_context["run_id"] == "test_run_2024-01-01T00:00:00+00:00"
+        assert dag_run_context["state"] == "success"
+        assert dag_run_context["logical_date"] == "2024-01-01T00:00:00+00:00"
+        assert dag_run_context["conf"]["key"] == "value"
+
+    def test_execute_dag_callbacks_without_dag_run_data(self, spy_agency):
+        """Test _execute_dag_callbacks without dag_run data (backward compatibility)."""
+        called = False
+        context_received = None
+
+        def on_failure(context):
+            nonlocal called, context_received
+            called = True
+            context_received = context
+
+        with DAG(dag_id="test_dag", on_failure_callback=on_failure) as dag:
+            BaseOperator(task_id="test_task")
+
+        def fake_collect_dags(self, *args, **kwargs):
+            self.dags[dag.dag_id] = dag
+
+        spy_agency.spy_on(DagBag.collect_dags, call_fake=fake_collect_dags, owner=DagBag)
+
+        dagbag = DagBag()
+        dagbag.collect_dags()
+
+        request = DagCallbackRequest(
+            filepath="test.py",
+            msg="DAG failed",
+            dag_id="test_dag",
+            run_id="test_run",
+            bundle_name="testing",
+            bundle_version=None,
+            is_failure_callback=True,
+            # No dag_run field
+        )
+
+        log = structlog.get_logger()
+        _execute_dag_callbacks(dagbag, request, log)
+
+        assert called is True
+        assert context_received is not None
+        assert context_received["dag"] == dag
+        assert context_received["run_id"] == "test_run"
+        assert context_received["reason"] == "DAG failed"
+
+        # Verify dag_run is not present when not provided
+        assert "dag_run" not in context_received
+
+    def test_execute_dag_callbacks_with_none_dag_run_data(self, spy_agency):
+        """Test _execute_dag_callbacks with explicitly None dag_run data."""
+        called = False
+        context_received = None
+
+        def on_success(context):
+            nonlocal called, context_received
+            called = True
+            context_received = context
+
+        with DAG(dag_id="test_dag", on_success_callback=on_success) as dag:
+            BaseOperator(task_id="test_task")
+
+        def fake_collect_dags(self, *args, **kwargs):
+            self.dags[dag.dag_id] = dag
+
+        spy_agency.spy_on(DagBag.collect_dags, call_fake=fake_collect_dags, owner=DagBag)
+
+        dagbag = DagBag()
+        dagbag.collect_dags()
+
+        request = DagCallbackRequest(
+            filepath="test.py",
+            msg="DAG succeeded",
+            dag_id="test_dag",
+            run_id="test_run",
+            bundle_name="testing",
+            bundle_version=None,
+            is_failure_callback=False,
+            dag_run=None,  # Explicitly None
+        )
+
+        log = structlog.get_logger()
+        _execute_dag_callbacks(dagbag, request, log)
+
+        assert called is True
+        assert context_received is not None
+        assert context_received["dag"] == dag
+        assert context_received["run_id"] == "test_run"
+        assert context_received["reason"] == "DAG succeeded"
+
+        # Verify dag_run is not present when explicitly None
+        assert "dag_run" not in context_received
+
+    def test_execute_dag_callbacks_with_minimal_dag_run_data(self, spy_agency):
+        """Test _execute_dag_callbacks with minimal dag_run data."""
+        called = False
+        context_received = None
+
+        def on_success(context):
+            nonlocal called, context_received
+            called = True
+            context_received = context
+
+        with DAG(dag_id="test_dag", on_success_callback=on_success) as dag:
+            BaseOperator(task_id="test_task")
+
+        def fake_collect_dags(self, *args, **kwargs):
+            self.dags[dag.dag_id] = dag
+
+        spy_agency.spy_on(DagBag.collect_dags, call_fake=fake_collect_dags, owner=DagBag)
+
+        dagbag = DagBag()
+        dagbag.collect_dags()
+
+        # Minimal dag_run data
+        minimal_dag_run_data = {
+            "dag_id": "test_dag",
+            "run_id": "test_run",
+            "state": "success",
+        }
+
+        request = DagCallbackRequest(
+            filepath="test.py",
+            msg="DAG succeeded",
+            dag_id="test_dag",
+            run_id="test_run",
+            bundle_name="testing",
+            bundle_version=None,
+            is_failure_callback=False,
+            dag_run=minimal_dag_run_data,
+        )
+
+        log = structlog.get_logger()
+        _execute_dag_callbacks(dagbag, request, log)
+
+        assert called is True
+        assert context_received is not None
+        assert context_received["dag"] == dag
+        assert context_received["run_id"] == "test_run"
+        assert context_received["reason"] == "DAG succeeded"
+
+        # Verify minimal dag_run data is present
+        assert "dag_run" in context_received
+        dag_run_context = context_received["dag_run"]
+        assert dag_run_context["dag_id"] == "test_dag"
+        assert dag_run_context["run_id"] == "test_run"
+        assert dag_run_context["state"] == "success"
+        # Verify optional fields are not present
+        assert "logical_date" not in dag_run_context
+        assert "conf" not in dag_run_context

@@ -1188,6 +1188,7 @@ class DagRun(Base, LoggingMixin):
                     bundle_version=self.bundle_version,
                     is_failure_callback=True,
                     msg="task_failure",
+                    dag_run=self.serialize_for_callback(),
                 )
 
             # Check if the max_consecutive_failed_dag_runs has been provided and not 0
@@ -1217,6 +1218,7 @@ class DagRun(Base, LoggingMixin):
                     bundle_version=self.bundle_version,
                     is_failure_callback=False,
                     msg="success",
+                    dag_run=self.serialize_for_callback(),
                 )
 
             if (deadline := dag.deadline) and isinstance(deadline.reference, DeadlineReference.TYPES.DAGRUN):
@@ -1240,6 +1242,7 @@ class DagRun(Base, LoggingMixin):
                     bundle_version=self.bundle_version,
                     is_failure_callback=True,
                     msg="all_tasks_deadlocked",
+                    dag_run=self.serialize_for_callback(),
                 )
 
         # finally, if the leaves aren't done, the dag is still running
@@ -2013,6 +2016,29 @@ class DagRun(Base, LoggingMixin):
     @staticmethod
     def _get_partial_task_ids(dag: DAG | None) -> list[str] | None:
         return dag.task_ids if dag and dag.partial else None
+
+    def serialize_for_callback(self) -> dict[str, Any]:
+        """
+        Serialize DagRun object into a dictionary for callback requests.
+
+        This method creates a serialized representation of the DagRun that can be
+        safely passed to subprocesses without requiring database access.
+
+        :return: Dictionary containing serialized DagRun information
+        """
+        return {
+            "dag_id": self.dag_id,
+            "run_id": self.run_id,
+            "state": self.state,
+            "logical_date": self.logical_date.isoformat() if self.logical_date else None,
+            "start_date": self.start_date.isoformat() if self.start_date else None,
+            "end_date": self.end_date.isoformat() if self.end_date else None,
+            "conf": self.conf,
+            "run_type": self.run_type,
+            "run_after": self.run_after.isoformat() if self.run_after else None,
+            "data_interval_start": self.data_interval_start.isoformat() if self.data_interval_start else None,
+            "data_interval_end": self.data_interval_end.isoformat() if self.data_interval_end else None,
+        }
 
 
 class DagRunNote(Base):

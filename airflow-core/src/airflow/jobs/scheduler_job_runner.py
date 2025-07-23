@@ -1856,6 +1856,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     bundle_version=dag_run.bundle_version,
                     is_failure_callback=True,
                     msg="timed_out",
+                    dag_run=dag_run.serialize_for_callback(),
                 )
 
                 dag_run.notify_dagrun_state_changed()

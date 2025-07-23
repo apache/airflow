@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated, Literal
+from typing import TYPE_CHECKING, Annotated, Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -84,6 +84,8 @@ class DagCallbackRequest(BaseCallbackRequest):
     run_id: str
     is_failure_callback: bool | None = True
     """Flag to determine whether it is a Failure Callback or Success Callback"""
+    dag_run: dict[str, Any] | None = None
+    """Serialized dag_run information to be included in the callback context"""
     type: Literal["DagCallbackRequest"] = "DagCallbackRequest"
 
 

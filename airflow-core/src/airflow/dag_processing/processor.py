@@ -217,12 +217,15 @@ def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: Fil
         return
 
     callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
-    # TODO:We need a proper context object!
     context: Context = {
         "dag": dag,
         "run_id": request.run_id,
         "reason": request.msg,
     }
+
+    # Only add dag_run to context if it's provided
+    if request.dag_run is not None:
+        context["dag_run"] = request.dag_run
 
     for callback in callbacks:
         log.info(

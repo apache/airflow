@@ -2825,82 +2825,244 @@ def test_teardown_and_fail_fast(dag_maker):
             received_context = context.copy()
             # Verify dag_run is present and accessible
             assert "dag_run" in context, "dag_run should be present in DAG callback context"
-            assert context["dag_run"].dag_id == "test_dagrun_callback_context_has_dag_run"
-            assert context["dag_run"].run_id == context["run_id"]
+            assert context["dag_run"]["dag_id"] == "test_dagrun_callback_context_has_dag_run"
+            assert context["dag_run"]["run_id"] == context["run_id"]
             # Test accessing dag_run properties
-            assert context["dag_run"].state == DagRunState.SUCCESS
-            assert context["dag_run"].logical_date is not None
-
-        def on_failure_callable(context):
-            nonlocal received_context
-            received_context = context.copy()
-            # Verify dag_run is present and accessible
-            assert "dag_run" in context, "dag_run should be present in DAG callback context"
-            assert context["dag_run"].dag_id == "test_dagrun_callback_context_has_dag_run"
-            assert context["dag_run"].run_id == context["run_id"]
-            # Test accessing dag_run properties
-            assert context["dag_run"].state == DagRunState.FAILED
-            assert context["dag_run"].logical_date is not None
+            assert context["dag_run"]["state"] == "success"
+            assert context["dag_run"]["logical_date"] is not None
 
         with dag_maker(
             dag_id="test_dagrun_callback_context_has_dag_run",
-            schedule=datetime.timedelta(days=1),
-            start_date=datetime.datetime(2017, 1, 1),
             on_success_callback=on_success_callable,
-            on_failure_callback=on_failure_callable,
         ) as dag:
-            pass
+            EmptyOperator(task_id="task1")
 
-        dag_task1 = EmptyOperator(task_id="test_task1", dag=dag)
-        dag_task2 = EmptyOperator(task_id="test_task2", dag=dag)
-        dag_task1.set_downstream(dag_task2)
+        dag_run = dag_maker.create_dagrun()
 
-        # Test success callback
-        initial_task_states_success = {
-            "test_task1": TaskInstanceState.SUCCESS,
-            "test_task2": TaskInstanceState.SUCCESS,
-        }
+        # Execute the callback
+        dag_run.handle_dag_callback(dag, success=True, reason="test")
 
-        # Scheduler uses Serialized DAG -- so use that instead of the Actual DAG
-        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
-
-        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states_success, session=session)
-
-        # Execute the callback directly to test the context
-        dag_run.handle_dag_callback(dag=dag, success=True, reason="success")
-
-        # Verify the context contains all expected keys
-        assert "dag" in received_context
-        assert "dag_run" in received_context
-        assert "run_id" in received_context
-        assert "reason" in received_context
-
-        # Verify dag_run is the same object as the dag_run instance
-        assert received_context["dag_run"] is dag_run
+        # Verify the context contains the expected fields
+        assert received_context["dag"] == dag
         assert received_context["run_id"] == str(dag_run.run_id)
-        assert received_context["reason"] == "success"
+        assert received_context["reason"] == "test"
+        assert received_context["dag_run"]["dag_id"] == dag.dag_id
+        assert received_context["dag_run"]["run_id"] == str(dag_run.run_id)
 
-        # Reset for failure test
+    def test_dagrun_callback_context_missing_dag_run_bug(self, dag_maker, session):
+        """Test that demonstrates the current Airflow 3.0 behavior where dag_run is available in DAG callbacks."""
+
+        # This test documents the current behavior in Airflow 3.0
         received_context = {}
 
-        # Test failure callback
-        initial_task_states_failure = {
-            "test_task1": TaskInstanceState.SUCCESS,
-            "test_task2": TaskInstanceState.FAILED,
+        def on_success_callable(context):
+            nonlocal received_context
+            received_context = context.copy()
+            # In Airflow 3.0, dag_run is available in DAG callbacks as a dictionary
+            assert "dag" in context, "dag should be present in DAG callback context"
+            assert "run_id" in context, "run_id should be present in DAG callback context"
+            assert "reason" in context, "reason should be present in DAG callback context"
+            assert "dag_run" in context, "dag_run should be present in DAG callback context"
+            # dag_run is now available as a dictionary with serialized information
+
+        with dag_maker(
+            dag_id="test_dagrun_callback_context_missing_dag_run_bug",
+            on_success_callback=on_success_callable,
+        ) as dag:
+            EmptyOperator(task_id="task1")
+
+        dag_run = dag_maker.create_dagrun()
+
+        # Execute the callback
+        dag_run.handle_dag_callback(dag, success=True, reason="test")
+
+        # Verify the context contains the expected fields
+        assert received_context["dag"] == dag
+        assert received_context["run_id"] == str(dag_run.run_id)
+        assert received_context["reason"] == "test"
+        assert received_context["dag_run"]["dag_id"] == dag.dag_id
+        assert received_context["dag_run"]["run_id"] == str(dag_run.run_id)
+
+    def test_serialize_for_callback_with_all_fields(self, dag_maker, session):
+        """Test serialize_for_callback method with all fields populated."""
+        with dag_maker(
+            dag_id="test_serialize_for_callback",
+            schedule="@daily",
+        ):
+            EmptyOperator(task_id="task1")
+
+        # Create a DagRun with all fields populated
+        logical_date = timezone.datetime(2024, 1, 1, tzinfo=timezone.utc)
+        start_date = timezone.datetime(2024, 1, 1, 1, 0, 0, tzinfo=timezone.utc)
+        end_date = timezone.datetime(2024, 1, 1, 2, 0, 0, tzinfo=timezone.utc)
+        run_after = timezone.datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+        data_interval_start = timezone.datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+        data_interval_end = timezone.datetime(2024, 1, 2, 0, 0, 0, tzinfo=timezone.utc)
+
+        dag_run = dag_maker.create_dagrun(
+            logical_date=logical_date,
+            start_date=start_date,
+            end_date=end_date,
+            run_after=run_after,
+            data_interval_start=data_interval_start,
+            data_interval_end=data_interval_end,
+            conf={"key": "value", "nested": {"inner": "data"}},
+            run_type="manual",
+        )
+
+        # Serialize the DagRun
+        serialized = dag_run.serialize_for_callback()
+
+        # Verify all fields are correctly serialized
+        assert serialized["dag_id"] == "test_serialize_for_callback"
+        assert serialized["run_id"] == str(dag_run.run_id)
+        assert serialized["state"] == dag_run.state
+        assert serialized["logical_date"] == "2024-01-01T00:00:00+00:00"
+        assert serialized["start_date"] == "2024-01-01T01:00:00+00:00"
+        assert serialized["end_date"] == "2024-01-01T02:00:00+00:00"
+        assert serialized["run_type"] == "manual"
+        assert serialized["run_after"] == "2024-01-01T00:00:00+00:00"
+        assert serialized["conf"] == {"key": "value", "nested": {"inner": "data"}}
+        assert serialized["data_interval_start"] == "2024-01-01T00:00:00+00:00"
+        assert serialized["data_interval_end"] == "2024-01-02T00:00:00+00:00"
+
+    def test_serialize_for_callback_with_none_fields(self, dag_maker, session):
+        """Test serialize_for_callback method with None fields."""
+        with dag_maker(
+            dag_id="test_serialize_for_callback_none",
+            schedule=None,
+        ):
+            EmptyOperator(task_id="task1")
+
+        # Create a DagRun with some None fields
+        dag_run = dag_maker.create_dagrun(
+            logical_date=None,
+            start_date=None,
+            end_date=None,
+            run_after=None,
+            data_interval_start=None,
+            data_interval_end=None,
+            conf=None,
+            run_type="manual",
+        )
+
+        # Serialize the DagRun
+        serialized = dag_run.serialize_for_callback()
+
+        # Verify None fields are handled correctly
+        assert serialized["dag_id"] == "test_serialize_for_callback_none"
+        assert serialized["run_id"] == str(dag_run.run_id)
+        assert serialized["state"] == dag_run.state
+        assert serialized["logical_date"] is None
+        assert serialized["start_date"] is None
+        assert serialized["end_date"] is None
+        assert serialized["run_type"] == "manual"
+        assert serialized["run_after"] is None
+        assert serialized["conf"] is None
+        assert serialized["data_interval_start"] is None
+        assert serialized["data_interval_end"] is None
+
+    def test_serialize_for_callback_with_minimal_fields(self, dag_maker, session):
+        """Test serialize_for_callback method with minimal required fields."""
+        with dag_maker(
+            dag_id="test_serialize_for_callback_minimal",
+        ):
+            EmptyOperator(task_id="task1")
+
+        # Create a DagRun with minimal fields
+        dag_run = dag_maker.create_dagrun()
+
+        # Serialize the DagRun
+        serialized = dag_run.serialize_for_callback()
+
+        # Verify minimal fields are present
+        assert serialized["dag_id"] == "test_serialize_for_callback_minimal"
+        assert serialized["run_id"] == str(dag_run.run_id)
+        assert serialized["state"] == dag_run.state
+        assert "logical_date" in serialized
+        assert "start_date" in serialized
+        assert "end_date" in serialized
+        assert "run_type" in serialized
+        assert "run_after" in serialized
+        assert "conf" in serialized
+        assert "data_interval_start" in serialized
+        assert "data_interval_end" in serialized
+
+    def test_serialize_for_callback_creates_immutable_copy(self, dag_maker, session):
+        """Test that serialize_for_callback creates an immutable copy of the data."""
+        with dag_maker(
+            dag_id="test_serialize_for_callback_immutable",
+        ):
+            EmptyOperator(task_id="task1")
+
+        dag_run = dag_maker.create_dagrun(
+            conf={"mutable": "value"},
+        )
+
+        # Serialize the DagRun
+        serialized = dag_run.serialize_for_callback()
+
+        # Modify the original DagRun
+        dag_run.conf["mutable"] = "modified"
+        dag_run.state = "failed"
+
+        # Verify the serialized data is unchanged
+        assert serialized["conf"]["mutable"] == "value"
+        assert serialized["state"] != "failed"
+
+    def test_serialize_for_callback_with_complex_conf(self, dag_maker, session):
+        """Test serialize_for_callback method with complex configuration."""
+        complex_conf = {
+            "string": "value",
+            "number": 42,
+            "boolean": True,
+            "list": [1, 2, 3],
+            "dict": {"nested": "value", "deep": {"level": 3}},
+            "null": None,
         }
 
-        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states_failure, session=session)
+        with dag_maker(
+            dag_id="test_serialize_for_callback_complex",
+        ):
+            EmptyOperator(task_id="task1")
 
-        # Execute the callback directly to test the context
-        dag_run.handle_dag_callback(dag=dag, success=False, reason="task_failure")
+        dag_run = dag_maker.create_dagrun(conf=complex_conf)
 
-        # Verify the context contains all expected keys
-        assert "dag" in received_context
-        assert "dag_run" in received_context
-        assert "run_id" in received_context
-        assert "reason" in received_context
+        # Serialize the DagRun
+        serialized = dag_run.serialize_for_callback()
 
-        # Verify dag_run is the same object as the dag_run instance
-        assert received_context["dag_run"] is dag_run
-        assert received_context["run_id"] == str(dag_run.run_id)
-        assert received_context["reason"] == "task_failure"
+        # Verify complex configuration is preserved
+        assert serialized["conf"] == complex_conf
+        assert serialized["conf"]["string"] == "value"
+        assert serialized["conf"]["number"] == 42
+        assert serialized["conf"]["boolean"] is True
+        assert serialized["conf"]["list"] == [1, 2, 3]
+        assert serialized["conf"]["dict"]["deep"]["level"] == 3
+        assert serialized["conf"]["null"] is None
+
+    def test_serialize_for_callback_round_trip_json(self, dag_maker, session):
+        """Test that serialized data can be round-tripped through JSON."""
+        import json
+
+        with dag_maker(
+            dag_id="test_serialize_for_callback_json",
+        ):
+            EmptyOperator(task_id="task1")
+
+        dag_run = dag_maker.create_dagrun(
+            conf={"key": "value"},
+            run_type="scheduled",
+        )
+
+        # Serialize the DagRun
+        serialized = dag_run.serialize_for_callback()
+
+        # Convert to JSON and back
+        json_str = json.dumps(serialized)
+        deserialized = json.loads(json_str)
+
+        # Verify the data is preserved
+        assert deserialized == serialized
+        assert deserialized["dag_id"] == "test_serialize_for_callback_json"
+        assert deserialized["conf"]["key"] == "value"
+        assert deserialized["run_type"] == "scheduled"

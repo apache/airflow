@@ -39,7 +39,7 @@ class Context(TypedDict, total=False):
 
     conn: Any
     dag: DAG
-    dag_run: DagRunProtocol
+    dag_run: DagRunProtocol | dict[str, Any]
     data_interval_end: DateTime | None
     data_interval_start: DateTime | None
     outlet_events: OutletEventAccessorsProtocol
