@@ -410,7 +410,7 @@ class SerializedDagModel(Base):
                         (timezone.utcnow() - timedelta(seconds=min_update_interval)) < cls.last_updated,
                     )
                     .select_from(cls)
-                    .with_for_update(nowait=True)
+                    .with_for_update(nowait=True, skip_locked=True)
                 )
                 if do_nothing:
                     return False
