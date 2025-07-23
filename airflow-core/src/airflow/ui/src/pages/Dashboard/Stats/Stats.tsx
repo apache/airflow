@@ -33,15 +33,21 @@ export const Stats = () => {
     refetchInterval,
   });
 
-  const { data: hitlStatsData } = useHumanInTheLoopServiceGetHitlDetails(undefined, {
-    refetchInterval,
-  });
+  const { data: hitlStatsData } = useHumanInTheLoopServiceGetHitlDetails(
+    {
+      responseReceived: false,
+    },
+    undefined,
+    {
+      refetchInterval,
+    },
+  );
 
   const failedDagsCount = statsData?.failed_dag_count ?? 0;
   const queuedDagsCount = statsData?.queued_dag_count ?? 0;
   const runningDagsCount = statsData?.running_dag_count ?? 0;
   const activeDagsCount = statsData?.active_dag_count ?? 0;
-  const hitlTIsCount = hitlStatsData?.hitl_details.filter((ti) => !ti.response_received).length ?? 0;
+  const hitlTIsCount = hitlStatsData?.hitl_details.length ?? 0;
   const { t: translate } = useTranslation("dashboard");
 
   return (

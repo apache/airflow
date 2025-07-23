@@ -18,11 +18,12 @@
  */
 import { ReactFlowProvider } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
+import { FiUser } from "react-icons/fi";
 import { LuChartColumn } from "react-icons/lu";
 import { MdOutlineEventNote, MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
-import { useTaskServiceGetTask } from "openapi/queries";
+import { useTaskServiceGetTask, useHumanInTheLoopServiceGetHitlDetails } from "openapi/queries";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { useGridStructure } from "src/queries/useGridStructure.ts";
@@ -41,11 +42,10 @@ export const Task = () => {
   const tabs = [
     { icon: <LuChartColumn />, label: translate("tabs.overview"), value: "" },
     { icon: <MdOutlineTask />, label: translate("tabs.taskInstances"), value: "task_instances" },
+    { icon: <FiUser />, label: translate("tabs.hitlTaskInstances"), value: "hitl" },
     { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
     ...externalTabs,
   ];
-
-  const displayTabs = groupId === undefined ? tabs : tabs.filter((tab) => tab.value !== "events");
 
   const {
     data: task,
@@ -58,6 +58,29 @@ export const Task = () => {
   const { data: dagStructure } = useGridStructure({ limit: 1 });
 
   const groupTask = getGroupTask(dagStructure, groupId);
+
+  // Check if this task has any HITL details
+  const { data: hitlData } = useHumanInTheLoopServiceGetHitlDetails(
+    {
+      dagIdPattern: dagId,
+    },
+    undefined,
+    {
+      enabled: Boolean(dagId && (groupId !== undefined || taskId !== undefined)),
+    },
+  );
+
+  const hasHitlForTask = Boolean(hitlData?.hitl_details.length);
+
+  const displayTabs = (groupId === undefined ? tabs : tabs.filter((tab) => tab.value !== "events")).filter(
+    (tab) => {
+      if (tab.value === "hitl" && !hasHitlForTask) {
+        return false;
+      }
+
+      return true;
+    },
+  );
 
   return (
     <ReactFlowProvider>

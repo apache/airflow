@@ -74,6 +74,7 @@ const taskInstanceRoutes = [
   { element: <TaskInstanceDetails />, path: "details" },
   { element: <RenderedTemplates />, path: "rendered_templates" },
   { element: <TaskInstances />, path: "task_instances" },
+  { element: <HITLTaskInstances />, path: "hitl" },
   { element: <TaskInstanceAssetEvents />, path: "asset_events" },
   pluginRoute,
 ];
@@ -172,6 +173,7 @@ export const routerConfig = [
       {
         children: [
           { element: <TaskInstances />, index: true },
+          { element: <HITLTaskInstances />, path: "hitl" },
           { element: <Events />, path: "events" },
           { element: <Code />, path: "code" },
           { element: <DagRunDetails />, path: "details" },
@@ -200,6 +202,7 @@ export const routerConfig = [
         children: [
           { element: <TaskOverview />, index: true },
           { element: <TaskInstances />, path: "task_instances" },
+          { element: <HITLTaskInstances />, path: "hitl" },
           pluginRoute,
         ],
         element: <Task />,
@@ -214,6 +217,7 @@ export const routerConfig = [
         children: [
           { element: <TaskOverview />, index: true },
           { element: <TaskInstances />, path: "task_instances" },
+          { element: <HITLTaskInstances />, path: "hitl" },
           { element: <Events />, path: "events" },
           pluginRoute,
         ],

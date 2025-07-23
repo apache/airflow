@@ -25,7 +25,11 @@ import { MdDetails, MdOutlineEventNote } from "react-icons/md";
 import { RiArrowGoBackFill } from "react-icons/ri";
 import { useParams } from "react-router-dom";
 
-import { useDagServiceGetDagDetails, useDagServiceGetLatestRunInfo } from "openapi/queries";
+import {
+  useDagServiceGetDagDetails,
+  useDagServiceGetLatestRunInfo,
+  useHumanInTheLoopServiceGetHitlDetails,
+} from "openapi/queries";
 import { TaskIcon } from "src/assets/TaskIcon";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
@@ -68,7 +72,29 @@ export const Dag = () => {
   // pending state and new runs are initiated from other page
   useRefreshOnNewDagRuns(dagId, hasPendingRuns);
 
-  const displayTabs = tabs.filter((tab) => !(dag?.timetable_summary === null && tab.value === "backfills"));
+  const { data: hitlData } = useHumanInTheLoopServiceGetHitlDetails(
+    {
+      dagIdPattern: dagId,
+    },
+    undefined,
+    {
+      enabled: Boolean(dagId),
+    },
+  );
+
+  const hasHitlTasks = (hitlData?.total_entries ?? 0) > 0;
+
+  const displayTabs = tabs.filter((tab) => {
+    if (dag?.timetable_summary === null && tab.value === "backfills") {
+      return false;
+    }
+
+    if (tab.value === "hitl" && !hasHitlTasks) {
+      return false;
+    }
+
+    return true;
+  });
 
   const {
     data: latestRuns,

@@ -159,18 +159,23 @@ export const HITLTaskInstances = () => {
 
   const refetchInterval = useAutoRefresh({});
 
-  const { data, error, isLoading } = useHumanInTheLoopServiceGetHitlDetails(undefined, {
-    enabled: !isNaN(pagination.pageSize),
-    refetchInterval,
-  });
+  const { data, error, isLoading } = useHumanInTheLoopServiceGetHitlDetails(
+    {
+      dagIdPattern: dagId,
+      dagRunId: runId,
+    },
+    undefined,
+    {
+      enabled: !isNaN(pagination.pageSize),
+      refetchInterval,
+    },
+  );
 
-  const filteredData = data?.hitl_details.filter((ti) => {
-    if (Boolean(dagId) && Boolean(runId)) {
-      return ti.task_instance.dag_id === dagId && ti.task_instance.dag_run_id === runId;
-    }
-
-    if (Boolean(dagId)) {
-      return ti.task_instance.dag_id === dagId;
+  const filteredData = data?.hitl_details.filter((hitl) => {
+    if (taskId !== undefined) {
+      return hitl.task_instance.task_id === taskId;
+    } else if (groupId !== undefined) {
+      return hitl.task_instance.task_id.includes(groupId);
     }
 
     return true;

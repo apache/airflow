@@ -2,7 +2,7 @@
   "admin": {
     "Config": "Config",
     "Connections": "Connections",
-    "HITL": "HITL",
+    "HITL": "Human Task Instances",
     "Plugins": "Plugins",
     "Pools": "Pools",
     "Providers": "Providers",

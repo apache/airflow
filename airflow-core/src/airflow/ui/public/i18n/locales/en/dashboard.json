@@ -35,7 +35,7 @@
   "stats": {
     "activeDags": "Active Dags",
     "failedDags": "Failed Dags",
-    "hitlTaskInstances": "HITL Task Instances",
+    "hitlTaskInstances": "Human Task Instances",
     "queuedDags": "Queued Dags",
     "runningDags": "Running Dags",
     "stats": "Stats"

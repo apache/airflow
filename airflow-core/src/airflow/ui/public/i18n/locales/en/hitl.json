@@ -1,15 +1,15 @@
 {
-  "hitlTaskInstance_one": "HITL Task Instance",
-  "hitlTaskInstance_other": "HITL Task Instances",
+  "hitlTaskInstance_one": "Human Task",
+  "hitlTaskInstance_other": "Human Task Instances",
   "response": {
     "button": "Respond",
     "error": "Response failed",
     "optionsDescription": "Choose your options for this task instance",
     "optionsLabel": "Options",
     "success": "{{taskId}} response successful",
-    "title": "HITL Task Instance - {{taskId}}"
+    "title": "Human Task Instance - {{taskId}}"
   },
   "search": {
-    "hitlTaskInstances": "Search HITL Task Instances"
+    "hitlTaskInstances": "Search Human Task Instances"
   }
 }

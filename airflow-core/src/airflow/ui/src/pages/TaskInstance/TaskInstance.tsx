@@ -19,12 +19,15 @@
 import { ReactFlowProvider } from "@xyflow/react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { FiCode, FiDatabase } from "react-icons/fi";
+import { FiCode, FiDatabase, FiUser } from "react-icons/fi";
 import { MdDetails, MdOutlineEventNote, MdOutlineTask, MdReorder, MdSyncAlt } from "react-icons/md";
 import { PiBracketsCurlyBold } from "react-icons/pi";
 import { useParams } from "react-router-dom";
 
-import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
+import {
+  useTaskInstanceServiceGetMappedTaskInstance,
+  useHumanInTheLoopServiceGetMappedTiHitlDetail,
+} from "openapi/queries";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
@@ -47,6 +50,7 @@ export const TaskInstance = () => {
       value: "rendered_templates",
     },
     { icon: <MdSyncAlt />, label: translate("tabs.xcom"), value: "xcom" },
+    { icon: <FiUser />, label: translate("tabs.hitlTaskInstances"), value: "hitl" },
     { icon: <FiDatabase />, label: translate("tabs.assetEvents"), value: "asset_events" },
     { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
     { icon: <FiCode />, label: translate("tabs.code"), value: "code" },
@@ -75,6 +79,21 @@ export const TaskInstance = () => {
 
   const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId });
 
+  const { data: hitlDetail } = useHumanInTheLoopServiceGetMappedTiHitlDetail(
+    {
+      dagId,
+      dagRunId: runId,
+      mapIndex: parseInt(mapIndex, 10),
+      taskId,
+    },
+    undefined,
+    {
+      enabled: Boolean(dagId && runId && taskId),
+    },
+  );
+
+  const hasHitlForTask = Boolean(hitlDetail);
+
   const taskInstanceSummary = gridTISummaries?.task_instances.find((ti) => ti.task_id === taskId);
   const taskCount = useMemo(
     () =>
@@ -101,9 +120,17 @@ export const TaskInstance = () => {
     ];
   }
 
+  const displayTabs = newTabs.filter((tab) => {
+    if (tab.value === "hitl" && !hasHitlForTask) {
+      return false;
+    }
+
+    return true;
+  });
+
   return (
     <ReactFlowProvider>
-      <DetailsLayout error={error} isLoading={isLoading} tabs={newTabs}>
+      <DetailsLayout error={error} isLoading={isLoading} tabs={displayTabs}>
         {taskInstance === undefined ? undefined : (
           <Header
             isRefreshing={Boolean(isStatePending(taskInstance.state) && Boolean(refetchInterval))}
