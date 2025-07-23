@@ -391,8 +391,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                 ]
             else:
                 message = [
-                    (host, concat_logs(hits))
-                    for host, hits in logs_by_host.items()  # type: ignore[misc]
+                    (host, concat_logs(hits)) # type: ignore[misc]
+                    for host, hits in logs_by_host.items()
                 ]
         else:
             message = []
