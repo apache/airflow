@@ -16,9 +16,15 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.decorators import task
 from airflow.exceptions import AirflowException
 from airflow.utils.trigger_rule import TriggerRule
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import task
+else:
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 
 
 @task(trigger_rule=TriggerRule.ONE_FAILED, retries=0)
