@@ -27,6 +27,7 @@ import pytest
 import pytz
 from cryptography.fernet import Fernet
 
+from airflow._shared.timezones import timezone
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import Deadline, TaskInstance, Trigger
@@ -41,7 +42,6 @@ from airflow.triggers.base import (
     TaskSuccessEvent,
     TriggerEvent,
 )
-from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
@@ -239,7 +239,7 @@ def test_submit_failure(session, create_task_instance):
         (TaskSkippedEvent, "skipped"),
     ],
 )
-@patch("airflow.utils.timezone.utcnow")
+@patch("airflow._shared.timezones.timezone.utcnow")
 def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event_cls, expected):
     """
     Tests that events inheriting BaseTaskEndEvent *don't* re-wake their dependent

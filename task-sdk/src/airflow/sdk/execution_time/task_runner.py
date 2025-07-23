@@ -103,9 +103,9 @@ from airflow.sdk.execution_time.context import (
     set_current_context,
 )
 from airflow.sdk.execution_time.xcom import XCom
+from airflow.sdk.timezone import coerce_datetime
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
-from airflow.utils.timezone import coerce_datetime
 
 if TYPE_CHECKING:
     import jinja2

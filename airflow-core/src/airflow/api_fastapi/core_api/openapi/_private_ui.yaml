@@ -244,6 +244,45 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ui/dags/{dag_id}/latest_run:
+    get:
+      tags:
+      - DAG
+      summary: Get Latest Run Info
+      description: Get latest run.
+      operationId: get_latest_run_info
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DAGRunLightResponse'
+                title: Response Get Latest Run Info
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /ui/dependencies:
     get:
       tags:
@@ -1138,6 +1177,49 @@ components:
         that
 
         the API server/Web UI can use this data to render connection form UI.'
+    DAGRunLightResponse:
+      properties:
+        run_id:
+          type: string
+          title: Run Id
+        dag_id:
+          type: string
+          title: Dag Id
+        logical_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date
+        run_after:
+          type: string
+          format: date-time
+          title: Run After
+        start_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date
+        end_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date
+        state:
+          $ref: '#/components/schemas/DagRunState'
+      type: object
+      required:
+      - run_id
+      - dag_id
+      - logical_date
+      - run_after
+      - start_date
+      - end_date
+      - state
+      title: DAGRunLightResponse
+      description: DAG Run serializer for responses.
     DAGRunResponse:
       properties:
         dag_run_id:

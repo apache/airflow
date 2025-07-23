@@ -6458,6 +6458,67 @@ It is used to transfer providers information loaded by providers_manager such th
 the API server/Web UI can use this data to render connection form UI.`
 } as const;
 
+export const $DAGRunLightResponse = {
+    properties: {
+        run_id: {
+            type: 'string',
+            title: 'Run Id'
+        },
+        dag_id: {
+            type: 'string',
+            title: 'Dag Id'
+        },
+        logical_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Logical Date'
+        },
+        run_after: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Run After'
+        },
+        start_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Start Date'
+        },
+        end_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'End Date'
+        },
+        state: {
+            '$ref': '#/components/schemas/DagRunState'
+        }
+    },
+    type: 'object',
+    required: ['run_id', 'dag_id', 'logical_date', 'run_after', 'start_date', 'end_date', 'state'],
+    title: 'DAGRunLightResponse',
+    description: 'DAG Run serializer for responses.'
+} as const;
+
 export const $DAGRunStates = {
     properties: {
         queued: {
