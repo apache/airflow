@@ -2001,7 +2001,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 task = dag.get_task(ti.task_id)
             except Exception:
                 self.log.warning(
-                    "The DAG or task could not be found. If a failure or retry callback exists, it will not be run.",
+                    "The DAG or task could not be found. If a failure callback exists, it will not be run.",
                     exc_info=True,
                 )
             else:
