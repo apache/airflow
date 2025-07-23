@@ -187,27 +187,28 @@ class Deadline(Base):
         session.add(self)
 
     def handle_callback_event(self, event: TriggerEvent, session: Session):
+        if (
+            PAYLOAD_STATUS_KEY not in event.payload
+            or event.payload[PAYLOAD_STATUS_KEY] not in DeadlineCallbackState
+        ):
+            logger.error("Unexpected event received: %s", event.payload)
+            return
+
         match event.payload[PAYLOAD_STATUS_KEY]:
             case DeadlineCallbackState.SUCCESS:
                 logger.debug(
                     "Deadline callback completed with return value: %s", event.payload[PAYLOAD_BODY_KEY]
                 )
-                self.trigger = None
             case DeadlineCallbackState.NOT_FOUND:
                 logger.error(
                     "Could not import deadline callback on the triggerer: %s", event.payload[PAYLOAD_BODY_KEY]
                 )
-                self.trigger = None
             case DeadlineCallbackState.NOT_AWAITABLE:
                 logger.error("Deadline callback not awaitable: %s", event.payload[PAYLOAD_BODY_KEY])
-                self.trigger = None
             case DeadlineCallbackState.OTHER_FAILURE:
                 logger.error("Deadline callback failed with exception: %s", event.payload[PAYLOAD_BODY_KEY])
-                self.trigger = None
-            case _:
-                logger.error("Unexpected event received: %s", event.payload)
-                return
 
+        self.trigger = None
         self.callback_state = event.payload[PAYLOAD_STATUS_KEY]
         session.add(self)
 
