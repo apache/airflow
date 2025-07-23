@@ -415,12 +415,16 @@ class SerializedDagModel(Base):
                 if do_nothing:
                     return False
             except OperationalError as e:
-                log.warning(
-                    "Another Scheduler is already reparsing dag %s. Skipping reparse request. Details: %s",
-                    dag.dag_id,
-                    str(e),
-                )
-                return False
+                if (
+                    hasattr(e, "orig") and hasattr(e.orig, "pgcode") and e.orig.pgcode == "55P03"
+                ):  # Postgres error code for "could not obtain lock on row in relation [table_name]"
+                    log.warning(
+                        "Another Scheduler is already reparsing dag %s. Skipping reparse request. Details: %s",
+                        dag.dag_id,
+                        str(e),
+                    )
+                    return False
+                raise
 
         log.debug("Checking if DAG (%s) changed", dag.dag_id)
         new_serialized_dag = cls(dag)
