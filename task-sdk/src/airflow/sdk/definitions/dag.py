@@ -903,7 +903,7 @@ class DAG:
 
     @property
     def task(self) -> TaskDecoratorCollection:
-        from airflow.decorators import task
+        from airflow.sdk.definitions.decorators import task
 
         return cast("TaskDecoratorCollection", functools.partial(task, dag=self))
 

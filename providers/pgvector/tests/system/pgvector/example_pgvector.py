@@ -18,7 +18,11 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow.decorators import dag, task
+try:
+    from airflow.sdk import dag, task
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import dag, task  # type: ignore[attr-defined,no-redef]
 from airflow.providers.pgvector.hooks.pgvector import PgVectorHook
 from airflow.providers.pgvector.operators.pgvector import PgVectorIngestOperator
 

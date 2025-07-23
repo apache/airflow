@@ -25,11 +25,16 @@ from typing import Any
 
 import pytest
 
-from airflow.decorators import setup, task, teardown
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import setup, task, teardown
+else:
+    from airflow.decorators import setup, task, teardown  # type: ignore[attr-defined,no-redef]
+
 
 pytestmark = pytest.mark.db_test
 

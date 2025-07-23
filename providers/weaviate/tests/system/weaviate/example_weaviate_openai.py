@@ -21,7 +21,11 @@ from pathlib import Path
 
 import pendulum
 
-from airflow.decorators import dag, setup, task, teardown
+try:
+    from airflow.sdk import dag, setup, task, teardown
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import dag, setup, task, teardown  # type: ignore[attr-defined,no-redef]
 from airflow.providers.openai.operators.openai import OpenAIEmbeddingOperator
 from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
 from airflow.providers.weaviate.operators.weaviate import WeaviateIngestOperator

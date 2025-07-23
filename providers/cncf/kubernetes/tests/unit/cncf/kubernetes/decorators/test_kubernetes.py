@@ -26,7 +26,8 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import task
 else:
-    from airflow.decorators import task
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from unit.cncf.kubernetes.decorators.test_kubernetes_commons import TestKubernetesDecoratorsBase
 
 XCOM_IMAGE = "XCOM_IMAGE"
