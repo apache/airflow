@@ -2233,7 +2233,7 @@ def create_runtime_ti(mocked_parse):
         should_retry: bool | None = None,
         max_tries: int | None = None,
     ) -> RuntimeTaskInstance:
-        from airflow.sdk.api.datamodels._generated import DagRun, TIRunContext
+        from airflow.sdk.api.datamodels._generated import DagRun, DagRunState, TIRunContext
         from airflow.utils.types import DagRunType
 
         if not ti_id:
@@ -2267,17 +2267,20 @@ def create_runtime_ti(mocked_parse):
         run_after = data_interval_end or logical_date or timezone.utcnow()
 
         ti_context = TIRunContext(
-            dag_run=DagRun(
-                dag_id=dag_id,
-                run_id=run_id,
-                logical_date=logical_date,  # type: ignore
-                data_interval_start=data_interval_start,
-                data_interval_end=data_interval_end,
-                start_date=start_date,  # type: ignore
-                run_type=run_type,  # type: ignore
-                run_after=run_after,  # type: ignore
-                conf=conf,
-                consumed_asset_events=[],
+            dag_run=DagRun.model_validate(
+                {
+                    "dag_id": dag_id,
+                    "run_id": run_id,
+                    "logical_date": logical_date,  # type: ignore
+                    "data_interval_start": data_interval_start,
+                    "data_interval_end": data_interval_end,
+                    "start_date": start_date,  # type: ignore
+                    "run_type": run_type,  # type: ignore
+                    "run_after": run_after,  # type: ignore
+                    "conf": conf,
+                    "consumed_asset_events": [],
+                    **({"state": DagRunState.RUNNING} if "state" in DagRun.model_fields else {}),
+                }
             ),
             task_reschedule_count=task_reschedule_count,
             max_tries=task_retries if max_tries is None else max_tries,
