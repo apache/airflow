@@ -108,6 +108,11 @@ def workflow_run_publish(
     airflow_base_version: str | None = None,
     apply_commits: str | None = None,
 ):
+    if len(doc_packages) == 0:
+        get_console().print(
+            "[red]Error: No doc packages provided. Please provide at least one doc package.[/red]",
+        )
+        sys.exit(1)
     if os.environ.get("GITHUB_TOKEN", ""):
         get_console().print("\n[warning]Your authentication will use GITHUB_TOKEN environment variable.")
         get_console().print(
