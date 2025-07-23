@@ -40,7 +40,6 @@ class TerminalTIState(str, Enum):
     SKIPPED = "skipped"  # A user can raise a AirflowSkipException from a task & it will be marked as skipped
     UPSTREAM_FAILED = "upstream_failed"
     REMOVED = "removed"
-    UPSTREAM_FAILED = "upstream_failed"
 
     def __str__(self) -> str:
         return self.value
@@ -213,7 +212,7 @@ class State:
     """
 
     success_states: frozenset[TaskInstanceState] = frozenset(
-        [TaskInstanceState.SUCCESS, TaskInstanceState.SKIPPED, TaskInstanceState.REMOVED]
+        [TaskInstanceState.SUCCESS, TaskInstanceState.SKIPPED]
     )
     """
     A list of states indicating that a task or dag is a success state.
