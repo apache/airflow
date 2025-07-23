@@ -41,7 +41,7 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.providers.standard.utils.skipmixin import SkipMixin
     from airflow.sdk import task, task_group
 else:
-    from airflow.decorators import task, task_group
+    from airflow.decorators import task, task_group  # type: ignore[attr-defined,no-redef]
     from airflow.models.skipmixin import SkipMixin
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)

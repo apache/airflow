@@ -26,7 +26,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import setup, task, teardown
 else:
-    from airflow.decorators import setup, task, teardown
+    from airflow.decorators import setup, task, teardown  # type: ignore[attr-defined,no-redef]
 
 from airflow.utils import timezone
 
