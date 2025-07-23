@@ -120,7 +120,12 @@ export const RenderedTemplates = () => {
                         }}
                         flex="1"
                       >
-                        <SyntaxHighlighter language={language} style={style} wrapLongLines={true}>
+                        <SyntaxHighlighter
+                          language={language}
+                          showLineNumbers={true}
+                          style={style}
+                          wrapLongLines={true}
+                        >
                           {renderedValue}
                         </SyntaxHighlighter>
                       </Box>
