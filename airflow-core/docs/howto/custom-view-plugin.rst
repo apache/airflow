@@ -49,7 +49,7 @@ optional parameters like the icon and url_route are passed on.
 
 
 Information and code samples to register ``fastapi_apps``, ``fastapi_root_middlewares``, ``external_views`` and ``react_apps`` are
-available in :doc:`apache-airflow:administration-and-deployment/plugins`.
+available in :doc:`plugin </administration-and-deployment/plugins>`.
 
 Developing React Applications with the Bootstrap Tool
 =====================================================
@@ -151,7 +151,7 @@ Create an Airflow plugin that serves your React application:
 Plugin Configuration Options
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-React apps support several configuration options, you can take a look at doc:`apache-airflow:administration-and-deployment/plugins` for more details.
+React apps support several configuration options, you can take a look at :doc:`plugin </administration-and-deployment/plugins>` for more details.
 
 
 Integration Best Practices
@@ -207,7 +207,7 @@ Adding Rest endpoints through the blueprints is still supported, those endpoints
 be integrated in the FastAPI application via the WSGI Middleware and accessible
 under ``/pluginsv2``.
 
-Adding Flask-AppBulider views ( ``appbuilder_views`` ) via the Airflow 2 is still supported in its own iframe.
+Adding Flask-AppBuilder views ( ``appbuilder_views`` ) via the Airflow 2 is still supported in its own iframe.
 
 It is not possible to extend the AF3 core UI, for instance by extending the base template, nonetheless extra menu items
 of the auth managers are added to the core UI security tab and their ``href`` are rendered in iframes.
