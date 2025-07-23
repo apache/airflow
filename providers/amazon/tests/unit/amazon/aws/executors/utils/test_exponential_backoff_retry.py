@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest import mock
 
 import pytest
@@ -28,18 +28,16 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 
 
 class TestExponentialBackoffRetry:
-    @mock.patch("airflow.utils.timezone.utcnow")
-    def test_exponential_backoff_retry_base_case(self, mock_utcnow):
-        mock_utcnow.return_value = datetime(2023, 1, 1, 12, 0, 5)
+    def test_exponential_backoff_retry_base_case(self, time_machine):
+        time_machine.move_to(datetime(2023, 1, 1, 12, 0, 5))
         mock_callable_function = mock.Mock()
         exponential_backoff_retry(
-            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0),
+            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
             attempts_since_last_successful=0,
             callable_function=mock_callable_function,
         )
         mock_callable_function.assert_called_once()
 
-    @mock.patch("airflow.utils.timezone.utcnow")
     @pytest.mark.parametrize(
         "attempt_number, utcnow_value, expected_calls",
         [
@@ -111,28 +109,27 @@ class TestExponentialBackoffRetry:
         ],
     )
     def test_exponential_backoff_retry_parameterized(
-        self, mock_utcnow, attempt_number, utcnow_value, expected_calls
+        self, attempt_number, utcnow_value, expected_calls, time_machine
     ):
+        time_machine.move_to(utcnow_value)
         mock_callable_function = mock.Mock()
         mock_callable_function.__name__ = "test_callable_function"
         mock_callable_function.side_effect = Exception()
-        mock_utcnow.return_value = utcnow_value
 
         exponential_backoff_retry(
-            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0),
+            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
             attempts_since_last_successful=attempt_number,
             callable_function=mock_callable_function,
         )
         assert mock_callable_function.call_count == expected_calls
 
-    @mock.patch("airflow.utils.timezone.utcnow")
-    def test_exponential_backoff_retry_fail_success(self, mock_utcnow, caplog):
+    def test_exponential_backoff_retry_fail_success(self, time_machine, caplog):
         mock_callable_function = mock.Mock()
         mock_callable_function.__name__ = "test_callable_function"
         mock_callable_function.side_effect = [Exception(), True]
-        mock_utcnow.return_value = datetime(2023, 1, 1, 12, 0, 2)
+        time_machine.move_to(datetime(2023, 1, 1, 12, 0, 2))
         exponential_backoff_retry(
-            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0),
+            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
             attempts_since_last_successful=0,
             callable_function=mock_callable_function,
         )
@@ -140,39 +137,38 @@ class TestExponentialBackoffRetry:
         assert any("Error calling" in log for log in caplog.messages)
         caplog.clear()  # clear messages so that we have clean logs for the next call
 
-        mock_utcnow.return_value = datetime(2023, 1, 1, 12, 0, 6)
+        time_machine.move_to(datetime(2023, 1, 1, 12, 0, 6))
         exponential_backoff_retry(
-            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0),
+            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
             attempts_since_last_successful=1,
             callable_function=mock_callable_function,
         )
         assert all("Error calling" not in log for log in caplog.messages)
 
-    @mock.patch("airflow.utils.timezone.utcnow")
-    def test_exponential_backoff_retry_max_delay(self, mock_utcnow):
+    def test_exponential_backoff_retry_max_delay(self, time_machine):
         mock_callable_function = mock.Mock()
         mock_callable_function.__name__ = "test_callable_function"
         mock_callable_function.return_value = Exception()
-        mock_utcnow.return_value = datetime(2023, 1, 1, 12, 4, 15)
+        time_machine.move_to(datetime(2023, 1, 1, 12, 4, 15))
         exponential_backoff_retry(
-            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0),
+            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
             attempts_since_last_successful=4,
             callable_function=mock_callable_function,
             max_delay=60 * 5,
         )
         mock_callable_function.assert_not_called()  # delay is 256 seconds; no calls made
-        mock_utcnow.return_value = datetime(2023, 1, 1, 12, 4, 16)
+        time_machine.move_to(datetime(2023, 1, 1, 12, 4, 16))
         exponential_backoff_retry(
-            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0),
+            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
             attempts_since_last_successful=4,
             callable_function=mock_callable_function,
             max_delay=60 * 5,
         )
         mock_callable_function.assert_called_once()
 
-        mock_utcnow.return_value = datetime(2023, 1, 1, 12, 5, 0)
+        time_machine.move_to(datetime(2023, 1, 1, 12, 5, 0))
         exponential_backoff_retry(
-            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0),
+            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
             attempts_since_last_successful=5,
             callable_function=mock_callable_function,
             max_delay=60 * 5,
@@ -180,15 +176,14 @@ class TestExponentialBackoffRetry:
         # delay should be 4^5=1024 seconds, but max_delay is 60*5=300 seconds
         assert mock_callable_function.call_count == 2
 
-    @mock.patch("airflow.utils.timezone.utcnow")
-    def test_exponential_backoff_retry_max_attempts(self, mock_utcnow, caplog):
+    def test_exponential_backoff_retry_max_attempts(self, time_machine, caplog):
         mock_callable_function = mock.Mock()
         mock_callable_function.__name__ = "test_callable_function"
         mock_callable_function.return_value = Exception()
-        mock_utcnow.return_value = datetime(2023, 1, 1, 12, 55, 0)
+        time_machine.move_to(datetime(2023, 1, 1, 12, 55, 0))
         for i in range(10):
             exponential_backoff_retry(
-                last_attempt_time=datetime(2023, 1, 1, 12, 0, 0),
+                last_attempt_time=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
                 attempts_since_last_successful=i,
                 callable_function=mock_callable_function,
                 max_attempts=3,
@@ -196,7 +191,6 @@ class TestExponentialBackoffRetry:
         assert any("Max attempts reached." in log for log in caplog.messages)
         assert mock_callable_function.call_count == 3
 
-    @mock.patch("airflow.utils.timezone.utcnow")
     @pytest.mark.parametrize(
         "attempt_number, utcnow_value, expected_calls",
         [
@@ -268,15 +262,15 @@ class TestExponentialBackoffRetry:
         ],
     )
     def test_exponential_backoff_retry_exponent_base_parameterized(
-        self, mock_utcnow, attempt_number, utcnow_value, expected_calls
+        self, time_machine, attempt_number, utcnow_value, expected_calls
     ):
         mock_callable_function = mock.Mock()
         mock_callable_function.__name__ = "test_callable_function"
         mock_callable_function.side_effect = Exception()
-        mock_utcnow.return_value = utcnow_value
+        time_machine.move_to(utcnow_value)
 
         exponential_backoff_retry(
-            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0),
+            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
             attempts_since_last_successful=attempt_number,
             callable_function=mock_callable_function,
             exponent_base=3,
