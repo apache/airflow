@@ -20,12 +20,16 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.decorators import task
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.sensors.base import PokeReturnValue
 from airflow.utils.state import State
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import task
+else:
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 
 pytestmark = pytest.mark.db_test
 

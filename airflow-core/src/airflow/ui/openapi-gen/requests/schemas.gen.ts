@@ -1205,6 +1205,12 @@ export const $ClearTaskInstancesBody = {
             type: 'boolean',
             title: 'Include Past',
             default: false
+        },
+        run_on_latest_version: {
+            type: 'boolean',
+            title: 'Run On Latest Version',
+            description: '(Experimental) Run on the latest bundle version of the DAG after clearing the task instances.',
+            default: false
         }
     },
     additionalProperties: false,
@@ -2176,6 +2182,12 @@ export const $DAGRunClearBody = {
         only_failed: {
             type: 'boolean',
             title: 'Only Failed',
+            default: false
+        },
+        run_on_latest_version: {
+            type: 'boolean',
+            title: 'Run On Latest Version',
+            description: '(Experimental) Run on the latest bundle version of the DAG after clearing the DAG Run.',
             default: false
         }
     },

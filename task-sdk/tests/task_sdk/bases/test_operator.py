@@ -29,7 +29,7 @@ import jinja2
 import pytest
 import structlog
 
-from airflow.decorators import task as task_decorator
+from airflow.sdk import task as task_decorator
 from airflow.sdk.bases.operator import (
     BaseOperator,
     BaseOperatorMeta,

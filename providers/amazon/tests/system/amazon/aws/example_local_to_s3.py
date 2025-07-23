@@ -26,7 +26,7 @@ from airflow.providers.amazon.aws.transfers.local_to_s3 import LocalFilesystemTo
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
-    from airflow.decorators import task
+    from airflow.decorators import task  # type: ignore[attr-defined]
     from airflow.models.baseoperator import chain
     from airflow.models.dag import DAG
 else:
@@ -34,7 +34,7 @@ else:
         from airflow.sdk import DAG, chain, task
     else:
         # Airflow 2.10 compat
-        from airflow.decorators import task
+        from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
         from airflow.models.baseoperator import chain
         from airflow.models.dag import DAG
 from airflow.utils.trigger_rule import TriggerRule

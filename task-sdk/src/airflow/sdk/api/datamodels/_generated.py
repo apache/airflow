@@ -198,7 +198,6 @@ class IntermediateTIState(str, Enum):
     RESTARTING = "restarting"
     UP_FOR_RETRY = "up_for_retry"
     UP_FOR_RESCHEDULE = "up_for_reschedule"
-    UPSTREAM_FAILED = "upstream_failed"
     DEFERRED = "deferred"
 
 
@@ -336,6 +335,7 @@ class TerminalStateNonSuccess(str, Enum):
     FAILED = "failed"
     SKIPPED = "skipped"
     REMOVED = "removed"
+    UPSTREAM_FAILED = "upstream_failed"
 
 
 class TriggerDAGRunPayload(BaseModel):
@@ -453,6 +453,7 @@ class TerminalTIState(str, Enum):
     SUCCESS = "success"
     FAILED = "failed"
     SKIPPED = "skipped"
+    UPSTREAM_FAILED = "upstream_failed"
     REMOVED = "removed"
 
 
@@ -531,6 +532,7 @@ class DagRun(BaseModel):
     end_date: Annotated[AwareDatetime | None, Field(title="End Date")] = None
     clear_number: Annotated[int | None, Field(title="Clear Number")] = 0
     run_type: DagRunType
+    state: DagRunState
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     consumed_asset_events: Annotated[list[AssetEventDagRunReference], Field(title="Consumed Asset Events")]
 

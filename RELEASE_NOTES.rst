@@ -939,7 +939,6 @@ Airflow 3.0 completes the migration of several core operators, sensors, and hook
 - ``PythonOperator``
 - ``BashOperator``
 - ``EmailOperator``
-- ``SimpleHttpOperator``
 - ``ShortCircuitOperator``
 
 These operators were previously bundled inside ``airflow-core`` but are now treated as provider-managed components to
@@ -958,6 +957,8 @@ replaced with:
 .. code-block:: python
 
     from airflow.providers.standard.operators.python import PythonOperator
+
+The SimpleHttpOperator has been migrated to apache-airflow-providers-http and renamed to HttpOperator
 
 UI & Usability Improvements
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -389,6 +389,10 @@ export type ClearTaskInstancesBody = {
     include_downstream?: boolean;
     include_future?: boolean;
     include_past?: boolean;
+    /**
+     * (Experimental) Run on the latest bundle version of the DAG after clearing the task instances.
+     */
+    run_on_latest_version?: boolean;
 };
 
 /**
@@ -592,6 +596,10 @@ export type DAGResponse = {
 export type DAGRunClearBody = {
     dry_run?: boolean;
     only_failed?: boolean;
+    /**
+     * (Experimental) Run on the latest bundle version of the DAG after clearing the DAG Run.
+     */
+    run_on_latest_version?: boolean;
 };
 
 /**
@@ -2919,6 +2927,28 @@ export type GetMappedTiHitlDetailData = {
 };
 
 export type GetMappedTiHitlDetailResponse = HITLDetail;
+
+export type GetHitlDetailsData = {
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    bodySearch?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    dagIdPattern?: string | null;
+    dagRunId?: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    responseReceived?: boolean | null;
+    state?: Array<(string)>;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    subjectSearch?: string | null;
+    userId?: Array<(string)>;
+};
 
 export type GetHitlDetailsResponse = HITLDetailCollection;
 
@@ -5982,6 +6012,7 @@ export type $OpenApiTs = {
     };
     '/api/v2/hitl-details/': {
         get: {
+            req: GetHitlDetailsData;
             res: {
                 /**
                  * Successful Response
@@ -5995,6 +6026,10 @@ export type $OpenApiTs = {
                  * Forbidden
                  */
                 403: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
             };
         };
     };

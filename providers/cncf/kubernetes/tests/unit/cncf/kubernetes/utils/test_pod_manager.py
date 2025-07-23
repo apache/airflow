@@ -173,7 +173,7 @@ class TestPodManager:
         startup_check_interval = 10
 
         def mock_read_pod_events(pod):
-            self.pod_manager.keep_watching_for_events = False
+            self.pod_manager.stop_watching_events = True
             return events
 
         with (
@@ -514,7 +514,7 @@ class TestPodManager:
         assert mock_time_sleep.call_count == 3
         assert f"::group::Waiting until {schedule_timeout}s to get the POD scheduled..." in caplog.text
         assert f"Waiting {startup_timeout}s to get the POD running..." in caplog.text
-        assert not self.pod_manager.keep_watching_for_events
+        assert self.pod_manager.stop_watching_events is True
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
     def test_container_is_running(self, container_is_running_mock):

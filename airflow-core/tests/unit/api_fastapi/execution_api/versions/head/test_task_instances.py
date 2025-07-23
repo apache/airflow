@@ -35,7 +35,7 @@ from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Asset, TaskGroup, task, task_group
 from airflow.utils import timezone
-from airflow.utils.state import State, TaskInstanceState, TerminalTIState
+from airflow.utils.state import DagRunState, State, TaskInstanceState, TerminalTIState
 
 from tests_common.test_utils.db import (
     clear_db_assets,
@@ -155,6 +155,7 @@ class TestTIRunState:
         ti = create_task_instance(
             task_id="test_ti_run_state_to_running",
             state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
             session=session,
             start_date=instant,
             dag_id=str(uuid4()),
@@ -184,6 +185,7 @@ class TestTIRunState:
                 "data_interval_end": instant_str,
                 "run_after": instant_str,
                 "start_date": instant_str,
+                "state": "running",
                 "end_date": None,
                 "run_type": "manual",
                 "conf": {},
