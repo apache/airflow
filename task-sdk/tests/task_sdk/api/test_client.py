@@ -26,7 +26,7 @@ from unittest import mock
 import httpx
 import pytest
 import uuid6
-from task_sdk import make_client, make_client_w_dry_run, make_client_w_responses
+from task_sdk import make_client, make_client_w_capath, make_client_w_dry_run, make_client_w_responses
 from uuid6 import uuid7
 
 from airflow.sdk import timezone
@@ -87,6 +87,10 @@ class TestClient:
 
         assert resp.status_code == 200
         assert resp.json() == json_response
+
+    def test_add_capath(self):
+        capath = make_client_w_capath("/capath/does/not/exist/")
+        assert capath == "/capath/does/not/exist/"
 
     def test_error_parsing(self):
         responses = [
