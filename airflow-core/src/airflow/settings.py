@@ -26,7 +26,7 @@ import sys
 import warnings
 from collections.abc import Callable
 from importlib import metadata
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import pluggy
 from packaging.version import Version
@@ -88,6 +88,7 @@ LOG_FORMAT = conf.get("logging", "log_format")
 SIMPLE_LOG_FORMAT = conf.get("logging", "simple_log_format")
 
 SQL_ALCHEMY_CONN: str | None = None
+SQL_ALCHEMY_CONN_ASYNC: str | None = None
 PLUGINS_FOLDER: str | None = None
 LOGGING_CLASS_PATH: str | None = None
 DONOT_MODIFY_HANDLERS: bool | None = None
@@ -224,8 +225,12 @@ def configure_vars():
     global DAGS_FOLDER
     global PLUGINS_FOLDER
     global DONOT_MODIFY_HANDLERS
-    SQL_ALCHEMY_CONN = conf.get("database", "SQL_ALCHEMY_CONN")
-    SQL_ALCHEMY_CONN_ASYNC = _get_async_conn_uri_from_sync(sync_uri=SQL_ALCHEMY_CONN)
+
+    SQL_ALCHEMY_CONN = conf.get("database", "sql_alchemy_conn")
+    if conf.has_option("database", "sql_alchemy_conn_async"):
+        SQL_ALCHEMY_CONN_ASYNC = conf.get("database", "sql_alchemy_conn_async")
+    else:
+        SQL_ALCHEMY_CONN_ASYNC = _get_async_conn_uri_from_sync(sync_uri=SQL_ALCHEMY_CONN)
 
     DAGS_FOLDER = os.path.expanduser(conf.get("core", "DAGS_FOLDER"))
 
@@ -320,11 +325,32 @@ def _is_sqlite_db_path_relative(sqla_conn_str: str) -> bool:
     return True
 
 
-def _configure_async_session():
-    global async_engine
-    global AsyncSession
+def _get_connect_args(mode: Literal["sync", "async"]) -> Any:
+    key = {
+        "sync": "sql_alchemy_connect_args",
+        "async": "sql_alchemy_connect_args_async",
+    }[mode]
+    if conf.has_option("database", key):
+        return conf.getimport("database", key)
+    return {}
 
-    async_engine = create_async_engine(SQL_ALCHEMY_CONN_ASYNC, future=True)
+
+def _configure_async_session() -> None:
+    """
+    Configure async SQLAlchemy session.
+
+    This exists so tests can reconfigure the session. How SQLAlchemy configures
+    this does not work well with Pytest and you can end up with issues when the
+    session and runs in a different event loop from the test itself.
+    """
+    global AsyncSession
+    global async_engine
+
+    async_engine = create_async_engine(
+        SQL_ALCHEMY_CONN_ASYNC,
+        connect_args=_get_connect_args("async"),
+        future=True,
+    )
     AsyncSession = sessionmaker(
         bind=async_engine,
         autocommit=False,
@@ -346,9 +372,9 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
             "Please use absolute path such as `sqlite:////tmp/airflow.db`."
         )
 
+    global NonScopedSession
     global Session
     global engine
-    global NonScopedSession
 
     if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
         # Skip DB initialization in unit tests, if DB tests are skipped
@@ -358,18 +384,20 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
     log.debug("Setting up DB connection pool (PID %s)", os.getpid())
     engine_args = prepare_engine_args(disable_connection_pool, pool_class)
 
-    if conf.has_option("database", "sql_alchemy_connect_args"):
-        connect_args = conf.getimport("database", "sql_alchemy_connect_args")
-    else:
-        connect_args = {}
-
+    connect_args = _get_connect_args("sync")
     if SQL_ALCHEMY_CONN.startswith("sqlite"):
         # FastAPI runs sync endpoints in a separate thread. SQLite does not allow
         # to use objects created in another threads by default. Allowing that in test
         # to so the `test` thread and the tested endpoints can use common objects.
         connect_args["check_same_thread"] = False
 
-    engine = create_engine(SQL_ALCHEMY_CONN, connect_args=connect_args, **engine_args, future=True)
+    engine = create_engine(
+        SQL_ALCHEMY_CONN,
+        connect_args=connect_args,
+        **engine_args,
+        future=True,
+    )
+    _configure_async_session()
     mask_secret(engine.url.password)
     setup_event_handlers(engine)
 
@@ -384,8 +412,6 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
         )
     NonScopedSession = _session_maker(engine)
     Session = scoped_session(NonScopedSession)
-
-    _configure_async_session()
 
     if register_at_fork := getattr(os, "register_at_fork", None):
         # https://docs.sqlalchemy.org/en/20/core/pooling.html#using-connection-pools-with-multiprocessing-or-os-fork

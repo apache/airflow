@@ -1205,6 +1205,12 @@ export const $ClearTaskInstancesBody = {
             type: 'boolean',
             title: 'Include Past',
             default: false
+        },
+        run_on_latest_version: {
+            type: 'boolean',
+            title: 'Run On Latest Version',
+            description: '(Experimental) Run on the latest bundle version of the DAG after clearing the task instances.',
+            default: false
         }
     },
     additionalProperties: false,
@@ -1643,20 +1649,6 @@ export const $DAGDetailsResponse = {
             ],
             title: 'Description'
         },
-        deadline: {
-            anyOf: [
-                {
-                    items: {
-                        '$ref': '#/components/schemas/DeadlineAlertResponse'
-                    },
-                    type: 'array'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Deadline'
-        },
         timetable_summary: {
             anyOf: [
                 {
@@ -1947,7 +1939,7 @@ export const $DAGDetailsResponse = {
         }
     },
     type: 'object',
-    required: ['dag_id', 'dag_display_name', 'is_paused', 'is_stale', 'last_parsed_time', 'last_expired', 'bundle_name', 'bundle_version', 'relative_fileloc', 'fileloc', 'description', 'deadline', 'timetable_summary', 'timetable_description', 'tags', 'max_active_tasks', 'max_active_runs', 'max_consecutive_failed_dag_runs', 'has_task_concurrency_limits', 'has_import_errors', 'next_dagrun_logical_date', 'next_dagrun_data_interval_start', 'next_dagrun_data_interval_end', 'next_dagrun_run_after', 'owners', 'catchup', 'dag_run_timeout', 'asset_expression', 'doc_md', 'start_date', 'end_date', 'is_paused_upon_creation', 'params', 'render_template_as_native_obj', 'template_search_path', 'timezone', 'last_parsed', 'default_args', 'file_token', 'concurrency', 'latest_dag_version'],
+    required: ['dag_id', 'dag_display_name', 'is_paused', 'is_stale', 'last_parsed_time', 'last_expired', 'bundle_name', 'bundle_version', 'relative_fileloc', 'fileloc', 'description', 'timetable_summary', 'timetable_description', 'tags', 'max_active_tasks', 'max_active_runs', 'max_consecutive_failed_dag_runs', 'has_task_concurrency_limits', 'has_import_errors', 'next_dagrun_logical_date', 'next_dagrun_data_interval_start', 'next_dagrun_data_interval_end', 'next_dagrun_run_after', 'owners', 'catchup', 'dag_run_timeout', 'asset_expression', 'doc_md', 'start_date', 'end_date', 'is_paused_upon_creation', 'params', 'render_template_as_native_obj', 'template_search_path', 'timezone', 'last_parsed', 'default_args', 'file_token', 'concurrency', 'latest_dag_version'],
     title: 'DAGDetailsResponse',
     description: 'Specific serializer for DAG Details responses.'
 } as const;
@@ -2055,20 +2047,6 @@ export const $DAGResponse = {
                 }
             ],
             title: 'Description'
-        },
-        deadline: {
-            anyOf: [
-                {
-                    items: {
-                        '$ref': '#/components/schemas/DeadlineAlertResponse'
-                    },
-                    type: 'array'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Deadline'
         },
         timetable_summary: {
             anyOf: [
@@ -2189,7 +2167,7 @@ export const $DAGResponse = {
         }
     },
     type: 'object',
-    required: ['dag_id', 'dag_display_name', 'is_paused', 'is_stale', 'last_parsed_time', 'last_expired', 'bundle_name', 'bundle_version', 'relative_fileloc', 'fileloc', 'description', 'deadline', 'timetable_summary', 'timetable_description', 'tags', 'max_active_tasks', 'max_active_runs', 'max_consecutive_failed_dag_runs', 'has_task_concurrency_limits', 'has_import_errors', 'next_dagrun_logical_date', 'next_dagrun_data_interval_start', 'next_dagrun_data_interval_end', 'next_dagrun_run_after', 'owners', 'file_token'],
+    required: ['dag_id', 'dag_display_name', 'is_paused', 'is_stale', 'last_parsed_time', 'last_expired', 'bundle_name', 'bundle_version', 'relative_fileloc', 'fileloc', 'description', 'timetable_summary', 'timetable_description', 'tags', 'max_active_tasks', 'max_active_runs', 'max_consecutive_failed_dag_runs', 'has_task_concurrency_limits', 'has_import_errors', 'next_dagrun_logical_date', 'next_dagrun_data_interval_start', 'next_dagrun_data_interval_end', 'next_dagrun_run_after', 'owners', 'file_token'],
     title: 'DAGResponse',
     description: 'DAG serializer for responses.'
 } as const;
@@ -2204,6 +2182,12 @@ export const $DAGRunClearBody = {
         only_failed: {
             type: 'boolean',
             title: 'Only Failed',
+            default: false
+        },
+        run_on_latest_version: {
+            type: 'boolean',
+            title: 'Run On Latest Version',
+            description: '(Experimental) Run on the latest bundle version of the DAG after clearing the DAG Run.',
             default: false
         }
     },
@@ -3050,40 +3034,6 @@ This is the set of allowable values for the \`\`warning_type\`\` field
 in the DagWarning model.`
 } as const;
 
-export const $DeadlineAlertResponse = {
-    properties: {
-        reference: {
-            type: 'string',
-            title: 'Reference'
-        },
-        interval: {
-            type: 'string',
-            format: 'duration',
-            title: 'Interval'
-        },
-        callback: {
-            type: 'string',
-            title: 'Callback'
-        },
-        callback_kwargs: {
-            anyOf: [
-                {
-                    additionalProperties: true,
-                    type: 'object'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Callback Kwargs'
-        }
-    },
-    type: 'object',
-    required: ['reference', 'interval', 'callback'],
-    title: 'DeadlineAlertResponse',
-    description: 'Deadline alert serializer for responses.'
-} as const;
-
 export const $DryRunBackfillCollectionResponse = {
     properties: {
         backfills: {
@@ -3410,9 +3360,8 @@ export const $FastAPIRootMiddlewareResponse = {
 
 export const $HITLDetail = {
     properties: {
-        ti_id: {
-            type: 'string',
-            title: 'Ti Id'
+        task_instance: {
+            '$ref': '#/components/schemas/TaskInstanceResponse'
         },
         options: {
             items: {
@@ -3509,7 +3458,7 @@ export const $HITLDetail = {
         }
     },
     type: 'object',
-    required: ['ti_id', 'options', 'subject'],
+    required: ['task_instance', 'options', 'subject'],
     title: 'HITLDetail',
     description: 'Schema for Human-in-the-loop detail.'
 } as const;
@@ -6669,20 +6618,6 @@ export const $DAGWithLatestDagRunsResponse = {
             ],
             title: 'Description'
         },
-        deadline: {
-            anyOf: [
-                {
-                    items: {
-                        '$ref': '#/components/schemas/DeadlineAlertResponse'
-                    },
-                    type: 'array'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Deadline'
-        },
         timetable_summary: {
             anyOf: [
                 {
@@ -6821,7 +6756,7 @@ export const $DAGWithLatestDagRunsResponse = {
         }
     },
     type: 'object',
-    required: ['dag_id', 'dag_display_name', 'is_paused', 'is_stale', 'last_parsed_time', 'last_expired', 'bundle_name', 'bundle_version', 'relative_fileloc', 'fileloc', 'description', 'deadline', 'timetable_summary', 'timetable_description', 'tags', 'max_active_tasks', 'max_active_runs', 'max_consecutive_failed_dag_runs', 'has_task_concurrency_limits', 'has_import_errors', 'next_dagrun_logical_date', 'next_dagrun_data_interval_start', 'next_dagrun_data_interval_end', 'next_dagrun_run_after', 'owners', 'asset_expression', 'latest_dag_runs', 'file_token'],
+    required: ['dag_id', 'dag_display_name', 'is_paused', 'is_stale', 'last_parsed_time', 'last_expired', 'bundle_name', 'bundle_version', 'relative_fileloc', 'fileloc', 'description', 'timetable_summary', 'timetable_description', 'tags', 'max_active_tasks', 'max_active_runs', 'max_consecutive_failed_dag_runs', 'has_task_concurrency_limits', 'has_import_errors', 'next_dagrun_logical_date', 'next_dagrun_data_interval_start', 'next_dagrun_data_interval_end', 'next_dagrun_run_after', 'owners', 'asset_expression', 'latest_dag_runs', 'file_token'],
     title: 'DAGWithLatestDagRunsResponse',
     description: 'DAG with latest dag runs response serializer.'
 } as const;

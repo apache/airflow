@@ -211,7 +211,11 @@ spec:
   terminationGracePeriodSeconds: {{ .Values.workers.terminationGracePeriodSeconds }}
   tolerations: {{- toYaml $tolerations | nindent 4 }}
   topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 4 }}
+  {{- if .Values.workers.useWorkerDedicatedServiceAccounts }}
+  serviceAccountName: {{ include "worker.kubernetes.serviceAccountName" . }}
+  {{- else }}
   serviceAccountName: {{ include "worker.serviceAccountName" . }}
+  {{- end }}
   volumes:
   {{- if .Values.dags.persistence.enabled }}
   - name: dags

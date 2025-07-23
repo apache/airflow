@@ -33,7 +33,6 @@ from airflow.api_fastapi.execution_api.datamodels.dagrun import (
 )
 from airflow.exceptions import DagRunAlreadyExists
 from airflow.models.dag import DagModel
-from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.utils.types import DagRunTriggeredByType
 
@@ -175,9 +174,20 @@ def clear_dag_run(
                 "message": f"DAG with dag_id: '{dag_id}' has import errors and cannot be triggered",
             },
         )
+    from airflow.jobs.scheduler_job_runner import SchedulerDagBag
 
-    dag_bag = DagBag(dag_folder=dm.fileloc, read_dags_from_db=True)
-    dag = dag_bag.get_dag(dag_id)
+    dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id))
+    dag_bag = SchedulerDagBag()
+    dag = dag_bag.get_dag(dag_run=dag_run, session=session)
+    if not dag:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail={
+                "reason": "Not Found",
+                "message": f"DAG with dag_id: '{dag_id}' was not found in the DagBag",
+            },
+        )
+
     dag.clear(run_id=run_id)
 
 
