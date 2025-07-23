@@ -83,8 +83,6 @@ jobs:
         run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        with:
-          use-uv: "false"
       - name: Free space
         run: breeze ci free-space --answer yes
       - name: "Cleanup dist and context file"
@@ -181,8 +179,6 @@ jobs:
         run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        with:
-          use-uv: "false"
       - name: Free space
         run: breeze ci free-space --answer yes
       - name: "Cleanup dist and context file"
