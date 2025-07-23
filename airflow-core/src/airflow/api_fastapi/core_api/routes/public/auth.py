@@ -65,6 +65,9 @@ def refresh(request: Request, next: None | str = None) -> RedirectResponse:
     """Refresh the authentication token."""
     refresh_url = request.app.state.auth_manager.get_url_refresh()
 
+    if not refresh_url:
+        return RedirectResponse(request.app.state.auth_manager.get_url_logout())
+
     if next and not is_safe_url(next, request=request):
         raise HTTPException(status_code=400, detail="Invalid or unsafe next URL")
 

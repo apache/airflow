@@ -82,18 +82,10 @@ def refresh(
     client = KeycloakAuthManager.get_keycloak_client()
 
     if not user or not user.refresh_token:
-        raise HTTPException(
-            status_code=400, detail="User is not a valid Keycloak user or has no refresh token"
-        )
+        raise HTTPException(status_code=400, detail="User is empty or has no refresh token")
 
     tokens = client.refresh_token(user.refresh_token)
-    userinfo = client.userinfo(tokens["access_token"])
-    user = KeycloakAuthManagerUser(
-        user_id=userinfo["sub"],
-        name=userinfo["preferred_username"],
-        access_token=tokens["access_token"],
-        refresh_token=tokens["refresh_token"],
-    )
+    user.refresh_token = tokens["refresh_token"]
     token = get_auth_manager().generate_jwt(user)
 
     redirect_url = request.query_params.get("next", conf.get("api", "base_url", fallback="/"))

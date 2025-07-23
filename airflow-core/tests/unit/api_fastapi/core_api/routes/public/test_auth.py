@@ -23,6 +23,8 @@ import pytest
 from tests_common.test_utils.config import conf_vars
 
 AUTH_MANAGER_LOGIN_URL = "http://some_login_url"
+AUTH_MANAGER_REFRESH_URL = "http://some_refresh_url"
+AUTH_MANAGER_LOGOUT_URL = "http://some_logout_url"
 
 pytestmark = pytest.mark.db_test
 
@@ -32,7 +34,8 @@ class TestAuthEndpoint:
     def setup(self, test_client) -> None:
         auth_manager_mock = MagicMock()
         auth_manager_mock.get_url_login.return_value = AUTH_MANAGER_LOGIN_URL
-        auth_manager_mock.get_url_refresh.return_value = AUTH_MANAGER_LOGIN_URL
+        auth_manager_mock.get_url_refresh.return_value = AUTH_MANAGER_REFRESH_URL
+        auth_manager_mock.get_url_logout.return_value = AUTH_MANAGER_LOGOUT_URL
         test_client.app.state.auth_manager = auth_manager_mock
 
 
@@ -110,10 +113,27 @@ class TestRefresh(TestAuthEndpoint):
 
         assert response.status_code == 307
         assert (
-            response.headers["location"] == f"{AUTH_MANAGER_LOGIN_URL}?next={params.get('next')}"
+            response.headers["location"] == f"{AUTH_MANAGER_REFRESH_URL}?next={params.get('next')}"
             if params.get("next")
-            else AUTH_MANAGER_LOGIN_URL
+            else AUTH_MANAGER_REFRESH_URL
         )
+
+    @pytest.mark.parametrize(
+        "params",
+        [
+            {},
+            {"next": None},
+            {"next": "http://localhost:8080"},
+            {"next": "http://localhost:8080", "other_param": "something_else"},
+        ],
+    )
+    @patch("airflow.api_fastapi.core_api.routes.public.auth.is_safe_url", return_value=True)
+    def test_refresh_url_is_none(self, mock_is_safe_url, test_client, params):
+        test_client.app.state.auth_manager.get_url_refresh.return_value = None
+        response = test_client.get("/auth/refresh", follow_redirects=False, params=params)
+
+        assert response.status_code == 307
+        assert response.headers["location"] == test_client.app.state.auth_manager.get_url_logout()
 
     @pytest.mark.parametrize(
         "params",

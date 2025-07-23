@@ -137,7 +137,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         Return the URL to refresh the authentication token.
 
         This is used to refresh the authentication token when it expires.
-        The default implementation returns None, which means that no refresh URL is provided.
+        The default implementation returns None, which means that the auth manager does not support refresh token.
         """
         return None
 
