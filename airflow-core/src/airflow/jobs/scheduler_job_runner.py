@@ -2008,7 +2008,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
             else:
                 self.log.info("20131")
-                if task.on_retry_callback or task.on_failure_callback:
+                if task.on_failure_callback:
                     self.log.info("2034")
                     request = TaskCallbackRequest(
                         filepath=ti.dag_model.relative_fileloc,
