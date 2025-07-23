@@ -776,6 +776,7 @@ This is an example test want to verify the structure of a code-generated DAG aga
     from airflow.sdk import DAG
     from airflow.utils.state import TaskInstanceState
 
+
     def test_my_custom_operator_execute_no_trigger(dag):
         TEST_TASK_ID = "my_custom_operator_task"
         with DAG(
