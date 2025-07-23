@@ -156,7 +156,7 @@ class TestDataprocClusterCreateOperator:
         )
 
     @patch("airflow.providers.yandex.utils.credentials.get_credentials")
-    @patch("airflow.hooks.base.BaseHook.get_connection")
+    @patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     @patch("yandexcloud._wrappers.dataproc.Dataproc.create_cluster")
     @patch("yandexcloud.__version__", "0.350.0")
     def test_create_cluster_with_350_sdk(self, mock_create_cluster, *_):
@@ -223,7 +223,6 @@ class TestDataprocClusterCreateOperator:
         )
 
     @patch("airflow.providers.yandex.utils.credentials.get_credentials")
-    @patch("airflow.hooks.base.BaseHook.get_connection")
     @patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     @patch("yandexcloud._wrappers.dataproc.Dataproc.delete_cluster")
     def test_delete_cluster_operator(self, mock_delete_cluster, *_):

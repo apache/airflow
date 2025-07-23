@@ -197,7 +197,11 @@ class DataprocCreateClusterOperator(BaseOperator):
         self.hook = DataprocHook(
             yandex_conn_id=self.yandex_conn_id,
         )
-        kwargs_0_350_0 = {"oslogin_enabled": self.oslogin_enabled, "environment": self.environment}
+        kwargs_depends_on_version = {}
+        if yandexcloud.__version__ >= "0.350.0":
+            kwargs_depends_on_version.update(
+                {"oslogin_enabled": self.oslogin_enabled, "environment": self.environment}
+            )
         operation_result = self.hook.dataproc_client.create_cluster(
             folder_id=self.folder_id,
             cluster_name=self.cluster_name,
@@ -243,7 +247,7 @@ class DataprocCreateClusterOperator(BaseOperator):
             ]
             if self.initialization_actions
             else None,
-            **kwargs_0_350_0 if yandexcloud.__version__ >= "0.350.0" else None,
+            **kwargs_depends_on_version,
         )
         cluster_id = operation_result.response.id
 
