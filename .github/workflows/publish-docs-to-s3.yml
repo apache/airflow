@@ -196,7 +196,7 @@ jobs:
           if [[ "${APPLY_COMMITS}" != "" ]]; then
             git config --global user.email "bot@airflow.apache.org"
             git config --global user.name "Your friendly bot"
-            echo "Applying commits ${APPLY_COMMIT} to the docs"
+            echo "Applying commits ${APPLY_COMMITS} to the docs"
             # Split APPLY_COMMITS by comma and apply each commit
             IFS=',' read -ra COMMIT_ARRAY <<< "${APPLY_COMMITS}"
             for APPLY_COMMIT in "${COMMIT_ARRAY[@]}"; do
