@@ -1246,8 +1246,15 @@ class TestTaskInstance:
         assert completed == expect_completed
         assert ti.state == expect_state
 
-    def test_respects_prev_dagrun_dep(self, create_task_instance):
-        ti = create_task_instance()
+    def test_respects_prev_dagrun_dep(self, dag_maker, session):
+        with dag_maker("test_respects_prev_dagrun_dep", serialized=True) as dag:
+            EmptyOperator(task_id="t")
+
+        dr = dag_maker.create_dagrun(session=session)
+        ti = dr.get_task_instance(task_id="t", session=session)
+
+        # Operate on serialized task
+        ti.task = dag.task_dict[ti.task_id]
         failing_status = [TIDepStatus("test fail status name", False, "test fail reason")]
         passing_status = [TIDepStatus("test pass status name", True, "test passing reason")]
         with patch(

@@ -1387,7 +1387,7 @@ class TaskInstance(Base, LoggingMixin):
             log.info("[DAG TEST] Marking success for %s ", self.task_id)
             return None
 
-        taskrun_result = _run_task(ti=self)
+        taskrun_result = _run_task(ti=self, task=self.task)
         if taskrun_result is not None and taskrun_result.error:
             raise taskrun_result.error
         return None
@@ -1632,6 +1632,16 @@ class TaskInstance(Base, LoggingMixin):
         raise_on_defer: bool = False,
     ) -> None:
         """Run TaskInstance (only kept for tests)."""
+        # This method is only used in ti.run and dag.test and task.test.
+        # So doing the s10n/de-s10n dance to operator on Serialized task for the scheduler dep check part.
+        original_task = self.task
+
+        from airflow.serialization.serialized_objects import SerializedDAG
+
+        serialized_task = SerializedDAG.deserialize_dag(
+            SerializedDAG.serialize_dag(original_task.dag)
+        ).task_dict[original_task.task_id]
+        self.task = serialized_task
         res = self.check_and_change_state_before_execution(
             verbose=verbose,
             ignore_all_deps=ignore_all_deps,
@@ -1644,6 +1654,7 @@ class TaskInstance(Base, LoggingMixin):
             pool=pool,
             session=session,
         )
+        self.task = original_task
         if not res:
             return
 
