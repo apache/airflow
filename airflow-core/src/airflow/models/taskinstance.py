@@ -1377,7 +1377,7 @@ class TaskInstance(Base, LoggingMixin):
             log.info("[DAG TEST] Marking success for %s ", self.task_id)
             return None
 
-        taskrun_result = _run_task(ti=self)
+        taskrun_result = _run_task(ti=self, task=self.task)
         if taskrun_result is not None and taskrun_result.error:
             raise taskrun_result.error
         return None
