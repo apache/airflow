@@ -253,6 +253,7 @@ paths:
       operationId: get_latest_run_info
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
