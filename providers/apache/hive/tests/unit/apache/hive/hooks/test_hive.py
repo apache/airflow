@@ -954,6 +954,10 @@ class TestHiveCli:
                 {"high_availability": "false"},
                 "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2",
             ),
+            (
+                {"high_availability": "true", "ssl": "false", "zoo_keeper_namespace": "custom_hive_server"},
+                "serviceDiscoveryMode=zooKeeper;ssl=false;zooKeeperNamespace=custom_hive_server",
+            ),
             ({}, "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2"),
             # with proxy user
             (
