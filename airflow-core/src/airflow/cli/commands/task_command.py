@@ -30,9 +30,10 @@ from typing import TYPE_CHECKING, Protocol, cast
 from airflow import settings
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
-from airflow.exceptions import DagRunNotFound, TaskInstanceNotFound
+from airflow.exceptions import AirflowConfigException, DagRunNotFound, TaskInstanceNotFound
 from airflow.models import TaskInstance
 from airflow.models.dag import DAG as SchedulerDAG, _get_or_create_dagrun
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.sdk.definitions.dag import DAG, _run_task
 from airflow.sdk.definitions.param import ParamsDict
@@ -47,6 +48,7 @@ from airflow.utils.cli import (
     get_dags,
     suppress_logs_and_warning,
 )
+from airflow.utils.platform import getuser
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState, State
@@ -58,8 +60,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm.session import Session
 
-    from airflow.models.operator import Operator
-    from airflow.typing_compat import Self
+    from airflow.sdk.types import Operator
 
     CreateIfNecessary = Literal[False, "db", "memory"]
 
@@ -121,6 +122,11 @@ def _get_dag_run(
         else None
     )
     run_after = data_interval.end if data_interval else timezone.utcnow()
+    try:
+        user = getuser()
+    except AirflowConfigException as e:
+        log.warning("Failed to get user name from os: %s, not setting the triggering user", e)
+        user = None
     if create_if_necessary == "memory":
         dag_run = DagRun(
             dag_id=dag.dag_id,
@@ -130,6 +136,7 @@ def _get_dag_run(
             data_interval=data_interval,
             run_after=run_after,
             triggered_by=DagRunTriggeredByType.CLI,
+            triggering_user_name=user,
             state=DagRunState.RUNNING,
         )
         return dag_run, True
@@ -142,6 +149,7 @@ def _get_dag_run(
             data_interval=data_interval,
             run_after=run_after,
             triggered_by=DagRunTriggeredByType.CLI,
+            triggering_user_name=user,
             session=session,
             start_date=logical_date or run_after,
             conf=None,
@@ -193,7 +201,13 @@ def _get_ti(
                 f"run_id or logical_date of {logical_date_or_run_id!r} not found"
             )
         # TODO: Validate map_index is in range?
-        ti = TaskInstance(task, run_id=dag_run.run_id, map_index=map_index)
+        dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+        if not dag_version:
+            # TODO: Remove this once DagVersion.get_latest_version is guaranteed to return a DagVersion/raise
+            raise ValueError(
+                f"Cannot create TaskInstance for {dag.dag_id} because the Dag is not serialized."
+            )
+        ti = TaskInstance(task, run_id=dag_run.run_id, map_index=map_index, dag_version_id=dag_version.id)
         if dag_run in session:
             session.add(ti)
         ti.dag_run = dag_run
@@ -448,53 +462,3 @@ def task_clear(args) -> None:
         only_running=args.only_running,
         confirm_prompt=not args.yes,
     )
-
-
-class LoggerMutationHelper:
-    """
-    Helper for moving and resetting handlers and other logger attrs.
-
-    :meta private:
-    """
-
-    def __init__(self, logger: logging.Logger) -> None:
-        self.handlers = logger.handlers[:]
-        self.level = logger.level
-        self.propagate = logger.propagate
-        self.source_logger = logger
-
-    def apply(self, logger: logging.Logger, replace: bool = True) -> None:
-        """
-        Set ``logger`` with attrs stored on instance.
-
-        If ``logger`` is root logger, don't change propagate.
-        """
-        if replace:
-            logger.handlers[:] = self.handlers
-        else:
-            for h in self.handlers:
-                if h not in logger.handlers:
-                    logger.addHandler(h)
-        logger.level = self.level
-        if logger is not logging.getLogger():
-            logger.propagate = self.propagate
-
-    def move(self, logger: logging.Logger, replace: bool = True) -> None:
-        """
-        Replace ``logger`` attrs with those from source.
-
-        :param logger: target logger
-        :param replace: if True, remove all handlers from target first; otherwise add if not present.
-        """
-        self.apply(logger, replace=replace)
-        self.source_logger.propagate = True
-        self.source_logger.handlers[:] = []
-
-    def reset(self) -> None:
-        self.apply(self.source_logger)
-
-    def __enter__(self) -> Self:
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        self.reset()

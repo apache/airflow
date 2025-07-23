@@ -94,6 +94,64 @@ def _patch_ti_validate_request(
     return dag, list(tis), body.model_dump(include=fields_to_update, by_alias=True)
 
 
+def _patch_task_instance_state(
+    task_id: str,
+    dag_run_id: str,
+    dag: DAG,
+    task_instance_body: BulkTaskInstanceBody | PatchTaskInstanceBody,
+    data: dict,
+    session: Session,
+) -> None:
+    map_index = getattr(task_instance_body, "map_index", None)
+    map_indexes = None if map_index is None else [map_index]
+
+    updated_tis = dag.set_task_instance_state(
+        task_id=task_id,
+        run_id=dag_run_id,
+        map_indexes=map_indexes,
+        state=data["new_state"],
+        upstream=task_instance_body.include_upstream,
+        downstream=task_instance_body.include_downstream,
+        future=task_instance_body.include_future,
+        past=task_instance_body.include_past,
+        commit=True,
+        session=session,
+    )
+    if not updated_tis:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"Task id {task_id} is already in {data['new_state']} state",
+        )
+
+    for ti in updated_tis:
+        try:
+            if data["new_state"] == TaskInstanceState.SUCCESS:
+                get_listener_manager().hook.on_task_instance_success(previous_state=None, task_instance=ti)
+            elif data["new_state"] == TaskInstanceState.FAILED:
+                get_listener_manager().hook.on_task_instance_failed(
+                    previous_state=None,
+                    task_instance=ti,
+                    error=f"TaskInstance's state was manually set to `{TaskInstanceState.FAILED}`.",
+                )
+        except Exception:
+            log.exception("error calling listener")
+
+
+def _patch_task_instance_note(
+    task_instance_body: BulkTaskInstanceBody | PatchTaskInstanceBody,
+    tis: list[TI],
+    user: GetUserDep,
+    update_mask: list[str] | None = Query(None),
+) -> None:
+    for ti in tis:
+        if update_mask or task_instance_body.note is not None:
+            if ti.task_instance_note is None:
+                ti.note = (task_instance_body.note, user.get_id())
+            else:
+                ti.task_instance_note.content = task_instance_body.note
+                ti.task_instance_note.user_id = user.get_id()
+
+
 class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
     """Service for handling bulk operations on task instances."""
 
@@ -133,55 +191,6 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         matched_task_keys = {(task_id, map_index) for (task_id, map_index) in task_instances_map.keys()}
         not_found_task_keys = {(task_id, map_index) for task_id, map_index in task_ids} - matched_task_keys
         return task_instances_map, matched_task_keys, not_found_task_keys
-
-    def _patch_task_instance_state(
-        self,
-        dag: DAG,
-        task_instance_body: BulkTaskInstanceBody,
-        data: dict,
-    ) -> None:
-        map_indexes = None if task_instance_body.map_index is None else [task_instance_body.map_index]
-
-        updated_tis = dag.set_task_instance_state(
-            task_id=task_instance_body.task_id,
-            run_id=self.dag_run_id,
-            map_indexes=map_indexes,
-            state=data["new_state"],
-            upstream=task_instance_body.include_upstream,
-            downstream=task_instance_body.include_downstream,
-            future=task_instance_body.include_future,
-            past=task_instance_body.include_past,
-            commit=True,
-            session=self.session,
-        )
-        if not updated_tis:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                f"Task id {task_instance_body.task_id} is already in {data['new_state']} state",
-            )
-        for ti in updated_tis:
-            try:
-                if data["new_state"] == TaskInstanceState.SUCCESS:
-                    get_listener_manager().hook.on_task_instance_success(
-                        previous_state=None, task_instance=ti
-                    )
-                elif data["new_state"] == TaskInstanceState.FAILED:
-                    get_listener_manager().hook.on_task_instance_failed(
-                        previous_state=None,
-                        task_instance=ti,
-                        error=f"TaskInstance's state was manually set to `{TaskInstanceState.FAILED}`.",
-                    )
-            except Exception:
-                log.exception("error calling listener")
-
-    def _patch_task_instance_note(self, task_instance_body: BulkTaskInstanceBody, tis: list[TI]) -> None:
-        for ti in tis:
-            if task_instance_body.note is not None:
-                if ti.task_instance_note is None:
-                    ti.note = (task_instance_body.note, self.user.get_id())
-                else:
-                    ti.task_instance_note.content = task_instance_body.note
-                    ti.task_instance_note.user_id = self.user.get_id()
 
     def handle_bulk_create(
         self, action: BulkCreateAction[BulkTaskInstanceBody], results: BulkActionResponse
@@ -232,13 +241,18 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
 
                 for key, _ in data.items():
                     if key == "new_state":
-                        self._patch_task_instance_state(
+                        _patch_task_instance_state(
+                            task_id=task_instance_body.task_id,
+                            dag_run_id=self.dag_run_id,
                             dag=dag,
                             task_instance_body=task_instance_body,
+                            session=self.session,
                             data=data,
                         )
                     elif key == "note":
-                        self._patch_task_instance_note(task_instance_body=task_instance_body, tis=tis)
+                        _patch_task_instance_note(
+                            task_instance_body=task_instance_body, tis=tis, user=self.user
+                        )
 
                 results.success.append(task_instance_body.task_id)
         except ValidationError as e:

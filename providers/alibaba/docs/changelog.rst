@@ -26,6 +26,44 @@
 Changelog
 ---------
 
+3.2.1
+.....
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Disable UP038 ruff rule and revert mandatory 'X | Y' in insintance checks (#52644)``
+* ``Replace 'models.BaseOperator' to Task SDK one for Alibaba & Airbyte (#52335)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Use BaseSensorOperator from task sdk in providers (#52296)``
+
+Doc-only
+~~~~~~~~
+
+* ``Clean some leftovers of Python 3.9 removal - All the rest (#52432)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update alibaba example dags (#52163)``
+
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add MaxComputeSQLOperator, MaxComputeHook and AlibabaBaseHook to Alibaba Provider (#50178)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix MaxComputeSQLOperator Argument  (#51513)``
+* ``Fix inconsistent conn_name_attr (#51112)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.1.0
 .....
 

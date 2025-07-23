@@ -25,7 +25,7 @@ import cohere
 from cohere.types import UserChatMessageV2
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.hooks.base import BaseHook
+from airflow.providers.cohere.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from cohere.core.request_options import RequestOptions
@@ -100,6 +100,12 @@ class CohereHook(BaseHook):
             embedding_types=["float"],
             request_options=self.request_options,
         )
+        # NOTE: Return type `EmbedByTypeResponseEmbeddings` was removed temporarily due to limitations
+        # in XCom serialization/deserialization of complex types like Cohere embeddings and Pydantic models.
+        #
+        # Tracking issue: https://github.com/apache/airflow/issues/50867
+        # Once that issue is resolved, XCom (de)serialization of such types will be supported and
+        # we can safely restore the `EmbedByTypeResponseEmbeddings` return type here.
         if response.embeddings.float_ is None:
             raise ValueError("Embeddings response is missing float_ field")
         return response.embeddings.float_

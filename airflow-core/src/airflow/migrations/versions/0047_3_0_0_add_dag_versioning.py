@@ -71,8 +71,11 @@ def upgrade():
         sa.PrimaryKeyConstraint("id", name=op.f("dag_version_pkey")),
         sa.UniqueConstraint("dag_id", "version_number", name="dag_id_v_name_v_number_unique_constraint"),
     )
+
     with ignore_sqlite_value_error(), op.batch_alter_table("dag_code") as batch_op:
         batch_op.drop_constraint("dag_code_pkey", type_="primary")
+
+    with op.batch_alter_table("dag_code") as batch_op:
         batch_op.drop_column("fileloc_hash")
         batch_op.add_column(sa.Column("id", UUIDType(binary=False), nullable=False))
         batch_op.create_primary_key("dag_code_pkey", ["id"])
@@ -91,6 +94,8 @@ def upgrade():
 
     with ignore_sqlite_value_error(), op.batch_alter_table("serialized_dag") as batch_op:
         batch_op.drop_constraint("serialized_dag_pkey", type_="primary")
+
+    with op.batch_alter_table("serialized_dag") as batch_op:
         batch_op.drop_index("idx_fileloc_hash")
         batch_op.drop_column("fileloc_hash")
         batch_op.drop_column("fileloc")

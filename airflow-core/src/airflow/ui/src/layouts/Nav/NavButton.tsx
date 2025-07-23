@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, type ButtonProps } from "@chakra-ui/react";
+import { Box, Button, Link, type ButtonProps } from "@chakra-ui/react";
 import type { ReactElement } from "react";
 import { NavLink } from "react-router-dom";
 
@@ -33,16 +33,24 @@ const styles = {
 
 type NavButtonProps = {
   readonly icon: ReactElement;
+  readonly isExternal?: boolean;
   readonly title?: string;
   readonly to?: string;
 } & ButtonProps;
 
-export const NavButton = ({ icon, title, to, ...rest }: NavButtonProps) =>
+export const NavButton = ({ icon, isExternal = false, title, to, ...rest }: NavButtonProps) =>
   to === undefined ? (
     <Button {...styles} {...rest}>
       <Box alignSelf="center">{icon}</Box>
       <Box fontSize="xs">{title}</Box>
     </Button>
+  ) : isExternal ? (
+    <Link href={to} px={2} rel="noopener noreferrer" target="_blank">
+      <Button {...styles} variant="ghost" {...rest}>
+        <Box alignSelf="center">{icon}</Box>
+        <Box fontSize="xs">{title}</Box>
+      </Button>
+    </Link>
   ) : (
     <NavLink to={to}>
       {({ isActive }: { readonly isActive: boolean }) => (

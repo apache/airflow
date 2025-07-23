@@ -17,15 +17,28 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Callable
 
+from airflow.models.deadline import DeadlineReferenceType, ReferenceModels
+from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.utils.module_loading import import_string, is_valid_dotpath
 
-if TYPE_CHECKING:
-    from airflow.models.deadline import DeadlineReferenceType
-
 logger = logging.getLogger(__name__)
+
+
+class DeadlineAlertFields:
+    """
+    Define field names used in DeadlineAlert serialization/deserialization.
+
+    These constants provide a single source of truth for the field names used when
+    serializing DeadlineAlert instances to and from their dictionary representation.
+    """
+
+    REFERENCE = "reference"
+    INTERVAL = "interval"
+    CALLBACK = "callback"
+    CALLBACK_KWARGS = "callback_kwargs"
 
 
 class DeadlineAlert:
@@ -40,12 +53,35 @@ class DeadlineAlert:
     ):
         self.reference = reference
         self.interval = interval
-        self.callback_kwargs = callback_kwargs
+        self.callback_kwargs = callback_kwargs or {}
         self.callback = self.get_callback_path(callback)
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, DeadlineAlert):
+            return NotImplemented
+        return (
+            isinstance(self.reference, type(other.reference))
+            and self.interval == other.interval
+            and self.callback == other.callback
+            and self.callback_kwargs == other.callback_kwargs
+        )
+
+    def __hash__(self) -> int:
+        return hash(
+            (
+                type(self.reference).__name__,
+                self.interval,
+                self.callback,
+                tuple(sorted(self.callback_kwargs.items())) if self.callback_kwargs else None,
+            )
+        )
 
     @staticmethod
     def get_callback_path(_callback: str | Callable) -> str:
+        """Convert callback to a string path that can be used to import it later."""
         if callable(_callback):
+            # TODO:  This implementation doesn't support using a lambda function as a callback.
+            #        We should consider that in the future, but the addition is non-trivial.
             # Get the reference path to the callable in the form `airflow.models.deadline.get_from_db`
             return f"{_callback.__module__}.{_callback.__qualname__}"
 
@@ -57,6 +93,9 @@ class DeadlineAlert:
         try:
             # The provided callback is a string which appears to be a valid dotpath, attempt to import it.
             callback = import_string(stripped_callback)
+            if not callable(callback):
+                # The input is a string which can be imported, but is not callable.
+                raise AttributeError(f"Provided callback {callback} is not callable.")
         except ImportError as e:
             # Logging here instead of failing because it is possible that the code for the callable
             # exists somewhere other than on the DAG processor. We are making a best effort to validate,
@@ -66,24 +105,37 @@ class DeadlineAlert:
                 stripped_callback,
                 e,
             )
-            return stripped_callback
-
-        # If we get this far then the input is a string which can be imported, check if it is a callable.
-        if not callable(callback):
-            raise AttributeError(f"Provided callback {callback} is not callable.")
 
         return stripped_callback
 
     def serialize_deadline_alert(self):
-        from airflow.serialization.serialized_objects import BaseSerialization
+        """Return the data in a format that BaseSerialization can handle."""
+        return {
+            Encoding.TYPE: DAT.DEADLINE_ALERT,
+            Encoding.VAR: {
+                DeadlineAlertFields.REFERENCE: self.reference.serialize_reference(),
+                DeadlineAlertFields.INTERVAL: self.interval.total_seconds(),
+                DeadlineAlertFields.CALLBACK: self.callback,  # Already stored as a string path
+                DeadlineAlertFields.CALLBACK_KWARGS: self.callback_kwargs,
+            },
+        }
 
-        return BaseSerialization.serialize(
-            {
-                "reference": self.reference,
-                "interval": self.interval,
-                "callback": self.callback,
-                "callback_kwargs": self.callback_kwargs,
-            }
+    @classmethod
+    def deserialize_deadline_alert(cls, encoded_data: dict) -> DeadlineAlert:
+        """Deserialize a DeadlineAlert from serialized data."""
+        data = encoded_data.get(Encoding.VAR, encoded_data)
+
+        reference_data = data[DeadlineAlertFields.REFERENCE]
+        reference_type = reference_data[ReferenceModels.REFERENCE_TYPE_FIELD]
+
+        reference_class = ReferenceModels.get_reference_class(reference_type)
+        reference = reference_class.deserialize_reference(reference_data)
+
+        return cls(
+            reference=reference,
+            interval=timedelta(seconds=data[DeadlineAlertFields.INTERVAL]),
+            callback=data[DeadlineAlertFields.CALLBACK],  # Keep as string path
+            callback_kwargs=data[DeadlineAlertFields.CALLBACK_KWARGS],
         )
 
 
@@ -124,6 +176,21 @@ class DeadlineReference:
            deadline.evaluate_with()
     """
 
+    class TYPES:
+        """Collection of DeadlineReference types for type checking."""
+
+        # Deadlines that should be created when the DagRun is created.
+        DAGRUN_CREATED = (
+            ReferenceModels.DagRunLogicalDateDeadline,
+            ReferenceModels.FixedDatetimeDeadline,
+        )
+
+        # Deadlines that should be created when the DagRun is queued.
+        DAGRUN_QUEUED = (ReferenceModels.DagRunQueuedAtDeadline,)
+
+        # All DagRun-related deadline types.
+        DAGRUN = DAGRUN_CREATED + DAGRUN_QUEUED
+
     from airflow.models.deadline import ReferenceModels
 
     DAGRUN_LOGICAL_DATE: DeadlineReferenceType = ReferenceModels.DagRunLogicalDateDeadline()
@@ -132,3 +199,13 @@ class DeadlineReference:
     @classmethod
     def FIXED_DATETIME(cls, datetime: datetime) -> DeadlineReferenceType:
         return cls.ReferenceModels.FixedDatetimeDeadline(datetime)
+
+    # TODO: Remove this once other deadline types exist.
+    #   This is a temporary reference type used only in tests to verify that
+    #   dag.has_dagrun_deadline() returns false if the dag has a non-dagrun deadline type.
+    #   It should be replaced with a real non-dagrun deadline type when one is available.
+    _TEMPORARY_TEST_REFERENCE = type(
+        "TemporaryTestDeadlineForTypeChecking",
+        (DeadlineReferenceType,),
+        {"_evaluate_with": lambda self, **kwargs: datetime.now()},
+    )()

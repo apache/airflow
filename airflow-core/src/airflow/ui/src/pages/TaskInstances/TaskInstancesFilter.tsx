@@ -88,7 +88,7 @@ export const TaskInstancesFilter = ({
         hideAdvanced
         hotkeyDisabled={Boolean(runId)}
         onChange={handleSearchChange}
-        placeHolder={translate("dags:taskInstances.searchPlaceholder")}
+        placeHolder={translate("dags:search.tasks")}
       />
       <Select.Root
         collection={taskInstanceStateOptions}
@@ -113,7 +113,7 @@ export const TaskInstancesFilter = ({
                   ))}
                 </HStack>
               ) : (
-                translate("dags:taskInstances.allStates")
+                translate("dags:filters.allStates")
               )
             }
           </Select.ValueText>

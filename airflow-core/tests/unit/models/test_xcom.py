@@ -24,8 +24,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from airflow import DAG
 from airflow.configuration import conf
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun, DagRunType
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -34,7 +37,6 @@ from airflow.sdk.execution_time.xcom import resolve_xcom_backend
 from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.session import create_session
-from airflow.utils.xcom import XCOM_RETURN_KEY
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
@@ -46,8 +48,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 
-class CustomXCom(BaseXCom):
-    orm_deserialize_value = mock.Mock()
+class CustomXCom(BaseXCom): ...
 
 
 @pytest.fixture(autouse=True)
@@ -61,6 +62,9 @@ def reset_db():
 @pytest.fixture
 def task_instance_factory(request, session: Session):
     def func(*, dag_id, task_id, logical_date, run_after=None):
+        dag = DAG(dag_id=dag_id)
+        dag.sync_to_db(session=session)
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
         run_id = DagRun.generate_run_id(
             run_type=DagRunType.SCHEDULED,
             logical_date=logical_date,
@@ -76,7 +80,9 @@ def task_instance_factory(request, session: Session):
             run_after=run_after if run_after is not None else logical_date,
         )
         session.add(run)
-        ti = TaskInstance(EmptyOperator(task_id=task_id), run_id=run_id)
+        session.flush()
+        dag_version = DagVersion.get_latest_version(run.dag_id, session=session)
+        ti = TaskInstance(EmptyOperator(task_id=task_id), run_id=run_id, dag_version_id=dag_version.id)
         ti.dag_id = dag_id
         session.add(ti)
         session.commit()
@@ -103,7 +109,11 @@ def task_instance(task_instance_factory):
 
 @pytest.fixture
 def task_instances(session, task_instance):
-    ti2 = TaskInstance(EmptyOperator(task_id="task_2"), run_id=task_instance.run_id)
+    ti2 = TaskInstance(
+        EmptyOperator(task_id="task_2"),
+        run_id=task_instance.run_id,
+        dag_version_id=task_instance.dag_version_id,
+    )
     ti2.dag_id = task_instance.dag_id
     session.add(ti2)
     session.commit()
@@ -162,7 +172,7 @@ class TestXCom:
 
         XCom = resolve_xcom_backend()
         XCom.set(
-            key=XCOM_RETURN_KEY,
+            key=XCom.XCOM_RETURN_KEY,
             value={"my_xcom_key": "my_xcom_value"},
             dag_id=task_instance.dag_id,
             task_id=task_instance.task_id,
@@ -170,7 +180,7 @@ class TestXCom:
             map_index=-1,
         )
         serialize_watcher.assert_called_once_with(
-            key=XCOM_RETURN_KEY,
+            key=XCom.XCOM_RETURN_KEY,
             value={"my_xcom_key": "my_xcom_value"},
             dag_id=task_instance.dag_id,
             task_id=task_instance.task_id,
@@ -318,6 +328,7 @@ class TestXComGet:
 
     def test_xcom_get_many_from_prior_dates(self, session, tis_for_xcom_get_many_from_prior_dates):
         ti1, ti2 = tis_for_xcom_get_many_from_prior_dates
+        session.add(ti1)  # for some reason, ti1 goes out of the session scope
         stored_xcoms = XComModel.get_many(
             run_id=ti2.run_id,
             key="xcom_1",

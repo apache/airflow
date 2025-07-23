@@ -74,7 +74,6 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
             self.token_renewal_delta,
         )
         try:
-            statement_query_ids: list[str] = []
             for query_id in self.query_ids:
                 while True:
                     statement_status = await self.get_query_status(query_id)
@@ -84,12 +83,10 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
                 if statement_status["status"] == "error":
                     yield TriggerEvent(statement_status)
                     return
-                if statement_status["status"] == "success":
-                    statement_query_ids.extend(statement_status["statement_handles"])
             yield TriggerEvent(
                 {
                     "status": "success",
-                    "statement_query_ids": statement_query_ids,
+                    "statement_query_ids": self.query_ids,
                 }
             )
         except Exception as e:

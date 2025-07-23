@@ -18,6 +18,7 @@
  */
 import { ReactFlowProvider } from "@xyflow/react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { FiBarChart, FiCode } from "react-icons/fi";
 import { LuChartColumn } from "react-icons/lu";
 import { MdDetails, MdOutlineEventNote } from "react-icons/md";
@@ -27,24 +28,30 @@ import { useParams } from "react-router-dom";
 import { useDagServiceGetDagDetails, useDagServiceGetDagsUi } from "openapi/queries";
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import { TaskIcon } from "src/assets/TaskIcon";
+import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { useRefreshOnNewDagRuns } from "src/queries/useRefreshOnNewDagRuns";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { Header } from "./Header";
 
-const tabs = [
-  { icon: <LuChartColumn />, label: "Overview", value: "" },
-  { icon: <FiBarChart />, label: "Runs", value: "runs" },
-  { icon: <TaskIcon />, label: "Tasks", value: "tasks" },
-  { icon: <RiArrowGoBackFill />, label: "Backfills", value: "backfills" },
-  { icon: <MdOutlineEventNote />, label: "Events", value: "events" },
-  { icon: <FiCode />, label: "Code", value: "code" },
-  { icon: <MdDetails />, label: "Details", value: "details" },
-];
-
 export const Dag = () => {
+  const { t: translate } = useTranslation("dag");
   const { dagId = "" } = useParams();
+
+  // Get external views with dag destination
+  const externalTabs = usePluginTabs("dag");
+
+  const tabs = [
+    { icon: <LuChartColumn />, label: translate("tabs.overview"), value: "" },
+    { icon: <FiBarChart />, label: translate("tabs.runs"), value: "runs" },
+    { icon: <TaskIcon />, label: translate("tabs.tasks"), value: "tasks" },
+    { icon: <RiArrowGoBackFill />, label: translate("tabs.backfills"), value: "backfills" },
+    { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
+    { icon: <FiCode />, label: translate("tabs.code"), value: "code" },
+    { icon: <MdDetails />, label: translate("tabs.details"), value: "details" },
+    ...externalTabs,
+  ];
 
   const {
     data: dag,
@@ -87,14 +94,11 @@ export const Dag = () => {
     } satisfies DAGWithLatestDagRunsResponse;
   }
 
+  const displayTabs = tabs.filter((tab) => !(dag?.timetable_summary === null && tab.value === "backfills"));
+
   return (
     <ReactFlowProvider>
-      <DetailsLayout
-        dag={dag}
-        error={error ?? runsError}
-        isLoading={isLoading || isLoadingRuns}
-        tabs={tabs.filter((tab) => !(dag?.timetable_summary === null && tab.value === "backfills"))}
-      >
+      <DetailsLayout error={error ?? runsError} isLoading={isLoading || isLoadingRuns} tabs={displayTabs}>
         <Header
           dag={dag}
           dagWithRuns={dagWithRuns}

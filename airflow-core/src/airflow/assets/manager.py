@@ -130,7 +130,7 @@ class AssetManager(LoggingMixin):
             .options(
                 joinedload(AssetModel.active),
                 joinedload(AssetModel.aliases),
-                joinedload(AssetModel.consuming_dags).joinedload(DagScheduleAssetReference.dag),
+                joinedload(AssetModel.scheduled_dags).joinedload(DagScheduleAssetReference.dag),
             )
         )
         if not asset_model:
@@ -161,7 +161,7 @@ class AssetManager(LoggingMixin):
         session.flush()  # Ensure the event is written earlier than DDRQ entries below.
 
         dags_to_queue_from_asset = {
-            ref.dag for ref in asset_model.consuming_dags if not ref.dag.is_stale and not ref.dag.is_paused
+            ref.dag for ref in asset_model.scheduled_dags if not ref.dag.is_stale and not ref.dag.is_paused
         }
 
         dags_to_queue_from_asset_alias = set()
@@ -170,7 +170,7 @@ class AssetManager(LoggingMixin):
                 select(AssetAliasModel)
                 .where(AssetAliasModel.name.in_(source_alias_names))
                 .options(
-                    joinedload(AssetAliasModel.consuming_dags).joinedload(DagScheduleAssetAliasReference.dag)
+                    joinedload(AssetAliasModel.scheduled_dags).joinedload(DagScheduleAssetAliasReference.dag)
                 )
             ).unique()
 
@@ -180,7 +180,7 @@ class AssetManager(LoggingMixin):
 
                 dags_to_queue_from_asset_alias |= {
                     alias_ref.dag
-                    for alias_ref in asset_alias_model.consuming_dags
+                    for alias_ref in asset_alias_model.scheduled_dags
                     if not alias_ref.dag.is_stale and not alias_ref.dag.is_paused
                 }
 

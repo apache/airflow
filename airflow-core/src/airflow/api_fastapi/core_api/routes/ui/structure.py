@@ -32,8 +32,8 @@ from airflow.api_fastapi.core_api.services.ui.structure import (
 )
 from airflow.models.dag_version import DagVersion
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.sdk.definitions.taskgroup import task_group_to_dict
 from airflow.utils.dag_edges import dag_edges
-from airflow.utils.task_group import task_group_to_dict
 
 structure_router = AirflowRouter(tags=["Structure"], prefix="/structure")
 
@@ -122,7 +122,15 @@ def structure_data(
                 elif (
                     dependency.target == dependency.dependency_type or dependency.source == dag_id
                 ) and exit_node_ref:
-                    end_edges.append({"source_id": exit_node_ref["id"], "target_id": dependency.node_id})
+                    end_edges.append(
+                        {
+                            "source_id": exit_node_ref["id"],
+                            "target_id": dependency.node_id,
+                            "resolved_from_alias": dependency.source.replace("asset-alias:", "", 1)
+                            if dependency.source.startswith("asset-alias:")
+                            else None,
+                        }
+                    )
 
                 # Add nodes
                 nodes.append(
@@ -133,7 +141,7 @@ def structure_data(
                     }
                 )
 
-        if asset_expression := serialized_dag.dag_model.asset_expression:
+        if (asset_expression := serialized_dag.dag_model.asset_expression) and entry_node_ref:
             upstream_asset_nodes, upstream_asset_edges = get_upstream_assets(
                 asset_expression, entry_node_ref["id"]
             )
@@ -142,6 +150,6 @@ def structure_data(
 
         data["edges"] += start_edges + end_edges
 
-    bind_output_assets_to_tasks(data["edges"], serialized_dag)
+    bind_output_assets_to_tasks(data["edges"], serialized_dag, version_number, session)
 
     return StructureDataResponse(**data)

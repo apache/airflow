@@ -38,6 +38,7 @@ class TerminalTIState(str, Enum):
     SUCCESS = "success"
     FAILED = "failed"
     SKIPPED = "skipped"  # A user can raise a AirflowSkipException from a task & it will be marked as skipped
+    UPSTREAM_FAILED = "upstream_failed"
     REMOVED = "removed"
     UPSTREAM_FAILED = "upstream_failed"
 

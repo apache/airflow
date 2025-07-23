@@ -23,13 +23,31 @@ from urllib.parse import urljoin
 
 import requests
 from fastapi import FastAPI
+from keycloak import KeycloakOpenID
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
-from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager, T
+from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
+
+try:
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ExtendedResourceMethod
+except ImportError:
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod as ExtendedResourceMethod
+
+from airflow.api_fastapi.common.types import MenuItem
+from airflow.cli.cli_config import CLICommand, GroupCommand
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.providers.keycloak.auth_manager.cli.definition import KEYCLOAK_AUTH_MANAGER_COMMANDS
+from airflow.providers.keycloak.auth_manager.constants import (
+    CONF_CLIENT_ID_KEY,
+    CONF_CLIENT_SECRET_KEY,
+    CONF_REALM_KEY,
+    CONF_SECTION_NAME,
+    CONF_SERVER_URL_KEY,
+)
 from airflow.providers.keycloak.auth_manager.resources import KeycloakResource
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
+from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
@@ -45,9 +63,10 @@ if TYPE_CHECKING:
         PoolDetails,
         VariableDetails,
     )
-    from airflow.api_fastapi.common.types import MenuItem
 
 log = logging.getLogger(__name__)
+
+RESOURCE_ID_ATTRIBUTE_NAME = "resource_id"
 
 
 class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
@@ -86,15 +105,10 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
     ) -> bool:
         config_section = details.section if details else None
         return self._is_authorized(
-            method=method, resource_type=KeycloakResource.CONFIGURATION, user=user
-        ) or (
-            config_section is not None
-            and self._is_authorized(
-                method=method,
-                resource_type=KeycloakResource.CONFIGURATION,
-                user=user,
-                resource_id=config_section,
-            )
+            method=method,
+            resource_type=KeycloakResource.CONFIGURATION,
+            user=user,
+            resource_id=config_section,
         )
 
     def is_authorized_connection(
@@ -105,43 +119,42 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         details: ConnectionDetails | None = None,
     ) -> bool:
         connection_id = details.conn_id if details else None
-        return self._is_authorized(method=method, resource_type=KeycloakResource.CONNECTION, user=user) or (
-            connection_id is not None
-            and self._is_authorized(
-                method=method, resource_type=KeycloakResource.CONNECTION, user=user, resource_id=connection_id
-            )
+        return self._is_authorized(
+            method=method, resource_type=KeycloakResource.CONNECTION, user=user, resource_id=connection_id
         )
 
     def is_authorized_dag(
         self,
         *,
         method: ResourceMethod,
-        user: T,
+        user: KeycloakAuthManagerUser,
         access_entity: DagAccessEntity | None = None,
         details: DagDetails | None = None,
     ) -> bool:
-        return True
+        dag_id = details.id if details else None
+        access_entity_str = access_entity.value if access_entity else None
+        return self._is_authorized(
+            method=method,
+            resource_type=KeycloakResource.DAG,
+            user=user,
+            resource_id=dag_id,
+            attributes={"dag_entity": access_entity_str},
+        )
 
     def is_authorized_backfill(
         self, *, method: ResourceMethod, user: KeycloakAuthManagerUser, details: BackfillDetails | None = None
     ) -> bool:
         backfill_id = str(details.id) if details else None
-        return self._is_authorized(method=method, resource_type=KeycloakResource.BACKFILL, user=user) or (
-            backfill_id is not None
-            and self._is_authorized(
-                method=method, resource_type=KeycloakResource.BACKFILL, user=user, resource_id=backfill_id
-            )
+        return self._is_authorized(
+            method=method, resource_type=KeycloakResource.BACKFILL, user=user, resource_id=backfill_id
         )
 
     def is_authorized_asset(
         self, *, method: ResourceMethod, user: KeycloakAuthManagerUser, details: AssetDetails | None = None
     ) -> bool:
         asset_id = details.id if details else None
-        return self._is_authorized(method=method, resource_type=KeycloakResource.ASSET, user=user) or (
-            asset_id is not None
-            and self._is_authorized(
-                method=method, resource_type=KeycloakResource.ASSET, user=user, resource_id=asset_id
-            )
+        return self._is_authorized(
+            method=method, resource_type=KeycloakResource.ASSET, user=user, resource_id=asset_id
         )
 
     def is_authorized_asset_alias(
@@ -152,42 +165,31 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         details: AssetAliasDetails | None = None,
     ) -> bool:
         asset_alias_id = details.id if details else None
-        return self._is_authorized(method=method, resource_type=KeycloakResource.ASSET_ALIAS, user=user) or (
-            asset_alias_id is not None
-            and self._is_authorized(
-                method=method,
-                resource_type=KeycloakResource.ASSET_ALIAS,
-                user=user,
-                resource_id=asset_alias_id,
-            )
+        return self._is_authorized(
+            method=method,
+            resource_type=KeycloakResource.ASSET_ALIAS,
+            user=user,
+            resource_id=asset_alias_id,
         )
 
     def is_authorized_variable(
         self, *, method: ResourceMethod, user: KeycloakAuthManagerUser, details: VariableDetails | None = None
     ) -> bool:
         variable_key = details.key if details else None
-        return self._is_authorized(method=method, resource_type=KeycloakResource.VARIABLE, user=user) or (
-            variable_key is not None
-            and self._is_authorized(
-                method=method, resource_type=KeycloakResource.VARIABLE, user=user, resource_id=variable_key
-            )
+        return self._is_authorized(
+            method=method, resource_type=KeycloakResource.VARIABLE, user=user, resource_id=variable_key
         )
 
     def is_authorized_pool(
         self, *, method: ResourceMethod, user: KeycloakAuthManagerUser, details: PoolDetails | None = None
     ) -> bool:
         pool_name = details.name if details else None
-        return self._is_authorized(method=method, resource_type=KeycloakResource.POOL, user=user) or (
-            pool_name is not None
-            and self._is_authorized(
-                method=method, resource_type=KeycloakResource.POOL, user=user, resource_id=pool_name
-            )
+        return self._is_authorized(
+            method=method, resource_type=KeycloakResource.POOL, user=user, resource_id=pool_name
         )
 
     def is_authorized_view(self, *, access_view: AccessView, user: KeycloakAuthManagerUser) -> bool:
         return self._is_authorized(
-            method="GET", resource_type=KeycloakResource.VIEW, user=user
-        ) or self._is_authorized(
             method="GET",
             resource_type=KeycloakResource.VIEW,
             user=user,
@@ -198,18 +200,21 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         self, *, method: ResourceMethod | str, resource_name: str, user: KeycloakAuthManagerUser
     ) -> bool:
         return self._is_authorized(
-            method=method, resource_type=KeycloakResource.CUSTOM, user=user
-        ) or self._is_authorized(
             method=method, resource_type=KeycloakResource.CUSTOM, user=user, resource_id=resource_name
         )
 
     def filter_authorized_menu_items(
         self, menu_items: list[MenuItem], *, user: KeycloakAuthManagerUser
     ) -> list[MenuItem]:
-        return menu_items
+        authorized_menus = self._is_batch_authorized(
+            permissions=[("MENU", menu_item.value) for menu_item in menu_items],
+            user=user,
+        )
+        return [MenuItem(menu[1]) for menu in authorized_menus]
 
     def get_fastapi_app(self) -> FastAPI | None:
         from airflow.providers.keycloak.auth_manager.routes.login import login_router
+        from airflow.providers.keycloak.auth_manager.routes.token import token_router
 
         app = FastAPI(
             title="Keycloak auth manager sub application",
@@ -220,8 +225,34 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             ),
         )
         app.include_router(login_router)
+        app.include_router(token_router)
 
         return app
+
+    @staticmethod
+    def get_cli_commands() -> list[CLICommand]:
+        """Vends CLI commands to be included in Airflow CLI."""
+        return [
+            GroupCommand(
+                name="keycloak-auth-manager",
+                help="Manage resources used by Keycloak auth manager",
+                subcommands=KEYCLOAK_AUTH_MANAGER_COMMANDS,
+            ),
+        ]
+
+    @staticmethod
+    def get_keycloak_client() -> KeycloakOpenID:
+        client_id = conf.get(CONF_SECTION_NAME, CONF_CLIENT_ID_KEY)
+        client_secret = conf.get(CONF_SECTION_NAME, CONF_CLIENT_SECRET_KEY)
+        realm = conf.get(CONF_SECTION_NAME, CONF_REALM_KEY)
+        server_url = conf.get(CONF_SECTION_NAME, CONF_SERVER_URL_KEY)
+
+        return KeycloakOpenID(
+            server_url=server_url,
+            client_id=client_id,
+            client_secret_key=client_secret,
+            realm_name=realm,
+        )
 
     def _is_authorized(
         self,
@@ -230,19 +261,19 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         resource_type: KeycloakResource,
         user: KeycloakAuthManagerUser,
         resource_id: str | None = None,
+        attributes: dict[str, str | None] | None = None,
     ) -> bool:
-        client_id = conf.get("keycloak_auth_manager", "client_id")
-        realm = conf.get("keycloak_auth_manager", "realm")
-        server_url = conf.get("keycloak_auth_manager", "server_url")
+        client_id = conf.get(CONF_SECTION_NAME, CONF_CLIENT_ID_KEY)
+        realm = conf.get(CONF_SECTION_NAME, CONF_REALM_KEY)
+        server_url = conf.get(CONF_SECTION_NAME, CONF_SERVER_URL_KEY)
 
-        permission = (
-            f"{resource_type.value}:{resource_id}#{method}"
-            if resource_id
-            else f"{resource_type.value}#{method}"
-        )
+        context_attributes = prune_dict(attributes or {})
+        if resource_id:
+            context_attributes[RESOURCE_ID_ATTRIBUTE_NAME] = resource_id
+
         resp = requests.post(
             self._get_token_url(server_url, realm),
-            data=self._get_payload(client_id, permission),
+            data=self._get_payload(client_id, f"{resource_type.value}#{method}", context_attributes),
             headers=self._get_headers(user.access_token),
         )
 
@@ -252,9 +283,33 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             return False
         if resp.status_code == 400:
             error = json.loads(resp.text)
-            if error.get("error") == "invalid_resource":
-                log.debug(error["error_description"])
-                return False
+            raise AirflowException(
+                f"Request not recognized by Keycloak. {error.get('error')}. {error.get('error_description')}"
+            )
+        raise AirflowException(f"Unexpected error: {resp.status_code} - {resp.text}")
+
+    def _is_batch_authorized(
+        self,
+        *,
+        permissions: list[tuple[ExtendedResourceMethod, str]],
+        user: KeycloakAuthManagerUser,
+    ) -> set[tuple[ExtendedResourceMethod, str]]:
+        client_id = conf.get(CONF_SECTION_NAME, CONF_CLIENT_ID_KEY)
+        realm = conf.get(CONF_SECTION_NAME, CONF_REALM_KEY)
+        server_url = conf.get(CONF_SECTION_NAME, CONF_SERVER_URL_KEY)
+
+        resp = requests.post(
+            self._get_token_url(server_url, realm),
+            data=self._get_batch_payload(client_id, permissions),
+            headers=self._get_headers(user.access_token),
+        )
+
+        if resp.status_code == 200:
+            return {(perm["scopes"][0], perm["rsname"]) for perm in resp.json()}
+        if resp.status_code == 403:
+            return set()
+        if resp.status_code == 400:
+            error = json.loads(resp.text)
             raise AirflowException(
                 f"Request not recognized by Keycloak. {error.get('error')}. {error.get('error_description')}"
             )
@@ -265,12 +320,27 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         return f"{server_url}/realms/{realm}/protocol/openid-connect/token"
 
     @staticmethod
-    def _get_payload(client_id, permission):
-        return {
+    def _get_payload(client_id: str, permission: str, attributes: dict[str, str] | None = None):
+        payload: dict[str, Any] = {
             "grant_type": "urn:ietf:params:oauth:grant-type:uma-ticket",
             "audience": client_id,
             "permission": permission,
         }
+        if attributes:
+            payload["context"] = {"attributes": attributes}
+
+        return payload
+
+    @staticmethod
+    def _get_batch_payload(client_id: str, permissions: list[tuple[ExtendedResourceMethod, str]]):
+        payload: dict[str, Any] = {
+            "grant_type": "urn:ietf:params:oauth:grant-type:uma-ticket",
+            "audience": client_id,
+            "permission": [f"{permission[1]}#{permission[0]}" for permission in permissions],
+            "response_mode": "permissions",
+        }
+
+        return payload
 
     @staticmethod
     def _get_headers(access_token):

@@ -109,7 +109,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
                       label={translate("triggerDag.selectLabel")}
                       value={RunMode.SINGLE}
                     />
-                    <Tooltip content="Backfill requires a schedule" disabled={hasSchedule}>
+                    <Tooltip content={translate("backfill.tooltip")} disabled={hasSchedule}>
                       <RadioCardItem
                         description={translate("backfill.selectDescription")}
                         disabled={!hasSchedule}

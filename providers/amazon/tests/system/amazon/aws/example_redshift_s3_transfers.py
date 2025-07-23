@@ -17,9 +17,8 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftCreateClusterOperator,
     RedshiftDeleteClusterOperator,
@@ -34,6 +33,19 @@ from airflow.providers.amazon.aws.sensors.redshift_cluster import RedshiftCluste
 from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor
 from airflow.providers.amazon.aws.transfers.redshift_to_s3 import RedshiftToS3Operator
 from airflow.providers.amazon.aws.transfers.s3_to_redshift import S3ToRedshiftOperator
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if TYPE_CHECKING:
+    from airflow.models.baseoperator import chain
+    from airflow.models.dag import DAG
+else:
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.sdk import DAG, chain
+    else:
+        # Airflow 2.10 compat
+        from airflow.models.baseoperator import chain
+        from airflow.models.dag import DAG
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
@@ -111,7 +123,7 @@ with DAG(
         cluster_subnet_group_name=cluster_subnet_group_name,
         publicly_accessible=False,
         cluster_type="single-node",
-        node_type="dc2.large",
+        node_type="ra3.large",
         master_username=DB_LOGIN,
         master_user_password=DB_PASS,
     )

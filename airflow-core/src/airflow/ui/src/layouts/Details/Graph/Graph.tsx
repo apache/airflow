@@ -19,14 +19,11 @@
 import { useToken } from "@chakra-ui/react";
 import { ReactFlow, Controls, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { useEffect, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
-import {
-  useDagRunServiceGetDagRun,
-  useGridServiceGridData,
-  useStructureServiceStructureData,
-} from "openapi/queries";
+import { useStructureServiceStructureData } from "openapi/queries";
 import { DownloadButton } from "src/components/Graph/DownloadButton";
 import { edgeTypes, nodeTypes } from "src/components/Graph/graphTypes";
 import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
@@ -34,8 +31,9 @@ import { type Direction, useGraphLayout } from "src/components/Graph/useGraphLay
 import { useColorMode } from "src/context/colorMode";
 import { useOpenGroups } from "src/context/openGroups";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
+import { flattenGraphNodes } from "src/layouts/Details/Grid/utils.ts";
 import { useDependencyGraph } from "src/queries/useDependencyGraph";
-import { isStatePending, useAutoRefresh } from "src/utils";
+import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 
 const nodeColor = (
   { data: { depth, height, isOpen, taskInstance, width }, type }: ReactFlowNode<CustomNodeProps>,
@@ -75,32 +73,36 @@ export const Graph = () => {
     "gray.800",
   ]);
 
-  const { openGroupIds } = useOpenGroups();
-  const refetchInterval = useAutoRefresh({ dagId });
+  const { allGroupIds, openGroupIds, setAllGroupIds } = useOpenGroups();
 
   const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(`dependencies-${dagId}`, "tasks");
   const [direction] = useLocalStorage<Direction>(`direction-${dagId}`, "RIGHT");
 
   const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
+  const { data: graphData = { edges: [], nodes: [] } } = useStructureServiceStructureData(
+    {
+      dagId,
+      externalDependencies: dependencies === "immediate",
+      versionNumber: selectedVersion,
+    },
+    undefined,
+    { enabled: selectedVersion !== undefined },
+  );
 
-  const { data: graphData = { edges: [], nodes: [] } } = useStructureServiceStructureData({
-    dagId,
-    externalDependencies: dependencies === "immediate",
-    versionNumber: selectedVersion,
-  });
+  const { allGroupIds: observedGroupIds } = useMemo(
+    () => flattenGraphNodes(graphData.nodes),
+    [graphData.nodes],
+  );
+
+  useEffect(() => {
+    if (observedGroupIds !== allGroupIds) {
+      setAllGroupIds(observedGroupIds);
+    }
+  }, [allGroupIds, observedGroupIds, setAllGroupIds]);
 
   const { data: dagDependencies = { edges: [], nodes: [] } } = useDependencyGraph(`dag:${dagId}`, {
     enabled: dependencies === "all",
   });
-
-  const { data: dagRun } = useDagRunServiceGetDagRun(
-    {
-      dagId,
-      dagRunId: runId,
-    },
-    undefined,
-    { enabled: runId !== "" },
-  );
 
   const dagDepEdges = dependencies === "all" ? dagDependencies.edges : [];
   const dagDepNodes = dependencies === "all" ? dagDependencies.nodes : [];
@@ -117,28 +119,11 @@ export const Graph = () => {
     versionNumber: selectedVersion,
   });
 
-  // Filter grid data to get only a single dag run
-  const { data: gridData } = useGridServiceGridData(
-    {
-      dagId,
-      limit: 1,
-      offset: 0,
-      runAfterGte: dagRun?.run_after,
-      runAfterLte: dagRun?.run_after,
-    },
-    undefined,
-    {
-      enabled: dagRun !== undefined,
-      refetchInterval: (query) =>
-        query.state.data?.dag_runs.some((dr) => isStatePending(dr.state)) && refetchInterval,
-    },
-  );
-
-  const gridRun = gridData?.dag_runs.find((dr) => dr.dag_run_id === runId);
+  const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId });
 
   // Add task instances to the node data but without having to recalculate how the graph is laid out
   const nodes = data?.nodes.map((node) => {
-    const taskInstance = gridRun?.task_instances.find((ti) => ti.task_id === node.id);
+    const taskInstance = gridTISummaries?.task_instances.find((ti) => ti.task_id === node.id);
 
     return {
       ...node,

@@ -25,12 +25,22 @@ from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
 
 from unit.google.cloud.utils.base_gcp_mock import GCP_CONNECTION_WITH_PROJECT_ID
 
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
+
 
 @pytest.mark.db_test
 class TestGoogleDriveHook:
     def setup_method(self):
         self.patcher_get_connection = mock.patch(
-            "airflow.hooks.base.BaseHook.get_connection", return_value=GCP_CONNECTION_WITH_PROJECT_ID
+            f"{BASEHOOK_PATCH_PATH}.get_connection", return_value=GCP_CONNECTION_WITH_PROJECT_ID
         )
         self.patcher_get_connection.start()
         self.gdrive_hook = GoogleDriveHook(gcp_conn_id="test")

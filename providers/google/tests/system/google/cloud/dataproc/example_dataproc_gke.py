@@ -128,7 +128,7 @@ with DAG(
 
     delete_gke_cluster = GKEDeleteClusterOperator(
         task_id="delete_gke_cluster",
-        name=GKE_CLUSTER_NAME,
+        cluster_name=GKE_CLUSTER_NAME,
         project_id=PROJECT_ID,
         location=REGION,
         trigger_rule=TriggerRule.ALL_DONE,

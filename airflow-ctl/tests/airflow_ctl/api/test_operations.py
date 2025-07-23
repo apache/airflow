@@ -44,6 +44,7 @@ from airflowctl.api.datamodels.generated import (
     BulkCreateActionConnectionBody,
     BulkCreateActionPoolBody,
     BulkCreateActionVariableBody,
+    BulkResponse,
     Config,
     ConfigOption,
     ConfigSection,
@@ -125,8 +126,9 @@ class TestAssetsOperations:
         extra={"extra": "extra"},
         created_at=datetime.datetime(2024, 12, 31, 23, 59, 59),
         updated_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
-        consuming_dags=[],
+        scheduled_dags=[],
         producing_tasks=[],
+        consuming_tasks=[],
         aliases=[],
         group="group",
     )
@@ -485,9 +487,10 @@ class TestConnectionsOperations:
         ]
     )
 
-    connection_bulk_action_response = BulkActionResponse(
-        success=[connection_id],
-        errors=[],
+    connection_bulk_response = BulkResponse(
+        create=BulkActionResponse(success=[connection_id], errors=[]),
+        update=None,
+        delete=None,
     )
 
     def test_get(self):
@@ -520,13 +523,11 @@ class TestConnectionsOperations:
     def test_bulk(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/connections"
-            return httpx.Response(
-                200, json=json.loads(self.connection_bulk_action_response.model_dump_json())
-            )
+            return httpx.Response(200, json=json.loads(self.connection_bulk_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.bulk(connections=self.connection_bulk_body)
-        assert response == self.connection_bulk_action_response
+        assert response == self.connection_bulk_response
 
     def test_delete(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -952,9 +953,10 @@ class TestPoolsOperations:
         pools=[pool_response],
         total_entries=1,
     )
-    pool_bulk_action_response = BulkActionResponse(
-        success=[pool_name],
-        errors=[],
+    pool_bulk_aresponse = BulkResponse(
+        create=BulkActionResponse(success=[pool_name], errors=[]),
+        update=None,
+        delete=None,
     )
 
     def test_get(self):
@@ -987,11 +989,11 @@ class TestPoolsOperations:
     def test_bulk(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/pools"
-            return httpx.Response(200, json=json.loads(self.pool_bulk_action_response.model_dump_json()))
+            return httpx.Response(200, json=json.loads(self.pool_bulk_aresponse.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.pools.bulk(pools=self.pools_bulk_body)
-        assert response == self.pool_bulk_action_response
+        assert response == self.pool_bulk_aresponse
 
     def test_delete(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -1054,9 +1056,10 @@ class TestVariablesOperations:
             )
         ]
     )
-    variable_bulk_response = BulkActionResponse(
-        success=[key],
-        errors=[],
+    variable_bulk_response = BulkResponse(
+        create=BulkActionResponse(success=[key], errors=[]),
+        update=None,
+        delete=None,
     )
 
     def test_get(self):

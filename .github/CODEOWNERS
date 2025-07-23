@@ -35,11 +35,18 @@
 # UI
 /airflow-core/src/airflow/ui/ @bbovenzi @pierrejeambrun @ryanahamilton @jscheffl @shubhamraj-git
 
-# Translations
-airflow-core/src/airflow/ui/src/i18n/locales/de/ @jscheffl
-airflow-core/src/airflow/ui/src/i18n/locales/zh-TW/ @Lee-W
-airflow-core/src/airflow/ui/src/i18n/locales/nl/ @BasPH # not codeowner but engaged: @DjVinnii
-airflow-core/src/airflow/ui/src/i18n/locales/pl/ @potiuk @mobuchowski # not codeowner but engaged: @kacpermuda
+# Translation Owners (i18n)
+# Note: Non committer engaged translators are listed in comments prevent making file syntax invalid
+# See: https://github.com/apache/airflow/blob/main/airflow-core/src/airflow/ui/public/i18n/README.md#43-engaged-translator
+airflow-core/src/airflow/ui/public/i18n/locales/ar/ @shahar1 @hussein-awala # + @ahmadtfarhan
+airflow-core/src/airflow/ui/public/i18n/locales/de/ @jscheffl # + @TJaniF @m1racoli
+airflow-core/src/airflow/ui/public/i18n/locales/es/ @bbovenzi # + @aoelvp94
+airflow-core/src/airflow/ui/public/i18n/locales/he/ @eladkal @shahar1 @romsharon98 # +@Dev-iL
+airflow-core/src/airflow/ui/public/i18n/locales/ko/ @jscheffl @potiuk # + @choo121600 @kgw7401 @0ne-stone
+airflow-core/src/airflow/ui/public/i18n/locales/nl/ @BasPH # + @DjVinnii
+airflow-core/src/airflow/ui/public/i18n/locales/pl/ @potiuk @mobuchowski # + @kacpermuda
+airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 # + @RoyLee1224 @guan404ming
+airflow-core/src/airflow/ui/public/i18n/locales/fr/ @pierrejeambrun @vincbeck
 
 # Security/Permissions
 /airflow-core/src/airflow/security/permissions.py @vincbeck

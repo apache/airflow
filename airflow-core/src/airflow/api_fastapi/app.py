@@ -30,6 +30,7 @@ from airflow.api_fastapi.core_api.app import (
     init_error_handlers,
     init_flask_plugins,
     init_middlewares,
+    init_ui_plugins,
     init_views,
 )
 from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
@@ -83,8 +84,10 @@ def create_app(apps: str = "all") -> FastAPI:
     dag_bag = create_dag_bag()
 
     if "execution" in apps_list or "all" in apps_list:
+        from airflow.jobs.scheduler_job_runner import SchedulerDagBag
+
         task_exec_api_app = create_task_execution_api_app()
-        task_exec_api_app.state.dag_bag = dag_bag
+        task_exec_api_app.state.dag_bag = SchedulerDagBag()
         init_error_handlers(task_exec_api_app)
         app.mount("/execution", task_exec_api_app)
 
@@ -93,6 +96,7 @@ def create_app(apps: str = "all") -> FastAPI:
         init_plugins(app)
         init_auth_manager(app)
         init_flask_plugins(app)
+        init_ui_plugins(app)
         init_views(app)  # Core views need to be the last routes added - it has a catch all route
         init_error_handlers(app)
         init_middlewares(app)
@@ -170,7 +174,6 @@ def init_plugins(app: FastAPI) -> None:
     """Integrate FastAPI app, middlewares and UI plugins."""
     from airflow import plugins_manager
 
-    plugins_manager.initialize_fastapi_plugins()
     plugins_manager.initialize_fastapi_plugins()
 
     # After calling initialize_fastapi_plugins, fastapi_apps cannot be None anymore.

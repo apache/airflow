@@ -23,8 +23,8 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.telegram.hooks.telegram import TelegramHook
+from airflow.providers.telegram.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     try:

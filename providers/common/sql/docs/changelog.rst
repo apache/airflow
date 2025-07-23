@@ -25,6 +25,44 @@
 Changelog
 ---------
 
+1.27.3
+......
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Replace models.BaseOperator to Task SDK one for Common Providers (#52443)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Use BaseSensorOperator from task sdk in providers (#52296)``
+* ``Bump upper binding on pandas in all providers (#52060)``
+
+Doc-only
+~~~~~~~~
+
+* ``Minor pre-commit fixes (#51769)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Clean up messy default connection overrides in provider tests (#52137)``
+   * ``Remove pytest db markers from common sql provider (#52105)``
+
+1.27.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: Use source hook instead of destination hook when reading records in non-paginated mode in GenericTransfer (#50598)``
+
+Misc
+~~~~
+
+* ``Port ''ti.run'' to Task SDK execution path (#50141)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.27.1
 ......
 

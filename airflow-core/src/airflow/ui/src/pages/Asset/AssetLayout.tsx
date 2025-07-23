@@ -19,6 +19,7 @@
 import { HStack, Box } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
 import { useParams } from "react-router-dom";
 
@@ -33,7 +34,9 @@ import { CreateAssetEvent } from "./CreateAssetEvent";
 import { Header } from "./Header";
 
 export const AssetLayout = () => {
+  const { i18n, t: translate } = useTranslation(["assets", "common"]);
   const { assetId } = useParams();
+  const direction = i18n.dir();
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
@@ -51,7 +54,7 @@ export const AssetLayout = () => {
   const links = [
     {
       label: asset?.name,
-      title: "Asset",
+      title: translate("common:asset_one"),
       value: `/assets/${assetId}`,
     },
   ];
@@ -92,7 +95,12 @@ export const AssetLayout = () => {
       </HStack>
       <ProgressBar size="xs" visibility={Boolean(isLoading) ? "visible" : "hidden"} />
       <Box flex={1} minH={0}>
-        <PanelGroup autoSaveId={assetId} direction="horizontal">
+        <PanelGroup
+          autoSaveId={`asset-${direction}`}
+          dir={direction}
+          direction="horizontal"
+          key={`asset-${direction}`}
+        >
           <Panel defaultSize={70} minSize={6}>
             <Box height="100%" position="relative" pr={2}>
               <AssetGraph asset={asset} />
