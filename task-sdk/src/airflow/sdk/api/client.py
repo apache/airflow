@@ -38,7 +38,6 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,
     AssetResponse,
     ConnectionResponse,
-    CreateHITLDetailPayload,
     DagRunStateResponse,
     DagRunType,
     HITLDetailResponse,
@@ -57,7 +56,6 @@ from airflow.sdk.api.datamodels._generated import (
     TISuccessStatePayload,
     TITerminalStatePayload,
     TriggerDAGRunPayload,
-    UpdateHITLDetail,
     ValidationError as RemoteValidationError,
     VariablePostBody,
     VariableResponse,
@@ -67,13 +65,16 @@ from airflow.sdk.api.datamodels._generated import (
 )
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
+    CreateHITLDetailPayload,
     DRCount,
     ErrorResponse,
     HITLDetailRequestResult,
     OKResponse,
+    PreviousDagRunResult,
     SkipDownstreamTasks,
     TaskRescheduleStartDate,
     TICount,
+    UpdateHITLDetail,
 )
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
@@ -622,6 +623,23 @@ class DagRunOperations:
 
         resp = self.client.get("dag-runs/count", params=params)
         return DRCount(count=resp.json())
+
+    def get_previous(
+        self,
+        dag_id: str,
+        logical_date: datetime,
+        state: str | None = None,
+    ) -> PreviousDagRunResult:
+        """Get the previous DAG run before the given logical date, optionally filtered by state."""
+        params = {
+            "logical_date": logical_date.isoformat(),
+        }
+
+        if state:
+            params["state"] = state
+
+        resp = self.client.get(f"dag-runs/{dag_id}/previous", params=params)
+        return PreviousDagRunResult(dag_run=resp.json())
 
 
 class HITLOperations:

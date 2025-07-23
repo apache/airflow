@@ -22,7 +22,12 @@ from datetime import datetime
 from typing import cast
 
 from airflow import DAG
-from airflow.decorators import task
+
+try:
+    from airflow.sdk import task
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.providers.common.io.operators.file_transfer import FileTransferOperator
 from airflow.utils.trigger_rule import TriggerRule
 
