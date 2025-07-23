@@ -67,15 +67,12 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session: Session =
     # To ensure the TaskInstance and DagRun model is deleted before
     # each of the model DagVersion and BackFill respectively.
     models_for_deletion = [TaskInstance, DagRun] + [
-        model
-        for model in get_sqla_model_classes()
-        if (not keep_records_in_log or model.__name__ != "Log")
-        and model.__name__ not in ["TaskInstance", "DagRun"]
+        model for model in get_sqla_model_classes() if model.__name__ not in ["TaskInstance", "DagRun"]
     ]
 
     count = 0
     for model in models_for_deletion:
-        if hasattr(model, "dag_id"):
+        if hasattr(model, "dag_id") and (not keep_records_in_log or model.__name__ != "Log"):
             count += session.execute(
                 delete(model).where(model.dag_id == dag_id).execution_options(synchronize_session="fetch")
             ).rowcount
