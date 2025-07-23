@@ -68,17 +68,6 @@ def utcnow() -> dt.datetime:
     return dt.datetime.now(tz=utc)
 
 
-def utc_epoch() -> dt.datetime:
-    """Get the epoch in the user's timezone."""
-    # pendulum utcnow() is not used as that sets a TimezoneInfo object
-    # instead of a Timezone. This is not picklable and also creates issues
-    # when using replace()
-    result = dt.datetime(1970, 1, 1)
-    result = result.replace(tzinfo=utc)
-
-    return result
-
-
 @overload
 def convert_to_utc(value: None) -> None: ...
 
@@ -284,7 +273,7 @@ def parse_timezone(name: str | int) -> FixedTimezone | Timezone:
     """
     if _PENDULUM3:
         # This only presented in pendulum 3 and code do not reached into the pendulum 2
-        return pendulum.timezone(name)
+        return pendulum.timezone(name)  # type: ignore[operator]
     # In pendulum 2 this refers to the function, in pendulum 3 refers to the module
     return pendulum.tz.timezone(name)  # type: ignore[operator]
 

@@ -33,6 +33,7 @@ import time_machine
 from sqlalchemy import select
 
 from airflow import settings
+from airflow._shared.timezones import timezone
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
 from airflow.exceptions import AirflowException
@@ -43,7 +44,6 @@ from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDe
 from airflow.sdk import task
 from airflow.sdk.definitions.dag import _run_inline_trigger
 from airflow.triggers.base import TriggerEvent
-from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
@@ -646,10 +646,9 @@ class TestCliDags:
             dag_command.dag_test(cli_args)
 
     @mock.patch("airflow.cli.commands.dag_command.get_dag")
-    @mock.patch("airflow.utils.timezone.utcnow")
-    def test_dag_test_no_logical_date(self, mock_utcnow, mock_get_dag):
+    def test_dag_test_no_logical_date(self, mock_get_dag, time_machine):
         now = pendulum.now()
-        mock_utcnow.return_value = now
+        time_machine.move_to(now, tick=False)
         cli_args = self.parser.parse_args(["dags", "test", "example_bash_operator"])
 
         assert cli_args.logical_date is None
