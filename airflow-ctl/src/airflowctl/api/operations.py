@@ -165,6 +165,7 @@ class BaseOperations:
             first_pass = data_model.model_validate_json(self.response.content)
             total_entries = first_pass.total_entries  # type: ignore[attr-defined]
             if total_entries < limit:
+                print(first_pass)
                 return first_pass
             for key, value in first_pass.model_dump().items():
                 if key != "total_entries" and isinstance(value, list):

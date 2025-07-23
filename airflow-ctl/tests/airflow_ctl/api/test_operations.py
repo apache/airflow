@@ -21,7 +21,6 @@ import datetime
 import json
 import uuid
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
 
 import httpx
 import pytest
@@ -92,7 +91,6 @@ from airflowctl.api.datamodels.generated import (
     VariableResponse,
     VersionInfo,
 )
-from airflowctl.api.operations import BaseOperations
 from airflowctl.exceptions import AirflowCtlConnectionException
 
 if TYPE_CHECKING:
@@ -109,8 +107,12 @@ def make_api_client(
     return Client(base_url=base_url, transport=transport, token=token, kind=kind)
 
 
+class HelloResponse(BaseModel):
+    name: str
+
+
 class HelloCollectionResponse(BaseModel):
-    hello: list[str]
+    hellos: list[HelloResponse]
     total_entries: int
 
 
@@ -123,54 +125,44 @@ class TestBaseOperations:
             client.connections.get("1")
 
     @pytest.mark.parametrize(
-        "total_entries, offset, limit, expected_response",
+        "total_entries, limit, expected_response",
         [
-            (0, 0, 50, []),
-            (1, 0, 50, [HelloCollectionResponse(hello=["hello"], total_entries=1)]),
-            (3, 2, 50, [HelloCollectionResponse(hello=["hello"], total_entries=3)]),
+            (0, 0, (HelloCollectionResponse(hellos=[], total_entries=0))),
+            (1, 50, (HelloCollectionResponse(hellos=[HelloResponse(name="hello")], total_entries=1))),
             (
-                20,
-                5,
-                5,
-                [
-                    ("hello", ["hello"]),
-                    ("total_entries", 20),
-                    ("hello", ["hello"]),
-                    ("total_entries", 20),
-                    ("hello", ["hello"]),
-                    ("total_entries", 20),
-                ],
+                150,
+                50,
+                (
+                    HelloCollectionResponse(
+                        hellos=[
+                            HelloResponse(name="hello"),
+                            HelloResponse(name="hello"),
+                            HelloResponse(name="hello"),
+                        ],
+                        total_entries=150,
+                    )
+                ),
             ),
-            (2, 3, 50, []),
+            (
+                90,
+                50,
+                (
+                    HelloCollectionResponse(
+                        hellos=[HelloResponse(name="hello"), HelloResponse(name="hello")], total_entries=90
+                    )
+                ),
+            ),
         ],
     )
-    def test_execute_list(self, total_entries, limit, offset, expected_response):
-        mock_operation = MagicMock(spec=BaseOperations)
-        mocked_response = []
-        total_entries = total_entries
-        if total_entries < limit:
-            if offset < total_entries:
-                if offset == 0:
-                    mocked_response.extend([HelloCollectionResponse(hello=["hello"], total_entries=1)])
-                    mock_operation.execute_list.return_value = mocked_response
-                elif offset > 0:
-                    mocked_response.extend([HelloCollectionResponse(hello=["hello"], total_entries=3)])
-                    mock_operation.execute_list.return_value = mocked_response
-            else:
-                mocked_response.extend([])
-                mock_operation.execute_list.return_value = mocked_response
-        else:
-            while offset < total_entries:
-                response = HelloCollectionResponse(hello=["hello"], total_entries=total_entries)
-                mocked_response.extend(response)
-                offset += limit
-            mock_operation.execute_list.return_value = mocked_response
-        assert (
-            mock_operation.execute_list(
-                path="", data_model=HelloCollectionResponse, offset=offset, limit=limit
-            )
-            == expected_response
+    def test_execute_list(self, total_entries, limit, expected_response):
+        hello_response = []
+        if total_entries != 0:
+            update = (total_entries + limit - 1) // limit
+            hello_response.extend([HelloResponse(name="hello")] * update)
+        hello_collection_response = HelloCollectionResponse(
+            hellos=hello_response, total_entries=total_entries
         )
+        assert expected_response == hello_collection_response
 
 
 class TestAssetsOperations:
