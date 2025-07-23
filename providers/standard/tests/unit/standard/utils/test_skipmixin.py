@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import datetime
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock
 
 import pytest
 
@@ -60,10 +60,9 @@ class TestSkipMixin:
     def teardown_method(self):
         self.clean_db()
 
-    @patch("airflow.utils.timezone.utcnow")
-    def test_skip(self, mock_now, dag_maker, session):
+    def test_skip(self, dag_maker, session, time_machine):
         now = datetime.datetime.now(tz=datetime.timezone.utc)
-        mock_now.return_value = now
+        time_machine.move_to(now, tick=False)
         with dag_maker("dag"):
             tasks = [EmptyOperator(task_id="task")]
 
