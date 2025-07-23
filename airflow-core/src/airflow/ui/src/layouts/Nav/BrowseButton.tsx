@@ -38,6 +38,11 @@ const links = [
     key: "xcoms",
     title: "XComs",
   },
+  {
+    href: "/hitl",
+    key: "hitl",
+    title: "HITL",
+  },
 ];
 
 export const BrowseButton = ({

@@ -2,7 +2,6 @@
   "admin": {
     "Config": "Config",
     "Connections": "Connections",
-    "HITL": "Human Task Instances",
     "Plugins": "Plugins",
     "Pools": "Pools",
     "Providers": "Providers",
@@ -16,6 +15,7 @@
   "backfill_other": "Backfills",
   "browse": {
     "auditLog": "Audit Log",
+    "hitl": "Human Task Instances",
     "xcoms": "XComs"
   },
   "collapseDetailsPanel": "Collapse Details Panel",
