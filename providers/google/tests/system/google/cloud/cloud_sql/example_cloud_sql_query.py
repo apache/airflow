@@ -33,7 +33,6 @@ from typing import Any
 
 from googleapiclient import discovery
 
-from airflow.decorators import task, task_group
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.cloud_sql import (
     CloudSQLCreateInstanceDatabaseOperator,
@@ -42,6 +41,14 @@ from airflow.providers.google.cloud.operators.cloud_sql import (
     CloudSQLExecuteQueryOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import task, task_group
+else:
+    # Airflow 2 path
+    from airflow.decorators import task, task_group  # type: ignore[attr-defined,no-redef]
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 from system.openlineage.operator import OpenLineageTestOperator
@@ -147,7 +154,6 @@ def cloud_sql_database_create_body(instance: str) -> dict[str, Any]:
 CLOUD_SQL_INSTANCE_NAME = ""
 DATABASE_TYPE = ""  # "postgres|mysql|mssql"
 
-
 # [START howto_operator_cloudsql_query_connections]
 # Connect via proxy over TCP
 CONNECTION_PROXY_TCP_KWARGS = {
@@ -205,7 +211,6 @@ CONNECTION_PUBLIC_TCP_KWARGS = {
 }
 
 # [END howto_operator_cloudsql_query_connections]
-
 
 CONNECTION_PROXY_SOCKET_ID = f"{DAG_ID}_{ENV_ID}_proxy_socket"
 CONNECTION_PROXY_TCP_ID = f"{DAG_ID}_{ENV_ID}_proxy_tcp"
@@ -372,9 +377,7 @@ os.environ["AIRFLOW_CONN_PUBLIC_MYSQL_TCP_SSL_NO_PROJECT_ID"] = (
 )
 # [END howto_operator_cloudsql_query_connections_env]
 
-
 log = logging.getLogger(__name__)
-
 
 with DAG(
     dag_id=DAG_ID,
