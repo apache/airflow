@@ -126,7 +126,6 @@ class Deadline(Base):
         NOTE: This should only be used to remove deadlines which are associated with
             successful DagRuns. If the deadline was missed, it will be handled by the
             scheduler.
-        TODO:  Create the missed_deadlines table (Ramit)
 
         :param conditions: Dictionary of conditions to evaluate against.
         :param session: Session to use.
