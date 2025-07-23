@@ -20,8 +20,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.standard.version_compat import BaseSensorOperator, PokeReturnValue
-from airflow.utils.context import context_merge
+from airflow.providers.standard.version_compat import BaseSensorOperator, PokeReturnValue, context_merge
 from airflow.utils.operator_helpers import determine_kwargs
 
 if TYPE_CHECKING:
@@ -29,7 +28,7 @@ if TYPE_CHECKING:
         from airflow.sdk.definitions.context import Context
     except ImportError:
         # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+        from airflow.utils.context import Context  # type: ignore[no-redef, attr-defined]
 
 
 class PythonSensor(BaseSensorOperator):
