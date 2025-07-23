@@ -1147,6 +1147,76 @@ class TestFlinkKubernetesSensor:
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_READY_CLUSTER,
     )
+    @patch("logging.Logger.info")
+    @patch(
+        "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_pod_logs",
+        return_value=TEST_POD_LOGS,
+    )
+    @patch(
+        "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_namespaced_pod_list",
+        return_value=TASK_MANAGER_POD_LIST,
+    )
+    def test_logging_taskmanager_from_taskmanager_namespace_when_namespace_is_set(
+        self, mock_namespaced_pod_list, mock_pod_logs, info_log_call, mock_namespaced_crd, mock_kube_conn
+    ):
+        namespace = "different-namespace123456"
+        namespae_name = "test123"
+
+        sensor = FlinkKubernetesSensor(
+            application_name="flink-stream-example",
+            namespace=namespace,
+            taskmanager_pods_namespace=namespae_name,
+            attach_log=True,
+            dag=self.dag,
+            task_id="test_task_id",
+        )
+
+        sensor.poke(context=None)
+
+        mock_namespaced_pod_list.assert_called_once_with(
+            namespace=namespae_name,
+            watch=False,
+            label_selector="component=taskmanager,app=flink-stream-example",
+        )
+
+    @patch(
+        "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
+        return_value=TEST_READY_CLUSTER,
+    )
+    @patch("logging.Logger.info")
+    @patch(
+        "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_pod_logs",
+        return_value=TEST_POD_LOGS,
+    )
+    @patch(
+        "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_namespaced_pod_list",
+        return_value=TASK_MANAGER_POD_LIST,
+    )
+    def test_logging_taskmanager_from_non_default_namespace(
+        self, mock_namespaced_pod_list, mock_pod_logs, info_log_call, mock_namespaced_crd, mock_kube_conn
+    ):
+        namespae_name = "test123"
+
+        sensor = FlinkKubernetesSensor(
+            application_name="flink-stream-example",
+            namespace=namespae_name,
+            attach_log=True,
+            dag=self.dag,
+            task_id="test_task_id",
+        )
+
+        sensor.poke(context=None)
+
+        mock_namespaced_pod_list.assert_called_once_with(
+            namespace=namespae_name,
+            watch=False,
+            label_selector="component=taskmanager,app=flink-stream-example",
+        )
+
+    @patch(
+        "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
+        return_value=TEST_READY_CLUSTER,
+    )
     @patch("logging.Logger.warning")
     @patch(
         "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_pod_logs",
