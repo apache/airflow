@@ -36,6 +36,7 @@ maintainers = [
 version = "0.0.1"
 
 dependencies = [
+    "apache-airflow-core",
     "apache-airflow-devel-common",
     "python-on-whales>=0.70.0",
 ]
