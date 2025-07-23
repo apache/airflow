@@ -34,7 +34,6 @@ from airflow.models.base import Base, StringID
 from airflow.settings import json
 from airflow.triggers.deadline import DeadlineCallbackTrigger
 from airflow.utils import timezone
-from airflow.utils.decorators import classproperty
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -46,6 +45,33 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
+
+
+class classproperty:
+    """
+    Decorator that converts a method with a single cls argument into a property.
+
+    Mypy won't let us use both @property and @classmethod together, this is a workaround
+    to combine the two.
+
+    Usage:
+
+    class Circle:
+        def __init__(self, radius):
+            self.radius = radius
+
+        @classproperty
+        def pi(cls):
+            return 3.14159
+
+    print(Circle.pi)  # Outputs: 3.14159
+    """
+
+    def __init__(self, method):
+        self.method = method
+
+    def __get__(self, instance, cls=None):
+        return self.method(cls)
 
 
 class Deadline(Base):
