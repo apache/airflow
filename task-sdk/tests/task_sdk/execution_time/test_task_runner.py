@@ -34,7 +34,6 @@ import pytest
 from task_sdk import FAKE_BUNDLE
 from uuid6 import uuid7
 
-from airflow.decorators import task as task_decorator
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -46,7 +45,14 @@ from airflow.exceptions import (
 from airflow.listeners import hookimpl
 from airflow.listeners.listener import get_listener_manager
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk import DAG, BaseOperator, Connection, dag as dag_decorator, get_current_context
+from airflow.sdk import (
+    DAG,
+    BaseOperator,
+    Connection,
+    dag as dag_decorator,
+    get_current_context,
+    task as task_decorator,
+)
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
     AssetResponse,

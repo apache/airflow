@@ -20,7 +20,11 @@ from ipaddress import IPv4Network
 
 import boto3
 
-from airflow.decorators import task
+try:
+    from airflow.sdk import task
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.utils.trigger_rule import TriggerRule
 
 
