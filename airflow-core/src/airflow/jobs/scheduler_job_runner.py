@@ -1987,14 +1987,46 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 "Task requeue attempts exceeded max; marking failed. task_instance=%s",
                 ti,
             )
+            msg = f"Task was requeued more than {self._num_stuck_queued_retries} times and will be failed."
             session.add(
                 Log(
                     event="stuck in queued tries exceeded",
                     task_instance=ti.key,
-                    extra=f"Task was requeued more than {self._num_stuck_queued_retries} times and will be failed.",
+                    extra=msg,
                 )
             )
-            executor.fail(ti.key)
+
+            try:
+                dag = self.scheduler_dag_bag.get_dag(dag_run=ti.dag_run, session=session)
+                task = dag.get_task(ti.task_id)
+                self.log.info("2026")
+            except Exception:
+                self.log.info("2028")
+                self.log.warning(
+                    "The DAG or task could not be found. If a failure or retry callback exists, it will not be run.",
+                    exc_info=True,
+                )
+            else:
+                self.log.info("20131")
+                if task.on_retry_callback or task.on_failure_callback:
+                    self.log.info("2034")
+                    request = TaskCallbackRequest(
+                        filepath=ti.dag_model.relative_fileloc,
+                        bundle_name=ti.dag_version.bundle_name,
+                        bundle_version=ti.dag_version.bundle_version,
+                        ti=ti,
+                        msg=msg,
+                        context_from_server=TIRunContext(
+                            dag_run=ti.dag_run,
+                            max_tries=ti.max_tries,
+                            variables=[],
+                            connections=[],
+                            xcom_keys_to_clear=[],
+                        ),
+                    )
+                    executor.send_callback(request)
+            finally:
+                ti.set_state(TaskInstanceState.FAILED, session=session)
 
     def _reschedule_stuck_task(self, ti: TaskInstance, session: Session):
         session.execute(
