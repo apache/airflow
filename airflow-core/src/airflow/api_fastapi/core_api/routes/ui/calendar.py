@@ -18,7 +18,8 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException
+from starlette import status
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.dagbag import DagBagDep
@@ -58,7 +59,9 @@ def get_calendar(
     granularity: Literal["hourly", "daily"] = "daily",
 ) -> CalendarTimeRangeCollectionResponse:
     """Get calendar data for a DAG including historical and planned DAG runs."""
-    dag = dag_bag.get_dag(dag_id)
+    dag = dag_bag.get_latest_version_of_dag(dag_id, session)
+    if not dag:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with dag_id: '{dag_id}' not found")
     calendar_service = CalendarService()
 
     return calendar_service.get_calendar_data(

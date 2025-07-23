@@ -56,7 +56,7 @@ def _patch_ti_validate_request(
     map_index: int | None = -1,
     update_mask: list[str] | None = Query(None),
 ) -> tuple[DAG, list[TI], dict]:
-    dag = dag_bag.get_dag(dag_id)
+    dag = dag_bag.get_latest_version_of_dag(dag_id, session)
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG {dag_id} not found")
 
