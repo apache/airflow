@@ -835,7 +835,7 @@ repos:
         files: >
           (?x)
           ^providers/.*/src/airflow/providers/.*\.py$
-        exclude: providers/standard/.*/.*\.py$
+        exclude: ^providers/standard/.*/.*\.py$
       - id: check-get-lineage-collector-providers
         language: python
         name: Check providers import hook lineage code from compat
@@ -859,7 +859,7 @@ repos:
         name: Verify usage of Airflow deprecation classes in core
         entry: category=DeprecationWarning|category=PendingDeprecationWarning
         files: \.py$
-        exclude: ^airflow-core/src/airflow/configuration\.py$|airflow-core/tests/.*$|^providers/.*/src/airflow/providers/|^scripts/in_container/verify_providers\.py$|providers/.*/tests/.*$|^devel-common/
+        exclude: ^airflow-core/src/airflow/configuration\.py$|^airflow-core/tests/.*$|^providers/.*/src/airflow/providers/|^scripts/in_container/verify_providers\.py$|^providers/.*/tests/.*$|^devel-common/
         pass_filenames: true
       - id: check-provide-create-sessions-imports
         language: pygrep
@@ -1218,7 +1218,7 @@ repos:
         name: Check significant newsfragments are valid
         # Significant newsfragments follows a special format so that we can group information easily.
         language: python
-        files: airflow-core/newsfragments/.*\.rst$
+        files: ^airflow-core/newsfragments/.*\.rst$
         entry: ./scripts/ci/pre_commit/significant_newsfragments_checker.py
         pass_filenames: false
         additional_dependencies: ['docutils>=0.21.2', 'pygments>=2.19.1', 'jinja2>=3.1.5']
@@ -1341,7 +1341,7 @@ repos:
         pass_filenames: true
         files: ^airflow-core/src/airflow/migrations/versions/.*\.py$
         exclude:
-          airflow-core/src/airflow/migrations/versions/0028_3_0_0_drop_ab_user_id_foreign_key.py
+          ^airflow-core/src/airflow/migrations/versions/0028_3_0_0_drop_ab_user_id_foreign_key.py$
       - id: go-mockery
         name: Generate mocks for go
         entry: -w /src/go-sdk vektra/mockery:3
@@ -1378,7 +1378,7 @@ repos:
         language: node
         files: |
           (?x)
-          ^airflow-core/src/airflow/ui/.*\.(js|ts|tsx|yaml|css|json)|
+          ^airflow-core/src/airflow/ui/.*\.(js|ts|tsx|yaml|css|json)$|
           ^airflow-core/src/airflow/api_fastapi/core_api/openapi/.*\.yaml$|
           ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/v1.*\.yaml$
         exclude: |
@@ -1395,7 +1395,7 @@ repos:
         language: node
         files: |
           (?x)
-          ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/.*\.(js|ts|tsx|yaml|css|json)|
+          ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/.*\.(js|ts|tsx|yaml|css|json)$|
           ^airflow-core/src/airflow/api_fastapi/core_api/openapi/.*\.yaml$|
           ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/v1.*\.yaml$
         exclude: |
@@ -1428,7 +1428,7 @@ repos:
         name: Run mypy for airflow-core
         language: python
         entry: ./scripts/ci/pre_commit/mypy.py
-        files: airflow-core/.*\.py$
+        files: ^airflow-core/.*\.py$
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
       - id: mypy-airflow-core
@@ -1437,7 +1437,7 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/mypy_folder.py airflow-core
         pass_filenames: false
-        files: airflow-core/.*\.py$
+        files: ^airflow-core/.*\.py$
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
       - id: mypy-providers
@@ -1525,7 +1525,7 @@ repos:
         name: Check i18n files validity
         description: Check i18n files are valid json and have no TODOs
         language: python
-        files: ^airflow-core/src/airflow/ui/public/i18n/locales/.*\.json
+        files: ^airflow-core/src/airflow/ui/public/i18n/locales/.*\.json$
         entry: ./scripts/ci/pre_commit/check_i18n_json.py
         additional_dependencies: ['rich>=12.4.4']
         pass_filenames: false
@@ -1566,7 +1566,7 @@ repos:
           uv run -p 3.12 --no-dev --no-progress --active --group codegen --project apache-airflow-ctl --directory airflow-ctl/ datamodel-codegen &&
            uv run -p 3.12 --no-dev --no-progress --active --group codegen --project apache-airflow-ctl --directory airflow-ctl/ datamodel-codegen --input="../airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/v2-simple-auth-manager-generated.yaml" --output="src/airflowctl/api/datamodels/auth_generated.py"'
         pass_filenames: false
-        files: ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/.*\.py$|^airflow-core/src/airflow/api_fastapi/auth/managers/simple/datamodels/.*\.py$
+        files: ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/.*\.py$|^airflow-core/src/airflow/api_fastapi/auth/managers/simple/(datamodels|routes|services|openapi)/.*\.py$
         require_serial: true
       - id: update-er-diagram
         name: Update ER diagram

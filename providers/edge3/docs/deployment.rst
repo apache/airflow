@@ -190,3 +190,5 @@ instance. The commands are:
 - ``airflow edge remote-edge-worker-exit-maintenance``: Request a remote edge worker to exit maintenance mode
 - ``airflow edge shutdown-remote-edge-worker``: Shuts down a remote edge worker gracefully
 - ``airflow edge remove-remote-edge-worker``: Remove a worker instance from the cluster
+- ``airflow edge add-worker-queues``: Add queues to an edge worker
+- ``airflow edge remove-worker-queues``: Remove queues from an edge worker

@@ -80,17 +80,14 @@ class GitDagBundle(BaseDagBundle):
 
         self._log.debug("bundle configured")
         self.hook: GitHook | None = None
-        if not repo_url:
-            if not git_conn_id:
-                self._log.debug("Neither git_conn_id nor repo_url provided; loading 'git_default'")
-                git_conn_id = "git_default"
-            try:
-                self.hook = GitHook(git_conn_id=git_conn_id)
-            except AirflowException as e:
-                self._log.warning("Could not create GitHook", conn_id=git_conn_id, exc=e)
-            else:
-                self.repo_url = self.hook.repo_url
-                self._log.debug("repo_url updated from hook")
+        try:
+            self.hook = GitHook(git_conn_id=git_conn_id or "git_default")
+        except AirflowException as e:
+            self._log.warning("Could not create GitHook", conn_id=git_conn_id, exc=e)
+
+        if not repo_url and self.hook and self.hook.repo_url:
+            self.repo_url = self.hook.repo_url
+            self._log.debug("repo_url updated from hook")
 
     def _initialize(self):
         with self.lock():

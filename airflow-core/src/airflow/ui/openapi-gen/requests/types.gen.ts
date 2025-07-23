@@ -389,6 +389,10 @@ export type ClearTaskInstancesBody = {
     include_downstream?: boolean;
     include_future?: boolean;
     include_past?: boolean;
+    /**
+     * (Experimental) Run on the latest bundle version of the DAG after clearing the task instances.
+     */
+    run_on_latest_version?: boolean;
 };
 
 /**
@@ -496,7 +500,6 @@ export type DAGDetailsResponse = {
     relative_fileloc: string | null;
     fileloc: string;
     description: string | null;
-    deadline: Array<DeadlineAlertResponse> | null;
     timetable_summary: string | null;
     timetable_description: string | null;
     tags: Array<DagTagResponse>;
@@ -568,7 +571,6 @@ export type DAGResponse = {
     relative_fileloc: string | null;
     fileloc: string;
     description: string | null;
-    deadline: Array<DeadlineAlertResponse> | null;
     timetable_summary: string | null;
     timetable_description: string | null;
     tags: Array<DagTagResponse>;
@@ -594,6 +596,10 @@ export type DAGResponse = {
 export type DAGRunClearBody = {
     dry_run?: boolean;
     only_failed?: boolean;
+    /**
+     * (Experimental) Run on the latest bundle version of the DAG after clearing the DAG Run.
+     */
+    run_on_latest_version?: boolean;
 };
 
 /**
@@ -811,18 +817,6 @@ export type DagVersionResponse = {
  * in the DagWarning model.
  */
 export type DagWarningType = 'asset conflict' | 'non-existent pool';
-
-/**
- * Deadline alert serializer for responses.
- */
-export type DeadlineAlertResponse = {
-    reference: string;
-    interval: string;
-    callback: string;
-    callback_kwargs?: {
-    [key: string]: unknown;
-} | null;
-};
 
 /**
  * Backfill collection serializer for responses in dry-run mode.
@@ -1732,7 +1726,6 @@ export type DAGWithLatestDagRunsResponse = {
     relative_fileloc: string | null;
     fileloc: string;
     description: string | null;
-    deadline: Array<DeadlineAlertResponse> | null;
     timetable_summary: string | null;
     timetable_description: string | null;
     tags: Array<DagTagResponse>;

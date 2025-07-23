@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Spinner } from "@chakra-ui/react";
-import { lazy, Suspense } from "react";
+import { type FC, lazy, Suspense } from "react";
 import { useParams } from "react-router-dom";
 
 import type { ReactAppResponse } from "openapi/requests/types.gen";
@@ -29,13 +29,30 @@ export const ReactPlugin = ({ reactApp }: { readonly reactApp: ReactAppResponse 
 
   const Plugin = lazy(() =>
     // We are assuming the plugin manager is trusted and the bundle_url is safe
-    import(/* @vite-ignore */ reactApp.bundle_url).catch((error: unknown) => {
-      console.error("Component Failed Loading:", error);
+    import(/* @vite-ignore */ reactApp.bundle_url)
+      .then(() => {
+        const component = (
+          globalThis as unknown as {
+            AirflowPlugin: FC<{
+              dagId?: string;
+              mapIndex?: string;
+              runId?: string;
+              taskId?: string;
+            }>;
+          }
+        ).AirflowPlugin;
 
-      return {
-        default: <ErrorPage />,
-      };
-    }),
+        return {
+          default: component,
+        };
+      })
+      .catch((error: unknown) => {
+        console.error("Component Failed Loading:", error);
+
+        return {
+          default: ErrorPage,
+        };
+      }),
   );
 
   return (

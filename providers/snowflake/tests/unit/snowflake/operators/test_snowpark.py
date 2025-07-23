@@ -23,6 +23,8 @@ from unittest import mock
 
 import pytest
 
+pytest.importorskip("snowflake-snowpark-python")
+
 from airflow.providers.snowflake.operators.snowpark import SnowparkOperator
 from airflow.utils import timezone
 
