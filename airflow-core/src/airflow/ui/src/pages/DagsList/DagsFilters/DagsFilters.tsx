@@ -98,7 +98,7 @@ export const DagsFilters = () => {
     ({ value }: { value: Array<string> }) => {
       const [val] = value;
 
-      if (val === undefined || val === "all") {
+      if (val === undefined) {
         searchParams.delete(PAUSED_PARAM);
       } else {
         searchParams.set(PAUSED_PARAM, val);
