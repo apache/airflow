@@ -142,7 +142,5 @@ jobs:
         run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        with:
-          use-uv: ${{ inputs.use-uv }}
       - name: "Check that image builds quickly"
         run: breeze shell --max-time 900 --platform "${PLATFORM}"
