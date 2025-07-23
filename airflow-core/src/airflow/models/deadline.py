@@ -33,7 +33,7 @@ from sqlalchemy_utils import UUIDType
 from airflow.models import Trigger
 from airflow.models.base import Base, StringID
 from airflow.settings import json
-from airflow.triggers.deadline import PAYLOAD_BODY_KEY, PAYLOAD_STATUS_KEY, DeadlineCallbackTrigger
+from airflow.triggers.deadline import PAYLOAD_STATUS_KEY, DeadlineCallbackTrigger
 from airflow.utils import timezone
 from airflow.utils.decorators import classproperty
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -54,9 +54,7 @@ class DeadlineCallbackState(str, Enum):
 
     QUEUED = "queued"
     SUCCESS = "success"
-    NOT_FOUND = "not_found"
-    NOT_AWAITABLE = "not_awaitable"
-    OTHER_FAILURE = "failed"
+    FAILED = "failed"
 
 
 class Deadline(Base):
@@ -187,29 +185,14 @@ class Deadline(Base):
         session.add(self)
 
     def handle_callback_event(self, event: TriggerEvent, session: Session):
-        if PAYLOAD_STATUS_KEY not in event.payload or event.payload[PAYLOAD_STATUS_KEY] not in set(
+        if PAYLOAD_STATUS_KEY in event.payload and event.payload[PAYLOAD_STATUS_KEY] in set(
             DeadlineCallbackState
         ):
+            self.trigger = None
+            self.callback_state = event.payload[PAYLOAD_STATUS_KEY]
+            session.add(self)
+        else:
             logger.error("Unexpected event received: %s", event.payload)
-            return
-
-        match event.payload[PAYLOAD_STATUS_KEY]:
-            case DeadlineCallbackState.SUCCESS:
-                logger.debug(
-                    "Deadline callback completed with return value: %s", event.payload[PAYLOAD_BODY_KEY]
-                )
-            case DeadlineCallbackState.NOT_FOUND:
-                logger.error(
-                    "Could not import deadline callback on the triggerer: %s", event.payload[PAYLOAD_BODY_KEY]
-                )
-            case DeadlineCallbackState.NOT_AWAITABLE:
-                logger.error("Deadline callback not awaitable: %s", event.payload[PAYLOAD_BODY_KEY])
-            case DeadlineCallbackState.OTHER_FAILURE:
-                logger.error("Deadline callback failed with exception: %s", event.payload[PAYLOAD_BODY_KEY])
-
-        self.trigger = None
-        self.callback_state = event.payload[PAYLOAD_STATUS_KEY]
-        session.add(self)
 
 
 class ReferenceModels:

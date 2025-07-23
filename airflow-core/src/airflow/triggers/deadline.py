@@ -50,18 +50,13 @@ class DeadlineCallbackTrigger(BaseTrigger):
         try:
             callback = import_string(self.callback_path)
             result = await callback(**self.callback_kwargs)
+            log.info("Deadline callback completed with return value: %s", result)
             yield TriggerEvent({PAYLOAD_STATUS_KEY: DeadlineCallbackState.SUCCESS, PAYLOAD_BODY_KEY: result})
-        except ImportError as e:
-            yield TriggerEvent(
-                {PAYLOAD_STATUS_KEY: DeadlineCallbackState.NOT_FOUND, PAYLOAD_BODY_KEY: str(e)}
-            )
         except Exception as e:
-            if isinstance(e, TypeError) and "await" in str(e):
-                yield TriggerEvent(
-                    {PAYLOAD_STATUS_KEY: DeadlineCallbackState.NOT_AWAITABLE, PAYLOAD_BODY_KEY: str(e)}
-                )
+            if isinstance(e, ImportError):
+                log.exception("Could not import deadline callback on the triggerer: %s", e)
+            elif isinstance(e, TypeError) and "await" in str(e):
+                log.exception("Deadline callback not awaitable: %s", e)
             else:
-                log.exception(e)
-                yield TriggerEvent(
-                    {PAYLOAD_STATUS_KEY: DeadlineCallbackState.OTHER_FAILURE, PAYLOAD_BODY_KEY: str(e)}
-                )
+                log.exception("Deadline callback failed with exception: %s", e)
+            yield TriggerEvent({PAYLOAD_STATUS_KEY: DeadlineCallbackState.FAILED, PAYLOAD_BODY_KEY: str(e)})

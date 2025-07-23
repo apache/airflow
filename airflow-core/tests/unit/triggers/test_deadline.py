@@ -70,33 +70,7 @@ class TestDeadlineCallbackTrigger:
         assert event.payload[PAYLOAD_BODY_KEY] == callback_return_value
 
     @pytest.mark.asyncio
-    async def test_run_import_error(self, mock_import_string):
-        mock_import_string.side_effect = ImportError("No module named 'classpath'")
-
-        event = await TEST_TRIGGER.run().asend(None)
-
-        mock_import_string.assert_called_once_with(TEST_CALLBACK_PATH)
-
-        assert event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.NOT_FOUND
-        assert PAYLOAD_BODY_KEY in event.payload
-
-    @pytest.mark.asyncio
-    async def test_run_not_awaitable(self, mock_import_string):
-        mock_callback = mock.AsyncMock(
-            side_effect=TypeError("object str can't be used in 'await' expression")
-        )
-        mock_import_string.return_value = mock_callback
-
-        event = await TEST_TRIGGER.run().asend(None)
-
-        mock_import_string.assert_called_once_with(TEST_CALLBACK_PATH)
-        mock_callback.assert_called_once_with(**TEST_CALLBACK_KWARGS)
-
-        assert event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.NOT_AWAITABLE
-        assert PAYLOAD_BODY_KEY in event.payload
-
-    @pytest.mark.asyncio
-    async def test_run_other_failure(self, mock_import_string):
+    async def test_run_failure(self, mock_import_string):
         mock_callback = mock.AsyncMock(side_effect=RuntimeError("Something went wrong"))
         mock_import_string.return_value = mock_callback
 
@@ -105,5 +79,5 @@ class TestDeadlineCallbackTrigger:
         mock_import_string.assert_called_once_with(TEST_CALLBACK_PATH)
         mock_callback.assert_called_once_with(**TEST_CALLBACK_KWARGS)
 
-        assert event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.OTHER_FAILURE
+        assert event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.FAILED
         assert PAYLOAD_BODY_KEY in event.payload

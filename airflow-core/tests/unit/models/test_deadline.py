@@ -223,27 +223,7 @@ class TestDeadline:
             pytest.param(
                 TriggerEvent(
                     {
-                        PAYLOAD_STATUS_KEY: DeadlineCallbackState.NOT_FOUND,
-                        PAYLOAD_BODY_KEY: "No module named 'dags'",
-                    }
-                ),
-                True,
-                id="not_found_event",
-            ),
-            pytest.param(
-                TriggerEvent(
-                    {
-                        PAYLOAD_STATUS_KEY: DeadlineCallbackState.NOT_AWAITABLE,
-                        PAYLOAD_BODY_KEY: "object str can't be used in 'await' expression",
-                    }
-                ),
-                True,
-                id="not_awaitable_event",
-            ),
-            pytest.param(
-                TriggerEvent(
-                    {
-                        PAYLOAD_STATUS_KEY: DeadlineCallbackState.OTHER_FAILURE,
+                        PAYLOAD_STATUS_KEY: DeadlineCallbackState.FAILED,
                         PAYLOAD_BODY_KEY: "RuntimeError",
                     }
                 ),
