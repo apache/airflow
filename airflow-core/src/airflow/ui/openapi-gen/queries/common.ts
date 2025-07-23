@@ -739,12 +739,6 @@ export const UseGridServiceGetGridTiSummariesKeyFn = ({ dagId, runId }: {
   dagId: string;
   runId: string;
 }, queryKey?: Array<unknown>) => [useGridServiceGetGridTiSummariesKey, ...(queryKey ?? [{ dagId, runId }])];
-export type GridServiceGetLatestRunDefaultResponse = Awaited<ReturnType<typeof GridService.getLatestRun>>;
-export type GridServiceGetLatestRunQueryResult<TData = GridServiceGetLatestRunDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
-export const useGridServiceGetLatestRunKey = "GridServiceGetLatestRun";
-export const UseGridServiceGetLatestRunKeyFn = ({ dagId }: {
-  dagId: string;
-}, queryKey?: Array<unknown>) => [useGridServiceGetLatestRunKey, ...(queryKey ?? [{ dagId }])];
 export type CalendarServiceGetCalendarDefaultResponse = Awaited<ReturnType<typeof CalendarService.getCalendar>>;
 export type CalendarServiceGetCalendarQueryResult<TData = CalendarServiceGetCalendarDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useCalendarServiceGetCalendarKey = "CalendarServiceGetCalendar";
