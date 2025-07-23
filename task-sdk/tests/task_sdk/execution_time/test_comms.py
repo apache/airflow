@@ -57,6 +57,7 @@ class TestCommsDecoder:
                     "run_after": "2024-12-01T01:00:00Z",
                     "end_date": None,
                     "run_type": "manual",
+                    "state": "success",
                     "conf": None,
                     "consumed_asset_events": [],
                 },
