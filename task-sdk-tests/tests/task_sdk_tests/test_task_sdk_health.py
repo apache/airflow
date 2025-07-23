@@ -23,11 +23,14 @@ from shutil import copyfile
 from python_on_whales import DockerClient, docker
 from rich.console import Console
 
-from task_sdk_tests.constants import TASK_SDK_API_VERSION, TASK_SDK_HOST_PORT
+from task_sdk_tests.constants import (
+    DOCKER_COMPOSE_FILE_PATH,
+    DOCKER_IMAGE,
+    TASK_SDK_API_VERSION,
+    TASK_SDK_HOST_PORT,
+)
 
 console = Console(width=400, color_system="standard")
-
-TASK_SDK_TESTS_ROOT = Path(__file__).parent.parent.parent
 
 
 def print_diagnostics(compose, compose_version, docker_version):
@@ -104,12 +107,11 @@ def test_task_sdk_health(tmp_path_factory, monkeypatch, install_task_sdk):
     console.print(f"[yellow]Tests are run in {tmp_dir}")
 
     # Copy docker-compose.yaml to temp directory
-    docker_compose_file = TASK_SDK_TESTS_ROOT / "docker" / "docker-compose.yaml"
     tmp_docker_compose_file = tmp_dir / "docker-compose.yaml"
-    copyfile(docker_compose_file, tmp_docker_compose_file)
+    copyfile(DOCKER_COMPOSE_FILE_PATH, tmp_docker_compose_file)
 
     # Set environment variables for the test
-    monkeypatch.setenv("AIRFLOW_IMAGE_NAME", os.environ.get("DOCKER_IMAGE", "apache/airflow:3.0.3"))
+    monkeypatch.setenv("AIRFLOW_IMAGE_NAME", DOCKER_IMAGE)
     monkeypatch.setenv("TASK_SDK_VERSION", os.environ.get("TASK_SDK_VERSION", "1.0.3"))
 
     # Initialize Docker client

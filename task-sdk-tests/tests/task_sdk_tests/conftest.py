@@ -22,12 +22,7 @@ import sys
 
 import pytest
 
-from task_sdk_tests.constants import AIRFLOW_ROOT_PATH, DOCKER_IMAGE
-
-
-@pytest.fixture
-def default_docker_image():
-    return DOCKER_IMAGE
+from task_sdk_tests.constants import AIRFLOW_ROOT_PATH
 
 
 @pytest.fixture(scope="session")
