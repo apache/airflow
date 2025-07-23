@@ -165,7 +165,7 @@ with DAG(
             "overrides": {
                 "containerOverrides": {
                     "environment": [
-                        {"name": key, "value": value} for key, value in mock_mwaa_environment_params.items()
+                        {"name": str(key), "value": str(value)} for key, value in mock_mwaa_environment_params.items()
                     ]
                 }
             }
