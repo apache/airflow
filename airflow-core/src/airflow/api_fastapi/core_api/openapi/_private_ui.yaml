@@ -22,6 +22,7 @@ paths:
                 $ref: '#/components/schemas/MenuItemCollectionResponse'
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /ui/next_run_assets/{dag_id}:
     get:
       tags:
@@ -30,6 +31,7 @@ paths:
       operationId: next_run_assets
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -74,6 +76,7 @@ paths:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /ui/connections/hook_meta:
     get:
       tags:
@@ -94,6 +97,7 @@ paths:
                 title: Response Hook Meta Data
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /ui/dags:
     get:
       tags:
@@ -103,6 +107,7 @@ paths:
       operationId: get_dags_ui
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_runs_limit
         in: query
@@ -286,6 +291,7 @@ paths:
       operationId: get_dependencies
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: node_id
         in: query
@@ -323,6 +329,7 @@ paths:
       operationId: historical_metrics
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: start_date
         in: query
@@ -373,6 +380,7 @@ paths:
                 $ref: '#/components/schemas/DashboardDagStatsResponse'
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /ui/structure/structure_data:
     get:
       tags:
@@ -382,6 +390,7 @@ paths:
       operationId: structure_data
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: query
@@ -453,6 +462,7 @@ paths:
       operationId: list_backfills_ui
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: limit
         in: query
@@ -521,6 +531,7 @@ paths:
       operationId: get_dag_structure
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -606,6 +617,7 @@ paths:
       operationId: get_grid_runs
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -713,6 +725,7 @@ paths:
       operationId: get_grid_ti_summaries
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -764,6 +777,7 @@ paths:
       operationId: get_latest_run
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -809,6 +823,7 @@ paths:
       operationId: get_calendar
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -1433,13 +1448,6 @@ components:
           - type: string
           - type: 'null'
           title: Description
-        deadline:
-          anyOf:
-          - items:
-              $ref: '#/components/schemas/DeadlineAlertResponse'
-            type: array
-          - type: 'null'
-          title: Deadline
         timetable_summary:
           anyOf:
           - type: string
@@ -1530,7 +1538,6 @@ components:
       - relative_fileloc
       - fileloc
       - description
-      - deadline
       - timetable_summary
       - timetable_description
       - tags
@@ -1670,31 +1677,6 @@ components:
       - queued_dag_count
       title: DashboardDagStatsResponse
       description: Dashboard DAG Stats serializer for responses.
-    DeadlineAlertResponse:
-      properties:
-        reference:
-          type: string
-          title: Reference
-        interval:
-          type: string
-          format: duration
-          title: Interval
-        callback:
-          type: string
-          title: Callback
-        callback_kwargs:
-          anyOf:
-          - additionalProperties: true
-            type: object
-          - type: 'null'
-          title: Callback Kwargs
-      type: object
-      required:
-      - reference
-      - interval
-      - callback
-      title: DeadlineAlertResponse
-      description: Deadline alert serializer for responses.
     EdgeResponse:
       properties:
         source_id:
@@ -2240,3 +2222,6 @@ components:
         password:
           scopes: {}
           tokenUrl: /auth/token
+    HTTPBearer:
+      type: http
+      scheme: bearer

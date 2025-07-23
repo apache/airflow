@@ -53,20 +53,17 @@ type Props = {
 export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const { t: translate } = useTranslation();
   const { dagId = "" } = useParams();
-
   const { data: dag } = useDagServiceGetDag({ dagId });
   const [defaultDagView] = useLocalStorage<"graph" | "grid">("default_dag_view", "grid");
   const panelGroupRef = useRef(null);
   const [dagView, setDagView] = useLocalStorage<"graph" | "grid">(`dag_view-${dagId}`, defaultDagView);
   const [limit, setLimit] = useLocalStorage<number>(`dag_runs_limit-${dagId}`, 10);
-
   const { fitView, getZoom } = useReactFlow();
-
-  const { data: warningData } = useDagWarningServiceListDagWarnings({
-    dagId,
-  });
+  const { data: warningData } = useDagWarningServiceListDagWarnings({ dagId });
   const { onClose, onOpen, open } = useDisclosure();
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(false);
+  const { i18n } = useTranslation();
+  const direction = i18n.dir();
 
   return (
     <OpenGroupsProvider dagId={dagId}>
@@ -94,20 +91,27 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
               borderRadius="full"
               boxShadow="md"
               cursor="pointer"
+              left={direction === "rtl" ? 0 : undefined}
               onClick={() => setIsRightPanelCollapsed(false)}
               position="absolute"
-              right={0}
+              right={direction === "ltr" ? 0 : undefined}
               size="sm"
               top="50%"
               zIndex={10}
             >
-              <FaChevronLeft />
+              {direction === "ltr" ? <FaChevronLeft /> : <FaChevronRight />}
             </IconButton>
           </Tooltip>
         ) : undefined}
-        <PanelGroup autoSaveId={dagId} direction="horizontal" ref={panelGroupRef}>
-          <Panel defaultSize={dagView === "graph" ? 70 : 20} minSize={6}>
-            <Box height="100%" overflowY="auto" position="relative" pr={2}>
+        <PanelGroup
+          autoSaveId={`${dagView}-${direction}`}
+          dir={direction}
+          direction="horizontal"
+          key={`${dagView}-${direction}`}
+          ref={panelGroupRef}
+        >
+          <Panel defaultSize={dagView === "graph" ? 70 : 20} id="main-panel" minSize={6} order={1}>
+            <Box height="100%" marginInlineEnd={2} overflowY="auto" position="relative">
               <PanelButtons
                 dagView={dagView}
                 limit={limit}
@@ -119,76 +123,76 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
             </Box>
           </Panel>
           {!isRightPanelCollapsed && (
-            <PanelResizeHandle
-              className="resize-handle"
-              onDragging={(isDragging) => {
-                if (!isDragging) {
-                  const zoom = getZoom();
+            <>
+              <PanelResizeHandle
+                className="resize-handle"
+                onDragging={(isDragging) => {
+                  if (!isDragging) {
+                    const zoom = getZoom();
 
-                  void fitView({ maxZoom: zoom, minZoom: zoom });
-                }
-              }}
-            >
-              <Box
-                alignItems="center"
-                bg="fg.subtle"
-                cursor="col-resize"
-                display="flex"
-                h="100%"
-                justifyContent="center"
-                position="relative"
-                w={0.5}
+                    void fitView({ maxZoom: zoom, minZoom: zoom });
+                  }
+                }}
               >
-                <Tooltip content={translate("common:collapseDetailsPanel")}>
-                  <IconButton
-                    aria-label={translate("common:collapseDetailsPanel")}
-                    bg="bg.surface"
-                    borderRadius="full"
-                    boxShadow="md"
-                    cursor="pointer"
-                    onClick={() => setIsRightPanelCollapsed(true)}
-                    size="xs"
-                    zIndex={2}
-                  >
-                    <FaChevronRight />
-                  </IconButton>
-                </Tooltip>
-              </Box>
-            </PanelResizeHandle>
-          )}
-          {!isRightPanelCollapsed && (
-            <Panel defaultSize={dagView === "graph" ? 30 : 80} minSize={20}>
-              <Box display="flex" flexDirection="column" h="100%">
-                {children}
-                {Boolean(error) || (warningData?.dag_warnings.length ?? 0) > 0 ? (
-                  <>
-                    <ActionButton
-                      actionName={translate("common:dagWarnings")}
-                      colorPalette={Boolean(error) ? "red" : "orange"}
-                      icon={<LuFileWarning />}
-                      margin="2"
-                      marginBottom="-1"
-                      onClick={onOpen}
-                      rounded="full"
-                      text={String(warningData?.total_entries ?? 0 + Number(error))}
-                      variant="solid"
-                    />
-
-                    <DAGWarningsModal
-                      error={error}
-                      onClose={onClose}
-                      open={open}
-                      warnings={warningData?.dag_warnings}
-                    />
-                  </>
-                ) : undefined}
-                <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
-                <NavTabs tabs={tabs} />
-                <Box flexGrow={1} overflow="auto" px={2}>
-                  <Outlet />
+                <Box
+                  alignItems="center"
+                  bg="fg.subtle"
+                  cursor="col-resize"
+                  display="flex"
+                  h="100%"
+                  justifyContent="center"
+                  position="relative"
+                  w={0.5}
+                >
+                  <Tooltip content={translate("common:collapseDetailsPanel")}>
+                    <IconButton
+                      aria-label={translate("common:collapseDetailsPanel")}
+                      bg="bg.surface"
+                      borderRadius="full"
+                      boxShadow="md"
+                      cursor="pointer"
+                      onClick={() => setIsRightPanelCollapsed(true)}
+                      size="xs"
+                      zIndex={2}
+                    >
+                      {direction === "ltr" ? <FaChevronRight /> : <FaChevronLeft />}
+                    </IconButton>
+                  </Tooltip>
                 </Box>
-              </Box>
-            </Panel>
+              </PanelResizeHandle>
+              <Panel defaultSize={dagView === "graph" ? 30 : 80} id="details-panel" minSize={20} order={2}>
+                <Box display="flex" flexDirection="column" h="100%">
+                  {children}
+                  {Boolean(error) || (warningData?.dag_warnings.length ?? 0) > 0 ? (
+                    <>
+                      <ActionButton
+                        actionName={translate("common:dagWarnings")}
+                        colorPalette={Boolean(error) ? "red" : "orange"}
+                        icon={<LuFileWarning />}
+                        margin="2"
+                        marginBottom="-1"
+                        onClick={onOpen}
+                        rounded="full"
+                        text={String(warningData?.total_entries ?? 0 + Number(error))}
+                        variant="solid"
+                      />
+
+                      <DAGWarningsModal
+                        error={error}
+                        onClose={onClose}
+                        open={open}
+                        warnings={warningData?.dag_warnings}
+                      />
+                    </>
+                  ) : undefined}
+                  <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
+                  <NavTabs tabs={tabs} />
+                  <Box flexGrow={1} overflow="auto" px={2}>
+                    <Outlet />
+                  </Box>
+                </Box>
+              </Panel>
+            </>
           )}
         </PanelGroup>
       </Box>
