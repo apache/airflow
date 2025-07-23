@@ -64,10 +64,8 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session: Session =
     if dag is None:
         raise DagNotFound(f"Dag id {dag_id} not found")
 
-    """
-    To ensure the TaskInstance and DagRun model is deleted before
-    each of the model DagVersion and BackFill respectively.
-    """
+    # To ensure the TaskInstance and DagRun model is deleted before
+    # each of the model DagVersion and BackFill respectively.
     models_for_deletion = [TaskInstance, DagRun] + [
         model
         for model in get_sqla_model_classes()
