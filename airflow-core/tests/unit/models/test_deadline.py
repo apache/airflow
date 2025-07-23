@@ -271,9 +271,9 @@ class TestDeadline:
 
         assert none_trigger_expected == (deadline_orm.trigger is None)
 
-        attempt_state = event.payload[PAYLOAD_STATUS_KEY]
-        if attempt_state in DeadlineCallbackState:
-            assert deadline_orm.callback_state == attempt_state
+        status = event.payload[PAYLOAD_STATUS_KEY]
+        if status in set(DeadlineCallbackState):
+            assert deadline_orm.callback_state == status
         else:
             assert deadline_orm.callback_state == DeadlineCallbackState.QUEUED
 

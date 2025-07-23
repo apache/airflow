@@ -187,9 +187,8 @@ class Deadline(Base):
         session.add(self)
 
     def handle_callback_event(self, event: TriggerEvent, session: Session):
-        if (
-            PAYLOAD_STATUS_KEY not in event.payload
-            or event.payload[PAYLOAD_STATUS_KEY] not in DeadlineCallbackState
+        if PAYLOAD_STATUS_KEY not in event.payload or event.payload[PAYLOAD_STATUS_KEY] not in set(
+            DeadlineCallbackState
         ):
             logger.error("Unexpected event received: %s", event.payload)
             return
