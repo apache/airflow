@@ -96,8 +96,6 @@ jobs:
         run: uv run scripts/ci/airflow_version_check.py "${AIRFLOW_VERSION}" >> "${GITHUB_OUTPUT}"
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        with:
-          use-uv: "true"
       - name: Selective checks
         id: selective-checks
         env:

@@ -376,6 +376,25 @@ Other available parameters can be found with:
 breeze workflow-run publish-docs --help
 ```
 
+In case you publish the documentation from branch, you can specify `--airflow-version` and `--airflow-base-version`
+parameters to specify which version of airflow you want to build the documentation for - as it cannot
+be automatically derived from tag name. Normally both are automatically derived from the tag name.
+
+One of the interesting features of publishing this way is that you can also rebuild historical version of
+the documentation with patches applied to the documentation (if they can be applied cleanly).
+
+Yoy should specify the `--apply-commits` parameter with the list of commits you want to apply
+separated by commas and the workflow will apply those commits to the documentation before
+building it. (don't forget to add --skip-write-to-stable-folder if you are publishing
+previous version of the distribution). Example:
+
+```shell script
+breeze workflow-run publish-docs --ref 3.0.3 --site-env staging \
+  --apply-commits 4ae273cbedec66c87dc40218c7a94863390a380d,e61e9618bdd6be8213d277b1427f67079fcb1d9b \
+  --skip-write-to-stable-folder \
+  apache-airflow docker-stack task-sdk
+```
+
 ### Manually using GitHub Actions
 
 There are two steps to publish the documentation:
