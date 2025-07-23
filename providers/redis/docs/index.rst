@@ -36,6 +36,7 @@
 
     Connection types <connections>
     Logging <logging/index>
+    Triggers <triggers>
 
 .. toctree::
     :hidden:

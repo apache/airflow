@@ -62,14 +62,19 @@ def lazy_load_command(import_path: str) -> Callable:
 
 
 def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
+    import sys
+
     try:
         function(args)
     except AirflowCtlCredentialNotFoundException as e:
         rich.print(f"command failed due to {e}")
+        sys.exit(1)
     except AirflowCtlConnectionException as e:
         rich.print(f"command failed due to {e}")
+        sys.exit(1)
     except AirflowCtlNotFoundException as e:
         rich.print(f"command failed due to {e}")
+        sys.exit(1)
 
 
 class DefaultHelpParser(argparse.ArgumentParser):

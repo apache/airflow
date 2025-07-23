@@ -114,7 +114,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         cluster_image_version: str | None = None,
         ssh_public_keys: str | Iterable[str] | None = None,
         subnet_id: str | None = None,
-        services: Iterable[str] = ("HDFS", "YARN", "MAPREDUCE", "HIVE", "SPARK"),
+        services: Iterable[str] | None = ("HDFS", "YARN", "MAPREDUCE", "HIVE", "SPARK"),
         s3_bucket: str | None = None,
         zone: str = "ru-central1-b",
         service_account_id: str | None = None,
@@ -151,9 +151,6 @@ class DataprocCreateClusterOperator(BaseOperator):
         super().__init__(**kwargs)
         if ssh_public_keys is None:
             ssh_public_keys = []
-
-        if services is None:
-            services = []
 
         self.folder_id = folder_id
         self.yandex_conn_id = connection_id

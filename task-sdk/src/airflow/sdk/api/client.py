@@ -38,7 +38,6 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,
     AssetResponse,
     ConnectionResponse,
-    CreateHITLDetailPayload,
     DagRunStateResponse,
     DagRunType,
     HITLDetailResponse,
@@ -57,7 +56,6 @@ from airflow.sdk.api.datamodels._generated import (
     TISuccessStatePayload,
     TITerminalStatePayload,
     TriggerDAGRunPayload,
-    UpdateHITLDetail,
     ValidationError as RemoteValidationError,
     VariablePostBody,
     VariableResponse,
@@ -67,6 +65,7 @@ from airflow.sdk.api.datamodels._generated import (
 )
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
+    CreateHITLDetailPayload,
     DRCount,
     ErrorResponse,
     HITLDetailRequestResult,
@@ -74,6 +73,7 @@ from airflow.sdk.execution_time.comms import (
     SkipDownstreamTasks,
     TaskRescheduleStartDate,
     TICount,
+    UpdateHITLDetail,
 )
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser

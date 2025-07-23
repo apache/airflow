@@ -1353,7 +1353,7 @@ git pull apache main
 current_date=$(date '+%Y-%m-%d%n')
 branch="update-providers-metadata-${current_date}"
 git checkout -b "${branch}"
-breeze release-management generate-providers-metadata --refresh-constraints
+breeze release-management generate-providers-metadata --refresh-constraints-and-airflow-releases
 git add -p .
 git commit -m "Update providers metadata ${current_date}"
 git push --set-upstream origin "${branch}"
