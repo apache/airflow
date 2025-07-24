@@ -1269,7 +1269,7 @@ class TimeoutHandler:
 @contextlib.contextmanager
 def run_with_timeout(timeout: int, shell_params: ShellParams) -> Generator[TimeoutHandler, None, None]:
     timeout_handler = TimeoutHandler(shell_params=shell_params)
-    signal.signal(signal.SIGALRM, timeout_handler.timeout_method)
+    signal.signal(signal.SIGALRM, lambda signum, frame: timeout_handler.timeout_method(signum, frame))
     signal.alarm(timeout)
     try:
         yield timeout_handler
