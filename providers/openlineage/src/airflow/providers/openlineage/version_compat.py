@@ -38,3 +38,8 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperator
 else:
     from airflow.models import BaseOperator
+
+__all__ = [
+    "AIRFLOW_V_3_0_PLUS",
+    "BaseOperator",
+]
