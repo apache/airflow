@@ -412,7 +412,7 @@ If you are seeing others there is an issue.
 You can remove the redundant provider files manually with:
 
 ```shell script
-svn rm file_name  // repeate that for every file
+svn rm file_name  // repeat that for every file
 svn commit -m "delete old providers"
 ```
 
