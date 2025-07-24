@@ -1397,7 +1397,7 @@ repos:
           (?x)
           ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/.*\.(js|ts|tsx|yaml|css|json)$|
           ^airflow-core/src/airflow/api_fastapi/core_api/openapi/.*\.yaml$|
-          ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/v1.*\.yaml$
+          ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/.*\.yaml$
         exclude: |
           (?x)
           ^airflow-core/src/airflow/api_fastapi/node-modules/.*|
@@ -1523,7 +1523,7 @@ repos:
         additional_dependencies: ['rich>=12.4.4', 'openapi-spec-validator>=0.7.1']
       - id: check-i18n-json
         name: Check i18n files validity
-        description: Check i18n files are valid json and have no TODOs
+        description: Check i18n files are valid json, have no TODOs, and auto-format them
         language: python
         files: ^airflow-core/src/airflow/ui/public/i18n/locales/.*\.json$
         entry: ./scripts/ci/pre_commit/check_i18n_json.py

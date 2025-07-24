@@ -1684,6 +1684,19 @@ export type ConnectionHookMetaData = {
 };
 
 /**
+ * DAG Run serializer for responses.
+ */
+export type DAGRunLightResponse = {
+    run_id: string;
+    dag_id: string;
+    logical_date: string | null;
+    run_after: string;
+    start_date: string | null;
+    end_date: string | null;
+    state: DagRunState;
+};
+
+/**
  * DAG Run States for responses.
  */
 export type DAGRunStates = {
@@ -2408,6 +2421,12 @@ export type GetDagsUiData = {
 };
 
 export type GetDagsUiResponse = DAGWithLatestDagRunsCollectionResponse;
+
+export type GetLatestRunInfoData = {
+    dagId: string;
+};
+
+export type GetLatestRunInfoResponse = Array<DAGRunLightResponse>;
 
 export type GetEventLogData = {
     eventLogId: number;
@@ -4546,6 +4565,25 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DAGWithLatestDagRunsCollectionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dags/{dag_id}/latest_run': {
+        get: {
+            req: GetLatestRunInfoData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: Array<DAGRunLightResponse>;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
