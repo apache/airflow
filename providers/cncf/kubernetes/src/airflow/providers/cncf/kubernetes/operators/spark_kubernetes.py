@@ -255,7 +255,6 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             self.log.info("`try_number` of pod: %s", pod.metadata.labels["try_number"])
         return pod
 
-
     def process_pod_deletion(self, pod, *, reraise=True):
         if pod is not None:
             if self.delete_on_termination:

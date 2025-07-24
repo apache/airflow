@@ -973,6 +973,7 @@ class TestSparkKubernetesOperator:
 
         assert isinstance(exc.value.trigger, KubernetesPodTrigger)
 
+
 @pytest.mark.db_test
 def test_template_body_templating(create_task_instance_of_operator, session):
     ti = create_task_instance_of_operator(
