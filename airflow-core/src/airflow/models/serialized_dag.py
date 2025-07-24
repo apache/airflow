@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any, Literal
 import sqlalchemy_jsonfield
 import uuid6
 from sqlalchemy import Column, ForeignKey, LargeBinary, String, exc, select, tuple_
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.sql.expression import func, literal
 from sqlalchemy_utils import UUIDType
@@ -401,15 +402,29 @@ class SerializedDagModel(Base):
         # If Yes, does nothing
         # If No or the DAG does not exists, updates / writes Serialized DAG to DB
         if min_update_interval is not None:
-            if session.scalar(
-                select(literal(True))
-                .where(
-                    cls.dag_id == dag.dag_id,
-                    (timezone.utcnow() - timedelta(seconds=min_update_interval)) < cls.last_updated,
+            try:
+                do_nothing = session.scalar(
+                    select(literal(True))
+                    .where(
+                        cls.dag_id == dag.dag_id,
+                        (timezone.utcnow() - timedelta(seconds=min_update_interval)) < cls.last_updated,
+                    )
+                    .select_from(cls)
+                    .with_for_update(nowait=True, skip_locked=True)
                 )
-                .select_from(cls)
-            ):
-                return False
+                if do_nothing:
+                    return False
+            except OperationalError as e:
+                if (
+                    hasattr(e, "orig") and hasattr(e.orig, "pgcode") and e.orig.pgcode == "55P03"
+                ):  # Postgres error code for "could not obtain lock on row in relation [table_name]"
+                    log.warning(
+                        "Another Scheduler is already reparsing dag %s. Skipping reparse request. Details: %s",
+                        dag.dag_id,
+                        str(e),
+                    )
+                    return False
+                raise
 
         log.debug("Checking if DAG (%s) changed", dag.dag_id)
         new_serialized_dag = cls(dag)
