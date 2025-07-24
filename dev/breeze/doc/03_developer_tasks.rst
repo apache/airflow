@@ -193,6 +193,12 @@ your local sources to the ``/opt/airflow`` location of the sources within the co
     :align: center
     :alt: Source code mapping
 
+.. note::
+
+   For comprehensive debugging documentation using the new ``--debug`` and ``--debugger`` flags
+   with VSCode and debugpy, see the `Debugging Airflow Components <../../contributing-docs/20_debugging_airflow_components.rst>`__
+   guide.
+
 Building the documentation
 --------------------------
 

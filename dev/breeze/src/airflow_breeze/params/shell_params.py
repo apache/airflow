@@ -37,6 +37,13 @@ from airflow_breeze.global_constants import (
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
+    BREEZE_DEBUG_APISERVER_PORT,
+    BREEZE_DEBUG_CELERY_WORKER_PORT,
+    BREEZE_DEBUG_DAG_PROCESSOR_PORT,
+    BREEZE_DEBUG_EDGE_PORT,
+    BREEZE_DEBUG_SCHEDULER_PORT,
+    BREEZE_DEBUG_TRIGGERER_PORT,
+    BREEZE_DEBUG_WEBSERVER_PORT,
     CELERY_BROKER_URLS_MAP,
     CELERY_EXECUTOR,
     DEFAULT_CELERY_BROKER,
@@ -149,6 +156,8 @@ class ShellParams:
     celery_flower: bool = False
     clean_airflow_installation: bool = False
     collect_only: bool = False
+    debug_components: tuple[str, ...] = ()
+    debugger: str = "debugpy"
     db_reset: bool = False
     default_constraints_branch: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     dev_mode: bool = False
@@ -654,11 +663,44 @@ class ShellParams:
         _set_var(_env, "WEB_HOST_PORT", None, WEB_HOST_PORT)
         _set_var(_env, "_AIRFLOW_RUN_DB_TESTS_ONLY", self.run_db_tests_only)
         _set_var(_env, "_AIRFLOW_SKIP_DB_TESTS", self.skip_db_tests)
+
+        self._set_debug_variables(_env)
         self._generate_env_for_docker_compose_file_if_needed(_env)
 
         _target_env: dict[str, str] = os.environ.copy()
         _target_env.update(_env)
         return _target_env
+
+    def _set_debug_variables(self, env) -> None:
+        """Set debug environment variables based on selected debug components."""
+        if self.debugger == "pydevd-pycharm":
+            print("Pycharm-pydevd debugger is under development and not yet supported in Breeze.")
+            return
+        if not self.debug_components:
+            return
+
+        _set_var(env, "BREEZE_DEBUG_SCHEDULER_PORT", None, BREEZE_DEBUG_SCHEDULER_PORT)
+        _set_var(env, "BREEZE_DEBUG_DAG_PROCESSOR_PORT", None, BREEZE_DEBUG_DAG_PROCESSOR_PORT)
+        _set_var(env, "BREEZE_DEBUG_TRIGGERER_PORT", None, BREEZE_DEBUG_TRIGGERER_PORT)
+        _set_var(env, "BREEZE_DEBUG_APISERVER_PORT", None, BREEZE_DEBUG_APISERVER_PORT)
+        _set_var(env, "BREEZE_DEBUG_CELERY_WORKER_PORT", None, BREEZE_DEBUG_CELERY_WORKER_PORT)
+        _set_var(env, "BREEZE_DEBUG_EDGE_PORT", None, BREEZE_DEBUG_EDGE_PORT)
+        _set_var(env, "BREEZE_DEBUG_WEBSERVER_PORT", None, BREEZE_DEBUG_WEBSERVER_PORT)
+
+        _set_var(env, "BREEZE_DEBUGGER", None, self.debugger)
+
+        component_mappings = {
+            "scheduler": "BREEZE_DEBUG_SCHEDULER",
+            "triggerer": "BREEZE_DEBUG_TRIGGERER",
+            "api-server": "BREEZE_DEBUG_APISERVER",
+            "dag-processor": "BREEZE_DEBUG_DAG_PROCESSOR",
+            "edge-worker": "BREEZE_DEBUG_EDGE",
+            "celery-worker": "BREEZE_DEBUG_CELERY_WORKER",
+        }
+
+        for component in self.debug_components:
+            env_var = component_mappings[component]
+            _set_var(env, env_var, None, "true")
 
     @staticmethod
     def _generate_env_for_docker_compose_file_if_needed(env: dict[str, str]):
