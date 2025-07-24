@@ -30,7 +30,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 from airflow import settings
-from airflow.callbacks.callback_requests import DagCallbackRequest
+from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dag_version import DagVersion
@@ -669,6 +669,10 @@ class TestDagRun:
             is_failure_callback=False,
             bundle_name="testing",
             bundle_version=None,
+            context_from_server=DagRunContext(
+                dag_run=dag_run,
+                last_ti=dag_run.get_last_ti(dag, session),
+            ),
             msg="success",
         )
 
@@ -720,6 +724,10 @@ class TestDagRun:
             msg="task_failure",
             bundle_name="testing",
             bundle_version=None,
+            context_from_server=DagRunContext(
+                dag_run=dag_run,
+                last_ti=dag_run.get_last_ti(dag, session),
+            ),
         )
 
     def test_dagrun_set_state_end_date(self, dag_maker, session):
