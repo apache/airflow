@@ -39,8 +39,8 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Query, relationship
 
+from airflow._shared.timezones import timezone
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
-from airflow.utils import timezone
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.helpers import is_container
 from airflow.utils.json import XComDecoder, XComEncoder

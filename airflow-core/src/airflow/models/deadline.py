@@ -29,11 +29,11 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import UUIDType
 
+from airflow._shared.timezones import timezone
 from airflow.models import Trigger
 from airflow.models.base import Base, StringID
 from airflow.settings import json
 from airflow.triggers.deadline import DeadlineCallbackTrigger
-from airflow.utils import timezone
 from airflow.utils.decorators import classproperty
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
