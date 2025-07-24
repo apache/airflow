@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import datetime as dt
 import itertools
 import logging
 import re
@@ -1048,6 +1047,30 @@ exit 0
         assert exc.value.trigger.external_task_ids == ["test_task"]
         assert exc.value.trigger.execution_dates == [DEFAULT_DATE]
 
+    def test_get_logical_date(self):
+        """For AF 2, we check for execution_date in context."""
+        context = {"execution_date": DEFAULT_DATE}
+        op = ExternalTaskSensor(
+            task_id="test_external_task_sensor_check",
+            external_dag_id="test_dag_parent",
+            external_task_id="test_task",
+        )
+        assert op._get_logical_date(context) == DEFAULT_DATE
+
+    def test_handle_execution_date_fn(self):
+        def func(dt, context):
+            assert context["execution_date"] == dt
+            return dt + timedelta(0)
+
+        op = ExternalTaskSensor(
+            task_id="test_external_task_sensor_check",
+            external_dag_id="test_dag_parent",
+            external_task_id="test_task",
+            execution_date_fn=func,
+        )
+        context = {"execution_date": DEFAULT_DATE}
+        assert op._handle_execution_date_fn(context) == DEFAULT_DATE
+
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Different test for AF 2")
 @pytest.mark.usefixtures("testing_dag_bundle")
@@ -1335,6 +1358,43 @@ class TestExternalTaskSensorV3:
             logical_dates=[DEFAULT_DATE],
             task_group_id="test_group",
         )
+
+    def test_get_logical_date(self):
+        """For AF 3, we check for logical date or dag_run.run_after  in context."""
+
+        context = {"logical_date": DEFAULT_DATE}
+        op = ExternalTaskSensor(
+            task_id="test_external_task_sensor_check",
+            external_dag_id="test_dag_parent",
+            external_task_id="test_task",
+        )
+        assert op._get_logical_date(context) == DEFAULT_DATE
+
+    def test_get_logical_date_with_dag_run_after(self):
+        """For AF 3, we check for logical date or dag_run.run_after  in context."""
+        op = ExternalTaskSensor(
+            task_id="test_external_task_sensor_check",
+            external_dag_id="test_dag_parent",
+            external_task_id="test_task",
+        )
+        mock_dag_run = mock.MagicMock()
+        mock_dag_run.run_after = DEFAULT_DATE
+        context = {"dag_run": mock_dag_run}
+        assert op._get_logical_date(context) == DEFAULT_DATE
+
+    def test_handle_execution_date_fn(self):
+        def func(dt, context):
+            assert context["logical_date"] == dt
+            return dt + timedelta(0)
+
+        op = ExternalTaskSensor(
+            task_id="test_external_task_sensor_check",
+            external_dag_id="test_dag_parent",
+            external_task_id="test_task",
+            execution_date_fn=func,
+        )
+        context = {"logical_date": DEFAULT_DATE}
+        assert op._handle_execution_date_fn(context) == DEFAULT_DATE
 
 
 class TestExternalTaskAsyncSensor:
@@ -2227,56 +2287,3 @@ def test_clear_overlapping_external_task_marker_mapped_tasks(dag_bag_head_tail_m
         )
         == 70
     )
-
-
-def test_handle_execution_date_fn_fallback_to_execution_date():
-    """
-    If context has only 'execution_date' (no 'logical_date' and no 'dag_run'),
-    _get_dttm_filter should use that execution_date.
-    """
-    exec_dt = dt.datetime(2025, 6, 28, 12, 34)
-    ctx = {"execution_date": exec_dt, "ti": None}
-    sensor = ExternalTaskSensor(
-        task_id="test4",
-        external_dag_id="dummy4",
-        execution_date_fn=lambda dt, **kwargs: [dt],
-    )
-    dates = sensor._get_dttm_filter(ctx)
-    assert dates == [exec_dt]
-
-
-# -------------------------------------------------------------------
-# Tests for the _get_logical_date() helper fallback logic
-# -------------------------------------------------------------------
-
-
-class DummyDagRun:
-    def __init__(self, run_after):
-        self.run_after = run_after
-
-
-@pytest.fixture
-def sensor():
-    return ExternalTaskSensor(
-        task_id="test_sensor",
-        external_dag_id="dummy",
-        execution_date_fn=lambda dt, **kwargs: [dt],
-    )
-
-
-def test__get_logical_date_with_logical_date_key(sensor):
-    now = dt.datetime(2025, 6, 1, 0, 0)
-    ctx = {"logical_date": now, "dag_run": DummyDagRun(dt.datetime(2000, 1, 1))}
-    assert sensor._get_logical_date(ctx) == now
-
-
-def test__get_logical_date_fallback_to_run_after(sensor):
-    run_after = dt.datetime(2025, 6, 2, 0, 0)
-    ctx = {"dag_run": DummyDagRun(run_after)}
-    assert sensor._get_logical_date(ctx) == run_after
-
-
-def test__get_logical_date_fallback_to_execution_date(sensor):
-    exec_dt = dt.datetime(2025, 6, 3, 0, 0)
-    ctx = {"execution_date": exec_dt}
-    assert sensor._get_logical_date(ctx) == exec_dt
