@@ -399,7 +399,10 @@ def get_otel_logger(cls) -> SafeOtelLogger:
     ]
 
     if debug:
-        export_to_console = PeriodicExportingMetricReader(ConsoleMetricExporter())
+        export_to_console = PeriodicExportingMetricReader(
+            ConsoleMetricExporter(),
+            export_interval_millis=interval,
+        )
         readers.append(export_to_console)
 
     metrics.set_meter_provider(
