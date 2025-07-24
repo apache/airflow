@@ -1160,7 +1160,7 @@ class TriggerRunner:
                         if sys.modules.pop(module2, None):
                             self.log.info("Removed %s from sys.modules", module2)
                     else:
-                        if sys.modules.pop(p.stem, None)
+                        if sys.modules.pop(p.stem, None):
                             self.log.info("Removed %s from sys.modules", p.stem)
 
     def import_classpath_maybe_zip(self, classpath):
