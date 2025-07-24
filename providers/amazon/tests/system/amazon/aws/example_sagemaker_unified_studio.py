@@ -171,7 +171,7 @@ with DAG(
                                 "value": value
                             } for key, value in mock_mwaa_environment_params.items()
                         ],
-                        "name": "container_name" # Necessary argument
+                        "name": "container_name" # Necessary parameter
                     }
                 ]
             }
