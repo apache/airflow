@@ -26,7 +26,6 @@ export default defineConfig({
   build: { chunkSizeWarningLimit: 1600, manifest: true },
   plugins: [
     react(),
-    // Replace the directory to work with the flask plugin generation
     {
       name: "transform-url-src",
       transformIndexHtml: (html) =>
@@ -36,7 +35,7 @@ export default defineConfig({
   ],
   resolve: { alias: { openapi: "/openapi-gen", src: "/src" } },
   server: {
-    cors: true, // Only used by the dev server.
+    cors: true,
   },
   test: {
     coverage: {
@@ -47,6 +46,7 @@ export default defineConfig({
     globals: true,
     mockReset: true,
     restoreMocks: true,
-    setupFiles: "./testsSetup.ts",
+
+    setupFiles: "./setupTests.ts",
   },
 });

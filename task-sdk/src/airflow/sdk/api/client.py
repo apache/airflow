@@ -18,8 +18,8 @@
 from __future__ import annotations
 
 import logging
-import ssl
 import os
+import ssl
 import sys
 import uuid
 from http import HTTPStatus
