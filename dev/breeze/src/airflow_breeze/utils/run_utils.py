@@ -145,7 +145,7 @@ def run_command(
             kwargs["stdout"] = subprocess.DEVNULL
             kwargs["stderr"] = subprocess.DEVNULL
         return subprocess.run(cmd, input=input, check=check, env=cmd_env, cwd=workdir, **kwargs)
-    with ci_group(title=f"Running command: {title}", message_type=None):
+    with ci_group(f"Running command: {title}"):
         get_console(output=output).print(f"\n[info]Working directory {workdir}\n")
         if input:
             get_console(output=output).print("[info]Input:")
