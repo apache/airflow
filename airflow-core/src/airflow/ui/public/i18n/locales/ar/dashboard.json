@@ -1,11 +1,11 @@
 {
   "favorite": {
-    "favoriteDags_few":   "أول {{count}} Dags مفضلة",
-    "favoriteDags_many":  "أول {{count}} Dags مفضلة",
-    "favoriteDags_one":   "أول Dag مفضل",
+    "favoriteDags_few": "أول {{count}} Dags مفضلة",
+    "favoriteDags_many": "أول {{count}} Dags مفضلة",
+    "favoriteDags_one": "أول Dag مفضل",
     "favoriteDags_other": "أول {{count}} Dags مفضلة",
-    "favoriteDags_two":   "أول 2 Dags المفضلة",
-    "favoriteDags_zero":  "لا توجد أي Dags مفضلة",
+    "favoriteDags_two": "أول 2 Dags المفضلة",
+    "favoriteDags_zero": "لا توجد أي Dags مفضلة",
     "noDagRuns": "لا توجد تشغيلات لهذا الDag",
     "noFavoriteDags": "لا توجد مفضلات بعد. انقر على أيقونة النجمة بجانب Dag في القائمة لإضافته إلى مفضلاتك."
   },
