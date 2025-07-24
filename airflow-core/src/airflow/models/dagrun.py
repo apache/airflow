@@ -1363,7 +1363,7 @@ class DagRun(Base, LoggingMixin):
         # or LocalTaskJob, so we don't want to "falsely advertise" we notify about that
 
     @provide_session
-    def get_last_ti(self, dag: DAG, session: Session = NEW_SESSION) -> TI:
+    def get_last_ti(self, dag: DAG, session: Session = NEW_SESSION) -> TI | None:
         """Get Last TI from the dagrun to build and pass Execution context object from server to then run callbacks."""
         tis = self.get_task_instances(session=session)
         # tis from a dagrun may not be a part of dag.partial_subset,
@@ -1374,6 +1374,8 @@ class DagRun(Base, LoggingMixin):
             tis = [ti for ti in tis if not ti.state == State.NONE]
         # filter out removed tasks
         tis = [ti for ti in tis if ti.state != TaskInstanceState.REMOVED]
+        if not tis:
+            return None
         ti = tis[-1]  # get last TaskInstance of DagRun
         return ti
 
@@ -1387,37 +1389,44 @@ class DagRun(Base, LoggingMixin):
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
         last_ti = self.get_last_ti(dag)  # type: ignore[arg-type]
-        last_ti_model = TIDataModel.model_validate(last_ti, from_attributes=True)
-        task = dag.get_task(last_ti.task_id)
+        if last_ti:
+            last_ti_model = TIDataModel.model_validate(last_ti, from_attributes=True)
+            task = dag.get_task(last_ti.task_id)
 
-        dag_run_data = DRDataModel(
-            dag_id=self.dag_id,
-            run_id=self.run_id,
-            logical_date=self.logical_date,
-            data_interval_start=self.data_interval_start,
-            data_interval_end=self.data_interval_end,
-            run_after=self.run_after,
-            start_date=self.start_date,
-            end_date=self.end_date,
-            run_type=self.run_type,
-            state=self.state,
-            conf=self.conf,
-            consumed_asset_events=[],
-        )
+            dag_run_data = DRDataModel(
+                dag_id=self.dag_id,
+                run_id=self.run_id,
+                logical_date=self.logical_date,
+                data_interval_start=self.data_interval_start,
+                data_interval_end=self.data_interval_end,
+                run_after=self.run_after,
+                start_date=self.start_date,
+                end_date=self.end_date,
+                run_type=self.run_type,
+                state=self.state,
+                conf=self.conf,
+                consumed_asset_events=[],
+            )
 
-        runtime_ti = RuntimeTaskInstance.model_construct(
-            **last_ti_model.model_dump(exclude_unset=True),
-            task=task,
-            _ti_context_from_server=TIRunContext(
-                dag_run=dag_run_data,
+            runtime_ti = RuntimeTaskInstance.model_construct(
+                **last_ti_model.model_dump(exclude_unset=True),
+                task=task,
+                _ti_context_from_server=TIRunContext(
+                    dag_run=dag_run_data,
+                    max_tries=last_ti.max_tries,
+                    variables=[],
+                    connections=[],
+                    xcom_keys_to_clear=[],
+                ),
                 max_tries=last_ti.max_tries,
-                variables=[],
-                connections=[],
-                xcom_keys_to_clear=[],
-            ),
-            max_tries=last_ti.max_tries,
-        )
-        context = runtime_ti.get_template_context()
+            )
+            context = runtime_ti.get_template_context()
+        else:
+            context = {
+                "dag": dag,
+                "run_id": self.run_id,
+            }
+
         context["reason"] = reason
 
         callbacks = dag.on_success_callback if success else dag.on_failure_callback
