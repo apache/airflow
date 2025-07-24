@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-24T07:50:35.997526
+# This constraints file was automatically generated on 2025-07-24T13:57:57.665280
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -377,7 +377,7 @@ google-cloud-redis==2.18.1
 google-cloud-resource-manager==1.14.2
 google-cloud-run==0.10.19
 google-cloud-secret-manager==2.24.0
-google-cloud-spanner==3.55.0
+google-cloud-spanner==3.56.0
 google-cloud-speech==2.33.0
 google-cloud-storage-transfer==1.17.0
 google-cloud-storage==2.19.0
@@ -415,7 +415,7 @@ httplib2==0.22.0
 httptools==0.6.4
 httpx-sse==0.4.0
 httpx==0.28.1
-huggingface-hub==0.33.4
+huggingface-hub==0.33.5
 humanize==4.12.3
 hvac==2.3.0
 hyperframe==6.1.0
@@ -804,7 +804,7 @@ virtualenv==20.32.0
 watchfiles==1.1.0
 watchtower==3.4.0
 wcwidth==0.2.13
-weaviate-client==4.16.3
+weaviate-client==4.16.4
 webencodings==0.5.1
 websocket-client==1.8.0
 websockets==15.0.1
