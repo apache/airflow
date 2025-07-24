@@ -78,7 +78,7 @@
     "notFound": "Page Not Found",
     "title": "Error"
   },
-  "expand":{
+  "expand": {
     "collapse": "Collapse",
     "expand": "Expand",
     "hotkey": "e",
