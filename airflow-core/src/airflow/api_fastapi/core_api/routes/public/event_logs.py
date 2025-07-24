@@ -116,7 +116,7 @@ def get_event_logs(
     ],
 ) -> EventLogCollectionResponse:
     """Get all Event Logs."""
-    query = select(Log).group_by(Log.id)
+    query = select(Log)
     event_logs_select, total_entries = paginated_select(
         statement=query,
         order_by=order_by,
