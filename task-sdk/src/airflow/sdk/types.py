@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any, Protocol, TypeAlias
+from typing import TYPE_CHECKING, Any, Protocol, TypeAlias, TypeGuard
 
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
@@ -35,6 +35,10 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.mappedoperator import MappedOperator
 
     Operator: TypeAlias = BaseOperator | MappedOperator
+
+
+def is_mapped(task: BaseOperator | MappedOperator) -> TypeGuard[MappedOperator]:
+    return task.is_mapped
 
 
 class DagRunProtocol(Protocol):

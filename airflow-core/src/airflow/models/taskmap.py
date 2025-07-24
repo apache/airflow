@@ -131,14 +131,14 @@ class TaskMap(TaskInstanceDependencies):
             order by map index, and the maximum map index value.
         """
         from airflow.models.expandinput import NotFullyPopulated
-        from airflow.models.mappedoperator import get_mapped_ti_count
+        from airflow.models.mappedoperator import MappedOperator as DbMappedOperator, get_mapped_ti_count
         from airflow.models.taskinstance import TaskInstance
         from airflow.sdk.bases.operator import BaseOperator
         from airflow.sdk.definitions.mappedoperator import MappedOperator
         from airflow.serialization.serialized_objects import SerializedBaseOperator
         from airflow.settings import task_instance_mutation_hook
 
-        if not isinstance(task, (BaseOperator, MappedOperator, SerializedBaseOperator)):
+        if not isinstance(task, (BaseOperator, MappedOperator, SerializedBaseOperator, DbMappedOperator)):
             raise RuntimeError(
                 f"cannot expand unrecognized operator type {type(task).__module__}.{type(task).__name__}"
             )
