@@ -2367,7 +2367,7 @@ class TestDatabricksNotebookOperator:
 
         with pytest.raises(AirflowException) as exec_info:
             operator.monitor_databricks_job()
-        exception_message = "Task failed. Final state FAILED. Reason: FAILURE"
+        exception_message = "Task failed. Final state FAILED. Reason: FAILURE. Errors: []"
         assert exception_message == str(exec_info.value)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
@@ -2413,7 +2413,7 @@ class TestDatabricksNotebookOperator:
 
         with pytest.raises(AirflowException) as exc_info:
             operator.monitor_databricks_job()
-        exception_message = "Task failed. Final state FAILED. Reason: FAILURE"
+        exception_message = "Task failed. Final state FAILED. Reason: FAILURE. Errors: []"
         assert exception_message == str(exc_info.value)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
