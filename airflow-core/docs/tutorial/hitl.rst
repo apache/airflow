@@ -20,9 +20,55 @@ HITLOperator (Human-in-the-loop)
 
 Human-in-the-Loop (HITL) functionality allows you to incorporate human decision-making directly into your workflows.
 This powerful feature enables workflows to pause and wait for human input, making it perfect for approval processes, manual quality checks, and scenarios where human judgment is essential.
-If you are still unsure about its usage and benefits, the following examples will guide you through them.
 
-Example flows include:
+In this tutorial, we will explore how to use the HITL operators in workflows.
+
+A HITL example DAG
+------------------
+
+Here is what HITL looks like in a DAG. We'll break it down and dive into it.
+
+.. exampleinclude:: /../../providers/standard/airflow/providers/standard/example_dags/example_hitl_operator.py
+   :language: python
+   :start-after: [START hitl_tutorial]
+   :end-before: [END hitl_tutorial]
+
+It provides some key features:
+
+Input provision
+---------------
+
+Users can provide input using params that is used for subsequent tasks.
+This is useful for workflows involving human guidance within large language model (LLM) workflows.
+
+.. exampleinclude:: /../../providers/standard/airflow/providers/standard/example_dags/example_hitl_operator.py
+   :language: python
+   :start-after: [START howto_hitl_entry_operator]
+   :end-before: [END howto_hitl_entry_operator]
+
+
+Option selection
+----------------
+
+Input can be provided in the form of options.
+Users can select one of the available options, which can be used to direct the workflow.
+
+.. exampleinclude:: /../../providers/standard/airflow/providers/standard/example_dags/example_hitl_operator.py
+   :language: python
+   :start-after: [START howto_hitl_operator]
+   :end-before: [END howto_hitl_operator]
+
+Approval or Rejection
+---------------------
+
+A specialized form of option selection, which has only 'Approval' and 'Rejection' as options.
+
+.. exampleinclude:: /../../providers/standard/airflow/providers/standard/example_dags/example_hitl_operator.py
+   :language: python
+   :start-after: [START howto_hitl_approval_operator]
+   :end-before: [END howto_hitl_approval_operator]
+
+As you can see in the body of this code snippet, you can use ``Xcoms`` to get information provided by the user.
 
 Branch selection
 ----------------
@@ -30,29 +76,23 @@ Branch selection
 Users can choose which branch to follow within the DAG.
 This is commonly applied in scenarios such as content moderation, where human judgment is sometimes required.
 
+This is like option selection, but the option needs to be a task.
+
 .. exampleinclude:: /../../providers/standard/airflow/providers/standard/example_dags/example_hitl_operator.py
    :language: python
    :start-after: [START howto_hitl_branch_operator]
    :end-before: [END howto_hitl_branch_operator]
 
-Approval or Rejection
----------------------
-
-A specialized form of branch selection.
-Users can approve or reject, thereby directing the workflow along different branches.
+And remember specify their relationship in the workflow.
 
 .. exampleinclude:: /../../providers/standard/airflow/providers/standard/example_dags/example_hitl_operator.py
    :language: python
-   :start-after: [START howto_hitl_approval_operator]
-   :end-before: [END howto_hitl_approval_operator]
+   :start-after: [START howto_hitl_workflow]
+   :end-before: [END howto_hitl_workflow]
 
-Input provision
----------------
 
-Users can provide input that is used for subsequent tasks.
-This is useful for workflows involving human guidance within large language model (LLM) workflosws.
+Benefits and Common Use Cases
+-----------------------------
 
-.. exampleinclude:: /../../providers/standard/airflow/providers/standard/example_dags/example_hitl_operator.py
-   :language: python
-   :start-after: [START howto_hitl_entry_operator]
-   :end-before: [END howto_hitl_entry_operator]
+HITL functionality is particularly valuable in LLM workflows, where human-provided guidance can be essential for achieving better results.
+It is also highly beneficial in enterprise data pipelines, where human validation can complement and enhance automated processes.

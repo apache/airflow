@@ -44,11 +44,13 @@ with DAG(
     )
     # END [howto_hitl_entry_operator]
 
+    # START [howto_hitl_operator]
     wait_for_option = HITLOperator(
         task_id="wait_for_option",
-        subject="Please choose one option to proceeded: ",
+        subject="Please choose one option to proceed: ",
         options=["option 1", "option 2", "option 3"],
     )
+    # END [howto_hitl_operator]
 
     # START [howto_hitl_approval_operator]
     valid_input_and_options = ApprovalOperator(
@@ -71,6 +73,7 @@ with DAG(
     )
     # END [howto_hitl_branch_operator]
 
+    # START [howto_hitl_workflow]
     @task
     def task_1(): ...
 
@@ -86,5 +89,6 @@ with DAG(
         >> choose_a_branch_to_run
         >> [task_1(), task_2(), task_3()]
     )
+    # END [howto_hitl_workflow]
 
 # END [hitl_tutorial]
