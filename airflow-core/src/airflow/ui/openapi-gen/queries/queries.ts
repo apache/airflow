@@ -538,6 +538,17 @@ export const useDagServiceGetDagsUi = <TData = Common.DagServiceGetDagsUiDefault
   tagsMatchMode?: "any" | "all";
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagServiceGetDagsUiKeyFn({ dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }, queryKey), queryFn: () => DagService.getDagsUi({ dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }) as TData, ...options });
 /**
+* Get Latest Run Info
+* Get latest run.
+* @param data The data for the request.
+* @param data.dagId
+* @returns DAGRunLightResponse Successful Response
+* @throws ApiError
+*/
+export const useDagServiceGetLatestRunInfo = <TData = Common.DagServiceGetLatestRunInfoDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId }: {
+  dagId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagServiceGetLatestRunInfoKeyFn({ dagId }, queryKey), queryFn: () => DagService.getLatestRunInfo({ dagId }) as TData, ...options });
+/**
 * Get Event Log
 * @param data The data for the request.
 * @param data.eventLogId
@@ -1206,10 +1217,32 @@ export const useHumanInTheLoopServiceGetMappedTiHitlDetail = <TData = Common.Hum
 /**
 * Get Hitl Details
 * Get Human-in-the-loop details.
+* @param data The data for the request.
+* @param data.limit
+* @param data.offset
+* @param data.orderBy
+* @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.dagRunId
+* @param data.state
+* @param data.responseReceived
+* @param data.userId
+* @param data.subjectSearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.bodySearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @returns HITLDetailCollection Successful Response
 * @throws ApiError
 */
-export const useHumanInTheLoopServiceGetHitlDetails = <TData = Common.HumanInTheLoopServiceGetHitlDetailsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailsKeyFn(queryKey), queryFn: () => HumanInTheLoopService.getHitlDetails() as TData, ...options });
+export const useHumanInTheLoopServiceGetHitlDetails = <TData = Common.HumanInTheLoopServiceGetHitlDetailsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ bodySearch, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, userId }: {
+  bodySearch?: string;
+  dagIdPattern?: string;
+  dagRunId?: string;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  responseReceived?: boolean;
+  state?: string[];
+  subjectSearch?: string;
+  userId?: string[];
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailsKeyFn({ bodySearch, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, userId }, queryKey), queryFn: () => HumanInTheLoopService.getHitlDetails({ bodySearch, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, userId }) as TData, ...options });
 /**
 * Get Health
 * @returns HealthInfoResponse Successful Response

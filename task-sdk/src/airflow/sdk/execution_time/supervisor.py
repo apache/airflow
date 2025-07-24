@@ -42,6 +42,7 @@ from typing import (
     TextIO,
     cast,
 )
+from urllib.parse import urlparse
 from uuid import UUID
 
 import attrs
@@ -81,6 +82,7 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetDagRunState,
     GetDRCount,
+    GetPreviousDagRun,
     GetPrevSuccessfulDagRun,
     GetTaskRescheduleStartDate,
     GetTaskStates,
@@ -1224,6 +1226,12 @@ class ActivitySubprocess(WatchedSubprocess):
                 run_ids=msg.run_ids,
                 states=msg.states,
             )
+        elif isinstance(msg, GetPreviousDagRun):
+            resp = self.client.dag_runs.get_previous(
+                dag_id=msg.dag_id,
+                logical_date=msg.logical_date,
+                state=msg.state,
+            )
         elif isinstance(msg, DeleteVariable):
             resp = self.client.variables.delete(msg.key)
         elif isinstance(msg, ValidateInletsAndOutlets):
@@ -1401,20 +1409,17 @@ class InProcessTestSupervisor(ActivitySubprocess):
 
     @staticmethod
     def _api_client(dag=None):
-        from airflow.models.dagbag import DagBag
         from airflow.sdk.api.client import Client
 
         api = in_process_api_server()
         if dag is not None:
             from airflow.api_fastapi.common.dagbag import dag_bag_from_app
-            from airflow.serialization.serialized_objects import SerializedDAG
+            from airflow.jobs.scheduler_job_runner import SchedulerDagBag
 
-            # This is needed since the Execution API server uses the DagBag in its "state".
+            # This is needed since the Execution API server uses the SchedulerDagBag in its "state".
             # This `app.state.dag_bag` is used to get some DAG properties like `fail_fast`.
-            dag_bag = DagBag(include_examples=False, collect_dags=False, load_op_links=False)
+            dag_bag = SchedulerDagBag()
 
-            # Mimic the behavior of the DagBag in the API server by converting the DAG to a SerializedDAG
-            dag_bag.dags[dag.dag_id] = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
             api.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag
 
         client = Client(base_url=None, token="", dry_run=True, transport=api.transport)
@@ -1650,12 +1655,42 @@ def supervise(
     :param subprocess_logs_to_stdout: Should task logs also be sent to stdout via the main logger.
     :param client: Optional preconfigured client for communication with the server (Mostly for tests).
     :return: Exit code of the process.
+    :raises ValueError: If server URL is empty or invalid.
     """
     # One or the other
     from airflow.sdk.execution_time.secrets_masker import reset_secrets_masker
 
-    if not client and ((not server) ^ dry_run):
-        raise ValueError(f"Can only specify one of {server=} or {dry_run=}")
+    if not client:
+        if dry_run and server:
+            raise ValueError(f"Can only specify one of {server=} or {dry_run=}")
+
+        if not dry_run:
+            if not server:
+                raise ValueError(
+                    "Invalid execution API server URL. Please ensure that a valid URL is configured."
+                )
+
+            try:
+                parsed_url = urlparse(server)
+            except Exception as e:
+                raise ValueError(
+                    f"Invalid execution API server URL '{server}': {e}. "
+                    "Please ensure that a valid URL is configured."
+                ) from e
+
+            if parsed_url.scheme not in ("http", "https"):
+                raise ValueError(
+                    f"Invalid execution API server URL '{server}': "
+                    "URL must use http:// or https:// scheme. "
+                    "Please ensure that a valid URL is configured."
+                )
+
+            if not parsed_url.netloc:
+                raise ValueError(
+                    f"Invalid execution API server URL '{server}': "
+                    "URL must include a valid host. "
+                    "Please ensure that a valid URL is configured."
+                )
 
     if not dag_rel_path:
         raise ValueError("dag_path is required")

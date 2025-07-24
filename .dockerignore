@@ -47,6 +47,7 @@
 !helm-tests
 !kubernetes-tests
 !task-sdk-tests
+!shared/
 
 # Add scripts so that we can use them inside the container
 !scripts

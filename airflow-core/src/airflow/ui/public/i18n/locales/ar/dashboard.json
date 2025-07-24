@@ -1,4 +1,14 @@
 {
+  "favorite": {
+    "favoriteDags_few":   "أول {{count}} Dags مفضلة",
+    "favoriteDags_many":  "أول {{count}} Dags مفضلة",
+    "favoriteDags_one":   "أول Dag مفضل",
+    "favoriteDags_other": "أول {{count}} Dags مفضلة",
+    "favoriteDags_two":   "أول 2 Dags المفضلة",
+    "favoriteDags_zero":  "لا توجد أي Dags مفضلة",
+    "noDagRuns": "لا توجد تشغيلات لهذا الDag",
+    "noFavoriteDags": "لا توجد مفضلات بعد. انقر على أيقونة النجمة بجانب Dag في القائمة لإضافته إلى مفضلاتك."
+  },
   "group": "المجموعة",
   "health": {
     "dagProcessor": "معالج الDag",
@@ -13,8 +23,12 @@
   },
   "history": "التاريخ",
   "importErrors": {
-    "dagImportError_one": "خطأ في استيراد Dag",
+    "dagImportError_few": "أخطاء في استيراد Dag",
+    "dagImportError_many": "أخطاء في استيراد Dag",
+    "dagImportError_one": "خطأ واحد في استيراد Dag",
     "dagImportError_other": "أخطاء في استيراد Dag",
+    "dagImportError_two": "خطآن في استيراد Dag",
+    "dagImportError_zero": "لا يوجد أي خطأ في استيراد Dag",
     "searchByFile": "البحث بالملف",
     "timestamp": "الختم الزمني"
   },

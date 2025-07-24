@@ -701,7 +701,7 @@ def load(
     from_run: str | None,
     from_pr: str | None,
     github_repository: str,
-    github_token: str,
+    github_token: str | None,
     image_file: Path | None,
     image_file_dir: Path,
     platform: str,
@@ -711,6 +711,13 @@ def load(
     """Load PROD image from a file."""
     perform_environment_checks()
     escaped_platform = platform.replace("/", "_")
+
+    if from_run or from_pr and not github_token:
+        get_console().print(
+            "[error]The parameter `--github-token` must be provided if `--from-run` or `--from-pr` is "
+            "provided. Exiting.[/]"
+        )
+        sys.exit(1)
 
     if not image_file:
         image_file_to_load = image_file_dir / f"prod-image-save-{escaped_platform}-{python}.tar"
