@@ -91,14 +91,7 @@ services:
 
   airflow-scheduler:
     <<: *airflow-common
-    entrypoint: /bin/bash
-    command:
-      - -c
-      - |
-        echo "Installing Task SDK version: ${TASK_SDK_VERSION:-1.1.0}"
-        pip install --no-deps apache-airflow-task-sdk==${TASK_SDK_VERSION:-1.1.0}
-        echo "Starting Airflow scheduler..."
-        /entrypoint airflow scheduler
+    command: scheduler
     healthcheck:
       test: ["CMD", "airflow", "jobs", "check", "--job-type", "SchedulerJob"]
       interval: 30s

@@ -802,7 +802,7 @@ def task_sdk_integration_tests(
         build_params = BuildProdParams(python=python, github_repository=github_repository)
         image_name = build_params.airflow_image_name
 
-    # Set the TASK_SDK_VERSION environment variable for the test
+    # Export the TASK_SDK_VERSION environment variable for the test
     import os
 
     os.environ["TASK_SDK_VERSION"] = task_sdk_version

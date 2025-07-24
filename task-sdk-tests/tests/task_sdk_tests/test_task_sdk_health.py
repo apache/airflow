@@ -56,6 +56,7 @@ def print_diagnostics(compose, compose_version, docker_version):
 
 def debug_environment():
     """Debug the Python environment setup in CI."""
+
     import os
     import subprocess
     import sys
@@ -67,18 +68,15 @@ def debug_environment():
     console.print(f"[blue]VIRTUAL_ENV: {os.environ.get('VIRTUAL_ENV', 'Not set')}")
     console.print(f"[blue]PYTHONPATH: {os.environ.get('PYTHONPATH', 'Not set')}")
 
-    # Check if Python executable exists and what it points to
     console.print(f"[blue]Python executable exists: {Path(sys.executable).exists()}")
     if Path(sys.executable).is_symlink():
         console.print(f"[blue]Python executable is symlink to: {Path(sys.executable).readlink()}")
 
-    # Check what UV sees
     try:
         uv_python = subprocess.check_output(["uv", "python", "find"], text=True).strip()
         console.print(f"[cyan]UV Python: {uv_python}")
         console.print(f"[green]Match: {uv_python == sys.executable}")
 
-        # Check if UV's Python exists and what it points to
         console.print(f"[cyan]UV Python exists: {Path(uv_python).exists()}")
         if Path(uv_python).is_symlink():
             console.print(f"[cyan]UV Python is symlink to: {Path(uv_python).readlink()}")
@@ -93,15 +91,10 @@ def debug_environment():
     except ImportError:
         console.print("[red]❌ airflow not available in current environment")
 
-    # Check if we can import sys after UV operations
-    console.print("[blue]sys.path first few entries:")
-    for i, path in enumerate(sys.path[:5]):
-        console.print(f"  {i}: {path}")
-
     console.print("[yellow]================================")
 
 
-def test_task_sdk_health(tmp_path_factory, monkeypatch, install_task_sdk):
+def test_task_sdk_health(tmp_path_factory, monkeypatch):
     """Test Task SDK health check using docker-compose environment."""
     tmp_dir = tmp_path_factory.mktemp("airflow-task-sdk-test")
     console.print(f"[yellow]Tests are run in {tmp_dir}")
@@ -117,14 +110,9 @@ def test_task_sdk_health(tmp_path_factory, monkeypatch, install_task_sdk):
     # Initialize Docker client
     compose = DockerClient(compose_files=[str(tmp_docker_compose_file)])
 
-    debug_environment()
-
     try:
         compose.compose.up(detach=True, wait=True)
-        console.print("[green]Docker compose started for task SDK test")
-
-        # Task SDK is already installed via fixture, so we can import it directly
-        console.print("[yellow]Importing Task SDK client (installed via fixture)...")
+        console.print("[green]Docker compose started for task SDK test\n")
 
         try:
             from airflow.sdk.api.client import Client
@@ -134,7 +122,6 @@ def test_task_sdk_health(tmp_path_factory, monkeypatch, install_task_sdk):
             console.print(f"[red]❌ Failed to import Task SDK client: {e}")
             raise
 
-        # Create client and make health check request
         client = Client(base_url=f"http://{TASK_SDK_HOST_PORT}/execution", token="not-a-token")
 
         console.print("[yellow]Making health check request...")
@@ -142,11 +129,7 @@ def test_task_sdk_health(tmp_path_factory, monkeypatch, install_task_sdk):
 
         console.print(" Health Check Response ".center(72, "="))
         console.print(f"[bright_blue]Status Code:[/] {response.status_code}")
-        console.print("[bright_blue]Response Headers:[/]")
-        for key, value in response.headers.items():
-            console.print(f"  {key}: {value}")
-        console.print("[bright_blue]Response Body:[/]")
-        console.print(response.json())
+        console.print(f"[bright_blue]Response:[/] {response.json()}")
         console.print("=" * 72)
 
         assert response.status_code == 200
