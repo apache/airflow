@@ -191,7 +191,7 @@ ALLOWED_POSTGRES_VERSIONS = ["13", "14", "15", "16", "17"]
 # - Innovations: Shot living releases with short support cycle - only until next Innovation/LTS release.
 # See: https://dev.mysql.com/blog-archive/introducing-mysql-innovation-and-long-term-support-lts-versions/
 MYSQL_LTS_RELEASES: list[str] = ["8.4"]
-MYSQL_OLD_RELEASES = ["8.0"]
+MYSQL_OLD_RELEASES = ["8.4"]
 MYSQL_INNOVATION_RELEASE: str | None = None
 ALLOWED_MYSQL_VERSIONS = [*MYSQL_OLD_RELEASES, *MYSQL_LTS_RELEASES]
 if MYSQL_INNOVATION_RELEASE:
