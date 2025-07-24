@@ -1,0 +1,6 @@
+{
+    "devDependencies": {
+        "@testing-library/jest-dom": "^6.6.3",
+        "vitest": "^3.2.4"
+    }
+}
