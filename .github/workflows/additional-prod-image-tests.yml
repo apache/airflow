@@ -159,7 +159,7 @@ jobs:
       - name: "Test docker-compose quick start"
         run: breeze testing docker-compose-tests
 
-  test-task-sdk:
+  task-sdk-integration-tests:
     timeout-minutes: 60
     name: "Task SDK integration tests with PROD image"
     runs-on: ${{ fromJSON(inputs.runners) }}
