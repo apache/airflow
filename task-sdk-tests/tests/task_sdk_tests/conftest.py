@@ -42,29 +42,21 @@ def pytest_sessionstart(session):
     console.print(f"[blue]Current Python: {sys.executable}")
 
     try:
-        # Install to current environment without --python flag
         cmd = ["uv", "pip", "install", str(task_sdk_path)]
         console.print(f"[cyan]Running command: {' '.join(cmd)}")
         subprocess.check_call(cmd)
         console.print("[green]Task SDK installed successfully to UV environment via pytest_sessionstart!")
-    except (subprocess.CalledProcessError, FileNotFoundError) as uv_error:
-        console.print(f"[yellow]UV installation failed: {uv_error}")
-        console.print("[yellow]Trying fallback with pip in current environment...")
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        console.print(f"[yellow]UV installation failed: {e}")
+        raise
 
-        # Fallback to pip in current environment
-        cmd = [sys.executable, "-m", "pip", "install", str(task_sdk_path)]
-        console.print(f"[cyan]Running fallback command: {' '.join(cmd)}")
-        subprocess.check_call(cmd)
-        console.print("[green]Task SDK installed successfully with pip via pytest_sessionstart!")
-
-    # Verify installation
-    console.print("[yellow]Verifying installation via pytest_sessionstart...")
+    console.print("[yellow]Verifying task Task installation via pytest_sessionstart...")
     try:
         result = subprocess.run(
             [
                 sys.executable,
                 "-c",
-                "import airflow.sdk.api.client; print('✅ Import successful via pytest_sessionstart')",
+                "import airflow.sdk.api.client; print('✅ Task SDK import successful via pytest_sessionstart')",
             ],
             capture_output=True,
             text=True,
@@ -72,7 +64,7 @@ def pytest_sessionstart(session):
         )
         console.print(f"[green]{result.stdout.strip()}")
     except subprocess.CalledProcessError as e:
-        console.print("[red]❌ Import verification failed via pytest_sessionstart:")
+        console.print("[red]❌ Task SDK import verification failed via pytest_sessionstart:")
         console.print(f"[red]Return code: {e.returncode}")
         console.print(f"[red]Stdout: {e.stdout}")
         console.print(f"[red]Stderr: {e.stderr}")
