@@ -68,6 +68,7 @@ from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
+from airflow.dual_stats_manager import DualStatsManager
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies
@@ -1234,9 +1235,10 @@ class TaskInstance(Base, LoggingMixin):
         else:
             raise NotImplementedError("no metric emission setup for state %s", new_state)
 
-        # send metric twice, once (legacy) with tags in the name and once with tags as tags
-        Stats.timing(f"dag.{self.dag_id}.{self.task_id}.{metric_name}", timing)
-        Stats.timing(
+        # If enabled on the config, publish metrics twice,
+        # once with backward compatible name, and then with tags.
+        DualStatsManager.timing(
+            f"dag.{self.dag_id}.{self.task_id}.{metric_name}",
             f"task.{metric_name}",
             timing,
             tags={"task_id": self.task_id, "dag_id": self.dag_id, "queue": self.queue},
@@ -1456,9 +1458,13 @@ class TaskInstance(Base, LoggingMixin):
         ti.end_date = timezone.utcnow()
         ti.set_duration()
 
-        Stats.incr(f"operator_failures_{ti.operator}", tags=ti.stats_tags)
-        # Same metric with tagging
-        Stats.incr("operator_failures", tags={**ti.stats_tags, "operator": ti.operator})
+        # If enabled on the config, publish metrics twice,
+        # once with backward compatible name, and then with tags.
+        DualStatsManager.incr(
+            f"operator_failures_{ti.operator}",
+            "operator_failures",
+            tags={**ti.stats_tags, "operator": ti.operator},
+        )
         Stats.incr("ti_failures", tags=ti.stats_tags)
 
         if not test_mode:

@@ -25,6 +25,7 @@ from sqlalchemy import select, update
 from airflow.api_fastapi.common.db.common import SessionDep  # noqa: TC001
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.dual_stats_manager import DualStatsManager
 from airflow.executors.workloads import ExecuteTask
 from airflow.providers.common.compat.sdk import Stats, timezone
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
@@ -86,8 +87,11 @@ def fetch(
     session.commit()
     # Edge worker does not backport emitted Airflow metrics, so export some metrics
     tags = {"dag_id": job.dag_id, "task_id": job.task_id, "queue": job.queue}
-    Stats.incr(f"edge_worker.ti.start.{job.queue}.{job.dag_id}.{job.task_id}", tags=tags)
-    Stats.incr("edge_worker.ti.start", tags=tags)
+    # If enabled on the config, publish metrics twice,
+    # once with backward compatible name, and then with tags.
+    DualStatsManager.incr(
+        f"edge_worker.ti.start.{job.queue}.{job.dag_id}.{job.task_id}", "edge_worker.ti.start", tags=tags
+    )
     return EdgeJobFetched(
         dag_id=job.dag_id,
         task_id=job.task_id,
