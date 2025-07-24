@@ -184,11 +184,10 @@ class Deadline(Base):
         session.add(self)
 
     def handle_callback_event(self, event: TriggerEvent, session: Session):
-        if (
-            (status := event.payload.get(PAYLOAD_STATUS_KEY))
-            and isinstance(status, DeadlineCallbackState)
-            and status is not DeadlineCallbackState.QUEUED
-        ):
+        if (status := event.payload.get(PAYLOAD_STATUS_KEY)) and status in {
+            DeadlineCallbackState.SUCCESS,
+            DeadlineCallbackState.FAILED,
+        }:
             self.trigger = None
             self.callback_state = event.payload[PAYLOAD_STATUS_KEY]
             session.add(self)

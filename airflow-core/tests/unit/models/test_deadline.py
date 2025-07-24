@@ -222,13 +222,15 @@ class TestDeadline:
             ),
             pytest.param(
                 TriggerEvent(
-                    {
-                        PAYLOAD_STATUS_KEY: DeadlineCallbackState.FAILED,
-                        PAYLOAD_BODY_KEY: "RuntimeError",
-                    }
+                    {PAYLOAD_STATUS_KEY: DeadlineCallbackState.FAILED, PAYLOAD_BODY_KEY: "RuntimeError"}
                 ),
                 True,
                 id="failed_event",
+            ),
+            pytest.param(
+                TriggerEvent({PAYLOAD_STATUS_KEY: DeadlineCallbackState.QUEUED, PAYLOAD_BODY_KEY: ""}),
+                False,
+                id="invalid_event",
             ),
             pytest.param(TriggerEvent({PAYLOAD_STATUS_KEY: "unknown_state"}), False, id="unknown_event"),
         ],
