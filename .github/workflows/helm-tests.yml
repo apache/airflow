@@ -88,6 +88,7 @@ jobs:
     runs-on: ${{ fromJSON(inputs.runners) }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{inputs.default-python-version}}"
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -100,12 +101,10 @@ jobs:
         run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        with:
-          use-uv: ${{ inputs.use-uv }}
       - name: Setup git for tagging
         run: |
-          git config --global user.email "name@example.com"
-          git config --global user.name "Your Name"
+          git config --global user.email "bot@airflow.apache.org"
+          git config --global user.name "Your friendly bot"
       - name: "Remove old artifacts"
         run: rm -rf dist/*
       - name: "Setup k8s/helm environment"

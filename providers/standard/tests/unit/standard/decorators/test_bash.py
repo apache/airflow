@@ -25,7 +25,6 @@ from unittest import mock
 
 import pytest
 
-from airflow.decorators import task
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
 from airflow.utils import timezone
@@ -38,9 +37,11 @@ if TYPE_CHECKING:
     from airflow.providers.standard.operators.bash import BashOperator
 
 if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import task
     from airflow.sdk.definitions._internal.types import SET_DURING_EXECUTION
 else:
     # bad hack but does the job
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
     from airflow.utils.types import NOTSET as SET_DURING_EXECUTION  # type: ignore[assignment]
 
 DEFAULT_DATE = timezone.datetime(2023, 1, 1)
