@@ -155,9 +155,9 @@
   "selectLanguage": "בחר שפה",
   "showDetailsPanel": "הצג לוח פרטים",
   "source": {
-      "hide": "הסתר מקור",
-      "hotkey": "s",
-      "show": "הצג מקור"
+    "hide": "הסתר מקור",
+    "hotkey": "s",
+    "show": "הצג מקור"
   },
   "sourceAssetEvent_one": "אירוע נכס מקור",
   "sourceAssetEvent_other": "אירועי נכס מקור",
