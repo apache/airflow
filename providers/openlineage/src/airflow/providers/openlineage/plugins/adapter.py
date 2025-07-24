@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import os
 import traceback
-from contextlib import ExitStack
 from typing import TYPE_CHECKING, Literal
 
 import yaml
@@ -37,6 +36,7 @@ from openlineage.client.facet_v2 import (
 from openlineage.client.uuid import generate_static_uuid
 
 from airflow.configuration import conf as airflow_conf
+from airflow.dual_stats_manager import DualStatsManager
 from airflow.providers.common.compat.sdk import Stats
 from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION, conf
 from airflow.providers.openlineage.utils.utils import (
@@ -160,9 +160,11 @@ class OpenLineageAdapter(LoggingMixin):
         transport_type = f"{self._client.transport.kind}".lower()
 
         try:
-            with ExitStack() as stack:
-                stack.enter_context(Stats.timer(f"ol.emit.attempts.{event_type}.{transport_type}"))
-                stack.enter_context(Stats.timer("ol.emit.attempts"))
+            # If enabled on the config, publish metrics twice,
+            # once with backward compatible name, and then with tags.
+            with DualStatsManager.timer(
+                f"ol.emit.attempts.{event_type}.{transport_type}", "ol.emit.attempts"
+            ):
                 self._client.emit(redacted_event)
                 self.log.info(
                     "Successfully emitted OpenLineage `%s` event of id `%s`",
