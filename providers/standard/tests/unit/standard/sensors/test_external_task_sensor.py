@@ -1024,7 +1024,7 @@ exit 0
 
     @pytest.mark.execution_timeout(10)
     def test_external_task_sensor_deferrable(self, dag_maker):
-        context = {}
+        context = {"execution_date": DEFAULT_DATE}
         with dag_maker() as dag:
             op = ExternalTaskSensor(
                 task_id="test_external_task_sensor_check",
