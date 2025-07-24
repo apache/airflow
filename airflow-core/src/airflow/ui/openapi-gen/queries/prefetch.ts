@@ -538,6 +538,17 @@ export const prefetchUseDagServiceGetDagsUi = (queryClient: QueryClient, { dagDi
   tagsMatchMode?: "any" | "all";
 } = {}) => queryClient.prefetchQuery({ queryKey: Common.UseDagServiceGetDagsUiKeyFn({ dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }), queryFn: () => DagService.getDagsUi({ dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }) });
 /**
+* Get Latest Run Info
+* Get latest run.
+* @param data The data for the request.
+* @param data.dagId
+* @returns DAGRunLightResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseDagServiceGetLatestRunInfo = (queryClient: QueryClient, { dagId }: {
+  dagId: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseDagServiceGetLatestRunInfoKeyFn({ dagId }), queryFn: () => DagService.getLatestRunInfo({ dagId }) });
+/**
 * Get Event Log
 * @param data The data for the request.
 * @param data.eventLogId

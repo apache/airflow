@@ -21,11 +21,11 @@ import time
 from datetime import datetime
 from time import sleep
 
+from airflow._shared.timezones.timezone import utcnow
 from airflow.models.dag import DAG
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.session import create_session
 from airflow.utils.state import State
-from airflow.utils.timezone import utcnow
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 
