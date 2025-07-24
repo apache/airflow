@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import argparse
-import re
+import ast
 import sys
 from pathlib import Path
 
@@ -28,31 +28,28 @@ from common_precommit_utils import console
 
 
 def check_file_for_sdk_imports(file_path: Path) -> list[tuple[int, str]]:
-    """Check file for airflow.sdk imports. Returns list of (line_num, line_content)."""
-
+    """Check file for airflow.sdk imports. Returns list of (line_num, import_statement)."""
     try:
         with open(file_path, encoding="utf-8") as f:
-            content = f.read()
-    except (OSError, UnicodeDecodeError):
+            source = f.read()
+            tree = ast.parse(source, filename=str(file_path))
+    except (OSError, UnicodeDecodeError, SyntaxError):
         return []
 
-    if "airflow.sdk" not in content:
-        return []
+    mismatches = []
 
-    match = []
-    for line_num, line in enumerate(content.splitlines(), 1):
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            if node.module and ("airflow.sdk" in node.module):
+                import_names = ", ".join(alias.name for alias in node.names)
+                statement = f"from {node.module} import {import_names}"
+                mismatches.append((node.lineno, statement))
 
-        if re.search(r"(?:from\s+|import\s+)airflow\.sdk", line):
-            match.append((line_num, line))
-
-    return match
+    return mismatches
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Check for task SDK imports in airflow-core files")
+    parser = argparse.ArgumentParser(description="Check for SDK imports in airflow-core files")
     parser.add_argument("files", nargs="*", help="Files to check")
     args = parser.parse_args()
 
@@ -60,19 +57,19 @@ def main():
         return
 
     files_to_check = [Path(f) for f in args.files if f.endswith(".py")]
-    mismatches = 0
+    total_violations = 0
 
     for file_path in files_to_check:
-        violations = check_file_for_sdk_imports(file_path)
-        if violations:
+        mismatches = check_file_for_sdk_imports(file_path)
+        if mismatches:
             console.print(f"[red]{file_path}[/red]:")
-            for line_num, line in violations:
-                console.print(f"  [yellow]Line {line_num}[/yellow]: {line}")
-            mismatches += len(violations)
+            for line_num, statement in mismatches:
+                console.print(f"  [yellow]Line {line_num}[/yellow]: {statement}")
+            total_violations += len(mismatches)
 
-    if mismatches:
+    if total_violations:
         console.print()
-        console.print(f"[red] Found {mismatches} SDK import(s) in core files[/red]")
+        console.print(f"[red]Found {total_violations} SDK import(s) in core files[/red]")
         sys.exit(1)
 
 
