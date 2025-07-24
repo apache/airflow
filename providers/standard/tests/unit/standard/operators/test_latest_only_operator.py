@@ -317,7 +317,7 @@ class TestLatestOnlyOperator:
         """Test latest_only running in normal mode."""
         with dag_maker(
             "test_dag",
-            start_date=datetime.datetime(2024, 12, 11),
+            start_date=DEFAULT_DATE,
             schedule="* * * * *",
             catchup=False,
         ):
