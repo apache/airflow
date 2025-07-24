@@ -107,7 +107,7 @@ class LatestOnlyOperator(BaseBranchOperator):
         if dag_run.data_interval_end:
             end = pendulum.instance(dag_run.data_interval_end)
         else:
-            end= dagrun_date
+            end = dagrun_date
 
         current_interval = DataInterval(
             start=start,
