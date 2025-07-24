@@ -167,8 +167,8 @@ with DAG(
                     {
                         "environment": [
                             {
-                                "name": str(key),
-                                "value": str(value)
+                                "name": key,
+                                "value": value
                             } for key, value in mock_mwaa_environment_params.items()
                         ]
                     }
