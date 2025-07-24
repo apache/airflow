@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Integer, String, delete, select
 from sqlalchemy.orm import Mapped
 
+from airflow.dual_stats_manager import DualStatsManager
 from airflow.models.base import Base
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
@@ -173,23 +174,45 @@ def set_metrics(
         EdgeWorkerState.OFFLINE_MAINTENANCE,
     )
 
-    Stats.gauge(f"edge_worker.connected.{worker_name}", int(connected))
-    Stats.gauge("edge_worker.connected", int(connected), tags={"worker_name": worker_name})
+    # If enabled on the config, publish metrics twice,
+    # once with backward compatible name, and then with tags.
+    DualStatsManager.gauge(
+        f"edge_worker.connected.{worker_name}",
+        "edge_worker.connected",
+        int(connected),
+        tags={"worker_name": worker_name},
+    )
 
-    Stats.gauge(f"edge_worker.maintenance.{worker_name}", int(maintenance))
-    Stats.gauge("edge_worker.maintenance", int(maintenance), tags={"worker_name": worker_name})
+    DualStatsManager.gauge(
+        f"edge_worker.maintenance.{worker_name}",
+        "edge_worker.maintenance",
+        int(maintenance),
+        tags={"worker_name": worker_name},
+    )
 
-    Stats.gauge(f"edge_worker.jobs_active.{worker_name}", jobs_active)
-    Stats.gauge("edge_worker.jobs_active", jobs_active, tags={"worker_name": worker_name})
+    DualStatsManager.gauge(
+        f"edge_worker.jobs_active.{worker_name}",
+        "edge_worker.jobs_active",
+        jobs_active,
+        tags={"worker_name": worker_name},
+    )
 
-    Stats.gauge(f"edge_worker.concurrency.{worker_name}", concurrency)
-    Stats.gauge("edge_worker.concurrency", concurrency, tags={"worker_name": worker_name})
+    DualStatsManager.gauge(
+        f"edge_worker.concurrency.{worker_name}",
+        "edge_worker.concurrency",
+        concurrency,
+        tags={"worker_name": worker_name},
+    )
 
-    Stats.gauge(f"edge_worker.free_concurrency.{worker_name}", free_concurrency)
-    Stats.gauge("edge_worker.free_concurrency", free_concurrency, tags={"worker_name": worker_name})
+    DualStatsManager.gauge(
+        f"edge_worker.free_concurrency.{worker_name}",
+        "edge_worker.free_concurrency",
+        free_concurrency,
+        tags={"worker_name": worker_name},
+    )
 
-    Stats.gauge(f"edge_worker.num_queues.{worker_name}", len(queues))
-    Stats.gauge(
+    DualStatsManager.gauge(
+        f"edge_worker.num_queues.{worker_name}",
         "edge_worker.num_queues",
         len(queues),
         tags={"worker_name": worker_name, "queues": ",".join(queues)},

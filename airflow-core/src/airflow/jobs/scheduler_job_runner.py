@@ -48,6 +48,7 @@ from airflow.callbacks.callback_requests import (
 )
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
+from airflow.dual_stats_manager import DualStatsManager
 from airflow.exceptions import DagNotFound
 from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
@@ -748,9 +749,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
         for pool_name, num_starving_tasks in pool_num_starving_tasks.items():
-            Stats.gauge(f"pool.starving_tasks.{pool_name}", num_starving_tasks)
-            # Same metric with tagging
-            Stats.gauge("pool.starving_tasks", num_starving_tasks, tags={"pool_name": pool_name})
+            # If enabled on the config, publish metrics twice,
+            # once with backward compatible name, and then with tags.
+            DualStatsManager.gauge(
+                f"pool.starving_tasks.{pool_name}",
+                "pool.starving_tasks",
+                num_starving_tasks,
+                tags={"pool_name": pool_name},
+            )
 
         Stats.gauge("scheduler.tasks.starving", num_starving_tasks_total)
         Stats.gauge("scheduler.tasks.executable", len(executable_tis))
@@ -2008,9 +2014,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             ):
                 expected_start_date = dag_run.run_after
                 schedule_delay = dag_run.start_date - expected_start_date
-                # Publish metrics twice with backward compatible name, and then with tags
-                Stats.timing(f"dagrun.schedule_delay.{dag.dag_id}", schedule_delay)
-                Stats.timing(
+                # If enabled on the config, publish metrics twice,
+                # once with backward compatible name, and then with tags.
+                DualStatsManager.timing(
+                    f"dagrun.schedule_delay.{dag.dag_id}",
                     "dagrun.schedule_delay",
                     schedule_delay,
                     tags={"dag_id": dag.dag_id},
@@ -2179,8 +2186,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 dag_run.notify_dagrun_state_changed(msg="timed_out")
                 if dag_run.end_date and dag_run.start_date:
                     duration = dag_run.end_date - dag_run.start_date
-                    Stats.timing(f"dagrun.duration.failed.{dag_run.dag_id}", duration)
-                    Stats.timing("dagrun.duration.failed", duration, tags={"dag_id": dag_run.dag_id})
+                    # If enabled on the config, publish metrics twice,
+                    # once with backward compatible name, and then with tags.
+                    DualStatsManager.timing(
+                        f"dagrun.duration.failed.{dag_run.dag_id}",
+                        "dagrun.duration.failed",
+                        duration,
+                        tags={"dag_id": dag_run.dag_id},
+                    )
                 span.set_attribute("error", True)
                 if span.is_recording():
                     span.add_event(
@@ -2463,17 +2476,22 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             }
 
             for (dag_id, task_id, queue), count in ti_metrics.items():
-                Stats.gauge(f"ti.{state}.{queue}.{dag_id}.{task_id}", float(count))
-                Stats.gauge(
-                    f"ti.{state}", float(count), tags={"queue": queue, "dag_id": dag_id, "task_id": task_id}
+                DualStatsManager.gauge(
+                    f"ti.{state}.{queue}.{dag_id}.{task_id}",
+                    f"ti.{state}",
+                    float(count),
+                    tags={"queue": queue, "dag_id": dag_id, "task_id": task_id},
                 )
 
             for prev_key in self.previous_ti_metrics[state]:
                 # Reset previously exported stats that are no longer present in current metrics to zero
                 if prev_key not in ti_metrics:
-                    dag_id, task_id, queue = prev_key
-                    Stats.gauge(f"ti.{state}.{queue}.{dag_id}.{task_id}", 0)
-                    Stats.gauge(f"ti.{state}", 0, tags={"queue": queue, "dag_id": dag_id, "task_id": task_id})
+                    DualStatsManager.gauge(
+                        f"ti.{state}.{queue}.{dag_id}.{task_id}",
+                        f"ti.{state}",
+                        0,
+                        tags={"queue": queue, "dag_id": dag_id, "task_id": task_id},
+                    )
 
             self.previous_ti_metrics[state] = ti_metrics
 
@@ -2491,18 +2509,38 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             pools = Pool.slots_stats(session=session)
             for pool_name, slot_stats in pools.items():
                 normalized_pool_name = normalize_pool_name_for_stats(pool_name)
-                Stats.gauge(f"pool.open_slots.{normalized_pool_name}", slot_stats["open"])
-                Stats.gauge(f"pool.queued_slots.{normalized_pool_name}", slot_stats["queued"])
-                Stats.gauge(f"pool.running_slots.{normalized_pool_name}", slot_stats["running"])
-                Stats.gauge(f"pool.deferred_slots.{normalized_pool_name}", slot_stats["deferred"])
-                Stats.gauge(f"pool.scheduled_slots.{normalized_pool_name}", slot_stats["scheduled"])
-
-                # Same metrics with tagging
-                Stats.gauge("pool.open_slots", slot_stats["open"], tags={"pool_name": pool_name})
-                Stats.gauge("pool.queued_slots", slot_stats["queued"], tags={"pool_name": pool_name})
-                Stats.gauge("pool.running_slots", slot_stats["running"], tags={"pool_name": pool_name})
-                Stats.gauge("pool.deferred_slots", slot_stats["deferred"], tags={"pool_name": pool_name})
-                Stats.gauge("pool.scheduled_slots", slot_stats["scheduled"], tags={"pool_name": pool_name})
+               # If enabled on the config, publish metrics twice,
+                # once with backward compatible name, and then with tags.
+                DualStatsManager.gauge(
+                    f"pool.open_slots.{normalized_pool_name}",
+                    "pool.open_slots",
+                    slot_stats["open"],
+                    tags={"pool_name": pool_name},
+                )
+                DualStatsManager.gauge(
+                    f"pool.queued_slots.{normalized_pool_name}",
+                    "pool.queued_slots",
+                    slot_stats["queued"],
+                    tags={"pool_name": pool_name},
+                )
+                DualStatsManager.gauge(
+                    f"pool.running_slots.{normalized_pool_name}",
+                    "pool.running_slots",
+                    slot_stats["running"],
+                    tags={"pool_name": pool_name},
+                )
+                DualStatsManager.gauge(
+                    f"pool.deferred_slots.{normalized_pool_name}",
+                    "pool.deferred_slots",
+                    slot_stats["deferred"],
+                    tags={"pool_name": pool_name},
+                )
+                DualStatsManager.gauge(
+                    f"pool.scheduled_slots.{normalized_pool_name}",
+                    "pool.scheduled_slots",
+                    slot_stats["scheduled"],
+                    tags={"pool_name": pool_name},
+                )
 
                 span.set_attributes(
                     {
