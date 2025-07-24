@@ -18,8 +18,6 @@ from __future__ import annotations
 
 import logging
 
-from airflow.utils import timezone
-
 
 class TimezoneAware(logging.Formatter):
     """
@@ -41,7 +39,9 @@ class TimezoneAware(logging.Formatter):
         This returns the creation time of the specified LogRecord in ISO 8601
         date and time format in the local time zone.
         """
-        dt = timezone.from_timestamp(record.created, tz="local")
+        from airflow._shared.timezones.timezone import from_timestamp
+
+        dt = from_timestamp(record.created, tz="local")
         s = dt.strftime(datefmt or self.default_time_format)
         if self.default_msec_format:
             s = self.default_msec_format % (s, record.msecs)

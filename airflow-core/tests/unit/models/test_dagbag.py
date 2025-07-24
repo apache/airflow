@@ -35,12 +35,12 @@ import time_machine
 from sqlalchemy import select
 
 from airflow import settings
+from airflow._shared.timezones import timezone as tz
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag, _capture_with_reraise
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.serialization.serialized_objects import SerializedDAG
-from airflow.utils import timezone as tz
 from airflow.utils.session import create_session
 
 from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH

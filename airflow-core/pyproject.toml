@@ -215,6 +215,9 @@ exclude = [
     "src/airflow/ui/openapi.merged.json",
 ]
 
+[tool.hatch.build.targets.sdist.force-include]
+"../shared/timezones/src/airflow_shared/timezones" = "src/airflow/_shared/timezones"
+
 [tool.hatch.build.targets.custom]
 path = "./hatch_build.py"
 

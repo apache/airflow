@@ -28,6 +28,7 @@ import pendulum
 import pytest
 from sqlalchemy import select
 
+from airflow._shared.timezones.timezone import datetime
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
@@ -42,7 +43,6 @@ from airflow.models.taskmap import TaskMap
 from airflow.models.trigger import Trigger
 from airflow.utils.platform import getuser
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.api_fastapi import _check_task_instance_note

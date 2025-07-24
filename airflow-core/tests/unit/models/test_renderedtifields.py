@@ -29,6 +29,7 @@ import pytest
 from sqlalchemy import select
 
 from airflow import settings
+from airflow._shared.timezones.timezone import datetime
 from airflow.configuration import conf
 from airflow.models import DagRun, Variable
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
@@ -37,7 +38,6 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import task as task_decorator
 from airflow.utils.task_instance_session import set_current_task_instance_session
-from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_fields

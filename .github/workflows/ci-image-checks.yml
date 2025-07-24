@@ -133,8 +133,6 @@ jobs:
         if: inputs.canary-run == 'true'
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        with:
-          use-uv: ${{ inputs.use-uv }}
         id: breeze
         if: inputs.canary-run == 'true'
       - name: "Install pre-commit"
