@@ -29,8 +29,8 @@ __deprecated_classes = {
         "XCOM_RETURN_KEY": "airflow.models.xcom.XCOM_RETURN_KEY",
     },
     "task_group": {
-        "TaskGroup": "airflow.sdk.definitions.taskgroup.TaskGroup",
-        "MappedTaskGroup": "airflow.sdk.definitions.taskgroup.MappedOperator",
+        "TaskGroup": "airflow.sdk.TaskGroup",
+        "MappedTaskGroup": "airflow.sdk.definitions.taskgroup.MappedTaskGroup",
         "get_task_group_children_getter": "airflow.sdk.definitions.taskgroup.get_task_group_children_getter",
         "task_group_to_dict": "airflow.sdk.definitions.taskgroup.task_group_to_dict",
     },
