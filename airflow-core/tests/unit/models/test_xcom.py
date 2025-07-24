@@ -25,6 +25,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from airflow import DAG
+from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
@@ -36,7 +37,6 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.execution_time.xcom import resolve_xcom_backend
 from airflow.settings import json
-from airflow.utils import timezone
 from airflow.utils.session import create_session
 
 from tests_common.test_utils.config import conf_vars

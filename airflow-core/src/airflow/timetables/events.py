@@ -22,8 +22,8 @@ from typing import TYPE_CHECKING
 
 import pendulum
 
+from airflow._shared.timezones import timezone
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
-from airflow.utils import timezone
 
 if TYPE_CHECKING:
     from pendulum import DateTime

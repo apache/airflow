@@ -38,6 +38,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.orm import joinedload
 
 from airflow import settings
+from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.assets.manager import AssetManager
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
@@ -74,7 +75,6 @@ from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.timetables.base import DataInterval
 from airflow.traces.tracer import Trace
-from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -102,7 +102,6 @@ from tests_common.test_utils.version_compat import SQLALCHEMY_V_1_4, SQLALCHEMY_
 from unit.listeners import dag_listener
 from unit.listeners.test_listeners import get_listener_manager
 from unit.models import TEST_DAGS_FOLDER
-from unit.utils.test_timezone import UTC
 
 pytestmark = pytest.mark.db_test
 
@@ -4677,7 +4676,7 @@ class TestSchedulerJob:
             "test_dag": 3
         }
 
-        assert model.next_dagrun == timezone.DateTime(2016, 1, 3, tzinfo=UTC)
+        assert model.next_dagrun == timezone.DateTime(2016, 1, 3, tzinfo=timezone.utc)
         assert model.next_dagrun_create_after is None
 
         complete_one_dagrun()

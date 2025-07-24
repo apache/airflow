@@ -1151,7 +1151,7 @@ class TestSqlBranch:
 
     @pytest.fixture
     def branch_op(self):
-        return BranchSQLOperator(
+        branch_op = BranchSQLOperator(
             task_id="make_choice",
             conn_id="mysql_default",
             sql="SELECT 1",
@@ -1159,6 +1159,10 @@ class TestSqlBranch:
             follow_task_ids_if_false=["branch_2"],
             dag=self.dag,
         )
+        if AIRFLOW_V_3_0_PLUS:
+            self.dag.sync_to_db()
+            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
+        return branch_op
 
     def test_unsupported_conn_type(self):
         """Check if BranchSQLOperator throws an exception for unsupported connection type"""
@@ -1398,6 +1402,8 @@ class TestSqlBranch:
         self.dag.clear()
 
         if AIRFLOW_V_3_0_PLUS:
+            self.dag.sync_to_db()
+            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
             dagrun_kwargs = {
                 "logical_date": DEFAULT_DATE,
                 "run_after": DEFAULT_DATE,

@@ -34,6 +34,8 @@ import time_machine
 from sqlalchemy import inspect, select
 
 from airflow import settings
+from airflow._shared.timezones import timezone
+from airflow._shared.timezones.timezone import datetime as datetime_tz
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
@@ -77,11 +79,9 @@ from airflow.timetables.simple import (
     NullTimetable,
     OnceTimetable,
 )
-from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.timezone import datetime as datetime_tz
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -1533,6 +1533,7 @@ class TestDag:
         bundle_name = "testing"
         DAG.bulk_write_to_db(bundle_name, None, [dag])
         SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
+
         mock_object = mock.MagicMock()
 
         @task_decorator
@@ -1542,6 +1543,8 @@ class TestDag:
 
         with dag:
             check_task()
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
 
         dag.test()
         mock_object.assert_called_once()
@@ -1564,6 +1567,9 @@ class TestDag:
 
         with dag:
             check_task_2(check_task())
+
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
 
         dag.test()
         mock_object.assert_called_with("output of first task")
@@ -1606,7 +1612,8 @@ class TestDag:
 
         with dag:
             check_task_2(check_task())
-
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
         dr = dag.test()
 
         ti1 = dr.get_task_instance("check_task")

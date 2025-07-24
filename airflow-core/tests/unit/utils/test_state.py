@@ -24,7 +24,7 @@ from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils.session import create_session
-from airflow.utils.state import DagRunState
+from airflow.utils.state import DagRunState, IntermediateTIState, State, TaskInstanceState, TerminalTIState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from unit.models import DEFAULT_DATE
@@ -79,3 +79,65 @@ def test_dagrun_state_enum_escape(testing_dag_bundle):
         assert rows[0].state == "queued"
 
         session.rollback()
+
+
+class TestTaskInstanceStates:
+    """Test suite for validating task instance state relationships."""
+
+    def test_failed_and_success_states_union_equals_terminal_states(self):
+        """Test that union of failed_states and success_states equals TerminalTIState values."""
+        # Get all terminal state values
+        terminal_state_values = {state.value for state in TerminalTIState}
+
+        # Get union of failed and success states (convert to string values)
+        failed_success_union = {
+            state.value for state in State.failed_states.union(State.success_states)
+        }.union(
+            {"removed"}
+        )  # Treat removed separately since it doesn't neatly fit into the "success" or "failure" category semantically.
+
+        assert failed_success_union == terminal_state_values, (
+            f"Union of failed_states and success_states ({failed_success_union}) "
+            f"does not equal TerminalTIState values ({terminal_state_values})"
+        )
+
+    def test_terminal_and_intermediate_states_union_equals_task_instance_states(self):
+        """Test that union of TerminalTIState and IntermediateTIState values equals TaskInstanceState values."""
+        # Get all terminal state values
+        terminal_state_values = {state.value for state in TerminalTIState}
+
+        # Get all intermediate state values
+        intermediate_state_values = {state.value for state in IntermediateTIState}
+
+        # Get union of terminal and intermediate states
+        terminal_intermediate_union = terminal_state_values.union(intermediate_state_values)
+
+        # Get all TaskInstanceState values, excluding RUNNING since it's not in terminal or intermediate
+        task_instance_state_values = {state.value for state in TaskInstanceState}
+
+        # Add RUNNING state separately since it's defined directly in TaskInstanceState
+        expected_task_instance_values = terminal_intermediate_union.union({"running"})
+
+        assert task_instance_state_values == expected_task_instance_values, (
+            f"TaskInstanceState values ({task_instance_state_values}) "
+            f"does not equal union of TerminalTIState and IntermediateTIState values plus RUNNING "
+            f"({expected_task_instance_values})"
+        )
+
+    def test_no_overlap_between_failed_and_success_states(self):
+        """Test that failed_states and success_states have no overlap."""
+        overlap = State.failed_states.intersection(State.success_states)
+        assert len(overlap) == 0, f"failed_states and success_states should not overlap, but found: {overlap}"
+
+    def test_all_terminal_states_are_either_failed_or_success(self):
+        """Test that every terminal state (except 'removed') is classified as either failed or success."""
+        excluded_states = {"removed"}
+        all_terminal_states = {
+            TaskInstanceState(state.value) for state in TerminalTIState if state.value not in excluded_states
+        }
+        classified_states = State.failed_states.union(State.success_states)
+
+        assert all_terminal_states == classified_states, (
+            f"All terminal states ({all_terminal_states}) except excluded ones ({excluded_states}) "
+            f"should be classified as either failed or success ({classified_states})"
+        )

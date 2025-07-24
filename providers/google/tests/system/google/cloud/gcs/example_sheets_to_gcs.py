@@ -23,8 +23,15 @@ import os
 from datetime import datetime
 from typing import Any
 
-from airflow.decorators import task
 from airflow.models.dag import DAG
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import task
+else:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.sheets_to_gcs import GoogleSheetsToGCSOperator
 from airflow.providers.google.suite.operators.sheets import GoogleSheetsCreateSpreadsheetOperator
@@ -43,9 +50,7 @@ SPREADSHEET = {
 }
 CONNECTION_ID = f"connection_{DAG_ID}_{ENV_ID}"
 
-
 log = logging.getLogger(__name__)
-
 
 with DAG(
     DAG_ID,

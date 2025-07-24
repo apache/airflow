@@ -21,12 +21,12 @@ from datetime import datetime, timezone
 
 import pytest
 
+from airflow._shared.timezones.timezone import utcnow
 from airflow.api_fastapi.common.db.dags import generate_dag_with_latest_run_query
 from airflow.api_fastapi.common.parameters import SortParam
 from airflow.models import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.utils.state import DagRunState
-from airflow.utils.timezone import utcnow
 
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 
