@@ -859,7 +859,7 @@ Here's a simple example using the existing email Notifier:
                 subject="[Alert] DAG {{ dag.dag_id }} exceeded time threshold",
                 html_content="The DAG has been running for more than 30 minutes since being queued.",
             ),
-        )
+        ),
     ):
         EmptyOperator(task_id="task1")
 

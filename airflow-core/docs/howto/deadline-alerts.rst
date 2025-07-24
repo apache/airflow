@@ -63,7 +63,7 @@ Here's an example DAG implementation. If the DAG has not finished 15 minutes aft
                 subject="[Alert] DAG {{ dag.dag_id }} exceeded time threshold",
                 html_content="The DAG has been running for more than 15 minutes since being queued.",
             ),
-        )
+        ),
     ):
         EmptyOperator(task_id="example_task")
 
@@ -96,10 +96,7 @@ Here's an example using a fixed datetime:
 
 .. code-block:: python
 
-    tomorrow_at_ten = datetime.combine(
-        datetime.now().date() + timedelta(days=1),
-        time(10, 0)
-    )
+    tomorrow_at_ten = datetime.combine(datetime.now().date() + timedelta(days=1), time(10, 0))
 
     with DAG(
         dag_id="fixed_deadline_alert",
@@ -111,7 +108,7 @@ Here's an example using a fixed datetime:
                 subject="Report will be late",
                 html_content="The report will not be ready 30 minutes before the deadline.",
             ),
-        )
+        ),
     ):
         EmptyOperator(task_id="example_task")
 
@@ -145,18 +142,18 @@ Here's an example using the Slack notifier if the DagRun has not finished within
                 slack_conn_id="slack_default",
                 channel="#alerts",
                 text="DAG {{ dag.dag_id }} has been running for more than 30 minutes since being queued.",
-                username="Airflow Alerts"
+                username="Airflow Alerts",
             ),
-        )
+        ),
     ):
         EmptyOperator(task_id="example_task")
 
 Creating Custom Callbacks
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-You can create custom callbacks for more complex handling. The `callback_kwargs` specified in
-the `DeadlineAlert` are passed to the callback function. Async callbacks are recommended, and
-you can use Jinja templating in the `callback_kwargs`:
+You can create custom callbacks for more complex handling. The ``callback_kwargs`` specified in
+the ``DeadlineAlert`` are passed to the callback function. Async callbacks are recommended, and
+you can use Jinja templating in the ``callback_kwargs``:
 
 .. code-block:: python
 
@@ -165,13 +162,13 @@ you can use Jinja templating in the `callback_kwargs`:
     from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
     from airflow.providers.standard.operators.empty import EmptyOperator
 
+
     async def custom_callback(**kwargs):
         """Handle deadline violation with custom logic."""
-        dag_id = kwargs.get('dag_id')
-        alert_type = kwargs.get('alert_type')
-        print(f"Deadline exceeded for DAG {dag_id}!")
-        print(f"Alert type: {alert_type}")
+        print(f"Deadline exceeded for DAG {kwargs.get("dag_id")}!")
+        print(f"Alert type: {kwargs.get("alert_type")}")
         # Additional custom handling here
+
 
     with DAG(
         dag_id="custom_deadline_alert",
@@ -179,13 +176,13 @@ you can use Jinja templating in the `callback_kwargs`:
             reference=DeadlineReference.DAGRUN_QUEUED_AT,
             interval=timedelta(minutes=15),
             callback=custom_callback,
-            callback_kwargs={'alert_type': 'time_exceeded', 'dag_id': '{{ dag.dag_id }}'},
-        )
+            callback_kwargs={"alert_type": "time_exceeded", "dag_id": "{{ dag.dag_id }}"},
+        ),
     ):
         EmptyOperator(task_id="example_task")
 
 In this example, we define an async callback function that will be executed by the Triggerer.
-The `callback_kwargs` are available in the function, and you can use Jinja templating to access
+The ``callback_kwargs`` are available in the function, and you can use Jinja templating to access
 DAG and runtime information. This allows for dynamic and context-aware alert handling.
 
 Note: Async callbacks are recommended as they will be executed by the Triggerer.
@@ -207,7 +204,7 @@ For example:
     DeadlineAlert(
         reference=DeadlineReference.FIXED_DATETIME(next_meeting),
         interval=timedelta(hours=-2),
-        callback=notify_team
+        callback=notify_team,
     )
 
 This will trigger the alert 2 hours before the next meeting starts.
@@ -220,7 +217,7 @@ to when the DAG was scheduled to run. Here's an example:
     DeadlineAlert(
         reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
         interval=timedelta(hours=1),
-        callback=notify_team
+        callback=notify_team,
     )
 
 In this case, if a DAG is scheduled to run daily at midnight, the deadline would be triggered
