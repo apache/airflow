@@ -162,7 +162,7 @@ class TestCliVariables:
 
     def test_variables_import(self):
         """Test variables_import command"""
-        with pytest.raises(SystemExit, match=r"Invalid variables file"):
+        with pytest.raises(SystemExit, match=r"Unsupported file format"):
             variable_command.variables_import(self.parser.parse_args(["variables", "import", os.devnull]))
 
     def test_variables_export(self):
@@ -171,8 +171,8 @@ class TestCliVariables:
 
     def test_variables_isolation(self, tmp_path):
         """Test isolation of variables"""
-        path1 = tmp_path / "testfile1"
-        path2 = tmp_path / "testfile2"
+        path1 = tmp_path / "testfile1.json"
+        path2 = tmp_path / "testfile2.json"
 
         # First export
         variable_command.variables_set(self.parser.parse_args(["variables", "set", "foo", '{"foo":"bar"}']))
@@ -234,3 +234,125 @@ class TestCliVariables:
                 == "Foo var description"
             )
             assert session.scalar(select(Variable.description).where(Variable.key == "foo1")) == "12"
+
+    def test_variables_import_yaml(self, tmp_path):
+        """Test variables_import command with YAML file"""
+        variables_yaml_file = tmp_path / "variables.yaml"
+
+        # Create YAML content with simple key-value pairs
+        yaml_content = (
+            "var_string: hello world\n"
+            "var_int: 42\n"
+            "var_float: 3.14\n"
+            "var_bool: true\n"
+            'var_json_list: \'["item1", "item2"]\'\n'
+            'var_json_dict: \'{"key1": "value1", "key2": "value2"}\'\n'
+            "var_with_description:\n"
+            "  value: test_value\n"
+            '  description: "Variable with description"\n'
+        )
+        variables_yaml_file.write_text(yaml_content)
+
+        # Import variables from YAML
+        variable_command.variables_import(
+            self.parser.parse_args(["variables", "import", os.fspath(variables_yaml_file)])
+        )
+
+        # Verify imported variables
+        assert Variable.get("var_string") == "hello world"
+        assert Variable.get("var_int") == "42"  # YAML scalars are converted to strings
+        assert Variable.get("var_float") == "3.14"
+        assert Variable.get("var_bool") == "true"
+        assert Variable.get("var_json_list", deserialize_json=True) == ["item1", "item2"]
+        assert Variable.get("var_json_dict", deserialize_json=True) == {"key1": "value1", "key2": "value2"}
+        assert Variable.get("var_with_description") == "test_value"
+
+        # Verify description was imported
+        with create_session() as session:
+            assert (
+                session.scalar(select(Variable.description).where(Variable.key == "var_with_description"))
+                == "Variable with description"
+            )
+
+    def test_variables_import_env(self, tmp_path):
+        """Test variables_import command with .env file"""
+        variables_env_file = tmp_path / "variables.env"
+
+        # Create ENV content
+        env_content = 'VAR_STRING=hello world\nVAR_INT=42\nVAR_JSON={"key": "value", "number": 123}\n'
+        variables_env_file.write_text(env_content)
+
+        # Import variables from ENV
+        variable_command.variables_import(
+            self.parser.parse_args(["variables", "import", os.fspath(variables_env_file)])
+        )
+
+        # Verify imported variables
+        assert Variable.get("VAR_STRING") == "hello world"
+        assert Variable.get("VAR_INT") == "42"  # ENV values are strings
+        assert Variable.get("VAR_JSON") == '{"key": "value", "number": 123}'
+
+    def test_variables_import_invalid_format(self, tmp_path):
+        """Test variables_import command with invalid file format"""
+        invalid_file = tmp_path / "variables.txt"
+        invalid_file.write_text("some content")
+
+        # Should raise SystemExit for unsupported format
+        with pytest.raises(SystemExit, match=r"Unsupported file format"):
+            variable_command.variables_import(
+                self.parser.parse_args(["variables", "import", os.fspath(invalid_file)])
+            )
+
+    def test_variables_import_yaml_with_existing_keys(self, tmp_path):
+        """Test variables_import YAML with existing keys and different actions"""
+        variables_yaml_file = tmp_path / "variables.yaml"
+
+        # Set up existing variable
+        variable_command.variables_set(
+            self.parser.parse_args(["variables", "set", "existing_var", "original"])
+        )
+
+        # Create YAML with conflicting key
+        yaml_content = "existing_var: updated_value\nnew_var: new_value\n"
+        variables_yaml_file.write_text(yaml_content)
+
+        # Test skip action
+        variable_command.variables_import(
+            self.parser.parse_args(
+                ["variables", "import", os.fspath(variables_yaml_file), "--action-on-existing-key", "skip"]
+            )
+        )
+
+        # Existing variable should not be updated, new variable should be added
+        assert Variable.get("existing_var") == "original"
+        assert Variable.get("new_var") == "new_value"
+
+        # Test overwrite action
+        variable_command.variables_import(
+            self.parser.parse_args(
+                [
+                    "variables",
+                    "import",
+                    os.fspath(variables_yaml_file),
+                    "--action-on-existing-key",
+                    "overwrite",
+                ]
+            )
+        )
+
+        # Existing variable should be updated
+        assert Variable.get("existing_var") == "updated_value"
+
+        # Test fail action
+        with pytest.raises(SystemExit, match=r"already exists"):
+            variable_command.variables_import(
+                self.parser.parse_args(
+                    [
+                        "variables",
+                        "import",
+                        os.fspath(variables_yaml_file),
+                        "--action-on-existing-key",
+                        "fail",
+                    ]
+                )
+            )
