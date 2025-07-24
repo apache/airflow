@@ -21,13 +21,13 @@ from __future__ import annotations
 
 import json
 import os
-from json import JSONDecodeError
 
 from sqlalchemy import select
 
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import print_export_output
 from airflow.models import Variable
+from airflow.secrets.local_filesystem import load_variables
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -81,20 +81,25 @@ def variables_import(args, session):
     """Import variables from a given file."""
     if not os.path.exists(args.file):
         raise SystemExit("Missing variables file.")
-    with open(args.file) as varfile:
-        try:
-            var_json = json.load(varfile)
-        except JSONDecodeError:
-            raise SystemExit("Invalid variables file.")
+
+    try:
+        # Use load_variables which supports JSON, YAML, and ENV formats
+        var_dict = load_variables(args.file)
+    except Exception as e:
+        # Check if it's a specific format error
+        if "Unsupported file format" in str(e):
+            raise SystemExit(str(e))
+        raise SystemExit(f"Invalid variables file. {e}")
+
     suc_count = fail_count = 0
     skipped = set()
     action_on_existing = args.action_on_existing_key
     existing_keys = set()
     if action_on_existing != "overwrite":
-        existing_keys = set(session.scalars(select(Variable.key).where(Variable.key.in_(var_json))))
+        existing_keys = set(session.scalars(select(Variable.key).where(Variable.key.in_(var_dict))))
     if action_on_existing == "fail" and existing_keys:
         raise SystemExit(f"Failed. These keys: {sorted(existing_keys)} already exists.")
-    for k, v in var_json.items():
+    for k, v in var_dict.items():
         if action_on_existing == "skip" and k in existing_keys:
             skipped.add(k)
             continue
@@ -109,7 +114,7 @@ def variables_import(args, session):
             fail_count += 1
         else:
             suc_count += 1
-    print(f"{suc_count} of {len(var_json)} variables successfully updated.")
+    print(f"{suc_count} of {len(var_dict)} variables successfully updated.")
     if fail_count:
         print(f"{fail_count} variable(s) failed to be updated.")
     if skipped:

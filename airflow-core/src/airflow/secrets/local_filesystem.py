@@ -233,10 +233,23 @@ def load_variables(file_path: str) -> dict[str, str]:
     log.debug("Loading variables from a text file")
 
     secrets = _parse_secret_file(file_path)
-    invalid_keys = [key for key, values in secrets.items() if isinstance(values, list) and len(values) != 1]
-    if invalid_keys:
-        raise AirflowException(f'The "{file_path}" file contains multiple values for keys: {invalid_keys}')
-    variables = {key: values[0] if isinstance(values, list) else values for key, values in secrets.items()}
+
+    # Determine a file format to handle lists correctly
+    ext = file_path.rsplit(".", 2)[-1].lower()
+    is_env_file = ext == "env"
+
+    variables = {}
+    for key, secret_values in secrets.items():
+        if is_env_file and isinstance(secret_values, list):
+            # Only ENV files: Check for duplicate keys
+            if len(secret_values) > 1:
+                raise AirflowException(
+                    f"The \"{file_path}\" file contains multiple values for keys: ['{key}']"
+                )
+            variables[key] = secret_values[0]  # Extract single value
+        else:
+            # JSON/YAML: Use value directly (could be list, dict, string, etc.)
+            variables[key] = secret_values
     log.debug("Loaded %d variables: ", len(variables))
     return variables
 
