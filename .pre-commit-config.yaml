@@ -1282,7 +1282,7 @@ repos:
           (?x)
           ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/.*\.(js|ts|tsx|yaml|css|json)|
           ^airflow-core/src/airflow/api_fastapi/core_api/openapi/.*\.yaml$|
-          ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/v1.*\.yaml$
+          ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/.*\.yaml$
         exclude: |
           (?x)
           ^airflow-core/src/airflow/api_fastapi/node-modules/.*|
