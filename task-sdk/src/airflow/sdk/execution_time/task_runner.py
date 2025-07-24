@@ -860,6 +860,8 @@ def run(
     log: Logger,
 ) -> tuple[TaskInstanceState, ToSupervisor | None, BaseException | None]:
     """Run the task in this process."""
+    import signal
+
     from airflow.exceptions import (
         AirflowException,
         AirflowFailException,
@@ -876,6 +878,11 @@ def run(
     if TYPE_CHECKING:
         assert ti.task is not None
         assert isinstance(ti.task, BaseOperator)
+
+    def _on_kill(signum, frame):
+        ti.task.on_kill()
+
+    signal.signal(signal.SIGTERM, _on_kill)
 
     msg: ToSupervisor | None = None
     state: TaskInstanceState
