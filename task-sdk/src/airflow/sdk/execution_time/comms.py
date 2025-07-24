@@ -63,10 +63,6 @@ import structlog
 from fastapi import Body
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, TypeAdapter, field_serializer
 
-from airflow.api_fastapi.execution_api.datamodels.hitl import (
-    GetHITLDetailResponsePayload,
-    UpdateHITLDetailPayload,
-)
 from airflow.sdk.api.datamodels._generated import (
     AssetEventDagRunReference,
     AssetEventResponse,
@@ -74,6 +70,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     BundleInfo,
     ConnectionResponse,
+    DagRun,
     DagRunStateResponse,
     HITLDetailRequest,
     InactiveAssetsResponse,
@@ -88,6 +85,7 @@ from airflow.sdk.api.datamodels._generated import (
     TISkippedDownstreamTasksStatePayload,
     TISuccessStatePayload,
     TriggerDAGRunPayload,
+    UpdateHITLDetailPayload,
     VariableResponse,
     XComResponse,
     XComSequenceIndexResponse,
@@ -498,6 +496,13 @@ class DagRunStateResult(DagRunStateResponse):
         return cls(**dr_state_response.model_dump(exclude_defaults=True), type="DagRunStateResult")
 
 
+class PreviousDagRunResult(BaseModel):
+    """Response containing previous DAG run information."""
+
+    dag_run: DagRun | None = None
+    type: Literal["PreviousDagRunResult"] = "PreviousDagRunResult"
+
+
 class PrevSuccessfulDagRunResult(PrevSuccessfulDagRunResponse):
     type: Literal["PrevSuccessfulDagRunResult"] = "PrevSuccessfulDagRunResult"
 
@@ -597,7 +602,8 @@ ToTask = Annotated[
     | InactiveAssetsResult
     | CreateHITLDetailPayload
     | HITLDetailRequestResult
-    | OKResponse,
+    | OKResponse
+    | PreviousDagRunResult,
     Field(discriminator="type"),
 ]
 
@@ -793,6 +799,13 @@ class GetDagRunState(BaseModel):
     type: Literal["GetDagRunState"] = "GetDagRunState"
 
 
+class GetPreviousDagRun(BaseModel):
+    dag_id: str
+    logical_date: AwareDatetime
+    state: str | None = None
+    type: Literal["GetPreviousDagRun"] = "GetPreviousDagRun"
+
+
 class GetAssetByName(BaseModel):
     name: str
     type: Literal["GetAssetByName"] = "GetAssetByName"
@@ -859,9 +872,10 @@ class GetDRCount(BaseModel):
     type: Literal["GetDRCount"] = "GetDRCount"
 
 
-class GetHITLDetailResponse(GetHITLDetailResponsePayload):
+class GetHITLDetailResponse(BaseModel):
     """Get the response content part of a Human-in-the-loop response."""
 
+    ti_id: UUID
     type: Literal["GetHITLDetailResponse"] = "GetHITLDetailResponse"
 
 
@@ -882,6 +896,7 @@ ToSupervisor = Annotated[
     | GetDagRunState
     | GetDRCount
     | GetPrevSuccessfulDagRun
+    | GetPreviousDagRun
     | GetTaskRescheduleStartDate
     | GetTICount
     | GetTaskStates

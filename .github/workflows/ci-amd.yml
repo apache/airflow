@@ -148,8 +148,6 @@ jobs:
           persist-credentials: false
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        with:
-          use-uv: ${{ inputs.use-uv }}
         id: breeze
       - name: "Get information about the Workflow"
         id: source-run-info

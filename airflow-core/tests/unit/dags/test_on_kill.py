@@ -20,9 +20,9 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING
 
+from airflow._shared.timezones.timezone import datetime
 from airflow.models.dag import DAG
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils.timezone import datetime
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context

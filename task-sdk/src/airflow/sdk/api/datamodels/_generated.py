@@ -102,23 +102,6 @@ class ConnectionResponse(BaseModel):
     extra: Annotated[str | None, Field(title="Extra")] = None
 
 
-class CreateHITLDetailPayload(BaseModel):
-    """
-    Add the input request part of a Human-in-the-loop response.
-    """
-
-    ti_id: Annotated[UUID, Field(title="Ti Id")]
-    options: Annotated[list[str], Field(title="Options")]
-    subject: Annotated[str, Field(title="Subject")]
-    body: Annotated[str | None, Field(title="Body")] = None
-    defaults: Annotated[list[str] | None, Field(title="Defaults")] = None
-    multiple: Annotated[bool | None, Field(title="Multiple")] = False
-    params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
-    type: Annotated[Literal["CreateHITLDetailPayload"] | None, Field(title="Type")] = (
-        "CreateHITLDetailPayload"
-    )
-
-
 class DagRunAssetReference(BaseModel):
     """
     DagRun serializer for asset responses.
@@ -215,7 +198,6 @@ class IntermediateTIState(str, Enum):
     RESTARTING = "restarting"
     UP_FOR_RETRY = "up_for_retry"
     UP_FOR_RESCHEDULE = "up_for_reschedule"
-    UPSTREAM_FAILED = "upstream_failed"
     DEFERRED = "deferred"
 
 
@@ -353,6 +335,7 @@ class TerminalStateNonSuccess(str, Enum):
     FAILED = "failed"
     SKIPPED = "skipped"
     REMOVED = "removed"
+    UPSTREAM_FAILED = "upstream_failed"
 
 
 class TriggerDAGRunPayload(BaseModel):
@@ -368,15 +351,14 @@ class TriggerDAGRunPayload(BaseModel):
     reset_dag_run: Annotated[bool | None, Field(title="Reset Dag Run")] = False
 
 
-class UpdateHITLDetail(BaseModel):
+class UpdateHITLDetailPayload(BaseModel):
     """
-    Update the response content part of an existing Human-in-the-loop response.
+    Schema for writing the response part of a Human-in-the-loop detail for a specific task instance.
     """
 
     ti_id: Annotated[UUID, Field(title="Ti Id")]
     chosen_options: Annotated[list[str], Field(title="Chosen Options")]
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
-    type: Annotated[Literal["UpdateHITLDetail"] | None, Field(title="Type")] = "UpdateHITLDetail"
 
 
 class ValidationError(BaseModel):
@@ -471,6 +453,7 @@ class TerminalTIState(str, Enum):
     SUCCESS = "success"
     FAILED = "failed"
     SKIPPED = "skipped"
+    UPSTREAM_FAILED = "upstream_failed"
     REMOVED = "removed"
 
 
@@ -549,6 +532,7 @@ class DagRun(BaseModel):
     end_date: Annotated[AwareDatetime | None, Field(title="End Date")] = None
     clear_number: Annotated[int | None, Field(title="Clear Number")] = 0
     run_type: DagRunType
+    state: DagRunState
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     consumed_asset_events: Annotated[list[AssetEventDagRunReference], Field(title="Consumed Asset Events")]
 

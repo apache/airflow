@@ -29,13 +29,13 @@ from unittest.mock import patch
 import pytest
 import time_machine
 
+from airflow._shared.timezones import timezone as tz
 from airflow.dag_processing.bundles.base import (
     BaseDagBundle,
     BundleUsageTrackingManager,
     BundleVersionLock,
     get_bundle_storage_root_path,
 )
-from airflow.utils import timezone as tz
 
 from tests_common.test_utils.config import conf_vars
 

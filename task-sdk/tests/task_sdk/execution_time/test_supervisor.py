@@ -44,13 +44,16 @@ from task_sdk import FAKE_BUNDLE, make_client
 from uuid6 import uuid7
 
 from airflow.executors.workloads import BundleInfo
+from airflow.sdk import timezone
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     AssetEventResponse,
     AssetProfile,
     AssetResponse,
+    DagRun,
     DagRunState,
+    DagRunType,
     TaskInstance,
     TaskInstanceState,
 )
@@ -75,6 +78,7 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetDagRunState,
     GetDRCount,
+    GetPreviousDagRun,
     GetPrevSuccessfulDagRun,
     GetTaskRescheduleStartDate,
     GetTaskStates,
@@ -86,6 +90,7 @@ from airflow.sdk.execution_time.comms import (
     HITLDetailRequestResult,
     InactiveAssetsResult,
     OKResponse,
+    PreviousDagRunResult,
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
@@ -115,7 +120,6 @@ from airflow.sdk.execution_time.supervisor import (
     set_supervisor_comms,
     supervise,
 )
-from airflow.utils import timezone, timezone as tz
 
 if TYPE_CHECKING:
     import kgb
@@ -233,7 +237,7 @@ class TestWatchedSubprocess:
 
         line = lineno() - 2  # Line the error should be on
 
-        instant = tz.datetime(2024, 11, 7, 12, 34, 56, 78901)
+        instant = timezone.datetime(2024, 11, 7, 12, 34, 56, 78901)
         time_machine.move_to(instant, tick=False)
 
         proc = ActivitySubprocess.start(
@@ -456,7 +460,7 @@ class TestWatchedSubprocess:
     def test_run_simple_dag(self, test_dags_dir, captured_logs, time_machine, mocker, client_with_ti_start):
         """Test running a simple DAG in a subprocess and capturing the output."""
 
-        instant = tz.datetime(2024, 11, 7, 12, 34, 56, 78901)
+        instant = timezone.datetime(2024, 11, 7, 12, 34, 56, 78901)
         time_machine.move_to(instant, tick=False)
 
         dagfile_path = test_dags_dir
@@ -500,7 +504,7 @@ class TestWatchedSubprocess:
         This includes ensuring the task starts and executes successfully, and that the task is deferred (via
         the API client) with the expected parameters.
         """
-        instant = tz.datetime(2024, 11, 7, 12, 34, 56, 0)
+        instant = timezone.datetime(2024, 11, 7, 12, 34, 56, 0)
 
         ti = TaskInstance(
             id=uuid7(),
@@ -727,7 +731,7 @@ class TestWatchedSubprocess:
             process=mock_process,
         )
 
-        time_now = tz.datetime(2024, 11, 28, 12, 0, 0)
+        time_now = timezone.datetime(2024, 11, 28, 12, 0, 0)
         time_machine.move_to(time_now, tick=False)
 
         # Simulate sending heartbeats and ensure the process gets killed after max retries
@@ -1757,6 +1761,72 @@ class TestHandleRequest:
                 DRCount(count=2),
                 None,
                 id="get_dr_count",
+            ),
+            pytest.param(
+                GetPreviousDagRun(
+                    dag_id="test_dag",
+                    logical_date=timezone.parse("2024-01-15T12:00:00Z"),
+                ),
+                {
+                    "dag_run": {
+                        "dag_id": "test_dag",
+                        "run_id": "prev_run",
+                        "logical_date": timezone.parse("2024-01-14T12:00:00Z"),
+                        "run_type": "scheduled",
+                        "start_date": timezone.parse("2024-01-15T12:00:00Z"),
+                        "run_after": timezone.parse("2024-01-15T12:00:00Z"),
+                        "consumed_asset_events": [],
+                        "state": "success",
+                        "data_interval_start": None,
+                        "data_interval_end": None,
+                        "end_date": None,
+                        "clear_number": 0,
+                        "conf": None,
+                    },
+                    "type": "PreviousDagRunResult",
+                },
+                "dag_runs.get_previous",
+                (),
+                {
+                    "dag_id": "test_dag",
+                    "logical_date": timezone.parse("2024-01-15T12:00:00Z"),
+                    "state": None,
+                },
+                PreviousDagRunResult(
+                    dag_run=DagRun(
+                        dag_id="test_dag",
+                        run_id="prev_run",
+                        logical_date=timezone.parse("2024-01-14T12:00:00Z"),
+                        run_type=DagRunType.SCHEDULED,
+                        start_date=timezone.parse("2024-01-15T12:00:00Z"),
+                        run_after=timezone.parse("2024-01-15T12:00:00Z"),
+                        consumed_asset_events=[],
+                        state=DagRunState.SUCCESS,
+                    )
+                ),
+                None,
+                id="get_previous_dagrun",
+            ),
+            pytest.param(
+                GetPreviousDagRun(
+                    dag_id="test_dag",
+                    logical_date=timezone.parse("2024-01-15T12:00:00Z"),
+                    state="success",
+                ),
+                {
+                    "dag_run": None,
+                    "type": "PreviousDagRunResult",
+                },
+                "dag_runs.get_previous",
+                (),
+                {
+                    "dag_id": "test_dag",
+                    "logical_date": timezone.parse("2024-01-15T12:00:00Z"),
+                    "state": "success",
+                },
+                PreviousDagRunResult(dag_run=None),
+                None,
+                id="get_previous_dagrun_with_state",
             ),
             pytest.param(
                 GetTaskStates(dag_id="test_dag", task_group_id="test_group"),

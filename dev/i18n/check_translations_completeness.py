@@ -518,23 +518,12 @@ def add_missing_translations(language: str, summary: dict[str, LocaleSummary], c
 
         add_keys(en_data, lang_data)
 
-        # Write back to file, preserving order and using eslint-style key sorting
-        def eslint_key_sort(obj):
+        def natural_key_sort(obj):
             if isinstance(obj, dict):
-                # Sort keys: numbers first, then uppercase, then lowercase, then others (eslint default)
-                def sort_key(k):
-                    if k.isdigit():
-                        return (0, int(k))
-                    if k and k[0].isupper():
-                        return (1, k)
-                    if k and k[0].islower():
-                        return (2, k)
-                    return (3, k)
-
-                return {k: eslint_key_sort(obj[k]) for k in sorted(obj, key=sort_key)}
+                return {k: natural_key_sort(obj[k]) for k in sorted(obj, key=lambda x: (x.lower(), x))}
             return obj
 
-        lang_data = eslint_key_sort(lang_data)
+        lang_data = natural_key_sort(lang_data)
         lang_path.parent.mkdir(parents=True, exist_ok=True)
         with open(lang_path, "w", encoding="utf-8") as f:
             json.dump(lang_data, f, ensure_ascii=False, indent=2)
