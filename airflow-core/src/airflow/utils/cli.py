@@ -295,10 +295,13 @@ def get_dag(
         manager = DagBundlesManager()
         all_bundles = list(manager.get_all_dag_bundles())
         for bundle in all_bundles:
+            bundle.initialize()
+            manager.sync_bundles_to_db()
             with _airflow_parsing_context_manager(dag_id=dag_id):
                 dag_bag = DagBag(
                     dag_folder=dagfile_path or bundle.path, bundle_path=bundle.path, include_examples=False
                 )
+                dag_bag.sync_to_db(bundle.name, bundle.version)
             dag = dag_bag.dags.get(dag_id)
             if dag:
                 break
