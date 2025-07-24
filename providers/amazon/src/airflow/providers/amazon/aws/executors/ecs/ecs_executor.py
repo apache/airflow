@@ -432,6 +432,7 @@ class AwsEcsExecutor(BaseExecutor):
                         attempt_number,
                         reasons_str,
                     )
+                    self.log.info("ECS task debug message I should be able to see on console to know it's actually updated")
                     self.log_task_event(
                         event="ecs task submit failure",
                         ti_key=task_key,
