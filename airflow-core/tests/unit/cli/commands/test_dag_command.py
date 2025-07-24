@@ -601,7 +601,7 @@ class TestCliDags:
         DM = DagModel
         key = "my_dag_id"
         session = settings.Session()
-        session.add(DM(dag_id=key))
+        session.add(DM(dag_id=key, bundle_name="dags-folder"))
         _backfill = Backfill(dag_id=key, from_date=DEFAULT_DATE, to_date=DEFAULT_DATE + timedelta(days=1))
         session.add(_backfill)
         # To create the backfill_id in DagRun
