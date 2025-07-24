@@ -613,14 +613,14 @@ class TriggeringAssetEventsAccessor(
 
 @cache  # Prevent multiple API access.
 def get_previous_dagrun_success(ti_id: UUID) -> PrevSuccessfulDagRunResponse:
+    from airflow.sdk.execution_time import task_runner
     from airflow.sdk.execution_time.comms import (
         GetPrevSuccessfulDagRun,
         PrevSuccessfulDagRunResponse,
         PrevSuccessfulDagRunResult,
     )
-    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-    msg = SUPERVISOR_COMMS.send(GetPrevSuccessfulDagRun(ti_id=ti_id))
+    msg = task_runner.SUPERVISOR_COMMS.send(GetPrevSuccessfulDagRun(ti_id=ti_id))
 
     if TYPE_CHECKING:
         assert isinstance(msg, PrevSuccessfulDagRunResult)
