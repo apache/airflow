@@ -616,7 +616,9 @@ class TestElasticsearchTaskHandler:
             logs = list(logs)
             assert logs[2].event == self.test_message
         else:
-            assert logs[0][0][1] == self.test_message
+            assert (
+                logs[0][0][1] == "[2020-12-24 19:25:00,962] {taskinstance.py:851} INFO - some random stuff - "
+            )
 
     @pytest.mark.db_test
     def test_read_with_json_format_with_custom_offset_and_host_fields(self, ti):
@@ -650,7 +652,7 @@ class TestElasticsearchTaskHandler:
             logs = list(logs)
             assert logs[2].event == self.test_message
         else:
-            assert logs[0][0][1] == "[2020-12-24 19:25:00,962] {taskinstance.py:851} INFO - some random stuff - "
+            assert logs[0][0][1] == self.test_message
 
     @pytest.mark.db_test
     def test_read_with_custom_offset_and_host_fields(self, ti):
@@ -676,7 +678,9 @@ class TestElasticsearchTaskHandler:
         if AIRFLOW_V_3_0_PLUS:
             pass
         else:
-            assert logs[0][0][1] == "[2020-12-24 19:25:00,962] {taskinstance.py:851} INFO - some random stuff - "
+            assert (
+                logs[0][0][1] == "[2020-12-24 19:25:00,962] {taskinstance.py:851} INFO - some random stuff - "
+            )
 
     @pytest.mark.db_test
     def test_close(self, ti):
