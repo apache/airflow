@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -118,6 +119,7 @@ class TestRefresh(TestAuthEndpoint):
             else AUTH_MANAGER_REFRESH_URL
         )
 
+    @patch.dict(os.environ, {"AIRFLOW__API__BASE_URL": "http://localhost:8080/"})
     @pytest.mark.parametrize(
         "params",
         [
@@ -133,7 +135,7 @@ class TestRefresh(TestAuthEndpoint):
         response = test_client.get("/auth/refresh", follow_redirects=False, params=params)
 
         assert response.status_code == 307
-        assert response.headers["location"] == test_client.app.state.auth_manager.get_url_logout()
+        assert response.headers["location"] == "http://localhost:8080/auth/logout"
 
     @pytest.mark.parametrize(
         "params",

@@ -22,6 +22,7 @@ from fastapi.responses import RedirectResponse
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import is_safe_url
+from airflow.configuration import conf
 
 auth_router = AirflowRouter(tags=["Login"], prefix="/auth")
 
@@ -66,7 +67,7 @@ def refresh(request: Request, next: None | str = None) -> RedirectResponse:
     refresh_url = request.app.state.auth_manager.get_url_refresh()
 
     if not refresh_url:
-        return RedirectResponse(request.app.state.auth_manager.get_url_logout())
+        return RedirectResponse(f"{conf.get('api', 'base_url', fallback='/')}auth/logout")
 
     if next and not is_safe_url(next, request=request):
         raise HTTPException(status_code=400, detail="Invalid or unsafe next URL")

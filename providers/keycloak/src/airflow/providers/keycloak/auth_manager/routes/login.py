@@ -86,6 +86,7 @@ def refresh(
 
     tokens = client.refresh_token(user.refresh_token)
     user.refresh_token = tokens["refresh_token"]
+    user.access_token = tokens["access_token"]
     token = get_auth_manager().generate_jwt(user)
 
     redirect_url = request.query_params.get("next", conf.get("api", "base_url", fallback="/"))
