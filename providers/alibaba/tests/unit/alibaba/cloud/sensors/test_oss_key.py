@@ -56,7 +56,7 @@ class TestOSSKeySensor:
         mock_service.assert_called_once_with(oss_conn_id=MOCK_OSS_CONN_ID, region=MOCK_REGION)
 
     @mock.patch(f"{MODULE_NAME}.OSSKeySensor.hook", new_callable=PropertyMock)
-    def test_poke_exsiting_key(self, mock_service, oss_key_sensor):
+    def test_poke_existing_key(self, mock_service, oss_key_sensor):
         # Given
         mock_service.return_value.object_exists.return_value = True
 
@@ -68,7 +68,7 @@ class TestOSSKeySensor:
         mock_service.return_value.object_exists.assert_called_once_with(key=MOCK_KEY, bucket_name=MOCK_BUCKET)
 
     @mock.patch(f"{MODULE_NAME}.OSSKeySensor.hook", new_callable=PropertyMock)
-    def test_poke_non_exsiting_key(self, mock_service, oss_key_sensor):
+    def test_poke_non_existing_key(self, mock_service, oss_key_sensor):
         # Given
         mock_service.return_value.object_exists.return_value = False
 

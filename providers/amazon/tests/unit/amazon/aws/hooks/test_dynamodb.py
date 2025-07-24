@@ -39,7 +39,7 @@ class TestDynamoDBHook:
         assert conn.__class__.__name__ == "dynamodb.ServiceResource"
 
     @mock_aws
-    def test_get_client_from_dynamodb_ressource(self):
+    def test_get_client_from_dynamodb_resource(self):
         hook = DynamoDBHook(aws_conn_id="aws_default")
         client = hook.client
         assert client.__class__.__name__ == "DynamoDB"

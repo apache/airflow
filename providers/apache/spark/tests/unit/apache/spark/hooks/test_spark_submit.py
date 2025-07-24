@@ -236,11 +236,11 @@ class TestSparkSubmitHook:
         mock_get_env.assert_called_with("KRB5CCNAME")
 
     @patch("airflow.configuration.conf.get_mandatory_value")
-    def test_resolve_spark_submit_env_vars_use_krb5ccache_missing_principal(self, mock_get_madantory_value):
+    def test_resolve_spark_submit_env_vars_use_krb5ccache_missing_principal(self, mock_get_mandatory_value):
         mock_principal = "airflow"
-        mock_get_madantory_value.return_value = mock_principal
+        mock_get_mandatory_value.return_value = mock_principal
         hook = SparkSubmitHook(conn_id="spark_yarn_cluster", principal=None, use_krb5ccache=True)
-        mock_get_madantory_value.assert_called_with("kerberos", "principal")
+        mock_get_mandatory_value.assert_called_with("kerberos", "principal")
         assert hook._principal == mock_principal
 
     def test_resolve_spark_submit_env_vars_use_krb5ccache_missing_KRB5CCNAME_env(self):

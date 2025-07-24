@@ -475,7 +475,7 @@ class TestBeamAsyncHook:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.apache.beam.hooks.beam.BeamAsyncHook.run_beam_command_async")
-    async def test_start_pipline_async(self, mock_runner):
+    async def test_start_pipeline_async(self, mock_runner):
         expected_cmd = [
             *PIPELINE_COMMAND_PREFIX,
             f"--runner={DEFAULT_RUNNER}",

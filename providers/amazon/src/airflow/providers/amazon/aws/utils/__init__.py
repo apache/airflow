@@ -56,7 +56,7 @@ def datetime_to_epoch_us(date_time: datetime) -> int:
 
 def get_airflow_version() -> tuple[int, ...]:
     match = re.match(r"(\d+)\.(\d+)\.(\d+)", version)
-    if match is None:  # Not theoratically possible.
+    if match is None:  # Not theoretically possible.
         raise RuntimeError(f"Broken Airflow version: {version}")
     return tuple(int(x) for x in match.groups())
 

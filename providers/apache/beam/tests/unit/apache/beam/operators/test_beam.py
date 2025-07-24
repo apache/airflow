@@ -42,7 +42,7 @@ JOB_ID = "test-dataflow-pipeline-id"
 JAR_FILE = "gs://my-bucket/example/test.jar"
 JOB_CLASS = "com.test.NotMain"
 PY_FILE = "gs://my-bucket/my-object.py"
-REQURIEMENTS_FILE = "gs://my-bucket/my-requirements.txt"
+REQUIREMENTS_FILE = "gs://my-bucket/my-requirements.txt"
 PY_INTERPRETER = "python3"
 GO_FILE = "gs://my-bucket/example/main.go"
 LAUNCHER_BINARY = "gs://my-bucket/example/launcher"
@@ -64,7 +64,7 @@ def default_options():
 def py_default_options(default_options):
     return {
         **default_options,
-        "requirements_file": REQURIEMENTS_FILE,
+        "requirements_file": REQUIREMENTS_FILE,
     }
 
 
@@ -182,7 +182,7 @@ class TestBeamRunPythonPipelineOperator:
             "requirements_file": gcs_provide_file.return_value.__enter__.return_value.name,
         }
         gcs_provide_file.assert_any_call(object_url=PY_FILE)
-        gcs_provide_file.assert_any_call(object_url=REQURIEMENTS_FILE)
+        gcs_provide_file.assert_any_call(object_url=REQUIREMENTS_FILE)
         start_python_hook.assert_called_once_with(
             variables=expected_options,
             py_file=gcs_provide_file.return_value.__enter__.return_value.name,
@@ -233,7 +233,7 @@ class TestBeamRunPythonPipelineOperator:
             "requirements_file": gcs_provide_file.return_value.__enter__.return_value.name,
         }
         gcs_provide_file.assert_any_call(object_url=PY_FILE)
-        gcs_provide_file.assert_any_call(object_url=REQURIEMENTS_FILE)
+        gcs_provide_file.assert_any_call(object_url=REQUIREMENTS_FILE)
         persist_link_mock.assert_called_once_with(context={}, region="us-central1")
         beam_hook_mock.return_value.start_python_pipeline.assert_called_once_with(
             variables=expected_options,
