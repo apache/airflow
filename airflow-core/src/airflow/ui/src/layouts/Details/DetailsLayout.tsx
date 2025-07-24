@@ -71,7 +71,13 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
         <DagBreadcrumb />
         <Flex gap={1}>
           <SearchDagsButton />
-          {dag === undefined ? undefined : <TriggerDAGButton dag={dag} />}
+          {dag === undefined ? undefined : (
+            <TriggerDAGButton
+              dagDisplayName={dag.dag_display_name}
+              dagId={dag.dag_id}
+              isPaused={dag.is_paused}
+            />
+          )}
         </Flex>
       </HStack>
       <Toaster />

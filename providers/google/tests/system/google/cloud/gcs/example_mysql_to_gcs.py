@@ -33,8 +33,15 @@ from typing import Any
 
 import pytest
 
-from airflow.decorators import task
 from airflow.models.dag import DAG
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import task
+else:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
 from airflow.providers.google.cloud.hooks.compute_ssh import ComputeEngineSSHHook
@@ -141,9 +148,7 @@ if [ $(gcloud compute firewall-rules list --filter=name:{FIREWALL_RULE_NAME} --f
 fi;
 """
 
-
 log = logging.getLogger(__name__)
-
 
 with DAG(
     dag_id=DAG_ID,

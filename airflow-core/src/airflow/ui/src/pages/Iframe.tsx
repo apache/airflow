@@ -48,10 +48,15 @@ export const Iframe = ({
     }
   }
 
+  if (src.startsWith("http://") || src.startsWith("https://")) {
+    // URL is absolute
+    src = new URL(src).toString();
+  }
+
   return (
     <iframe
       sandbox={sandbox}
-      src={new URL(src).toString()}
+      src={src}
       style={{
         border: "none",
         display: "block",

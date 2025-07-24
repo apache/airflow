@@ -1684,6 +1684,19 @@ export type ConnectionHookMetaData = {
 };
 
 /**
+ * DAG Run serializer for responses.
+ */
+export type DAGRunLightResponse = {
+    run_id: string;
+    dag_id: string;
+    logical_date: string | null;
+    run_after: string;
+    start_date: string | null;
+    end_date: string | null;
+    state: DagRunState;
+};
+
+/**
  * DAG Run States for responses.
  */
 export type DAGRunStates = {
@@ -2409,6 +2422,12 @@ export type GetDagsUiData = {
 
 export type GetDagsUiResponse = DAGWithLatestDagRunsCollectionResponse;
 
+export type GetLatestRunInfoData = {
+    dagId: string;
+};
+
+export type GetLatestRunInfoResponse = Array<DAGRunLightResponse>;
+
 export type GetEventLogData = {
     eventLogId: number;
 };
@@ -2927,6 +2946,28 @@ export type GetMappedTiHitlDetailData = {
 };
 
 export type GetMappedTiHitlDetailResponse = HITLDetail;
+
+export type GetHitlDetailsData = {
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    bodySearch?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    dagIdPattern?: string | null;
+    dagRunId?: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    responseReceived?: boolean | null;
+    state?: Array<(string)>;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    subjectSearch?: string | null;
+    userId?: Array<(string)>;
+};
 
 export type GetHitlDetailsResponse = HITLDetailCollection;
 
@@ -4531,6 +4572,25 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/ui/dags/{dag_id}/latest_run': {
+        get: {
+            req: GetLatestRunInfoData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: Array<DAGRunLightResponse>;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
     '/api/v2/eventLogs/{event_log_id}': {
         get: {
             req: GetEventLogData;
@@ -5990,6 +6050,7 @@ export type $OpenApiTs = {
     };
     '/api/v2/hitl-details/': {
         get: {
+            req: GetHitlDetailsData;
             res: {
                 /**
                  * Successful Response
@@ -6003,6 +6064,10 @@ export type $OpenApiTs = {
                  * Forbidden
                  */
                 403: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
             };
         };
     };

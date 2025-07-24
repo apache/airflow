@@ -36,7 +36,11 @@ from typing import Any, cast
 
 from google.api_core.exceptions import NotFound
 
-from airflow.decorators import task
+try:
+    from airflow.sdk import task
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.hooks.secret_manager import GoogleCloudSecretManagerHook
