@@ -100,15 +100,19 @@ class DualStatsManager:
         tags: dict[str, str] | None = None,
         **kwargs,
     ):
+        kw = dict(kwargs)
+        if tags is not None:
+            kw["tags"] = tags
+
         # Used with a context manager.
         stack = ExitStack()
         ctx_mg1: AbstractContextManager[Any] = (
-            cast("AbstractContextManager[Any]", Stats.timer(legacy_stat, tags, **kwargs))
+            cast("AbstractContextManager[Any]", Stats.timer(legacy_stat, **kw))
             if cls.export_legacy_names
             else nullcontext()
         )
 
         stack.enter_context(ctx_mg1)
-        stack.enter_context(Stats.timer(stat, tags, **kwargs))
+        stack.enter_context(Stats.timer(stat, **kw))
 
         return stack
