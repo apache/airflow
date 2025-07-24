@@ -73,6 +73,7 @@ class TaskInstanceState(str, Enum):
     # Set by the scheduler
     REMOVED = TerminalTIState.REMOVED  # Task vanished from DAG before it ran
     SCHEDULED = IntermediateTIState.SCHEDULED  # Task should run and will be handed to executor soon
+
     # Set by the task instance itself
     QUEUED = IntermediateTIState.QUEUED  # Executor has enqueued the task
     RUNNING = "running"  # Task is executing
