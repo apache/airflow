@@ -712,8 +712,7 @@ def post_clear_task_instances(
         if len(dag.task_dict) > 1:
             # If we had upstream/downstream etc then also include those!
             task_ids.extend(tid for tid in dag.task_dict if tid != task_id)
-    if dag is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG {dag_id} not found")
+# Removed unreachable code
 
     # Prepare common parameters
     common_params = {
