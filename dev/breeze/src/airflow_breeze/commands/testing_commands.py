@@ -20,7 +20,9 @@ import contextlib
 import os
 import signal
 import sys
+from collections.abc import Generator
 from datetime import datetime
+from multiprocessing.pool import Pool
 from time import sleep
 
 import click
@@ -312,6 +314,7 @@ def _run_tests_in_pool(
     skip_docker_compose_down: bool,
     test_timeout: int,
     tests_to_run: list[str],
+    handler: TimeoutHandler,
 ):
     if not tests_to_run:
         return
@@ -349,6 +352,7 @@ def _run_tests_in_pool(
                 lines_to_search=400,
             ),
         ) as (pool, outputs):
+            handler.set_pool(pool)
             results = [
                 pool.apply_async(
                     _run_test,
@@ -395,6 +399,7 @@ def run_tests_in_parallel(
     parallelism: int,
     skip_cleanup: bool,
     skip_docker_compose_down: bool,
+    handler: TimeoutHandler,
 ) -> None:
     get_console().print("\n[info]Summary of the tests to run\n")
     get_console().print(f"[info]Running tests in parallel with parallelism={parallelism}")
@@ -417,6 +422,7 @@ def run_tests_in_parallel(
         debug_resources=debug_resources,
         skip_cleanup=skip_cleanup,
         skip_docker_compose_down=skip_docker_compose_down,
+        handler=handler,
     )
 
 
@@ -1194,43 +1200,24 @@ def python_api_client_tests(
     sys.exit(returncode)
 
 
-@contextlib.contextmanager
-def run_with_timeout(timeout: int, shell_params: ShellParams):
-    def timeout_handler(signum, frame):
-        get_console().print("[warning]Timeout reached. Killing the container(s)[/]:")
-        _print_all_containers()
-        if os.environ.get("CI") == "true":
-            get_console().print("[warning]Dumping container logs first[/]:")
-            _dump_container_logs(output=None, shell_params=shell_params)
-        list_of_containers = _get_running_containers().stdout.splitlines()
-        get_console().print("[warning]Attempting to send TERM signal to all remaining containers:")
-        get_console().print(list_of_containers)
-        _send_signal_to_containers(list_of_containers, "SIGTERM")
-        get_console().print(f"[warning]Waiting {GRACE_CONTAINER_STOP_TIMEOUT} seconds for containers to stop")
-        sleep(GRACE_CONTAINER_STOP_TIMEOUT)
-        containers_left = _get_running_containers().stdout.splitlines()
-        if containers_left:
-            get_console().print("[warning]Some containers are still running. Killing them with SIGKILL:")
-            get_console().print(containers_left)
-            _send_signal_to_containers(list_of_containers, "SIGKILL")
-            get_console().print(
-                f"[warning]Waiting {GRACE_CONTAINER_STOP_TIMEOUT} seconds for containers to stop"
-            )
-            sleep(GRACE_CONTAINER_STOP_TIMEOUT)
-            containers_left = _get_running_containers().stdout.splitlines()
-            if containers_left:
-                get_console().print("[error]Some containers are still running. Exiting anyway.")
-                get_console().print(containers_left)
-                sys.exit(1)
+class TimeoutHandler:
+    def __init__(self, shell_params: ShellParams):
+        self.shell_params = shell_params
+        self.pool: Pool | None = None
 
-    def _send_signal_to_containers(list_of_containers: list[str], signal: str):
+    def set_pool(self, pool: Pool):
+        self.pool = pool
+
+    @staticmethod
+    def _send_signal_to_containers(list_of_containers: list[str], signal_number: str):
         run_command(
-            ["docker", "kill", "--signal", signal, *list_of_containers],
+            ["docker", "kill", "--signal", signal_number, *list_of_containers],
             check=True,
             capture_output=False,
             text=True,
         )
 
+    @staticmethod
     def _get_running_containers() -> RunCommandResult:
         return run_command(
             ["docker", "ps", "-q"],
@@ -1239,16 +1226,53 @@ def run_with_timeout(timeout: int, shell_params: ShellParams):
             text=True,
         )
 
+    @staticmethod
     def _print_all_containers():
         run_command(
             ["docker", "ps"],
             check=True,
         )
 
-    signal.signal(signal.SIGALRM, timeout_handler)
+    def timeout_method(self, signum, frame):
+        get_console().print("[warning]Timeout reached.[/]:")
+        if self.pool:
+            get_console().print("[warning]Terminating the pool[/]:")
+            self.pool.terminate()
+            # No join here. The pool is joined already in the main function
+        get_console().print("[warning]Stopping all running containers[/]:")
+        self._print_all_containers()
+        if os.environ.get("CI") == "true":
+            get_console().print("[warning]Dumping container logs first[/]:")
+            _dump_container_logs(output=None, shell_params=self.shell_params)
+        list_of_containers = self._get_running_containers().stdout.splitlines()
+        get_console().print("[warning]Attempting to send TERM signal to all remaining containers:")
+        get_console().print(list_of_containers)
+        self._send_signal_to_containers(list_of_containers, "SIGTERM")
+        get_console().print(f"[warning]Waiting {GRACE_CONTAINER_STOP_TIMEOUT} seconds for containers to stop")
+        sleep(GRACE_CONTAINER_STOP_TIMEOUT)
+        containers_left = self._get_running_containers().stdout.splitlines()
+        if containers_left:
+            get_console().print("[warning]Some containers are still running. Killing them with SIGKILL:")
+            get_console().print(containers_left)
+            self._send_signal_to_containers(list_of_containers, "SIGKILL")
+            get_console().print(
+                f"[warning]Waiting {GRACE_CONTAINER_STOP_TIMEOUT} seconds for containers to stop"
+            )
+            sleep(GRACE_CONTAINER_STOP_TIMEOUT)
+            containers_left = self._get_running_containers().stdout.splitlines()
+            if containers_left:
+                get_console().print("[error]Some containers are still running. Exiting anyway.")
+                get_console().print(containers_left)
+                sys.exit(1)
+
+
+@contextlib.contextmanager
+def run_with_timeout(timeout: int, shell_params: ShellParams) -> Generator[TimeoutHandler, None, None]:
+    timeout_handler = TimeoutHandler(shell_params=shell_params)
+    signal.signal(signal.SIGALRM, timeout_handler.timeout_method)
     signal.alarm(timeout)
     try:
-        yield
+        yield timeout_handler
     finally:
         signal.alarm(0)
 
@@ -1368,7 +1392,7 @@ def _run_test_command(
                 f"Your test type = {test_type}\n"
             )
             sys.exit(1)
-        with run_with_timeout(total_test_timeout, shell_params=shell_params):
+        with run_with_timeout(total_test_timeout, shell_params=shell_params) as handler:
             run_tests_in_parallel(
                 shell_params=shell_params,
                 extra_pytest_args=extra_pytest_args,
@@ -1378,6 +1402,7 @@ def _run_test_command(
                 skip_cleanup=skip_cleanup,
                 debug_resources=debug_resources,
                 skip_docker_compose_down=skip_docker_compose_down,
+                handler=handler,
             )
     else:
         if shell_params.test_type == ALL_TEST_TYPE:
