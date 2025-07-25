@@ -18,13 +18,15 @@
 from __future__ import annotations
 
 import logging
+from typing import Annotated
 
-from fastapi import Request  # noqa: TC002
+from fastapi import Depends, HTTPException, Request
 from starlette.responses import HTMLResponse, RedirectResponse
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.security import get_user
 from airflow.configuration import conf
 from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import KeycloakAuthManager
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
@@ -68,5 +70,28 @@ def login_callback(request: Request):
 
     response = RedirectResponse(url=conf.get("api", "base_url", fallback="/"), status_code=303)
     secure = bool(conf.get("api", "ssl_cert", fallback=""))
+    response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
+    return response
+
+
+@login_router.get("/refresh")
+def refresh(
+    request: Request, user: Annotated[KeycloakAuthManagerUser, Depends(get_user)]
+) -> RedirectResponse:
+    """Refresh the token."""
+    client = KeycloakAuthManager.get_keycloak_client()
+
+    if not user or not user.refresh_token:
+        raise HTTPException(status_code=400, detail="User is empty or has no refresh token")
+
+    tokens = client.refresh_token(user.refresh_token)
+    user.refresh_token = tokens["refresh_token"]
+    user.access_token = tokens["access_token"]
+    token = get_auth_manager().generate_jwt(user)
+
+    redirect_url = request.query_params.get("next", conf.get("api", "base_url", fallback="/"))
+    response = RedirectResponse(url=redirect_url, status_code=303)
+    secure = bool(conf.get("api", "ssl_cert", fallback=""))
+
     response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
     return response
