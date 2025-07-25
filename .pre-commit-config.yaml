@@ -388,6 +388,13 @@ repos:
         always_run: true
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4', 'pyyaml>=6.0.2', 'tomli>=2.0.1']
+      - id: check-shared-projects
+        name: Check shared projects structure
+        entry: ./scripts/ci/pre_commit/check_shared_projects.py
+        language: python
+        additional_dependencies: ['rich>=12.4.4', 'tomli>=2.0.1']
+        pass_filenames: false
+        include: ^shared/.*$
       - id: validate-operators-init
         name: No templated field logic checks in operator __init__
         description: Prevent templated field logic checks in operators' __init__
