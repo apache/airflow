@@ -34,7 +34,7 @@ import { Header } from "./Header";
 
 export const Task = () => {
   const { t: translate } = useTranslation("dag");
-  const { dagId = "", groupId, taskId } = useParams();
+  const { dagId = "", groupId, runId, taskId } = useParams();
 
   // Get external views with task destination
   const externalTabs = usePluginTabs("task");
@@ -63,6 +63,7 @@ export const Task = () => {
   const { data: hitlData } = useHumanInTheLoopServiceGetHitlDetails(
     {
       dagIdPattern: dagId,
+      dagRunId: runId,
     },
     undefined,
     {
@@ -70,7 +71,9 @@ export const Task = () => {
     },
   );
 
-  const hasHitlForTask = Boolean(hitlData?.hitl_details.length);
+  const hasHitlForTask = Boolean(
+    hitlData?.hitl_details.filter((hitl) => hitl.task_instance.task_id === taskId).length,
+  );
 
   const displayTabs = (groupId === undefined ? tabs : tabs.filter((tab) => tab.value !== "events")).filter(
     (tab) => {

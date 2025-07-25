@@ -59,7 +59,9 @@ export const getHITLParamsDict = (hitlDetail: HITLDetail, translate: TFunction):
   };
 
   if (hitlDetail.params) {
-    Object.entries(hitlDetail.params).forEach(([key, value]) => {
+    const sourceParams = hitlDetail.response_received ? hitlDetail.params_input : hitlDetail.params;
+
+    Object.entries(sourceParams ?? {}).forEach(([key, value]) => {
       const valueType = typeof value === "number" ? "number" : "string";
 
       paramsDict[key] = {

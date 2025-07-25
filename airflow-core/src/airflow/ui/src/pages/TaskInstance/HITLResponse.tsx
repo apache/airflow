@@ -17,18 +17,24 @@
  * under the License.
  */
 import { Box } from "@chakra-ui/react";
+import { useParams } from "react-router-dom";
 
-import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+import { useHumanInTheLoopServiceGetMappedTiHitlDetail } from "openapi/queries";
 import { ProgressBar } from "src/components/ui";
 
 import { HITLResponseForm } from "../HITLTaskInstances/HITLResponseForm";
 
-type HITLResponseProps = {
-  readonly taskInstance?: TaskInstanceResponse;
-};
+export const HITLResponse = () => {
+  const { dagId, mapIndex, runId, taskId } = useParams();
 
-export const HITLResponse = ({ taskInstance }: HITLResponseProps) => {
-  if (!taskInstance) {
+  const { data: hitlDetail } = useHumanInTheLoopServiceGetMappedTiHitlDetail({
+    dagId: dagId ?? "~",
+    dagRunId: runId ?? "~",
+    mapIndex: Number(mapIndex ?? -1),
+    taskId: taskId ?? "~",
+  });
+
+  if (!hitlDetail) {
     return (
       <Box flexGrow={1}>
         <ProgressBar />
@@ -38,7 +44,7 @@ export const HITLResponse = ({ taskInstance }: HITLResponseProps) => {
 
   return (
     <Box px={4}>
-      <HITLResponseForm taskInstance={taskInstance} />
+      <HITLResponseForm taskInstance={hitlDetail.task_instance} />
     </Box>
   );
 };
