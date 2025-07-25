@@ -70,6 +70,8 @@ Doc Only Changes
 Airflow 3.0.5 (2025-08-20)
 --------------------------
 
+This release has been yanked.
+
 Significant Changes
 ^^^^^^^^^^^^^^^^^^^
 

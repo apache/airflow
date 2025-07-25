@@ -90,6 +90,7 @@ from airflow_breeze.commands.common_package_installation_options import (
 )
 from airflow_breeze.commands.release_management_group import release_management
 from airflow_breeze.global_constants import (
+    ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION,
     ALLOWED_DEBIAN_VERSIONS,
     ALLOWED_DISTRIBUTION_FORMATS,
     ALLOWED_PLATFORMS,
@@ -2152,7 +2153,8 @@ def release_prod_images(
     for python in python_versions:
         build_args = {
             "AIRFLOW_CONSTRAINTS": "constraints-no-providers",
-            "PYTHON_BASE_IMAGE": f"python:{python}-slim-bookworm",
+            "BASE_IMAGE": "debian:bookworm-slim",
+            "AIRFLOW_PYTHON_VERSION": ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION.get(python, python),
             "AIRFLOW_VERSION": airflow_version,
             "INCLUDE_PRE_RELEASE": "true" if include_pre_release else "false",
             "INSTALL_DISTRIBUTIONS_FROM_CONTEXT": "false",

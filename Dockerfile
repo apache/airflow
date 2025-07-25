@@ -48,7 +48,7 @@ ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 # latest released version here
 ARG AIRFLOW_VERSION="3.0.6"
 
-ARG PYTHON_BASE_IMAGE="python:3.10-slim-bookworm"
+ARG BASE_IMAGE="debian:bookworm-slim"
 
 
 # You can swap comments between those two args to test pip from the main version
@@ -56,7 +56,6 @@ ARG PYTHON_BASE_IMAGE="python:3.10-slim-bookworm"
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=25.2
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_SETUPTOOLS_VERSION=80.9.0
 ARG AIRFLOW_UV_VERSION=0.8.14
 ARG AIRFLOW_USE_UV="false"
 ARG UV_HTTP_TIMEOUT="300"
@@ -98,26 +97,34 @@ COPY <<"EOF" /install_os_dependencies.sh
 set -euo pipefail
 
 if [[ "$#" != 1 ]]; then
-    echo "ERROR! There should be 'runtime' or 'dev' parameter passed as argument.".
+    echo "ERROR! There should be 'runtime', 'ci' or 'dev' parameter passed as argument.".
     exit 1
 fi
+
+AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-3.10.18}
+GOLANG_MAJOR_MINOR_VERSION=${GOLANG_MAJOR_MINOR_VERSION:-1.24.4}
 
 if [[ "${1}" == "runtime" ]]; then
     INSTALLATION_TYPE="RUNTIME"
 elif   [[ "${1}" == "dev" ]]; then
-    INSTALLATION_TYPE="dev"
+    INSTALLATION_TYPE="DEV"
+elif   [[ "${1}" == "ci" ]]; then
+    INSTALLATION_TYPE="CI"
 else
-    echo "ERROR! Wrong argument. Passed ${1} and it should be one of 'runtime' or 'dev'.".
+    echo "ERROR! Wrong argument. Passed ${1} and it should be one of 'runtime', 'ci' or 'dev'.".
     exit 1
 fi
 
 function get_dev_apt_deps() {
     if [[ "${DEV_APT_DEPS=}" == "" ]]; then
-        DEV_APT_DEPS="apt-transport-https apt-utils build-essential ca-certificates dirmngr \
+        DEV_APT_DEPS="apt-transport-https apt-utils build-essential dirmngr \
 freetds-bin freetds-dev git graphviz graphviz-dev krb5-user ldap-utils libev4 libev-dev libffi-dev libgeos-dev \
 libkrb5-dev libldap2-dev libleveldb1d libleveldb-dev libsasl2-2 libsasl2-dev libsasl2-modules \
 libssl-dev libxmlsec1 libxmlsec1-dev locales lsb-release openssh-client pkgconf sasl2-bin \
-software-properties-common sqlite3 sudo unixodbc unixodbc-dev zlib1g-dev"
+software-properties-common sqlite3 sudo unixodbc unixodbc-dev zlib1g-dev wget \
+gdb lcov pkg-config libbz2-dev libgdbm-dev libgdbm-compat-dev liblzma-dev \
+libncurses5-dev libreadline6-dev libsqlite3-dev lzma lzma-dev tk-dev uuid-dev \
+libzstd-dev"
         export DEV_APT_DEPS
     fi
 }
@@ -136,10 +143,10 @@ function get_runtime_apt_deps() {
     echo "APPLIED INSTALLATION CONFIGURATION FOR DEBIAN VERSION: ${debian_version}"
     echo
     if [[ "${RUNTIME_APT_DEPS=}" == "" ]]; then
-        RUNTIME_APT_DEPS="apt-transport-https apt-utils ca-certificates \
+        RUNTIME_APT_DEPS="apt-transport-https apt-utils \
 curl dumb-init freetds-bin git krb5-user libev4 libgeos-dev \
 ldap-utils libsasl2-2 libsasl2-modules libxmlsec1 locales ${debian_version_apt_deps} \
-lsb-release openssh-client python3-selinux rsync sasl2-bin sqlite3 sudo unixodbc"
+lsb-release openssh-client python3-selinux rsync sasl2-bin sqlite3 sudo unixodbc wget"
         export RUNTIME_APT_DEPS
     fi
 }
@@ -162,7 +169,7 @@ function install_docker_cli() {
 function install_debian_dev_dependencies() {
     apt-get update
     apt-get install -yqq --no-install-recommends apt-utils >/dev/null 2>&1
-    apt-get install -y --no-install-recommends curl gnupg2 lsb-release
+    apt-get install -y --no-install-recommends wget curl gnupg2 lsb-release ca-certificates
     # shellcheck disable=SC2086
     export ${ADDITIONAL_DEV_APT_ENV?}
     if [[ ${DEV_APT_COMMAND} != "" ]]; then
@@ -184,10 +191,30 @@ function install_debian_dev_dependencies() {
     apt-get install -y --no-install-recommends ${DEV_APT_DEPS} ${ADDITIONAL_DEV_APT_DEPS}
 }
 
+
+function link_python() {
+    # link python binaries to /usr/local/bin and /usr/python/bin with and without 3 suffix
+    # Links in /usr/local/bin are needed for tools that expect python to be there
+    # Links in /usr/python/bin are needed for tools that are detecting home of python installation including
+    # lib/site-packages. The /usr/python/bin should be first in PATH in order to help with the last part.
+    ldconfig
+    for dst in pip3 python3 python3-config; do
+        src="$(echo "${dst}" | tr -d 3)"
+        echo "Linking ${dst} in /usr/local/bin and /usr/python/bin"
+        ln -sv "/usr/python/bin/${dst}" "/usr/local/bin/${dst}"
+        for dir in /usr/local/bin /usr/python/bin; do
+            if [[ ! -e "${dir}/${src}" ]]; then
+                echo "Creating ${src} - > ${dst} link in ${dir}"
+                ln -sv "${dir}/${dst}" "${dir}/${src}"
+            fi
+        done
+    done
+}
+
 function install_debian_runtime_dependencies() {
     apt-get update
     apt-get install --no-install-recommends -yqq apt-utils >/dev/null 2>&1
-    apt-get install -y --no-install-recommends curl gnupg2 lsb-release
+    apt-get install -y --no-install-recommends wget curl gnupg2 lsb-release ca-certificates
     # shellcheck disable=SC2086
     export ${ADDITIONAL_RUNTIME_APT_ENV?}
     if [[ "${RUNTIME_APT_COMMAND}" != "" ]]; then
@@ -201,6 +228,71 @@ function install_debian_runtime_dependencies() {
     apt-get install -y --no-install-recommends ${RUNTIME_APT_DEPS} ${ADDITIONAL_RUNTIME_APT_DEPS}
     apt-get autoremove -yqq --purge
     apt-get clean
+    link_python
+    rm -rf /var/lib/apt/lists/* /var/log/*
+}
+
+function install_python() {
+    wget -O python.tar.xz "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz"
+    wget -O python.tar.xz.asc "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz.asc";
+    declare -A keys=(
+        # gpg: key B26995E310250568: public key "\xc5\x81ukasz Langa (GPG langa.pl) <lukasz@langa.pl>" imported
+        # https://peps.python.org/pep-0596/#release-manager-and-crew
+        [3.9]="E3FF2839C048B25C084DEBE9B26995E310250568"
+        # gpg: key 64E628F8D684696D: public key "Pablo Galindo Salgado <pablogsal@gmail.com>" imported
+        # https://peps.python.org/pep-0619/#release-manager-and-crew
+        [3.10]="A035C8C19219BA821ECEA86B64E628F8D684696D"
+        # gpg: key 64E628F8D684696D: public key "Pablo Galindo Salgado <pablogsal@gmail.com>" imported
+        # https://peps.python.org/pep-0664/#release-manager-and-crew
+        [3.11]="A035C8C19219BA821ECEA86B64E628F8D684696D"
+        # gpg: key A821E680E5FA6305: public key "Thomas Wouters <thomas@python.org>" imported
+        # https://peps.python.org/pep-0693/#release-manager-and-crew
+        [3.12]="7169605F62C751356D054A26A821E680E5FA6305"
+        # gpg: key A821E680E5FA6305: public key "Thomas Wouters <thomas@python.org>" imported
+        # https://peps.python.org/pep-0719/#release-manager-and-crew
+        [3.13]="7169605F62C751356D054A26A821E680E5FA6305"
+    )
+    major_minor_version="${AIRFLOW_PYTHON_VERSION%.*}"
+    echo "Verifying Python ${AIRFLOW_PYTHON_VERSION} (${major_minor_version})"
+    GNUPGHOME="$(mktemp -d)"; export GNUPGHOME;
+    gpg_key="${keys[${major_minor_version}]}"
+    echo "Using GPG key ${gpg_key}"
+    gpg --batch --keyserver hkps://keys.openpgp.org --recv-keys "${gpg_key}"
+    gpg --batch --verify python.tar.xz.asc python.tar.xz;
+    gpgconf --kill all
+    rm -rf "$GNUPGHOME" python.tar.xz.asc
+    mkdir -p /usr/src/python
+    tar --extract --directory /usr/src/python --strip-components=1 --file python.tar.xz
+    rm python.tar.xz
+    cd /usr/src/python
+    arch="$(dpkg --print-architecture)"; arch="${arch##*-}"
+    gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)"
+    EXTRA_CFLAGS="$(dpkg-buildflags --get CFLAGS)"
+    EXTRA_CFLAGS="${EXTRA_CFLAGS:-} -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer";
+    LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
+    LDFLAGS="${LDFLAGS:--Wl},--strip-all"
+    ./configure --enable-optimizations --prefix=/usr/python/ --with-ensurepip --build="$gnuArch" \
+        --enable-loadable-sqlite-extensions --enable-option-checking=fatal  --enable-shared --with-lto
+    make -s -j "$(nproc)" "EXTRA_CFLAGS=${EXTRA_CFLAGS:-}" \
+        "LDFLAGS=${LDFLAGS:--Wl},-rpath='\$\$ORIGIN/../lib'" python
+    make -s -j "$(nproc)" install
+    cd /
+    rm -rf /usr/src/python
+    find /usr/python -depth \
+      \( \
+        \( -type d -a \( -name test -o -name tests -o -name idle_test \) \) \
+        -o \( -type f -a \( -name '*.pyc' -o -name '*.pyo' -o -name 'libpython*.a' \) \) \
+    \) -exec rm -rf '{}' +
+    link_python
+}
+
+function install_golang() {
+    curl "https://dl.google.com/go/go${GOLANG_MAJOR_MINOR_VERSION}.linux-$(dpkg --print-architecture).tar.gz" -o "go${GOLANG_MAJOR_MINOR_VERSION}.linux.tar.gz"
+    rm -rf /usr/local/go && tar -C /usr/local -xzf go"${GOLANG_MAJOR_MINOR_VERSION}".linux.tar.gz
+}
+
+function apt_clean() {
+    apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false
     rm -rf /var/lib/apt/lists/* /var/log/*
 }
 
@@ -208,11 +300,16 @@ if [[ "${INSTALLATION_TYPE}" == "RUNTIME" ]]; then
     get_runtime_apt_deps
     install_debian_runtime_dependencies
     install_docker_cli
-
+    apt_clean
 else
     get_dev_apt_deps
     install_debian_dev_dependencies
+    install_python
+    if [[ "${INSTALLATION_TYPE}" == "CI" ]]; then
+        install_golang
+    fi
     install_docker_cli
+    apt_clean
 fi
 EOF
 
@@ -590,12 +687,6 @@ function common::install_packaging_tools() {
             pip install --root-user-action ignore --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
         fi
     fi
-    if [[ ${AIRFLOW_SETUPTOOLS_VERSION=} != "" ]]; then
-        echo
-        echo "${COLOR_BLUE}Installing setuptools version ${AIRFLOW_SETUPTOOLS_VERSION} {COLOR_RESET}"
-        echo
-        pip install --root-user-action ignore setuptools==${AIRFLOW_SETUPTOOLS_VERSION}
-    fi
     if [[ ${AIRFLOW_UV_VERSION=} == "" ]]; then
         echo
         echo "${COLOR_BLUE}Installing latest uv version${COLOR_RESET}"
@@ -958,13 +1049,11 @@ function install_from_external_spec() {
      local installation_command_flags
     if [[ ${AIRFLOW_INSTALLATION_METHOD} == "apache-airflow" ]]; then
         installation_command_flags="apache-airflow[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
-    elif [[ ${AIRFLOW_INSTALLATION_METHOD} == apache-airflow\ @\ * ]]; then
-        installation_command_flags="apache-airflow[${AIRFLOW_EXTRAS}] @ ${AIRFLOW_VERSION_SPECIFICATION/apache-airflow @//}"
     else
         echo
         echo "${COLOR_RED}The '${INSTALLATION_METHOD}' installation method is not supported${COLOR_RESET}"
         echo
-        echo "${COLOR_YELLOW}Supported methods are ('.', 'apache-airflow', 'apache-airflow @ URL')${COLOR_RESET}"
+        echo "${COLOR_YELLOW}Supported methods are ('.', 'apache-airflow')${COLOR_RESET}"
         echo
         exit 1
     fi
@@ -1460,16 +1549,20 @@ EOF
 ##############################################################################################
 # This is the build image where we build all dependencies
 ##############################################################################################
-FROM ${PYTHON_BASE_IMAGE} as airflow-build-image
+FROM ${BASE_IMAGE} as airflow-build-image
 
 # Nolog bash flag is currently ignored - but you can replace it with
 # xtrace - to show commands executed)
 SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
 
-ARG PYTHON_BASE_IMAGE
-ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \
+ARG BASE_IMAGE
+
+# Make sure noninteractive debian install is used and language variables set
+# as well as LD_LIBRARY_PATH to /usr/local/lib and /usr/python/lib is set, so that
+# shared libraries installed there are found
+ENV BASE_IMAGE=${BASE_IMAGE} \
     DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
-    LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 \
+    LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 LD_LIBRARY_PATH=/usr/python/lib:/usr/local/lib \
     PIP_CACHE_DIR=/tmp/.cache/pip \
     UV_CACHE_DIR=/tmp/.cache/uv
 
@@ -1484,6 +1577,8 @@ ENV DEV_APT_DEPS=${DEV_APT_DEPS} \
     DEV_APT_COMMAND=${DEV_APT_COMMAND} \
     ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND} \
     ADDITIONAL_DEV_APT_ENV=${ADDITIONAL_DEV_APT_ENV}
+
+ENV AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION}
 
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 RUN bash /scripts/docker/install_os_dependencies.sh dev
@@ -1568,7 +1663,6 @@ RUN if [[ -f /docker-context-files/pip.conf ]]; then \
 ARG ADDITIONAL_PIP_INSTALL_FLAGS=""
 
 ARG AIRFLOW_PIP_VERSION
-ARG AIRFLOW_SETUPTOOLS_VERSION
 ARG AIRFLOW_UV_VERSION
 ARG AIRFLOW_USE_UV
 ARG UV_HTTP_TIMEOUT
@@ -1576,7 +1670,6 @@ ARG INCLUDE_PRE_RELEASE="false"
 
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_UV_VERSION=${AIRFLOW_UV_VERSION} \
-    AIRFLOW_SETUPTOOLS_VERSION=${AIRFLOW_SETUPTOOLS_VERSION} \
     UV_HTTP_TIMEOUT=${UV_HTTP_TIMEOUT} \
     AIRFLOW_USE_UV=${AIRFLOW_USE_UV} \
     AIRFLOW_VERSION=${AIRFLOW_VERSION} \
@@ -1627,7 +1720,7 @@ ARG USE_CONSTRAINTS_FOR_CONTEXT_DISTRIBUTIONS="false"
 
 # By default PIP installs everything to ~/.local and it's also treated as VIRTUALENV
 ENV VIRTUAL_ENV="${AIRFLOW_USER_HOME_DIR}/.local"
-
+ENV PATH="/usr/python/bin:$PATH"
 RUN bash /scripts/docker/install_packaging_tools.sh; bash /scripts/docker/create_prod_venv.sh
 
 COPY --chown=airflow:0 ${AIRFLOW_SOURCES_FROM} ${AIRFLOW_SOURCES_TO}
@@ -1684,7 +1777,7 @@ RUN --mount=type=cache,id=prod-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/tmp/.
 # This is the actual Airflow image - much smaller than the build one. We copy
 # installed Airflow and all its dependencies from the build image to make it smaller.
 ##############################################################################################
-FROM ${PYTHON_BASE_IMAGE} as main
+FROM ${BASE_IMAGE} as main
 
 # Nolog bash flag is currently ignored - but you can replace it with other flags (for example
 # xtrace - to show commands executed)
@@ -1698,12 +1791,14 @@ LABEL org.apache.airflow.distro="debian" \
   org.apache.airflow.image="airflow" \
   org.apache.airflow.uid="${AIRFLOW_UID}"
 
-ARG PYTHON_BASE_IMAGE
+ARG BASE_IMAGE
 
-ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \
-    # Make sure noninteractive debian install is used and language variables set
+# Make sure noninteractive debian install is used and language variables set
+# as well as LD_LIBRARY_PATH to /usr/local/lib and /usr/python/lib is set, so that
+# shared libraries installed there are found
+ENV BASE_IMAGE=${BASE_IMAGE} \
     DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
-    LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 LD_LIBRARY_PATH=/usr/local/lib \
+    LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 LD_LIBRARY_PATH=/usr/python/lib:/usr/local/lib \
     PIP_CACHE_DIR=/tmp/.cache/pip \
     UV_CACHE_DIR=/tmp/.cache/uv
 
@@ -1729,6 +1824,7 @@ ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     GUNICORN_CMD_ARGS="--worker-tmp-dir /dev/shm" \
     AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD}
 
+COPY --from=airflow-build-image "/usr/python/" "/usr/python/"
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 RUN bash /scripts/docker/install_os_dependencies.sh runtime
 
@@ -1741,7 +1837,7 @@ ARG AIRFLOW_HOME
 ARG AIRFLOW_IMAGE_TYPE
 
 # By default PIP installs everything to ~/.local
-ENV PATH="${AIRFLOW_USER_HOME_DIR}/.local/bin:${PATH}" \
+ENV PATH="${AIRFLOW_USER_HOME_DIR}/.local/bin:/usr/python/bin:${PATH}" \
     VIRTUAL_ENV="${AIRFLOW_USER_HOME_DIR}/.local" \
     AIRFLOW_UID=${AIRFLOW_UID} \
     AIRFLOW_USER_HOME_DIR=${AIRFLOW_USER_HOME_DIR} \
@@ -1803,9 +1899,9 @@ RUN sed --in-place=.bak "s/secure_path=\"/secure_path=\"$(echo -n ${AIRFLOW_USER
 
 ARG AIRFLOW_VERSION
 ARG AIRFLOW_PIP_VERSION
-ARG AIRFLOW_SETUPTOOLS_VERSION
 ARG AIRFLOW_UV_VERSION
 ARG AIRFLOW_USE_UV
+ARG AIRFLOW_PYTHON_VERSION
 
 # See https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
 # to learn more about the way how signals are handled by the image
@@ -1813,11 +1909,11 @@ ARG AIRFLOW_USE_UV
 ENV DUMB_INIT_SETSID="1" \
     PS1="(airflow)" \
     AIRFLOW_VERSION=${AIRFLOW_VERSION} \
+    AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION} \
     AIRFLOW__CORE__LOAD_EXAMPLES="false" \
     PATH="/root/bin:${PATH}" \
     AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_UV_VERSION=${AIRFLOW_UV_VERSION} \
-    AIRFLOW_SETUPTOOLS_VERSION=${AIRFLOW_SETUPTOOLS_VERSION} \
     AIRFLOW_USE_UV=${AIRFLOW_USE_UV}
 
 # Add protection against running pip as root user
@@ -1845,6 +1941,7 @@ LABEL org.apache.airflow.distro="debian" \
   org.apache.airflow.component="airflow" \
   org.apache.airflow.image="airflow" \
   org.apache.airflow.version="${AIRFLOW_VERSION}" \
+  org.apache.airflow.python.version="${AIRFLOW_PYTHON_VERSION}" \
   org.apache.airflow.uid="${AIRFLOW_UID}" \
   org.apache.airflow.main-image.build-id="${BUILD_ID}" \
   org.apache.airflow.main-image.commit-sha="${COMMIT_SHA}" \
