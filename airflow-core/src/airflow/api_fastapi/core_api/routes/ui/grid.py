@@ -127,7 +127,7 @@ def get_dag_structure(
     # Retrieve, sort the previous DAG Runs
     base_query = select(DagRun.id).where(DagRun.dag_id == dag_id)
     # This comparison is to fall back to DAG timetable when no order_by is provided
-    if order_by.value == order_by.get_primary_key_string():
+    if order_by.value == [order_by.get_primary_key_string()]:
         ordering = list(latest_dag.timetable.run_ordering)
         order_by = SortParam(
             allowed_attrs=ordering,
@@ -230,7 +230,7 @@ def get_grid_runs(
     ).where(DagRun.dag_id == dag_id)
 
     # This comparison is to fall back to DAG timetable when no order_by is provided
-    if order_by.value == order_by.get_primary_key_string():
+    if order_by.value == [order_by.get_primary_key_string()]:
         latest_serdag = _get_latest_serdag(dag_id, session)
         latest_dag = latest_serdag.dag
         ordering = list(latest_dag.timetable.run_ordering)

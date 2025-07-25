@@ -1237,7 +1237,7 @@ export const ensureUseHumanInTheLoopServiceGetHitlDetailsData = (queryClient: Qu
   dagRunId?: string;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   responseReceived?: boolean;
   state?: string[];
   subjectSearch?: string;

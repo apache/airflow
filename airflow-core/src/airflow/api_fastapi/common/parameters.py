@@ -258,11 +258,12 @@ class SortParam(BaseParam[list[str]]):
         # Reset default sorting
         select = select.order_by(None)
 
-        primary_key_column = (
-            self.get_primary_key_column()
-        )  # Always add a final discriminator to enforce deterministic ordering.
-
-        columns.append(primary_key_column.asc())
+        primary_key_column = self.get_primary_key_column()
+        # Always add a final discriminator to enforce deterministic ordering.
+        if order_by_values and order_by_values[0].startswith("-"):
+            columns.append(primary_key_column.desc())
+        else:
+            columns.append(primary_key_column.asc())
 
         return select.order_by(*columns)
 

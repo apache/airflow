@@ -2959,7 +2959,7 @@ export type GetHitlDetailsData = {
     dagRunId?: string;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
     responseReceived?: boolean | null;
     state?: Array<(string)>;
     /**

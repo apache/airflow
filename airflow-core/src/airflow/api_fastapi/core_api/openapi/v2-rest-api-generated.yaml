@@ -7580,8 +7580,11 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: ti_id
+          type: array
+          items:
+            type: string
+          default:
+          - ti_id
           title: Order By
       - name: dag_id_pattern
         in: query
