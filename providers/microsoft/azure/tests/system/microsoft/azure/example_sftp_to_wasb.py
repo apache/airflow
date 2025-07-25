@@ -21,7 +21,12 @@ import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.decorators import task
+
+try:
+    from airflow.sdk import task
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.providers.microsoft.azure.operators.wasb_delete_blob import WasbDeleteBlobOperator
 from airflow.providers.microsoft.azure.transfers.sftp_to_wasb import SFTPToWasbOperator
 from airflow.providers.sftp.hooks.sftp import SFTPHook
