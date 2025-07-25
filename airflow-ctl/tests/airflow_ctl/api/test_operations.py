@@ -20,7 +20,9 @@ from __future__ import annotations
 import datetime
 import json
 import uuid
+from math import ceil
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import httpx
 import pytest
@@ -91,6 +93,7 @@ from airflowctl.api.datamodels.generated import (
     VariableResponse,
     VersionInfo,
 )
+from airflowctl.api.operations import BaseOperations
 from airflowctl.exceptions import AirflowCtlConnectionException
 
 if TYPE_CHECKING:
@@ -127,7 +130,6 @@ class TestBaseOperations:
     @pytest.mark.parametrize(
         "total_entries, limit, expected_response",
         [
-            (0, 0, (HelloCollectionResponse(hellos=[], total_entries=0))),
             (1, 50, (HelloCollectionResponse(hellos=[HelloResponse(name="hello")], total_entries=1))),
             (
                 150,
@@ -136,9 +138,8 @@ class TestBaseOperations:
                     HelloCollectionResponse(
                         hellos=[
                             HelloResponse(name="hello"),
-                            HelloResponse(name="hello"),
-                            HelloResponse(name="hello"),
-                        ],
+                        ]
+                        * 150,
                         total_entries=150,
                     )
                 ),
@@ -146,23 +147,49 @@ class TestBaseOperations:
             (
                 90,
                 50,
-                (
-                    HelloCollectionResponse(
-                        hellos=[HelloResponse(name="hello"), HelloResponse(name="hello")], total_entries=90
-                    )
-                ),
+                (HelloCollectionResponse(hellos=[HelloResponse(name="hello")] * 90, total_entries=90)),
             ),
         ],
     )
     def test_execute_list(self, total_entries, limit, expected_response):
-        hello_response = []
-        if total_entries != 0:
-            update = (total_entries + limit - 1) // limit
-            hello_response.extend([HelloResponse(name="hello")] * update)
-        hello_collection_response = HelloCollectionResponse(
-            hellos=hello_response, total_entries=total_entries
+        get_response_mock = []
+
+        mock_client = Mock()
+        mock_client.get.side_effect = get_response_mock
+        base_operation = BaseOperations(client=mock_client)
+
+        nb_of_pages = ceil(total_entries / limit)
+        for page in range(nb_of_pages):
+            if page == nb_of_pages - 1 and (remaining_entries := total_entries % limit) > 0:
+                # partial page
+                get_response_mock.append(
+                    Mock(
+                        content=json.dumps(
+                            {
+                                "hellos": [{"name": "hello"}] * remaining_entries,
+                                "total_entries": total_entries,
+                            }
+                        )
+                    )
+                )
+                continue
+            # page is full
+            get_response_mock.append(
+                Mock(
+                    content=json.dumps(
+                        {
+                            "hellos": [{"name": "hello"}] * limit,
+                            "total_entries": total_entries,
+                        }
+                    )
+                )
+            )
+
+        response = base_operation.execute_list(
+            path="some_fake_path", data_model=HelloCollectionResponse, limit=limit
         )
-        assert expected_response == hello_collection_response
+
+        assert expected_response == response
 
 
 class TestAssetsOperations:
