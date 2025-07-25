@@ -31,8 +31,8 @@ FROM ${BASE_IMAGE} as scripts
 # make the PROD Dockerfile standalone
 ##############################################################################################
 
-# The content below is automatically copied from scripts/docker/install_os_dependencies_ci.sh
-COPY <<"EOF" /install_os_dependencies_ci.sh
+# The content below is automatically copied from scripts/docker/install_os_dependencies.sh
+COPY <<"EOF" /install_os_dependencies.sh
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -1335,9 +1335,9 @@ ARG AIRFLOW_PYTHON_VERSION=v3.10.18
 ENV AIRFLOW_PYTHON_VERSION=$AIRFLOW_PYTHON_VERSION
 ENV GOLANG_MAJOR_MINOR_VERSION=1.25.0
 
-COPY --from=scripts install_os_dependencies_ci.sh /scripts/docker/
+COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 
-RUN bash /scripts/docker/install_os_dependencies_ci.sh ci
+RUN bash /scripts/docker/install_os_dependencies.sh ci
 
 COPY --from=scripts common.sh /scripts/docker/
 

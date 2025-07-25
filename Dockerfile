@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.4
+# syntax=docker/dockerfile:1.7-labs
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -48,7 +48,7 @@ ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 # latest released version here
 ARG AIRFLOW_VERSION="3.0.5"
 
-ARG PYTHON_BASE_IMAGE="python:3.10-slim-bookworm"
+ARG BASE_IMAGE="debian:bookworm-slim"
 
 
 # You can swap comments between those two args to test pip from the main version
@@ -98,16 +98,21 @@ COPY <<"EOF" /install_os_dependencies.sh
 set -euo pipefail
 
 if [[ "$#" != 1 ]]; then
-    echo "ERROR! There should be 'runtime' or 'dev' parameter passed as argument.".
+    echo "ERROR! There should be 'runtime', 'ci' or 'dev' parameter passed as argument.".
     exit 1
 fi
+
+AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-v3.10.10}
+GOLANG_MAJOR_MINOR_VERSION=${GOLANG_MAJOR_MINOR_VERSION:-1.24.4}
 
 if [[ "${1}" == "runtime" ]]; then
     INSTALLATION_TYPE="RUNTIME"
 elif   [[ "${1}" == "dev" ]]; then
-    INSTALLATION_TYPE="dev"
+    INSTALLATION_TYPE="DEV"
+elif   [[ "${1}" == "ci" ]]; then
+    INSTALLATION_TYPE="CI"
 else
-    echo "ERROR! Wrong argument. Passed ${1} and it should be one of 'runtime' or 'dev'.".
+    echo "ERROR! Wrong argument. Passed ${1} and it should be one of 'runtime', 'ci' or 'dev'.".
     exit 1
 fi
 
@@ -117,7 +122,10 @@ function get_dev_apt_deps() {
 freetds-bin freetds-dev git graphviz graphviz-dev krb5-user ldap-utils libev4 libev-dev libffi-dev libgeos-dev \
 libkrb5-dev libldap2-dev libleveldb1d libleveldb-dev libsasl2-2 libsasl2-dev libsasl2-modules \
 libssl-dev libxmlsec1 libxmlsec1-dev locales lsb-release openssh-client pkgconf sasl2-bin \
-software-properties-common sqlite3 sudo unixodbc unixodbc-dev zlib1g-dev"
+software-properties-common sqlite3 sudo unixodbc unixodbc-dev zlib1g-dev \
+gdb lcov pkg-config libbz2-dev libgdbm-dev libgdbm-compat-dev liblzma-dev \
+libncurses5-dev libreadline6-dev libsqlite3-dev lzma lzma-dev tk-dev uuid-dev \
+libzstd-dev"
         export DEV_APT_DEPS
     fi
 }
@@ -204,14 +212,36 @@ function install_debian_runtime_dependencies() {
     rm -rf /var/lib/apt/lists/* /var/log/*
 }
 
+function install_python() {
+    git clone --branch "${AIRFLOW_PYTHON_VERSION}" --depth 1 https://github.com/python/cpython.git
+    cd cpython
+    ./configure --enable-optimizations
+    make -s -j "$(nproc)" all
+    make -s -j "$(nproc)" install
+    ln -s /usr/local/bin/python3 /usr/local/bin/python
+    ln -s /usr/local/bin/pip3 /usr/local/bin/pip
+    cd ..
+    rm -rf cpython
+}
+
+function install_golang() {
+    curl "https://dl.google.com/go/go${GOLANG_MAJOR_MINOR_VERSION}.linux-$(dpkg --print-architecture).tar.gz" -o "go${GOLANG_MAJOR_MINOR_VERSION}.linux.tar.gz"
+    rm -rf /usr/local/go && tar -C /usr/local -xzf go"${GOLANG_MAJOR_MINOR_VERSION}".linux.tar.gz
+}
+
 if [[ "${INSTALLATION_TYPE}" == "RUNTIME" ]]; then
     get_runtime_apt_deps
     install_debian_runtime_dependencies
     install_docker_cli
 
 else
+
     get_dev_apt_deps
     install_debian_dev_dependencies
+    install_python
+    if [[ "${INSTALLATION_TYPE}" == "CI" ]]; then
+        install_golang
+    fi
     install_docker_cli
 fi
 EOF
@@ -1460,14 +1490,14 @@ EOF
 ##############################################################################################
 # This is the build image where we build all dependencies
 ##############################################################################################
-FROM ${PYTHON_BASE_IMAGE} as airflow-build-image
+FROM ${BASE_IMAGE} as airflow-build-image
 
 # Nolog bash flag is currently ignored - but you can replace it with
 # xtrace - to show commands executed)
 SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
 
-ARG PYTHON_BASE_IMAGE
-ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \
+ARG BASE_IMAGE
+ENV BASE_IMAGE=${BASE_IMAGE} \
     DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 \
     PIP_CACHE_DIR=/tmp/.cache/pip \
@@ -1484,6 +1514,9 @@ ENV DEV_APT_DEPS=${DEV_APT_DEPS} \
     DEV_APT_COMMAND=${DEV_APT_COMMAND} \
     ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND} \
     ADDITIONAL_DEV_APT_ENV=${ADDITIONAL_DEV_APT_ENV}
+
+ARG AIRFLOW_PYTHON_VERSION=v3.10.18
+ENV AIRFLOW_PYTHON_VERSION=$AIRFLOW_PYTHON_VERSION
 
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 RUN bash /scripts/docker/install_os_dependencies.sh dev
@@ -1684,7 +1717,7 @@ RUN --mount=type=cache,id=prod-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/tmp/.
 # This is the actual Airflow image - much smaller than the build one. We copy
 # installed Airflow and all its dependencies from the build image to make it smaller.
 ##############################################################################################
-FROM ${PYTHON_BASE_IMAGE} as main
+FROM ${BASE_IMAGE} as main
 
 # Nolog bash flag is currently ignored - but you can replace it with other flags (for example
 # xtrace - to show commands executed)
@@ -1698,9 +1731,9 @@ LABEL org.apache.airflow.distro="debian" \
   org.apache.airflow.image="airflow" \
   org.apache.airflow.uid="${AIRFLOW_UID}"
 
-ARG PYTHON_BASE_IMAGE
+ARG BASE_IMAGE
 
-ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \
+ENV BASE_IMAGE=${BASE_IMAGE} \
     # Make sure noninteractive debian install is used and language variables set
     DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 LD_LIBRARY_PATH=/usr/local/lib \
@@ -1728,6 +1761,15 @@ ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     INSTALL_POSTGRES_CLIENT=${INSTALL_POSTGRES_CLIENT} \
     GUNICORN_CMD_ARGS="--worker-tmp-dir /dev/shm" \
     AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD}
+
+COPY --from=airflow-build-image \
+     "/usr/local/bin/python*" "/usr/local/bin/"
+
+COPY --from=airflow-build-image \
+     "/usr/local/bin/pip*" "/usr/local/bin/"
+
+COPY --parents --from=airflow-build-image \
+     "/usr/local/lib/./python*" "/usr/local/lib/"
 
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 RUN bash /scripts/docker/install_os_dependencies.sh runtime
