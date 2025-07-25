@@ -21,7 +21,7 @@ import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 import type { FlexibleFormElementProps } from ".";
 import { JsonEditor } from "../JsonEditor";
 
-export const FieldObject = ({ name, onUpdate }: FlexibleFormElementProps) => {
+export const FieldObject = ({ name, onUpdate, disabled }: FlexibleFormElementProps) => {
   const { paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
 
@@ -44,6 +44,7 @@ export const FieldObject = ({ name, onUpdate }: FlexibleFormElementProps) => {
 
   return (
     <JsonEditor
+      editable={!disabled}
       id={`element_${name}`}
       onChange={handleChange}
       value={JSON.stringify(param.value ?? [], undefined, 2)}

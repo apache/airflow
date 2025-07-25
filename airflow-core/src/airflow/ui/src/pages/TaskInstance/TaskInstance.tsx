@@ -43,7 +43,7 @@ export const TaskInstance = () => {
   const externalTabs = usePluginTabs("task_instance");
 
   const tabs = [
-    { icon: <FiUser />, label: "HITL Response", value: "hitl-response" },
+    { icon: <FiUser />, label: translate("tabs.response"), value: "hitl-response" },
     { icon: <MdReorder />, label: translate("tabs.logs"), value: "" },
     {
       icon: <PiBracketsCurlyBold />,

@@ -32,7 +32,7 @@ const labelLookup = (key: string, valuesDisplay: Record<string, string> | undefi
   return key;
 };
 
-export const FieldMultiSelect = ({ name, onUpdate }: FlexibleFormElementProps) => {
+export const FieldMultiSelect = ({ name, onUpdate, disabled }: FlexibleFormElementProps) => {
   const { t: translate } = useTranslation("components");
   const { paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
@@ -74,6 +74,7 @@ export const FieldMultiSelect = ({ name, onUpdate }: FlexibleFormElementProps) =
       aria-label={translate("flexibleForm.placeholderMulti")}
       id={`element_${name}`}
       isClearable
+      isDisabled={disabled}
       isMulti
       name={`element_${name}`}
       onChange={handleChange}

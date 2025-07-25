@@ -23,6 +23,7 @@ import { useTranslation } from "react-i18next";
 import {
   UseDagRunServiceGetDagRunKeyFn,
   useDagRunServiceGetDagRunsKey,
+  useHumanInTheLoopServiceGetMappedTiHitlDetailKey,
   useHumanInTheLoopServiceUpdateMappedTiHitlDetail,
   useTaskInstanceServiceGetTaskInstanceKey,
   useTaskInstanceServiceGetTaskInstancesKey,
@@ -50,6 +51,7 @@ export const useUpdateHITLDetail = ({
       [useDagRunServiceGetDagRunsKey],
       [useTaskInstanceServiceGetTaskInstancesKey],
       [useTaskInstanceServiceGetTaskInstanceKey, { dagId, dagRunId, mapIndex, taskId }],
+      [useHumanInTheLoopServiceGetMappedTiHitlDetailKey, { dagId, dagRunId, mapIndex, taskId }],
     ];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));

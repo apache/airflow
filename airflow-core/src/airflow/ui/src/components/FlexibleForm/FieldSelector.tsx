@@ -87,35 +87,35 @@ const isFieldStringArray = (fieldType: string, fieldSchema: ParamSchema) =>
 const isFieldTime = (fieldType: string, fieldSchema: ParamSchema) =>
   fieldType === "string" && fieldSchema.format === "time";
 
-export const FieldSelector = ({ name, onUpdate }: FlexibleFormElementProps) => {
+export const FieldSelector = ({ name, onUpdate, disabled }: FlexibleFormElementProps) => {
   // FUTURE: Add support for other types as described in AIP-68 via Plugins
   const { initialParamDict } = useParamStore();
   const param = initialParamDict[name] ?? paramPlaceholder;
   const fieldType = inferType(param);
 
   if (isFieldBool(fieldType)) {
-    return <FieldBool name={name} onUpdate={onUpdate} />;
+    return <FieldBool name={name} onUpdate={onUpdate} disabled={disabled} />;
   } else if (isFieldDateTime(fieldType, param.schema)) {
-    return <FieldDateTime name={name} onUpdate={onUpdate} type="datetime-local" />;
+    return <FieldDateTime name={name} onUpdate={onUpdate} type="datetime-local" disabled={disabled} />;
   } else if (isFieldDate(fieldType, param.schema)) {
-    return <FieldDateTime name={name} onUpdate={onUpdate} type="date" />;
+    return <FieldDateTime name={name} onUpdate={onUpdate} type="date" disabled={disabled} />;
   } else if (isFieldTime(fieldType, param.schema)) {
-    return <FieldDateTime name={name} onUpdate={onUpdate} type="time" />;
+    return <FieldDateTime name={name} onUpdate={onUpdate} type="time" disabled={disabled} />;
   } else if (isFieldDropdown(fieldType, param.schema)) {
-    return <FieldDropdown name={name} onUpdate={onUpdate} />;
+    return <FieldDropdown name={name} onUpdate={onUpdate} disabled={disabled} />;
   } else if (isFieldMultiSelect(fieldType, param.schema)) {
-    return <FieldMultiSelect name={name} onUpdate={onUpdate} />;
+    return <FieldMultiSelect name={name} onUpdate={onUpdate} disabled={disabled} />;
   } else if (isFieldStringArray(fieldType, param.schema)) {
-    return <FieldStringArray name={name} onUpdate={onUpdate} />;
+    return <FieldStringArray name={name} onUpdate={onUpdate} disabled={disabled} />;
   } else if (isFieldAdvancedArray(fieldType, param.schema)) {
-    return <FieldAdvancedArray name={name} onUpdate={onUpdate} />;
+    return <FieldAdvancedArray name={name} onUpdate={onUpdate} disabled={disabled} />;
   } else if (isFieldObject(fieldType)) {
-    return <FieldObject name={name} onUpdate={onUpdate} />;
+    return <FieldObject name={name} onUpdate={onUpdate} disabled={disabled} />;
   } else if (isFieldNumber(fieldType)) {
-    return <FieldNumber name={name} onUpdate={onUpdate} />;
+    return <FieldNumber name={name} onUpdate={onUpdate} disabled={disabled} />;
   } else if (isFieldMultilineText(fieldType, param.schema)) {
-    return <FieldMultilineText name={name} onUpdate={onUpdate} />;
+    return <FieldMultilineText name={name} onUpdate={onUpdate} disabled={disabled} />;
   } else {
-    return <FieldString name={name} onUpdate={onUpdate} />;
+    return <FieldString name={name} onUpdate={onUpdate} disabled={disabled} />;
   }
 };

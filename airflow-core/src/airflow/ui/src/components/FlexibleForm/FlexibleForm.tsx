@@ -33,6 +33,7 @@ export type FlexibleFormProps = {
   initialParamsDict: { paramsDict: ParamsSpec };
   key?: string;
   setError: (error: boolean) => void;
+  disabled?: boolean;
 };
 
 export const FlexibleForm = ({
@@ -40,6 +41,7 @@ export const FlexibleForm = ({
   flexibleFormDefaultSection,
   initialParamsDict,
   setError,
+  disabled,
 }: FlexibleFormProps) => {
   const { paramsDict: params, setInitialParamDict, setParamsDict } = useParamStore();
   const processedSections = new Map();
@@ -137,7 +139,7 @@ export const FlexibleForm = ({
                           (currentSection === flexibleFormDefaultSection && !Boolean(param.schema.section)),
                       )
                       .map(([name]) => (
-                        <Row key={name} name={name} onUpdate={onUpdate} />
+                        <Row key={name} name={name} onUpdate={onUpdate} disabled={disabled} />
                       ))}
                   </Stack>
                 </Accordion.ItemBody>

@@ -33,7 +33,7 @@ export const HITLResponseForm = () => {
   const [errors, setErrors] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const { paramsDict } = useParamStore();
-  const { onClose, taskInstance } = useHITLResponseState();
+  const { taskInstance } = useHITLResponseState();
   const { updateHITLResponse } = useUpdateHITLDetail({
     dagId: taskInstance?.dag_id ?? "",
     dagRunId: taskInstance?.dag_run_id ?? "",
@@ -59,7 +59,6 @@ export const HITLResponseForm = () => {
       const formData = getHITLFormData(paramsDict);
 
       updateHITLResponse(formData);
-      onClose();
     } catch {
       setErrors(true);
     } finally {
@@ -82,6 +81,7 @@ export const HITLResponseForm = () => {
         variant="enclosed"
       >
         <FlexibleForm
+          disabled={hitlDetail.response_received}
           flexFormDescription={hitlDetail.body ?? undefined}
           flexibleFormDefaultSection={hitlDetail.subject}
           initialParamsDict={{

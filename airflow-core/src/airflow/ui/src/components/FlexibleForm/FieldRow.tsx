@@ -29,7 +29,7 @@ import { FieldSelector } from "./FieldSelector";
 import { isRequired } from "./isParamRequired";
 
 /** Render a normal form row with a field that is auto-selected */
-export const FieldRow = ({ name, onUpdate: rowOnUpdate }: FlexibleFormElementProps) => {
+export const FieldRow = ({ name, onUpdate: rowOnUpdate, disabled }: FlexibleFormElementProps) => {
   const { t: translate } = useTranslation("components");
   const { paramsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
@@ -62,7 +62,7 @@ export const FieldRow = ({ name, onUpdate: rowOnUpdate }: FlexibleFormElementPro
         </Field.Label>
       </Stack>
       <Stack css={{ flexBasis: "70%" }}>
-        <FieldSelector name={name} onUpdate={onUpdate} />
+        <FieldSelector name={name} onUpdate={onUpdate} disabled={disabled} />
         {param.description === null ? (
           param.schema.description_md === undefined ? undefined : (
             <Field.HelperText>
