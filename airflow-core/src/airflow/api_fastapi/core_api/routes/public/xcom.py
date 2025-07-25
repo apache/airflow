@@ -211,7 +211,7 @@ def create_xcom_entry(
     if not dag_run:
         if not dag_run:
             raise HTTPException(
-                status.HTTP_404_NOT_FOUND, f"DAG Run with ID: `{dag_run_id}` not found for DAG: `{dag_id}`"
+                status.HTTP_404_NOT_FOUND, f"Dag Run with ID: `{dag_run_id}` not found for DAG: `{dag_id}`"
             )
 
     # Check existing XCom

@@ -171,7 +171,6 @@ def get_mapped_task_instances(
     session: SessionDep,
 ) -> TaskInstanceCollectionResponse:
     """Get list of mapped task instances."""
-    dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
     query = (
         select(TI)
         .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id, TI.map_index >= 0)
@@ -182,6 +181,7 @@ def get_mapped_task_instances(
     # 0 can mean a mapped TI that expanded to an empty list, so it is not an automatic 404
     unfiltered_total_count = get_query_count(query, session=session)
     if unfiltered_total_count == 0:
+        dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
         if dag_run:
             dag = dag_bag.get_dag_for_run(dag_run, session=session)
         else:
@@ -464,7 +464,7 @@ def get_task_instances(
         else:
             dag = dag_bag.get_latest_version_of_dag(dag_id, session)
         if not dag:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with dag_id: `{dag_id}` was not found")
+            raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with dag_id: `{dag_id}` was not found")
         query = query.where(TI.dag_id == dag_id)
 
     task_instance_select, total_entries = paginated_select(
@@ -712,7 +712,7 @@ def post_clear_task_instances(
         if len(dag.task_dict) > 1:
             # If we had upstream/downstream etc then also include those!
             task_ids.extend(tid for tid in dag.task_dict if tid != task_id)
-# Removed unreachable code
+    # Removed unreachable code
 
     # Prepare common parameters
     common_params = {
