@@ -79,6 +79,11 @@ class GridRunsResponse(BaseModel):
     run_after: datetime
     state: TaskInstanceState | None
     run_type: DagRunType
+    dag_version_number: int | None = None
+    dag_version_id: str | None = None
+    is_version_changed: bool = False
+    has_mixed_versions: bool = False
+    latest_version_number: int | None = None
 
     @computed_field
     def duration(self) -> int:
