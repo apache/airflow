@@ -593,6 +593,36 @@ class TestCliDags:
                 self.parser.parse_args(["dags", "delete", "does_not_exist_dag", "--yes"]),
             )
 
+    def test_dag_delete_when_backfill_and_dagrun_exist(self):
+        # Test to check that the DAG should be deleted even if
+        # there are backfill records associated with it.
+        from airflow.models.backfill import Backfill
+
+        DM = DagModel
+        key = "my_dag_id"
+        session = settings.Session()
+        session.add(DM(dag_id=key))
+        _backfill = Backfill(dag_id=key, from_date=DEFAULT_DATE, to_date=DEFAULT_DATE + timedelta(days=1))
+        session.add(_backfill)
+        # To create the backfill_id in DagRun
+        session.flush()
+        session.add(
+            DagRun(
+                dag_id=key,
+                run_id="backfill__" + key,
+                state=DagRunState.SUCCESS,
+                run_type="backfill",
+                backfill_id=_backfill.id,
+            )
+        )
+        session.commit()
+        dag_command.dag_delete(self.parser.parse_args(["dags", "delete", key, "--yes"]))
+        assert session.query(DM).filter_by(dag_id=key).count() == 0
+        with pytest.raises(AirflowException):
+            dag_command.dag_delete(
+                self.parser.parse_args(["dags", "delete", "does_not_exist_dag", "--yes"]),
+            )
+
     def test_delete_dag_existing_file(self, tmp_path):
         # Test to check that the DAG should be deleted even if
         # the file containing it is not deleted

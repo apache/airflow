@@ -406,7 +406,7 @@ class ExecutorSafeguard:
 
 
 if "airflow.configuration" in sys.modules:
-    # Don't try and import it if its not already loaded
+    # Don't try and import it if it's not already loaded
     from airflow.configuration import conf
 
     ExecutorSafeguard.test_mode = conf.getboolean("core", "unit_test_mode")
@@ -514,7 +514,7 @@ class BaseOperatorMeta(abc.ABCMeta):
             # BUT: only do this _ONCE_, not once for each class in the hierarchy
             if not instantiated_from_mapped and func == self.__init__.__wrapped__:  # type: ignore[misc]
                 self._set_xcomargs_dependencies()
-                # Mark instance as instantiated so that futre attr setting updates xcomarg-based deps.
+                # Mark instance as instantiated so that future attr setting updates xcomarg-based deps.
                 object.__setattr__(self, "_BaseOperator__instantiated", True)
 
             return result
@@ -591,7 +591,7 @@ BASEOPERATOR_ARGS_EXPECTED_TYPES = {
 # here (metaclass, custom `__setattr__` behaviour) and this fights with attrs too much to make it worth it.
 #
 # To future reader: if you want to try and make this a "normal" attrs class, go ahead and attempt it. If you
-# get no where leave your record here for the next poor soul and what problems you ran in to.
+# get nowhere leave your record here for the next poor soul and what problems you ran in to.
 #
 # @ashb, 2024/10/14
 # - "Can't combine custom __setattr__ with on_setattr hooks"
