@@ -44,7 +44,7 @@ export const HITLResponse = () => {
 
   return (
     <Box px={4}>
-      <HITLResponseForm taskInstance={hitlDetail.task_instance} />
+      <HITLResponseForm hitlDetail={hitlDetail} />
     </Box>
   );
 };

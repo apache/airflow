@@ -36,27 +36,29 @@ const getChosenOptionsValue = (hitlDetail: HITLDetail) => {
 export const getHITLParamsDict = (hitlDetail: HITLDetail, translate: TFunction): ParamsSpec => {
   const paramsDict: ParamsSpec = {};
 
-  paramsDict.chosen_options = {
-    description: translate("hitl:response.optionsDescription"),
-    schema: {
-      const: undefined,
-      description_md: translate("hitl:response.optionsDescription"),
-      enum: hitlDetail.options.length > 0 ? hitlDetail.options : undefined,
-      examples: undefined,
-      format: undefined,
-      items: hitlDetail.multiple ? { type: "string" } : undefined,
-      maximum: undefined,
-      maxLength: undefined,
-      minimum: undefined,
-      minLength: undefined,
-      section: undefined,
-      title: translate("hitl:response.optionsLabel"),
-      type: hitlDetail.multiple ? "array" : "string",
-      values_display: undefined,
-    },
+  if (hitlDetail.options.length > 4 || hitlDetail.multiple) {
+    paramsDict.chosen_options = {
+      description: translate("hitl:response.optionsDescription"),
+      schema: {
+        const: undefined,
+        description_md: translate("hitl:response.optionsDescription"),
+        enum: hitlDetail.options.length > 0 ? hitlDetail.options : undefined,
+        examples: undefined,
+        format: undefined,
+        items: hitlDetail.multiple ? { type: "string" } : undefined,
+        maximum: undefined,
+        maxLength: undefined,
+        minimum: undefined,
+        minLength: undefined,
+        section: undefined,
+        title: translate("hitl:response.optionsLabel"),
+        type: hitlDetail.multiple ? "array" : "string",
+        values_display: undefined,
+      },
 
-    value: getChosenOptionsValue(hitlDetail),
-  };
+      value: getChosenOptionsValue(hitlDetail),
+    };
+  }
 
   if (hitlDetail.params) {
     const sourceParams = hitlDetail.response_received ? hitlDetail.params_input : hitlDetail.params;
@@ -90,16 +92,20 @@ export const getHITLParamsDict = (hitlDetail: HITLDetail, translate: TFunction):
   return paramsDict;
 };
 
-export const getHITLFormData = (paramsDict: ParamsSpec): HITLResponseParams => {
+export const getHITLFormData = (paramsDict: ParamsSpec, option?: string): HITLResponseParams => {
   const chosenOptionsValue = paramsDict.chosen_options?.value;
   let chosenOptions: Array<string> = [];
 
-  if (typeof chosenOptionsValue === "string" && chosenOptionsValue) {
-    chosenOptions = [chosenOptionsValue];
-  } else if (Array.isArray(chosenOptionsValue) && chosenOptionsValue.length > 0) {
-    chosenOptions = chosenOptionsValue.filter(
-      (value): value is string => value !== null && value !== undefined,
-    );
+  if (option === undefined) {
+    if (typeof chosenOptionsValue === "string" && chosenOptionsValue) {
+      chosenOptions = [chosenOptionsValue];
+    } else if (Array.isArray(chosenOptionsValue) && chosenOptionsValue.length > 0) {
+      chosenOptions = chosenOptionsValue.filter(
+        (value): value is string => value !== null && value !== undefined,
+      );
+    }
+  } else {
+    chosenOptions = [option];
   }
 
   const paramsInput = Object.keys(paramsDict)
