@@ -386,3 +386,8 @@ def _purge_logs(
 @task
 def split_string(string):
     return string.split(",")
+
+
+@task
+def get_role_name(arn: str) -> str:
+    return arn.split("/")[-1]

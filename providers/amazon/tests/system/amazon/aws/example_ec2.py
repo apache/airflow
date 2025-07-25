@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from operator import itemgetter
 
 import boto3
 
@@ -44,40 +43,11 @@ else:
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+from system.amazon.aws.utils.ec2 import get_latest_ami_id
 
 DAG_ID = "example_ec2"
 
 sys_test_context_task = SystemTestContextBuilder().build()
-
-
-@task
-def get_latest_ami_id():
-    """Returns the AMI ID of the most recently-created Amazon Linux image"""
-
-    # Amazon is retiring AL2 in 2023 and replacing it with Amazon Linux 2022.
-    # This image prefix should be futureproof, but may need adjusting depending
-    # on how they name the new images.  This page should have AL2022 info when
-    # it comes available: https://aws.amazon.com/linux/amazon-linux-2022/faqs/
-    image_prefix = "Amazon Linux*"
-    root_device_name = "/dev/xvda"
-
-    images = boto3.client("ec2").describe_images(
-        Filters=[
-            {"Name": "description", "Values": [image_prefix]},
-            {
-                "Name": "architecture",
-                "Values": ["x86_64"],
-            },  # t3 instances are only compatible with x86 architecture
-            {
-                "Name": "root-device-type",
-                "Values": ["ebs"],
-            },  # instances which are capable of hibernation need to use an EBS-backed AMI
-            {"Name": "root-device-name", "Values": [root_device_name]},
-        ],
-        Owners=["amazon"],
-    )
-    # Sort on CreationDate
-    return max(images["Images"], key=itemgetter("CreationDate"))["ImageId"]
 
 
 @task
