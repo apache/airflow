@@ -54,7 +54,7 @@ metadata:
   {{- end }}
 spec:
   {{- if $persistence }}
-  serviceName: {{ .Release.Name }}-triggerer
+  serviceName: {{ include "airflow.fullname" . }}-triggerer
   {{- end }}
   {{- if not $keda }}
   replicas: {{ .Values.triggerer.replicas }}
