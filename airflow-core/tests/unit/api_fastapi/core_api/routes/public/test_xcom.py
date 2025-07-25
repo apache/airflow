@@ -543,7 +543,7 @@ class TestCreateXComEntry(TestXComEndpoint):
                 "invalid-dag-run-id",
                 XComCreateBody(key=TEST_XCOM_KEY, value=TEST_XCOM_VALUE),
                 404,
-                f"DAG Run with ID: `invalid-dag-run-id` not found for DAG: `{TEST_DAG_ID}`",
+                f"Dag Run with ID: `invalid-dag-run-id` not found for DAG: `{TEST_DAG_ID}`",
                 id="dag-run-not-found",
             ),
             # Test case: XCom entry already exists
