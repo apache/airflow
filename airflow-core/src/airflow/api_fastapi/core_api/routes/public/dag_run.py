@@ -544,7 +544,7 @@ def get_list_dag_runs_batch(
         ],
         DagRun,
         {"dag_run_id": "run_id"},
-    ).set_value(body.order_by)
+    ).set_value([body.order_by] if body.order_by else None)
 
     base_query = select(DagRun).options(joinedload(DagRun.dag_model))
     dag_runs_select, total_entries = paginated_select(

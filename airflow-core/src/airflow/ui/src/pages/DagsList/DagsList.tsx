@@ -250,7 +250,7 @@ export const DagsList = () => {
     lastDagRunState,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
-    orderBy,
+    orderBy: [orderBy],
     owners,
     paused,
     tags: selectedTags,

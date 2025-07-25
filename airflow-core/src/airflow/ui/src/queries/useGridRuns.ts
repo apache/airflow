@@ -30,7 +30,7 @@ export const useGridRuns = ({ limit }: { limit: number }) => {
     {
       dagId,
       limit,
-      orderBy: "-run_after",
+      orderBy: ["-run_after"],
     },
     undefined,
     {

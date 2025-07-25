@@ -44,7 +44,7 @@ export const TaskCard = ({ dagId, task }: Props) => {
       dagId,
       dagRunId: "~",
       limit: 14,
-      orderBy: "-run_after",
+      orderBy: ["-run_after"],
       taskId: task.task_id ?? "",
     },
     undefined,

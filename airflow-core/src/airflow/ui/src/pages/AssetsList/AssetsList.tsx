@@ -103,7 +103,7 @@ export const AssetsList = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
+  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : undefined;
 
   const { data, error, isLoading } = useAssetServiceGetAssets({
     limit: pagination.pageSize,
