@@ -160,26 +160,23 @@ class BaseOperations:
         params: dict | None = None,
     ) -> T | ServerResponseError:
         shared_params = {**(params or {})}
-        try:
-            self.response = self.client.get(path, params=shared_params)
-            first_pass = data_model.model_validate_json(self.response.content)
-            total_entries = first_pass.total_entries  # type: ignore[attr-defined]
-            if total_entries < limit:
-                return first_pass
-            for key, value in first_pass.model_dump().items():
-                if key != "total_entries" and isinstance(value, list):
-                    break
-            entry_list = getattr(first_pass, key)
+        self.response = self.client.get(path, params=shared_params)
+        first_pass = data_model.model_validate_json(self.response.content)
+        total_entries = first_pass.total_entries  # type: ignore[attr-defined]
+        if total_entries < limit:
+            return first_pass
+        for key, value in first_pass.model_dump().items():
+            if key != "total_entries" and isinstance(value, list):
+                break
+        entry_list = getattr(first_pass, key)
+        offset = offset + limit
+        while offset < total_entries:
+            self.response = self.client.get(path, params={**shared_params, "offset": offset})
+            entry = data_model.model_validate_json(self.response.content)
             offset = offset + limit
-            while offset < total_entries:
-                self.response = self.client.get(path, params={**shared_params, "offset": offset})
-                entry = data_model.model_validate_json(self.response.content)
-                offset = offset + limit
-                entry_list.extend(getattr(entry, key))
-            obj = data_model(**{key: entry_list, "total_entries": total_entries})
-            return data_model.model_validate(obj.model_dump())
-        except ServerResponseError as e:
-            raise e
+            entry_list.extend(getattr(entry, key))
+        obj = data_model(**{key: entry_list, "total_entries": total_entries})
+        return data_model.model_validate(obj.model_dump())
 
 
 # Login operations
