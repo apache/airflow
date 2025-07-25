@@ -1164,7 +1164,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
     def test_not_found(self, test_client):
         response = test_client.get("/dags/invalid/dagRuns/~/taskInstances")
         assert response.status_code == 404
-        assert response.json() == {"detail": "DAG with dag_id: `invalid` was not found"}
+        assert response.json() == {"detail": "Dag with dag_id: `invalid` was not found"}
 
         response = test_client.get("/dags/~/dagRuns/invalid/taskInstances")
         assert response.status_code == 404
