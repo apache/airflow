@@ -99,9 +99,19 @@ class LatestOnlyOperator(BaseBranchOperator):
 
         from airflow.timetables.base import DataInterval, TimeRestriction
 
+        if dag_run.data_interval_start:
+            start = pendulum.instance(dag_run.data_interval_start)
+        else:
+            start = dagrun_date
+
+        if dag_run.data_interval_end:
+            end = pendulum.instance(dag_run.data_interval_end)
+        else:
+            end = dagrun_date
+
         current_interval = DataInterval(
-            start=dag_run.data_interval_start or dagrun_date,
-            end=dag_run.data_interval_end or dagrun_date,
+            start=start,
+            end=end,
         )
 
         time_restriction = TimeRestriction(
