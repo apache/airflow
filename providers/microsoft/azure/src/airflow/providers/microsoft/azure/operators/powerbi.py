@@ -21,13 +21,13 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIHook
 from airflow.providers.microsoft.azure.triggers.powerbi import (
     PowerBIDatasetListTrigger,
     PowerBITrigger,
     PowerBIWorkspaceListTrigger,
 )
+from airflow.providers.microsoft.azure.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from msgraph_core import APIVersion
@@ -50,7 +50,7 @@ class PowerBILink(BaseOperatorLink):
 
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey):
         url = (
-            "https://app.powerbi.com"  # type: ignore[attr-defined]
+            "https://app.powerbi.com"
             f"/groups/{operator.group_id}/datasets/{operator.dataset_id}"  # type: ignore[attr-defined]
             "/details?experience=power-bi"
         )
@@ -141,8 +141,7 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
             dataset_refresh_id = event["dataset_refresh_id"]
 
         if dataset_refresh_id:
-            self.xcom_push(
-                context=context,
+            context["ti"].xcom_push(
                 key=f"{self.task_id}.powerbi_dataset_refresh_Id",
                 value=dataset_refresh_id,
             )
@@ -168,8 +167,7 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event:
-            self.xcom_push(
-                context=context,
+            context["ti"].xcom_push(
                 key=f"{self.task_id}.powerbi_dataset_refresh_status",
                 value=event["dataset_refresh_status"],
             )
@@ -235,8 +233,7 @@ class PowerBIWorkspaceListOperator(BaseOperator):
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event:
-            self.xcom_push(
-                context=context,
+            context["ti"].xcom_push(
                 key=f"{self.task_id}.powerbi_workspace_ids",
                 value=event["workspace_ids"],
             )
@@ -306,8 +303,7 @@ class PowerBIDatasetListOperator(BaseOperator):
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event:
-            self.xcom_push(
-                context=context,
+            context["ti"].xcom_push(
                 key=f"{self.task_id}.powerbi_dataset_ids",
                 value=event["dataset_ids"],
             )

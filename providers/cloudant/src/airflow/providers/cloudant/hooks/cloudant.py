@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any
 from ibmcloudant import CloudantV1, CouchDbSessionAuthenticator
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+from airflow.providers.cloudant.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from airflow.models import Connection
@@ -70,13 +70,14 @@ class CloudantHook(BaseHook):
         """
         conn = self.get_connection(self.cloudant_conn_id)
 
-        self._validate_connection(conn)
+        self._validate_connection(conn)  # type: ignore[arg-type]
+        if conn.login and conn.password:
+            authenticator = CouchDbSessionAuthenticator(username=conn.login, password=conn.password)
+            service = CloudantV1(authenticator=authenticator)
+            service.set_service_url(f"https://{conn.host}.cloudant.com")
 
-        authenticator = CouchDbSessionAuthenticator(username=conn.login, password=conn.password)
-        service = CloudantV1(authenticator=authenticator)
-        service.set_service_url(f"https://{conn.host}.cloudant.com")
-
-        return service
+            return service
+        raise AirflowException("Missing login or password in Cloudant connection.")
 
     @staticmethod
     def _validate_connection(conn: Connection) -> None:

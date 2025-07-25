@@ -27,7 +27,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import setup, task, teardown
 else:
-    from airflow.decorators import setup, task, teardown
+    from airflow.decorators import setup, task, teardown  # type: ignore[attr-defined,no-redef]
 from airflow.exceptions import AirflowException
 from airflow.models import TaskInstance
 from airflow.models.dag import DAG
@@ -97,7 +97,10 @@ class TestDockerDecorator:
             ret = f()
 
         dr = dag_maker.create_dagrun()
-        ti = TaskInstance(task=ret.operator, run_id=dr.run_id)
+        if AIRFLOW_V_3_0_PLUS:
+            ti = TaskInstance(task=ret.operator, run_id=dr.run_id, dag_version_id=dr.created_dag_version_id)
+        else:
+            ti = TaskInstance(task=ret.operator, run_id=dr.run_id)
         rendered = ti.render_templates()
         assert rendered.container_name == f"python_{dr.dag_id}"
         assert rendered.mounts[0]["Target"] == f"/{ti.run_id}"

@@ -28,7 +28,7 @@ const LanguageSelector: React.FC = () => {
   const options = useMemo(
     () =>
       supportedLanguages.map((lang) => ({
-        label: `${lang.flag} ${lang.name}`,
+        label: lang.name,
         value: lang.code,
       })),
     [],

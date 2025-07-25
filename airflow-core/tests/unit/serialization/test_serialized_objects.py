@@ -26,7 +26,9 @@ import pytest
 from dateutil import relativedelta
 from kubernetes.client import models as k8s
 from pendulum.tz.timezone import FixedTimezone, Timezone
+from uuid6 import uuid7
 
+from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.exceptions import (
     AirflowException,
@@ -58,16 +60,15 @@ from airflow.sdk.definitions.asset import (
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineAlertFields, DeadlineReference
 from airflow.sdk.definitions.decorators import task
 from airflow.sdk.definitions.param import Param
+from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.serialized_objects import BaseSerialization, LazyDeserializedDAG, SerializedDAG
 from airflow.timetables.base import DataInterval
 from airflow.triggers.base import BaseTrigger
-from airflow.utils import timezone
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.operator_resources import Resources
 from airflow.utils.state import DagRunState, State
-from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 
 from unit.models import DEFAULT_DATE
@@ -175,12 +176,14 @@ TI = TaskInstance(
     task=EmptyOperator(task_id="test-task"),
     run_id="fake_run",
     state=State.RUNNING,
+    dag_version_id=uuid7(),
 )
 
 TI_WITH_START_DAY = TaskInstance(
     task=EmptyOperator(task_id="test-task"),
     run_id="fake_run",
     state=State.RUNNING,
+    dag_version_id=uuid7(),
 )
 TI_WITH_START_DAY.start_date = timezone.utcnow()
 
@@ -224,9 +227,8 @@ def equal_exception(a: AirflowException, b: AirflowException) -> bool:
 
 
 def equal_outlet_event_accessors(a: OutletEventAccessors, b: OutletEventAccessors) -> bool:
-    return a._dict.keys() == b._dict.keys() and all(  # type: ignore[attr-defined]
-        equal_outlet_event_accessor(a._dict[key], b._dict[key])  # type: ignore[attr-defined]
-        for key in a._dict  # type: ignore[attr-defined]
+    return a._dict.keys() == b._dict.keys() and all(
+        equal_outlet_event_accessor(a._dict[key], b._dict[key]) for key in a._dict
     )
 
 
@@ -792,3 +794,27 @@ def test_encode_timezone():
     assert encode_timezone(FixedTimezone(0)) == "UTC"
     with pytest.raises(ValueError):
         encode_timezone(object())
+
+
+class TestSerializedBaseOperator:
+    # ensure the default logging config is used for this test, no matter what ran before
+    @pytest.mark.usefixtures("reset_logging_config")
+    def test_logging_propogated_by_default(self, caplog):
+        """Test that when set_context hasn't been called that log records are emitted"""
+        BaseOperator(task_id="test").log.warning("test")
+        # This looks like "how could it fail" but this actually checks that the handler called `emit`. Testing
+        # the other case (that when we have set_context it goes to the file is harder to achieve without
+        # leaking a lot of state)
+        assert caplog.messages == ["test"]
+
+    def test_resume_execution(self):
+        from airflow.exceptions import TaskDeferralTimeout
+        from airflow.models.trigger import TriggerFailureReason
+
+        op = BaseOperator(task_id="hi")
+        with pytest.raises(TaskDeferralTimeout):
+            op.resume_execution(
+                next_method="__fail__",
+                next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
+                context={},
+            )

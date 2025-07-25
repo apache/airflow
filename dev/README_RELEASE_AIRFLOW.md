@@ -411,6 +411,25 @@ Other available parameters can be found with:
 breeze workflow-run publish-docs --help
 ```
 
+In case you publish the documentation from branch, you can specify `--airflow-version` and `--airflow-base-version`
+parameters to specify which version of airflow you want to build the documentation for - as it cannot
+be automatically derived from tag name. Normally both are automatically derived from the tag name.
+
+One of the interesting features of publishing this way is that you can also rebuild historical version of
+the documentation with patches applied to the documentation (if they can be applied cleanly).
+
+Yoy should specify the `--apply-commits` parameter with the list of commits you want to apply
+separated by commas and the workflow will apply those commits to the documentation before
+building it. (don't forget to add --skip-write-to-stable-folder if you are publishing
+previous version of the distribution). Example:
+
+```shell script
+breeze workflow-run publish-docs --ref 3.0.3 --site-env staging \
+  --apply-commits 4ae273cbedec66c87dc40218c7a94863390a380d,e61e9618bdd6be8213d277b1427f67079fcb1d9b \
+  --skip-write-to-stable-folder \
+  apache-airflow docker-stack task-sdk
+```
+
 ### Manually using GitHub Actions
 
 There are two steps to publish the documentation:
@@ -652,11 +671,17 @@ Or update it if you already checked it out:
 svn update .
 ```
 
+Set an environment variable: PATH_TO_SVN to the root of folder where you clone the SVN repository:
+
+``` shell
+export PATH_TO_SVN=<set your path to svn here>
+```
+
 Optionally you can use `check_files.py` script to verify that all expected files are
 present in SVN. This script may help also with verifying installation of the packages.
 
 ```shell script
-uv run check_files.py airflow -v ${VERSION} -p {PATH_TO_SVN}
+uv run check_files.py airflow -v ${VERSION} -p ${PATH_TO_SVN}
 ```
 
 ## Licence check
@@ -912,7 +937,7 @@ the older branches, you should set the "skip" field to true.
 ## Verify production images
 
 ```shell script
-for PYTHON in 3.10 3.11 3.12
+for PYTHON in 3.10 3.11 3.12 3.13
 do
     docker pull apache/airflow:${VERSION}-python${PYTHON}
     breeze prod-image verify --image-name apache/airflow:${VERSION}-python${PYTHON}
@@ -1056,7 +1081,7 @@ Create a new release on GitHub with the release notes and assets from the releas
 
 ## Close the milestone
 
-Before closing the milestone on Github, make sure that all PR marked for it are either part of the release (was cherry picked) or
+Before closing the milestone on GitHub, make sure that all PR marked for it are either part of the release (was cherry picked) or
 postponed to the next release, then close the milestone. Create the next one if it hasn't been already (it probably has been).
 Update the new milestone in the [*Currently we are working on* issue](https://github.com/apache/airflow/issues/10176)
 make sure to update the last updated timestamp as well.

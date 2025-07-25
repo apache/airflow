@@ -17,6 +17,7 @@
     "auditLog": "יומן מערכת",
     "xcoms": "XComs"
   },
+  "collapseDetailsPanel": "כווץ לוח פרטים",
   "createdAssetEvent_one": "אירוע נכס שנוצר",
   "createdAssetEvent_other": "אירועי נכס שנוצרו",
   "dag_one": "Dag",
@@ -54,7 +55,8 @@
     "runAfter": "זמן ההרצה מוקדם ביותר",
     "runType": "סוג הרצה",
     "sourceAssetEvent": "אירוע נכס מקור",
-    "triggeredBy": "הופעל על-ידי"
+    "triggeredBy": "הופעל על-ידי",
+    "triggeringUser": "שם משתמש מפעיל"
   },
   "dagRun_one": "הרצת Dag",
   "dagRun_other": "הרצת Dag",
@@ -75,6 +77,12 @@
     "home": "דף הבית",
     "notFound": "הדף לא נמצא",
     "title": "שגיאה"
+  },
+  "expand": {
+    "collapse": "כווץ",
+    "expand": "הרחב",
+    "hotkey": "e",
+    "tooltip": "לחץ {{hotkey}} לכיווץ או הרחבה"
   },
   "expression": {
     "all": "הכל",
@@ -101,6 +109,7 @@
     "dags": "Dags",
     "docs": "תיעוד",
     "home": "דף הבית",
+    "legacyFabViews": "תצוגות מורשת",
     "plugins": "תוספים",
     "security": "אבטחה"
   },
@@ -128,6 +137,13 @@
     "manual": "הפעלה ידנית",
     "scheduled": "מתוזמן"
   },
+  "scroll": {
+    "direction": {
+      "bottom": "תחתית",
+      "top": "עליון"
+    },
+    "tooltip": "לחץ {{hotkey}} לגלילה ל{{direction}}"
+  },
   "seconds": "{{count}} שניות",
   "security": {
     "actions": "פעולות",
@@ -137,6 +153,12 @@
     "users": "משתמשים"
   },
   "selectLanguage": "בחר שפה",
+  "showDetailsPanel": "הצג לוח פרטים",
+  "source": {
+    "hide": "הסתר מקור",
+    "hotkey": "s",
+    "show": "הצג מקור"
+  },
   "sourceAssetEvent_one": "אירוע נכס מקור",
   "sourceAssetEvent_other": "אירועי נכס מקור",
   "startDate": "תאריך התחלה",
@@ -216,6 +238,11 @@
     "lastHour": "השעה האחרונה",
     "pastWeek": "השבוע האחרון"
   },
+  "timestamp": {
+    "hide": "הסתר חותמות זמן",
+    "hotkey": "t",
+    "show": "הצג חותמות זמן"
+  },
   "timezone": "אזור זמן",
   "timezoneModal": {
     "current-timezone": "אזור זמן נוכחי",
@@ -260,10 +287,12 @@
       }
     }
   },
+  "total": "סה״כ {{state}}",
   "triggered": "הופעל",
   "tryNumber": "מספר ניסיון",
   "user": "משתמש",
   "wrap": {
+    "hotkey": "w",
     "tooltip": "לחץ {{hotkey}} להפעלת/כיבוי גלישת טקסט",
     "unwrap": "בטל גלישת טקסט",
     "wrap": "הפעל גלישת טקסט"

@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+4.10.1
+......
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix simple grammar mistakes in doc (#51138)``
+   * ``Prepare release for June 2025 provider wave (#51724)``
+
 4.10.0
 ......
 

@@ -37,12 +37,12 @@ from azure.servicebus.management import (
     SubscriptionProperties,
 )
 
-from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
     get_field,
     get_sync_default_azure_credential,
 )
+from airflow.providers.microsoft.azure.version_compat import BaseHook
 
 if TYPE_CHECKING:
     import datetime
@@ -519,7 +519,7 @@ class MessageHook(BaseAzureServiceBusHook):
         message_creator: Callable[[str], ServiceBusMessage],
     ):
         list_messages = [message_creator(body) for body in messages]
-        sender.send_messages(list_messages)  # type: ignore[arg-type]
+        sender.send_messages(list_messages)
 
     @staticmethod
     def send_batch_message(

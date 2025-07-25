@@ -31,6 +31,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
 
+from airflow._shared.timezones import timezone
 from airflow.api.client import get_current_api_client
 from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
 from airflow.cli.simple_table import AirflowConsole
@@ -41,7 +42,7 @@ from airflow.jobs.job import Job
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.utils import cli as cli_utils, timezone
+from airflow.utils import cli as cli_utils
 from airflow.utils.cli import get_dag, suppress_logs_and_warning, validate_dag_bundle_arg
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
 from airflow.utils.helpers import ask_yesno
@@ -259,7 +260,6 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
         "next_dagrun_data_interval_end": None,
         "next_dagrun_logical_date": None,
         "next_dagrun_run_after": None,
-        "deadline": None,
     }
 
 

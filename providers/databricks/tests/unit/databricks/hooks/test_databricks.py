@@ -53,6 +53,7 @@ from airflow.providers.databricks.hooks.databricks_base import (
     TOKEN_REFRESH_LEAD_TIME,
     BearerAuth,
 )
+from airflow.providers.databricks.utils import databricks as utils
 
 TASK_ID = "databricks-operator"
 DEFAULT_CONN_ID = "databricks_default"
@@ -129,6 +130,10 @@ LIST_SPARK_VERSIONS_RESPONSE = {
     "versions": [
         {"key": "8.2.x-scala2.12", "name": "8.2 (includes Apache Spark 3.1.1, Scala 2.12)"},
     ]
+}
+ACCESS_CONTROL_DICT = {
+    "user_name": "jsmith@example.com",
+    "permission_level": "CAN_MANAGE",
 }
 
 
@@ -436,7 +441,7 @@ class TestDatabricksHook:
     def test_do_api_call_patch(self, mock_requests):
         mock_requests.patch.return_value.json.return_value = {"cluster_name": "new_name"}
         data = {"cluster_name": "new_name"}
-        patched_cluster_name = self.hook._do_api_call(("PATCH", "api/2.1/jobs/runs/submit"), data)
+        patched_cluster_name = self.hook._do_api_call(("PATCH", "2.1/jobs/runs/submit"), data)
 
         assert patched_cluster_name["cluster_name"] == "new_name"
         mock_requests.patch.assert_called_once_with(
@@ -1248,6 +1253,24 @@ class TestDatabricksHook:
             timeout=self.hook.timeout_seconds,
         )
 
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_update_job_permission(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.patch.return_value.json.return_value = {}
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.patch.return_value).status_code = status_code_mock
+
+        self.hook.update_job_permission(1, ACCESS_CONTROL_DICT)
+
+        mock_requests.patch.assert_called_once_with(
+            f"https://{HOST}/api/2.0/permissions/jobs/1",
+            json=utils.normalise_json_content(ACCESS_CONTROL_DICT),
+            params=None,
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
 
 @pytest.mark.db_test
 class TestDatabricksHookToken:
@@ -1365,7 +1388,7 @@ class TestDatabricksHookConnSettings(TestDatabricksHookToken):
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
     def test_do_api_call_respects_schema(self, mock_requests):
         mock_requests.get.return_value.json.return_value = {"foo": "bar"}
-        ret_val = self.hook._do_api_call(("GET", "api/2.1/foo/bar"))
+        ret_val = self.hook._do_api_call(("GET", "2.1/foo/bar"))
 
         assert ret_val == {"foo": "bar"}
         mock_requests.get.assert_called_once()
@@ -1376,7 +1399,7 @@ class TestDatabricksHookConnSettings(TestDatabricksHookToken):
     async def test_async_do_api_call_respects_schema(self, mock_get):
         mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value={"bar": "baz"})
         async with self.hook:
-            run_page_url = await self.hook._a_do_api_call(("GET", "api/2.1/foo/bar"))
+            run_page_url = await self.hook._a_do_api_call(("GET", "2.1/foo/bar"))
 
         assert run_page_url == {"bar": "baz"}
         mock_get.assert_called_once()
@@ -1390,7 +1413,7 @@ class TestDatabricksHookConnSettings(TestDatabricksHookToken):
         response.mock_add_spec(aiohttp.ClientResponse, spec_set=True)
         response.json = AsyncMock(return_value={"bar": "baz"})
         async with self.hook:
-            run_page_url = await self.hook._a_do_api_call(("GET", "api/2.1/foo/bar"))
+            run_page_url = await self.hook._a_do_api_call(("GET", "2.1/foo/bar"))
 
         assert run_page_url == {"bar": "baz"}
         mock_get.assert_called_once()
@@ -1779,7 +1802,7 @@ class TestDatabricksHookAsyncMethods:
         )
         data = {"cluster_name": "new_name"}
         async with self.hook:
-            patched_cluster_name = await self.hook._a_do_api_call(("PATCH", "api/2.1/jobs/runs/submit"), data)
+            patched_cluster_name = await self.hook._a_do_api_call(("PATCH", "2.1/jobs/runs/submit"), data)
 
         assert patched_cluster_name["cluster_name"] == "new_name"
         mock_patch.assert_called_once_with(

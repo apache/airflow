@@ -32,15 +32,17 @@ from unittest import mock
 
 import pytest
 
+from airflow._shared.timezones import timezone
 from airflow.cli import cli_parser
 from airflow.cli.commands import task_command
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.configuration import conf
 from airflow.exceptions import DagRunNotFound
 from airflow.models import DagBag, DagRun, TaskInstance
+from airflow.models.dag_version import DagVersion
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.serialization.serialized_objects import SerializedDAG
-from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -82,7 +84,6 @@ class TestCliTasks:
     dag_run: DagRun
 
     @classmethod
-    @pytest.fixture(autouse=True)
     def setup_class(cls):
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
         parse_and_sync_to_db(os.devnull, include_examples=True)
@@ -275,6 +276,9 @@ class TestCliTasks:
         """
         tasks render should render and displays templated fields for a given mapping task
         """
+        dag = DagBag().get_dag("test_mapped_classic")
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
         with redirect_stdout(io.StringIO()) as stdout:
             task_command.task_render(
                 self.parser.parse_args(
@@ -341,6 +345,8 @@ class TestCliTasks:
 
     def test_task_states_for_dag_run(self):
         dag2 = DagBag().dags["example_python_operator"]
+
+        SerializedDagModel.write_dag(dag2, bundle_name="testing")
         task2 = dag2.get_task(task_id="print_the_context")
 
         dag2 = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag2))
@@ -357,7 +363,8 @@ class TestCliTasks:
             run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.CLI,
         )
-        ti2 = TaskInstance(task2, run_id=dagrun.run_id)
+        dag_version = DagVersion.get_latest_version(dag2.dag_id)
+        ti2 = TaskInstance(task2, run_id=dagrun.run_id, dag_version_id=dag_version.id)
         ti2.set_state(State.SUCCESS)
         ti_start = ti2.start_date
         ti_end = ti2.end_date

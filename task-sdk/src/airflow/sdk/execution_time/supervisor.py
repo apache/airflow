@@ -42,6 +42,7 @@ from typing import (
     TextIO,
     cast,
 )
+from urllib.parse import urlparse
 from uuid import UUID
 
 import attrs
@@ -68,6 +69,7 @@ from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
     ConnectionResult,
+    CreateHITLDetailPayload,
     DagRunStateResult,
     DeferTask,
     DeleteVariable,
@@ -80,6 +82,7 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetDagRunState,
     GetDRCount,
+    GetPreviousDagRun,
     GetPrevSuccessfulDagRun,
     GetTaskRescheduleStartDate,
     GetTaskStates,
@@ -140,6 +143,10 @@ MIN_HEARTBEAT_INTERVAL: int = conf.getint("workers", "min_heartbeat_interval")
 MAX_FAILED_HEARTBEATS: int = conf.getint("workers", "max_failed_heartbeats")
 
 SOCKET_CLEANUP_TIMEOUT: float = conf.getfloat("workers", "socket_cleanup_timeout")
+
+# Maximum possible time (in seconds) that task will have for execution of auxiliary processes
+# like listeners after task is complete.
+TASK_OVERTIME_THRESHOLD: float = conf.getfloat("core", "task_success_overtime")
 
 SERVER_TERMINATED = "SERVER_TERMINATED"
 
@@ -204,7 +211,7 @@ def _reset_signals():
 
 
 def _configure_logs_over_json_channel(log_fd: int):
-    # A channel that the task can send JSON-formated logs over.
+    # A channel that the task can send JSON-formatted logs over.
     #
     # JSON logs sent this way will be handled nicely
     from airflow.sdk.log import configure_logging
@@ -665,7 +672,7 @@ class WatchedSubprocess:
             return
 
         # Escalation sequence: SIGINT -> SIGTERM -> SIGKILL
-        escalation_path = [signal.SIGINT, signal.SIGTERM, signal.SIGKILL]
+        escalation_path: list[signal.Signals] = [signal.SIGINT, signal.SIGTERM, signal.SIGKILL]
 
         if force and signal_to_send in escalation_path:
             # Start from `signal_to_send` and escalate to the end of the escalation path
@@ -821,10 +828,6 @@ class ActivitySubprocess(WatchedSubprocess):
     # does not hang around forever.
     failed_heartbeats: int = attrs.field(default=0, init=False)
 
-    # Maximum possible time (in seconds) that task will have for execution of auxiliary processes
-    # like listeners after task is complete.
-    # TODO: This should come from airflow.cfg: [core] task_success_overtime
-    TASK_OVERTIME_THRESHOLD: ClassVar[float] = 20.0
     _task_end_time_monotonic: float | None = attrs.field(default=None, init=False)
     _rendered_map_index: str | None = attrs.field(default=None, init=False)
 
@@ -974,9 +977,14 @@ class ActivitySubprocess(WatchedSubprocess):
             return
         if (
             self._task_end_time_monotonic
-            and (time.monotonic() - self._task_end_time_monotonic) > self.TASK_OVERTIME_THRESHOLD
+            and (time.monotonic() - self._task_end_time_monotonic) > TASK_OVERTIME_THRESHOLD
         ):
-            log.warning("Workload success overtime reached; terminating process", ti_id=self.id)
+            log.warning(
+                "Task success overtime reached; terminating process. "
+                "Modify `task_success_overtime` setting in [core] section of "
+                "Airflow configuration to change this limit.",
+                ti_id=self.id,
+            )
             self.kill(signal.SIGTERM, force=True)
 
     def _send_heartbeat_if_needed(self):
@@ -1218,6 +1226,12 @@ class ActivitySubprocess(WatchedSubprocess):
                 run_ids=msg.run_ids,
                 states=msg.states,
             )
+        elif isinstance(msg, GetPreviousDagRun):
+            resp = self.client.dag_runs.get_previous(
+                dag_id=msg.dag_id,
+                logical_date=msg.logical_date,
+                state=msg.state,
+            )
         elif isinstance(msg, DeleteVariable):
             resp = self.client.variables.delete(msg.key)
         elif isinstance(msg, ValidateInletsAndOutlets):
@@ -1230,6 +1244,17 @@ class ActivitySubprocess(WatchedSubprocess):
                 self._send_new_log_fd(req_id)
                 # Since we've sent the message, return. Nothing else in this ifelse/switch should return directly
                 return
+        elif isinstance(msg, CreateHITLDetailPayload):
+            resp = self.client.hitl.add_response(
+                ti_id=msg.ti_id,
+                options=msg.options,
+                subject=msg.subject,
+                body=msg.body,
+                defaults=msg.defaults,
+                params=msg.params,
+                multiple=msg.multiple,
+            )
+            self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
         else:
             log.error("Unhandled request", msg=msg)
             self.send_msg(
@@ -1384,25 +1409,22 @@ class InProcessTestSupervisor(ActivitySubprocess):
 
     @staticmethod
     def _api_client(dag=None):
-        from airflow.models.dagbag import DagBag
         from airflow.sdk.api.client import Client
 
         api = in_process_api_server()
         if dag is not None:
             from airflow.api_fastapi.common.dagbag import dag_bag_from_app
-            from airflow.serialization.serialized_objects import SerializedDAG
+            from airflow.jobs.scheduler_job_runner import SchedulerDagBag
 
-            # This is needed since the Execution API server uses the DagBag in its "state".
+            # This is needed since the Execution API server uses the SchedulerDagBag in its "state".
             # This `app.state.dag_bag` is used to get some DAG properties like `fail_fast`.
-            dag_bag = DagBag(include_examples=False, collect_dags=False, load_op_links=False)
+            dag_bag = SchedulerDagBag()
 
-            # Mimic the behavior of the DagBag in the API server by converting the DAG to a SerializedDAG
-            dag_bag.dags[dag.dag_id] = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
             api.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag
 
         client = Client(base_url=None, token="", dry_run=True, transport=api.transport)
         # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
-        client.base_url = "http://in-process.invalid./"  # type: ignore[assignment]
+        client.base_url = "http://in-process.invalid./"
         return client
 
     def send_msg(
@@ -1633,12 +1655,42 @@ def supervise(
     :param subprocess_logs_to_stdout: Should task logs also be sent to stdout via the main logger.
     :param client: Optional preconfigured client for communication with the server (Mostly for tests).
     :return: Exit code of the process.
+    :raises ValueError: If server URL is empty or invalid.
     """
     # One or the other
     from airflow.sdk.execution_time.secrets_masker import reset_secrets_masker
 
-    if not client and ((not server) ^ dry_run):
-        raise ValueError(f"Can only specify one of {server=} or {dry_run=}")
+    if not client:
+        if dry_run and server:
+            raise ValueError(f"Can only specify one of {server=} or {dry_run=}")
+
+        if not dry_run:
+            if not server:
+                raise ValueError(
+                    "Invalid execution API server URL. Please ensure that a valid URL is configured."
+                )
+
+            try:
+                parsed_url = urlparse(server)
+            except Exception as e:
+                raise ValueError(
+                    f"Invalid execution API server URL '{server}': {e}. "
+                    "Please ensure that a valid URL is configured."
+                ) from e
+
+            if parsed_url.scheme not in ("http", "https"):
+                raise ValueError(
+                    f"Invalid execution API server URL '{server}': "
+                    "URL must use http:// or https:// scheme. "
+                    "Please ensure that a valid URL is configured."
+                )
+
+            if not parsed_url.netloc:
+                raise ValueError(
+                    f"Invalid execution API server URL '{server}': "
+                    "URL must include a valid host. "
+                    "Please ensure that a valid URL is configured."
+                )
 
     if not dag_rel_path:
         raise ValueError("dag_path is required")

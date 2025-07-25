@@ -25,7 +25,7 @@ from collections import defaultdict
 from collections.abc import Callable
 from datetime import datetime
 from operator import attrgetter
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import pendulum
 from opensearchpy import OpenSearch
@@ -45,14 +45,14 @@ from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
-
+    from airflow.utils.log.file_task_handler import LogMetadata
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.log.file_task_handler import StructuredLogMessage
 
     OsLogMsgType = list[StructuredLogMessage] | str
 else:
-    OsLogMsgType = list[tuple[str, str]]  # type: ignore[misc]
+    OsLogMsgType = list[tuple[str, str]]  # type: ignore[assignment,misc]
 
 
 USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
@@ -186,7 +186,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
         )
         # client = OpenSearch(hosts=[{"host": host, "port": port}], http_auth=(username, password), use_ssl=True, verify_certs=True, ca_cert="/opt/airflow/root-ca.pem", ssl_assert_hostname = False, ssl_show_warn = False)
         self.formatter: logging.Formatter
-        self.handler: logging.FileHandler | logging.StreamHandler  # type: ignore[assignment]
+        self.handler: logging.FileHandler | logging.StreamHandler
         self._doc_type_map: dict[Any, Any] = {}
         self._doc_type: list[Any] = []
 
@@ -209,9 +209,11 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                 extras={
                     "dag_id": str(ti.dag_id),
                     "task_id": str(ti.task_id),
-                    date_key: self._clean_date(ti.logical_date)
-                    if AIRFLOW_V_3_0_PLUS
-                    else self._clean_date(ti.execution_date),
+                    date_key: (
+                        self._clean_date(ti.logical_date)
+                        if AIRFLOW_V_3_0_PLUS
+                        else self._clean_date(ti.execution_date)
+                    ),
                     "try_number": str(ti.try_number),
                     "log_id": self._render_log_id(ti, ti.try_number),
                 },
@@ -255,7 +257,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
 
         # Reopen the file stream, because FileHandler.close() would be called
         # first in logging.shutdown() and the stream in it would be set to None.
-        if self.handler.stream is None or self.handler.stream.closed:  # type: ignore[attr-defined]
+        if self.handler.stream is None or self.handler.stream.closed:
             self.handler.stream = self.handler._open()  # type: ignore[union-attr]
 
         # Mark the end of file using end of log mark,
@@ -333,8 +335,8 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
         )
 
     def _read(
-        self, ti: TaskInstance, try_number: int, metadata: dict | None = None
-    ) -> tuple[OsLogMsgType, dict]:
+        self, ti: TaskInstance, try_number: int, metadata: LogMetadata | None = None
+    ) -> tuple[OsLogMsgType, LogMetadata]:
         """
         Endpoint for streaming log.
 
@@ -345,7 +347,10 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
         :return: a list of tuple with host and log documents, metadata.
         """
         if not metadata:
-            metadata = {"offset": 0}
+            # LogMetadata(TypedDict) is used as type annotation for log_reader; added ignore to suppress mypy error
+            metadata = {"offset": 0}  # type: ignore[assignment]
+        metadata = cast("LogMetadata", metadata)
+
         if "offset" not in metadata:
             metadata["offset"] = 0
 
@@ -384,6 +389,12 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                     "If your task started recently, please wait a moment and reload this page. "
                     "Otherwise, the logs for this task instance may have been removed."
                 )
+                if AIRFLOW_V_3_0_PLUS:
+                    from airflow.utils.log.file_task_handler import StructuredLogMessage
+
+                    # return list of StructuredLogMessage for Airflow 3.0+
+                    return [StructuredLogMessage(event=missing_log_message)], metadata
+
                 return [("", missing_log_message)], metadata  # type: ignore[list-item]
             if (
                 # Assume end of log after not receiving new log for N min,
@@ -443,7 +454,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
         }
         index_patterns = self._get_index_patterns(ti)
         try:
-            max_log_line = self.client.count(index=index_patterns, body=query)["count"]  # type: ignore
+            max_log_line = self.client.count(index=index_patterns, body=query)["count"]
         except NotFoundError as e:
             self.log.exception("The target index pattern %s does not exist", index_patterns)
             raise e
@@ -588,3 +599,25 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
 
         # Just a safe-guard to preserve backwards-compatibility
         return hit.message
+
+    @property
+    def supports_external_link(self) -> bool:
+        """
+        Whether we can support external links.
+
+        TODO: It should support frontend just like ElasticSearchTaskhandler.
+        """
+        return False
+
+    def get_external_log_url(self, task_instance, try_number) -> str:
+        """
+        Create an address for an external log collecting service.
+
+        TODO: It should support frontend just like ElasticSearchTaskhandler.
+        """
+        return ""
+
+    @property
+    def log_name(self) -> str:
+        """The log name."""
+        return self.LOG_NAME

@@ -195,26 +195,39 @@ TYPE_OF_CHANGE_DESCRIPTION = {
 }
 
 
-def classification_result(changed_files):
+def classification_result(provider_id, changed_files):
+    provider_path = f"providers/{provider_id}/"
+    changed_files = list(filter(lambda f: f.startswith(provider_path), changed_files))
+
     if not changed_files:
         return "other"
 
-    has_docs = any(re.match(r"^providers/[^/]+/docs/", f) and f.endswith(".rst") for f in changed_files)
+    def is_doc(f):
+        return re.match(r"^providers/[^/]+/docs/", f) and f.endswith(".rst")
 
-    has_test_or_example_only = all(
-        re.match(r"^providers/[^/]+/tests/", f)
-        or re.match(r"^providers/[^/]+/src/airflow/providers/[^/]+/example_dags/", f)
-        for f in changed_files
-    )
+    def is_test_or_example(f):
+        return re.match(r"^providers/[^/]+/tests/", f) or re.match(
+            r"^providers/[^/]+/src/airflow/providers/[^/]+/example_dags/", f
+        )
 
-    if has_docs:
+    all_docs = all(is_doc(f) for f in changed_files)
+    all_test_or_example = all(is_test_or_example(f) for f in changed_files)
+
+    has_docs = any(is_doc(f) for f in changed_files)
+    has_test_or_example = any(is_test_or_example(f) for f in changed_files)
+
+    has_real_code = any(not (is_doc(f) or is_test_or_example(f)) for f in changed_files)
+
+    if all_docs:
         return "documentation"
-    if has_test_or_example_only:
+    if all_test_or_example:
         return "test_or_example_only"
+    if not has_real_code and (has_docs or has_test_or_example):
+        return "documentation"
     return "other"
 
 
-def classify_provider_pr_files(commit_hash: str) -> str:
+def classify_provider_pr_files(provider_id: str, commit_hash: str) -> str:
     """
     Classify a provider commit based on changed files.
 
@@ -235,7 +248,7 @@ def classify_provider_pr_files(commit_hash: str) -> str:
         # safe to return other here
         return "other"
 
-    return classification_result(changed_files)
+    return classification_result(provider_id, changed_files)
 
 
 def _get_git_log_command(
@@ -827,7 +840,7 @@ def update_release_notes(
                 )
                 change = list_of_list_of_changes[0][table_iter]
 
-                classification = classify_provider_pr_files(change.full_hash)
+                classification = classify_provider_pr_files(provider_id, change.full_hash)
                 if classification == "documentation":
                     get_console().print(
                         f"[green]Automatically classifying change as DOCUMENTATION since it contains only doc changes:[/]\n"

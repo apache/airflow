@@ -23,11 +23,12 @@ import textwrap
 import warnings
 from collections.abc import Callable, Collection, Iterator, Mapping, Sequence
 from functools import cached_property, update_wrapper
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, Protocol, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, Protocol, TypeVar, cast, overload
 
 import attr
 import typing_extensions
 
+from airflow.sdk import timezone
 from airflow.sdk.bases.operator import (
     BaseOperator,
     coerce_resources,
@@ -46,8 +47,6 @@ from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.mappedoperator import MappedOperator, ensure_xcomarg_return_value
 from airflow.sdk.definitions.xcom_arg import XComArg
-from airflow.typing_compat import ParamSpec
-from airflow.utils import timezone
 from airflow.utils.context import KNOWN_CONTEXT_KEYS
 from airflow.utils.decorators import remove_task_decorator
 from airflow.utils.helpers import prevent_duplicates
@@ -484,7 +483,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             ("resources", coerce_resources),
         ):
             if (v := partial_kwargs.get(fld, NOTSET)) is not NOTSET:
-                partial_kwargs[fld] = convert(v)  # type: ignore[operator]
+                partial_kwargs[fld] = convert(v)
 
         partial_kwargs.setdefault("executor_config", {})
         partial_kwargs.setdefault("op_args", [])

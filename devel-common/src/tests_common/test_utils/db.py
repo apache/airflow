@@ -57,7 +57,7 @@ from tests_common.test_utils.compat import (
     ParseImportError,
     TaskOutletAssetReference,
 )
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -66,6 +66,9 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.models.xcom import XComModel as XCom
 else:
     from airflow.models.xcom import XCom  # type: ignore[no-redef]
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.models.dag_favorite import DagFavorite
 
 
 def _bootstrap_dagbag():
@@ -194,6 +197,8 @@ def clear_db_triggers():
 
 def clear_db_dags():
     with create_session() as session:
+        if AIRFLOW_V_3_1_PLUS:
+            session.query(DagFavorite).delete()
         session.query(DagTag).delete()
         session.query(DagOwnerAttributes).delete()
         session.query(
@@ -325,7 +330,7 @@ def clear_dag_specific_permissions():
         from airflow.providers.fab.auth_manager.models import Permission, Resource, assoc_permission_role
     except ImportError:
         # Handle Pre-airflow 2.9 case where FAB was part of the core airflow
-        from airflow.providers.fab.auth.managers.fab.models import (  # type: ignore[no-redef]
+        from airflow.providers.fab.auth.managers.fab.models import (
             Permission,
             Resource,
             assoc_permission_role,
@@ -333,7 +338,7 @@ def clear_dag_specific_permissions():
     except RuntimeError as e:
         # Handle case where FAB provider is not even usable
         if "needs Apache Airflow 2.9.0" in str(e):
-            from airflow.providers.fab.auth.managers.fab.models import (  # type: ignore[no-redef]
+            from airflow.providers.fab.auth.managers.fab.models import (
                 Permission,
                 Resource,
                 assoc_permission_role,

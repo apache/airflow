@@ -49,7 +49,6 @@ from airflow.exceptions import (
     TaskNotFound,
 )
 from airflow.sdk.bases.operator import BaseOperator
-from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 from airflow.sdk.definitions._internal.node import validate_key
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 from airflow.sdk.definitions.asset import AssetAll, BaseAsset
@@ -69,14 +68,17 @@ from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
     from re import Pattern
+    from typing import TypeAlias
 
     from pendulum.tz.timezone import FixedTimezone, Timezone
 
-    from airflow.sdk.definitions.abstractoperator import Operator
     from airflow.sdk.definitions.decorators import TaskDecoratorCollection
     from airflow.sdk.definitions.edges import EdgeInfoType
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.typing_compat import Self
+
+    Operator: TypeAlias = BaseOperator | MappedOperator
 
 log = logging.getLogger(__name__)
 
@@ -215,7 +217,7 @@ else:
 
 def _default_start_date(instance: DAG):
     # Find start date inside default_args for compat with Airflow 2.
-    from airflow.utils import timezone
+    from airflow.sdk import timezone
 
     if date := instance.default_args.get("start_date"):
         if not isinstance(date, datetime):
@@ -454,7 +456,7 @@ class DAG:
     )
 
     def __attrs_post_init__(self):
-        from airflow.utils import timezone
+        from airflow.sdk import timezone
 
         # Apply the timezone we settled on to end_date if it wasn't supplied
         if isinstance(_end_date := self.default_args.get("end_date"), str):
@@ -526,7 +528,7 @@ class DAG:
     def _extract_tz(instance):
         import pendulum
 
-        from airflow.utils import timezone
+        from airflow.sdk import timezone
 
         start_date = instance.start_date or instance.default_args.get("start_date")
 
@@ -771,12 +773,20 @@ class DAG:
         :param include_direct_upstream: Include all tasks directly upstream of matched
             and downstream (if include_downstream = True) tasks
         """
-        from airflow.models.mappedoperator import MappedOperator
+        from typing import TypeGuard
+
+        from airflow.sdk.definitions.mappedoperator import MappedOperator
+        from airflow.serialization.serialized_objects import SerializedBaseOperator
+
+        def is_task(obj) -> TypeGuard[Operator]:
+            if isinstance(obj, SerializedBaseOperator):
+                return True  # TODO (GH-52141): Split DAG implementation to straight this up.
+            return isinstance(obj, (BaseOperator, MappedOperator))
 
         # deep-copying self.task_dict and self.task_group takes a long time, and we don't want all
         # the tasks anyway, so we copy the tasks manually later
         memo = {id(self.task_dict): None, id(self.task_group): None}
-        dag = copy.deepcopy(self, memo)  # type: ignore
+        dag = copy.deepcopy(self, memo)
 
         if isinstance(task_ids, str):
             matched_tasks = [t for t in self.tasks if task_ids in t.task_id]
@@ -807,7 +817,7 @@ class DAG:
         direct_upstreams: list[Operator] = []
         if include_direct_upstream:
             for t in itertools.chain(matched_tasks, also_include):
-                upstream = (u for u in t.upstream_list if isinstance(u, (BaseOperator, MappedOperator)))
+                upstream = (u for u in t.upstream_list if is_task(u))
                 direct_upstreams.extend(upstream)
 
         # Make sure to not recursively deepcopy the dag or task_group while copying the task.
@@ -840,7 +850,7 @@ class DAG:
             proxy = weakref.proxy(copied)
 
             for child in group.children.values():
-                if isinstance(child, AbstractOperator):
+                if is_task(child):
                     if child.task_id in dag.task_dict:
                         task = copied.children[child.task_id] = dag.task_dict[child.task_id]
                         task.task_group = proxy
@@ -893,7 +903,7 @@ class DAG:
 
     @property
     def task(self) -> TaskDecoratorCollection:
-        from airflow.decorators import task
+        from airflow.sdk.definitions.decorators import task
 
         return cast("TaskDecoratorCollection", functools.partial(task, dag=self))
 
@@ -935,8 +945,8 @@ class DAG:
         ) or task_id in self.task_group.used_group_ids:
             raise DuplicateTaskIdFound(f"Task id '{task_id}' has already been added to the DAG")
         self.task_dict[task_id] = task
-        # TODO: Task-SDK: this type ignore shouldn't be needed!
-        task.dag = self  # type: ignore[assignment]
+
+        task.dag = self
         # Add task_id to used_group_ids to prevent group_id and task_id collisions.
         self.task_group.used_group_ids.add(task_id)
 
@@ -1037,9 +1047,9 @@ class DAG:
         from airflow.configuration import secrets_backend_list
         from airflow.models.dag import DAG as SchedulerDAG, _get_or_create_dagrun
         from airflow.models.dagrun import DagRun
+        from airflow.sdk import timezone
         from airflow.secrets.local_filesystem import LocalFilesystemBackend
         from airflow.serialization.serialized_objects import SerializedDAG
-        from airflow.utils import timezone
         from airflow.utils.state import DagRunState, State, TaskInstanceState
         from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -1089,7 +1099,7 @@ class DAG:
                 dags=[self],
                 start_date=logical_date,
                 end_date=logical_date,
-                dag_run_state=False,  # type: ignore
+                dag_run_state=False,
             )
 
             log.debug("Getting dagrun for dag %s", self.dag_id)
@@ -1241,6 +1251,7 @@ def _run_task(*, ti, run_triggerer=False):
                     run_id=ti.run_id,
                     try_number=ti.try_number,
                     map_index=ti.map_index,
+                    dag_version_id=ti.dag_version_id,
                 ),
                 task=ti.task,
             )

@@ -26,7 +26,7 @@ description = "Development tools for Apache Airflow"
 classifiers = [
     "Private :: Do Not Upload",
 ]
-requires-python = "~=3.10,<3.13"
+requires-python = ">=3.10"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -42,10 +42,9 @@ dependencies = [
     "PyGithub>=2.1.1",
     "jsonpath_ng>=1.5.3",
     "jsonschema>=4.19.1",
-    'pendulum>=2.1.2,<4.0;python_version<"3.12"',
-    'pendulum>=3.0.0,<4.0;python_version>="3.12"',
+    'pendulum>=3.1.0',
     "pyyaml>=6.0.2",
-    "packaging>=23.2",
+    "packaging>=25.0",
     "rich>=13.6.0",
     "rich-click>=1.7.1",
     "semver>=3.0.2",

@@ -68,13 +68,13 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "3.0.2"
+defaultAirflowTag: "3.0.3"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "3.0.2"
+airflowVersion: "3.0.3"
 
 # Images
 images:
@@ -379,6 +379,7 @@ executor: "CeleryExecutor"
 # If this is true and using CeleryExecutor/KubernetesExecutor/CeleryKubernetesExecutor, the workers
 # will be able to launch pods.
 allowPodLaunching: true
+allowJobLaunching: false
 
 # Environment variables for all airflow containers
 env: []
@@ -407,6 +408,7 @@ enableBuiltInSecretEnvVars:
   AIRFLOW__CORE__SQL_ALCHEMY_CONN: true
   AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: true
   AIRFLOW_CONN_AIRFLOW_DB: true
+  AIRFLOW__API__SECRET_KEY: true
   AIRFLOW__API_AUTH__JWT_SECRET: true
   AIRFLOW__WEBSERVER__SECRET_KEY: true
   AIRFLOW__CELERY__CELERY_RESULT_BACKEND: true
@@ -551,17 +553,23 @@ fernetKeySecretName: ~
 # Add custom annotations to the fernet key secret
 fernetKeySecretAnnotations: {}
 
-# Flask secret key for Airflow Webserver: `[webserver] secret_key` in airflow.cfg
-webserverSecretKey: ~
-# Add custom annotations to the webserver secret
-webserverSecretAnnotations: {}
-webserverSecretKeySecretName: ~
+# Flask secret key for Airflow 3+ Api: `[api] secret_key` in airflow.cfg
+apiSecretKey: ~
+# Add custom annotations to the api secret
+apiSecretAnnotations: {}
+apiSecretKeySecretName: ~
 
 # Secret key used to encode and decode JWTs: `[api_auth] jwt_secret` in airflow.cfg
 jwtSecret: ~
 # Add custom annotations to the JWT secret
 jwtSecretAnnotations: {}
 jwtSecretName: ~
+
+# Flask secret key for Airflow <3 Webserver: `[webserver] secret_key` in airflow.cfg
+webserverSecretKey: ~
+# Add custom annotations to the webserver secret
+webserverSecretAnnotations: {}
+webserverSecretKeySecretName: ~
 
 # In order to use kerberos you need to create secret containing the keytab file
 # The secret name should follow naming convention of the application where resources are
@@ -725,9 +733,10 @@ workers:
       SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }})
       FROM task_instance
       WHERE (state='running' OR state='queued')
-      {{- if or (contains "CeleryKubernetesExecutor" .Values.executor)
-      (contains "KubernetesExecutor" .Values.executor) }}
+      {{- if contains "CeleryKubernetesExecutor" .Values.executor }}
       AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}'
+      {{- else if contains "KubernetesExecutor" .Values.executor }}
+      AND executor != 'KubernetesExecutor'
       {{- end }}
 
     # Weather to use PGBouncer to connect to the database or not when it is enabled
@@ -977,6 +986,38 @@ workers:
   #       resources:
   #         requests:
   #           storage: "20Gi"
+
+  # One common Service Account for all workers will be created if flag is set to false.
+  # If true, dedicated Service Accounts for every worker type will be created.
+  useWorkerDedicatedServiceAccounts: false
+
+  celery:
+    # Create ServiceAccount for Airflow Celery workers
+    serviceAccount:
+      # default value is true
+      # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+      automountServiceAccountToken: true
+      # Specifies whether a ServiceAccount should be created
+      create: true
+      # The name of the ServiceAccount to use.
+      # If not set and create is true, a name is generated using the release name
+      name: ~
+      # Annotations to add to worker kubernetes service account.
+      annotations: {}
+
+  kubernetes:
+    # Create ServiceAccount for pods created with pod-template-file
+    serviceAccount:
+      # Auto mount service account token into the pod. Default value is true.
+      # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+      automountServiceAccountToken: true
+      # Specifies whether a ServiceAccount should be created
+      create: true
+      # The name of the ServiceAccount to use.
+      # If not set and create is true, a name is generated using the release name.
+      name: ~
+      # Annotations to add to worker kubernetes service account
+      annotations: {}
 
 # Airflow scheduler settings
 scheduler:
@@ -2652,7 +2693,7 @@ redis:
   topologySpreadConstraints: []
   priorityClassName: ~
 
-  # Set to 0 for backwards-compatiblity
+  # Set to 0 for backwards-compatibility
   uid: 0
   # If not set, `redis.uid` will be used
   securityContext: {}

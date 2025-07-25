@@ -22,12 +22,13 @@ from unittest.mock import ANY, Mock, patch
 
 import pytest
 
+from airflow._shared.timezones.timezone import convert_to_utc, datetime
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.utils.state import DagRunState, TaskInstanceState
-from airflow.utils.timezone import convert_to_utc, datetime
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.db import clear_db_runs
@@ -54,6 +55,8 @@ class TestPrevDagrunDep:
             start_date=START_DATE,
             wait_for_downstream=False,
         )
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
         # Old DAG run will include only TaskInstance of old_task
         dag.create_dagrun(
             run_id="old_run",
@@ -127,7 +130,7 @@ class TestPrevDagrunDep:
                 expected_dep_met=True,
                 past_depends_met_xcom_sent=True,
             ),
-            id="not_depends_on_past",
+            id="not_depends_on_past_with_wait",
         ),
         # If the context overrides depends_on_past, the dep should be met even
         # though there is no previous_ti which would normally fail the dep.
@@ -161,7 +164,7 @@ class TestPrevDagrunDep:
                 expected_dep_met=True,
                 past_depends_met_xcom_sent=True,
             ),
-            id="context_ignore_depends_on_past",
+            id="context_ignore_depends_on_past_with_wait",
         ),
         # The first task run should pass since it has no previous dagrun.
         # wait_for_past_depends_before_skipping is False, past_depends_met xcom should not be sent
@@ -238,7 +241,7 @@ class TestPrevDagrunDep:
             id="all_met",
         ),
         # All the conditions for the dep are met
-        # wait_for_past_depends_before_skipping is False, past_depends_met xcom should not be sent
+        # wait_for_past_depends_before_skipping is True, past_depends_met xcom should be sent
         pytest.param(
             dict(
                 depends_on_past=True,
@@ -251,7 +254,7 @@ class TestPrevDagrunDep:
                 expected_dep_met=True,
                 past_depends_met_xcom_sent=True,
             ),
-            id="all_met",
+            id="all_met_with_wait",
         ),
     ],
 )

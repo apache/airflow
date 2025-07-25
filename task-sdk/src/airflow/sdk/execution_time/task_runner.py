@@ -44,11 +44,13 @@ from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException
 from airflow.listeners.listener import get_listener_manager
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
+    DagRun,
     TaskInstance,
     TaskInstanceState,
     TIRunContext,
 )
 from airflow.sdk.bases.operator import BaseOperator, ExecutorSafeguard
+from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
@@ -65,10 +67,12 @@ from airflow.sdk.execution_time.comms import (
     ErrorResponse,
     GetDagRunState,
     GetDRCount,
+    GetPreviousDagRun,
     GetTaskRescheduleStartDate,
     GetTaskStates,
     GetTICount,
     InactiveAssetsResult,
+    PreviousDagRunResult,
     RescheduleTask,
     ResendLoggingFD,
     RetryTask,
@@ -99,9 +103,9 @@ from airflow.sdk.execution_time.context import (
     set_current_context,
 )
 from airflow.sdk.execution_time.xcom import XCom
+from airflow.sdk.timezone import coerce_datetime
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
-from airflow.utils.timezone import coerce_datetime
 
 if TYPE_CHECKING:
     import jinja2
@@ -288,7 +292,7 @@ class RuntimeTaskInstance(TaskInstance):
         self,
         task_ids: str | Iterable[str] | None = None,
         dag_id: str | None = None,
-        key: str = "return_value",  # TODO: Make this a constant (``XCOM_RETURN_KEY``)
+        key: str = BaseXCom.XCOM_RETURN_KEY,
         include_prior_dates: bool = False,
         *,
         map_indexes: int | Iterable[int] | None | ArgNotSet = NOTSET,
@@ -351,17 +355,19 @@ class RuntimeTaskInstance(TaskInstance):
 
         # If map_indexes is not specified, pull xcoms from all map indexes for each task
         if isinstance(map_indexes, ArgNotSet):
-            xcoms = [
-                value
-                for t_id in task_ids
-                for value in XCom.get_all(
+            xcoms: list[Any] = []
+            for t_id in task_ids:
+                values = XCom.get_all(
                     run_id=run_id,
                     key=key,
                     task_id=t_id,
                     dag_id=dag_id,
                 )
-            ]
 
+                if values is None:
+                    xcoms.append(None)
+                else:
+                    xcoms.extend(values)
             # For single task pulling from unmapped task, return single value
             if single_task_requested and len(xcoms) == 1:
                 return xcoms[0]
@@ -435,6 +441,30 @@ class RuntimeTaskInstance(TaskInstance):
             assert isinstance(response, TaskRescheduleStartDate)
 
         return response.start_date
+
+    def get_previous_dagrun(self, state: str | None = None) -> DagRun | None:
+        """Return the previous DAG run before the given logical date, optionally filtered by state."""
+        context = self.get_template_context()
+        dag_run = context.get("dag_run")
+
+        log = structlog.get_logger(logger_name="task")
+
+        log.debug("Getting previous DAG run", dag_run=dag_run)
+
+        if dag_run is None:
+            return None
+
+        if dag_run.logical_date is None:
+            return None
+
+        response = SUPERVISOR_COMMS.send(
+            msg=GetPreviousDagRun(dag_id=self.dag_id, logical_date=dag_run.logical_date, state=state)
+        )
+
+        if TYPE_CHECKING:
+            assert isinstance(response, PreviousDagRunResult)
+
+        return response.dag_run
 
     @staticmethod
     def get_ti_count(
@@ -1221,8 +1251,7 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
         for k, v in result.items():
             ti.xcom_push(k, v)
 
-    # TODO: Use constant for XCom return key & use serialize_value from Task SDK
-    _xcom_push(ti, "return_value", result, mapped_length=mapped_length)
+    _xcom_push(ti, BaseXCom.XCOM_RETURN_KEY, result, mapped_length=mapped_length)
 
 
 def finalize(

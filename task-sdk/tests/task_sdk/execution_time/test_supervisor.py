@@ -27,6 +27,7 @@ import signal
 import socket
 import sys
 import time
+from contextlib import nullcontext
 from operator import attrgetter
 from random import randint
 from time import sleep
@@ -43,13 +44,16 @@ from task_sdk import FAKE_BUNDLE, make_client
 from uuid6 import uuid7
 
 from airflow.executors.workloads import BundleInfo
+from airflow.sdk import timezone
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     AssetEventResponse,
     AssetProfile,
     AssetResponse,
+    DagRun,
     DagRunState,
+    DagRunType,
     TaskInstance,
     TaskInstanceState,
 )
@@ -60,6 +64,7 @@ from airflow.sdk.execution_time.comms import (
     AssetResult,
     CommsDecoder,
     ConnectionResult,
+    CreateHITLDetailPayload,
     DagRunStateResult,
     DeferTask,
     DeleteVariable,
@@ -73,6 +78,7 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetDagRunState,
     GetDRCount,
+    GetPreviousDagRun,
     GetPrevSuccessfulDagRun,
     GetTaskRescheduleStartDate,
     GetTaskStates,
@@ -81,8 +87,10 @@ from airflow.sdk.execution_time.comms import (
     GetXCom,
     GetXComSequenceItem,
     GetXComSequenceSlice,
+    HITLDetailRequestResult,
     InactiveAssetsResult,
     OKResponse,
+    PreviousDagRunResult,
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
@@ -112,7 +120,6 @@ from airflow.sdk.execution_time.supervisor import (
     set_supervisor_comms,
     supervise,
 )
-from airflow.utils import timezone, timezone as tz
 
 if TYPE_CHECKING:
     import kgb
@@ -148,6 +155,58 @@ def client_with_ti_start(make_ti_context):
 
 
 @pytest.mark.usefixtures("disable_capturing")
+class TestSupervisor:
+    @pytest.mark.parametrize(
+        "server, dry_run, expectation",
+        [
+            ("/execution/", False, pytest.raises(ValueError, match="Invalid execution API server URL")),
+            ("", False, pytest.raises(ValueError, match="Invalid execution API server URL")),
+            ("http://localhost:8080", True, pytest.raises(ValueError, match="Can only specify one of")),
+            (None, True, nullcontext()),
+            ("http://localhost:8080/execution/", False, nullcontext()),
+            ("https://localhost:8080/execution/", False, nullcontext()),
+        ],
+    )
+    def test_supervise(
+        self,
+        patched_secrets_masker,
+        server,
+        dry_run,
+        expectation,
+        test_dags_dir,
+        client_with_ti_start,
+    ):
+        """
+        Test that the supervisor validates server URL and dry_run parameter combinations correctly.
+        """
+        ti = TaskInstance(
+            id=uuid7(),
+            task_id="async",
+            dag_id="super_basic_deferred_run",
+            run_id="d",
+            try_number=1,
+            dag_version_id=uuid7(),
+        )
+
+        bundle_info = BundleInfo(name="my-bundle", version=None)
+
+        kw = {
+            "ti": ti,
+            "dag_rel_path": "super_basic_deferred_run.py",
+            "token": "",
+            "bundle_info": bundle_info,
+            "dry_run": dry_run,
+            "server": server,
+        }
+        if isinstance(expectation, nullcontext):
+            kw["client"] = client_with_ti_start
+
+        with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
+            with expectation:
+                supervise(**kw)
+
+
+@pytest.mark.usefixtures("disable_capturing")
 class TestWatchedSubprocess:
     @pytest.fixture(autouse=True)
     def disable_log_upload(self, spy_agency):
@@ -178,7 +237,7 @@ class TestWatchedSubprocess:
 
         line = lineno() - 2  # Line the error should be on
 
-        instant = tz.datetime(2024, 11, 7, 12, 34, 56, 78901)
+        instant = timezone.datetime(2024, 11, 7, 12, 34, 56, 78901)
         time_machine.move_to(instant, tick=False)
 
         proc = ActivitySubprocess.start(
@@ -190,6 +249,7 @@ class TestWatchedSubprocess:
                 dag_id="c",
                 run_id="d",
                 try_number=1,
+                dag_version_id=uuid7(),
             ),
             client=client_with_ti_start,
             target=subprocess_main,
@@ -262,6 +322,7 @@ class TestWatchedSubprocess:
                 dag_id="c",
                 run_id="d",
                 try_number=1,
+                dag_version_id=uuid7(),
             ),
             client=client_with_ti_start,
             target=subprocess_main,
@@ -296,6 +357,7 @@ class TestWatchedSubprocess:
                 dag_id="c",
                 run_id="d",
                 try_number=1,
+                dag_version_id=uuid7(),
             ),
             client=client_with_ti_start,
             target=subprocess_main,
@@ -314,7 +376,9 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstance(id=uuid7(), task_id="b", dag_id="c", run_id="d", try_number=1),
+            what=TaskInstance(
+                id=uuid7(), task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
+            ),
             client=MagicMock(spec=sdk_client.Client),
             target=subprocess_main,
         )
@@ -347,7 +411,9 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
+            what=TaskInstance(
+                id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
+            ),
             client=sdk_client.Client(base_url="", dry_run=True, token=""),
             target=subprocess_main,
         )
@@ -382,7 +448,9 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
+            what=TaskInstance(
+                id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
+            ),
             client=sdk_client.Client(base_url="", dry_run=True, token=""),
             target=subprocess_main,
         )
@@ -392,7 +460,7 @@ class TestWatchedSubprocess:
     def test_run_simple_dag(self, test_dags_dir, captured_logs, time_machine, mocker, client_with_ti_start):
         """Test running a simple DAG in a subprocess and capturing the output."""
 
-        instant = tz.datetime(2024, 11, 7, 12, 34, 56, 78901)
+        instant = timezone.datetime(2024, 11, 7, 12, 34, 56, 78901)
         time_machine.move_to(instant, tick=False)
 
         dagfile_path = test_dags_dir
@@ -402,6 +470,7 @@ class TestWatchedSubprocess:
             dag_id="super_basic_run",
             run_id="c",
             try_number=1,
+            dag_version_id=uuid7(),
         )
 
         bundle_info = BundleInfo(name="my-bundle", version=None)
@@ -435,7 +504,7 @@ class TestWatchedSubprocess:
         This includes ensuring the task starts and executes successfully, and that the task is deferred (via
         the API client) with the expected parameters.
         """
-        instant = tz.datetime(2024, 11, 7, 12, 34, 56, 0)
+        instant = timezone.datetime(2024, 11, 7, 12, 34, 56, 0)
 
         ti = TaskInstance(
             id=uuid7(),
@@ -443,6 +512,7 @@ class TestWatchedSubprocess:
             dag_id="super_basic_deferred_run",
             run_id="d",
             try_number=1,
+            dag_version_id=uuid7(),
         )
 
         # Create a mock client to assert calls to the client
@@ -497,7 +567,9 @@ class TestWatchedSubprocess:
 
     def test_supervisor_handles_already_running_task(self):
         """Test that Supervisor prevents starting a Task Instance that is already running."""
-        ti = TaskInstance(id=uuid7(), task_id="b", dag_id="c", run_id="d", try_number=1)
+        ti = TaskInstance(
+            id=uuid7(), task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
+        )
 
         # Mock API Server response indicating the TI is already running
         # The API Server would return a 409 Conflict status code if the TI is not
@@ -576,7 +648,9 @@ class TestWatchedSubprocess:
 
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
-            what=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
+            what=TaskInstance(
+                id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
+            ),
             client=make_client(transport=httpx.MockTransport(handle_request)),
             target=subprocess_main,
             bundle_info=FAKE_BUNDLE,
@@ -657,7 +731,7 @@ class TestWatchedSubprocess:
             process=mock_process,
         )
 
-        time_now = tz.datetime(2024, 11, 28, 12, 0, 0)
+        time_now = timezone.datetime(2024, 11, 28, 12, 0, 0)
         time_machine.move_to(time_now, tick=False)
 
         # Simulate sending heartbeats and ensure the process gets killed after max retries
@@ -735,7 +809,9 @@ class TestWatchedSubprocess:
         mocker.patch("time.monotonic", return_value=20.0)
 
         # Patch the task overtime threshold
-        monkeypatch.setattr(ActivitySubprocess, "TASK_OVERTIME_THRESHOLD", overtime_threshold)
+        monkeypatch.setattr(
+            "airflow.sdk.execution_time.supervisor.TASK_OVERTIME_THRESHOLD", overtime_threshold
+        )
 
         mock_watched_subprocess = ActivitySubprocess(
             process_log=mocker.MagicMock(),
@@ -758,7 +834,9 @@ class TestWatchedSubprocess:
         if expected_kill:
             mock_kill.assert_called_once_with(signal.SIGTERM, force=True)
             mock_logger.warning.assert_called_once_with(
-                "Workload success overtime reached; terminating process",
+                "Task success overtime reached; terminating process. "
+                "Modify `task_success_overtime` setting in [core] section of "
+                "Airflow configuration to change this limit.",
                 ti_id=TI_ID,
             )
         else:
@@ -803,6 +881,7 @@ class TestWatchedSubprocess:
                 dag_id="c",
                 run_id="d",
                 try_number=1,
+                dag_version_id=uuid7(),
             ),
             client=client_with_ti_start,
             target=subprocess_main,
@@ -959,7 +1038,9 @@ class TestWatchedSubprocessKill:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
+            what=TaskInstance(
+                id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
+            ),
             client=client_with_ti_start,
             target=subprocess_main,
         )
@@ -1682,6 +1763,72 @@ class TestHandleRequest:
                 id="get_dr_count",
             ),
             pytest.param(
+                GetPreviousDagRun(
+                    dag_id="test_dag",
+                    logical_date=timezone.parse("2024-01-15T12:00:00Z"),
+                ),
+                {
+                    "dag_run": {
+                        "dag_id": "test_dag",
+                        "run_id": "prev_run",
+                        "logical_date": timezone.parse("2024-01-14T12:00:00Z"),
+                        "run_type": "scheduled",
+                        "start_date": timezone.parse("2024-01-15T12:00:00Z"),
+                        "run_after": timezone.parse("2024-01-15T12:00:00Z"),
+                        "consumed_asset_events": [],
+                        "state": "success",
+                        "data_interval_start": None,
+                        "data_interval_end": None,
+                        "end_date": None,
+                        "clear_number": 0,
+                        "conf": None,
+                    },
+                    "type": "PreviousDagRunResult",
+                },
+                "dag_runs.get_previous",
+                (),
+                {
+                    "dag_id": "test_dag",
+                    "logical_date": timezone.parse("2024-01-15T12:00:00Z"),
+                    "state": None,
+                },
+                PreviousDagRunResult(
+                    dag_run=DagRun(
+                        dag_id="test_dag",
+                        run_id="prev_run",
+                        logical_date=timezone.parse("2024-01-14T12:00:00Z"),
+                        run_type=DagRunType.SCHEDULED,
+                        start_date=timezone.parse("2024-01-15T12:00:00Z"),
+                        run_after=timezone.parse("2024-01-15T12:00:00Z"),
+                        consumed_asset_events=[],
+                        state=DagRunState.SUCCESS,
+                    )
+                ),
+                None,
+                id="get_previous_dagrun",
+            ),
+            pytest.param(
+                GetPreviousDagRun(
+                    dag_id="test_dag",
+                    logical_date=timezone.parse("2024-01-15T12:00:00Z"),
+                    state="success",
+                ),
+                {
+                    "dag_run": None,
+                    "type": "PreviousDagRunResult",
+                },
+                "dag_runs.get_previous",
+                (),
+                {
+                    "dag_id": "test_dag",
+                    "logical_date": timezone.parse("2024-01-15T12:00:00Z"),
+                    "state": "success",
+                },
+                PreviousDagRunResult(dag_run=None),
+                None,
+                id="get_previous_dagrun_with_state",
+            ),
+            pytest.param(
                 GetTaskStates(dag_id="test_dag", task_group_id="test_group"),
                 {
                     "task_states": {"run_id": {"task1": "success", "task2": "failed"}},
@@ -1751,6 +1898,49 @@ class TestHandleRequest:
                 XComSequenceSliceResult(root=["foo", "bar"]),
                 None,
                 id="get_xcom_seq_slice",
+            ),
+            pytest.param(
+                CreateHITLDetailPayload(
+                    ti_id=TI_ID,
+                    options=["Approve", "Reject"],
+                    subject="This is subject",
+                    body="This is body",
+                    defaults=["Approve"],
+                    multiple=False,
+                    params={},
+                ),
+                {
+                    "ti_id": str(TI_ID),
+                    "options": ["Approve", "Reject"],
+                    "subject": "This is subject",
+                    "body": "This is body",
+                    "defaults": ["Approve"],
+                    "multiple": False,
+                    "params": {},
+                    "type": "HITLDetailRequestResult",
+                },
+                "hitl.add_response",
+                (),
+                {
+                    "body": "This is body",
+                    "defaults": ["Approve"],
+                    "multiple": False,
+                    "options": ["Approve", "Reject"],
+                    "params": {},
+                    "subject": "This is subject",
+                    "ti_id": TI_ID,
+                },
+                HITLDetailRequestResult(
+                    ti_id=TI_ID,
+                    options=["Approve", "Reject"],
+                    subject="This is subject",
+                    body="This is body",
+                    defaults=["Approve"],
+                    multiple=False,
+                    params={},
+                ),
+                None,
+                id="create_hitl_detail_payload",
             ),
         ],
     )

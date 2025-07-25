@@ -208,12 +208,13 @@ option_github_repository = click.option(
     envvar="GITHUB_REPOSITORY",
     callback=_set_default_from_parent,
 )
-option_historical_python_version = click.option(
-    "--python",
+option_historical_python_versions = click.option(
+    "--python-versions",
     type=BetterChoice(ALL_HISTORICAL_PYTHON_VERSIONS),
     required=False,
-    envvar="PYTHON_VERSION",
-    help="Python version to update sbom from. (defaults to all historical python versions)",
+    envvar="PYTHON_VERSIONS",
+    help="Comma separate list of Python versions to update sbom from "
+    "(defaults to all historical python versions)",
 )
 option_include_removed_providers = click.option(
     "--include-removed-providers",
@@ -475,6 +476,25 @@ option_install_airflow_with_constraints_default_true = click.option(
     show_default=True,
     envvar="INSTALL_AIRFLOW_WITH_CONSTRAINTS",
     help="Install airflow in a separate step, with constraints determined from package or airflow version.",
+)
+option_debug_components = click.option(
+    "--debug",
+    "debug_components",
+    help="Enable debugging for specific Airflow components. Can be one or more of: "
+    "scheduler, triggerer, api-server, dag-processor, edge-worker, celery-worker.",
+    type=BetterChoice(
+        ["scheduler", "triggerer", "api-server", "dag-processor", "edge-worker", "celery-worker"]
+    ),
+    multiple=True,
+    envvar="DEBUG_COMPONENTS",
+)
+option_debugger = click.option(
+    "--debugger",
+    help="Debugger to use for debugging Airflow components.",
+    type=BetterChoice(["debugpy", "pydevd-pycharm"]),
+    default="debugpy",
+    show_default=True,
+    envvar="DEBUGGER",
 )
 
 

@@ -26,7 +26,7 @@ from urllib.parse import quote_plus
 from pinotdb import connect
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+from airflow.providers.apache.pinot.version_compat import BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
@@ -106,7 +106,8 @@ class PinotAdminHook(BaseHook):
             cmd += ["-user", self.username]
         if self.password:
             cmd += ["-password", self.password]
-        cmd += ["-controllerHost", self.host]
+        if self.host is not None:
+            cmd += ["-controllerHost", self.host]
         cmd += ["-controllerPort", self.port]
         cmd += ["-schemaFile", schema_file]
         if with_exec:
@@ -125,7 +126,8 @@ class PinotAdminHook(BaseHook):
             cmd += ["-user", self.username]
         if self.password:
             cmd += ["-password", self.password]
-        cmd += ["-controllerHost", self.host]
+        if self.host is not None:
+            cmd += ["-controllerHost", self.host]
         cmd += ["-controllerPort", self.port]
         cmd += ["-filePath", file_path]
         if with_exec:
@@ -230,7 +232,8 @@ class PinotAdminHook(BaseHook):
             cmd += ["-user", self.username]
         if self.password:
             cmd += ["-password", self.password]
-        cmd += ["-controllerHost", self.host]
+        if self.host is not None:
+            cmd += ["-controllerHost", self.host]
         cmd += ["-controllerPort", self.port]
         cmd += ["-segmentDir", segment_dir]
         if table_name:
@@ -292,7 +295,7 @@ class PinotDbApiHook(DbApiHook):
 
     def get_conn(self) -> Any:
         """Establish a connection to pinot broker through pinot dbapi."""
-        conn = self.get_connection(self.pinot_broker_conn_id)  # type: ignore
+        conn = self.get_connection(self.get_conn_id())
 
         pinot_broker_conn = connect(
             host=conn.host,
@@ -312,7 +315,7 @@ class PinotDbApiHook(DbApiHook):
         e.g: http://localhost:9000/query/sql
         """
         conn = self.get_connection(self.get_conn_id())
-        host = conn.host
+        host = conn.host or ""
         if conn.login and conn.password:
             host = f"{quote_plus(conn.login)}:{quote_plus(conn.password)}@{host}"
         if conn.port:
