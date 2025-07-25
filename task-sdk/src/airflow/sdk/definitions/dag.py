@@ -1130,9 +1130,7 @@ class DAG:
             # don't care about otel in dag.test and starting the span during dagrun update
             # is not functioning properly in this context anyway.
             dr.start_dr_spans_if_needed(tis=[])
-            dr.dag = self  # type: ignore[assignment]
 
-            tasks = self.task_dict
             log.debug("starting dagrun")
             # Instead of starting a scheduler, we run the minimal loop possible to check
             # for task readiness and dependency management.
@@ -1167,7 +1165,7 @@ class DAG:
                     time.sleep(1)
 
                 for ti in scheduled_tis:
-                    ti.task = tasks[ti.task_id]
+                    task = self.task_dict[ti.task_id]
 
                     mark_success = (
                         re.compile(mark_success_pattern).fullmatch(ti.task_id) is not None
@@ -1203,9 +1201,9 @@ class DAG:
                             add_logger_if_needed(ti)
                             if mark_success:
                                 ti.set_state(State.SUCCESS)
-                                log.info("[DAG TEST] Marking success for %s on %s", ti.task, ti.logical_date)
+                                log.info("[DAG TEST] Marking success for %s on %s", task, ti.logical_date)
                             else:
-                                _run_task(ti=ti, run_triggerer=True)
+                                _run_task(ti=ti, task=task, run_triggerer=True)
                         except Exception:
                             log.exception("Task failed; ti=%s", ti)
                 if use_executor:
@@ -1220,7 +1218,7 @@ class DAG:
         return dr
 
 
-def _run_task(*, ti, run_triggerer=False):
+def _run_task(*, ti, task, run_triggerer=False):
     """
     Run a single task instance, and push result to Xcom for downstream tasks.
 
@@ -1247,18 +1245,17 @@ def _run_task(*, ti, run_triggerer=False):
                 ti=TaskInstanceSDK(
                     id=ti.id,
                     task_id=ti.task_id,
-                    dag_id=ti.task.dag_id,
+                    dag_id=ti.dag_id,
                     run_id=ti.run_id,
                     try_number=ti.try_number,
                     map_index=ti.map_index,
                     dag_version_id=ti.dag_version_id,
                 ),
-                task=ti.task,
+                task=task,
             )
 
             msg = taskrun_result.msg
             ti.set_state(taskrun_result.ti.state)
-            ti.task = taskrun_result.ti.task
 
             if ti.state == State.DEFERRED and isinstance(msg, DeferTask) and run_triggerer:
                 from airflow.utils.session import create_session

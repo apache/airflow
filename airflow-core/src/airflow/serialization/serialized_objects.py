@@ -1193,6 +1193,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
     _needs_expansion: bool
     _task_display_name: str | None
     depends_on_past: bool
+    email: str | Sequence[str] | None
     execution_timeout: datetime.timedelta | None
     executor: str | None
     executor_config: dict | None
@@ -1201,6 +1202,8 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
     is_setup: bool
     is_teardown: bool
     on_execute_callback: Sequence
+    on_failure_callback: Sequence
+    on_retry_callback: Sequence
     on_success_callback: Sequence
     outlets: Sequence
     pool: str
