@@ -542,7 +542,7 @@ export const ensureUseDagServiceGetDagsUiData = (queryClient: QueryClient, { dag
 * Get latest run.
 * @param data The data for the request.
 * @param data.dagId
-* @returns DAGRunLightResponse Successful Response
+* @returns unknown Successful Response
 * @throws ApiError
 */
 export const ensureUseDagServiceGetLatestRunInfoData = (queryClient: QueryClient, { dagId }: {
@@ -1402,19 +1402,6 @@ export const ensureUseGridServiceGetGridTiSummariesData = (queryClient: QueryCli
   dagId: string;
   runId: string;
 }) => queryClient.ensureQueryData({ queryKey: Common.UseGridServiceGetGridTiSummariesKeyFn({ dagId, runId }), queryFn: () => GridService.getGridTiSummaries({ dagId, runId }) });
-/**
-* Get Latest Run
-* Get information about the latest dag run by run_after.
-*
-* This is used by the UI to figure out if it needs to rerun queries and resume auto refresh.
-* @param data The data for the request.
-* @param data.dagId
-* @returns unknown Successful Response
-* @throws ApiError
-*/
-export const ensureUseGridServiceGetLatestRunData = (queryClient: QueryClient, { dagId }: {
-  dagId: string;
-}) => queryClient.ensureQueryData({ queryKey: Common.UseGridServiceGetLatestRunKeyFn({ dagId }), queryFn: () => GridService.getLatestRun({ dagId }) });
 /**
 * Get Calendar
 * Get calendar data for a DAG including historical and planned DAG runs.
