@@ -30,16 +30,33 @@ services:
       - MYSQL_ALLOW_EMPTY_PASSWORD=true
       - MYSQL_ROOT_HOST=%
       - MYSQL_DATABASE=airflow
+      - MYSQL_INITDB_SKIP_TZINFO=1
     volumes:
       - ../mysql/conf.d:/etc/mysql/conf.d:ro
       - mysql-db-volume:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysql", "-h", "localhost", "-P", "3306", "-u", "root", "-e", "SELECT 1"]
-      interval: 10s
-      timeout: 10s
-      retries: 5
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root"]
+      interval: 5s
+      timeout: 3s
+      start_period: 30s
+      retries: 12
     restart: "on-failure"
-    command: ['mysqld', '--character-set-server=utf8mb4',
-              '--collation-server=utf8mb4_unicode_ci']
+    # Logging for debugging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+    # Resource limits to prevent CI resource starvation
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+    command: [
+      'mysqld',
+      '--character-set-server=utf8mb4',
+      '--collation-server=utf8mb4_unicode_ci',
+    ]
 volumes:
   mysql-db-volume:
