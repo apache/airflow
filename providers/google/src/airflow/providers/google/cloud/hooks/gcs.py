@@ -26,19 +26,18 @@ import os
 import shutil
 import time
 import warnings
-from collections.abc import Generator, Sequence
+from collections.abc import Callable, Generator, Sequence
 from contextlib import contextmanager
 from functools import partial
 from io import BytesIO
 from tempfile import NamedTemporaryFile
-from typing import IO, TYPE_CHECKING, Any, Callable, TypeVar, cast, overload
+from typing import IO, TYPE_CHECKING, Any, ParamSpec, TypeVar, cast, overload
 from urllib.parse import urlsplit
 
+# Make mypy happy by importing as aliases
+import google.cloud.storage as storage
 from gcloud.aio.storage import Storage
 from google.api_core.exceptions import GoogleAPICallError, NotFound
-
-# not sure why but mypy complains on missing `storage` but it is clearly there and is importable
-from google.cloud import storage  # type: ignore[attr-defined]
 from google.cloud.exceptions import GoogleCloudError
 from google.cloud.storage.retry import DEFAULT_RETRY
 
@@ -51,7 +50,6 @@ from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseAsyncHook,
     GoogleBaseHook,
 )
-from airflow.typing_compat import ParamSpec
 from airflow.utils import timezone
 from airflow.version import version
 
@@ -549,13 +547,13 @@ class GCSHook(GoogleBaseHook):
         if cache_control:
             blob.cache_control = cache_control
 
-        if filename and data:
+        if filename is not None and data is not None:
             raise ValueError(
                 "'filename' and 'data' parameter provided. Please "
                 "specify a single parameter, either 'filename' for "
                 "local file uploads or 'data' for file content uploads."
             )
-        if filename:
+        if filename is not None:
             if not mime_type:
                 mime_type = "application/octet-stream"
             if gzip:
@@ -575,7 +573,7 @@ class GCSHook(GoogleBaseHook):
             if gzip:
                 os.remove(filename)
             self.log.info("File %s uploaded to %s in %s bucket", filename, object_name, bucket_name)
-        elif data:
+        elif data is not None:
             if not mime_type:
                 mime_type = "text/plain"
             if gzip:

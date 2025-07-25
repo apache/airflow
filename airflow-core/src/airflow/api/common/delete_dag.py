@@ -26,8 +26,9 @@ from sqlalchemy import delete, select
 
 from airflow import models
 from airflow.exceptions import AirflowException, DagNotFound
-from airflow.models import DagModel
+from airflow.models import DagModel, DagRun
 from airflow.models.errors import ParseImportError
+from airflow.models.taskinstance import TaskInstance
 from airflow.utils.db import get_sqla_model_classes
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
@@ -63,9 +64,14 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session: Session =
     if dag is None:
         raise DagNotFound(f"Dag id {dag_id} not found")
 
-    count = 0
+    # To ensure the TaskInstance and DagRun model is deleted before
+    # each of the model DagVersion and BackFill respectively.
+    models_for_deletion = [TaskInstance, DagRun] + [
+        model for model in get_sqla_model_classes() if model.__name__ not in ["TaskInstance", "DagRun"]
+    ]
 
-    for model in get_sqla_model_classes():
+    count = 0
+    for model in models_for_deletion:
         if hasattr(model, "dag_id") and (not keep_records_in_log or model.__name__ != "Log"):
             count += session.execute(
                 delete(model).where(model.dag_id == dag_id).execution_options(synchronize_session="fetch")
@@ -76,7 +82,7 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session: Session =
     session.execute(
         delete(ParseImportError)
         .where(
-            ParseImportError.filename == dag.fileloc,
+            ParseImportError.filename == dag.relative_fileloc,
             ParseImportError.bundle_name == dag.bundle_name,
         )
         .execution_options(synchronize_session="fetch")

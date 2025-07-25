@@ -25,8 +25,8 @@ This module contains Google PubSub operators.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.pubsub_v1.types import (
@@ -183,7 +183,6 @@ class PubSubCreateTopicOperator(GoogleCloudBaseOperator):
         self.log.info("Created topic %s", self.topic)
         PubSubTopicLink.persist(
             context=context,
-            task_instance=self,
             topic_id=self.topic,
             project_id=self.project_id or hook.project_id,
         )
@@ -392,7 +391,6 @@ class PubSubCreateSubscriptionOperator(GoogleCloudBaseOperator):
         self.log.info("Created subscription for topic %s", self.topic)
         PubSubSubscriptionLink.persist(
             context=context,
-            task_instance=self,
             subscription_id=self.subscription or result,  # result returns subscription name
             project_id=self.project_id or hook.project_id,
         )

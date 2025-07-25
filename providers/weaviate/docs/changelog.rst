@@ -20,6 +20,34 @@
 Changelog
 ---------
 
+3.2.1
+.....
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Provider Migration: Update Weaviate for Airflow 3.0 compatibility (#52381)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Bump upper binding on pandas in all providers (#52060)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add delete_by_property method in weaviate hook (#50735)``
+* ``Add batch_create_links method in weaviate hook (#50750)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``fix weaviate-cohere-integration-system-tests (#51467)``
+   * ``fix weaviate system test (#51240)``
+
 3.1.0
 .....
 

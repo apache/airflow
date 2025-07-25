@@ -16,13 +16,13 @@
 #
 # WARNING: THIS DOCKERFILE IS NOT INTENDED FOR PRODUCTION USE OR DEPLOYMENT.
 #
-ARG PYTHON_BASE_IMAGE="python:3.9-slim-bookworm"
+ARG BASE_IMAGE="debian:bookworm-slim"
 
 ##############################################################################################
 # This is the script image where we keep all inlined bash scripts needed in other segments
-# We use PYTHON_BASE_IMAGE to make sure that the scripts are different for different platforms.
+# We use BASE_IMAGE to make sure that the scripts are different for different platforms.
 ##############################################################################################
-FROM ${PYTHON_BASE_IMAGE} as scripts
+FROM ${BASE_IMAGE} as scripts
 
 ##############################################################################################
 # Please DO NOT modify the inlined scripts manually. The content of those files will be
@@ -31,22 +31,27 @@ FROM ${PYTHON_BASE_IMAGE} as scripts
 # make the PROD Dockerfile standalone
 ##############################################################################################
 
-# The content below is automatically copied from scripts/docker/install_os_dependencies.sh
-COPY <<"EOF" /install_os_dependencies.sh
+# The content below is automatically copied from scripts/docker/install_os_dependencies_ci.sh
+COPY <<"EOF" /install_os_dependencies_ci.sh
 #!/usr/bin/env bash
 set -euo pipefail
 
 if [[ "$#" != 1 ]]; then
-    echo "ERROR! There should be 'runtime' or 'dev' parameter passed as argument.".
+    echo "ERROR! There should be 'runtime', 'ci' or 'dev' parameter passed as argument.".
     exit 1
 fi
+
+AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-v3.10.10}
+GOLANG_MAJOR_MINOR_VERSION=${GOLANG_MAJOR_MINOR_VERSION:-1.24.4}
 
 if [[ "${1}" == "runtime" ]]; then
     INSTALLATION_TYPE="RUNTIME"
 elif   [[ "${1}" == "dev" ]]; then
-    INSTALLATION_TYPE="dev"
+    INSTALLATION_TYPE="DEV"
+elif   [[ "${1}" == "ci" ]]; then
+    INSTALLATION_TYPE="CI"
 else
-    echo "ERROR! Wrong argument. Passed ${1} and it should be one of 'runtime' or 'dev'.".
+    echo "ERROR! Wrong argument. Passed ${1} and it should be one of 'runtime', 'ci' or 'dev'.".
     exit 1
 fi
 
@@ -56,7 +61,10 @@ function get_dev_apt_deps() {
 freetds-bin freetds-dev git graphviz graphviz-dev krb5-user ldap-utils libev4 libev-dev libffi-dev libgeos-dev \
 libkrb5-dev libldap2-dev libleveldb1d libleveldb-dev libsasl2-2 libsasl2-dev libsasl2-modules \
 libssl-dev libxmlsec1 libxmlsec1-dev locales lsb-release openssh-client pkgconf sasl2-bin \
-software-properties-common sqlite3 sudo unixodbc unixodbc-dev zlib1g-dev"
+software-properties-common sqlite3 sudo unixodbc unixodbc-dev zlib1g-dev \
+gdb lcov pkg-config libbz2-dev libgdbm-dev libgdbm-compat-dev liblzma-dev \
+libncurses5-dev libreadline6-dev libsqlite3-dev lzma lzma-dev tk-dev uuid-dev \
+libzstd-dev"
         export DEV_APT_DEPS
     fi
 }
@@ -76,7 +84,7 @@ function get_runtime_apt_deps() {
     echo
     if [[ "${RUNTIME_APT_DEPS=}" == "" ]]; then
         RUNTIME_APT_DEPS="apt-transport-https apt-utils ca-certificates \
-curl dumb-init freetds-bin krb5-user libev4 libgeos-dev \
+curl dumb-init freetds-bin git krb5-user libev4 libgeos-dev \
 ldap-utils libsasl2-2 libsasl2-modules libxmlsec1 locales ${debian_version_apt_deps} \
 lsb-release openssh-client python3-selinux rsync sasl2-bin sqlite3 sudo unixodbc"
         export RUNTIME_APT_DEPS
@@ -143,14 +151,36 @@ function install_debian_runtime_dependencies() {
     rm -rf /var/lib/apt/lists/* /var/log/*
 }
 
+function install_python() {
+    git clone --branch "${AIRFLOW_PYTHON_VERSION}" --depth 1 https://github.com/python/cpython.git
+    cd cpython
+    ./configure --enable-optimizations
+    make -s -j "$(nproc)" all
+    make -s -j "$(nproc)" install
+    ln -s /usr/local/bin/python3 /usr/local/bin/python
+    ln -s /usr/local/bin/pip3 /usr/local/bin/pip
+    cd ..
+    rm -rf cpython
+}
+
+function install_golang() {
+    curl "https://dl.google.com/go/go${GOLANG_MAJOR_MINOR_VERSION}.linux-$(dpkg --print-architecture).tar.gz" -o "go${GOLANG_MAJOR_MINOR_VERSION}.linux.tar.gz"
+    rm -rf /usr/local/go && tar -C /usr/local -xzf go"${GOLANG_MAJOR_MINOR_VERSION}".linux.tar.gz
+}
+
 if [[ "${INSTALLATION_TYPE}" == "RUNTIME" ]]; then
     get_runtime_apt_deps
     install_debian_runtime_dependencies
     install_docker_cli
 
 else
+
     get_dev_apt_deps
     install_debian_dev_dependencies
+    install_python
+    if [[ "${INSTALLATION_TYPE}" == "CI" ]]; then
+        install_golang
+    fi
     install_docker_cli
 fi
 EOF
@@ -412,11 +442,14 @@ function common::get_packaging_tool() {
         echo
         export PACKAGING_TOOL="uv"
         export PACKAGING_TOOL_CMD="uv pip"
-        if [[ ${AIRFLOW_INSTALLATION_METHOD=} == "." && -f "./pyproject.toml" ]]; then
+        # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
+         # (binary lxml embeds its own libxml2, while xmlsec uses system one).
+         # See https://bugs.launchpad.net/lxml/+bug/2110068
+         if [[ ${AIRFLOW_INSTALLATION_METHOD=} == "." && -f "./pyproject.toml" ]]; then
             # for uv only install dev group when we install from sources
-            export EXTRA_INSTALL_FLAGS="--group=dev"
+            export EXTRA_INSTALL_FLAGS="--group=dev --no-binary lxml --no-binary xmlsec"
         else
-            export EXTRA_INSTALL_FLAGS=""
+            export EXTRA_INSTALL_FLAGS="--no-binary lxml --no-binary xmlsec"
         fi
         export EXTRA_UNINSTALL_FLAGS=""
         export UPGRADE_TO_HIGHEST_RESOLUTION="--upgrade --resolution highest"
@@ -432,7 +465,10 @@ function common::get_packaging_tool() {
         echo
         export PACKAGING_TOOL="pip"
         export PACKAGING_TOOL_CMD="pip"
-        export EXTRA_INSTALL_FLAGS="--root-user-action ignore"
+        # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
+        # (binary lxml embeds its own libxml2, while xmlsec uses system one).
+        # See https://bugs.launchpad.net/lxml/+bug/2110068
+        export EXTRA_INSTALL_FLAGS="--root-user-action ignore --no-binary lxml,xmlsec"
         export EXTRA_UNINSTALL_FLAGS="--yes"
         export UPGRADE_TO_HIGHEST_RESOLUTION="--upgrade --upgrade-strategy eager"
         export UPGRADE_IF_NEEDED="--upgrade --upgrade-strategy only-if-needed"
@@ -628,8 +664,12 @@ function install_from_sources() {
         echo
         echo "${COLOR_BLUE}Attempting to upgrade all packages to highest versions.${COLOR_RESET}"
         echo
+        # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
+        # (binary lxml embeds its own libxml2, while xmlsec uses system one).
+        # See https://bugs.launchpad.net/lxml/+bug/2110068
         set -x
-        uv sync --all-packages --resolution highest --group dev --group docs --group docs-gen --group leveldb ${extra_sync_flags}
+        uv sync --all-packages --resolution highest --group dev --group docs --group docs-gen \
+            --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec
     else
         # We only use uv here but Installing using constraints is not supported with `uv sync`, so we
         # do not use ``uv sync`` because we are not committing and using uv.lock yet.
@@ -647,6 +687,7 @@ function install_from_sources() {
         installation_command_flags=" --editable .[${AIRFLOW_EXTRAS}] \
               --editable ./airflow-core --editable ./task-sdk --editable ./airflow-ctl \
               --editable ./kubernetes-tests --editable ./docker-tests --editable ./helm-tests \
+              --editable ./task-sdk-tests \
               --editable ./devel-common[all] --editable ./dev \
               --group dev --group docs --group docs-gen --group leveldb"
         local -a projects_with_devel_dependencies
@@ -686,8 +727,12 @@ function install_from_sources() {
             echo
             echo "${COLOR_BLUE}Falling back to no-constraints installation.${COLOR_RESET}"
             echo
+            # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
+            # (binary lxml embeds its own libxml2, while xmlsec uses system one).
+            # See https://bugs.launchpad.net/lxml/+bug/2110068
             set -x
-            uv sync --all-packages --group dev --group docs --group docs-gen --group leveldb ${extra_sync_flags}
+            uv sync --all-packages --group dev --group docs --group docs-gen \
+                --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec
             set +x
         fi
     fi
@@ -827,10 +872,15 @@ EOF
 # The content below is automatically copied from scripts/docker/entrypoint_ci.sh
 COPY <<"EOF" /entrypoint_ci.sh
 #!/usr/bin/env bash
-if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
-    set -x
-fi
+function set_verbose() {
+    if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
+        set -x
+    else
+        set +x
+    fi
+}
 
+set_verbose
 . "${AIRFLOW_SOURCES:-/opt/airflow}"/scripts/in_container/_in_container_script_init.sh
 
 LD_PRELOAD="/usr/lib/$(uname -m)-linux-gnu/libstdc++.so.6"
@@ -840,13 +890,17 @@ chmod 1777 /tmp
 
 AIRFLOW_SOURCES=$(cd "${IN_CONTAINER_DIR}/../.." || exit 1; pwd)
 
-PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.9}
+PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.10}
 
 export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
 
 mkdir "${AIRFLOW_HOME}/sqlite" -p || true
 
 ASSET_COMPILATION_WAIT_MULTIPLIER=${ASSET_COMPILATION_WAIT_MULTIPLIER:=1}
+
+if [[ "${CI=}" == "true" ]]; then
+    export COLUMNS="202"
+fi
 
 . "${IN_CONTAINER_DIR}/check_connectivity.sh"
 
@@ -921,7 +975,7 @@ function environment_initialization() {
     CI=${CI:="false"}
 
     # Added to have run-tests on path
-    export PATH=${PATH}:${AIRFLOW_SOURCES}
+    export PATH=${PATH}:${AIRFLOW_SOURCES}:/usr/local/go/bin/
 
     mkdir -pv "${AIRFLOW_HOME}/logs/"
 
@@ -991,13 +1045,13 @@ function handle_mount_sources() {
         echo
         echo "${COLOR_BLUE}Mounted sources are removed, cleaning up mounted dist-info files${COLOR_RESET}"
         echo
-        rm -rf /usr/local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/apache_airflow*.dist-info/
+        rm -rf /usr/local/lib/python"${PYTHON_MAJOR_MINOR_VERSION}"/site-packages/apache_airflow*.dist-info/
     fi
 }
 
 function determine_airflow_to_use() {
     USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION:=""}"
-    if [[ ${USE_AIRFLOW_VERSION} == "" && ${USE_DISTRIBUTIONS_FROM_DIST=} != "true" ]]; then
+    if [[ "${USE_AIRFLOW_VERSION}" == "" && "${USE_DISTRIBUTIONS_FROM_DIST}" != "true" ]]; then
         export PYTHONPATH=${AIRFLOW_SOURCES}
         echo
         echo "${COLOR_BLUE}Using airflow version from current sources${COLOR_RESET}"
@@ -1028,7 +1082,7 @@ function determine_airflow_to_use() {
         # for the use in parallel runs in docker containers--no-cache is needed - otherwise there is
         # possibility of overriding temporary environments by multiple parallel processes
         uv run --no-cache /opt/airflow/scripts/in_container/install_development_dependencies.py \
-           --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt
+           --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-"${PYTHON_MAJOR_MINOR_VERSION}".txt
         # Some packages might leave legacy typing module which causes test issues
         # shellcheck disable=SC2086
         ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} typing || true
@@ -1055,12 +1109,21 @@ function check_boto_upgrade() {
     echo
     echo "${COLOR_BLUE}Upgrading boto3, botocore to latest version to run Amazon tests with them${COLOR_RESET}"
     echo
-    set -x
     # shellcheck disable=SC2086
     ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} aiobotocore s3fs || true
     # shellcheck disable=SC2086
     ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "boto3<1.38.3" "botocore<1.38.3"
-    set +x
+}
+
+function check_upgrade_sqlalchemy() {
+    if [[ "${UPGRADE_SQLALCHEMY}" != "true" ]]; then
+        return
+    fi
+    echo
+    echo "${COLOR_BLUE}Upgrading sqlalchemy to the latest version to run tests with it${COLOR_RESET}"
+    echo
+    # shellcheck disable=SC2086
+    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "sqlalchemy[asyncio]<2.1" "databricks-sqlalchemy>=2"
 }
 
 function check_downgrade_sqlalchemy() {
@@ -1121,13 +1184,19 @@ function check_force_lowest_dependencies() {
             exit 0
         fi
         cd "${AIRFLOW_SOURCES}/providers/${provider_id/.//}" || exit 1
-        uv sync --resolution lowest-direct
+        # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
+        # (binary lxml embeds its own libxml2, while xmlsec uses system one).
+        # See https://bugs.launchpad.net/lxml/+bug/2110068
+        uv sync --resolution lowest-direct --no-binary-package lxml --no-binary-package xmlsec --all-extras
     else
         echo
         echo "${COLOR_BLUE}Forcing dependencies to lowest versions for Airflow.${COLOR_RESET}"
         echo
         cd "${AIRFLOW_SOURCES}/airflow-core"
-        uv sync --resolution lowest-direct
+        # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
+        # (binary lxml embeds its own libxml2, while xmlsec uses system one).
+        # See https://bugs.launchpad.net/lxml/+bug/2110068
+        uv sync --resolution lowest-direct --no-binary-package lxml --no-binary-package xmlsec --all-extras
     fi
 }
 
@@ -1196,6 +1265,7 @@ handle_mount_sources
 determine_airflow_to_use
 environment_initialization
 check_boto_upgrade
+check_upgrade_sqlalchemy
 check_downgrade_sqlalchemy
 check_downgrade_pendulum
 check_force_lowest_dependencies
@@ -1219,23 +1289,23 @@ COPY <<"EOF" /entrypoint_exec.sh
 exec /bin/bash "${@}"
 EOF
 
-FROM ${PYTHON_BASE_IMAGE} as main
+FROM ${BASE_IMAGE} as main
 
 # Nolog bash flag is currently ignored - but you can replace it with other flags (for example
 # xtrace - to show commands executed)
 SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
 
-ARG PYTHON_BASE_IMAGE
+ARG BASE_IMAGE
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 
 # By increasing this number we can do force build of all dependencies.
 # NOTE! When you want to make sure dependencies are installed from scratch in your PR after removing
 # some dependencies, you also need to set "disable image cache" in your PR to make sure the image is
 # not built using the "main" version of those dependencies.
-ARG DEPENDENCIES_EPOCH_NUMBER="14"
+ARG DEPENDENCIES_EPOCH_NUMBER="15"
 
 # Make sure noninteractive debian install is used and language variables set
-ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \
+ENV BASE_IMAGE=${BASE_IMAGE} \
     DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 \
     DEPENDENCIES_EPOCH_NUMBER=${DEPENDENCIES_EPOCH_NUMBER} \
@@ -1246,7 +1316,7 @@ ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \
     UV_CACHE_DIR=/root/.cache/uv
 
 
-RUN echo "Base image version: ${PYTHON_BASE_IMAGE}"
+RUN echo "Base image version: ${BASE_IMAGE}"
 
 ARG DEV_APT_COMMAND=""
 ARG ADDITIONAL_DEV_APT_COMMAND=""
@@ -1261,8 +1331,13 @@ ENV DEV_APT_COMMAND=${DEV_APT_COMMAND} \
     ADDITIONAL_DEV_APT_DEPS=${ADDITIONAL_DEV_APT_DEPS} \
     ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND}
 
-COPY --from=scripts install_os_dependencies.sh /scripts/docker/
-RUN bash /scripts/docker/install_os_dependencies.sh dev
+ARG AIRFLOW_PYTHON_VERSION=v3.10.18
+ENV AIRFLOW_PYTHON_VERSION=$AIRFLOW_PYTHON_VERSION
+ENV GOLANG_MAJOR_MINOR_VERSION=1.24.5
+
+COPY --from=scripts install_os_dependencies_ci.sh /scripts/docker/
+
+RUN bash /scripts/docker/install_os_dependencies_ci.sh ci
 
 COPY --from=scripts common.sh /scripts/docker/
 
@@ -1388,8 +1463,8 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=25.1.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_SETUPTOOLS_VERSION=80.8.0
-ARG AIRFLOW_UV_VERSION=0.7.8
+ARG AIRFLOW_SETUPTOOLS_VERSION=80.9.0
+ARG AIRFLOW_UV_VERSION=0.8.0
 # TODO(potiuk): automate with upgrade check (possibly)
 ARG AIRFLOW_PRE_COMMIT_VERSION="4.2.0"
 ARG AIRFLOW_PRE_COMMIT_UV_VERSION="4.1.4"
@@ -1401,8 +1476,8 @@ ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     UV_LINK_MODE=copy \
     AIRFLOW_PRE_COMMIT_VERSION=${AIRFLOW_PRE_COMMIT_VERSION}
 
-# The PATH is needed for PIPX to find the tools installed
-ENV PATH="/root/.local/bin:${PATH}"
+# The PATH is needed for PIPX to find the tools installed and cargo to build the wheels
+ENV PATH="/root/.local/bin:/root/.cargo/bin:${PATH}"
 
 # Useful for creating a cache id based on the underlying architecture, preventing the use of cached python packages from
 # an incorrect architecture.

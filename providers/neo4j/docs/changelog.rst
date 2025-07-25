@@ -29,6 +29,30 @@
 Changelog
 ---------
 
+3.9.2
+.....
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Provider Migration: Update neo4j for Airflow 3.0 compatibility (#52610)``
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.9.1
+.....
+
+Misc
+~~~~
+
+* ``Bump min version of neo4j sdk to 5.20 (#50882)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.9.0
 .....
 

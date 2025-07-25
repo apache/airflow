@@ -23,6 +23,7 @@ from unittest import mock
 import pytest
 import time_machine
 
+from airflow._shared.timezones import timezone
 from airflow.models import DagModel
 from airflow.models.asset import (
     AssetActive,
@@ -35,7 +36,6 @@ from airflow.models.asset import (
 )
 from airflow.models.dagrun import DagRun
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
@@ -256,8 +256,9 @@ class TestGetAssets(TestAssets):
                     "extra": {"foo": "bar"},
                     "created_at": tz_datetime_format,
                     "updated_at": tz_datetime_format,
-                    "consuming_dags": [],
+                    "scheduled_dags": [],
                     "producing_tasks": [],
+                    "consuming_tasks": [],
                     "aliases": [],
                     # No AssetEvent, so no data!
                     "last_asset_event": {"id": None, "timestamp": None},
@@ -270,8 +271,9 @@ class TestGetAssets(TestAssets):
                     "extra": {"foo": "bar"},
                     "created_at": tz_datetime_format,
                     "updated_at": tz_datetime_format,
-                    "consuming_dags": [],
+                    "scheduled_dags": [],
                     "producing_tasks": [],
+                    "consuming_tasks": [],
                     "aliases": [],
                     "last_asset_event": {"id": None, "timestamp": None},
                 },
@@ -310,8 +312,9 @@ class TestGetAssets(TestAssets):
                     "extra": {"foo": "bar"},
                     "created_at": tz_datetime_format,
                     "updated_at": tz_datetime_format,
-                    "consuming_dags": [],
+                    "scheduled_dags": [],
                     "producing_tasks": [],
+                    "consuming_tasks": [],
                     "aliases": [],
                     "last_asset_event": {"id": None, "timestamp": None},
                 },
@@ -323,8 +326,9 @@ class TestGetAssets(TestAssets):
                     "extra": {"foo": "bar"},
                     "created_at": tz_datetime_format,
                     "updated_at": tz_datetime_format,
-                    "consuming_dags": [],
+                    "scheduled_dags": [],
                     "producing_tasks": [],
+                    "consuming_tasks": [],
                     "aliases": [],
                     "last_asset_event": {"id": None, "timestamp": None},
                 },
@@ -336,8 +340,9 @@ class TestGetAssets(TestAssets):
                     "extra": {"foo": "bar"},
                     "created_at": tz_datetime_format,
                     "updated_at": tz_datetime_format,
-                    "consuming_dags": [],
+                    "scheduled_dags": [],
                     "producing_tasks": [],
+                    "consuming_tasks": [],
                     "aliases": [],
                     "last_asset_event": {"id": None, "timestamp": None},
                 },
@@ -900,8 +905,9 @@ class TestGetAssetEndpoint(TestAssets):
             "extra": {"foo": "bar"},
             "created_at": tz_datetime_format,
             "updated_at": tz_datetime_format,
-            "consuming_dags": [],
+            "scheduled_dags": [],
             "producing_tasks": [],
+            "consuming_tasks": [],
             "aliases": [],
             "last_asset_event": {"id": None, "timestamp": None},
         }
@@ -934,8 +940,9 @@ class TestGetAssetEndpoint(TestAssets):
             "extra": {"password": "***"},
             "created_at": tz_datetime_format,
             "updated_at": tz_datetime_format,
-            "consuming_dags": [],
+            "scheduled_dags": [],
             "producing_tasks": [],
+            "consuming_tasks": [],
             "aliases": [],
             "last_asset_event": {"id": None, "timestamp": None},
         }
@@ -1196,12 +1203,14 @@ class TestPostAssetMaterialize(TestAssets):
             "run_after": mock.ANY,
             "start_date": None,
             "end_date": None,
+            "duration": None,
             "data_interval_start": None,
             "data_interval_end": None,
             "last_scheduling_decision": None,
             "run_type": "manual",
             "state": "queued",
             "triggered_by": "rest_api",
+            "triggering_user_name": "test",
             "conf": {},
             "note": None,
         }

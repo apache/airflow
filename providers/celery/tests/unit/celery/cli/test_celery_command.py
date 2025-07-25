@@ -36,8 +36,6 @@ from airflow.providers.celery.cli.celery_command import _run_stale_bundle_cleanu
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-pytestmark = pytest.mark.db_test
-
 
 @pytest.mark.backend("mysql", "postgres")
 @conf_vars({("dag_processor", "stale_bundle_cleanup_interval"): 0})

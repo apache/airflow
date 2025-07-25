@@ -21,36 +21,36 @@ import { useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiPlay } from "react-icons/fi";
 
-import type { DAGResponse, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
-
 import ActionButton from "../ui/ActionButton";
 import TriggerDAGModal from "./TriggerDAGModal";
 
 type Props = {
-  readonly dag: DAGResponse | DAGWithLatestDagRunsResponse;
+  readonly dagDisplayName: string;
+  readonly dagId: string;
+  readonly isPaused: boolean;
   readonly withText?: boolean;
 };
 
-const TriggerDAGButton: React.FC<Props> = ({ dag, withText = true }) => {
+const TriggerDAGButton: React.FC<Props> = ({ dagDisplayName, dagId, isPaused, withText = true }) => {
   const { onClose, onOpen, open } = useDisclosure();
-  const { t: translate } = useTranslation("dags");
+  const { t: translate } = useTranslation("components");
 
   return (
     <Box>
       <ActionButton
-        actionName={translate("dagActions.trigger.triggerDag")}
+        actionName={translate("triggerDag.title")}
         colorPalette="blue"
         icon={<FiPlay />}
         onClick={onOpen}
-        text={translate("dagActions.trigger.button")}
+        text={translate("triggerDag.button")}
         variant="solid"
         withText={withText}
       />
 
       <TriggerDAGModal
-        dagDisplayName={dag.dag_display_name}
-        dagId={dag.dag_id}
-        isPaused={dag.is_paused}
+        dagDisplayName={dagDisplayName}
+        dagId={dagId}
+        isPaused={isPaused}
         onClose={onClose}
         open={open}
       />

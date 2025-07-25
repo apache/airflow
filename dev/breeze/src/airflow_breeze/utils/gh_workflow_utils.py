@@ -17,9 +17,13 @@
 from __future__ import annotations
 
 import json
+import re
+import subprocess
 import sys
 import time
+from shutil import which
 
+from airflow_breeze.global_constants import MIN_GH_VERSION
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.run_utils import run_command
 
@@ -54,6 +58,33 @@ def tigger_workflow(workflow_name: str, repo: str, branch: str = "main", **kwarg
     time.sleep(5)
 
 
+def make_sure_gh_is_installed():
+    if not which("gh"):
+        get_console().print(
+            "[red]Error! The `gh` tool is not installed.[/]\n\n"
+            "[yellow]You need to install `gh` tool (see https://github.com/cli/cli) and "
+            "run `gh auth login` to connect your repo to GitHub."
+        )
+        sys.exit(1)
+    version_string = subprocess.check_output(["gh", "version"]).decode("utf-8")
+    match = re.search(r"gh version (\d+\.\d+\.\d+)", version_string)
+    if match:
+        version = match.group(1)
+        from packaging.version import Version
+
+        if Version(version) < Version(MIN_GH_VERSION):
+            get_console().print(
+                f"[red]Error! The `gh` tool version is too old. "
+                f"Please upgrade to at least version {MIN_GH_VERSION}[/]"
+            )
+            sys.exit(1)
+    else:
+        get_console().print(
+            "[red]Error! Could not determine the version of the `gh` tool. Please ensure it is installed correctly.[/]"
+        )
+        sys.exit(1)
+
+
 def get_workflow_run_id(workflow_name: str, repo: str) -> int:
     """
     Get the latest workflow run ID for a given workflow name and repository.
@@ -61,6 +92,7 @@ def get_workflow_run_id(workflow_name: str, repo: str) -> int:
     :param workflow_name: The name of the workflow to check.
     :param repo: The repository in the format 'owner/repo'.
     """
+    make_sure_gh_is_installed()
     command = [
         "gh",
         "run",
@@ -85,7 +117,13 @@ def get_workflow_run_id(workflow_name: str, repo: str) -> int:
         get_console().print("[red]No workflow runs found.[/red]")
         sys.exit(1)
 
-    return json.loads(runs_data)[0]["databaseId"]
+    run_id = json.loads(runs_data)[0].get("databaseId")
+
+    get_console().print(
+        f"[blue]Running workflow {workflow_name} at https://github.com/{repo}/actions/runs/{run_id}[/blue]",
+    )
+
+    return run_id
 
 
 def get_workflow_run_info(run_id: str, repo: str, fields: str) -> dict:
@@ -96,6 +134,7 @@ def get_workflow_run_info(run_id: str, repo: str, fields: str) -> dict:
     :param repo: Workflow repository example: 'apache/airflow'
     :param fields: Comma-separated fields to retrieve from the workflow run to fetch. eg: "status,conclusion,name,jobs"
     """
+    make_sure_gh_is_installed()
     command = ["gh", "run", "view", run_id, "--json", fields, "--repo", repo]
 
     result = run_command(command, capture_output=True, check=False)
@@ -159,6 +198,7 @@ def monitor_workflow_run(run_id: str, repo: str):
 def trigger_workflow_and_monitor(
     workflow_name: str, repo: str, branch: str = "main", monitor=True, **workflow_fields
 ):
+    make_sure_gh_is_installed()
     tigger_workflow(
         workflow_name=workflow_name,
         repo=repo,

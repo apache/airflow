@@ -22,6 +22,7 @@ import { AsyncSelect } from "chakra-react-select";
 import type { OptionsOrGroups, GroupBase, SingleValue } from "chakra-react-select";
 import debounce from "debounce-promise";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import { UseDagServiceGetDagsKeyFn } from "openapi/queries";
@@ -36,6 +37,7 @@ export const SearchDags = ({
 }: {
   readonly setIsOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }) => {
+  const { t: translate } = useTranslation("dags");
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const SEARCH_LIMIT = 10;
@@ -84,7 +86,7 @@ export const SearchDags = ({
         loadOptions={searchDagDebounced}
         menuIsOpen
         onChange={onSelect}
-        placeholder="Search Dags"
+        placeholder={translate("search.dags")}
         // eslint-disable-next-line unicorn/no-null
         value={null} // null is required https://github.com/JedWatson/react-select/issues/3066
       />

@@ -25,6 +25,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
+# Do not run the tests when FAB / Flask is not installed
+pytest.importorskip("flask_session")
+
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG
 from airflow.providers.common.compat.openlineage.facet import (
@@ -47,8 +50,6 @@ from airflow.providers.databricks.triggers.databricks import (
     DatabricksSQLStatementExecutionTrigger,
 )
 from airflow.providers.databricks.utils import databricks as utils
-
-pytestmark = pytest.mark.db_test
 
 DATE = "2017-04-20"
 TASK_ID = "databricks-operator"
@@ -812,7 +813,6 @@ class TestDatabricksSubmitRunOperator:
         )
         assert expected == utils.normalise_json_content(op.json)
 
-    @pytest.mark.db_test
     def test_init_with_templating(self):
         json = {
             "new_cluster": NEW_CLUSTER,
@@ -1250,7 +1250,6 @@ class TestDatabricksRunNowOperator:
 
         assert expected == op.json
 
-    @pytest.mark.db_test
     def test_init_with_templating(self):
         json = {"notebook_params": NOTEBOOK_PARAMS, "jar_params": TEMPLATED_JAR_PARAMS}
 
@@ -2368,7 +2367,7 @@ class TestDatabricksNotebookOperator:
 
         with pytest.raises(AirflowException) as exec_info:
             operator.monitor_databricks_job()
-        exception_message = "Task failed. Final state FAILED. Reason: FAILURE"
+        exception_message = "Task failed. Final state FAILED. Reason: FAILURE. Errors: []"
         assert exception_message == str(exec_info.value)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
@@ -2414,7 +2413,7 @@ class TestDatabricksNotebookOperator:
 
         with pytest.raises(AirflowException) as exc_info:
             operator.monitor_databricks_job()
-        exception_message = "Task failed. Final state FAILED. Reason: FAILURE"
+        exception_message = "Task failed. Final state FAILED. Reason: FAILURE. Errors: []"
         assert exception_message == str(exc_info.value)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")

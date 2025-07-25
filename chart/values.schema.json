@@ -78,7 +78,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "3.0.0",
+            "default": "3.0.3",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -93,7 +93,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "3.0.0",
+            "default": "3.0.3",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -695,6 +695,12 @@
             "x-docsSection": "Airflow",
             "default": true
         },
+        "allowJobLaunching": {
+            "description": "Whether various Airflow components launch jobs.",
+            "type": "boolean",
+            "x-docsSection": "Airflow",
+            "default": false
+        },
         "images": {
             "description": "Images.",
             "type": "object",
@@ -1061,6 +1067,16 @@
                 },
                 "AIRFLOW_CONN_AIRFLOW_DB": {
                     "description": "Enable ``AIRFLOW_CONN_AIRFLOW_DB`` variable to be read from the Metadata Secret",
+                    "type": "boolean",
+                    "default": true
+                },
+                "AIRFLOW__API__SECRET_KEY": {
+                    "description": "Enable ``AIRFLOW__API__SECRET_KEY`` variable to be read from the Api Secret Key Secret",
+                    "type": "boolean",
+                    "default": true
+                },
+                "AIRFLOW__API_AUTH__JWT_SECRET": {
+                    "description": "Enable ``AIRFLOW__API_AUTH__JWT_SECRET`` variable to be read from the JWT Secret",
                     "type": "boolean",
                     "default": true
                 },
@@ -1459,6 +1475,60 @@
                 "type": "string"
             }
         },
+        "apiSecretKey": {
+            "description": "The Flask secret key for Airflow Api to encrypt browser session.",
+            "type": [
+                "string",
+                "null"
+            ],
+            "x-docsSection": "Common",
+            "default": null
+        },
+        "apiSecretAnnotations": {
+            "description": "Annotations to add to the Api secret.",
+            "type": "object",
+            "x-docsSection": "Common",
+            "default": {},
+            "additionalProperties": {
+                "type": "string"
+            }
+        },
+        "apiSecretKeySecretName": {
+            "description": "The Secret name containing Flask secret_key for the Api.",
+            "type": [
+                "string",
+                "null"
+            ],
+            "x-docsSection": "Airflow",
+            "default": null
+        },
+        "jwtSecret": {
+            "description": "Secret key used to encode and decode JWTs to authenticate to public and private APIs (can only be set during install, not upgrade).",
+            "type": [
+                "string",
+                "null"
+            ],
+            "x-docsSection": "Common",
+            "default": null
+        },
+        "jwtSecretName": {
+            "description": "The JWT secret name.",
+            "type": [
+                "string",
+                "null"
+            ],
+            "x-docsSection": "Airflow",
+            "default": null
+        },
+        "jwtSecretAnnotations": {
+            "description": "Annotations to add to the JWT secret.",
+            "type": "object",
+            "x-docsSection": "Common",
+            "default": {},
+            "additionalProperties": {
+                "type": "string"
+            }
+        },
         "webserverSecretKey": {
             "description": "The Flask secret key for Airflow Webserver to encrypt browser session.",
             "type": [
@@ -1756,7 +1826,7 @@
                         "query": {
                             "description": "Query to use for KEDA autoscaling. Must return a single integer.",
                             "type": "string",
-                            "default": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }}) FROM task_instance WHERE (state='running' OR state='queued') {{- if or (contains \"CeleryKubernetesExecutor\" .Values.executor) (contains \"KubernetesExecutor\" .Values.executor) }} AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}' {{- end }}"
+                            "default": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }}) FROM task_instance WHERE (state='running' OR state='queued') {{- if contains \"CeleryKubernetesExecutor\" .Values.executor }} AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}' {{- else if contains \"KubernetesExecutor\" .Values.executor }} AND executor != 'KubernetesExecutor' {{- end }}"
                         },
                         "usePgbouncer": {
                             "description": "Weather to use PGBouncer to connect to the database or not when it is enabled. This configuration will be ignored if PGBouncer is not enabled.",
@@ -2483,6 +2553,89 @@
                             }
                         }
                     ]
+                },
+                "useWorkerDedicatedServiceAccounts": {
+                    "description": "One common Service Account for all workers will be created if flag is set to false. If true, dedicated Service Accounts for every worker type will be created.",
+                    "type": "boolean",
+                    "default": false
+                },
+                "celery": {
+                    "description": "Airflow Celery Workers configuration.",
+                    "type": "object",
+                    "x-docsSection": "Workers",
+                    "properties": {
+                        "serviceAccount": {
+                            "description": "Create ServiceAccount.",
+                            "type": "object",
+                            "properties": {
+                                "automountServiceAccountToken": {
+                                    "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "create": {
+                                    "description": "Specifies whether a ServiceAccount should be created.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "name": {
+                                    "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "annotations": {
+                                    "description": "Annotations to add to the Airflow Celery worker Kubernetes ServiceAccount.",
+                                    "type": "object",
+                                    "default": {},
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "kubernetes": {
+                    "description": "Airflow pod-template-file configuration.",
+                    "type": "object",
+                    "x-docsSection": "Workers",
+                    "properties": {
+                        "serviceAccount": {
+                            "description": "Create ServiceAccount.",
+                            "type": "object",
+                            "properties": {
+                                "automountServiceAccountToken": {
+                                    "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "create": {
+                                    "description": "Specifies whether a ServiceAccount should be created.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "name": {
+                                    "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "annotations": {
+                                    "description": "Annotations to add to the worker Kubernetes ServiceAccount.",
+                                    "type": "object",
+                                    "default": {},
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         },
@@ -5465,11 +5618,47 @@
                             },
                             "value": {
                                 "type": "string"
+                            },
+                            "valueFrom": {
+                                "type": "object",
+                                "properties": {
+                                    "configMapKeyRef": {
+                                        "$ref": "#/definitions/io.k8s.api.core.v1.ConfigMapKeySelector",
+                                        "description": "Selects a key of a ConfigMap."
+                                    },
+                                    "secretKeyRef": {
+                                        "$ref": "#/definitions/io.k8s.api.core.v1.SecretKeySelector",
+                                        "description": "Selects a key of a secret in the pod's namespace"
+                                    }
+                                },
+                                "anyOf": [
+                                    {
+                                        "required": [
+                                            "configMapKeyRef"
+                                        ]
+                                    },
+                                    {
+                                        "required": [
+                                            "secretKeyRef"
+                                        ]
+                                    }
+                                ]
                             }
                         },
                         "required": [
-                            "name",
-                            "value"
+                            "name"
+                        ],
+                        "anyOf": [
+                            {
+                                "required": [
+                                    "value"
+                                ]
+                            },
+                            {
+                                "required": [
+                                    "valueFrom"
+                                ]
+                            }
                         ],
                         "additionalProperties": false
                     }
@@ -9075,25 +9264,21 @@
                             "type": "array",
                             "default": [],
                             "items": {
-                                "type": "object",
-                                "properties": {
-                                    "name": {
-                                        "type": "string"
-                                    },
-                                    "value": {
-                                        "type": "string"
-                                    }
-                                },
-                                "required": [
-                                    "name",
-                                    "value"
-                                ],
-                                "additionalProperties": false
+                                "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
                             },
                             "examples": [
                                 {
                                     "name": "GIT_SYNC_TIMEOUT",
                                     "value": "60"
+                                },
+                                {
+                                    "name": "GIT_SYNC_USERNAME",
+                                    "valueFrom": {
+                                        "secretKeyRef": {
+                                            "name": "git-secret",
+                                            "key": "username"
+                                        }
+                                    }
                                 }
                             ]
                         },

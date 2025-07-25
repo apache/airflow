@@ -19,11 +19,13 @@
  * under the License.
  */
 import { render, screen } from "@testing-library/react";
+import i18n from "i18next";
 import type { DagTagResponse, DAGWithLatestDagRunsResponse } from "openapi-gen/requests/types.gen";
-import { afterEach, describe, it, vi, expect } from "vitest";
+import { afterEach, describe, it, vi, expect, beforeAll } from "vitest";
 
 import { Wrapper } from "src/utils/Wrapper";
 
+import "../../i18n/config";
 import { DagCard } from "./DagCard";
 
 const mockDag = {
@@ -55,6 +57,23 @@ const mockDag = {
   timetable_description: "",
   timetable_summary: "",
 } satisfies DAGWithLatestDagRunsResponse;
+
+beforeAll(async () => {
+  await i18n.init({
+    defaultNS: "components",
+    fallbackLng: "en",
+    interpolation: { escapeValue: false },
+    lng: "en",
+    ns: ["components"],
+    resources: {
+      en: {
+        components: {
+          limitedList: "+{{count}} more",
+        },
+      },
+    },
+  });
+});
 
 afterEach(() => {
   vi.restoreAllMocks();

@@ -24,10 +24,10 @@ import logging
 import re
 import string
 import warnings
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from functools import partial, wraps
 from re import Pattern
-from typing import Callable, cast
+from typing import cast
 
 from airflow.configuration import conf
 from airflow.exceptions import InvalidStatsNameException

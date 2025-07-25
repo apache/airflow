@@ -80,7 +80,7 @@ class _BigQueryInsertJobOperatorOpenLineageMixin:
         from airflow.providers.openlineage.sqlparser import SQLParser
 
         if not self.job_id:
-            self.log.warning("No BigQuery job_id was found by OpenLineage.")  # type: ignore[attr-defined]
+            self.log.warning("No BigQuery job_id was found by OpenLineage.")
             return OperatorLineage()
 
         if not self.hook:
@@ -92,14 +92,14 @@ class _BigQueryInsertJobOperatorOpenLineageMixin:
                 impersonation_chain=self.impersonation_chain,
             )
 
-        self.log.debug("Extracting data from bigquery job: `%s`", self.job_id)  # type: ignore[attr-defined]
+        self.log.debug("Extracting data from bigquery job: `%s`", self.job_id)
         inputs, outputs = [], []
         run_facets: dict[str, RunFacet] = {
             "externalQuery": ExternalQueryRunFacet(externalQueryId=self.job_id, source="bigquery")
         }
         self._client = self.hook.get_client(project_id=self.hook.project_id, location=self.location)
         try:
-            job_properties = self._client.get_job(job_id=self.job_id)._properties  # type: ignore
+            job_properties = self._client.get_job(job_id=self.job_id)._properties
 
             if get_from_nullable_chain(job_properties, ["status", "state"]) != "DONE":
                 raise ValueError(f"Trying to extract data from running bigquery job: `{self.job_id}`")
@@ -107,11 +107,11 @@ class _BigQueryInsertJobOperatorOpenLineageMixin:
             run_facets["bigQueryJob"] = self._get_bigquery_job_run_facet(job_properties)
 
             if get_from_nullable_chain(job_properties, ["statistics", "numChildJobs"]):
-                self.log.debug("Found SCRIPT job. Extracting lineage from child jobs instead.")  # type: ignore[attr-defined]
+                self.log.debug("Found SCRIPT job. Extracting lineage from child jobs instead.")
                 # SCRIPT job type has no input / output information but spawns child jobs that have one
                 # https://cloud.google.com/bigquery/docs/information-schema-jobs#multi-statement_query_job
                 for child_job_id in self._client.list_jobs(parent_job=self.job_id):
-                    child_job_properties = self._client.get_job(job_id=child_job_id)._properties  # type: ignore
+                    child_job_properties = self._client.get_job(job_id=child_job_id)._properties
                     child_inputs, child_outputs = self._get_inputs_and_outputs(child_job_properties)
                     inputs.extend(child_inputs)
                     outputs.extend(child_outputs)
@@ -119,7 +119,7 @@ class _BigQueryInsertJobOperatorOpenLineageMixin:
                 inputs, outputs = self._get_inputs_and_outputs(job_properties)
 
         except Exception as e:
-            self.log.warning("Cannot retrieve job details from BigQuery.Client. %s", e, exc_info=True)  # type: ignore[attr-defined]
+            self.log.warning("Cannot retrieve job details from BigQuery.Client. %s", e, exc_info=True)
             exception_msg = traceback.format_exc()
             run_facets.update(
                 {
@@ -173,7 +173,7 @@ class _BigQueryInsertJobOperatorOpenLineageMixin:
             if (
                 single_output.facets
                 and final_outputs[key].facets
-                and "columnLineage" in single_output.facets  # type: ignore
+                and "columnLineage" in single_output.facets
                 and "columnLineage" in final_outputs[key].facets  # type: ignore
             ):
                 single_output.facets["columnLineage"] = merge_column_lineage_facets(

@@ -45,7 +45,7 @@ div.admonition.warning {
 /* Needs to be cleaned in a follow-up to source this from the origin style in */
 /* https://github.com/apache/airflow-site/blob/main/landing-pages/site/assets/scss/_rst-content.scss */
 .base-layout {
-  padding-top: 123px !important;
+  padding-top: 163px !important; /* banner + navbar + 2px padding */
 }
 
 section {
@@ -65,4 +65,19 @@ a.headerlink {
 a.headerlink::after {
   content: " [link]" !important;  /* Theme image not existing */
   visibility: visible !important;
+}
+
+/* compensate for sticky headers for anchored links */
+:target::before {
+  content: "";
+  display: block;
+  height: 161px; /* 40px banner + 121px navbar */
+  margin: -161px 0 0; /* negative fixed header height */
+}
+
+@media (max-width: 1280px) {
+  :target::before {
+    height: 117px; /* 40px banner + 77px mobile navbar */
+    margin: -117px 0 0; /* negative fixed header height */
+  }
 }

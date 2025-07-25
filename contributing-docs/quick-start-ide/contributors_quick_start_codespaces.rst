@@ -19,7 +19,7 @@
 Setup and develop using GitHub Codespaces
 #########################################
 
-1. Goto |airflow_github| and fork the project.
+1. Go to |airflow_github| and fork the project.
 
    .. |airflow_github| raw:: html
 

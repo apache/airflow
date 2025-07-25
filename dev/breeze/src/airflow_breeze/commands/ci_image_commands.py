@@ -21,7 +21,6 @@ import os
 import signal
 import subprocess
 import sys
-import time
 from copy import deepcopy
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -189,35 +188,13 @@ def prepare_for_building_ci_image(params: BuildCiParams):
     make_sure_builder_configured(params=params)
 
 
-def build_timout_handler(build_process_group_id: int, signum, frame):
-    # Kill the forked process group - it will kill the build even if it is running in parallel
-    # with multiple processes and docker build sessions
-    os.killpg(build_process_group_id, signal.SIGTERM)
-    os.waitpid(build_process_group_id, 0)
-    # give the output a little time to flush so that the helpful error message is not hidden
-    time.sleep(5)
-    if os.environ.get("GITHUB_ACTIONS", "false") != "true":
-        get_console().print("::endgroup::")
-    get_console().print()
-    sys.exit(1)
-
-
 def kill_process_group(build_process_group_id: int):
     with contextlib.suppress(OSError):
         os.killpg(build_process_group_id, signal.SIGTERM)
 
 
 def get_exitcode(status: int) -> int:
-    # In Python 3.9+ we will be able to use
-    # os.waitstatus_to_exitcode(status) - see https://github.com/python/cpython/issues/84275
-    # but until then we need to do this ugly conversion
-    if os.WIFSIGNALED(status):
-        return -os.WTERMSIG(status)
-    if os.WIFEXITED(status):
-        return os.WEXITSTATUS(status)
-    if os.WIFSTOPPED(status):
-        return -os.WSTOPSIG(status)
-    return 1
+    return os.waitstatus_to_exitcode(status)
 
 
 option_upgrade_to_newer_dependencies = click.option(
@@ -590,7 +567,7 @@ def load(
     from_run: str | None,
     from_pr: str | None,
     github_repository: str,
-    github_token: str,
+    github_token: str | None,
     image_file: Path | None,
     image_file_dir: Path,
     platform: str,
@@ -621,6 +598,13 @@ def load(
         get_console().print(
             f"[error]The image file {image_file_to_load} does not start with "
             f"'ci-image-save-v3-{escaped_platform}'. Exiting.[/]"
+        )
+        sys.exit(1)
+
+    if from_run or from_pr and not github_token:
+        get_console().print(
+            "[error]The parameter `--github-token` must be provided if `--from-run` or `--from-pr` is "
+            "provided. Exiting.[/]"
         )
         sys.exit(1)
 
@@ -1019,7 +1003,7 @@ def import_mount_cache(
     make_sure_builder_configured(params=BuildCiParams(builder=builder))
     dockerfile = """
     # syntax=docker/dockerfile:1.4
-    FROM python:3.9-slim-bookworm
+    FROM python:3.10-slim-bookworm
     ARG TARGETARCH
     ARG DEPENDENCY_CACHE_EPOCH=<REPLACE_FROM_DOCKER_CI>
     COPY cache.tar.gz /root/.cache.tar.gz

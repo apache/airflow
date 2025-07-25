@@ -40,7 +40,7 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ impor
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredErrors, setFilteredErrors] = useState(importErrors);
-  const { t: translate } = useTranslation("dashboard");
+  const { t: translate } = useTranslation(["dashboard", "components"]);
 
   const startRange = (page - 1) * PAGE_LIMIT;
   const endRange = startRange + PAGE_LIMIT;
@@ -84,6 +84,11 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ impor
             {visibleItems.map((importError) => (
               <Accordion.Item key={importError.import_error_id} value={importError.filename}>
                 <Accordion.ItemTrigger cursor="pointer">
+                  <Text display="flex" fontWeight="bold">
+                    {translate("components:versionDetails.bundleName")}
+                    {": "}
+                    {importError.bundle_name}
+                  </Text>
                   <PiFilePy />
                   {importError.filename}
                 </Accordion.ItemTrigger>

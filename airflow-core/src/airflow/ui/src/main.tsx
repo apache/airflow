@@ -20,9 +20,11 @@ import { ChakraProvider } from "@chakra-ui/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import axios, { type AxiosError } from "axios";
 import { StrictMode } from "react";
+import React from "react";
 import { createRoot } from "react-dom/client";
 import { I18nextProvider } from "react-i18next";
 import { RouterProvider } from "react-router-dom";
+import * as ReactJSXRuntime from "react/jsx-runtime";
 
 import type { HTTPExceptionResponse } from "openapi/requests/types.gen";
 import { ColorModeProvider } from "src/context/colorMode";
@@ -34,6 +36,12 @@ import i18n from "./i18n/config";
 import { client } from "./queryClient";
 import { system } from "./theme";
 import { clearToken, tokenHandler } from "./utils/tokenHandler";
+
+// Set React and ReactJSXRuntime on globalThis to share them with the dynamically imported React plugins.
+// Only one instance of React should be used.
+// Reflect will avoid type checking.
+Reflect.set(globalThis, "React", React);
+Reflect.set(globalThis, "ReactJSXRuntime", ReactJSXRuntime);
 
 // redirect to login page if the API responds with unauthorized or forbidden errors
 axios.interceptors.response.use(
@@ -58,10 +66,19 @@ axios.interceptors.response.use(
 
 axios.interceptors.request.use(tokenHandler);
 
+const html = document.documentElement;
+const updateHtml = (lng: string) => {
+  html.setAttribute("dir", i18n.dir(lng));
+  html.setAttribute("lang", lng);
+};
+
+updateHtml(i18n.language);
+i18n.on("languageChanged", updateHtml);
+
 createRoot(document.querySelector("#root") as HTMLDivElement).render(
   <StrictMode>
     <I18nextProvider i18n={i18n}>
-      <ChakraProvider value={system}>
+      <ChakraProvider i18nIsDynamicList={true} value={system}>
         <ColorModeProvider>
           <QueryClientProvider client={client}>
             <TimezoneProvider>

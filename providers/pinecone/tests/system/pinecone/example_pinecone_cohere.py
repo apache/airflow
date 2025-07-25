@@ -20,7 +20,12 @@ import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.decorators import setup, task, teardown
+
+try:
+    from airflow.sdk import setup, task, teardown
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import setup, task, teardown  # type: ignore[attr-defined,no-redef]
 from airflow.providers.cohere.operators.embedding import CohereEmbeddingOperator
 from airflow.providers.pinecone.operators.pinecone import PineconeIngestOperator
 
@@ -54,7 +59,7 @@ with DAG(
     @task
     def transform_output(embedding_output) -> list[dict]:
         # Convert each embedding to a map with an ID and the embedding vector
-        return [dict(id=str(i), values=embedding) for i, embedding in enumerate(embedding_output.float_)]
+        return [dict(id=str(i), values=embedding) for i, embedding in enumerate(embedding_output)]
 
     transformed_output = transform_output(embed_task.output)
 

@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 
 import httpx
 import pytest
+from pydantic import BaseModel
 
 from airflowctl.api.client import Client, ClientKind
 from airflowctl.api.datamodels.auth_generated import LoginBody, LoginResponse
@@ -44,6 +45,7 @@ from airflowctl.api.datamodels.generated import (
     BulkCreateActionConnectionBody,
     BulkCreateActionPoolBody,
     BulkCreateActionVariableBody,
+    BulkResponse,
     Config,
     ConfigOption,
     ConfigSection,
@@ -105,6 +107,15 @@ def make_api_client(
     return Client(base_url=base_url, transport=transport, token=token, kind=kind)
 
 
+class HelloResponse(BaseModel):
+    name: str
+
+
+class HelloCollectionResponse(BaseModel):
+    hellos: list[HelloResponse]
+    total_entries: int
+
+
 class TestBaseOperations:
     def test_server_connection_refused(self):
         client = make_api_client(base_url="http://localhost")
@@ -112,6 +123,46 @@ class TestBaseOperations:
             AirflowCtlConnectionException, match="Connection refused. Is the API server running?"
         ):
             client.connections.get("1")
+
+    @pytest.mark.parametrize(
+        "total_entries, limit, expected_response",
+        [
+            (0, 0, (HelloCollectionResponse(hellos=[], total_entries=0))),
+            (1, 50, (HelloCollectionResponse(hellos=[HelloResponse(name="hello")], total_entries=1))),
+            (
+                150,
+                50,
+                (
+                    HelloCollectionResponse(
+                        hellos=[
+                            HelloResponse(name="hello"),
+                            HelloResponse(name="hello"),
+                            HelloResponse(name="hello"),
+                        ],
+                        total_entries=150,
+                    )
+                ),
+            ),
+            (
+                90,
+                50,
+                (
+                    HelloCollectionResponse(
+                        hellos=[HelloResponse(name="hello"), HelloResponse(name="hello")], total_entries=90
+                    )
+                ),
+            ),
+        ],
+    )
+    def test_execute_list(self, total_entries, limit, expected_response):
+        hello_response = []
+        if total_entries != 0:
+            update = (total_entries + limit - 1) // limit
+            hello_response.extend([HelloResponse(name="hello")] * update)
+        hello_collection_response = HelloCollectionResponse(
+            hellos=hello_response, total_entries=total_entries
+        )
+        assert expected_response == hello_collection_response
 
 
 class TestAssetsOperations:
@@ -125,8 +176,9 @@ class TestAssetsOperations:
         extra={"extra": "extra"},
         created_at=datetime.datetime(2024, 12, 31, 23, 59, 59),
         updated_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
-        consuming_dags=[],
+        scheduled_dags=[],
         producing_tasks=[],
+        consuming_tasks=[],
         aliases=[],
         group="group",
     )
@@ -365,7 +417,7 @@ class TestBackfillOperations:
             return httpx.Response(200, json=json.loads(self.backfills_collection_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.backfills.list()
+        response = client.backfills.list(dag_id="dag_id")
         assert response == self.backfills_collection_response
 
     def test_pause(self):
@@ -485,9 +537,10 @@ class TestConnectionsOperations:
         ]
     )
 
-    connection_bulk_action_response = BulkActionResponse(
-        success=[connection_id],
-        errors=[],
+    connection_bulk_response = BulkResponse(
+        create=BulkActionResponse(success=[connection_id], errors=[]),
+        update=None,
+        delete=None,
     )
 
     def test_get(self):
@@ -520,13 +573,11 @@ class TestConnectionsOperations:
     def test_bulk(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/connections"
-            return httpx.Response(
-                200, json=json.loads(self.connection_bulk_action_response.model_dump_json())
-            )
+            return httpx.Response(200, json=json.loads(self.connection_bulk_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.bulk(connections=self.connection_bulk_body)
-        assert response == self.connection_bulk_action_response
+        assert response == self.connection_bulk_response
 
     def test_delete(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -952,9 +1003,10 @@ class TestPoolsOperations:
         pools=[pool_response],
         total_entries=1,
     )
-    pool_bulk_action_response = BulkActionResponse(
-        success=[pool_name],
-        errors=[],
+    pool_bulk_aresponse = BulkResponse(
+        create=BulkActionResponse(success=[pool_name], errors=[]),
+        update=None,
+        delete=None,
     )
 
     def test_get(self):
@@ -987,11 +1039,11 @@ class TestPoolsOperations:
     def test_bulk(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/pools"
-            return httpx.Response(200, json=json.loads(self.pool_bulk_action_response.model_dump_json()))
+            return httpx.Response(200, json=json.loads(self.pool_bulk_aresponse.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.pools.bulk(pools=self.pools_bulk_body)
-        assert response == self.pool_bulk_action_response
+        assert response == self.pool_bulk_aresponse
 
     def test_delete(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -1054,9 +1106,10 @@ class TestVariablesOperations:
             )
         ]
     )
-    variable_bulk_response = BulkActionResponse(
-        success=[key],
-        errors=[],
+    variable_bulk_response = BulkResponse(
+        create=BulkActionResponse(success=[key], errors=[]),
+        update=None,
+        delete=None,
     )
 
     def test_get(self):

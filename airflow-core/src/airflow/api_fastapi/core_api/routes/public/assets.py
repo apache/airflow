@@ -24,6 +24,7 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy import and_, delete, func, select
 from sqlalchemy.orm import joinedload, subqueryload
 
+from airflow._shared.timezones import timezone
 from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
@@ -56,6 +57,7 @@ from airflow.api_fastapi.core_api.datamodels.assets import (
 from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
+    GetUserDep,
     ReadableDagsFilterDep,
     requires_access_asset,
     requires_access_asset_alias,
@@ -71,7 +73,6 @@ from airflow.models.asset import (
     TaskOutletAssetReference,
 )
 from airflow.models.dag import DAG
-from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -179,8 +180,9 @@ def get_assets(
 
     assets_rows = session.execute(
         assets_select.options(
-            subqueryload(AssetModel.consuming_dags),
+            subqueryload(AssetModel.scheduled_dags),
             subqueryload(AssetModel.producing_tasks),
+            subqueryload(AssetModel.consuming_tasks),
         )
     )
 
@@ -347,6 +349,7 @@ def create_asset_event(
 def materialize_asset(
     asset_id: int,
     dag_bag: DagBagDep,
+    user: GetUserDep,
     session: SessionDep,
 ) -> DAGRunResponse:
     """Materialize an asset by triggering a DAG run that produces it."""
@@ -380,6 +383,7 @@ def materialize_asset(
         run_after=run_after,
         run_type=DagRunType.MANUAL,
         triggered_by=DagRunTriggeredByType.REST_API,
+        triggering_user_name=user.get_name(),
         state=DagRunState.QUEUED,
         session=session,
     )
@@ -456,7 +460,11 @@ def get_asset(
     asset = session.scalar(
         select(AssetModel)
         .where(AssetModel.id == asset_id)
-        .options(joinedload(AssetModel.consuming_dags), joinedload(AssetModel.producing_tasks))
+        .options(
+            joinedload(AssetModel.scheduled_dags),
+            joinedload(AssetModel.producing_tasks),
+            joinedload(AssetModel.consuming_tasks),
+        )
     )
 
     last_asset_event_id = asset_event_rows[1] if asset_event_rows else None

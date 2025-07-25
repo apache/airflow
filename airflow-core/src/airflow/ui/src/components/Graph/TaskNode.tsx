@@ -18,12 +18,12 @@
  */
 import { Box, Button, Flex, HStack, LinkOverlay, Text } from "@chakra-ui/react";
 import type { NodeProps, Node as NodeType } from "@xyflow/react";
-import { CgRedo } from "react-icons/cg";
+import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 import { StateBadge } from "src/components/StateBadge";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 import { useOpenGroups } from "src/context/openGroups";
-import { pluralize } from "src/utils";
 
 import { NodeWrapper } from "./NodeWrapper";
 import { TaskLink } from "./TaskLink";
@@ -46,12 +46,20 @@ export const TaskNode = ({
   },
   id,
 }: NodeProps<NodeType<CustomNodeProps, "task">>) => {
+  const { t: translate } = useTranslation("components");
   const { toggleGroupId } = useOpenGroups();
   const onClick = () => {
     if (isGroup) {
       toggleGroupId(id);
     }
   };
+  const thisChildCount = useMemo(
+    () =>
+      Object.entries(taskInstance?.child_states ?? {})
+        .map(([_state, count]) => count)
+        .reduce((sum, val) => sum + val, 0),
+    [taskInstance],
+  );
 
   return (
     <NodeWrapper>
@@ -81,7 +89,7 @@ export const TaskNode = ({
           >
             <LinkOverlay asChild>
               <TaskLink
-                childCount={taskInstance?.task_count}
+                childCount={thisChildCount}
                 id={id}
                 isGroup={isGroup}
                 isMapped={isMapped}
@@ -98,14 +106,13 @@ export const TaskNode = ({
               textTransform="capitalize"
               whiteSpace="nowrap"
             >
-              {isGroup ? "Task Group" : operator}
+              {isGroup ? translate("graph.taskGroup") : operator}
             </Text>
             {taskInstance === undefined ? undefined : (
               <HStack>
                 <StateBadge fontSize="xs" state={taskInstance.state}>
                   {taskInstance.state}
                 </StateBadge>
-                {taskInstance.try_number > 1 ? <CgRedo /> : undefined}
               </HStack>
             )}
             {isGroup ? (
@@ -121,7 +128,9 @@ export const TaskNode = ({
                 variant="plain"
               >
                 {isOpen ? "- " : "+ "}
-                {pluralize("task", childCount, undefined, false)}
+                {childCount !== undefined && childCount > 1
+                  ? translate("graph.taskCount_other", { count: childCount })
+                  : translate("graph.taskCount_one", { count: childCount ?? 0 })}
               </Button>
             ) : undefined}
           </Box>

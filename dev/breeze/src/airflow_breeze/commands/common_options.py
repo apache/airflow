@@ -30,6 +30,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
+    ALLOWED_TTY,
     ALLOWED_USE_AIRFLOW_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     AUTOCOMPLETE_ALL_INTEGRATIONS,
@@ -109,9 +110,10 @@ option_backend = click.option(
     type=CacheableChoice(ALLOWED_BACKENDS),
     default=CacheableDefault(value=ALLOWED_BACKENDS[0]),
     show_default=True,
-    help="Database backend to use. If 'none' is chosen, "
-    "Breeze will start with an invalid database configuration, meaning there will be no database "
-    "available, and any attempts to connect to the Airflow database will fail.",
+    help="Database backend to use. Default is 'sqlite'. "
+    "If 'none' is chosen, Breeze will start with an invalid database configuration — "
+    "no database will be available, and any attempt to run Airflow will fail. "
+    "Use 'none' only for specific non-DB test cases.",
     envvar="BACKEND",
 )
 option_builder = click.option(
@@ -206,12 +208,13 @@ option_github_repository = click.option(
     envvar="GITHUB_REPOSITORY",
     callback=_set_default_from_parent,
 )
-option_historical_python_version = click.option(
-    "--python",
+option_historical_python_versions = click.option(
+    "--python-versions",
     type=BetterChoice(ALL_HISTORICAL_PYTHON_VERSIONS),
     required=False,
-    envvar="PYTHON_VERSION",
-    help="Python version to update sbom from. (defaults to all historical python versions)",
+    envvar="PYTHON_VERSIONS",
+    help="Comma separate list of Python versions to update sbom from "
+    "(defaults to all historical python versions)",
 )
 option_include_removed_providers = click.option(
     "--include-removed-providers",
@@ -379,11 +382,26 @@ option_standalone_dag_processor = click.option(
     help="Run standalone dag processor for start-airflow (required for Airflow 3).",
     envvar="STANDALONE_DAG_PROCESSOR",
 )
+option_tty = click.option(
+    "--tty",
+    envvar="TTY",
+    type=BetterChoice(ALLOWED_TTY),
+    default=ALLOWED_TTY[0],
+    show_default=True,
+    help="Whether to allocate pseudo-tty when running docker command"
+    " (useful for pre-commit and CI to force-enable it).",
+)
 option_upgrade_boto = click.option(
     "--upgrade-boto",
     help="Remove aiobotocore and upgrade botocore and boto to the latest version.",
     is_flag=True,
     envvar="UPGRADE_BOTO",
+)
+option_upgrade_sqlalchemy = click.option(
+    "--upgrade-sqlalchemy",
+    help="Upgrade SQLAlchemy to the latest version.",
+    is_flag=True,
+    envvar="UPGRADE_SQLALCHEMY",
 )
 option_use_uv = click.option(
     "--use-uv/--no-use-uv",
@@ -417,6 +435,13 @@ option_use_airflow_version = click.option(
     type=UseAirflowVersionType(ALLOWED_USE_AIRFLOW_VERSIONS),
     envvar="USE_AIRFLOW_VERSION",
 )
+option_allow_pre_releases = click.option(
+    "--allow-pre-releases",
+    help="Allow pre-releases of Airflow, task-sdk and providers to be installed. "
+    "Set to true automatically for pre-release --use-airflow-version)",
+    is_flag=True,
+    envvar="ALLOW_PRE_RELEASES",
+)
 option_airflow_version = click.option(
     "-A",
     "--airflow-version",
@@ -435,6 +460,41 @@ option_verbose = click.option(
     expose_value=False,
     type=VerboseOption(),
     callback=_set_default_from_parent,
+)
+option_install_airflow_with_constraints = click.option(
+    "--install-airflow-with-constraints/--no-install-airflow-with-constraints",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    envvar="INSTALL_AIRFLOW_WITH_CONSTRAINTS",
+    help="Install airflow in a separate step, with constraints determined from package or airflow version.",
+)
+option_install_airflow_with_constraints_default_true = click.option(
+    "--install-airflow-with-constraints/--no-install-airflow-with-constraints",
+    is_flag=True,
+    default=True,
+    show_default=True,
+    envvar="INSTALL_AIRFLOW_WITH_CONSTRAINTS",
+    help="Install airflow in a separate step, with constraints determined from package or airflow version.",
+)
+option_debug_components = click.option(
+    "--debug",
+    "debug_components",
+    help="Enable debugging for specific Airflow components. Can be one or more of: "
+    "scheduler, triggerer, api-server, dag-processor, edge-worker, celery-worker.",
+    type=BetterChoice(
+        ["scheduler", "triggerer", "api-server", "dag-processor", "edge-worker", "celery-worker"]
+    ),
+    multiple=True,
+    envvar="DEBUG_COMPONENTS",
+)
+option_debugger = click.option(
+    "--debugger",
+    help="Debugger to use for debugging Airflow components.",
+    type=BetterChoice(["debugpy", "pydevd-pycharm"]),
+    default="debugpy",
+    show_default=True,
+    envvar="DEBUGGER",
 )
 
 

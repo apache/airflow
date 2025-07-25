@@ -91,7 +91,7 @@ class DAGResponse(BaseModel):
         if v is None:
             return []
         if isinstance(v, str):
-            return v.split(",")
+            return [x.strip() for x in v.split(",")]
         return v
 
     @field_validator("timetable_summary", mode="before")
@@ -103,7 +103,7 @@ class DAGResponse(BaseModel):
         return str(tts)
 
     # Mypy issue https://github.com/python/mypy/issues/1362
-    @computed_field  # type: ignore[misc]
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def file_token(self) -> str:
         """Return file token."""
@@ -183,14 +183,14 @@ class DAGDetailsResponse(DAGResponse):
         return {k: v.dump() for k, v in params.items()}
 
     # Mypy issue https://github.com/python/mypy/issues/1362
-    @computed_field  # type: ignore[misc]
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def concurrency(self) -> int:
         """Return max_active_tasks as concurrency."""
         return self.max_active_tasks
 
     # Mypy issue https://github.com/python/mypy/issues/1362
-    @computed_field  # type: ignore[misc]
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def latest_dag_version(self) -> DagVersionResponse | None:
         """Return the latest DagVersion."""

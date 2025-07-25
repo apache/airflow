@@ -27,9 +27,10 @@ import pytest
 import pytz
 from cryptography.fernet import Fernet
 
+from airflow._shared.timezones import timezone
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
-from airflow.models import TaskInstance, Trigger
+from airflow.models import Deadline, TaskInstance, Trigger
 from airflow.models.asset import AssetEvent, AssetModel, asset_trigger_association_table
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -41,12 +42,11 @@ from airflow.triggers.base import (
     TaskSuccessEvent,
     TriggerEvent,
 )
-from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
-from airflow.utils.xcom import XCOM_RETURN_KEY
 
 from tests_common.test_utils.config import conf_vars
+from unit.models import DEFAULT_DATE
 
 pytestmark = pytest.mark.db_test
 
@@ -62,6 +62,7 @@ def session():
 def clear_db(session):
     session.query(TaskInstance).delete()
     session.query(asset_trigger_association_table).delete()
+    session.query(Deadline).delete()
     session.query(Trigger).delete()
     session.query(AssetModel).delete()
     session.query(AssetEvent).delete()
@@ -69,6 +70,7 @@ def clear_db(session):
     yield session
     session.query(TaskInstance).delete()
     session.query(asset_trigger_association_table).delete()
+    session.query(Deadline).delete()
     session.query(Trigger).delete()
     session.query(AssetModel).delete()
     session.query(AssetEvent).delete()
@@ -76,20 +78,26 @@ def clear_db(session):
     session.commit()
 
 
-def test_fetch_trigger_ids_with_asset(session):
+def test_fetch_trigger_ids_with_non_task_associations(session):
     # Create triggers
-    trigger1 = Trigger(classpath="airflow.triggers.testing.SuccessTrigger1", kwargs={})
-    trigger2 = Trigger(classpath="airflow.triggers.testing.SuccessTrigger2", kwargs={})
-    session.add(trigger1)
-    session.add(trigger2)
-    # Create assets
-    asset = AssetModel("test")
-    asset.triggers.extend([trigger1])
-    session.add(asset)
-    session.commit()
+    asset_trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger1", kwargs={})
+    deadline_trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger2", kwargs={})
+    other_trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger3", kwargs={})
+    session.bulk_save_objects((asset_trigger, deadline_trigger, other_trigger))
 
-    results = Trigger.fetch_trigger_ids_with_asset()
-    assert results == {trigger1.id}
+    # Create asset association
+    asset = AssetModel("test")
+    asset.triggers.append(asset_trigger)
+    session.add(asset)
+
+    # Create deadline association
+    deadline = Deadline(deadline_time=DEFAULT_DATE, callback="classpath.log.error")
+    deadline.trigger = deadline_trigger
+    session.add(deadline)
+
+    session.commit()
+    results = Trigger.fetch_trigger_ids_with_non_task_associations()
+    assert results == {asset_trigger.id, deadline_trigger.id}
 
 
 def test_clean_unused(session, create_task_instance):
@@ -103,13 +111,15 @@ def test_clean_unused(session, create_task_instance):
     trigger3 = Trigger(classpath="airflow.triggers.testing.SuccessTrigger3", kwargs={})
     trigger4 = Trigger(classpath="airflow.triggers.testing.SuccessTrigger4", kwargs={})
     trigger5 = Trigger(classpath="airflow.triggers.testing.SuccessTrigger5", kwargs={})
+    trigger6 = Trigger(classpath="airflow.triggers.testing.SuccessTrigger6", kwargs={})
     session.add(trigger1)
     session.add(trigger2)
     session.add(trigger3)
     session.add(trigger4)
     session.add(trigger5)
+    session.add(trigger6)
     session.commit()
-    assert session.query(Trigger).count() == 5
+    assert session.query(Trigger).count() == 6
     # Tie one to a fake TaskInstance that is not deferred, and one to one that is
     task_instance = create_task_instance(
         session=session, task_id="fake", state=State.DEFERRED, logical_date=timezone.utcnow()
@@ -117,12 +127,16 @@ def test_clean_unused(session, create_task_instance):
     task_instance.trigger_id = trigger1.id
     session.add(task_instance)
     fake_task1 = EmptyOperator(task_id="fake2", dag=task_instance.task.dag)
-    task_instance1 = TaskInstance(task=fake_task1, run_id=task_instance.run_id)
+    task_instance1 = TaskInstance(
+        task=fake_task1, run_id=task_instance.run_id, dag_version_id=task_instance.dag_version_id
+    )
     task_instance1.state = State.SUCCESS
     task_instance1.trigger_id = trigger2.id
     session.add(task_instance1)
     fake_task2 = EmptyOperator(task_id="fake3", dag=task_instance.task.dag)
-    task_instance2 = TaskInstance(task=fake_task2, run_id=task_instance.run_id)
+    task_instance2 = TaskInstance(
+        task=fake_task2, run_id=task_instance.run_id, dag_version_id=task_instance.dag_version_id
+    )
     task_instance2.state = State.SUCCESS
     task_instance2.trigger_id = trigger4.id
     session.add(task_instance2)
@@ -135,17 +149,24 @@ def test_clean_unused(session, create_task_instance):
     session.commit()
     assert session.query(AssetModel).count() == 1
 
+    # Create deadline with trigger
+    deadline = Deadline(deadline_time=DEFAULT_DATE, callback="classpath.callback")
+    deadline.trigger = trigger6
+    session.add(deadline)
+    session.commit()
+
     # Run clear operation
     Trigger.clean_unused()
     results = session.query(Trigger).all()
-    assert len(results) == 3
-    assert {result.id for result in results} == {trigger1.id, trigger4.id, trigger5.id}
+    assert len(results) == 4
+    assert {result.id for result in results} == {trigger1.id, trigger4.id, trigger5.id, trigger6.id}
 
 
-def test_submit_event(session, create_task_instance):
+@patch.object(Deadline, "handle_callback_event")
+def test_submit_event(mock_deadline_submit_event, session, create_task_instance):
     """
     Tests that events submitted to a trigger re-wake their dependent
-    task instances.
+    task instances and notify associated assets and deadlines.
     """
     # Make a trigger
     trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
@@ -160,23 +181,34 @@ def test_submit_event(session, create_task_instance):
     asset = AssetModel("test")
     asset.triggers.extend([trigger])
     session.add(asset)
+
+    # Create a deadline with the same trigger
+    deadline = Deadline(deadline_time=DEFAULT_DATE, callback="classpath.callback")
+    deadline.trigger = trigger
+    session.add(deadline)
     session.commit()
 
     # Check that the asset has 0 event prior to sending an event to the trigger
     assert session.query(AssetEvent).filter_by(asset_id=asset.id).count() == 0
+
+    # Create event
+    payload = "payload"
+    event = TriggerEvent(payload)
     # Call submit_event
-    Trigger.submit_event(trigger.id, TriggerEvent(42), session=session)
+    Trigger.submit_event(trigger.id, event, session=session)
     # commit changes made by submit event and expire all cache to read from db.
     session.flush()
     # Check that the task instance is now scheduled
     updated_task_instance = session.query(TaskInstance).one()
     assert updated_task_instance.state == State.SCHEDULED
-    assert updated_task_instance.next_kwargs == {"event": 42, "cheesecake": True}
+    assert updated_task_instance.next_kwargs == {"event": payload, "cheesecake": True}
     # Check that the asset has received an event
     assert session.query(AssetEvent).filter_by(asset_id=asset.id).count() == 1
+    asset_event = session.query(AssetEvent).filter_by(asset_id=asset.id).first()
+    assert asset_event.extra == {"from_trigger": True, "payload": payload}
 
-    event = session.query(AssetEvent).filter_by(asset_id=asset.id).first()
-    assert event.extra == {"from_trigger": True, "payload": 42}
+    # Check that the deadline's handle_callback_event was called
+    mock_deadline_submit_event.assert_called_once_with(event, session)
 
 
 def test_submit_failure(session, create_task_instance):
@@ -207,7 +239,7 @@ def test_submit_failure(session, create_task_instance):
         (TaskSkippedEvent, "skipped"),
     ],
 )
-@patch("airflow.utils.timezone.utcnow")
+@patch("airflow._shared.timezones.timezone.utcnow")
 def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event_cls, expected):
     """
     Tests that events inheriting BaseTaskEndEvent *don't* re-wake their dependent
@@ -239,7 +271,7 @@ def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event
     # now, for each type, submit event
     # verify that (1) task ends in right state and (2) xcom is pushed
     Trigger.submit_event(
-        trigger.id, event_cls(xcoms={XCOM_RETURN_KEY: "xcomret", "a": "b", "c": "d"}), session=session
+        trigger.id, event_cls(xcoms={"return_value": "xcomret", "a": "b", "c": "d"}), session=session
     )
     # commit changes made by submit event and expire all cache to read from db.
     session.flush()
@@ -405,17 +437,33 @@ def test_get_sorted_triggers_same_priority_weight(session, create_task_instance)
         created_date=new_logical_date,
     )
     session.add(trigger_asset)
+    trigger_deadline = Trigger(
+        classpath="airflow.triggers.testing.TriggerDeadline",
+        kwargs={},
+        created_date=new_logical_date,
+    )
+    session.add(trigger_deadline)
     session.commit()
-    assert session.query(Trigger).count() == 4
+    assert session.query(Trigger).count() == 5
     # Create assets
     asset = AssetModel("test")
     asset.triggers.extend([trigger_asset])
     session.add(asset)
+    # Create deadline with trigger
+    deadline = Deadline(deadline_time=DEFAULT_DATE, callback="classpath.callback")
+    deadline.trigger = trigger_deadline
+    session.add(deadline)
     session.commit()
 
     trigger_ids_query = Trigger.get_sorted_triggers(capacity=100, alive_triggerer_ids=[], session=session)
 
-    assert trigger_ids_query == [(trigger_old.id,), (trigger_new.id,), (trigger_asset.id,)]
+    # Deadline triggers should be first, followed by task triggers, then asset triggers
+    assert trigger_ids_query == [
+        (trigger_deadline.id,),
+        (trigger_old.id,),
+        (trigger_new.id,),
+        (trigger_asset.id,),
+    ]
 
 
 @pytest.mark.need_serialized_dag

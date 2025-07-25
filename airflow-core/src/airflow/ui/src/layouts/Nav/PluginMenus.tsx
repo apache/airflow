@@ -16,59 +16,49 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Link } from "@chakra-ui/react";
+import { Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiChevronRight } from "react-icons/fi";
 import { LuPlug } from "react-icons/lu";
 
-import { usePluginServiceGetPlugins } from "openapi/queries";
-import type { AppBuilderMenuItemResponse } from "openapi/requests/types.gen";
 import { Menu } from "src/components/ui";
+import type { NavItemResponse } from "src/utils/types";
 
 import { NavButton } from "./NavButton";
+import { PluginMenuItem } from "./PluginMenuItem";
 
-export const PluginMenus = () => {
+export const PluginMenus = ({ navItems }: { readonly navItems: Array<NavItemResponse> }) => {
   const { t: translate } = useTranslation("common");
-  const { data } = usePluginServiceGetPlugins();
 
-  const menuPlugins = data?.plugins.filter((plugin) => plugin.appbuilder_menu_items.length > 0);
-
-  if (data === undefined || menuPlugins === undefined) {
+  if (navItems.length === 0) {
     return undefined;
   }
 
-  const categories: Record<string, Array<AppBuilderMenuItemResponse>> = {};
-  const buttons: Array<AppBuilderMenuItemResponse> = [];
+  const categories: Record<string, Array<NavItemResponse>> = {};
+  const buttons: Array<NavItemResponse> = [];
 
-  menuPlugins.forEach((plugin) => {
-    plugin.appbuilder_menu_items.forEach((mi) => {
-      if (mi.category !== null && mi.category !== undefined) {
-        categories[mi.category] = [...(categories[mi.category] ?? []), mi];
-      } else {
-        buttons.push(mi);
-      }
-    });
+  navItems.forEach((navItem) => {
+    if (navItem.category !== null && navItem.category !== undefined) {
+      categories[navItem.category] = [...(categories[navItem.category] ?? []), navItem];
+    } else {
+      buttons.push(navItem);
+    }
   });
 
-  if (!buttons.length && !Object.keys(categories).length) {
+  if (!buttons.length && !Object.keys(categories).length && navItems.length === 0) {
     return undefined;
   }
 
-  return (
+  // Show plugins in menu if there are more than 2
+  return navItems.length > 2 ? (
     <Menu.Root positioning={{ placement: "right" }}>
       <Menu.Trigger>
         <NavButton as={Box} icon={<LuPlug />} title={translate("nav.plugins")} />
       </Menu.Trigger>
       <Menu.Content>
-        {buttons.map(({ href, name }) =>
-          href !== null && href !== undefined ? (
-            <Menu.Item asChild key={name} value={name}>
-              <Link aria-label={name} href={href} rel="noopener noreferrer" target="_blank">
-                {name}
-              </Link>
-            </Menu.Item>
-          ) : undefined,
-        )}
+        {buttons.map((navItem) => (
+          <PluginMenuItem key={navItem.name} {...navItem} />
+        ))}
         {Object.entries(categories).map(([key, menuButtons]) => (
           <Menu.Root key={key} positioning={{ placement: "right" }}>
             <Menu.TriggerItem display="flex" justifyContent="space-between">
@@ -76,19 +66,15 @@ export const PluginMenus = () => {
               <FiChevronRight />
             </Menu.TriggerItem>
             <Menu.Content>
-              {menuButtons.map(({ href, name }) =>
-                href !== undefined && href !== null ? (
-                  <Menu.Item asChild key={name} value={name}>
-                    <Link aria-label={name} href={href} rel="noopener noreferrer" target="_blank">
-                      {name}
-                    </Link>
-                  </Menu.Item>
-                ) : undefined,
-              )}
+              {menuButtons.map((navItem) => (
+                <PluginMenuItem {...navItem} key={navItem.name} />
+              ))}
             </Menu.Content>
           </Menu.Root>
         ))}
       </Menu.Content>
     </Menu.Root>
+  ) : (
+    navItems.map((navItem) => <PluginMenuItem {...navItem} key={navItem.name} topLevel={true} />)
   );
 };

@@ -17,12 +17,14 @@
  * under the License.
  */
 import { Textarea } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
 
 export const FieldStringArray = ({ name, onUpdate }: FlexibleFormElementProps) => {
+  const { t: translate } = useTranslation("components");
   const { paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
 
@@ -59,7 +61,7 @@ export const FieldStringArray = ({ name, onUpdate }: FlexibleFormElementProps) =
       name={`element_${name}`}
       onBlur={handleBlur}
       onChange={(event) => handleChange(event.target.value)}
-      placeholder="Enter each string on a new line"
+      placeholder={translate("flexibleForm.placeholderArray")}
       rows={6}
       size="sm"
       value={value}

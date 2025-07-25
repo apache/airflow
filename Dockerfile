@@ -46,9 +46,9 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="3.0.1"
+ARG AIRFLOW_VERSION="3.0.3"
 
-ARG PYTHON_BASE_IMAGE="python:3.9-slim-bookworm"
+ARG PYTHON_BASE_IMAGE="python:3.10-slim-bookworm"
 
 
 # You can swap comments between those two args to test pip from the main version
@@ -56,8 +56,8 @@ ARG PYTHON_BASE_IMAGE="python:3.9-slim-bookworm"
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=25.1.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_SETUPTOOLS_VERSION=80.8.0
-ARG AIRFLOW_UV_VERSION=0.7.8
+ARG AIRFLOW_SETUPTOOLS_VERSION=80.9.0
+ARG AIRFLOW_UV_VERSION=0.8.0
 ARG AIRFLOW_USE_UV="false"
 ARG UV_HTTP_TIMEOUT="300"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
@@ -137,7 +137,7 @@ function get_runtime_apt_deps() {
     echo
     if [[ "${RUNTIME_APT_DEPS=}" == "" ]]; then
         RUNTIME_APT_DEPS="apt-transport-https apt-utils ca-certificates \
-curl dumb-init freetds-bin krb5-user libev4 libgeos-dev \
+curl dumb-init freetds-bin git krb5-user libev4 libgeos-dev \
 ldap-utils libsasl2-2 libsasl2-modules libxmlsec1 locales ${debian_version_apt_deps} \
 lsb-release openssh-client python3-selinux rsync sasl2-bin sqlite3 sudo unixodbc"
         export RUNTIME_APT_DEPS
@@ -473,11 +473,14 @@ function common::get_packaging_tool() {
         echo
         export PACKAGING_TOOL="uv"
         export PACKAGING_TOOL_CMD="uv pip"
-        if [[ ${AIRFLOW_INSTALLATION_METHOD=} == "." && -f "./pyproject.toml" ]]; then
+        # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
+         # (binary lxml embeds its own libxml2, while xmlsec uses system one).
+         # See https://bugs.launchpad.net/lxml/+bug/2110068
+         if [[ ${AIRFLOW_INSTALLATION_METHOD=} == "." && -f "./pyproject.toml" ]]; then
             # for uv only install dev group when we install from sources
-            export EXTRA_INSTALL_FLAGS="--group=dev"
+            export EXTRA_INSTALL_FLAGS="--group=dev --no-binary lxml --no-binary xmlsec"
         else
-            export EXTRA_INSTALL_FLAGS=""
+            export EXTRA_INSTALL_FLAGS="--no-binary lxml --no-binary xmlsec"
         fi
         export EXTRA_UNINSTALL_FLAGS=""
         export UPGRADE_TO_HIGHEST_RESOLUTION="--upgrade --resolution highest"
@@ -493,7 +496,10 @@ function common::get_packaging_tool() {
         echo
         export PACKAGING_TOOL="pip"
         export PACKAGING_TOOL_CMD="pip"
-        export EXTRA_INSTALL_FLAGS="--root-user-action ignore"
+        # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
+        # (binary lxml embeds its own libxml2, while xmlsec uses system one).
+        # See https://bugs.launchpad.net/lxml/+bug/2110068
+        export EXTRA_INSTALL_FLAGS="--root-user-action ignore --no-binary lxml,xmlsec"
         export EXTRA_UNINSTALL_FLAGS="--yes"
         export UPGRADE_TO_HIGHEST_RESOLUTION="--upgrade --upgrade-strategy eager"
         export UPGRADE_IF_NEEDED="--upgrade --upgrade-strategy only-if-needed"
@@ -673,7 +679,7 @@ if [[ $(id -u) == "0" ]]; then
     echo
     echo "${COLOR_RED}You are running pip as root. Please use 'airflow' user to run pip!${COLOR_RESET}"
     echo
-    echo "${COLOR_YELLOW}See: https://airflow.apache.org/docs/docker-stack/build.html#adding-a-new-pypi-package${COLOR_RESET}"
+    echo "${COLOR_YELLOW}See: https://airflow.apache.org/docs/docker-stack/build.html#adding-new-pypi-packages-individually${COLOR_RESET}"
     echo
     exit 1
 fi
@@ -875,8 +881,12 @@ function install_from_sources() {
         echo
         echo "${COLOR_BLUE}Attempting to upgrade all packages to highest versions.${COLOR_RESET}"
         echo
+        # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
+        # (binary lxml embeds its own libxml2, while xmlsec uses system one).
+        # See https://bugs.launchpad.net/lxml/+bug/2110068
         set -x
-        uv sync --all-packages --resolution highest --group dev --group docs --group docs-gen --group leveldb ${extra_sync_flags}
+        uv sync --all-packages --resolution highest --group dev --group docs --group docs-gen \
+            --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec
     else
         # We only use uv here but Installing using constraints is not supported with `uv sync`, so we
         # do not use ``uv sync`` because we are not committing and using uv.lock yet.
@@ -894,6 +904,7 @@ function install_from_sources() {
         installation_command_flags=" --editable .[${AIRFLOW_EXTRAS}] \
               --editable ./airflow-core --editable ./task-sdk --editable ./airflow-ctl \
               --editable ./kubernetes-tests --editable ./docker-tests --editable ./helm-tests \
+              --editable ./task-sdk-tests \
               --editable ./devel-common[all] --editable ./dev \
               --group dev --group docs --group docs-gen --group leveldb"
         local -a projects_with_devel_dependencies
@@ -933,8 +944,12 @@ function install_from_sources() {
             echo
             echo "${COLOR_BLUE}Falling back to no-constraints installation.${COLOR_RESET}"
             echo
+            # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
+            # (binary lxml embeds its own libxml2, while xmlsec uses system one).
+            # See https://bugs.launchpad.net/lxml/+bug/2110068
             set -x
-            uv sync --all-packages --group dev --group docs --group docs-gen --group leveldb ${extra_sync_flags}
+            uv sync --all-packages --group dev --group docs --group docs-gen \
+                --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec
             set +x
         fi
     fi
@@ -1313,7 +1328,7 @@ function check_uid_gid() {
         >&2 echo " This is to make sure you can run the image with an arbitrary UID in the future."
         >&2 echo
         >&2 echo " See more about it in the Airflow's docker image documentation"
-        >&2 echo "     http://airflow.apache.org/docs/docker-stack/entrypoint"
+        >&2 echo "     https://airflow.apache.org/docs/docker-stack/entrypoint.html"
         >&2 echo
         # We still allow the image to run with `airflow` user.
         return
@@ -1327,7 +1342,7 @@ function check_uid_gid() {
         >&2 echo " This is to make sure you can run the image with an arbitrary UID."
         >&2 echo
         >&2 echo " See more about it in the Airflow's docker image documentation"
-        >&2 echo "     http://airflow.apache.org/docs/docker-stack/entrypoint"
+        >&2 echo "     https://airflow.apache.org/docs/docker-stack/entrypoint.html"
         # This will not work so we fail hard
         exit 1
     fi
