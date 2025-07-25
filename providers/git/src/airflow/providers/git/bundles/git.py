@@ -264,11 +264,6 @@ class GitDagBundle(BaseDagBundle):
 
         for allowed_host, template in host_patterns.items():
             if host == allowed_host or host.endswith(f".{allowed_host}"):
-                # Because we use this method in the view_url method, we need to handle
-                # backward compatibility for Airflow versions that doesn't have the
-                # _templated_url_fragment attribute. Should be removed when we drop support for Airflow 3.0
-                if hasattr(self, "_templated_url_fragment"):
-                    return template + self._templated_url_fragment()
                 if self.subdir:
                     return f"{template}/{self.subdir}"
                 return template
