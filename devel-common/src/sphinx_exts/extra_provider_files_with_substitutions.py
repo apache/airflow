@@ -17,7 +17,21 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime
 from pathlib import Path
+
+from packaging.version import Version
+
+
+def _get_rc_matching_version(releases: dict, version: str):
+    """
+    Get the latest release candidate version matching the given version.
+    """
+
+    matching_versions = (v for v in releases.keys() if Version(v).base_version == version)
+    latest_version = max(matching_versions, key=Version, default=None)
+
+    return releases.get(latest_version, []) if latest_version else []
 
 
 def get_release_date(package_name: str, version) -> str:
@@ -28,9 +42,18 @@ def get_release_date(package_name: str, version) -> str:
 
     resp = requests.get(f"https://pypi.org/pypi/{package_name}/json")
     resp_json = resp.json()
-    release_info = resp_json.get("releases", {}).get(version, [])
+    releases = resp_json.get("releases", {})
+    release_info = releases.get(version, [])
 
-    return release_info[0].get("upload_time") if release_info else ""
+    # If no exact version found, try to find the latest release candidate version
+    if not release_info and len(releases) > 0:
+        release_info = _get_rc_matching_version(releases, version)
+
+    if release_info:
+        release_date = datetime.fromisoformat(release_info[0].get("upload_time")).date()
+        return str(release_date)
+
+    return "Release date unknown"
 
 
 def _manual_substitution(line: str, replacements: dict[str, str]) -> str:
@@ -48,8 +71,7 @@ def fix_provider_references(app, exception):
 
     substitutions = {
         "|version|": app.config.version,
-        "PyPIReleaseDate:": "Release Date: "
-        + get_release_date(os.environ.get("AIRFLOW_PACKAGE_NAME", ""), app.config.version),
+        "|PypiReleaseDate|": get_release_date(os.environ.get("AIRFLOW_PACKAGE_NAME", ""), app.config.version),
     }
 
     # Replace `|version|` in the files that require manual substitution
