@@ -197,8 +197,6 @@ def test_view_url(version):
 class BundleWithTemplate(BaseDagBundle):
     """Test bundle that provides a URL template."""
 
-    template_fields = ["subdir"]
-
     def __init__(self, *, subdir: str | None = None, **kwargs):
         super().__init__(**kwargs)
         self.subdir = subdir

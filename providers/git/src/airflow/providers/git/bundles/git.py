@@ -46,7 +46,6 @@ class GitDagBundle(BaseDagBundle):
     """
 
     supports_versioning = True
-    template_fields = ["subdir"]
 
     def __init__(
         self,

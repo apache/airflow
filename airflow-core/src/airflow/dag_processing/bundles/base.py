@@ -250,7 +250,6 @@ class BaseDagBundle(ABC):
     """
 
     supports_versioning: bool = False
-    template_fields: list[str] = []
 
     _locked: bool = False
 
