@@ -58,7 +58,7 @@ requires-python = ">=3.10"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.10.0",
-    "opensearch-py>=2.2.0,<4", # lock <4: library tested with 2.x & 3.x
+    "opensearch-py>=2.2.0",
 ]
 
 [dependency-groups]
