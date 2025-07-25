@@ -17,46 +17,18 @@
  * under the License.
  */
 import { Box } from "@chakra-ui/react";
-import { useEffect } from "react";
-import { useParams } from "react-router-dom";
 
-import { useHumanInTheLoopServiceGetMappedTiHitlDetail } from "openapi/queries";
-import { ErrorAlert } from "src/components/ErrorAlert";
+import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ProgressBar } from "src/components/ui";
 
 import { HITLResponseForm } from "../HITLTaskInstances/HITLResponseForm";
-import { useHITLResponseState } from "../HITLTaskInstances/useHITLResponseState";
 
-export const HITLResponse = () => {
-  const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
+type HITLResponseProps = {
+  readonly taskInstance?: TaskInstanceResponse;
+};
 
-  const {
-    data: hitlDetail,
-    error,
-    isLoading,
-  } = useHumanInTheLoopServiceGetMappedTiHitlDetail(
-    {
-      dagId,
-      dagRunId: runId,
-      mapIndex: parseInt(mapIndex, 10),
-      taskId,
-    },
-    undefined,
-    {
-      enabled: Boolean(dagId && runId && taskId),
-    },
-  );
-
-  const { onOpen } = useHITLResponseState();
-
-  // Set the task instance in the state when HITL detail is loaded
-  useEffect(() => {
-    if (hitlDetail?.task_instance) {
-      onOpen(hitlDetail.task_instance);
-    }
-  }, [hitlDetail?.task_instance, onOpen]);
-
-  if (isLoading) {
+export const HITLResponse = ({ taskInstance }: HITLResponseProps) => {
+  if (!taskInstance) {
     return (
       <Box flexGrow={1}>
         <ProgressBar />
@@ -64,13 +36,9 @@ export const HITLResponse = () => {
     );
   }
 
-  if (Boolean(error)) {
-    return <ErrorAlert error={error} />;
-  }
-
   return (
     <Box px={4}>
-      <HITLResponseForm />
+      <HITLResponseForm taskInstance={taskInstance} />
     </Box>
   );
 };

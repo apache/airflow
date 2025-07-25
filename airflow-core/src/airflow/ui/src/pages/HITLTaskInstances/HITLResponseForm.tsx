@@ -22,18 +22,21 @@ import { useTranslation } from "react-i18next";
 import { FiSend } from "react-icons/fi";
 
 import { useHumanInTheLoopServiceGetMappedTiHitlDetail } from "openapi/queries";
+import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { FlexibleForm } from "src/components/FlexibleForm";
-import { useHITLResponseState } from "src/pages/HITLTaskInstances/useHITLResponseState";
 import { useParamStore } from "src/queries/useParamStore";
 import { useUpdateHITLDetail } from "src/queries/useUpdateHITLDetail";
 import { getHITLParamsDict, getHITLFormData } from "src/utils/hitl";
 
-export const HITLResponseForm = () => {
+type HITLResponseFormProps = {
+  readonly taskInstance?: TaskInstanceResponse;
+};
+
+export const HITLResponseForm = ({ taskInstance }: HITLResponseFormProps) => {
   const { t: translate } = useTranslation();
   const [errors, setErrors] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const { paramsDict } = useParamStore();
-  const { taskInstance } = useHITLResponseState();
   const { updateHITLResponse } = useUpdateHITLDetail({
     dagId: taskInstance?.dag_id ?? "",
     dagRunId: taskInstance?.dag_run_id ?? "",

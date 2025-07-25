@@ -136,16 +136,6 @@ export const HITLTaskInstances = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination } = tableURLState;
 
-  // const [searchParams] = useSearchParams();
-  // const [sort] = sorting;
-  // const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-start_date";
-  // const filteredState = searchParams.getAll(STATE_PARAM);
-  // const hasFilteredState = filteredState.length > 0;
-
-  // const [taskDisplayNamePattern, setTaskDisplayNamePattern] = useState(
-  //   searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
-  // );
-
   const refetchInterval = useAutoRefresh({});
 
   const { data, error, isLoading } = useHumanInTheLoopServiceGetHitlDetails(
