@@ -25,8 +25,8 @@ import { MdOutlineTask } from "react-icons/md";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
-import EditableMarkdownArea from "src/components/EditableMarkdownArea";
 import EditableMarkdownButton from "src/components/EditableMarkdownButton";
+import EditableMarkdownNotes from "src/components/EditableMarkdownNotes";
 import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import Time from "src/components/Time";
@@ -127,7 +127,12 @@ export const Header = ({
         title={`${taskInstance.task_display_name}${taskInstance.map_index > -1 ? ` [${taskInstance.rendered_map_index ?? taskInstance.map_index}]` : ""}`}
       />
       {Boolean(taskInstance.note) && (
-        <EditableMarkdownArea mdContent={note} onBlur={onConfirm} setMdContent={setNote} />
+        <EditableMarkdownNotes
+          header={translate("note.label")}
+          mdContent={taskInstance.note}
+          onConfirm={onConfirm}
+          setMdContent={setNote}
+        />
       )}
     </Box>
   );

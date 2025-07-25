@@ -32,7 +32,7 @@ const EditableMarkdownArea = ({
   readonly placeholder?: string | null;
   readonly setMdContent: (value: string) => void;
 }) => (
-  <Box mt={4} px={4} width="100%">
+  <Box width="100%">
     <Editable.Root
       onBlur={onBlur}
       onChange={(event: ChangeEvent<HTMLInputElement>) => setMdContent(event.target.value)}
