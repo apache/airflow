@@ -26,7 +26,7 @@ from unittest import mock
 import httpx
 import pytest
 import uuid6
-from task_sdk import make_client, make_client_w_capath, make_client_w_dry_run, make_client_w_responses
+from task_sdk import make_client, make_client_w_dry_run, make_client_w_responses
 from uuid6 import uuid7
 
 from airflow.sdk import timezone
@@ -88,9 +88,15 @@ class TestClient:
         assert resp.status_code == 200
         assert resp.json() == json_response
 
+    @mock.patch("airflow.sdk.api.client.API_SSL_CERT_PATH", "/capath/does/not/exist/")
     def test_add_capath(self):
-        capath = make_client_w_capath("/capath/does/not/exist/")
-        assert capath == "/capath/does/not/exist/"
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(status_code=200)
+
+        with pytest.raises(FileNotFoundError) as err:
+            make_client(httpx.MockTransport(handle_request))
+
+        assert isinstance(err.value, FileNotFoundError)
 
     def test_error_parsing(self):
         responses = [

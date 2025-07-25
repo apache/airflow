@@ -16,12 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-import ssl
-
-import certifi
 import httpx
 
-from airflow.sdk.api import client
 from airflow.sdk.api.client import Client
 from airflow.sdk.execution_time.comms import BundleInfo
 
@@ -47,29 +43,3 @@ def make_client_w_responses(responses: list[httpx.Response]) -> Client:
     return Client(
         base_url=None, dry_run=True, token="", mounts={"'http://": httpx.MockTransport(handle_request)}
     )
-
-
-def make_client_w_capath(capath: str) -> str | None:
-    """Check client is created with custom capath."""
-
-    check_capath = None
-    client.API_SSL_CERT_PATH = capath
-    _load_verify_locations = ssl.SSLContext.load_verify_locations
-
-    def load_verify_locations(
-        self, cafile: str | bytes | None = None, capath: str | bytes | None = None, cadata: str | None = None
-    ) -> None:
-        if certifi.where() not in [cafile, capath, cadata]:
-            nonlocal check_capath
-            check_capath = cafile or capath or cadata
-        else:
-            _load_verify_locations(self, cafile, capath, cadata)
-
-    ssl.SSLContext.load_verify_locations = load_verify_locations
-    Client(base_url="test://server", token="")
-
-    del ssl.SSLContext.load_verify_locations
-    ssl.SSLContext.load_verify_locations = _load_verify_locations
-    client.API_SSL_CERT_PATH = None
-
-    return check_capath
