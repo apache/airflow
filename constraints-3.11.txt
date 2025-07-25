@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-25T02:28:02.564481
+# This constraints file was automatically generated on 2025-07-25T14:04:28.270071
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -253,7 +253,7 @@ cachetools==5.5.2
 cadwyn==5.4.4
 cassandra-driver==3.29.2
 cattrs==25.1.1
-celery==5.5.3
+celery==5.5.2
 certifi==2025.7.14
 cffi==1.17.1
 cfgv==3.4.0
@@ -272,7 +272,7 @@ cohere==5.16.1
 colorama==0.4.6
 colorful==0.5.7
 colorlog==6.9.0
-comm==0.2.2
+comm==0.2.3
 confluent-kafka==2.11.0
 connexion==2.14.2
 coverage==7.10.0
@@ -413,7 +413,7 @@ httplib2==0.22.0
 httptools==0.6.4
 httpx-sse==0.4.0
 httpx==0.28.1
-huggingface-hub==0.33.5
+huggingface-hub==0.34.0
 humanize==4.12.3
 hvac==2.3.0
 hyperframe==6.1.0
@@ -652,7 +652,7 @@ qdrant-client==1.15.0
 ray==2.47.1
 reactivex==4.0.4
 readme_renderer==44.0
-redis==5.2.1
+redis==5.3.1
 redshift-connector==2.1.8
 referencing==0.36.2
 regex==2024.11.6
