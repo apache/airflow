@@ -225,18 +225,30 @@ class DagBundlesManager(LoggingMixin):
     @staticmethod
     def _extract_template_params(bundle_instance: BaseDagBundle) -> dict:
         """
-        Extract template parameters from a bundle instance using its template_fields.
+        Extract template parameters from a bundle instance's view_url_template method.
 
         :param bundle_instance: The bundle instance to extract parameters from
         :return: Dictionary of template parameters
         """
-        params = {}
+        import re
 
-        # Extract values for each field specified in template_fields
-        for field_name in bundle_instance.template_fields:
-            field_value = getattr(bundle_instance, field_name, None)
+        params: dict[str, str] = {}
+        template = bundle_instance.view_url_template()
+
+        if not template:
+            return params
+
+        # Extract template placeholders using regex
+        # This matches {placeholder} patterns in the template
+        placeholder_pattern = r"\{([^}]+)\}"
+        placeholders = re.findall(placeholder_pattern, template)
+
+        # Extract values for each placeholder found in the template
+        for placeholder in placeholders:
+            field_value = getattr(bundle_instance, placeholder, None)
             if field_value:
-                params[field_name] = field_value
+                params[placeholder] = field_value
+
         return params
 
     def get_bundle(self, name: str, version: str | None = None) -> BaseDagBundle:
