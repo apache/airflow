@@ -84,8 +84,4 @@ def deserialize(cls: type, version: int, data: str) -> Any:
     if version > __version__:
         raise TypeError("serialized version is newer than class version")
 
-    name = qualname(cls)
-    if name not in deserializers:
-        raise TypeError(f"unsupported {name} found for numpy deserialization")
-
     return cls(data)

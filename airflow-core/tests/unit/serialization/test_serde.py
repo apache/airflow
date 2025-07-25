@@ -388,6 +388,10 @@ class TestSerDe:
 
     def test_serializers_importable_and_str(self):
         """Test if all distributed serializers are lazy loading and can be imported"""
+        from importlib import metadata
+
+        from packaging import version
+
         import airflow.serialization.serializers
 
         for _, name, _ in iter_namespace(airflow.serialization.serializers):
@@ -408,6 +412,20 @@ class TestSerDe:
                 try:
                     import_string(s)
                 except ImportError:
+                    # In NumPy 1.20, `numpy.bool` was deprecated as an alias for the built-in `bool`.
+                    # For NumPy versions <= 1.26, attempting to import `numpy.bool` raises an ImportError.
+                    # Starting with NumPy 2.0, `numpy.bool` is reintroduced as the NumPy scalar type,
+                    # and `numpy.bool_` becomes an alias for `numpy.bool`.
+                    #
+                    # The serializers are loaded lazily at runtime. As a result:
+                    # - With NumPy <= 1.26, only `numpy.bool_` is loaded.
+                    # - With NumPy >= 2.0, only `numpy.bool` is loaded.
+                    #
+                    # This test case deliberately attempts to import both `numpy.bool` and `numpy.bool_`,
+                    # regardless of the installed NumPy version. Therefore, when NumPy <= 1.26 is installed,
+                    # importing `numpy.bool` will raise an ImportError.
+                    if version.parse(metadata.version("numpy")).major < 2 and s == "numpy.bool":
+                        continue
                     raise AttributeError(f"{s} cannot be imported (located in {name})")
 
     def test_stringify(self):

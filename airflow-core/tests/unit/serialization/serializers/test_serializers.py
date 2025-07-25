@@ -261,7 +261,6 @@ class TestSerializers:
         ("klass", "ver", "value", "msg"),
         [
             (np.int32, 999, 123, r"serialized version is newer"),
-            (np.float32, 1, 123, r"unsupported numpy\.float32"),
         ],
     )
     def test_numpy_deserialize_errors(self, klass, ver, value, msg):
