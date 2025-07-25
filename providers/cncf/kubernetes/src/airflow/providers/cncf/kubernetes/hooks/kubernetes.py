@@ -771,7 +771,7 @@ class AsyncKubernetesHook(KubernetesHook):
         if self.config_dict:
             self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("config dictionary"))
             self._is_in_cluster = False
-            await async_config.load_kube_config_from_dict(self.config_dict)
+            await async_config.load_kube_config_from_dict(self.config_dict, context=cluster_context)
             return async_client.ApiClient()
 
         if kubeconfig_path is not None:

@@ -224,14 +224,14 @@ def get_changed_files(commit_ref: str | None) -> tuple[str, ...]:
 @option_github_repository
 @click.option(
     "--github-actor",
-    help="Actor that triggered the event (Github user)",
+    help="Actor that triggered the event (GitHub user)",
     envvar="GITHUB_ACTOR",
     type=str,
     default="",
 )
 @click.option(
     "--github-context",
-    help="Github context (JSON formatted) passed by Github Actions",
+    help="GitHub context (JSON formatted) passed by GitHub Actions",
     envvar="GITHUB_CONTEXT",
     type=str,
     default="",

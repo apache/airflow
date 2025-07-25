@@ -612,7 +612,7 @@ def get_github_stats(
         console.print(f"[bright_blue]Retrieving GitHub Stats from {api_url}")
         response = requests.get(api_url, headers=headers)
         if response.status_code == 404:
-            console.print(f"[yellow]Github API returned 404 for {api_url}")
+            console.print(f"[yellow]GitHub API returned 404 for {api_url}")
             return {}
         response.raise_for_status()
         github_data = response.json()
@@ -631,7 +631,7 @@ def get_github_stats(
         result["Industry importance"] = importance
         console.print("[green]Successfully retrieved GitHub Stats.")
     else:
-        console.print(f"[yellow]Not retrieving Github Stats for {vcs}")
+        console.print(f"[yellow]Not retrieving GitHub Stats for {vcs}")
     return result
 
 
