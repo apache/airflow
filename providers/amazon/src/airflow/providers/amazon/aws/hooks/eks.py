@@ -100,7 +100,7 @@ COMMAND = """
 
             json_string=$(printf '{{"kind": "ExecCredential","apiVersion": \
                 "client.authentication.k8s.io/v1alpha1","spec": {{}},"status": \
-                {{"expirationTimestamp": "%s","token": "%s"}}}}' "$expiration_timestamp" "$token")
+                {{"expirationTimestamp": "%s","token": "%s"}}}}' "$timestamp" "$token")
             echo $json_string
             """
 
