@@ -71,13 +71,12 @@ export const Task = () => {
     },
   );
 
-  const hasHitlForTask = Boolean(
-    hitlData?.hitl_details.filter((hitl) => hitl.task_instance.task_id === taskId).length,
-  );
+  const hasHitlForTask =
+    (hitlData?.hitl_details.filter((hitl) => hitl.task_instance.task_id === taskId).length ?? 0) > 0;
 
   const displayTabs = (groupId === undefined ? tabs : tabs.filter((tab) => tab.value !== "events")).filter(
     (tab) => {
-      if (tab.value === "hitl" && !hasHitlForTask) {
+      if (tab.value === "action_required" && !hasHitlForTask) {
         return false;
       }
 

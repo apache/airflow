@@ -45,7 +45,7 @@ export const FlexibleForm = ({
   isHITL,
   setError,
 }: FlexibleFormProps) => {
-  const { paramsDict: params, setInitialParamDict, setParamsDict } = useParamStore();
+  const { paramsDict: params, setDisabled, setInitialParamDict, setParamsDict } = useParamStore();
   const processedSections = new Map();
   const [sectionError, setSectionError] = useState<Map<string, boolean>>(new Map());
 
@@ -89,6 +89,10 @@ export const FlexibleForm = ({
       setError(true);
     }
   }, [params, setError, recheckSection, sectionError]);
+
+  useEffect(() => {
+    setDisabled(disabled ?? false);
+  }, [disabled, setDisabled]);
 
   const onUpdate = (_value?: string, error?: unknown) => {
     recheckSection();
@@ -139,7 +143,7 @@ export const FlexibleForm = ({
                         (currentSection === flexibleFormDefaultSection && !Boolean(param.schema.section)),
                     )
                     .map(([name]) => (
-                      <Row disabled={disabled} key={name} name={name} onUpdate={onUpdate} />
+                      <Row key={name} name={name} onUpdate={onUpdate} />
                     ))}
                 </Stack>
               </Accordion.ItemBody>

@@ -18,7 +18,6 @@
  */
 
 export type FlexibleFormElementProps = {
-  readonly disabled?: boolean;
   readonly name: string;
   readonly onUpdate: (value?: string, error?: unknown) => void;
 };

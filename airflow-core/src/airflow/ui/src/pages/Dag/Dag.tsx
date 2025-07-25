@@ -89,7 +89,7 @@ export const Dag = () => {
       return false;
     }
 
-    if (tab.value === "hitl" && !hasHitlTasks) {
+    if (tab.value === "action_required" && !hasHitlTasks) {
       return false;
     }
 

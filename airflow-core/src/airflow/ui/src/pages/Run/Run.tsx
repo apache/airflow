@@ -77,7 +77,7 @@ export const Run = () => {
   const hasHitlTasksForRun = Boolean(hitlData?.hitl_details.length);
 
   const displayTabs = tabs.filter((tab) => {
-    if (tab.value === "hitl" && !hasHitlTasksForRun) {
+    if (tab.value === "action_required" && !hasHitlTasksForRun) {
       return false;
     }
 
