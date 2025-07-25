@@ -197,6 +197,7 @@ class TestProjectStructure:
             "providers/standard/tests/unit/standard/sensors/test_external_task.py",
             "providers/standard/tests/unit/standard/sensors/test_filesystem.py",
             "providers/standard/tests/unit/standard/utils/test_sensor_helper.py",
+            "providers/sftp/tests/unit/sftp/test_exceptions.py",
         ]
         modules_files: list[pathlib.Path] = list(
             AIRFLOW_PROVIDERS_ROOT_PATH.glob("**/src/airflow/providers/**/*.py")
