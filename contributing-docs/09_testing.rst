@@ -44,6 +44,9 @@ includes:
 * `System tests <testing/system_tests.rst>`__ are automatic tests that use external systems like
   Google Cloud and AWS. These tests are intended for an end-to-end DAG execution.
 
+* `Accessibility tests <testing/accessibility_tests.rst>`__ are automated tests that verify
+  WCAG compliance and color contrast standards for Airflow's React UI components.
+
 You can also run other kinds of tests when you are developing Airflow packages:
 
 * `Testing distributions <testing/testing_distributions.rst>`__ is a document that describes how to

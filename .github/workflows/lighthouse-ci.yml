@@ -1,0 +1,78 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: Lighthouse CI - Accessibility & Color Contrast
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'airflow-core/src/airflow/ui/**'
+  push:
+    branches: [main]
+    paths:
+      - 'airflow-core/src/airflow/ui/**'
+  workflow_dispatch:
+
+jobs:
+  lighthouse-accessibility:
+    timeout-minutes: 15
+    name: Lighthouse Accessibility Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+      - name: "Prepare and cleanup runner"
+        run: ./scripts/ci/prepare_and_cleanup_runner.sh
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2  # v4.0.0
+        with:
+          version: 9
+          run_install: false
+      - name: "Setup node"
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+        with:
+          node-version: 21
+          cache: 'pnpm'
+          cache-dependency-path: 'airflow-core/src/airflow/**/pnpm-lock.yaml'
+      - name: "Restore eslint cache (ui)"
+        uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        with:
+          path: airflow-core/src/airflow/ui/node_modules/
+          key: cache-ui-node-modules-v1-${{ runner.os }}-${{ hashFiles('airflow-core/src/airflow/ui/**/pnpm-lock.yaml') }}
+        id: restore-eslint-cache-ui
+      - run: cd airflow-core/src/airflow/ui && pnpm install --frozen-lockfile && pnpm build
+        env:
+          FORCE_COLOR: 2
+      - name: "Save eslint cache (ui)"
+        uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        with:
+          path: airflow-core/src/airflow/ui/node_modules/
+          key: cache-ui-node-modules-v1-${{ runner.os }}-${{ hashFiles('airflow-core/src/airflow/ui/**/pnpm-lock.yaml') }}
+          if-no-files-found: 'error'
+          retention-days: '2'
+        if: steps.restore-eslint-cache-ui.outputs.stash-hit != 'true'
+      - name: Run Lighthouse CI
+        run: |
+          npm install -g @lhci/cli@0.15.x
+          lhci autorun

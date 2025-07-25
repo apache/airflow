@@ -23,7 +23,7 @@ import { NavLink } from "react-router-dom";
 const styles = {
   alignItems: "center",
   borderRadius: "none",
-  colorPalette: "blue",
+  colorPalette: "navbar",
   flexDir: "column",
   height: 20,
   variant: "ghost",
