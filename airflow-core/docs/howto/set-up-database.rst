@@ -339,7 +339,7 @@ Migrating off MsSQL Server
 
 As with Airflow 2.9.0 the support of MSSQL has ended, a migration script can help with
 Airflow version 2.7.x or 2.8.x to migrate off SQL-Server. The migration script is available in
-`airflow-mssql-migration repo on Github <https://github.com/apache/airflow-mssql-migration>`_.
+`airflow-mssql-migration repo on GitHub <https://github.com/apache/airflow-mssql-migration>`_.
 
 Note that the migration script is provided without support and warranty.
 

@@ -1271,7 +1271,7 @@ def tag_providers(
             if push_result.returncode == 0:
                 get_console().print("\n[success]Tags pushed successfully.[/]")
         except subprocess.CalledProcessError:
-            get_console().print("\n[error]Failed to push tags, probably a connectivity issue to Github.[/]")
+            get_console().print("\n[error]Failed to push tags, probably a connectivity issue to GitHub.[/]")
             if clean_local_tags:
                 for tag in tags:
                     with contextlib.suppress(subprocess.CalledProcessError):
