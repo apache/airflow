@@ -120,7 +120,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
               loading={isSubmitting}
               onClick={() => handleSubmit()}
             >
-              <FiSend /> {translate("hitl:response.button")}
+              <FiSend /> {translate("hitl:response.respond")}
             </Button>
           )}
         </HStack>

@@ -76,7 +76,7 @@ const taskInstanceRoutes = [
   { element: <RenderedTemplates />, path: "rendered_templates" },
   { element: <TaskInstances />, path: "task_instances" },
   { element: <TaskInstanceAssetEvents />, path: "asset_events" },
-  { element: <HITLResponse />, path: "hitl-response" },
+  { element: <HITLResponse />, path: "action_required" },
   pluginRoute,
 ];
 
@@ -89,7 +89,7 @@ export const routerConfig = [
       },
       {
         element: <HITLTaskInstances />,
-        path: "hitl",
+        path: "action_required",
       },
       {
         element: <DagsList />,
@@ -161,7 +161,7 @@ export const routerConfig = [
           { element: <Overview />, index: true },
           { element: <DagRuns />, path: "runs" },
           { element: <Tasks />, path: "tasks" },
-          { element: <HITLTaskInstances />, path: "hitl" },
+          { element: <HITLTaskInstances />, path: "action_required" },
           { element: <Backfills />, path: "backfills" },
           { element: <Events />, path: "events" },
           { element: <Code />, path: "code" },
@@ -174,7 +174,7 @@ export const routerConfig = [
       {
         children: [
           { element: <TaskInstances />, index: true },
-          { element: <HITLTaskInstances />, path: "hitl" },
+          { element: <HITLTaskInstances />, path: "action_required" },
           { element: <Events />, path: "events" },
           { element: <Code />, path: "code" },
           { element: <DagRunDetails />, path: "details" },
@@ -203,7 +203,7 @@ export const routerConfig = [
         children: [
           { element: <TaskOverview />, index: true },
           { element: <TaskInstances />, path: "task_instances" },
-          { element: <HITLTaskInstances />, path: "hitl" },
+          { element: <HITLTaskInstances />, path: "action_required" },
           pluginRoute,
         ],
         element: <Task />,
@@ -218,7 +218,7 @@ export const routerConfig = [
         children: [
           { element: <TaskOverview />, index: true },
           { element: <TaskInstances />, path: "task_instances" },
-          { element: <HITLTaskInstances />, path: "hitl" },
+          { element: <HITLTaskInstances />, path: "action_required" },
           { element: <Events />, path: "events" },
           pluginRoute,
         ],

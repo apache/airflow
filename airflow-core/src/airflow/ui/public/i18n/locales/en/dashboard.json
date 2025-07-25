@@ -33,9 +33,9 @@
   },
   "source": "Source",
   "stats": {
+    "actionRequired": "Action Required",
     "activeDags": "Active Dags",
     "failedDags": "Failed Dags",
-    "hitlTaskInstances": "Human Task Instances",
     "queuedDags": "Queued Dags",
     "runningDags": "Running Dags",
     "stats": "Stats"

@@ -44,7 +44,7 @@ export const TaskInstance = () => {
 
   const tabs = [
     { icon: <MdReorder />, label: translate("tabs.logs"), value: "" },
-    { icon: <FiUser />, label: translate("tabs.response"), value: "hitl-response" },
+    { icon: <FiUser />, label: translate("tabs.actionRequired"), value: "action_required" },
     {
       icon: <PiBracketsCurlyBold />,
       label: translate("tabs.renderedTemplates"),
@@ -121,7 +121,7 @@ export const TaskInstance = () => {
   }
 
   const displayTabs = newTabs.filter((tab) => {
-    if (tab.value === "hitl-response" && !hasHitlForTask) {
+    if (tab.value === "action_required" && !hasHitlForTask) {
       return false;
     }
 

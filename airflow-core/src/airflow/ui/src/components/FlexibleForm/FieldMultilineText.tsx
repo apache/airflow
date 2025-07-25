@@ -22,7 +22,7 @@ import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
 
-export const FieldMultilineText = ({ name, onUpdate, disabled }: FlexibleFormElementProps) => {
+export const FieldMultilineText = ({ disabled, name, onUpdate }: FlexibleFormElementProps) => {
   const { paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
   const handleChange = (value: string) => {

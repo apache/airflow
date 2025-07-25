@@ -21,7 +21,7 @@ import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 import type { FlexibleFormElementProps } from ".";
 import { NumberInputField, NumberInputRoot } from "../ui/NumberInput";
 
-export const FieldNumber = ({ name, onUpdate, disabled }: FlexibleFormElementProps) => {
+export const FieldNumber = ({ disabled, name, onUpdate }: FlexibleFormElementProps) => {
   const { paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
   const handleChange = (value: string) => {

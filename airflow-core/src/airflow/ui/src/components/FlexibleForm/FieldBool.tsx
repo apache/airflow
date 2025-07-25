@@ -21,7 +21,7 @@ import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 import type { FlexibleFormElementProps } from ".";
 import { Switch } from "../ui";
 
-export const FieldBool = ({ name, disabled }: FlexibleFormElementProps) => {
+export const FieldBool = ({ disabled, name }: FlexibleFormElementProps) => {
   const { paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
   const onCheck = (value: boolean) => {

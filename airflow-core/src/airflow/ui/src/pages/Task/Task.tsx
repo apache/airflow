@@ -42,7 +42,7 @@ export const Task = () => {
   const tabs = [
     { icon: <LuChartColumn />, label: translate("tabs.overview"), value: "" },
     { icon: <MdOutlineTask />, label: translate("tabs.taskInstances"), value: "task_instances" },
-    { icon: <FiUser />, label: translate("tabs.hitlTaskInstances"), value: "hitl" },
+    { icon: <FiUser />, label: translate("tabs.actionRequired"), value: "action_required" },
     { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
     ...externalTabs,
   ];

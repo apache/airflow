@@ -16,14 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Link } from "@chakra-ui/react";
+import { Badge, Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams } from "react-router-dom";
 
 import { useHumanInTheLoopServiceGetHitlDetails } from "openapi/queries";
-import type { HITLDetail, TaskInstanceResponse } from "openapi/requests/types.gen";
+import type { HITLDetail } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -33,14 +33,20 @@ import { TruncatedText } from "src/components/TruncatedText";
 import { useAutoRefresh } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
-// Helper function to get HITL response link - redirect to HITL response tab
-const getHITLResponseLink = (taskInstance: TaskInstanceResponse) => {
-  const baseLink = getTaskInstanceLink(taskInstance);
-
-  return `${baseLink}/hitl-response`;
-};
-
 type TaskInstanceRow = { row: { original: HITLDetail } };
+
+const statusMapping = (translate: TFunction, operator: string, responseReceived: boolean) => {
+  const statusMap = {
+    ApprovalOperator: ["approvalRequired", "approvalReceived"],
+    HITLBranchOperator: ["choiceRequired", "choiceReceived"],
+    HITLEntryOperator: ["inputRequired", "inputReceived"],
+    HITLOperator: ["responseRequired", "responseReceived"],
+  };
+
+  const [required, received] = statusMap[operator as keyof typeof statusMap];
+
+  return translate(`hitl:status.${responseReceived ? received : required}`);
+};
 
 const taskInstanceColumns = ({
   dagId,
@@ -54,10 +60,19 @@ const taskInstanceColumns = ({
   translate: TFunction;
 }): Array<ColumnDef<HITLDetail>> => [
   {
+    accessorKey: "task_instance.operator",
+    cell: ({ row: { original } }: TaskInstanceRow) => {
+      const { operator } = original.task_instance;
+
+      return <Badge>{statusMapping(translate, operator ?? "", original.response_received ?? false)}</Badge>;
+    },
+    header: translate("Status"),
+  },
+  {
     accessorKey: "subject",
     cell: ({ row: { original } }: TaskInstanceRow) => (
       <Link asChild color="fg.info" fontWeight="bold">
-        <RouterLink to={getHITLResponseLink(original.task_instance)}>
+        <RouterLink to={`${getTaskInstanceLink(original.task_instance)}/action_required`}>
           <TruncatedText text={original.subject} />
         </RouterLink>
       </Link>

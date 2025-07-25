@@ -14,8 +14,8 @@
   "backfill_one": "Backfill",
   "backfill_other": "Backfills",
   "browse": {
+    "actionRequired": "Action Required",
     "auditLog": "Audit Log",
-    "hitl": "Human Task Instances",
     "xcoms": "XComs"
   },
   "collapseDetailsPanel": "Collapse Details Panel",

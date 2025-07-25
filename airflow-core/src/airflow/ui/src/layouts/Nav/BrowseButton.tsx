@@ -39,9 +39,9 @@ const links = [
     title: "XComs",
   },
   {
-    href: "/hitl",
-    key: "hitl",
-    title: "HITL",
+    href: "/action_required",
+    key: "actionRequired",
+    title: "Action Required",
   },
 ];
 

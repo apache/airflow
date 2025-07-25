@@ -32,7 +32,7 @@ const labelLookup = (key: string, valuesDisplay: Record<string, string> | undefi
   return key;
 };
 
-export const FieldMultiSelect = ({ name, onUpdate, disabled }: FlexibleFormElementProps) => {
+export const FieldMultiSelect = ({ disabled, name, onUpdate }: FlexibleFormElementProps) => {
   const { t: translate } = useTranslation("components");
   const { paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;

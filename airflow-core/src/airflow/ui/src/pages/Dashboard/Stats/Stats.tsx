@@ -66,7 +66,7 @@ export const Stats = () => {
             count={hitlTIsCount}
             icon={<FiClock />}
             isLoading={isStatsLoading}
-            label={translate("stats.hitlTaskInstances")}
+            label={translate("stats.actionRequired")}
             link="hitl"
           />
         ) : undefined}

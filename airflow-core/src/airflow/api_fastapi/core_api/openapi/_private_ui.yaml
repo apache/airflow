@@ -1940,6 +1940,7 @@ components:
     MenuItem:
       type: string
       enum:
+      - Action Required
       - Assets
       - Audit Log
       - Config
@@ -1951,7 +1952,6 @@ components:
       - Providers
       - Variables
       - XComs
-      - HITL
       title: MenuItem
       description: Define all menu items defined in the menu.
     MenuItemCollectionResponse:
