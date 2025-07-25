@@ -20,7 +20,7 @@
 from __future__ import annotations
 
 import json
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 import pytest
 from kubernetes.client import V1ObjectMeta, V1Pod, V1PodList
@@ -1130,10 +1130,7 @@ class TestFlinkKubernetesSensor:
             namespace="default", watch=False, label_selector="component=taskmanager,app=flink-stream-example"
         )
         mock_pod_logs.assert_called_once_with("basic-example-taskmanager-1-1", namespace="default")
-        log_info_call = info_log_call.mock_calls[4]
-        log_value = log_info_call[1][0]
-
-        assert log_value == TEST_POD_LOG_RESULT
+        assert call(TEST_POD_LOG_RESULT) in info_log_call.mock_calls
 
         mock_namespaced_crd.assert_called_once_with(
             group="flink.apache.org",
