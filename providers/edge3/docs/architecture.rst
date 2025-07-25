@@ -171,7 +171,7 @@ The following features are known missing and will be implemented in increments:
 
 - Tests
 
-  - System tests in Github, test the deployment of the worker with a Dag execution
+  - System tests in GitHub, test the deployment of the worker with a Dag execution
   - Test/Support on Windows for Edge Worker
 
 - Scaling test - Check and define boundaries of workers/jobs. Today it is known to
