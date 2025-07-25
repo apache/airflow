@@ -111,11 +111,14 @@ from airflow.sdk.execution_time.supervisor import (
     ActivitySubprocess,
     InProcessSupervisorComms,
     InProcessTestSupervisor,
+    _remote_logging_conn,
     set_supervisor_comms,
     supervise,
 )
 from airflow.sdk.execution_time.task_runner import run
 from airflow.utils import timezone, timezone as tz
+
+from tests_common.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
     import kgb
@@ -2091,3 +2094,49 @@ class TestInProcessTestSupervisor:
         # Ensure we got back what we expect
         assert isinstance(response, VariableResult)
         assert response.value == "value"
+
+
+@pytest.mark.parametrize(
+    ("remote_logging", "remote_conn", "expected_env"),
+    (
+        pytest.param(True, "", "AIRFLOW_CONN_AWS_DEFAULT", id="no-conn-id"),
+        pytest.param(True, "aws_default", "AIRFLOW_CONN_AWS_DEFAULT", id="explicit-default"),
+        pytest.param(True, "my_aws", "AIRFLOW_CONN_MY_AWS", id="other"),
+        pytest.param(False, "", "", id="no-remote-logging"),
+    ),
+)
+def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypatch):
+    # This doesn't strictly need the AWS provider, but it does need something that
+    # airflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG knows about
+    pytest.importorskip("airflow.providers.amazon", reason="'amazon' provider not installed")
+
+    # This test is a little bit overly specific to how the logging is currently configured :/
+    monkeypatch.delitem(sys.modules, "airflow.logging_config")
+    monkeypatch.delitem(sys.modules, "airflow.config_templates.airflow_local_settings", raising=False)
+
+    def handle_request(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            status_code=200,
+            json={
+                # Minimal enough to pass validation, we don't care what fields are in here for the tests
+                "conn_id": remote_conn,
+                "conn_type": "aws",
+            },
+        )
+
+    with conf_vars(
+        {
+            ("logging", "remote_logging"): str(remote_logging),
+            ("logging", "remote_base_log_folder"): "cloudwatch://arn:aws:logs:::log-group:test",
+            ("logging", "remote_log_conn_id"): remote_conn,
+        }
+    ):
+        env = os.environ.copy()
+        client = make_client(transport=httpx.MockTransport(handle_request))
+
+        with _remote_logging_conn(client):
+            new_keys = os.environ.keys() - env.keys()
+            if remote_logging:
+                assert new_keys == {expected_env}
+            else:
+                assert not new_keys
