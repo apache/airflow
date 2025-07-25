@@ -330,4 +330,3 @@ class TestLatestOnlyOperator:
         )
 
         dag_maker.run_ti("latest", dr)
-        # Need help running this task and checking that the latest only operator didn't fail
