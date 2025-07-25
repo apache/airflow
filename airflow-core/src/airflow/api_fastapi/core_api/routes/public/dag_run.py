@@ -423,7 +423,7 @@ def trigger_dag_run(
     try:
         dag = dag_bag.get_latest_version_of_dag(dag_id, session)
         if not dag:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with dag_id: '{dag_id}' not found")
+            raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with dag_id: '{dag_id}' not found")
         params = body.validate_context(dag)
 
         dag_run = dag.create_dagrun(
