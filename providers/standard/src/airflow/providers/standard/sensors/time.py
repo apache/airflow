@@ -122,6 +122,8 @@ class TimeSensor(BaseSensorOperator):
                 method_name="execute_complete",
             )
 
+        super().execute(context)
+
     def execute_complete(self, context: Context, event: Any = None) -> None:
         return
 
