@@ -43,8 +43,6 @@ runs:
       shell: bash
     - name: "Install Breeze"
       uses: ./.github/actions/breeze
-      with:
-        use-uv: ${{ inputs.use-uv }}
       id: breeze
     - name: "Check free space"
       shell: bash

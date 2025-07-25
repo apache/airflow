@@ -21,6 +21,9 @@ from unittest import mock
 import pytest
 from sqlalchemy.orm import Session
 
+from airflow._shared.timezones.timezone import utcnow
+from airflow.utils.state import TaskInstanceState
+
 from tests_common.test_utils.db import AIRFLOW_V_3_1_PLUS
 
 if not AIRFLOW_V_3_1_PLUS:
@@ -44,11 +47,12 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.db_test
 
 DAG_ID = "test_hitl_dag"
+ANOTHER_DAG_ID = "another_hitl_dag"
 
 
 @pytest.fixture
 def sample_ti(create_task_instance: CreateTaskInstance) -> TaskInstance:
-    return create_task_instance()
+    return create_task_instance(dag_id=DAG_ID)
 
 
 @pytest.fixture
@@ -74,6 +78,70 @@ def sample_hitl_detail(sample_ti: TaskInstance, session: Session) -> HITLDetail:
     session.commit()
 
     return hitl_detail_model
+
+
+@pytest.fixture
+def sample_tis(create_task_instance: CreateTaskInstance) -> list[TaskInstance]:
+    tis = [
+        create_task_instance(
+            dag_id=f"hitl_dag_{i}",
+            run_id=f"hitl_run_{i}",
+            task_id=f"hitl_task_{i}",
+            state=TaskInstanceState.RUNNING,
+        )
+        for i in range(5)
+    ]
+    tis.extend(
+        [
+            create_task_instance(
+                dag_id=f"other_Dag_{i}",
+                run_id=f"another_hitl_run_{i}",
+                task_id=f"another_hitl_task_{i}",
+                state=TaskInstanceState.SUCCESS,
+            )
+            for i in range(3)
+        ]
+    )
+    return tis
+
+
+@pytest.fixture
+def sample_hitl_details(sample_tis: list[TaskInstance], session: Session) -> list[HITLDetail]:
+    hitl_detail_models = [
+        HITLDetail(
+            ti_id=ti.id,
+            options=["Approve", "Reject"],
+            subject=f"This is subject {i}",
+            body=f"this is body {i}",
+            defaults=["Approve"],
+            multiple=False,
+            params={"input_1": 1},
+        )
+        for i, ti in enumerate(sample_tis[:5])
+    ]
+    hitl_detail_models.extend(
+        [
+            HITLDetail(
+                ti_id=ti.id,
+                options=["1", "2", "3"],
+                subject=f"Subject {i} this is",
+                body=f"Body {i} this is",
+                defaults=["1"],
+                multiple=False,
+                params={"input": 1},
+                response_at=utcnow(),
+                chosen_options=[str(i)],
+                params_input={"input": i},
+                user_id="test",
+            )
+            for i, ti in enumerate(sample_tis[5:])
+        ]
+    )
+
+    session.add_all(hitl_detail_models)
+    session.commit()
+
+    return hitl_detail_models
 
 
 @pytest.fixture
@@ -115,16 +183,16 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
         "subject": "This is subject",
         "user_id": None,
         "task_instance": {
-            "dag_display_name": "dag",
-            "dag_id": "dag",
+            "dag_display_name": DAG_ID,
+            "dag_id": DAG_ID,
             "dag_run_id": "test",
             "dag_version": {
                 "bundle_name": "dag_maker",
                 "bundle_url": None,
                 "bundle_version": None,
                 "created_at": mock.ANY,
-                "dag_display_name": "dag",
-                "dag_id": "dag",
+                "dag_display_name": DAG_ID,
+                "dag_id": DAG_ID,
                 "id": mock.ANY,
                 "version_number": 1,
             },
@@ -418,6 +486,47 @@ class TestGetHITLDetailsEndpoint:
             "hitl_details": [expected_sample_hitl_detail_dict],
             "total_entries": 1,
         }
+
+    @pytest.mark.usefixtures("sample_hitl_details")
+    @pytest.mark.parametrize(
+        "params, expected_ti_count",
+        [
+            # ti related filter
+            ({"dag_id_pattern": "hitl_dag"}, 5),
+            ({"dag_id_pattern": "other_Dag_"}, 3),
+            ({"dag_run_id": "hitl_run_0"}, 1),
+            ({"state": "running"}, 5),
+            ({"state": "success"}, 3),
+            # hitl detail related filter
+            ({"subject_search": "This is subject"}, 5),
+            ({"body_search": "this is"}, 8),
+            ({"response_received": False}, 5),
+            ({"response_received": True}, 3),
+            ({"user_id": ["test"]}, 3),
+        ],
+        ids=[
+            "dag_id_hitl_dag",
+            "dag_id_other_dag",
+            "dag_run_id",
+            "ti_state_running",
+            "ti_state_success",
+            "subject",
+            "body",
+            "response_not_received",
+            "response_received",
+            "user_id",
+        ],
+    )
+    def test_should_respond_200_with_existing_response_and_query(
+        self,
+        test_client: TestClient,
+        params: dict[str, Any],
+        expected_ti_count: int,
+    ) -> None:
+        response = test_client.get("/hitl-details/", params=params)
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == expected_ti_count
+        assert len(response.json()["hitl_details"]) == expected_ti_count
 
     def test_should_respond_200_without_response(self, test_client: TestClient) -> None:
         response = test_client.get("/hitl-details/")

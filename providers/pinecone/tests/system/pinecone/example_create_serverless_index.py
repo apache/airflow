@@ -20,7 +20,12 @@ import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.decorators import task, teardown
+
+try:
+    from airflow.sdk import task, teardown
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import task, teardown  # type: ignore[attr-defined,no-redef]
 from airflow.providers.pinecone.operators.pinecone import CreateServerlessIndexOperator
 
 index_name = os.getenv("INDEX_NAME", "test")

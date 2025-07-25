@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from airflow._shared.timezones.timezone import datetime
 from airflow.models.dag import DAG
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.context import (
@@ -26,7 +27,6 @@ from airflow.sdk.definitions.context import (
     _AIRFLOW_PARSING_CONTEXT_TASK_ID,
     Context,
 )
-from airflow.utils.timezone import datetime
 
 
 class DagWithParsingContext(EmptyOperator):

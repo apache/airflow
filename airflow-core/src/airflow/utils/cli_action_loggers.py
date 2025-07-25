@@ -123,8 +123,8 @@ def default_action_log(
     """
     from sqlalchemy.exc import OperationalError, ProgrammingError
 
+    from airflow._shared.timezones import timezone
     from airflow.models.log import Log
-    from airflow.utils import timezone
 
     try:
         # Use bulk_insert_mappings here to avoid importing all models (which using the classes does) early

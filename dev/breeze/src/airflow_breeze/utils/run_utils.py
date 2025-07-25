@@ -84,7 +84,7 @@ def run_command(
 
     :param cmd: command to run
     :param title: optional title for the command (otherwise likely title is automatically determined)
-    :param check: whether to check status value and run exception (same as POpem)
+    :param check: whether to check status value and run exception (same as Popen)
     :param no_output_dump_on_exception: whether to suppress printing logs from output when command fails
     :param env: mapping of environment variables to set for the run command
     :param cwd: working directory to set for the command

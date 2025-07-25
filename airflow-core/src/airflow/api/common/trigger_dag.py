@@ -22,9 +22,9 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
+from airflow._shared.timezones import timezone
 from airflow.exceptions import DagNotFound, DagRunAlreadyExists
 from airflow.models import DagBag, DagModel, DagRun
-from airflow.utils import timezone
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
