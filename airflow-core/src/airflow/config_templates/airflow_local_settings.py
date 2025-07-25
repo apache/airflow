@@ -128,6 +128,27 @@ if EXTRA_LOGGER_NAMES:
 
 REMOTE_LOGGING: bool = conf.getboolean("logging", "remote_logging")
 REMOTE_TASK_LOG: RemoteLogIO | None = None
+DEFAULT_REMOTE_CONN_ID: str | None = None
+
+
+def _default_conn_name_from(mod_path, hook_name):
+    # Try to set the default conn name from a hook, but don't error if something goes wrong at runtime
+    from importlib import import_module
+
+    global DEFAULT_REMOTE_CONN_ID
+
+    try:
+        mod = import_module(mod_path)
+
+        hook = getattr(mod, hook_name)
+
+        DEFAULT_REMOTE_CONN_ID = getattr(hook, "default_conn_name")
+    except Exception:
+        # Lets error in tests though!
+        if "PYTEST_CURRENT_TEST" in os.environ:
+            raise
+        return None
+
 
 if REMOTE_LOGGING:
     ELASTICSEARCH_HOST: str | None = conf.get("elasticsearch", "HOST")
@@ -151,6 +172,7 @@ if REMOTE_LOGGING:
     if remote_base_log_folder.startswith("s3://"):
         from airflow.providers.amazon.aws.log.s3_task_handler import S3RemoteLogIO
 
+        _default_conn_name_from("airflow.providers.amazon.aws.hooks.s3", "S3Hook")
         REMOTE_TASK_LOG = S3RemoteLogIO(
             **(
                 {
@@ -166,6 +188,7 @@ if REMOTE_LOGGING:
     elif remote_base_log_folder.startswith("cloudwatch://"):
         from airflow.providers.amazon.aws.log.cloudwatch_task_handler import CloudWatchRemoteLogIO
 
+        _default_conn_name_from("airflow.providers.amazon.aws.hooks.logs", "AwsLogsHook")
         url_parts = urlsplit(remote_base_log_folder)
         REMOTE_TASK_LOG = CloudWatchRemoteLogIO(
             **(
@@ -182,6 +205,7 @@ if REMOTE_LOGGING:
     elif remote_base_log_folder.startswith("gs://"):
         from airflow.providers.google.cloud.log.gcs_task_handler import GCSRemoteLogIO
 
+        _default_conn_name_from("airflow.providers.google.cloud.hooks.gcs", "GCSHook")
         key_path = conf.get_mandatory_value("logging", "google_key_path", fallback=None)
 
         REMOTE_TASK_LOG = GCSRemoteLogIO(
@@ -199,6 +223,7 @@ if REMOTE_LOGGING:
     elif remote_base_log_folder.startswith("wasb"):
         from airflow.providers.microsoft.azure.log.wasb_task_handler import WasbRemoteLogIO
 
+        _default_conn_name_from("airflow.providers.microsoft.azure.hooks.wasb", "WasbHook")
         wasb_log_container = conf.get_mandatory_value(
             "azure_remote_logging", "remote_wasb_log_container", fallback="airflow-logs"
         )
@@ -232,6 +257,8 @@ if REMOTE_LOGGING:
     elif remote_base_log_folder.startswith("oss://"):
         from airflow.providers.alibaba.cloud.log.oss_task_handler import OSSRemoteLogIO
 
+        _default_conn_name_from("airflow.providers.alibaba.cloud.hooks.oss", "OSSHook")
+
         REMOTE_TASK_LOG = OSSRemoteLogIO(
             **(
                 {
@@ -245,6 +272,8 @@ if REMOTE_LOGGING:
         remote_task_handler_kwargs = {}
     elif remote_base_log_folder.startswith("hdfs://"):
         from airflow.providers.apache.hdfs.log.hdfs_task_handler import HdfsRemoteLogIO
+
+        _default_conn_name_from("airflow.providers.apache.hdfs.hooks.webhdfs", "WebHDFSHook")
 
         REMOTE_TASK_LOG = HdfsRemoteLogIO(
             **(

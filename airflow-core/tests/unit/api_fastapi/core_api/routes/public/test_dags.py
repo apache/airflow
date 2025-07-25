@@ -248,6 +248,11 @@ class TestGetDags(TestDagEndpoint):
                 3,
                 [DAG3_ID, DAG1_ID, DAG2_ID],
             ),
+            (
+                {"order_by": ["next_dagrun", "-dag_display_name"], "exclude_stale": False},
+                3,
+                [DAG3_ID, DAG2_ID, DAG1_ID],
+            ),
             # Search
             ({"dag_id_pattern": "1"}, 1, [DAG1_ID]),
             ({"dag_display_name_pattern": "test_dag2"}, 1, [DAG2_ID]),
@@ -549,7 +554,6 @@ class TestDagDetails(TestDagEndpoint):
             },
             "description": None,
             "doc_md": "details",
-            "deadline": None,
             "end_date": None,
             "fileloc": __file__,
             "file_token": file_token,
@@ -638,7 +642,6 @@ class TestGetDag(TestDagEndpoint):
             "is_stale": False,
             "owners": ["airflow"],
             "timetable_summary": None,
-            "deadline": None,
             "tags": [],
             "has_task_concurrency_limits": True,
             "next_dagrun_data_interval_start": None,

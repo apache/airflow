@@ -20,7 +20,11 @@ import pendulum
 from weaviate.classes.config import DataType, Property
 from weaviate.collections.classes.config import Configure
 
-from airflow.decorators import dag, task, teardown
+try:
+    from airflow.sdk import dag, task, teardown
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import dag, task, teardown  # type: ignore[attr-defined,no-redef]
 
 COLLECTION_NAME = "QuestionWithOpenAIVectorizerUsingHook"
 

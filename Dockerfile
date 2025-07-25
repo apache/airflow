@@ -57,7 +57,7 @@ ARG PYTHON_BASE_IMAGE="python:3.10-slim-bookworm"
 ARG AIRFLOW_PIP_VERSION=25.1.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
 ARG AIRFLOW_SETUPTOOLS_VERSION=80.9.0
-ARG AIRFLOW_UV_VERSION=0.7.21
+ARG AIRFLOW_UV_VERSION=0.8.0
 ARG AIRFLOW_USE_UV="false"
 ARG UV_HTTP_TIMEOUT="300"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
@@ -904,6 +904,7 @@ function install_from_sources() {
         installation_command_flags=" --editable .[${AIRFLOW_EXTRAS}] \
               --editable ./airflow-core --editable ./task-sdk --editable ./airflow-ctl \
               --editable ./kubernetes-tests --editable ./docker-tests --editable ./helm-tests \
+              --editable ./task-sdk-tests \
               --editable ./devel-common[all] --editable ./dev \
               --group dev --group docs --group docs-gen --group leveldb"
         local -a projects_with_devel_dependencies
