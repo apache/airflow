@@ -1271,7 +1271,7 @@ def tag_providers(
             if push_result.returncode == 0:
                 get_console().print("\n[success]Tags pushed successfully.[/]")
         except subprocess.CalledProcessError:
-            get_console().print("\n[error]Failed to push tags, probably a connectivity issue to Github.[/]")
+            get_console().print("\n[error]Failed to push tags, probably a connectivity issue to GitHub.[/]")
             if clean_local_tags:
                 for tag in tags:
                     with contextlib.suppress(subprocess.CalledProcessError):
@@ -3103,8 +3103,8 @@ def _get_python_client_version(version_suffix):
     version = Version(python_client_version)
     if version_suffix:
         if version.pre:
-            currrent_suffix = version.pre[0] + str(version.pre[1])
-            if currrent_suffix != version_suffix:
+            current_suffix = version.pre[0] + str(version.pre[1])
+            if current_suffix != version_suffix:
                 get_console().print(
                     f"[error]The version suffix for PyPI ({version_suffix}) does not match the "
                     f"suffix in the version ({version})[/]"

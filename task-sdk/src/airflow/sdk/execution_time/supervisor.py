@@ -211,7 +211,7 @@ def _reset_signals():
 
 
 def _configure_logs_over_json_channel(log_fd: int):
-    # A channel that the task can send JSON-formated logs over.
+    # A channel that the task can send JSON-formatted logs over.
     #
     # JSON logs sent this way will be handled nicely
     from airflow.sdk.log import configure_logging

@@ -1,10 +1,10 @@
 {
-  "auditLog":{
+  "auditLog": {
     "actions": {
       "collapseAllExtra": "Colapsar todos los extra json",
       "expandAllExtra": "Expandir todos los extra json"
     },
-    "columns":{
+    "columns": {
       "event": "Evento",
       "extra": "Extra",
       "user": "Usuario",
@@ -12,8 +12,8 @@
     },
     "title": "Auditar Log"
   },
-  "xcom":{
-    "columns":{
+  "xcom": {
+    "columns": {
       "dag": "Dag",
       "key": "Clave",
       "value": "Valor"
