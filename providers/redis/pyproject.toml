@@ -62,11 +62,19 @@ dependencies = [
     "redis>=4.5.2,!=4.5.5,!=5.0.2",
 ]
 
+# The optional dependencies should be modified in place in the generated file
+# Any change in the dependencies is preserved when the file is regenerated
+[project.optional-dependencies]
+"common.messaging" = [
+    "apache-airflow-providers-common-messaging"
+]
+
 [dependency-groups]
 dev = [
     "apache-airflow",
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
+    "apache-airflow-providers-common-messaging",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
 ]
 
