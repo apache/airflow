@@ -22,6 +22,7 @@ type VersionIndicatorProps = {
   readonly orientation: "horizontal" | "vertical";
   readonly position?: "left" | "right";
   readonly styleOverrides?: object;
+  readonly versionChanges?: Array<number>;
   readonly versionNumber?: number | null;
 };
 
@@ -29,6 +30,7 @@ export const VersionIndicator = ({
   orientation,
   position,
   styleOverrides,
+  versionChanges,
   versionNumber,
 }: VersionIndicatorProps) => {
   const isVertical = orientation === "vertical";
@@ -78,6 +80,11 @@ export const VersionIndicator = ({
         position="absolute"
         px="1px"
         right={isVertical ? undefined : "-8px"}
+        title={
+          versionChanges && versionChanges.length > 0
+            ? `New versions: ${versionChanges.join(", ")}`
+            : undefined
+        }
         top={isVertical ? "-16px" : "-4px"}
         whiteSpace="nowrap"
       >

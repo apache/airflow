@@ -33,8 +33,7 @@ class DagVersionInfo(TypedDict):
     dag_version_number: int | None
     dag_version_id: str | None
     is_version_changed: bool
-    has_mixed_versions: bool
-    latest_version_number: int | None
+    version_changes: list[int]
 
 
 class DagVersionService:
@@ -58,35 +57,31 @@ class DagVersionService:
         for i, dag_run in enumerate(dag_runs):
             dag_version_number = None
             dag_version_id = None
-            is_version_changed = False
-            has_mixed_versions = False
-            latest_version_number = None
 
             # Get version info from created_dag_version
             if dag_run.created_dag_version:
                 dag_version_number = dag_run.created_dag_version.version_number
                 dag_version_id = str(dag_run.created_dag_version.id)
 
-                # Check if version changed from previous run
-                next_dag_run = dag_runs[i + 1] if i + 1 < len(dag_runs) else None
-                if next_dag_run and next_dag_run.created_dag_version:
-                    next_version = next_dag_run.created_dag_version.version_number
-                    if next_version != dag_version_number:
-                        is_version_changed = True
+            # Get current run's versions
+            current_versions = set(dv.version_number for dv in dag_run.dag_versions)
 
-            # Simple mixed version detection using dag_versions property
-            dag_versions = dag_run.dag_versions
-            if len(dag_versions) > 1:
-                has_mixed_versions = True
-                latest_version_number = max(dv.version_number for dv in dag_versions)
+            # Get previous run's versions for comparison
+            previous_versions = set()
+            if i + 1 < len(dag_runs):
+                previous_run = dag_runs[i + 1]
+                previous_versions = set(dv.version_number for dv in previous_run.dag_versions)
+
+            # Calculate version changes using set difference
+            version_changes = current_versions - previous_versions
+            is_version_changed = bool(version_changes)
 
             version_info_list.append(
                 {
                     "dag_version_number": dag_version_number,
                     "dag_version_id": dag_version_id,
                     "is_version_changed": is_version_changed,
-                    "has_mixed_versions": has_mixed_versions,
-                    "latest_version_number": latest_version_number,
+                    "version_changes": sorted(list(version_changes)),
                 }
             )
 

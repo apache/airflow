@@ -7058,21 +7058,13 @@ export const $GridRunsResponse = {
             title: 'Is Version Changed',
             default: false
         },
-        has_mixed_versions: {
-            type: 'boolean',
-            title: 'Has Mixed Versions',
-            default: false
-        },
-        latest_version_number: {
-            anyOf: [
-                {
-                    type: 'integer'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Latest Version Number'
+        version_changes: {
+            items: {
+                type: 'integer'
+            },
+            type: 'array',
+            title: 'Version Changes',
+            default: []
         },
         duration: {
             type: 'integer',

@@ -265,8 +265,7 @@ def get_grid_runs(
                 dag_version_number=version_info["dag_version_number"],
                 dag_version_id=version_info["dag_version_id"],
                 is_version_changed=version_info["is_version_changed"],
-                has_mixed_versions=version_info["has_mixed_versions"],
-                latest_version_number=version_info["latest_version_number"],
+                version_changes=version_info["version_changes"],
             )
             response.append(grid_run)
 

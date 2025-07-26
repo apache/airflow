@@ -112,13 +112,12 @@ export const Grid = ({ limit }: Props) => {
 
               return (
                 <Bar
-                  hasMixedVersions={dr.has_mixed_versions}
                   key={dr.run_id}
-                  latestVersionNumber={dr.latest_version_number}
                   max={max}
                   nodes={flatNodes}
                   run={dr}
                   showVersionIndicator={showVersionIndicator}
+                  versionChanges={dr.version_changes}
                   versionNumber={dr.dag_version_number}
                 />
               );

@@ -1814,8 +1814,7 @@ export type GridRunsResponse = {
     dag_version_number?: number | null;
     dag_version_id?: string | null;
     is_version_changed?: boolean;
-    has_mixed_versions?: boolean;
-    latest_version_number?: number | null;
+    version_changes?: Array<(number)>;
     readonly duration: number;
 };
 

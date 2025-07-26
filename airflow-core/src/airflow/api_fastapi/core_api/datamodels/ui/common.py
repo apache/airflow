@@ -82,8 +82,7 @@ class GridRunsResponse(BaseModel):
     dag_version_number: int | None = None
     dag_version_id: str | None = None
     is_version_changed: bool = False
-    has_mixed_versions: bool = False
-    latest_version_number: int | None = None
+    version_changes: list[int] = []
 
     @computed_field
     def duration(self) -> int:

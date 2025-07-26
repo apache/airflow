@@ -31,22 +31,20 @@ import type { GridTask } from "./utils";
 const BAR_HEIGHT = 100;
 
 type Props = {
-  readonly hasMixedVersions?: boolean | null;
-  readonly latestVersionNumber?: number | null;
   readonly max: number;
   readonly nodes: Array<GridTask>;
   readonly run: GridRunsResponse;
   readonly showVersionIndicator?: boolean;
+  readonly versionChanges?: Array<number>;
   readonly versionNumber?: number | null;
 };
 
 export const Bar = ({
-  hasMixedVersions = false,
-  latestVersionNumber,
   max,
   nodes,
   run,
   showVersionIndicator = false,
+  versionChanges,
   versionNumber,
 }: Props) => {
   const { dagId = "", runId } = useParams();
@@ -70,17 +68,8 @@ export const Bar = ({
           aria-label="Dag version change indicator"
           orientation="vertical"
           position="left"
+          versionChanges={versionChanges}
           versionNumber={versionNumber}
-        />
-      ) : undefined}
-
-      {/* Mixed version indicator - shows when tasks have different versions within a run */}
-      {hasMixedVersions ? (
-        <VersionIndicator
-          aria-label="Mixed version indicator"
-          orientation="vertical"
-          position="right"
-          versionNumber={latestVersionNumber}
         />
       ) : undefined}
 
