@@ -32,7 +32,7 @@ const debounceDelay = 200;
 type Props = {
   readonly buttonProps?: ButtonProps;
   readonly defaultValue: string;
-  readonly groupProps?: InputGroupProps;
+  readonly groupProps?: Omit<InputGroupProps, "children">;
   readonly hideAdvanced?: boolean;
   readonly hotkeyDisabled?: boolean;
   readonly onChange: (value: string) => void;

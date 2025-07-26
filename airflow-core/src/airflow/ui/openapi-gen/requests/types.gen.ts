@@ -2219,6 +2219,10 @@ export type GetDagRunsData = {
     startDateGte?: string | null;
     startDateLte?: string | null;
     state?: Array<(string)>;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    triggeringUserNamePattern?: string | null;
     updatedAtGte?: string | null;
     updatedAtLte?: string | null;
 };
