@@ -29,7 +29,7 @@ from collections import defaultdict
 from collections.abc import Collection, Iterable
 from datetime import timedelta
 from functools import cache
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeGuard, overload
 from urllib.parse import quote
 
 import attrs
@@ -122,17 +122,19 @@ if TYPE_CHECKING:
 
     from airflow.models.dag import DAG as SchedulerDAG, DagModel
     from airflow.models.dagrun import DagRun
-    from airflow.sdk import BaseOperator
+    from airflow.models.mappedoperator import MappedOperator
+    from airflow.sdk import BaseOperator as SdkBaseOperator
     from airflow.sdk.api.datamodels._generated import AssetProfile
     from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
     from airflow.sdk.definitions.dag import DAG
-    from airflow.sdk.definitions.mappedoperator import MappedOperator
+    from airflow.sdk.definitions.mappedoperator import MappedOperator as SdkMappedOperator
     from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
     from airflow.serialization.serialized_objects import SerializedBaseOperator
     from airflow.utils.context import Context
 
-    Operator: TypeAlias = BaseOperator | MappedOperator
+    SdkOperator: TypeAlias = SdkBaseOperator | SdkMappedOperator
+    SchedulerOperator: TypeAlias = MappedOperator | SerializedBaseOperator
 
 
 PAST_DEPENDS_MET = "past_depends_met"
@@ -306,7 +308,7 @@ def _get_email_subject_content(
     *,
     task_instance: TaskInstance | RuntimeTaskInstanceProtocol,
     exception: BaseException,
-    task: BaseOperator | None = None,
+    task: SdkBaseOperator | None = None,
 ) -> tuple[str, str, str]:
     """
     Get the email subject content for exceptions.
@@ -571,7 +573,7 @@ class TaskInstance(Base, LoggingMixin):
     )
     note = association_proxy("task_instance_note", "content", creator=_creator_note)
 
-    task: Operator | SerializedBaseOperator | None = None
+    task: SdkOperator | MappedOperator | SerializedBaseOperator | None = None
     test_mode: bool = False
     is_trigger_log_context: bool = False
     run_as_user: str | None = None
@@ -584,7 +586,7 @@ class TaskInstance(Base, LoggingMixin):
 
     def __init__(
         self,
-        task: Operator | SerializedBaseOperator,
+        task: SdkOperator | SchedulerOperator,
         dag_version_id: UUIDType | uuid.UUID,
         run_id: str | None = None,
         state: str | None = None,
@@ -627,7 +629,7 @@ class TaskInstance(Base, LoggingMixin):
 
     @staticmethod
     def insert_mapping(
-        run_id: str, task: Operator, map_index: int, dag_version_id: UUIDType
+        run_id: str, task: SdkOperator, map_index: int, dag_version_id: UUIDType
     ) -> dict[str, Any]:
         """
         Insert mapping.
@@ -837,7 +839,7 @@ class TaskInstance(Base, LoggingMixin):
 
     def refresh_from_task(
         self,
-        task: Operator | SerializedBaseOperator,
+        task: SdkOperator | SchedulerOperator,
         pool_override: str | None = None,
     ) -> None:
         """
@@ -1030,7 +1032,7 @@ class TaskInstance(Base, LoggingMixin):
     def get_failed_dep_statuses(self, dep_context: DepContext | None = None, session: Session = NEW_SESSION):
         """Get failed Dependencies."""
         if TYPE_CHECKING:
-            assert isinstance(self.task, BaseOperator)
+            assert isinstance(self.task, SdkBaseOperator)
 
         from airflow.serialization.serialized_objects import create_scheduler_operator
 
@@ -1537,7 +1539,7 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def defer_task(self, exception: TaskDeferred | None, session: Session = NEW_SESSION) -> None:
         """
-        Mark the task as deferred and sets up the trigger that is needed to resume it when TaskDeferred is raised.
+        Mark the task as deferred and sets up the trigger to resume it.
 
         :meta: private
         """
@@ -1643,16 +1645,6 @@ class TaskInstance(Base, LoggingMixin):
 
         self._run_raw_task(mark_success=mark_success)
 
-    def dry_run(self) -> None:
-        """Only Renders Templates for the TI."""
-        if TYPE_CHECKING:
-            assert isinstance(self.task, (BaseOperator, MappedOperator))
-        self.task = self.task.prepare_for_execution()
-        self.render_templates()
-        if TYPE_CHECKING:
-            assert isinstance(self.task, BaseOperator)
-        self.task.dry_run()
-
     @classmethod
     def fetch_handle_failure_context(
         cls,
@@ -1691,7 +1683,8 @@ class TaskInstance(Base, LoggingMixin):
         ti.clear_next_method_args()
 
         context = None
-        # In extreme cases (task instance heartbeat timeout in case of dag with parse error) we might _not_ have a Task.
+        # In extreme cases (task instance heartbeat timeout in case of dag with
+        # parse error) we might _not_ have a Task.
         if getattr(ti, "task", None):
             context = ti.get_template_context(session)
 
@@ -1710,7 +1703,7 @@ class TaskInstance(Base, LoggingMixin):
         # only mark task instance as FAILED if the next task instance
         # try_number exceeds the max_tries ... or if force_fail is truthy
 
-        task: BaseOperator | None = None
+        task: SdkBaseOperator | None = None
         try:
             if (orig_task := getattr(ti, "task", None)) and context:
                 # TODO (GH-52141): Move runtime unmap into task runner.
@@ -1837,7 +1830,7 @@ class TaskInstance(Base, LoggingMixin):
 
         if TYPE_CHECKING:
             assert session
-            assert isinstance(self.task, (BaseOperator, MappedOperator))
+            assert isinstance(self.task, SdkOperator)
             assert self.task.dag
 
         from airflow.models.mappedoperator import get_mapped_ti_count
@@ -1964,7 +1957,7 @@ class TaskInstance(Base, LoggingMixin):
 
     def render_templates(
         self, context: Context | None = None, jinja_env: jinja2.Environment | None = None
-    ) -> Operator:
+    ) -> SdkOperator:
         """
         Render templates in the operator fields.
 
@@ -1981,9 +1974,9 @@ class TaskInstance(Base, LoggingMixin):
         ti = context["ti"]
 
         if TYPE_CHECKING:
-            assert isinstance(original_task, (BaseOperator, MappedOperator))
-            assert isinstance(self.task, (BaseOperator, MappedOperator))
-            assert isinstance(ti.task, (BaseOperator, MappedOperator))
+            assert isinstance(original_task, SdkOperator)
+            assert isinstance(self.task, SdkOperator)
+            assert isinstance(ti.task, SdkOperator)
 
         # If self.task is mapped, this call replaces self.task to point to the
         # unmapped BaseOperator created by this function! This is because the
@@ -1996,7 +1989,7 @@ class TaskInstance(Base, LoggingMixin):
         return original_task
 
     def get_email_subject_content(
-        self, exception: BaseException, task: BaseOperator | None = None
+        self, exception: BaseException, task: SdkBaseOperator | None = None
     ) -> tuple[str, str, str]:
         """
         Get the email subject content for exceptions.
@@ -2006,7 +1999,7 @@ class TaskInstance(Base, LoggingMixin):
         """
         return _get_email_subject_content(task_instance=self, exception=exception, task=task)
 
-    def email_alert(self, exception, task: BaseOperator) -> None:
+    def email_alert(self, exception, task: SdkBaseOperator) -> None:
         """
         Send alert email with exception information.
 
@@ -2255,7 +2248,7 @@ class TaskInstance(Base, LoggingMixin):
 
     def get_relevant_upstream_map_indexes(
         self,
-        upstream: Operator,
+        upstream: SdkOperator,
         ti_count: int | None,
         *,
         session: Session,
@@ -2304,7 +2297,7 @@ class TaskInstance(Base, LoggingMixin):
         from airflow.models.mappedoperator import get_mapped_ti_count
 
         if TYPE_CHECKING:
-            assert isinstance(self.task, (BaseOperator, MappedOperator))
+            assert isinstance(self.task, SdkOperator)
 
         # This value should never be None since we already know the current task
         # is in a mapped task group, and should have been expanded, despite that,
@@ -2407,7 +2400,7 @@ class TaskInstance(Base, LoggingMixin):
         )
 
 
-def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> MappedTaskGroup | None:
+def _find_common_ancestor_mapped_group(node1: SdkOperator, node2: SdkOperator) -> MappedTaskGroup | None:
     """Given two operators, find their innermost common mapped task group."""
     if node1.dag is None or node2.dag is None or node1.dag_id != node2.dag_id:
         return None
@@ -2416,7 +2409,7 @@ def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> Mapp
     return next(common_groups, None)
 
 
-def _is_further_mapped_inside(operator: Operator, container: TaskGroup) -> bool:
+def _is_further_mapped_inside(operator: SdkOperator, container: TaskGroup) -> bool:
     """Whether given operator is *further* mapped inside a task group."""
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.definitions.taskgroup import MappedTaskGroup
@@ -2429,6 +2422,20 @@ def _is_further_mapped_inside(operator: Operator, container: TaskGroup) -> bool:
             return True
         task_group = task_group.parent_group
     return False
+
+
+@overload
+def is_mapped(task: SdkOperator) -> TypeGuard[SdkMappedOperator]: ...
+
+
+@overload
+def is_mapped(task: SchedulerOperator) -> TypeGuard[MappedOperator]: ...
+
+
+# TODO (GH-52141): Remove this and replace calls with is_mapped from either sdk
+# or core. No code should need to accept both cases.
+def is_mapped(task: SdkOperator | SchedulerOperator) -> TypeGuard[SdkMappedOperator | MappedOperator]:
+    return task.is_mapped
 
 
 class TaskInstanceNote(Base):
