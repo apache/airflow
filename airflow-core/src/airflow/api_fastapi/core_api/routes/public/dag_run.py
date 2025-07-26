@@ -281,6 +281,7 @@ def clear_dag_run(
             run_id=dag_run_id,
             task_ids=None,
             only_failed=body.only_failed,
+            run_on_latest_version=body.run_on_latest_version,
             dry_run=True,
             session=session,
         )
@@ -293,6 +294,7 @@ def clear_dag_run(
         run_id=dag_run_id,
         task_ids=None,
         only_failed=body.only_failed,
+        run_on_latest_version=body.run_on_latest_version,
         session=session,
     )
     dag_run_cleared = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))
@@ -542,7 +544,7 @@ def get_list_dag_runs_batch(
         ],
         DagRun,
         {"dag_run_id": "run_id"},
-    ).set_value(body.order_by)
+    ).set_value([body.order_by] if body.order_by else None)
 
     base_query = select(DagRun).options(joinedload(DagRun.dag_model))
     dag_runs_select, total_entries = paginated_select(

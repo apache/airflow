@@ -21,7 +21,11 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow.decorators import task
+try:
+    from airflow.sdk import task
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.models import DAG
 from airflow.providers.sftp.sensors.sftp import SFTPSensor
 from airflow.providers.ssh.operators.ssh import SSHOperator

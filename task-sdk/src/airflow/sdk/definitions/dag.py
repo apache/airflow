@@ -217,7 +217,7 @@ else:
 
 def _default_start_date(instance: DAG):
     # Find start date inside default_args for compat with Airflow 2.
-    from airflow.utils import timezone
+    from airflow.sdk import timezone
 
     if date := instance.default_args.get("start_date"):
         if not isinstance(date, datetime):
@@ -456,7 +456,7 @@ class DAG:
     )
 
     def __attrs_post_init__(self):
-        from airflow.utils import timezone
+        from airflow.sdk import timezone
 
         # Apply the timezone we settled on to end_date if it wasn't supplied
         if isinstance(_end_date := self.default_args.get("end_date"), str):
@@ -528,7 +528,7 @@ class DAG:
     def _extract_tz(instance):
         import pendulum
 
-        from airflow.utils import timezone
+        from airflow.sdk import timezone
 
         start_date = instance.start_date or instance.default_args.get("start_date")
 
@@ -903,7 +903,7 @@ class DAG:
 
     @property
     def task(self) -> TaskDecoratorCollection:
-        from airflow.decorators import task
+        from airflow.sdk.definitions.decorators import task
 
         return cast("TaskDecoratorCollection", functools.partial(task, dag=self))
 
@@ -1047,9 +1047,9 @@ class DAG:
         from airflow.configuration import secrets_backend_list
         from airflow.models.dag import DAG as SchedulerDAG, _get_or_create_dagrun
         from airflow.models.dagrun import DagRun
+        from airflow.sdk import timezone
         from airflow.secrets.local_filesystem import LocalFilesystemBackend
         from airflow.serialization.serialized_objects import SerializedDAG
-        from airflow.utils import timezone
         from airflow.utils.state import DagRunState, State, TaskInstanceState
         from airflow.utils.types import DagRunTriggeredByType, DagRunType
 

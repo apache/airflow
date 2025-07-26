@@ -283,7 +283,7 @@ class TestMongoHook:
         self.hook.connection.login = None
         self.hook.connection.password = None
         self.hook.connection.port = None
-        assert self.hook._create_uri() == "mongodb://mongo/None"
+        assert self.hook._create_uri() == "mongodb://mongo"
 
     def test_create_uri_srv_true(self):
         self.hook.extras["srv"] = True

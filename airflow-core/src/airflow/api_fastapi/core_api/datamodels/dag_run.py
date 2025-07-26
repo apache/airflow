@@ -23,11 +23,11 @@ from typing import TYPE_CHECKING
 
 from pydantic import AliasPath, AwareDatetime, Field, NonNegativeInt, model_validator
 
+from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.models import DagRun
 from airflow.timetables.base import DataInterval
-from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -55,6 +55,10 @@ class DAGRunClearBody(StrictBaseModel):
 
     dry_run: bool = True
     only_failed: bool = False
+    run_on_latest_version: bool = Field(
+        default=False,
+        description="(Experimental) Run on the latest bundle version of the DAG after clearing the DAG Run.",
+    )
 
 
 class DAGRunResponse(BaseModel):
