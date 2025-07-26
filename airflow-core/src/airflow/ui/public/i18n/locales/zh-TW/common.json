@@ -109,6 +109,7 @@
   "note": {
     "add": "新增筆記",
     "dagRun": "Dag 執行筆記",
+    "edit": "編輯筆記",
     "label": "筆記",
     "placeholder": "新增筆記...",
     "taskInstance": "任務實例筆記"
