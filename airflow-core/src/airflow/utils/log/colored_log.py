@@ -20,7 +20,6 @@
 from __future__ import annotations
 
 import re
-import sys
 from typing import TYPE_CHECKING, Any
 
 from colorlog import ColoredFormatter
@@ -52,7 +51,7 @@ class CustomTTYColoredFormatter(ColoredFormatter, TimezoneAware):
     """
 
     def __init__(self, *args, **kwargs):
-        kwargs["stream"] = sys.stdout or kwargs.get("stream")
+        # kwargs["stream"] = sys.stdout or kwargs.get("stream")
         kwargs["log_colors"] = DEFAULT_COLORS
         super().__init__(*args, **kwargs)
 

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import ssl
 import sys
 import uuid
@@ -759,8 +760,6 @@ class Client(httpx.Client):
         auth = BearerAuth(token)
 
         if dry_run:
-            # If dry run is requested, install a no op handler so that simple tasks can "heartbeat" using a
-            # real client, but just don't make any HTTP requests
             kwargs.setdefault("transport", httpx.MockTransport(noop_handler))
             kwargs.setdefault("base_url", "dry-run://server")
         else:
@@ -768,7 +767,31 @@ class Client(httpx.Client):
             ctx = ssl.create_default_context(cafile=certifi.where())
             if API_SSL_CERT_PATH:
                 ctx.load_verify_locations(API_SSL_CERT_PATH)
+
+            ssl_verify = os.getenv("AIRFLOW_EXECUTION_API_SSL_VERIFY")
+            if ssl_verify is not None:
+                value = ssl_verify.strip().lower()
+                if value in ("false", "no", "0"):
+                    kwargs["verify"] = False
+                elif os.path.isabs(ssl_verify) and os.path.isfile(ssl_verify):
+                    kwargs["verify"] = ssl_verify
+                else:
+                    # If invalid value, fallback to the SSL context with configured certs
+                    kwargs["verify"] = ctx
+            else:
+                # Default verification context
+                kwargs["verify"] = ctx
+
+
             kwargs["verify"] = ctx
+            ssl_verify = os.getenv("AIRFLOW_EXECUTION_API_SSL_VERIFY")
+            if ssl_verify is not None:
+                value = ssl_verify.strip().lower()
+                if value in ("false", "no", "0"):
+                    kwargs["verify"] = False
+                elif os.path.isabs(ssl_verify) and os.path.isfile(ssl_verify):
+                    kwargs["verify"] = ssl_verify
+
         pyver = f"{'.'.join(map(str, sys.version_info[:3]))}"
         super().__init__(
             auth=auth,
@@ -786,6 +809,7 @@ class Client(httpx.Client):
         if new_token := response.headers.get("Refreshed-API-Token"):
             log.debug("Execution API issued us a refreshed Task token")
             self.auth = BearerAuth(new_token)
+
 
     @retry(
         reraise=True,
