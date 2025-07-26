@@ -394,14 +394,14 @@ repos:
         language: python
         additional_dependencies: ['rich>=12.4.4', 'tomli>=2.0.1']
         pass_filenames: false
-        include: ^shared/.*$
+        files: ^shared/.*$
       - id: check-shared-distributions-usage
         name: Check shared distributions usage
         entry: ./scripts/ci/pre_commit/check_shared_distributions_usage.py
         language: python
         additional_dependencies: ['rich>=12.4.4', 'tomli>=2.0.1']
         pass_filenames: false
-        include: ^shared/.*$|^.*/pyproject.toml$|^.*/_shared/.*$
+        files: ^shared/.*$|^.*/pyproject.toml$|^.*/_shared/.*$
       - id: validate-operators-init
         name: No templated field logic checks in operator __init__
         description: Prevent templated field logic checks in operators' __init__
