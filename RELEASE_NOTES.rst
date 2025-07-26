@@ -939,7 +939,6 @@ Airflow 3.0 completes the migration of several core operators, sensors, and hook
 - ``PythonOperator``
 - ``BashOperator``
 - ``EmailOperator``
-- ``SimpleHttpOperator``
 - ``ShortCircuitOperator``
 
 These operators were previously bundled inside ``airflow-core`` but are now treated as provider-managed components to
@@ -958,6 +957,8 @@ replaced with:
 .. code-block:: python
 
     from airflow.providers.standard.operators.python import PythonOperator
+
+The SimpleHttpOperator has been migrated to apache-airflow-providers-http and renamed to HttpOperator
 
 UI & Usability Improvements
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -2051,7 +2052,7 @@ supported Database Backend.
 As of Airflow 2.9.0 support of MsSQL has been removed for Airflow Database Backend.
 
 A migration script which can help migrating the database *before* upgrading to Airflow 2.9.0 is available in
-`airflow-mssql-migration repo on Github <https://github.com/apache/airflow-mssql-migration>`_.
+`airflow-mssql-migration repo on GitHub <https://github.com/apache/airflow-mssql-migration>`_.
 Note that the migration script is provided without support and warranty.
 
 This does not affect the existing provider packages (operators and hooks), DAGs can still access and process data from MsSQL.

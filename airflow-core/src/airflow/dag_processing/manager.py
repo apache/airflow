@@ -48,6 +48,7 @@ from tabulate import tabulate
 from uuid6 import uuid7
 
 import airflow.models
+from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.manager import DagBundlesManager
@@ -66,7 +67,6 @@ from airflow.sdk import SecretCache
 from airflow.sdk.log import init_log_file, logging_processors
 from airflow.stats import Stats
 from airflow.traces.tracer import DebugTrace
-from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
@@ -139,6 +139,16 @@ def _resolve_path(instance: Any, attribute: attrs.Attribute, val: str | os.PathL
     if val is not None:
         val = Path(val).resolve()
     return val
+
+
+def utc_epoch() -> datetime:
+    # pendulum utcnow() is not used as that sets a TimezoneInfo object
+    # instead of a Timezone. This is not picklable and also creates issues
+    # when using replace()
+    result = datetime(1970, 1, 1)
+    result = result.replace(tzinfo=timezone.utc)
+
+    return result
 
 
 @attrs.define(kw_only=True)
@@ -512,7 +522,7 @@ class DagFileProcessorManager(LoggingMixin):
             with create_session() as session:
                 bundle_model: DagBundleModel = session.get(DagBundleModel, bundle.name)
                 elapsed_time_since_refresh = (
-                    now - (bundle_model.last_refreshed or timezone.utc_epoch())
+                    now - (bundle_model.last_refreshed or utc_epoch())
                 ).total_seconds()
                 if bundle.supports_versioning:
                     # we will also check the version of the bundle to see if another DAG processor has seen

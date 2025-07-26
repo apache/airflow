@@ -379,6 +379,7 @@ executor: "CeleryExecutor"
 # If this is true and using CeleryExecutor/KubernetesExecutor/CeleryKubernetesExecutor, the workers
 # will be able to launch pods.
 allowPodLaunching: true
+allowJobLaunching: false
 
 # Environment variables for all airflow containers
 env: []
@@ -2692,7 +2693,7 @@ redis:
   topologySpreadConstraints: []
   priorityClassName: ~
 
-  # Set to 0 for backwards-compatiblity
+  # Set to 0 for backwards-compatibility
   uid: 0
   # If not set, `redis.uid` will be used
   securityContext: {}

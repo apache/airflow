@@ -43,6 +43,10 @@ DOCKER_TESTS_ROOT_PATH = AIRFLOW_ROOT_PATH / "docker-tests"
 DOCKER_TESTS_TESTS_MODULE_PATH = DOCKER_TESTS_ROOT_PATH / "tests" / "docker_tests"
 DOCKER_TESTS_REQUIREMENTS = DOCKER_TESTS_ROOT_PATH / "requirements.txt"
 
+TASK_SDK_TESTS_ROOT_PATH = AIRFLOW_ROOT_PATH / "task-sdk-tests"
+TASK_SDK_TESTS_TESTS_MODULE_PATH = TASK_SDK_TESTS_ROOT_PATH / "tests" / "task_sdk_tests"
+TASK_SDK_TESTS_REQUIREMENTS = TASK_SDK_TESTS_ROOT_PATH / "requirements.txt"
+
 IGNORE_DB_INIT_FOR_TEST_GROUPS = [
     GroupOfTests.HELM,
     GroupOfTests.PYTHON_API_CLIENT,
@@ -96,13 +100,21 @@ def run_docker_compose_tests(
     extra_pytest_args: tuple,
     skip_docker_compose_deletion: bool,
     include_success_outputs: bool,
+    test_type: str = "docker-compose",
 ) -> tuple[int, str]:
     command_result = run_command(["docker", "inspect", image_name], check=False, stdout=DEVNULL)
     if command_result.returncode != 0:
         get_console().print(f"[error]Error when inspecting PROD image: {command_result.returncode}[/]")
-        return command_result.returncode, f"Testing docker-compose python with {image_name}"
+        return command_result.returncode, f"Testing {test_type} python with {image_name}"
     pytest_args = ("--color=yes",)
-    test_path = Path("tests") / "docker_tests" / "test_docker_compose_quick_start.py"
+
+    if test_type == "task-sdk-integration":
+        test_path = Path("tests") / "task_sdk_tests" / "test_task_sdk_health.py"
+        cwd = TASK_SDK_TESTS_ROOT_PATH.as_posix()
+    else:
+        test_path = Path("tests") / "docker_tests" / "test_docker_compose_quick_start.py"
+        cwd = DOCKER_TESTS_ROOT_PATH.as_posix()
+
     env = os.environ.copy()
     env["DOCKER_IMAGE"] = image_name
     if skip_docker_compose_deletion:
@@ -114,9 +126,9 @@ def run_docker_compose_tests(
         ["uv", "run", "pytest", str(test_path), "-s", *pytest_args, *extra_pytest_args],
         env=env,
         check=False,
-        cwd=DOCKER_TESTS_ROOT_PATH.as_posix(),
+        cwd=cwd,
     )
-    return command_result.returncode, f"Testing docker-compose python with {image_name}"
+    return command_result.returncode, f"Testing {test_type} python with {image_name}"
 
 
 def file_name_from_test_type(test_type: str):
