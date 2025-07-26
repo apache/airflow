@@ -40,7 +40,7 @@
       "standardFields": "Champs Standards"
     },
     "nothingFound": {
-        "title": "Aucune connexion trouvée!"
+      "title": "Aucune connexion trouvée!"
     },
     "searchPlaceholder": "Rechercher les connexions",
     "test": "Test la connexion",

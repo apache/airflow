@@ -26,6 +26,7 @@ from collections.abc import Callable
 from datetime import datetime
 from operator import attrgetter
 from typing import TYPE_CHECKING, Any, Literal, cast
+from urllib.parse import urlparse
 
 import pendulum
 from opensearchpy import OpenSearch
@@ -57,6 +58,7 @@ else:
 
 USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
+TASK_LOG_FIELDS = ["timestamp", "event", "level", "chan", "logger"]
 
 
 def getattr_nested(obj, item, default):
@@ -174,6 +176,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
         self.write_stdout = write_stdout
         self.json_format = json_format
         self.json_fields = [label.strip() for label in json_fields.split(",")]
+        self.host = self.format_url(host)
         self.host_field = host_field
         self.offset_field = offset_field
         self.index_patterns = index_patterns
@@ -184,7 +187,6 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
             http_auth=(username, password),
             **os_kwargs,
         )
-        # client = OpenSearch(hosts=[{"host": host, "port": port}], http_auth=(username, password), use_ssl=True, verify_certs=True, ca_cert="/opt/airflow/root-ca.pem", ssl_assert_hostname = False, ssl_show_warn = False)
         self.formatter: logging.Formatter
         self.handler: logging.FileHandler | logging.StreamHandler
         self._doc_type_map: dict[Any, Any] = {}
@@ -209,9 +211,11 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                 extras={
                     "dag_id": str(ti.dag_id),
                     "task_id": str(ti.task_id),
-                    date_key: self._clean_date(ti.logical_date)
-                    if AIRFLOW_V_3_0_PLUS
-                    else self._clean_date(ti.execution_date),
+                    date_key: (
+                        self._clean_date(ti.logical_date)
+                        if AIRFLOW_V_3_0_PLUS
+                        else self._clean_date(ti.execution_date)
+                    ),
                     "try_number": str(ti.try_number),
                     "log_id": self._render_log_id(ti, ti.try_number),
                 },
@@ -423,8 +427,13 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                     StructuredLogMessage(event="::endgroup::"),
                 ]
 
+                # Flatten all hits, filter to only desired fields, and construct StructuredLogMessage objects
                 message = header + [
-                    StructuredLogMessage(event=concat_logs(hits)) for hits in logs_by_host.values()
+                    StructuredLogMessage(
+                        **{k: v for k, v in hit.to_dict().items() if k.lower() in TASK_LOG_FIELDS}
+                    )
+                    for hits in logs_by_host.values()
+                    for hit in hits
                 ]
             else:
                 message = [(host, concat_logs(hits)) for host, hits in logs_by_host.items()]  # type: ignore[misc]
@@ -581,7 +590,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
     def _group_logs_by_host(self, response: OpensearchResponse) -> dict[str, list[Hit]]:
         grouped_logs = defaultdict(list)
         for hit in response:
-            key = getattr_nested(hit, self.host_field, None) or "default_host"
+            key = getattr_nested(hit, self.host_field, None) or self.host
             grouped_logs[key].append(hit)
         return grouped_logs
 
@@ -597,3 +606,43 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
 
         # Just a safe-guard to preserve backwards-compatibility
         return hit.message
+
+    @property
+    def supports_external_link(self) -> bool:
+        """
+        Whether we can support external links.
+
+        TODO: It should support frontend just like ElasticSearchTaskhandler.
+        """
+        return False
+
+    def get_external_log_url(self, task_instance, try_number) -> str:
+        """
+        Create an address for an external log collecting service.
+
+        TODO: It should support frontend just like ElasticSearchTaskhandler.
+        """
+        return ""
+
+    @property
+    def log_name(self) -> str:
+        """The log name."""
+        return self.LOG_NAME
+
+    @staticmethod
+    def format_url(host: str) -> str:
+        """
+        Format the given host string to ensure it starts with 'http' and check if it represents a valid URL.
+
+        :params host: The host string to format and check.
+        """
+        parsed_url = urlparse(host)
+
+        if parsed_url.scheme not in ("http", "https"):
+            host = "http://" + host
+            parsed_url = urlparse(host)
+
+        if not parsed_url.netloc:
+            raise ValueError(f"'{host}' is not a valid URL.")
+
+        return host
