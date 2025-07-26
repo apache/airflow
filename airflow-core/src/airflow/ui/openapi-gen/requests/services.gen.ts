@@ -1052,7 +1052,7 @@ export class DagRunService {
     
     /**
      * Experimental: Wait for a dag run to complete, and return task results if requested.
-     * 🚧 This is an experimental endpoint and may change or be removed without notice.
+     * 🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the DAG run state.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
@@ -1114,7 +1114,7 @@ export class DagRunService {
 export class ExperimentalService {
     /**
      * Experimental: Wait for a dag run to complete, and return task results if requested.
-     * 🚧 This is an experimental endpoint and may change or be removed without notice.
+     * 🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the DAG run state.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
