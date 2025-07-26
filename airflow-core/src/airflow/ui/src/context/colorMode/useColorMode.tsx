@@ -18,15 +18,20 @@
  */
 import { useTheme } from "next-themes";
 
+export const COLOR_MODES = {
+  DARK: "dark",
+  LIGHT: "light",
+  SYSTEM: "system",
+} as const;
+
+export type ColorMode = (typeof COLOR_MODES)[keyof typeof COLOR_MODES];
+
 export const useColorMode = () => {
-  const { resolvedTheme, setTheme } = useTheme();
-  const toggleColorMode = () => {
-    setTheme(resolvedTheme === "light" ? "dark" : "light");
-  };
+  const { resolvedTheme, setTheme, theme } = useTheme();
 
   return {
-    colorMode: resolvedTheme as "dark" | "light" | undefined,
+    colorMode: (resolvedTheme ?? "light") as "dark" | "light",
     setColorMode: setTheme,
-    toggleColorMode,
+    theme: theme as ColorMode,
   };
 };

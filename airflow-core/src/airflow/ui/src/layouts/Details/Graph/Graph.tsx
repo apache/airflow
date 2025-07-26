@@ -58,7 +58,7 @@ const nodeColor = (
 };
 
 export const Graph = () => {
-  const { colorMode = "light" } = useColorMode();
+  const { colorMode } = useColorMode();
   const { dagId = "", runId = "", taskId } = useParams();
 
   const selectedVersion = useSelectedVersion();

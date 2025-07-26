@@ -31,7 +31,7 @@ import { useDependencyGraph } from "src/queries/useDependencyGraph";
 
 export const AssetGraph = ({ asset }: { readonly asset?: AssetResponse }) => {
   const { assetId } = useParams();
-  const { colorMode = "light" } = useColorMode();
+  const { colorMode } = useColorMode();
 
   const { data = { edges: [], nodes: [] } } = useDependencyGraph(`asset:${assetId}`);
 
