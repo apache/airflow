@@ -131,6 +131,7 @@ PRE_COMMIT_LIST = [
     "mypy-devel-common",
     "mypy-providers",
     "mypy-task-sdk",
+    "oxipng",
     "pretty-format-json",
     "prevent-deprecated-sqlalchemy-usage",
     "provider-version-compat",

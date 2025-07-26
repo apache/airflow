@@ -357,6 +357,8 @@ require Breeze Docker image to be built locally.
 | mypy-task-sdk                                             | * Run mypy for task-sdk                                | *       |
 |                                                           | * Run mypy for task-sdk (manual)                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| oxipng                                                    | oxipng                                                 |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | pretty-format-json                                        | Format JSON files                                      |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | prevent-deprecated-sqlalchemy-usage                       | Prevent deprecated sqlalchemy usage                    |         |

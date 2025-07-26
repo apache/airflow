@@ -309,6 +309,12 @@ repos:
         name: Check if RST files use double backticks for code
       - id: python-no-log-warn
         name: Check if there are no deprecate log warn
+  - repo: https://github.com/oxipng/oxipng
+    rev: v9.1.5
+    hooks:
+      - id: oxipng
+        name: oxipng
+        args: ['--fix', '-o', '4', '--strip', 'safe', '--alpha']
   - repo: https://github.com/adrienverge/yamllint
     rev: v1.37.1
     hooks:
