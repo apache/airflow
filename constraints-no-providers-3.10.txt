@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-26T02:24:38.588501
+# This constraints file was automatically generated on 2025-07-26T13:50:15.711448
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -65,6 +65,7 @@ mdurl==0.1.2
 methodtools==0.4.7
 more-itertools==10.7.0
 msgspec==0.19.0
+natsort==8.4.0
 opentelemetry-api==1.27.0
 opentelemetry-exporter-otlp-proto-common==1.27.0
 opentelemetry-exporter-otlp-proto-grpc==1.27.0
@@ -119,7 +120,7 @@ uc-micro-py==1.0.3
 universal_pathlib==0.2.6
 urllib3==2.5.0
 uuid6==2025.0.1
-uv==0.8.0
+uv==0.8.3
 uvicorn==0.35.0
 uvloop==0.21.0
 watchfiles==1.1.0

@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-26T02:24:31.813581
+# This constraints file was automatically generated on 2025-07-26T13:50:08.779340
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -379,7 +379,6 @@ microsoft-kiota-serialization-json==1.9.5
 microsoft-kiota-serialization-text==1.9.5
 mistune==3.1.3
 mmh3==5.1.0
-mongomock==4.3.0
 more-itertools==10.7.0
 moto==5.1.8
 mpmath==1.3.0
@@ -400,6 +399,7 @@ mypy==1.17.0
 mypy_extensions==1.1.0
 mysql-connector-python==9.4.0
 mysqlclient==2.2.7
+natsort==8.4.0
 nbclient==0.10.2
 nbconvert==7.16.6
 nbformat==5.10.4
@@ -497,7 +497,7 @@ pyexasol==0.27.0
 pygraphviz==1.14
 pyiceberg==0.9.1
 pykerberos==1.2.4
-pymongo==4.10.1
+pymongo==4.13.2
 pymssql==2.3.7
 pyodbc==5.2.0
 pyodps==0.12.4
@@ -573,7 +573,6 @@ scrapbook==0.5.0
 segment-analytics-python==2.3.4
 semver==3.0.4
 sendgrid==6.12.4
-sentinels==1.0.0
 sentry-sdk==2.33.2
 setproctitle==1.3.6
 shapely==2.1.1
@@ -628,6 +627,7 @@ tenacity==8.5.0
 teradatasql==20.0.0.33
 teradatasqlalchemy==20.0.0.6
 termcolor==3.1.0
+testcontainers==4.12.0
 text-unidecode==1.3
 threadpoolctl==3.6.0
 thrift-sasl==0.4.3
@@ -678,7 +678,7 @@ uritemplate==4.2.0
 urllib3==2.5.0
 userpath==1.9.2
 uuid6==2025.0.1
-uv==0.8.0
+uv==0.8.3
 uvicorn==0.35.0
 uvloop==0.21.0
 validators==0.35.0
