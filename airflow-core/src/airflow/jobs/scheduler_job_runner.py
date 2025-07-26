@@ -1974,6 +1974,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     self._maybe_requeue_stuck_ti(
                         ti=ti,
                         session=session,
+                        executor=executor,
                     )
                     session.commit()
             except NotImplementedError:
@@ -1989,7 +1990,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
         )
 
-    def _maybe_requeue_stuck_ti(self, *, ti, session):
+    def _maybe_requeue_stuck_ti(self, *, ti, session, executor):
         """
         Requeue task if it has not been attempted too many times.
 
@@ -2014,14 +2015,42 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 "Task requeue attempts exceeded max; marking failed. task_instance=%s",
                 ti,
             )
+            msg = f"Task was requeued more than {self._num_stuck_queued_retries} times and will be failed."
             session.add(
                 Log(
                     event="stuck in queued tries exceeded",
                     task_instance=ti.key,
-                    extra=f"Task was requeued more than {self._num_stuck_queued_retries} times and will be failed.",
+                    extra=msg,
                 )
             )
-            ti.set_state(TaskInstanceState.FAILED, session=session)
+
+            try:
+                dag = self.scheduler_dag_bag.get_dag(dag_run=ti.dag_run, session=session)
+                task = dag.get_task(ti.task_id)
+            except Exception:
+                self.log.warning(
+                    "The DAG or task could not be found. If a failure callback exists, it will not be run.",
+                    exc_info=True,
+                )
+            else:
+                if task.on_failure_callback:
+                    request = TaskCallbackRequest(
+                        filepath=ti.dag_model.relative_fileloc,
+                        bundle_name=ti.dag_version.bundle_name,
+                        bundle_version=ti.dag_version.bundle_version,
+                        ti=ti,
+                        msg=msg,
+                        context_from_server=TIRunContext(
+                            dag_run=ti.dag_run,
+                            max_tries=ti.max_tries,
+                            variables=[],
+                            connections=[],
+                            xcom_keys_to_clear=[],
+                        ),
+                    )
+                    executor.send_callback(request)
+            finally:
+                ti.set_state(TaskInstanceState.FAILED, session=session)
 
     def _reschedule_stuck_task(self, ti: TaskInstance, session: Session):
         session.execute(
