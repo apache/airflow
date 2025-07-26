@@ -1832,6 +1832,23 @@
                             "description": "Weather to use PGBouncer to connect to the database or not when it is enabled. This configuration will be ignored if PGBouncer is not enabled.",
                             "type": "boolean",
                             "default": true
+                        },
+                        "prometheus": {
+                            "description": "Prometheus configuration",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "enabled": {
+                                    "description": "Use prometheus for Keda autoscaling",
+                                    "type": "boolean",
+                                    "default": false
+                                },
+                                "serverAddress": {
+                                    "description": "Address of Prometheus server",
+                                    "type": "string",
+                                    "default": ""
+                                }
+                            }
                         }
                     }
                 },
@@ -3781,6 +3798,23 @@
                             "description": "Whether to use PGBouncer to connect to the database or not when it is enabled. This configuration will be ignored if PGBouncer is not enabled.",
                             "type": "boolean",
                             "default": false
+                        },
+                        "prometheus": {
+                            "description": "Prometheus configuration",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "enabled": {
+                                    "description": "Use prometheus for Keda autoscaling",
+                                    "type": "boolean",
+                                    "default": false
+                                },
+                                "serverAddress": {
+                                    "description": "Address of Prometheus server",
+                                    "type": "string",
+                                    "default": ""
+                                }
+                            }
                         }
                     }
                 }
