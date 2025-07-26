@@ -674,7 +674,11 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
 #   deeply nested execution stack.
 # - By defining `SUPERVISOR_COMMS` as a global, it ensures that this communication mechanism is readily
 #   accessible wherever needed during task execution without modifying every layer of the call stack.
-SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
+# Set to none so that other modules will be able to import it, as python does not let us import unassigned
+# variables, and so we make it None.
+# The type ignore is there to prevent mypy from shouting, this can only run in 2 cases, either dag parsing on
+# task running, if the task is running it will DEFINITELY be set as it is set first thing in the main.
+SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor] = None  # type: ignore[assignment]
 
 
 # State machine!
