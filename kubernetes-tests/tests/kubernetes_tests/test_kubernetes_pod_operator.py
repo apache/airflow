@@ -550,10 +550,11 @@ class TestKubernetesPodOperatorSystem:
                 task_id=str(uuid4()),
                 in_cluster=False,
                 do_xcom_push=False,
+                log_prefix=False,
             )
             context = create_context(k)
             k.execute(context=context)
-            mock_logger.info.assert_any_call("[%s] %s", "base", StringContainingId("retrieved from mount"))
+            mock_logger.info.assert_any_call("%s", StringContainingId("retrieved from mount"))
             actual_pod = self.api_client.sanitize_for_serialization(k.pod)
             self.expected_pod["spec"]["containers"][0]["args"] = args
             self.expected_pod["spec"]["containers"][0]["volumeMounts"] = [
@@ -1427,6 +1428,56 @@ class TestKubernetesPodOperatorSystem:
             < calls_args.find(marker_from_init_container_to_log_2)
             < calls_args.find(marker_from_main_container)
         )
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "log_prefix_enabled, log_formatter, expected_log_message_check",
+        [
+            pytest.param(
+                True,
+                None,
+                lambda marker, record_message: f"[base] {marker}" in record_message,
+                id="log_prefix_enabled",
+            ),
+            pytest.param(
+                False,
+                None,
+                lambda marker, record_message: marker in record_message and "[base]" not in record_message,
+                id="log_prefix_disabled",
+            ),
+            pytest.param(
+                False,  # Ignored when log_formatter is provided
+                lambda container_name, message: f"CUSTOM[{container_name}]: {message}",
+                lambda marker, record_message: f"CUSTOM[base]: {marker}" in record_message,
+                id="custom_log_formatter",
+            ),
+        ],
+    )
+    def test_log_output_configurations(
+        self, mock_get_connection, caplog, log_prefix_enabled, log_formatter, expected_log_message_check
+    ):
+        """
+        Tests various log output configurations (log_prefix, log_formatter)
+        for KubernetesPodOperator.
+        """
+        marker = f"test_log_{uuid4()}"
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="busybox",
+            cmds=["sh", "-cx"],
+            arguments=[f"echo {marker}"],
+            labels={"test_label": "test"},
+            task_id=str(uuid4()),
+            in_cluster=False,
+            do_xcom_push=False,
+            get_logs=True,
+            log_prefix=log_prefix_enabled,
+            log_formatter=log_formatter,
+        )
+        context = create_context(k)
+        with caplog.at_level(logging.INFO, logger="airflow.task.operators"):
+            k.execute(context)
+        assert any(expected_log_message_check(marker, record.message) for record in caplog.records)
 
 
 # TODO: Task SDK: https://github.com/apache/airflow/issues/45438
