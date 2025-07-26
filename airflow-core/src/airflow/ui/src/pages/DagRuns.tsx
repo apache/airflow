@@ -276,9 +276,13 @@ export const DagRuns = () => {
             placeHolder={translate("dags:filters.runIdPatternFilter")}
           />
         </Box>
-        <Box>
+        <Box flex="0 0 auto" minW="max-content">
           <SearchBar
             defaultValue={filteredTriggeringUserNamePattern ?? ""}
+            groupProps={{
+              minWidth: `${translate("dags:filters.triggeringUserNameFilter").length * 0.6 + 6}ch`,
+              width: "auto",
+            }}
             hideAdvanced
             hotkeyDisabled={true}
             onChange={handleTriggeringUserNamePatternChange}

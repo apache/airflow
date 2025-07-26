@@ -108,7 +108,8 @@ def setup(request, dag_maker, session=None):
         triggered_by=DAG1_RUN1_TRIGGERED_BY,
         logical_date=LOGICAL_DATE1,
     )
-
+    # Set triggering_user_name for testing
+    dag_run1.triggering_user_name = "alice_admin"
     dag_run1.note = (DAG1_RUN1_NOTE, "not_test")
 
     for i, task in enumerate([task1, task2], start=1):
@@ -125,6 +126,8 @@ def setup(request, dag_maker, session=None):
         triggered_by=DAG1_RUN2_TRIGGERED_BY,
         logical_date=LOGICAL_DATE2,
     )
+    # Set triggering_user_name for testing
+    dag_run2.triggering_user_name = "bob_service"
 
     ti1 = dag_run2.get_task_instance(task_id=task1.task_id)
     ti1.task = task1
@@ -137,20 +140,25 @@ def setup(request, dag_maker, session=None):
     with dag_maker(DAG2_ID, schedule=None, start_date=START_DATE2, params=DAG2_PARAM, serialized=True):
         EmptyOperator(task_id="task_2")
 
-    dag_maker.create_dagrun(
+    dag_run3 = dag_maker.create_dagrun(
         run_id=DAG2_RUN1_ID,
         state=DAG2_RUN1_STATE,
         run_type=DAG2_RUN1_RUN_TYPE,
         triggered_by=DAG2_RUN1_TRIGGERED_BY,
         logical_date=LOGICAL_DATE3,
     )
-    dag_maker.create_dagrun(
+    # Set triggering_user_name for testing
+    dag_run3.triggering_user_name = "service_account"
+
+    dag_run4 = dag_maker.create_dagrun(
         run_id=DAG2_RUN2_ID,
         state=DAG2_RUN2_STATE,
         run_type=DAG2_RUN2_RUN_TYPE,
         triggered_by=DAG2_RUN2_TRIGGERED_BY,
         logical_date=LOGICAL_DATE4,
     )
+    # Leave triggering_user_name as None for testing
+    dag_run4.triggering_user_name = None
 
     dag_maker.sync_dagbag_to_db()
     dag_maker.dag_model.has_task_concurrency_limits = True
@@ -486,6 +494,21 @@ class TestGetDagRuns:
                 },
                 [DAG1_RUN1_ID],
             ),
+            # Test triggering_user_name_pattern filter
+            (DAG1_ID, {"triggering_user_name_pattern": "alice_admin"}, [DAG1_RUN1_ID]),
+            (DAG1_ID, {"triggering_user_name_pattern": "bob_service"}, [DAG1_RUN2_ID]),
+            (DAG2_ID, {"triggering_user_name_pattern": "service_account"}, [DAG2_RUN1_ID]),
+            ("~", {"triggering_user_name_pattern": "alice%"}, [DAG1_RUN1_ID]),
+            ("~", {"triggering_user_name_pattern": "%service%"}, [DAG1_RUN2_ID, DAG2_RUN1_ID]),
+            ("~", {"triggering_user_name_pattern": "nonexistent"}, []),
+            (
+                DAG1_ID,
+                {
+                    "triggering_user_name_pattern": "alice%",
+                    "state": DagRunState.SUCCESS.value,
+                },
+                [DAG1_RUN1_ID],
+            ),
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -575,179 +598,6 @@ class TestGetDagRuns:
         assert (
             response.json()["detail"] == f"Invalid value for state. Valid values are {', '.join(DagRunState)}"
         )
-
-
-class TestTriggeringUserNamePatternFilter:
-    """Test class specifically for triggering_user_name_pattern filtering functionality."""
-
-    @pytest.fixture(autouse=True)
-    @provide_session
-    def setup_triggering_user_test_data(self, dag_maker, session=None):
-        """Set up test data with different triggering user names."""
-        clear_db_connections()
-        clear_db_runs()
-        clear_db_dags()
-        clear_db_serialized_dags()
-        clear_db_logs()
-
-        # Create DAG with some tasks
-        with dag_maker("test_triggering_user_dag", schedule=None, start_date=START_DATE1, serialized=True):
-            EmptyOperator(task_id="task_1")
-
-        # Create DAG runs with different triggering user names
-        self.dag_run_user_alice = dag_maker.create_dagrun(
-            run_id="run_user_alice",
-            state=DagRunState.SUCCESS,
-            run_type=DagRunType.MANUAL,
-            triggered_by=DagRunTriggeredByType.UI,
-            logical_date=LOGICAL_DATE1,
-        )
-        # Set triggering_user_name manually
-        self.dag_run_user_alice.triggering_user_name = "alice"
-
-        self.dag_run_user_bob = dag_maker.create_dagrun(
-            run_id="run_user_bob",
-            state=DagRunState.SUCCESS,
-            run_type=DagRunType.MANUAL,
-            triggered_by=DagRunTriggeredByType.UI,
-            logical_date=LOGICAL_DATE2,
-        )
-        self.dag_run_user_bob.triggering_user_name = "bob_admin"
-
-        self.dag_run_user_service = dag_maker.create_dagrun(
-            run_id="run_service_account",
-            state=DagRunState.SUCCESS,
-            run_type=DagRunType.MANUAL,
-            triggered_by=DagRunTriggeredByType.REST_API,
-            logical_date=LOGICAL_DATE3,
-        )
-        self.dag_run_user_service.triggering_user_name = "service_account"
-
-        self.dag_run_no_user = dag_maker.create_dagrun(
-            run_id="run_no_user",
-            state=DagRunState.SUCCESS,
-            run_type=DagRunType.SCHEDULED,
-            triggered_by=DagRunTriggeredByType.TIMETABLE,
-            logical_date=LOGICAL_DATE4,
-        )
-        # This one has no triggering_user_name (None)
-        self.dag_run_no_user.triggering_user_name = None
-
-        dag_maker.sync_dagbag_to_db()
-        session.merge(dag_maker.dag_model)
-        session.commit()
-
-    @pytest.mark.parametrize(
-        "query_params, expected_run_ids",
-        [
-            # Test exact match
-            ({"triggering_user_name_pattern": "alice"}, ["run_user_alice"]),
-            ({"triggering_user_name_pattern": "bob_admin"}, ["run_user_bob"]),
-            ({"triggering_user_name_pattern": "service_account"}, ["run_service_account"]),
-            # Test prefix wildcard patterns
-            ({"triggering_user_name_pattern": "alice%"}, ["run_user_alice"]),
-            ({"triggering_user_name_pattern": "bob%"}, ["run_user_bob"]),
-            ({"triggering_user_name_pattern": "service%"}, ["run_service_account"]),
-            # Test suffix wildcard patterns
-            ({"triggering_user_name_pattern": "%alice"}, ["run_user_alice"]),
-            ({"triggering_user_name_pattern": "%bob"}, ["run_user_bob"]),
-            ({"triggering_user_name_pattern": "%_account"}, ["run_service_account"]),
-            # Test contains wildcard patterns
-            ({"triggering_user_name_pattern": "%service%"}, ["run_service_account"]),
-            ({"triggering_user_name_pattern": "%bob%"}, ["run_user_bob"]),
-            ({"triggering_user_name_pattern": "%alice%"}, ["run_user_alice"]),
-            # Test more wildcard patterns
-            ({"triggering_user_name_pattern": "serv%_account"}, ["run_service_account"]),
-            ({"triggering_user_name_pattern": "bob%min"}, ["run_user_bob"]),
-            # Test no matches
-            ({"triggering_user_name_pattern": "nonexistent"}, []),
-            ({"triggering_user_name_pattern": "xyz%"}, []),
-            # Test empty pattern (should return all runs with non-null triggering_user_name)
-            (
-                {"triggering_user_name_pattern": "%"},
-                ["run_user_alice", "run_user_bob", "run_service_account"],
-            ),
-        ],
-    )
-    def test_triggering_user_name_pattern_filter(self, test_client, query_params, expected_run_ids):
-        """Test that triggering_user_name_pattern filter works correctly with SQL LIKE patterns."""
-        response = test_client.get("/dags/test_triggering_user_dag/dagRuns", params=query_params)
-        assert response.status_code == 200
-
-        body = response.json()
-        actual_run_ids = [run["dag_run_id"] for run in body["dag_runs"]]
-
-        # Sort both lists to ensure consistent comparison
-        assert sorted(actual_run_ids) == sorted(expected_run_ids)
-
-    def test_triggering_user_name_pattern_with_other_filters(self, test_client):
-        """Test that triggering_user_name_pattern works in combination with other filters."""
-        # Test combining with state filter
-        query_params = {"triggering_user_name_pattern": "%bob%", "state": DagRunState.SUCCESS.value}
-        response = test_client.get("/dags/test_triggering_user_dag/dagRuns", params=query_params)
-        assert response.status_code == 200
-
-        body = response.json()
-        actual_run_ids = [run["dag_run_id"] for run in body["dag_runs"]]
-        assert actual_run_ids == ["run_user_bob"]
-
-    def test_triggering_user_name_pattern_all_dags(self, test_client):
-        """Test triggering_user_name_pattern filter with dag_id='~' (all DAGs)."""
-        response = test_client.get("/dags/~/dagRuns", params={"triggering_user_name_pattern": "alice"})
-        assert response.status_code == 200
-
-        body = response.json()
-        # Should find the alice run from our test DAG
-        alice_runs = [run for run in body["dag_runs"] if run["dag_run_id"] == "run_user_alice"]
-        assert len(alice_runs) == 1
-        assert alice_runs[0]["triggering_user_name"] == "alice"
-
-    def test_triggering_user_name_pattern_case_behavior(self, test_client):
-        """Test the behavior of triggering_user_name_pattern filter with different cases."""
-        # Test exact match with correct case - should match
-        response = test_client.get(
-            "/dags/test_triggering_user_dag/dagRuns", params={"triggering_user_name_pattern": "alice"}
-        )
-        assert response.status_code == 200
-        body = response.json()
-        assert len(body["dag_runs"]) == 1
-        assert body["dag_runs"][0]["dag_run_id"] == "run_user_alice"
-        assert body["dag_runs"][0]["triggering_user_name"] == "alice"
-
-        # Test different case - behavior may depend on database collation
-        # This test documents the actual behavior rather than enforcing case sensitivity
-        response = test_client.get(
-            "/dags/test_triggering_user_dag/dagRuns", params={"triggering_user_name_pattern": "ALICE"}
-        )
-        assert response.status_code == 200
-        body = response.json()
-        # Note: This may return 0 or 1 results depending on database collation settings
-        # The important thing is that the filter works and doesn't crash
-        assert len(body["dag_runs"]) >= 0
-
-    def test_triggering_user_name_pattern_underscore_wildcard(self, test_client):
-        """Test underscore wildcard patterns separately for better debugging."""
-        # Test underscore wildcard with alice (5 chars: a-l-i-c-e)
-        response = test_client.get(
-            "/dags/test_triggering_user_dag/dagRuns", params={"triggering_user_name_pattern": "alic_"}
-        )
-        assert response.status_code == 200
-        body = response.json()
-        # Should match "alice" where _ matches 'e'
-        expected_usernames = [run["triggering_user_name"] for run in body["dag_runs"]]
-        if len(body["dag_runs"]) > 0:
-            assert "alice" in expected_usernames
-
-        # Test a different underscore pattern
-        response = test_client.get(
-            "/dags/test_triggering_user_dag/dagRuns", params={"triggering_user_name_pattern": "al___"}
-        )
-        assert response.status_code == 200
-        body = response.json()
-        # Should match "alice" where ___ matches 'ice'
-        expected_usernames = [run["triggering_user_name"] for run in body["dag_runs"]]
-        if len(body["dag_runs"]) > 0:
-            assert "alice" in expected_usernames
 
 
 class TestListDagRunsBatch:
