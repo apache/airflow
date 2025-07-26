@@ -62,7 +62,13 @@ def app(examples_dag_bag):
         ]
     )
     def factory():
-        with conf_vars({("fab", "auth_rate_limited"): "False"}):
+        with conf_vars(
+            {
+                ("fab", "auth_rate_limited"): "False",
+                ("webserver", "cookie_secure"): "False",
+                ("webserver", "cookie_samesite"): "Lax",
+            },
+        ):
             return create_app(enable_plugins=False)
 
     app = factory()

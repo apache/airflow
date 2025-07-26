@@ -61,6 +61,10 @@ def create_app(enable_plugins: bool):
     flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     flask_app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=get_session_lifetime_config())
 
+    flask_app.config["SESSION_COOKIE_HTTPONLY"] = True
+    flask_app.config["SESSION_COOKIE_SECURE"] = conf.getboolean("webserver", "COOKIE_SECURE")
+    flask_app.config["SESSION_COOKIE_SAMESITE"] = conf.get("webserver", "COOKIE_SAMESITE")
+
     webserver_config = conf.get_mandatory_value("fab", "config_file")
     # Enable customizations in webserver_config.py to be applied via Flask.current_app.
     with flask_app.app_context():
