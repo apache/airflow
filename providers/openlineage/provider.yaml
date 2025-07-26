@@ -68,6 +68,11 @@ integrations:
     logo: /docs/integration-logos/openlineage.svg
     tags: [protocol]
 
+operators:
+  - integration-name: OpenLineage
+    python-modules:
+      - airflow.providers.openlineage.operators.empty
+
 plugins:
   - name: openlineage
     plugin-class: airflow.providers.openlineage.plugins.openlineage.OpenLineageProviderPlugin
