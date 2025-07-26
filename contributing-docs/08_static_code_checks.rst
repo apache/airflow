@@ -229,7 +229,9 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-sdk-imports                                         | Check for SDK imports in core files                    | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| check-shared-projects                                     | Check shared projects structure                        |         |
+| check-shared-distributions-structure                      | Check shared distributions structure                   |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-shared-distributions-usage                          | Check shared distributions usage                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-significant-newsfragments-are-valid                 | Check significant newsfragments are valid              |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
