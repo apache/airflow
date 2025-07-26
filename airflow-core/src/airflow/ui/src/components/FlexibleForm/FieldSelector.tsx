@@ -70,7 +70,7 @@ const isFieldMultilineText = (fieldType: string, fieldSchema: ParamSchema) =>
   fieldType === "string" && fieldSchema.format === "multiline";
 
 const isFieldMultiSelect = (fieldType: string, fieldSchema: ParamSchema) =>
-  fieldType === "array" && Array.isArray(fieldSchema.examples);
+  fieldType === "array" && (Array.isArray(fieldSchema.examples) || Array.isArray(fieldSchema.enum));
 
 const isFieldNumber = (fieldType: string) => {
   const numberTypes = ["integer", "number"];

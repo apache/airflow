@@ -33,6 +33,7 @@
   },
   "source": "Source",
   "stats": {
+    "actionRequired": "Action Required",
     "activeDags": "Active Dags",
     "failedDags": "Failed Dags",
     "queuedDags": "Queued Dags",

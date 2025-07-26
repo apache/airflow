@@ -1940,6 +1940,7 @@ components:
     MenuItem:
       type: string
       enum:
+      - Action Required
       - Assets
       - Audit Log
       - Config

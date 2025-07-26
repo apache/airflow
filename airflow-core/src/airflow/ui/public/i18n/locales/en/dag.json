@@ -93,6 +93,7 @@
     }
   },
   "tabs": {
+    "actionRequired": "Action Required",
     "assetEvents": "Asset Events",
     "auditLog": "Audit Log",
     "backfills": "Backfills",

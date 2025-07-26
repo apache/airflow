@@ -28,18 +28,24 @@ import { Row } from "./Row";
 import { isRequired } from "./isParamRequired";
 
 export type FlexibleFormProps = {
-  flexibleFormDefaultSection: string;
-  initialParamsDict: { paramsDict: ParamsSpec };
-  key?: string;
-  setError: (error: boolean) => void;
+  readonly disabled?: boolean;
+  readonly flexFormDescription?: string;
+  readonly flexibleFormDefaultSection: string;
+  readonly initialParamsDict: { paramsDict: ParamsSpec };
+  readonly isHITL?: boolean;
+  readonly key?: string;
+  readonly setError: (error: boolean) => void;
 };
 
 export const FlexibleForm = ({
+  disabled,
+  flexFormDescription,
   flexibleFormDefaultSection,
   initialParamsDict,
+  isHITL,
   setError,
 }: FlexibleFormProps) => {
-  const { paramsDict: params, setInitialParamDict, setParamsDict } = useParamStore();
+  const { paramsDict: params, setDisabled, setInitialParamDict, setParamsDict } = useParamStore();
   const processedSections = new Map();
   const [sectionError, setSectionError] = useState<Map<string, boolean>>(new Map());
 
@@ -84,6 +90,10 @@ export const FlexibleForm = ({
     }
   }, [params, setError, recheckSection, sectionError]);
 
+  useEffect(() => {
+    setDisabled(disabled ?? false);
+  }, [disabled, setDisabled]);
+
   const onUpdate = (_value?: string, error?: unknown) => {
     recheckSection();
     if (!Boolean(error) && sectionError.size === 0) {
@@ -93,55 +103,83 @@ export const FlexibleForm = ({
     }
   };
 
-  return Object.entries(params).some(([, param]) => typeof param.schema.section !== "string")
-    ? Object.entries(params).map(([, secParam]) => {
-        const currentSection = secParam.schema.section ?? flexibleFormDefaultSection;
+  return Object.entries(params).some(([, param]) => typeof param.schema.section !== "string") ? (
+    Object.entries(params).map(([, secParam]) => {
+      const currentSection = secParam.schema.section ?? flexibleFormDefaultSection;
 
-        if (processedSections.has(currentSection)) {
-          return undefined;
-        } else {
-          processedSections.set(currentSection, true);
+      if (processedSections.has(currentSection)) {
+        return undefined;
+      } else {
+        processedSections.set(currentSection, true);
 
-          return (
-            <Accordion.Item
-              // We need to make the item content overflow visible for dropdowns to work, but directly applying the style does not work
-              css={{
-                "& > :nth-child(2)": {
-                  overflow: "visible",
-                },
-              }}
-              key={currentSection}
-              value={currentSection}
-            >
-              <Accordion.ItemTrigger cursor="button">
-                <Text color={sectionError.get(currentSection) ? "fg.error" : undefined}>
-                  {currentSection}
-                </Text>
-                {sectionError.get(currentSection) ? (
-                  <Icon color="fg.error" margin="-1">
-                    <MdError />
-                  </Icon>
-                ) : undefined}
-              </Accordion.ItemTrigger>
+        return (
+          <Accordion.Item
+            // We need to make the item content overflow visible for dropdowns to work, but directly applying the style does not work
+            css={{
+              "& > :nth-child(2)": {
+                overflow: "visible",
+              },
+            }}
+            key={currentSection}
+            value={currentSection}
+          >
+            <Accordion.ItemTrigger cursor="button">
+              <Text color={sectionError.get(currentSection) ? "fg.error" : undefined}>{currentSection}</Text>
+              {sectionError.get(currentSection) ? (
+                <Icon color="fg.error" margin="-1">
+                  <MdError />
+                </Icon>
+              ) : undefined}
+            </Accordion.ItemTrigger>
 
-              <Accordion.ItemContent pt={0}>
-                <Accordion.ItemBody>
-                  <Stack separator={<StackSeparator />}>
-                    {Object.entries(params)
-                      .filter(
-                        ([, param]) =>
-                          param.schema.section === currentSection ||
-                          (currentSection === flexibleFormDefaultSection && !Boolean(param.schema.section)),
-                      )
-                      .map(([name]) => (
-                        <Row key={name} name={name} onUpdate={onUpdate} />
-                      ))}
-                  </Stack>
-                </Accordion.ItemBody>
-              </Accordion.ItemContent>
-            </Accordion.Item>
-          );
-        }
-      })
-    : undefined;
+            <Accordion.ItemContent pt={0}>
+              <Accordion.ItemBody>
+                <Stack separator={<StackSeparator py={2} />}>
+                  {Boolean(flexFormDescription) ? <Text mb={2}>{flexFormDescription}</Text> : undefined}
+                  {Object.entries(params)
+                    .filter(
+                      ([, param]) =>
+                        param.schema.section === currentSection ||
+                        (currentSection === flexibleFormDefaultSection && !Boolean(param.schema.section)),
+                    )
+                    .map(([name]) => (
+                      <Row key={name} name={name} onUpdate={onUpdate} />
+                    ))}
+                </Stack>
+              </Accordion.ItemBody>
+            </Accordion.ItemContent>
+          </Accordion.Item>
+        );
+      }
+    })
+  ) : isHITL ? (
+    <Accordion.Item
+      css={{
+        "& > :nth-child(2)": {
+          overflow: "visible",
+        },
+      }}
+      key={flexibleFormDefaultSection}
+      value={flexibleFormDefaultSection}
+    >
+      <Accordion.ItemTrigger cursor="button">
+        <Text color={sectionError.get(flexibleFormDefaultSection) ? "fg.error" : undefined}>
+          {flexibleFormDefaultSection}
+        </Text>
+        {sectionError.get(flexibleFormDefaultSection) ? (
+          <Icon color="fg.error" margin="-1">
+            <MdError />
+          </Icon>
+        ) : undefined}
+      </Accordion.ItemTrigger>
+
+      <Accordion.ItemContent pt={0}>
+        <Accordion.ItemBody>
+          <Stack separator={<StackSeparator py={2} />}>
+            {Boolean(flexFormDescription) ? <Text mb={2}>{flexFormDescription}</Text> : undefined}
+          </Stack>
+        </Accordion.ItemBody>
+      </Accordion.ItemContent>
+    </Accordion.Item>
+  ) : undefined;
 };

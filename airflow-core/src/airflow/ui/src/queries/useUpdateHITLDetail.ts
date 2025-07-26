@@ -17,70 +17,80 @@
  * under the License.
  */
 import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
-  useTaskInstanceServiceDeleteTaskInstance,
+  UseDagRunServiceGetDagRunKeyFn,
+  useDagRunServiceGetDagRunsKey,
+  useHumanInTheLoopServiceGetMappedTiHitlDetailKey,
+  useHumanInTheLoopServiceUpdateMappedTiHitlDetail,
   useTaskInstanceServiceGetTaskInstanceKey,
   useTaskInstanceServiceGetTaskInstancesKey,
-  useDagRunServiceGetDagRunsKey,
-  UseDagRunServiceGetDagRunKeyFn,
-  useHumanInTheLoopServiceGetHitlDetailsKey,
 } from "openapi/queries";
-import { toaster } from "src/components/ui";
+import { toaster } from "src/components/ui/Toaster";
+import type { HITLResponseParams } from "src/utils/hitl";
 
-type DeleteTaskInstanceParams = {
-  dagId: string;
-  dagRunId: string;
-  mapIndex?: number;
-  onSuccessConfirm: () => void;
-  taskId: string;
-};
-
-export const useDeleteTaskInstance = ({
+export const useUpdateHITLDetail = ({
   dagId,
   dagRunId,
   mapIndex,
-  onSuccessConfirm,
   taskId,
-}: DeleteTaskInstanceParams) => {
+}: {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number | undefined;
+  taskId: string;
+}) => {
   const queryClient = useQueryClient();
-  const { t: translate } = useTranslation(["common", "dags"]);
-
-  const onError = (error: Error) => {
-    toaster.create({
-      description: error.message,
-      title: translate("dags:runAndTaskActions.delete.error", { type: translate("taskInstance_one") }),
-      type: "error",
-    });
-  };
-
+  const [error, setError] = useState<unknown>(undefined);
+  const { t: translate } = useTranslation(["common", "hitl"]);
   const onSuccess = async () => {
     const queryKeys = [
       UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
       [useDagRunServiceGetDagRunsKey],
       [useTaskInstanceServiceGetTaskInstancesKey],
       [useTaskInstanceServiceGetTaskInstanceKey, { dagId, dagRunId, mapIndex, taskId }],
-      [useHumanInTheLoopServiceGetHitlDetailsKey],
+      [useHumanInTheLoopServiceGetMappedTiHitlDetailKey, { dagId, dagRunId, mapIndex, taskId }],
     ];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
 
     toaster.create({
-      description: translate("dags:runAndTaskActions.delete.success.description", {
-        type: translate("taskInstance_one"),
-      }),
-      title: translate("dags:runAndTaskActions.delete.success.title", {
-        type: translate("taskInstance_one"),
-      }),
+      title: translate("hitl:response.success", { taskId }),
       type: "success",
     });
-
-    onSuccessConfirm();
   };
 
-  return useTaskInstanceServiceDeleteTaskInstance({
+  const onError = (_error: Error) => {
+    toaster.create({
+      description: _error.message,
+      title: translate("hitl:response.error"),
+      type: "error",
+    });
+  };
+
+  const { isPending, mutate } = useHumanInTheLoopServiceUpdateMappedTiHitlDetail({
     onError,
     onSuccess,
   });
+
+  const updateHITLResponse = (updateHITLResponseRequestBody: HITLResponseParams) => {
+    try {
+      mutate({
+        dagId,
+        dagRunId,
+        mapIndex: mapIndex ?? -1,
+        requestBody: {
+          chosen_options: updateHITLResponseRequestBody.chosen_options ?? [],
+          params_input: updateHITLResponseRequestBody.params_input ?? {},
+        },
+        taskId,
+      });
+    } catch (parseError) {
+      setError(parseError);
+    }
+  };
+
+  return { error, isPending, setError, updateHITLResponse };
 };

@@ -16,30 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
-
-import type { FlexibleFormElementProps } from ".";
-import { Switch } from "../ui";
-
-export const FieldBool = ({ name }: FlexibleFormElementProps) => {
-  const { disabled, paramsDict, setParamsDict } = useParamStore();
-  const param = paramsDict[name] ?? paramPlaceholder;
-  const onCheck = (value: boolean) => {
-    if (paramsDict[name]) {
-      paramsDict[name].value = value;
-    }
-
-    setParamsDict(paramsDict);
-  };
-
-  return (
-    <Switch
-      checked={Boolean(param.value)}
-      colorPalette="blue"
-      disabled={disabled}
-      id={`element_${name}`}
-      name={`element_${name}`}
-      onCheckedChange={(event) => onCheck(event.checked)}
-    />
-  );
-};
+export { HITLTaskInstances } from "./HITLTaskInstances";
