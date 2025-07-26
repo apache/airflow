@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-25T14:00:28.746898
+# This constraints file was automatically generated on 2025-07-26T02:24:31.813581
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -158,7 +158,7 @@ cohere==5.16.1
 colorama==0.4.6
 colorful==0.5.7
 colorlog==6.9.0
-comm==0.2.2
+comm==0.2.3
 confluent-kafka==2.11.0
 connexion==2.14.2
 coverage==7.10.0
@@ -299,7 +299,7 @@ httplib2==0.22.0
 httptools==0.6.4
 httpx-sse==0.4.0
 httpx==0.28.1
-huggingface-hub==0.34.0
+huggingface-hub==0.34.1
 humanize==4.12.3
 hvac==2.3.0
 hyperframe==6.1.0
@@ -433,7 +433,7 @@ opentelemetry-semantic-conventions==0.48b0
 opsgenie-sdk==2.1.5
 oracledb==3.2.0
 ordered-set==4.1.0
-orjson==3.11.0
+orjson==3.11.1
 oss2==2.19.1
 packaging==25.0
 pagerduty==3.1.0
