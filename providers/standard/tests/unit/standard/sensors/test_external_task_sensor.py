@@ -78,7 +78,7 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import task as task_deco
     from airflow.utils.types import DagRunTriggeredByType
 else:
-    from airflow.decorators import task as task_deco
+    from airflow.decorators import task as task_deco  # type: ignore[attr-defined,no-redef]
 
 try:
     from airflow.sdk.definitions.taskgroup import TaskGroup

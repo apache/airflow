@@ -38,8 +38,9 @@ from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, sele
 from sqlalchemy.sql import expression
 
 from airflow import settings
+from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext
-from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
+from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext, TaskCallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 from airflow.executors import workloads
@@ -69,7 +70,6 @@ from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.traces import utils as trace_utils
 from airflow.traces.tracer import DebugTrace, Trace, add_debug_span
-from airflow.utils import timezone
 from airflow.utils.dates import datetime_to_nano
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -131,15 +131,16 @@ class SchedulerDagBag:
         return dag
 
     @staticmethod
-    def _version_from_dag_run(dag_run, session):
-        if dag_run.bundle_version:
-            dag_version = dag_run.created_dag_version
-        else:
+    def _version_from_dag_run(dag_run, latest, session):
+        if latest or not dag_run.bundle_version:
             dag_version = DagVersion.get_latest_version(dag_id=dag_run.dag_id, session=session)
-        return dag_version
+            if dag_version:
+                return dag_version
 
-    def get_dag(self, dag_run: DagRun, session: Session) -> DAG | None:
-        version = self._version_from_dag_run(dag_run=dag_run, session=session)
+        return dag_run.created_dag_version
+
+    def get_dag(self, dag_run: DagRun, session: Session, latest=False) -> DAG | None:
+        version = self._version_from_dag_run(dag_run=dag_run, latest=latest, session=session)
         if not version:
             return None
         return self._get_dag(version_id=version.id, session=session)
@@ -1853,6 +1854,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     run_id=dag_run.run_id,
                     bundle_name=dag_model.bundle_name,
                     bundle_version=dag_run.bundle_version,
+                    context_from_server=DagRunContext(
+                        dag_run=dag_run,
+                        last_ti=dag_run.get_last_ti(dag=dag, session=session),
+                    ),
                     is_failure_callback=True,
                     msg="timed_out",
                 )

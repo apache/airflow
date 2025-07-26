@@ -77,6 +77,8 @@ PRE_COMMIT_LIST = [
     "check-pytest-mark-db-test-in-providers",
     "check-revision-heads-map",
     "check-safe-filter-usage-in-html",
+    "check-sdk-imports",
+    "check-shared-projects",
     "check-significant-newsfragments-are-valid",
     "check-sql-dependency-common-data-structure",
     "check-start-date-not-used-in-defaults",
