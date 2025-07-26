@@ -25,8 +25,8 @@ import uuid
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, TypeVartests/sdk/api/test_client.py
 
-import certifi
 import httpx
+import certifi
 import msgspec
 import structlog
 from pydantic import BaseModel
@@ -767,7 +767,7 @@ class Client(httpx.Client):
             ctx = ssl.create_default_context(cafile=certifi.where())
             if API_SSL_CERT_PATH:
                 ctx.load_verify_locations(API_SSL_CERT_PATH)
-            kwargs["verify"] = ctx
+
             ssl_verify = os.getenv("AIRFLOW_EXECUTION_API_SSL_VERIFY")
             if ssl_verify is not None:
                 value = ssl_verify.strip().lower()
@@ -775,6 +775,13 @@ class Client(httpx.Client):
                     kwargs["verify"] = False
                 elif os.path.isabs(ssl_verify) and os.path.isfile(ssl_verify):
                     kwargs["verify"] = ssl_verify
+                else:
+                    # If invalid value, fallback to the SSL context with configured certs
+                    kwargs["verify"] = ctx
+            else:
+                # Default verification context
+                kwargs["verify"] = ctx
+
 
         pyver = f"{'.'.join(map(str, sys.version_info[:3]))}"
         super().__init__(
@@ -793,6 +800,7 @@ class Client(httpx.Client):
         if new_token := response.headers.get("Refreshed-API-Token"):
             log.debug("Execution API issued us a refreshed Task token")
             self.auth = BearerAuth(new_token)
+
 
     @retry(
         reraise=True,
