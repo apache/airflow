@@ -292,6 +292,6 @@ class TestKerberos:
 
     @mock.patch("airflow.security.kerberos.get_hostname", return_value="REPLACEMENT_HOST")
     @mock.patch("airflow.security.kerberos.conf.get_mandatory_value", return_value="test-principal/_HOST")
-    def test_get_kerberos_principal_resolve_null_principal(self, get_madantory_value_mock, get_hostname_mock):
+    def test_get_kerberos_principal_resolve_null_principal(self, get_mandatory_value_mock, get_hostname_mock):
         principal = get_kerberos_principal(principal=None)
         assert principal == "test-principal/REPLACEMENT_HOST"
