@@ -79,7 +79,7 @@ from airflow.api_fastapi.core_api.services.public.dag_run import DagRunWaiter
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import ParamValidationError
 from airflow.listeners.listener import get_listener_manager
-from airflow.models import DAG, DagModel, DagRun
+from airflow.models import DagModel, DagRun
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -168,7 +168,7 @@ def patch_dag_run(
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
 
-    dag: DAG = dag_bag.get_dag(dag_id)
+    dag = dag_bag.get_dag_for_run(dag_run, session=session)
 
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
@@ -274,9 +274,11 @@ def clear_dag_run(
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
 
-    dag: DAG = dag_bag.get_dag(dag_id)
+    dag = dag_bag.get_dag_for_run(dag_run, session=session)
 
     if body.dry_run:
+        if not dag:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
         task_instances = dag.clear(
             run_id=dag_run_id,
             task_ids=None,
@@ -290,6 +292,8 @@ def clear_dag_run(
             task_instances=cast("list[TaskInstanceResponse]", task_instances),
             total_entries=len(task_instances),
         )
+    if not dag:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
     dag.clear(
         run_id=dag_run_id,
         task_ids=None,
@@ -352,7 +356,7 @@ def get_dag_runs(
     query = select(DagRun)
 
     if dag_id != "~":
-        dag: DAG = dag_bag.get_dag(dag_id)
+        dag = dag_bag.get_latest_version_of_dag(dag_id, session)
         if not dag:
             raise HTTPException(status.HTTP_404_NOT_FOUND, f"The DAG with dag_id: `{dag_id}` was not found")
 
@@ -417,7 +421,9 @@ def trigger_dag_run(
         )
 
     try:
-        dag: DAG = dag_bag.get_dag(dag_id)
+        dag = dag_bag.get_latest_version_of_dag(dag_id, session)
+        if not dag:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with dag_id: '{dag_id}' not found")
         params = body.validate_context(dag)
 
         dag_run = dag.create_dagrun(
