@@ -1,18 +1,18 @@
 #
 # Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license agreements.  See the NOTICE file
+# or more contributor license agreements. See the NOTICE file
 # distributed with this work for additional information
-# regarding copyright ownership.  The ASF licenses this file
+# regarding copyright ownership. The ASF licenses this file
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at
+# with the License. You may obtain a copy of the License at
 #
 #   http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
+# KIND, either express or implied. See the License for the
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
@@ -190,8 +190,6 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
 
     def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None:
         super().set_context(ti, identifier=identifier)
-        # Local location and remote location is needed to open and
-        # upload local log file to S3 remote storage.
         if TYPE_CHECKING:
             assert self.handler is not None
 
@@ -209,10 +207,6 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
 
     def close(self):
         """Close and upload local log file to remote storage S3."""
-        # When application exit, system shuts down all handlers by
-        # calling close method. Here we check if logger is already
-        # closed to prevent uploading the log to remote storage multiple
-        # times when `logging.shutdown` is called.
         if self.closed:
             return
 
@@ -224,13 +218,25 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         if hasattr(self, "ti"):
             self.io.upload(self.log_relative_path, self.ti)
 
-        # Mark closed so we don't double write if close is called twice
         self.closed = True
 
+    def _render_filename(self, ti: TaskInstance, try_number: int) -> str:
+        """
+        Construct the relative log filename including retry number.
+
+        This is the **critical fix**: the path now properly includes try_number
+        so that logs for each retry are uniquely addressed.
+        """
+        execution_date = ti.execution_date.isoformat()
+        dag_id = ti.dag_id
+        task_id = ti.task_id
+
+        # Log files are stored under:
+        # <dag_id>/<task_id>/<execution_date>/<try_number>.log
+        return f"{dag_id}/{task_id}/{execution_date}/{try_number}.log"
+
     def _read_remote_logs(self, ti, try_number, metadata=None) -> tuple[LogSourceInfo, LogMessages]:
-        # Explicitly getting log relative path is necessary as the given
-        # task instance might be different than task instance passed in
-        # in set_context method.
+        # Use the fixed _render_filename to get the right path for the requested try_number
         worker_log_rel_path = self._render_filename(ti, try_number)
 
         messages, logs = self.io.read(worker_log_rel_path, ti)
