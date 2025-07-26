@@ -30,6 +30,7 @@ from typing import (
     overload,
 )
 
+from natsort import natsorted
 from sqlalchemy import (
     JSON,
     Column,
@@ -1373,7 +1374,10 @@ class DagRun(Base, LoggingMixin):
         if dag.partial:
             tis = [ti for ti in tis if not ti.state == State.NONE]
         # filter out removed tasks
-        tis = [ti for ti in tis if ti.state != TaskInstanceState.REMOVED]
+        tis = natsorted(
+            (ti for ti in tis if ti.state != TaskInstanceState.REMOVED),
+            key=lambda ti: ti.task_id,
+        )
         if not tis:
             return None
         ti = tis[-1]  # get last TaskInstance of DagRun
