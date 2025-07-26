@@ -23,12 +23,10 @@ import time
 
 import boto3
 
-from airflow.decorators import task
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.ec2 import EC2CreateInstanceOperator, EC2TerminateInstanceOperator
 from airflow.providers.amazon.aws.operators.ssm import SsmRunCommandOperator
 from airflow.providers.amazon.aws.sensors.ssm import SsmRunCommandCompletedSensor
+from airflow.sdk import DAG, chain, task
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, get_role_name
