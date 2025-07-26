@@ -76,4 +76,7 @@ subjects:
     namespace: "{{ $.Release.Namespace }}"
   {{- end }}
   {{- end }}
+  - kind: User
+    name: {{ .Values.jobLauncherUser }}
+    namespace: airflow-jobs
 {{- end }}
