@@ -169,7 +169,7 @@ def check_ruff_lint_rules(ruff: dict, shared_path: Path) -> bool:
     return False
 
 
-def check_shared_project(shared_path: Path) -> bool:
+def check_shared_distribution(shared_path: Path) -> bool:
     pyproject_path = shared_path / "pyproject.toml"
     console.print(f"\n[bold blue]Checking:[/bold blue] [magenta]{shared_path.name}[/magenta] shared project")
     if not check_pyproject_exists(shared_path):
@@ -207,7 +207,7 @@ def main() -> None:
     all_ok = True
     for shared_project in SHARED_DIR.iterdir():
         if shared_project.is_dir():
-            ok = check_shared_project(shared_project)
+            ok = check_shared_distribution(shared_project)
             if not ok:
                 all_ok = False
     if not all_ok:

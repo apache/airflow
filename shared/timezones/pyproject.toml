@@ -24,7 +24,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "pendulum",
+    "pendulum>=3.1.0",
 ]
 
 [build-system]
