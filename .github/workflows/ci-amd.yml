@@ -384,6 +384,8 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+      default-branch: ${{ needs.build-info.outputs.default-branch }}
+
     if: needs.build-info.outputs.run-tests == 'true'
 
   tests-postgres-providers:
@@ -412,6 +414,7 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+      default-branch: ${{ needs.build-info.outputs.default-branch }}
     if: needs.build-info.outputs.run-tests == 'true'
 
   tests-mysql-core:
@@ -440,6 +443,7 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+      default-branch: ${{ needs.build-info.outputs.default-branch }}
     if: needs.build-info.outputs.run-tests == 'true'
 
   tests-mysql-providers:
@@ -468,6 +472,7 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+      default-branch: ${{ needs.build-info.outputs.default-branch }}
     if: needs.build-info.outputs.run-tests == 'true'
 
 
@@ -499,6 +504,7 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+      default-branch: ${{ needs.build-info.outputs.default-branch }}
     if: needs.build-info.outputs.run-tests == 'true'
 
   tests-sqlite-providers:
@@ -529,6 +535,7 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+      default-branch: ${{ needs.build-info.outputs.default-branch }}
     if: needs.build-info.outputs.run-tests == 'true'
 
 
@@ -559,6 +566,7 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+      default-branch: ${{ needs.build-info.outputs.default-branch }}
     if: needs.build-info.outputs.run-tests == 'true'
 
   tests-non-db-providers:
@@ -588,6 +596,7 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+      default-branch: ${{ needs.build-info.outputs.default-branch }}
     if: needs.build-info.outputs.run-tests == 'true'
 
   tests-special:
@@ -673,6 +682,7 @@ jobs:
       monitor-delay-time-in-seconds: 120
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+      default-branch: ${{ needs.build-info.outputs.default-branch }}
 
   tests-with-lowest-direct-resolution-providers:
     name: "Low dep tests: providers"
@@ -702,6 +712,7 @@ jobs:
       monitor-delay-time-in-seconds: 120
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+      default-branch: ${{ needs.build-info.outputs.default-branch }}
 
   build-prod-images:
     name: Build PROD images
