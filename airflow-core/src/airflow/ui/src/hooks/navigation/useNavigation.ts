@@ -38,13 +38,7 @@ export const useNavigation = ({ enabled = true, runs, tasks }: UseNavigationProp
   // Handle navigation action
   const handleNavigation = useCallback(
     (direction: NavigationDirection, isJump: boolean = false) => {
-      console.log("🚀 handleNavigation called:", { dagId, direction, enabled, isJump });
-      console.log("📍 Current indices:", currentIndices);
-      console.log("📊 Data:", { runsCount: runs.length, tasksCount: tasks.length });
-
       if (!enabled || !dagId) {
-        console.log("❌ Navigation blocked - enabled:", enabled, "dagId:", dagId);
-
         return;
       }
 
@@ -52,13 +46,8 @@ export const useNavigation = ({ enabled = true, runs, tasks }: UseNavigationProp
 
       const target = getNavigationTarget(currentIndices, direction, isJump);
 
-      console.log("🎯 Navigation target:", target);
-
       if (target.isValid) {
-        console.log("✅ Navigating to:", target.path);
         navigate(target.path, { replace: true });
-      } else {
-        console.log("❌ Invalid navigation target");
       }
 
       // Reset navigation state after a short delay
@@ -66,12 +55,13 @@ export const useNavigation = ({ enabled = true, runs, tasks }: UseNavigationProp
         setIsNavigating(false);
       }, 100);
     },
-    [currentIndices, dagId, enabled, getNavigationTarget, navigate, runs.length, tasks.length],
+    [currentIndices, dagId, enabled, getNavigationTarget, navigate],
   );
 
   // Setup keyboard navigation
   useKeyboardNavigation({
     enabled: enabled && Boolean(dagId),
+    mode,
     onNavigate: handleNavigation,
   });
 

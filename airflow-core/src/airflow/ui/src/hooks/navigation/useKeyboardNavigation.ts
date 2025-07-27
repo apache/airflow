@@ -19,13 +19,14 @@
 import { useCallback } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
-import type { ArrowKey, NavigationDirection } from "./types";
+import type { ArrowKey, NavigationDirection, NavigationMode } from "./types";
 
 const ARROW_KEYS = ["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight"] as const;
 const JUMP_KEYS = ["shift+ArrowDown", "shift+ArrowUp", "shift+ArrowLeft", "shift+ArrowRight"] as const;
 
 type Props = {
   enabled?: boolean;
+  mode: NavigationMode;
   onNavigate: (direction: NavigationDirection, isJump?: boolean) => void;
 };
 
@@ -44,61 +45,69 @@ const mapKeyToDirection = (key: ArrowKey): NavigationDirection => {
   }
 };
 
-export const useKeyboardNavigation = ({ enabled = true, onNavigate }: Props) => {
-  const handleKeyPress = useCallback(
+const isValidDirectionForMode = (direction: NavigationDirection, mode: NavigationMode): boolean => {
+  switch (mode) {
+    case "grid":
+      return true;
+    case "run":
+      return direction === "left" || direction === "right";
+    case "task":
+      return direction === "down" || direction === "up";
+    default:
+      return false;
+  }
+};
+
+export const useKeyboardNavigation = ({ enabled = true, mode, onNavigate }: Props) => {
+  const handleNormalKeyPress = useCallback(
     (event: KeyboardEvent) => {
-      console.log("🔥 Key pressed:", event.key, "enabled:", enabled);
-
       if (!enabled) {
-        console.log("❌ Navigation disabled");
-
         return;
       }
 
       const direction = mapKeyToDirection(event.key as ArrowKey);
-      const isJump = event.shiftKey;
 
-      console.log("✅ Navigating:", direction, "isJump:", isJump);
+      if (!isValidDirectionForMode(direction, mode)) {
+        return;
+      }
 
       event.preventDefault();
       event.stopPropagation();
 
-      onNavigate(direction, isJump);
+      onNavigate(direction, false);
     },
-    [enabled, onNavigate],
+    [enabled, mode, onNavigate],
   );
 
   const handleJumpKeyPress = useCallback(
     (event: KeyboardEvent) => {
-      console.log("🚀 Jump key pressed:", event.key, "enabled:", enabled);
-
       if (!enabled) {
-        console.log("❌ Navigation disabled");
-
         return;
       }
 
       const direction = mapKeyToDirection(event.key as ArrowKey);
 
-      console.log("✅ Jump navigating:", direction);
+      if (!isValidDirectionForMode(direction, mode)) {
+        return;
+      }
 
       event.preventDefault();
       event.stopPropagation();
 
       onNavigate(direction, true);
     },
-    [enabled, onNavigate],
+    [enabled, mode, onNavigate],
   );
 
   useHotkeys(
     ARROW_KEYS.join(","),
-    handleKeyPress,
+    handleNormalKeyPress,
     {
       enabled,
       enableOnFormTags: false,
       preventDefault: true,
     },
-    [enabled, onNavigate],
+    [enabled, mode, onNavigate],
   );
 
   useHotkeys(
@@ -109,10 +118,10 @@ export const useKeyboardNavigation = ({ enabled = true, onNavigate }: Props) => 
       enableOnFormTags: false,
       preventDefault: true,
     },
-    [enabled, onNavigate],
+    [enabled, mode, onNavigate],
   );
 
   return {
-    handleKeyPress,
+    handleKeyPress: handleNormalKeyPress,
   };
 };
