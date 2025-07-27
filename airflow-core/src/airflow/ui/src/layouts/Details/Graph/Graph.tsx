@@ -34,6 +34,7 @@ import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { flattenGraphNodes } from "src/layouts/Details/Grid/utils.ts";
 import { useDependencyGraph } from "src/queries/useDependencyGraph";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
+import { getReactFlowThemeStyle } from "src/theme/reactflow";
 
 const nodeColor = (
   { data: { depth, height, isOpen, taskInstance, width }, type }: ReactFlowNode<CustomNodeProps>,
@@ -164,6 +165,7 @@ export const Graph = () => {
       nodesDraggable={false}
       nodeTypes={nodeTypes}
       onlyRenderVisibleElements
+      style={getReactFlowThemeStyle(colorMode)}
     >
       <Background />
       <Controls showInteractive={false} />
