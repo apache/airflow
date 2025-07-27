@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-27T07:45:14.937982
+# This constraints file was automatically generated on 2025-07-27T19:43:27.387714
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -159,7 +159,7 @@ colorlog==6.9.0
 comm==0.2.3
 confluent-kafka==2.11.0
 connexion==2.14.2
-coverage==7.10.0
+coverage==7.10.1
 crcmod==1.7
 cron-descriptor==1.4.5
 croniter==6.0.0
@@ -565,7 +565,7 @@ s3fs==2025.7.0
 s3transfer==0.13.1
 sagemaker_studio==1.0.20
 scikit-learn==1.7.1
-scipy==1.16.0
+scipy==1.16.1
 scramp==1.4.6
 scrapbook==0.5.0
 segment-analytics-python==2.3.4

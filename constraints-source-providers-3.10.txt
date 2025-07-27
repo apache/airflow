@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-27T07:45:38.123874
+# This constraints file was automatically generated on 2025-07-27T19:44:29.264962
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -161,7 +161,7 @@ colorlog==6.9.0
 comm==0.2.3
 confluent-kafka==2.11.0
 connexion==2.14.2
-coverage==7.10.0
+coverage==7.10.1
 crcmod==1.7
 cron-descriptor==1.4.5
 croniter==6.0.0
