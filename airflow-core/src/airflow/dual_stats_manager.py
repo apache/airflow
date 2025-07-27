@@ -27,6 +27,67 @@ if TYPE_CHECKING:
     from airflow.metrics.protocols import DeltaType
 
 
+def _get_dict_with_defined_args(
+    prov_count: int | None = None,
+    prov_rate: int | float | None = None,
+    prov_delta: bool | None = None,
+    prov_tags: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Create a dict that will include only the parameters that have been provided."""
+    defined_args_dict: dict[str, Any] = {}
+
+    if prov_count is not None:
+        defined_args_dict["count"] = prov_count
+    if prov_rate is not None:
+        defined_args_dict["rate"] = prov_rate
+    if prov_delta is not None:
+        defined_args_dict["delta"] = prov_delta
+    if prov_tags is not None:
+        defined_args_dict["tags"] = prov_tags
+
+    return defined_args_dict
+
+
+def _get_args_dict_with_extra_tags_if_set(
+    args_dict: dict[str, Any] | None = None,
+    prov_tags: dict[str, Any] | None = None,
+    prov_tags_extra: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """
+    Create a new merged tags dict if there are extra tags.
+
+    The new merged tags dict will replace the existing one, in the args dict.
+    """
+    # The args_dict already has the base tags.
+    # If there are no `extra_tags`, this method is basically
+    # returning the `args_dict` unchanged.
+    args_dict_full = dict(args_dict) if args_dict is not None else {}
+
+    tags_full = _get_tags_with_extra(prov_tags, prov_tags_extra)
+
+    # Replace the existing `tags` on the `args_dict` with the new full ones.
+    args_dict_full["tags"] = tags_full
+
+    return args_dict_full
+
+
+def _get_tags_with_extra(
+    prov_tags: dict[str, Any] | None = None,
+    prov_tags_extra: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Return a new dict with all tags if extra have been provided."""
+    # If there are no extra tags then return the original tags.
+    tags_full: dict[str, Any] = {}
+    if prov_tags:
+        tags_full.update(prov_tags)
+
+    # If there are `extra_tags`, then add them to the dict.
+    if prov_tags_extra is not None:
+        tags_full.update(prov_tags_extra)
+
+    return tags_full
+
+
 class DualStatsManager:
     """Helper class to abstract enabling/disabling the export of metrics with legacy names."""
 
@@ -37,46 +98,58 @@ class DualStatsManager:
         cls,
         legacy_stat: str,
         stat: str,
-        count: int = 1,
-        rate: float = 1,
+        count: int | None = None,
+        rate: int | float | None = None,
         *,
-        tags: dict[str, str] | None = None,
+        tags: dict[str, Any] | None = None,
+        extra_tags: dict[str, Any] | None = None,
     ) -> None:
-        if cls.export_legacy_names:
-            Stats.incr(legacy_stat, count, rate, tags=tags)
+        kw = _get_dict_with_defined_args(count, rate, None, tags)
 
-        Stats.incr(stat, count, rate, tags=tags)
+        if cls.export_legacy_names:
+            Stats.incr(legacy_stat, **kw)
+
+        kw_with_extra_tags_if_set = _get_args_dict_with_extra_tags_if_set(kw, tags, extra_tags)
+        Stats.incr(stat, **kw_with_extra_tags_if_set)
 
     @classmethod
     def decr(
         cls,
         legacy_stat: str,
         stat: str,
-        count: int = 1,
-        rate: float = 1,
+        count: int | None = None,
+        rate: int | float | None = None,
         *,
-        tags: dict[str, str] | None = None,
+        tags: dict[str, Any] | None = None,
+        extra_tags: dict[str, Any] | None = None,
     ) -> None:
-        if cls.export_legacy_names:
-            Stats.decr(legacy_stat, count, rate, tags=tags)
+        kw = _get_dict_with_defined_args(count, rate, None, tags)
 
-        Stats.decr(stat, count, rate, tags=tags)
+        if cls.export_legacy_names:
+            Stats.decr(legacy_stat, **kw)
+
+        kw_with_extra_tags_if_set = _get_args_dict_with_extra_tags_if_set(kw, tags, extra_tags)
+        Stats.decr(stat, **kw_with_extra_tags_if_set)
 
     @classmethod
     def gauge(
         cls,
         legacy_stat: str,
         stat: str,
-        value: int | float,
-        rate: float = 1,
-        delta: bool = False,
+        value: float,
+        rate: int | float | None = None,
+        delta: bool | None = None,
         *,
-        tags: dict[str, str] | None = None,
+        tags: dict[str, Any] | None = None,
+        extra_tags: dict[str, Any] | None = None,
     ) -> None:
-        if cls.export_legacy_names:
-            Stats.gauge(legacy_stat, value, rate, delta, tags=tags)
+        kw = _get_dict_with_defined_args(None, rate, delta, tags)
 
-        Stats.gauge(stat, value, rate, delta, tags=tags)
+        if cls.export_legacy_names:
+            Stats.gauge(legacy_stat, value, **kw)
+
+        kw_with_extra_tags_if_set = _get_args_dict_with_extra_tags_if_set(kw, tags, extra_tags)
+        Stats.gauge(stat, value, **kw_with_extra_tags_if_set)
 
     @classmethod
     def timing(
@@ -85,19 +158,22 @@ class DualStatsManager:
         stat: str,
         dt: DeltaType,
         *,
-        tags: dict[str, str] | None = None,
+        tags: dict[str, Any] | None = None,
+        extra_tags: dict[str, Any] | None = None,
     ) -> None:
         if cls.export_legacy_names:
             Stats.timing(legacy_stat, dt, tags=tags)
 
-        Stats.timing(stat, dt, tags=tags)
+        tags_with_extra = _get_tags_with_extra(tags, extra_tags)
+        Stats.timing(stat, dt, tags=tags_with_extra)
 
     @classmethod
     def timer(
         cls,
-        legacy_stat: str | None = None,
-        stat: str | None = None,
-        tags: dict[str, str] | None = None,
+        legacy_stat: str,
+        stat: str,
+        tags: dict[str, Any] | None = None,
+        extra_tags: dict[str, Any] | None = None,
         **kwargs,
     ):
         kw = dict(kwargs)
@@ -113,6 +189,8 @@ class DualStatsManager:
         )
 
         stack.enter_context(ctx_mg1)
-        stack.enter_context(Stats.timer(stat, **kw))
+
+        kw_with_extra_tags_if_set = _get_args_dict_with_extra_tags_if_set(kw, tags, extra_tags)
+        stack.enter_context(Stats.timer(stat, **kw_with_extra_tags_if_set))
 
         return stack

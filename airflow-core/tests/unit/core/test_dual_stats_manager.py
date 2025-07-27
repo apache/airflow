@@ -1,0 +1,178 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+from __future__ import annotations
+
+from typing import Any
+
+import pytest
+
+from airflow import dual_stats_manager
+
+
+class TestDualStatsManager:
+    @pytest.mark.parametrize(
+        "count, rate, delta, tags, expected_args_dict",
+        [
+            pytest.param(
+                1,
+                1,
+                False,
+                {},
+                {"count": 1, "rate": 1, "delta": False, "tags": {}},
+                id="all_params_empty_tags",
+            ),
+            pytest.param(
+                1,
+                1,
+                False,
+                {"test": True},
+                {"count": 1, "rate": 1, "delta": False, "tags": {"test": True}},
+                id="provide_tags",
+            ),
+            pytest.param(
+                None,
+                1,
+                False,
+                {},
+                {"rate": 1, "delta": False, "tags": {}},
+                id="no_count",
+            ),
+            pytest.param(
+                1,
+                None,
+                False,
+                {},
+                {"count": 1, "delta": False, "tags": {}},
+                id="no_rate",
+            ),
+            pytest.param(
+                1,
+                1,
+                None,
+                {},
+                {"count": 1, "rate": 1, "tags": {}},
+                id="no_delta",
+            ),
+            pytest.param(
+                1,
+                1,
+                False,
+                None,
+                {"count": 1, "rate": 1, "delta": False},
+                id="no_tags",
+            ),
+        ],
+    )
+    def test_get_dict_with_defined_args(
+        self,
+        count: int | None,
+        rate: int | None,
+        delta: bool | None,
+        tags: dict[str, Any] | None,
+        expected_args_dict: dict[str, Any],
+    ):
+        args_dict = dual_stats_manager._get_dict_with_defined_args(count, rate, delta, tags)
+        assert sorted(args_dict) == sorted(expected_args_dict)
+
+    @pytest.mark.parametrize(
+        "args_dict, tags, extra_tags, expected_args_dict",
+        [
+            pytest.param(
+                {"count": 1},
+                {"test": True},
+                {},
+                {"count": 1, "tags": {"test": True}},
+                id="no_extra_tags",
+            ),
+            pytest.param(
+                {},
+                {"test": True},
+                {},
+                {"tags": {"test": True}},
+                id="no_args_no_extra_but_tags",
+            ),
+            pytest.param(
+                {},
+                {"test": True},
+                {"test_extra": True},
+                {"tags": {"test": True, "test_extra": True}},
+                id="no_args_but_tags_and_extra",
+            ),
+            pytest.param(
+                {"count": 1},
+                {"test": True},
+                {},
+                {"count": 1, "tags": {"test": True}},
+                id="no_args_no_tags_but_extra_tags",
+            ),
+            pytest.param(
+                {"count": 1},
+                {"test": True},
+                {"test_extra": True},
+                {"count": 1, "tags": {"test": True, "test_extra": True}},
+                id="all_params_provided",
+            ),
+        ],
+    )
+    def test_get_args_dict_with_extra_tags_if_set(
+        self,
+        args_dict: dict[str, Any] | None,
+        tags: dict[str, Any] | None,
+        extra_tags: dict[str, Any] | None,
+        expected_args_dict: dict[str, Any],
+    ):
+        dict_full = dual_stats_manager._get_args_dict_with_extra_tags_if_set(args_dict, tags, extra_tags)
+        assert sorted(dict_full) == sorted(expected_args_dict)
+
+    @pytest.mark.parametrize(
+        "tags, extra_tags, expected_tags_dict",
+        [
+            pytest.param(
+                {"test": True},
+                {"test_extra": True},
+                {"test": True, "test_extra": True},
+                id="all_params_provided",
+            ),
+            pytest.param(
+                {},
+                {},
+                {},
+                id="no_params_provided",
+            ),
+            pytest.param(
+                {"test": True},
+                {},
+                {"test": True},
+                id="only_tags",
+            ),
+            pytest.param(
+                {},
+                {"test_extra": True},
+                {"test_extra": True},
+                id="only_extra",
+            ),
+        ],
+    )
+    def test_get_tags_with_extra(
+        self,
+        tags: dict[str, Any] | None,
+        extra_tags: dict[str, Any] | None,
+        expected_tags_dict: dict[str, Any],
+    ):
+        tags_full = dual_stats_manager._get_tags_with_extra(tags, extra_tags)
+        assert sorted(tags_full) == sorted(expected_tags_dict)
