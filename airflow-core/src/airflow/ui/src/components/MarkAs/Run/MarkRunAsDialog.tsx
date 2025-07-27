@@ -62,7 +62,7 @@ const MarkRunAsDialog = ({ dagRun, onClose, open, state }: Props) => {
           <ActionAccordion note={note} setNote={setNote} />
           <Flex justifyContent="end" mt={3}>
             <Button
-              colorPalette="blue"
+              colorPalette="brand"
               loading={isPending}
               onClick={() => {
                 mutate({
