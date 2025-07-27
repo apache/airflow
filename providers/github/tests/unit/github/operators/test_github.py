@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, mock_open, patch
 
 import pytest
 
@@ -47,7 +47,7 @@ class TestGithubOperator:
                 conn_id="github_app_conn",
                 conn_type="github",
                 host="https://mygithub.com/api/v3",
-                extra='{"app_id": "123456", "installation_id": 654321, "private_key": "FAKE_PRIVATE_KEY"}',
+                extra={"app_id": "123456", "installation_id": 654321, "key_path": "FAKE_PRIVATE_KEY.pem"},
             )
         )
 
@@ -72,7 +72,12 @@ class TestGithubOperator:
     @patch(
         "airflow.providers.github.hooks.github.GithubClient", autospec=True, return_value=github_client_mock
     )
-    def test_find_repos(self, github_mock, dag_maker, conn_id):
+    @patch(
+        "airflow.providers.github.hooks.github.open",
+        new_callable=mock_open,
+        read_data="FAKE_PRIVATE_KEY_CONTENT",
+    )
+    def test_find_repos(self, mock_file, github_mock, dag_maker, conn_id):
         class MockRepository:
             pass
 

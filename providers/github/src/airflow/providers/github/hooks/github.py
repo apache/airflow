@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from github import Github as GithubClient, GithubIntegration, Auth
+from github import Auth, Github as GithubClient
 
 from airflow.exceptions import AirflowException
 from airflow.providers.github.version_compat import BaseHook
@@ -61,10 +61,21 @@ class GithubHook(BaseHook):
             if not extras:
                 raise AirflowException("An access token is required to authenticate to GitHub.")
 
-            private_key = extras.get("private_key", None)
-            app_id = extras.get("app_id", "")
-            installation_id = extras.get("installation_id", None)
+            key_path = extras.get("key_path")
+            if key_path:
+                if not key_path.endswith(".pem"):
+                    raise AirflowException("Unrecognised extension for key file")
+                with open(key_path) as key_file:
+                    private_key = key_file.read()
+
+            app_id = extras.get("app_id")
+            installation_id = extras.get("installation_id")
+            if not isinstance(installation_id, int):
+                raise AirflowException("The provided installation_id should be integer.")
+            if not isinstance(app_id, str) or not isinstance(app_id, int):
+                raise AirflowException("The provided installation_id should be integer or string.")
             token_permissions = extras.get("token_permissions", None)
+
             auth = Auth.AppAuth(app_id, private_key).get_installation_auth(installation_id, token_permissions)
 
             self.client = GithubClient(auth=auth)
