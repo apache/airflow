@@ -18,11 +18,13 @@
 from __future__ import annotations
 
 import logging
+import ssl
 import sys
 import uuid
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, TypeVar
 
+import certifi
 import httpx
 import msgspec
 import structlog
@@ -660,6 +662,7 @@ def noop_handler(request: httpx.Request) -> httpx.Response:
 API_RETRIES = conf.getint("workers", "execution_api_retries")
 API_RETRY_WAIT_MIN = conf.getfloat("workers", "execution_api_retry_wait_min")
 API_RETRY_WAIT_MAX = conf.getfloat("workers", "execution_api_retry_wait_max")
+API_SSL_CERT_PATH = conf.get("api", "ssl_cert")
 
 
 class Client(httpx.Client):
@@ -675,6 +678,10 @@ class Client(httpx.Client):
             kwargs.setdefault("base_url", "dry-run://server")
         else:
             kwargs["base_url"] = base_url
+            ctx = ssl.create_default_context(cafile=certifi.where())
+            if API_SSL_CERT_PATH:
+                ctx.load_verify_locations(API_SSL_CERT_PATH)
+            kwargs["verify"] = ctx
         pyver = f"{'.'.join(map(str, sys.version_info[:3]))}"
         super().__init__(
             auth=auth,

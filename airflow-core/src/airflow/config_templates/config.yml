@@ -1403,6 +1403,8 @@ api:
       description: |
         Paths to the SSL certificate and key for the api server. When both are
         provided SSL will be enabled. This does not change the api server port.
+        The same SSL certificate will also be loaded into the worker to enable
+        it to be trusted when a self-signed certificate is used.
       version_added: ~
       type: string
       example: ~
