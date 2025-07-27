@@ -62,6 +62,8 @@ class TestExasolHookConn:
         assert args == ()
         assert kwargs["encryption"] is True
 
+
+class TestExasolHookSqlalchemy:
     def test_sqlalchemy_scheme_property(self):
         self.db_hook = ExasolHook()
         self.db_hook.get_connection = mock.Mock()
@@ -85,8 +87,6 @@ class TestExasolHookConn:
         with pytest.raises(ValueError):
             _ = self.db_hook.sqlalchemy_scheme
 
-
-class TestExasolHookSqlalchemy:
     @pytest.mark.parametrize(
         "hook_scheme, extra, expected_url",
         [
