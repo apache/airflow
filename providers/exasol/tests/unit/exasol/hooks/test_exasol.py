@@ -138,6 +138,15 @@ class TestExasolHookSqlalchemy:
         hook.get_connection = mock.Mock(return_value=self.get_connection(extra=extra))
         assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected_url
 
+    def test_get_uri(self):
+        hook = ExasolHook()
+        connection = self.get_connection(extra={"CONNECTIONLCALL": "en_US.UTF-8", "driver": "EXAODBC"})
+        hook.get_connection = mock.Mock(return_value=connection)
+        assert (
+            hook.get_uri()
+            == "exa+websocket://login:password@host:1234/schema?CONNECTIONLCALL=en_US.UTF-8&driver=EXAODBC"
+        )
+
 
 class TestExasolHook:
     def setup_method(self):
