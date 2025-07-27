@@ -18,10 +18,7 @@
  */
 
 export { useNavigation } from "./useNavigation";
-
 export { useNavigationCalculation } from "./useNavigationCalculation";
-export { useNavigationIndices } from "./useNavigationIndices";
-export { useNavigationMode } from "./useNavigationMode";
 export { useKeyboardNavigation } from "./useKeyboardNavigation";
 
 export type {

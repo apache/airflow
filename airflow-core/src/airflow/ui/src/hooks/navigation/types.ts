@@ -57,7 +57,6 @@ export type NavigationState = {
 export type NavigationActions = {
   handleNavigation: (direction: NavigationDirection, isJump?: boolean) => void;
   setMode: (target: ClickTarget) => void;
-  setNavigationEnabled: (enabled: boolean) => void;
 };
 
 export type UseNavigationProps = {

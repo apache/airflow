@@ -16,26 +16,86 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-import type { NavigationDirection, UseNavigationProps, UseNavigationReturn } from "./types";
+import type {
+  ClickTarget,
+  NavigationDirection,
+  NavigationIndices,
+  NavigationMode,
+  UseNavigationProps,
+  UseNavigationReturn,
+} from "./types";
 import { useKeyboardNavigation } from "./useKeyboardNavigation";
 import { useNavigationCalculation } from "./useNavigationCalculation";
-import { useNavigationIndices } from "./useNavigationIndices";
-import { useNavigationMode } from "./useNavigationMode";
+
+const detectModeFromClick = (target: ClickTarget): NavigationMode => {
+  switch (target) {
+    case "column":
+      return "run";
+    case "grid":
+      return "grid";
+    case "row":
+      return "task";
+    default:
+      return "grid";
+  }
+};
+
+const detectModeFromUrl = (pathname: string): NavigationMode => {
+  if (pathname.includes("/runs/") && pathname.includes("/tasks/")) {
+    return "grid";
+  }
+  if (pathname.includes("/runs/") && !pathname.includes("/tasks/")) {
+    return "run";
+  }
+  if (pathname.includes("/tasks/") && !pathname.includes("/runs/")) {
+    return "task";
+  }
+
+  return "grid";
+};
 
 export const useNavigation = ({ enabled = true, runs, tasks }: UseNavigationProps): UseNavigationReturn => {
-  const { dagId = "" } = useParams();
+  const { dagId = "", groupId = "", runId = "", taskId = "" } = useParams();
   const navigate = useNavigate();
   const [isNavigating, setIsNavigating] = useState(false);
+  const [mode, setMode] = useState<NavigationMode>("grid");
 
-  // Get current navigation state
-  const { mode, setMode } = useNavigationMode();
-  const currentIndices = useNavigationIndices({ runs, tasks });
+  // Auto-detect mode from URL
+  useEffect(() => {
+    if (typeof globalThis !== "undefined") {
+      const detectedMode = detectModeFromUrl(globalThis.location.pathname);
+
+      setMode(detectedMode);
+    }
+  }, [dagId, groupId, runId, taskId]);
+
+  // Calculate current indices from URL params
+  const currentIndices = useMemo((): NavigationIndices => {
+    const runIndex = Math.max(
+      0,
+      runs.findIndex((run) => run.run_id === runId),
+    );
+
+    const currentTaskId = groupId || taskId;
+    const taskIndex = Math.max(
+      0,
+      tasks.findIndex((task) => task.id === currentTaskId),
+    );
+
+    return { runIndex, taskIndex };
+  }, [groupId, runId, runs, taskId, tasks]);
+
   const { getNavigationTarget } = useNavigationCalculation({ mode, runs, tasks });
 
-  // Handle navigation action
+  const setModeFromClick = useCallback((target: ClickTarget) => {
+    const newMode = detectModeFromClick(target);
+
+    setMode(newMode);
+  }, []);
+
   const handleNavigation = useCallback(
     (direction: NavigationDirection, isJump: boolean = false) => {
       if (!enabled || !dagId) {
@@ -50,7 +110,6 @@ export const useNavigation = ({ enabled = true, runs, tasks }: UseNavigationProp
         navigate(target.path, { replace: true });
       }
 
-      // Reset navigation state after a short delay
       setTimeout(() => {
         setIsNavigating(false);
       }, 100);
@@ -58,7 +117,6 @@ export const useNavigation = ({ enabled = true, runs, tasks }: UseNavigationProp
     [currentIndices, dagId, enabled, getNavigationTarget, navigate],
   );
 
-  // Setup keyboard navigation
   useKeyboardNavigation({
     enabled: enabled && Boolean(dagId),
     mode,
@@ -71,9 +129,6 @@ export const useNavigation = ({ enabled = true, runs, tasks }: UseNavigationProp
     handleNavigation,
     isNavigating,
     mode,
-    setMode,
-    setNavigationEnabled: () => {
-      // Keep for compatibility but not used
-    },
+    setMode: setModeFromClick,
   };
 };
