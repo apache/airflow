@@ -658,7 +658,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 f"pool.starving_tasks.{pool_name}",
                 "pool.starving_tasks",
                 num_starving_tasks,
-                tags={"pool_name": pool_name},
+                tags={},
+                extra_tags={"pool_name": pool_name},
             )
 
         Stats.gauge("scheduler.tasks.starving", num_starving_tasks_total)
@@ -1843,7 +1844,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     f"dagrun.schedule_delay.{dag.dag_id}",
                     "dagrun.schedule_delay",
                     schedule_delay,
-                    tags={"dag_id": dag.dag_id},
+                    tags={},
+                    extra_tags={"dag_id": dag.dag_id},
                 )
                 if span.is_recording():
                     span.add_event(
@@ -2002,7 +2004,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         f"dagrun.duration.failed.{dag_run.dag_id}",
                         "dagrun.duration.failed",
                         duration,
-                        tags={"dag_id": dag_run.dag_id},
+                        tags={},
+                        extra_tags={"dag_id": dag_run.dag_id},
                     )
                 span.set_attribute("error", True)
                 if span.is_recording():
@@ -2277,7 +2280,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 f"ti.running.{queue}.{dag_id}.{task_id}",
                 "ti.running",
                 count,
-                tags={"queue": queue, "dag_id": dag_id, "task_id": task_id},
+                tags={},
+                extra_tags={"queue": queue, "dag_id": dag_id, "task_id": task_id},
             )
 
         for prev_key in self.previous_ti_running_metrics:
@@ -2288,7 +2292,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     f"ti.running.{queue}.{dag_id}.{task_id}",
                     "ti.running",
                     0,
-                    tags={"queue": queue, "dag_id": dag_id, "task_id": task_id},
+                    tags={},
+                    extra_tags={"queue": queue, "dag_id": dag_id, "task_id": task_id},
                 )
 
         self.previous_ti_running_metrics = ti_running_metrics
@@ -2306,31 +2311,36 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     f"pool.open_slots.{pool_name}",
                     "pool.open_slots",
                     slot_stats["open"],
-                    tags={"pool_name": pool_name},
+                    tags={},
+                    extra_tags={"pool_name": pool_name},
                 )
                 DualStatsManager.gauge(
                     f"pool.queued_slots.{pool_name}",
                     "pool.queued_slots",
                     slot_stats["queued"],
-                    tags={"pool_name": pool_name},
+                    tags={},
+                    extra_tags={"pool_name": pool_name},
                 )
                 DualStatsManager.gauge(
                     f"pool.running_slots.{pool_name}",
                     "pool.running_slots",
                     slot_stats["running"],
-                    tags={"pool_name": pool_name},
+                    tags={},
+                    extra_tags={"pool_name": pool_name},
                 )
                 DualStatsManager.gauge(
                     f"pool.deferred_slots.{pool_name}",
                     "pool.deferred_slots",
                     slot_stats["deferred"],
-                    tags={"pool_name": pool_name},
+                    tags={},
+                    extra_tags={"pool_name": pool_name},
                 )
                 DualStatsManager.gauge(
                     f"pool.scheduled_slots.{pool_name}",
                     "pool.scheduled_slots",
                     slot_stats["scheduled"],
-                    tags={"pool_name": pool_name},
+                    tags={},
+                    extra_tags={"pool_name": pool_name},
                 )
 
                 span.set_attributes(
