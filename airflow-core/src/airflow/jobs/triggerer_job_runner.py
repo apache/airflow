@@ -587,7 +587,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             f"triggers.running.{self.job.hostname}",
             "triggers.running",
             len(self.running_triggers),
-            tags={"hostname": self.job.hostname},
+            tags={},
+            extra_tags={"hostname": self.job.hostname},
         )
 
         capacity_left = self.capacity - len(self.running_triggers)
@@ -595,7 +596,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             f"triggerer.capacity_left.{self.job.hostname}",
             "triggerer.capacity_left",
             capacity_left,
-            tags={"hostname": self.job.hostname},
+            tags={},
+            extra_tags={"hostname": self.job.hostname},
         )
 
         span = Trace.get_current_span()
