@@ -954,13 +954,13 @@ class TestDagRunOperations:
         )
         assert response == self.dag_run_collection_response
 
-    def test_create(self):
+    def test_trigger(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == f"/api/v2/dags/{self.dag_id}/dag_runs/{self.dag_id}"
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/dag_runs"
             return httpx.Response(200, json=json.loads(self.dag_run_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.dag_runs.create(dag_id=self.dag_id, trigger_dag_run=self.trigger_dag_run)
+        response = client.dag_runs.trigger(dag_id=self.dag_id, trigger_dag_run=self.trigger_dag_run)
         assert response == self.dag_run_response
 
 

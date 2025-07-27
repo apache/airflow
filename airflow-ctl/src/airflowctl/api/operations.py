@@ -545,19 +545,20 @@ class DagRunOperations(BaseOperations):
             "end_date": end_date,
             "state": state,
             "limit": limit,
+            "dag_id": dag_id,
         }
         return super().execute_list(
             path=f"/dags/{dag_id}/dag_runs", data_model=DAGRunCollectionResponse, params=params
         )
 
-    def create(
+    def trigger(
         self, dag_id: str, trigger_dag_run: TriggerDAGRunPostBody
     ) -> DAGRunResponse | ServerResponseError:
         """Create a dag run."""
         try:
             # It is model_dump_json() because it has unparsable json datetime objects
             self.response = self.client.post(
-                f"/dags/{dag_id}/dag_runs/{dag_id}", json=trigger_dag_run.model_dump_json()
+                f"/dags/{dag_id}/dag_runs", json=trigger_dag_run.model_dump_json()
             )
             return DAGRunResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
