@@ -20,7 +20,12 @@ import os
 from datetime import datetime
 
 from airflow import DAG, settings
-from airflow.decorators import task
+
+try:
+    from airflow.sdk import task
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.models import Connection
 from airflow.models.baseoperator import chain
 from airflow.providers.microsoft.azure.operators.powerbi import PowerBIDatasetListOperator

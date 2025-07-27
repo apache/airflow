@@ -17,7 +17,7 @@
 
 [build-system]
 requires = [
-    "GitPython==3.1.44",
+    "GitPython==3.1.45",
     "gitdb==4.0.12",
     "hatchling==1.27.0",
     "packaging==25.0",
@@ -69,6 +69,7 @@ version = "3.1.0"
 dependencies = [
     "apache-airflow-task-sdk<1.2.0,>=1.0.0",
     "apache-airflow-core==3.1.0",
+    "natsort>=8.4.0",
 ]
 
 packages = []
@@ -534,7 +535,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.8.0",
+    "uv>=0.8.3",
 ]
 
 
@@ -619,7 +620,6 @@ extend-select = [
     "RET506", # Unnecessary {branch} after raise statement
     "RET507", # Unnecessary {branch} after continue statement
     "RET508", # Unnecessary {branch} after break statement
-    "SIM105", # Use contextlib.suppress({exception}) instead of try-except-pass
 ]
 ignore = [
     "D100", # Unwanted; Docstring at the top of every file.
@@ -655,6 +655,7 @@ ignore = [
     "E501", # Formatted code may exceed the line length, leading to line-too-long (E501) errors.
     "ASYNC110", # TODO: Use `anyio.Event` instead of awaiting `anyio.sleep` in a `while` loop
     "UP038",
+    "SIM105", # Use contextlib.suppress({exception}) instead of try-except-pass
 ]
 unfixable = [
     # PT022 replace empty `yield` to empty `return`. Might be fixed with a combination of PLR1711
@@ -679,7 +680,7 @@ section-order = [
   "testing"
 ]
 
-known-first-party = ["airflow"]
+known-first-party = ["airflow", "airflow_shared", "airflow_shared.*"]
 
 # Make sure we put the "dev" imports at the end, not as a third-party module
 [tool.ruff.lint.isort.sections]
@@ -749,6 +750,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 "dev/breeze/tests/*" = ["TID253", "S101", "TRY002"]
 "airflow-core/tests/*" = ["D", "TID253", "S101", "TRY002"]
 "docker-tests/*" = ["D", "TID253", "S101", "TRY002"]
+"task-sdk-tests/*" = ["D", "TID253", "S101", "TRY002"]
 "kubernetes-tests/*" = ["D", "TID253", "S101", "TRY002"]
 "helm-tests/*" = ["D", "TID253", "S101", "TRY002"]
 "providers/**/tests/*" = ["D", "TID253", "S101", "TRY002"]
@@ -809,20 +811,30 @@ ban-relative-imports = "all"
 # that they're imported lazily (e.g., within a function definition).
 banned-module-level-imports = ["numpy", "pandas", "polars"]
 
+
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
+
 # Direct import from the airflow package modules and constraints
 "airflow.AirflowException".msg = "Use airflow.exceptions.AirflowException instead."
 "airflow.Dataset".msg = "Use airflow.datasets.Dataset instead."
+
 # Deprecated imports
 "airflow.models.baseoperator.BaseOperatorLink".msg = "Use airflow.models.baseoperatorlink.BaseOperatorLink"
 "airflow.models.errors.ImportError".msg = "Use airflow.models.errors.ParseImportError"
 "airflow.models.ImportError".msg = "Use airflow.models.errors.ParseImportError"
+
+# Note: we have to specify these all here (not in sub pyproject.toml files), else we'd have to duplicate these
+# all rules in each project https://github.com/astral-sh/ruff/issues/18723
+# Add this once providers are sorted
+# "airflow.utils.timezone".msg = "Use airflow.sdk.timezone (or airflow._shared.timezones.timezone from within airflow-core)"
+# "airflow_shared".msg = "Use airflow._shared or airflow.sdk._shared instead"
+
 # Deprecated in Python 3.11, Pending Removal in Python 3.15: https://github.com/python/cpython/issues/90817
 # Deprecation warning in Python 3.11 also recommends using locale.getencoding but it available in Python 3.11
 "locale.getdefaultlocale".msg = "Use locale.setlocale() and locale.getlocale() instead."
 # Deprecated in Python 3.12: https://github.com/python/cpython/issues/103857
-"datetime.datetime.utcnow".msg = "Use airflow.utils.timezone.utcnow or datetime.datetime.now(tz=datetime.timezone.utc)"
-"datetime.datetime.utcfromtimestamp".msg = "Use airflow.utils.timezone.from_timestamp or datetime.datetime.fromtimestamp(tz=datetime.timezone.utc)"
+"datetime.datetime.utcnow".msg = "Use airflow.sdk.timezone.utcnow or datetime.datetime.now(tz=datetime.timezone.utc)"
+"datetime.datetime.utcfromtimestamp".msg = "Use airflow.sdk.timezone.from_timestamp or datetime.datetime.fromtimestamp(tz=datetime.timezone.utc)"
 # Deprecated in Python 3.12: https://github.com/python/cpython/issues/94309
 "typing.Hashable".msg = "Use collections.abc.Hashable"
 "typing.Sized".msg = "Use collections.abc.Sized"
@@ -999,6 +1011,7 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/helm-tests/tests",
     "$MYPY_CONFIG_FILE_DIR/kubernetes-tests/tests",
     "$MYPY_CONFIG_FILE_DIR/docker-tests/tests",
+    "$MYPY_CONFIG_FILE_DIR/task-sdk-tests/tests",
     # Automatically generated mypy paths (update_airflow_pyproject_toml.py)
     "$MYPY_CONFIG_FILE_DIR/providers/airbyte/src",
     "$MYPY_CONFIG_FILE_DIR/providers/airbyte/tests",
@@ -1244,10 +1257,12 @@ dev = [
     "apache-airflow-dev",
     "apache-airflow-devel-common[no-doc]",
     "apache-airflow-docker-tests",
+    "apache-airflow-task-sdk-tests",
     "apache-airflow-helm-tests",
     "apache-airflow-kubernetes-tests",
     "apache-airflow-task-sdk",
-    "apache-airflow-ctl"
+    "apache-airflow-ctl",
+    "apache-airflow-shared-timezones",
 ]
 
 # To build docs:
@@ -1289,10 +1304,12 @@ apache-airflow-ctl = {workspace = true}
 apache-airflow-task-sdk = { workspace = true }
 apache-airflow-devel-common = { workspace = true }
 apache-airflow-docker-tests = { workspace = true }
+apache-airflow-task-sdk-tests = { workspace = true }
 apache-airflow-helm-tests = { workspace = true }
 apache-airflow-kubernetes-tests = { workspace = true }
 apache-airflow-providers = { workspace = true }
 apache-aurflow-docker-stack = { workspace = true }
+apache-airflow-shared-timezones = { workspace = true }
 # Automatically generated provider workspace items (update_airflow_pyproject_toml.py)
 apache-airflow-providers-airbyte = { workspace = true }
 apache-airflow-providers-alibaba = { workspace = true }
@@ -1402,11 +1419,13 @@ members = [
     "dev",
     "devel-common",
     "docker-tests",
+    "task-sdk-tests",
     "helm-tests",
     "kubernetes-tests",
     "task-sdk",
     "providers-summary-docs",
     "docker-stack-docs",
+    "shared/timezones",
     # Automatically generated provider workspace members (update_airflow_pyproject_toml.py)
     "providers/airbyte",
     "providers/alibaba",

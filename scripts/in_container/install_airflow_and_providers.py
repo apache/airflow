@@ -494,7 +494,7 @@ FUTURE_CONTENT = "from __future__ import annotations"
     default="apache/airflow",
     show_default=True,
     envvar="GITHUB_REPOSITORY",
-    help="Github repository to use",
+    help="GitHub repository to use",
 )
 @click.option(
     "--install-selected-providers",

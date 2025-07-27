@@ -30,9 +30,10 @@ import pytest
 
 import airflow
 from airflow import settings
+from airflow._shared.timezones import timezone
 from airflow.exceptions import AirflowException
 from airflow.models.log import Log
-from airflow.utils import cli, cli_action_loggers, timezone
+from airflow.utils import cli, cli_action_loggers
 from airflow.utils.cli import _search_for_dag_file
 
 # Mark entire module as db_test because ``action_cli`` wrapper still could use DB on callbacks:

@@ -541,7 +541,7 @@ def get_task_instances_batch(
     order_by = SortParam(
         ["id", "state", "duration", "start_date", "end_date", "map_index"],
         TI,
-    ).set_value(body.order_by)
+    ).set_value([body.order_by] if body.order_by else None)
 
     query = select(TI).join(TI.dag_run)
     task_instance_select, total_entries = paginated_select(
@@ -675,7 +675,11 @@ def post_clear_task_instances(
         if dag_run is None:
             error_message = f"Dag Run id {dag_run_id} not found in dag {dag_id}"
             raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
+        # If dag_run_id is provided, we should get the dag from SchedulerDagBag
+        # to ensure we get the right version.
+        from airflow.jobs.scheduler_job_runner import SchedulerDagBag
 
+        dag = SchedulerDagBag().get_dag(dag_run=dag_run, session=session)
         if past or future:
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST,
@@ -724,6 +728,7 @@ def post_clear_task_instances(
             task_instances,
             session,
             DagRunState.QUEUED if reset_dag_runs else False,
+            run_on_latest_version=body.run_on_latest_version,
         )
 
     return TaskInstanceCollectionResponse(

@@ -21,12 +21,12 @@ from datetime import datetime, timezone
 
 import pytest
 
+from airflow._shared.timezones.timezone import utcnow
 from airflow.api_fastapi.common.db.dags import generate_dag_with_latest_run_query
 from airflow.api_fastapi.common.parameters import SortParam
 from airflow.models import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.utils.state import DagRunState
-from airflow.utils.timezone import utcnow
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
@@ -114,7 +114,7 @@ class TestGenerateDagWithLatestRunQuery:
         dag_model, _ = dag_with_queued_run
         query = generate_dag_with_latest_run_query(
             max_run_filters=[],
-            order_by=SortParam(allowed_attrs=["dag_id"], model=DagModel).set_value("dag_id"),
+            order_by=SortParam(allowed_attrs=["dag_id"], model=DagModel).set_value(["dag_id"]),
         )
 
         # Also fetch joined DagRun's state and start_date
@@ -134,7 +134,9 @@ class TestGenerateDagWithLatestRunQuery:
 
         query = generate_dag_with_latest_run_query(
             max_run_filters=[],
-            order_by=SortParam(allowed_attrs=["last_run_state"], model=DagModel).set_value("last_run_state"),
+            order_by=SortParam(allowed_attrs=["last_run_state"], model=DagModel).set_value(
+                ["last_run_state"]
+            ),
         )
         extended_query = query.add_columns(DagRun.state, DagRun.start_date)
         result = session.execute(extended_query).fetchall()
@@ -159,7 +161,7 @@ class TestGenerateDagWithLatestRunQuery:
         query = generate_dag_with_latest_run_query(
             max_run_filters=[],
             order_by=SortParam(allowed_attrs=["last_run_start_date"], model=DagModel).set_value(
-                "last_run_start_date"
+                ["last_run_start_date"]
             ),
         )
         extended_query = query.add_columns(DagRun.state, DagRun.start_date)
@@ -207,7 +209,9 @@ class TestGenerateDagWithLatestRunQuery:
         session.commit()
         query = generate_dag_with_latest_run_query(
             max_run_filters=[],
-            order_by=SortParam(allowed_attrs=["last_run_state"], model=DagModel).set_value("last_run_state"),
+            order_by=SortParam(allowed_attrs=["last_run_state"], model=DagModel).set_value(
+                ["last_run_state"]
+            ),
         )
         extended_query = query.add_columns(DagRun.state, DagRun.start_date)
         result = session.execute(extended_query).fetchall()
@@ -231,7 +235,9 @@ class TestGenerateDagWithLatestRunQuery:
         running_dag_model, _ = dag_with_running_run
         query = generate_dag_with_latest_run_query(
             max_run_filters=[],
-            order_by=SortParam(allowed_attrs=["last_run_state"], model=DagModel).set_value("last_run_state"),
+            order_by=SortParam(allowed_attrs=["last_run_state"], model=DagModel).set_value(
+                ["last_run_state"]
+            ),
         )
         extended_query = query.add_columns(DagRun.state, DagRun.start_date)
 

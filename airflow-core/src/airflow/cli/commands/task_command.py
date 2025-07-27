@@ -28,6 +28,7 @@ from contextlib import redirect_stdout
 from typing import TYPE_CHECKING, Protocol, cast
 
 from airflow import settings
+from airflow._shared.timezones import timezone
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
 from airflow.exceptions import AirflowConfigException, DagRunNotFound, TaskInstanceNotFound
@@ -41,7 +42,7 @@ from airflow.sdk.execution_time.secrets_masker import RedactedIO
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
-from airflow.utils import cli as cli_utils, timezone
+from airflow.utils import cli as cli_utils
 from airflow.utils.cli import (
     get_dag,
     get_dag_by_file_location,
