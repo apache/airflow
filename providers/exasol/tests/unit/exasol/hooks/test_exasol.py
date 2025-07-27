@@ -64,28 +64,43 @@ class TestExasolHookConn:
 
 
 class TestExasolHookSqlalchemy:
-    def test_sqlalchemy_scheme_property(self):
-        self.db_hook = ExasolHook()
-        self.db_hook.get_connection = mock.Mock()
-        self.db_hook.get_connection.return_value = self.connection
-        assert self.db_hook.sqlalchemy_scheme == "exa+websocket"
+    def get_connection(self, extra: dict | None = None) -> models.Connection:
+        return models.Connection(
+            login="login",
+            password="password",
+            host="host",
+            port=1234,
+            schema="schema",
+            extra=extra,
+        )
 
-        self.db_hook = ExasolHook(sqlalchemy_scheme="exa+pyodbc")
-        self.db_hook.get_connection = mock.Mock()
-        self.db_hook.get_connection.return_value = self.connection
-        assert self.db_hook.sqlalchemy_scheme == "exa+pyodbc"
+    @pytest.mark.parametrize(
+        "init_scheme, extra_scheme, expected_result, expect_error",
+        [
+            (None, None, "exa+websocket", False),
+            ("exa+pyodbc", None, "exa+pyodbc", False),
+            (None, "exa+turbodbc", "exa+turbodbc", False),
+            ("exa+invalid", None, None, True),
+            (None, "exa+invalid", None, True),
+        ],
+        ids=[
+            "default",
+            "from_init_arg",
+            "from_extra",
+            "invalid_from_init_arg",
+            "invalid_from_extra",
+        ],
+    )
+    def test_sqlalchemy_scheme_property(self, init_scheme, extra_scheme, expected_result, expect_error):
+        hook = ExasolHook(sqlalchemy_scheme=init_scheme) if init_scheme else ExasolHook()
+        connection = self.get_connection(extra={"sqlalchemy_scheme": extra_scheme} if extra_scheme else None)
+        hook.get_connection = mock.Mock(return_value=connection)
 
-        self.db_hook = ExasolHook()
-        self.db_hook.get_connection = mock.Mock()
-        self.db_hook.get_connection.return_value = self.connection
-        self.connection.extra = json.dumps({"Foo": "Bar", "sqlalchemy_scheme": "exa+turbodbc"})
-        assert self.db_hook.sqlalchemy_scheme == "exa+turbodbc"
-
-        self.db_hook = ExasolHook(sqlalchemy_scheme="exa+invalid")
-        self.db_hook.get_connection = mock.Mock()
-        self.db_hook.get_connection.return_value = self.connection
-        with pytest.raises(ValueError):
-            _ = self.db_hook.sqlalchemy_scheme
+        if not expect_error:
+            assert hook.sqlalchemy_scheme == expected_result
+        else:
+            with pytest.raises(ValueError):
+                _ = hook.sqlalchemy_scheme
 
     @pytest.mark.parametrize(
         "hook_scheme, extra, expected_url",
@@ -119,16 +134,8 @@ class TestExasolHookSqlalchemy:
         ],
     )
     def test_sqlalchemy_url_property(self, hook_scheme, extra, expected_url):
-        connection = models.Connection(
-            login="login",
-            password="password",
-            host="host",
-            port=1234,
-            schema="schema",
-            extra=extra,
-        )
         hook = ExasolHook(sqlalchemy_scheme=hook_scheme) if hook_scheme else ExasolHook()
-        hook.get_connection = mock.Mock(return_value=connection)
+        hook.get_connection = mock.Mock(return_value=self.get_connection(extra=extra))
         assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected_url
 
 
