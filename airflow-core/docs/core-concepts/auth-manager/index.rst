@@ -239,7 +239,7 @@ Additional Caveats
 ^^^^^^^^^^^^^^^^^^
 
 * Your auth manager should not reference anything from the ``airflow.security.permissions`` module, as that module is in the process of being deprecated.
-  Instead, your code should use the definitions in ``airflow.api_fastapi.auth.managers.models.resource_details``.
+  Instead, your code should use the definitions in ``airflow.api_fastapi.auth.managers.models.resource_details``. For more details on the ``airflow.security.permissions`` deprecation, see :doc:`security/auth-manager/deprecated_permissions`
 * The ``access_control`` attribute of a DAG instance is only compatible with the FAB auth manager. Custom auth manager implementations should leverage ``get_authorized_dag_ids`` for DAG instance attribute-based access controls in more customizable ways (e.g. authorization based on DAG tags, DAG bundles, etc.).
 * You may find it useful to define a private, generalized ``_is_authorized`` method which acts as the standardized authorization mechanism, and which each
   public ``is_authorized_*`` method calls with the appropriate parameters.
@@ -271,5 +271,3 @@ Once you have created a new auth manager class implementing the :class:`~airflow
 
 .. note::
     For more information on Airflow's configuration, see :doc:`/howto/set-config` and for more information on managing Python modules in Airflow see :doc:`/administration-and-deployment/modules_management`.
-
-Deprecation Notice for
