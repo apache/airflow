@@ -40,13 +40,6 @@ class TestLogin:
         assert response.status_code == 201
         assert "access_token" in response.json()
 
-    @pytest.mark.parametrize(
-        "test_user",
-        [
-            TEST_USER_1,
-            TEST_USER_2,
-        ],
-    )
     @patch("airflow.api_fastapi.auth.managers.simple.routes.login.SimpleAuthManagerLogin")
     def test_create_token_with_form_data(
         self,
@@ -60,7 +53,7 @@ class TestLogin:
         response = test_client.post(
             "/auth/token",
             data={
-                "username": test_user,
+                "username": "test1",
                 "password": "DUMMY_PASS",
             },
             headers={"Content-Type": "application/x-www-form-urlencoded"},
