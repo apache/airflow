@@ -27,6 +27,18 @@ if TYPE_CHECKING:
     from airflow.metrics.protocols import DeltaType
 
 
+def _value_is_provided(value: Any):
+    """Return true if the value is not None and, if it has length > 0."""
+    if value is None:
+        return False
+    try:
+        # False for empty dicts and strings.
+        return len(value) > 0
+    except TypeError:
+        # Numbers and bools that don't have `len`.
+        return True
+
+
 def _get_dict_with_defined_args(
     prov_count: int | None = None,
     prov_rate: int | float | None = None,
@@ -36,13 +48,13 @@ def _get_dict_with_defined_args(
     """Create a dict that will include only the parameters that have been provided."""
     defined_args_dict: dict[str, Any] = {}
 
-    if prov_count is not None:
+    if _value_is_provided(prov_count):
         defined_args_dict["count"] = prov_count
-    if prov_rate is not None:
+    if _value_is_provided(prov_rate):
         defined_args_dict["rate"] = prov_rate
-    if prov_delta is not None:
+    if _value_is_provided(prov_delta):
         defined_args_dict["delta"] = prov_delta
-    if prov_tags is not None:
+    if _value_is_provided(prov_tags):
         defined_args_dict["tags"] = prov_tags
 
     return defined_args_dict
@@ -65,8 +77,12 @@ def _get_args_dict_with_extra_tags_if_set(
 
     tags_full = _get_tags_with_extra(prov_tags, prov_tags_extra)
 
-    # Replace the existing `tags` on the `args_dict` with the new full ones.
-    args_dict_full["tags"] = tags_full
+    # Set `tags` only if there's something in `tags_full`.
+    # If it's empty, remove any inherited key.
+    if tags_full:
+        args_dict_full["tags"] = tags_full
+    else:
+        args_dict_full.pop("tags", None)
 
     return args_dict_full
 
@@ -162,10 +178,17 @@ class DualStatsManager:
         extra_tags: dict[str, Any] | None = None,
     ) -> None:
         if cls.export_legacy_names:
-            Stats.timing(legacy_stat, dt, tags=tags)
+            if tags:
+                Stats.timing(legacy_stat, dt, tags=tags)
+            else:
+                Stats.timing(legacy_stat, dt)
 
         tags_with_extra = _get_tags_with_extra(tags, extra_tags)
-        Stats.timing(stat, dt, tags=tags_with_extra)
+
+        if tags_with_extra:
+            Stats.timing(stat, dt, tags=tags_with_extra)
+        else:
+            Stats.timing(stat, dt)
 
     @classmethod
     def timer(
