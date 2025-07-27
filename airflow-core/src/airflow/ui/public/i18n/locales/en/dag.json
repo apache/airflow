@@ -41,7 +41,6 @@
   },
   "navigation": {
     "jump": "Jump: Shift+{{arrow}}",
-    "longPress": "Quick navigation: Hold {{arrow}}",
     "navigation": "Navigation: {{arrow}}"
   },
   "overview": {

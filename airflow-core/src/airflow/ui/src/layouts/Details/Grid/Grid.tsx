@@ -39,6 +39,19 @@ import { flattenNodes } from "./utils";
 
 dayjs.extend(dayjsDuration);
 
+const getArrowsForMode = (navigationMode: string) => {
+  switch (navigationMode) {
+    case "grid":
+      return "↑↓←→";
+    case "run":
+      return "←→";
+    case "task":
+      return "↑↓";
+    default:
+      return "↑↓←→";
+  }
+};
+
 type Props = {
   readonly limit: number;
 };
@@ -90,7 +103,7 @@ export const Grid = ({ limit }: Props) => {
 
   const { flatNodes } = useMemo(() => flattenNodes(dagStructure, openGroupIds), [dagStructure, openGroupIds]);
 
-  const { setMode } = useNavigation({
+  const { mode, setMode } = useNavigation({
     enabled: isGridFocused,
     runs: gridRuns ?? [],
     tasks: flatNodes,
@@ -145,14 +158,13 @@ export const Grid = ({ limit }: Props) => {
           color="gray.400"
           fontSize="xs"
           position="absolute"
-          px={2}
-          py={10}
+          px={0}
+          py={12}
           top={0}
           zIndex={10}
         >
-          <Text>{translate("navigation.navigation", { arrow: "↑↓←→" })}</Text>
-          <Text>{translate("navigation.longPress", { arrow: "↑↓←→" })}</Text>
-          <Text>{translate("navigation.jump", { arrow: "↑↓←→" })}</Text>
+          <Text>{translate("navigation.navigation", { arrow: getArrowsForMode(mode) })}</Text>
+          <Text>{translate("navigation.jump", { arrow: getArrowsForMode(mode) })}</Text>
         </Box>
       )}
 
