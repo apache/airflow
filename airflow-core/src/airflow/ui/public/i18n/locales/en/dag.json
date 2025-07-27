@@ -39,6 +39,11 @@
     "viewInExternal": "View logs in {{name}} (attempt {{attempt}})",
     "warning": "WARNING"
   },
+  "navigation": {
+    "jump": "Jump: {{metaKey}}+{{arrow}}",
+    "longPress": "Quick navigation: Hold {{arrow}}",
+    "navigation": "Navigation: {{arrow}}"
+  },
   "overview": {
     "buttons": {
       "failedRun_one": "Failed Run",

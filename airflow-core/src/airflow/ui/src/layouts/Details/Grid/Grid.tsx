@@ -16,19 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, IconButton } from "@chakra-ui/react";
+import { Box, Flex, IconButton, Text } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import dayjsDuration from "dayjs/plugin/duration";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronsRight } from "react-icons/fi";
 import { Link, useParams } from "react-router-dom";
 
 import type { GridRunsResponse } from "openapi/requests";
 import { useOpenGroups } from "src/context/openGroups";
+import { useNavigation } from "src/hooks/navigation";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { useGridStructure } from "src/queries/useGridStructure.ts";
-import { isStatePending } from "src/utils";
+import { getMetaKey, isStatePending } from "src/utils";
 
 import { Bar } from "./Bar";
 import { DurationAxis } from "./DurationAxis";
@@ -44,6 +45,9 @@ type Props = {
 
 export const Grid = ({ limit }: Props) => {
   const { t: translate } = useTranslation("dag");
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [isGridFocused, setIsGridFocused] = useState(false);
+  const metaKey = getMetaKey();
 
   const [selectedIsVisible, setSelectedIsVisible] = useState<boolean | undefined>();
   const [hasActiveRun, setHasActiveRun] = useState<boolean | undefined>();
@@ -75,7 +79,7 @@ export const Grid = ({ limit }: Props) => {
   }, [gridRuns, setHasActiveRun]);
 
   const { data: dagStructure } = useGridStructure({ hasActiveRun, limit });
-  // calculate dag run bar heights relative to max
+
   const max = Math.max.apply(
     undefined,
     gridRuns === undefined
@@ -84,12 +88,81 @@ export const Grid = ({ limit }: Props) => {
           .map((dr: GridRunsResponse) => dr.duration)
           .filter((duration: number | null): duration is number => duration !== null),
   );
+
   const { flatNodes } = useMemo(() => flattenNodes(dagStructure, openGroupIds), [dagStructure, openGroupIds]);
 
+  const { setMode } = useNavigation({
+    enabled: isGridFocused,
+    runs: gridRuns ?? [],
+    tasks: flatNodes,
+  });
+
+  useEffect(() => {
+    if (gridRef.current && gridRuns && flatNodes.length > 0) {
+      gridRef.current.focus();
+      setIsGridFocused(true);
+      console.log("🎯 Grid focused automatically");
+    }
+  }, [gridRuns, flatNodes.length]);
+
+  const handleFocus = () => {
+    console.log("🎯 Grid focus event");
+    setIsGridFocused(true);
+  };
+
+  const handleBlur = (event: React.FocusEvent) => {
+    if (!gridRef.current?.contains(event.relatedTarget as Node)) {
+      console.log("😑 Grid blur event");
+      setIsGridFocused(false);
+    }
+  };
+
+  const handleMouseDown = (event: React.MouseEvent) => {
+    event.preventDefault();
+    if (gridRef.current) {
+      gridRef.current.focus();
+      setIsGridFocused(true);
+      console.log("🖱️ Grid focused via mouse");
+    }
+  };
+
   return (
-    <Flex justifyContent="flex-start" position="relative" pt={50} width="100%">
+    <Flex
+      _focus={{
+        borderRadius: "4px",
+        boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)",
+      }}
+      cursor="pointer"
+      justifyContent="flex-start"
+      onBlur={handleBlur}
+      onFocus={handleFocus}
+      onMouseDown={handleMouseDown}
+      outline="none"
+      position="relative"
+      pt={50}
+      ref={gridRef}
+      tabIndex={0}
+      width="100%"
+    >
+      {Boolean(isGridFocused) && (
+        <Box
+          borderRadius="md"
+          color="gray.400"
+          fontSize="xs"
+          position="absolute"
+          px={2}
+          py={10}
+          top={0}
+          zIndex={10}
+        >
+          <Text>{translate("navigation.navigation", { arrow: "↑↓←→" })}</Text>
+          <Text>{translate("navigation.longPress", { arrow: "↑↓←→" })}</Text>
+          <Text>{translate("navigation.jump", { arrow: "↑↓←→", metaKey })}</Text>
+        </Box>
+      )}
+
       <Box flexGrow={1} minWidth={7} position="relative" top="100px">
-        <TaskNames nodes={flatNodes} />
+        <TaskNames nodes={flatNodes} onRowClick={() => setMode("row")} />
       </Box>
       <Box position="relative">
         <Flex position="relative">
@@ -107,7 +180,14 @@ export const Grid = ({ limit }: Props) => {
           </Flex>
           <Flex flexDirection="row-reverse">
             {gridRuns?.map((dr: GridRunsResponse) => (
-              <Bar key={dr.run_id} max={max} nodes={flatNodes} run={dr} />
+              <Bar
+                key={dr.run_id}
+                max={max}
+                nodes={flatNodes}
+                onCellClick={() => setMode("grid")}
+                onColumnClick={() => setMode("column")}
+                run={dr}
+              />
             ))}
           </Flex>
           {selectedIsVisible === undefined || !selectedIsVisible ? undefined : (

@@ -16,7 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 
 import type { ClickTarget, NavigationMode } from "./types";
 
@@ -33,8 +34,32 @@ const detectModeFromClick = (target: ClickTarget): NavigationMode => {
   }
 };
 
+const detectModeFromUrl = (pathname: string): NavigationMode => {
+  if (pathname.includes("/runs/") && pathname.includes("/tasks/")) {
+    return "grid";
+  }
+  if (pathname.includes("/runs/") && !pathname.includes("/tasks/")) {
+    return "run";
+  }
+  if (pathname.includes("/tasks/") && !pathname.includes("/runs/")) {
+    return "task";
+  }
+
+  return "grid";
+};
+
 export const useNavigationMode = (initialMode: NavigationMode = "grid") => {
   const [mode, setMode] = useState<NavigationMode>(initialMode);
+  const { "*": wildcard } = useParams();
+
+  // Auto-detect mode from URL
+  useEffect(() => {
+    if (typeof globalThis !== "undefined") {
+      const detectedMode = detectModeFromUrl(globalThis.location.pathname);
+
+      setMode(detectedMode);
+    }
+  }, [wildcard]);
 
   const setModeFromClick = useCallback((target: ClickTarget) => {
     const newMode = detectModeFromClick(target);

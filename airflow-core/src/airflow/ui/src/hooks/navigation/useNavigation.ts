@@ -29,7 +29,6 @@ export const useNavigation = ({ enabled = true, runs, tasks }: UseNavigationProp
   const { dagId = "" } = useParams();
   const navigate = useNavigate();
   const [isNavigating, setIsNavigating] = useState(false);
-  const [navigationEnabled, setNavigationEnabled] = useState(enabled);
 
   // Get current navigation state
   const { mode, setMode } = useNavigationMode();
@@ -39,7 +38,13 @@ export const useNavigation = ({ enabled = true, runs, tasks }: UseNavigationProp
   // Handle navigation action
   const handleNavigation = useCallback(
     (direction: NavigationDirection, isJump: boolean = false) => {
-      if (!navigationEnabled || !dagId) {
+      console.log("🚀 handleNavigation called:", { dagId, direction, enabled, isJump });
+      console.log("📍 Current indices:", currentIndices);
+      console.log("📊 Data:", { runsCount: runs.length, tasksCount: tasks.length });
+
+      if (!enabled || !dagId) {
+        console.log("❌ Navigation blocked - enabled:", enabled, "dagId:", dagId);
+
         return;
       }
 
@@ -47,8 +52,13 @@ export const useNavigation = ({ enabled = true, runs, tasks }: UseNavigationProp
 
       const target = getNavigationTarget(currentIndices, direction, isJump);
 
+      console.log("🎯 Navigation target:", target);
+
       if (target.isValid) {
+        console.log("✅ Navigating to:", target.path);
         navigate(target.path, { replace: true });
+      } else {
+        console.log("❌ Invalid navigation target");
       }
 
       // Reset navigation state after a short delay
@@ -56,22 +66,24 @@ export const useNavigation = ({ enabled = true, runs, tasks }: UseNavigationProp
         setIsNavigating(false);
       }, 100);
     },
-    [currentIndices, dagId, getNavigationTarget, navigate, navigationEnabled],
+    [currentIndices, dagId, enabled, getNavigationTarget, navigate, runs.length, tasks.length],
   );
 
   // Setup keyboard navigation
   useKeyboardNavigation({
-    enabled: navigationEnabled,
+    enabled: enabled && Boolean(dagId),
     onNavigate: handleNavigation,
   });
 
   return {
     currentIndices,
-    enabled: navigationEnabled && Boolean(dagId),
+    enabled: enabled && Boolean(dagId),
     handleNavigation,
     isNavigating,
     mode,
     setMode,
-    setNavigationEnabled,
+    setNavigationEnabled: () => {
+      // Keep for compatibility but not used
+    },
   };
 };

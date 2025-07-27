@@ -46,12 +46,18 @@ const mapKeyToDirection = (key: ArrowKey): NavigationDirection => {
 export const useKeyboardNavigation = ({ enabled = true, onNavigate }: Props) => {
   const handleKeyPress = useCallback(
     (event: KeyboardEvent) => {
+      console.log("🔥 Key pressed:", event.key, "enabled:", enabled);
+
       if (!enabled) {
+        console.log("❌ Navigation disabled");
+
         return;
       }
 
       const direction = mapKeyToDirection(event.key as ArrowKey);
       const isJump = event.metaKey || event.ctrlKey;
+
+      console.log("✅ Navigating:", direction, "isJump:", isJump);
 
       event.preventDefault();
       event.stopPropagation();
@@ -61,11 +67,16 @@ export const useKeyboardNavigation = ({ enabled = true, onNavigate }: Props) => 
     [enabled, onNavigate],
   );
 
-  useHotkeys(ARROW_KEYS, handleKeyPress, {
-    enabled,
-    enableOnFormTags: false,
-    preventDefault: true,
-  });
+  useHotkeys(
+    ARROW_KEYS.join(","),
+    handleKeyPress,
+    {
+      enabled,
+      enableOnFormTags: false,
+      preventDefault: true,
+    },
+    [enabled, onNavigate],
+  );
 
   return {
     handleKeyPress,
