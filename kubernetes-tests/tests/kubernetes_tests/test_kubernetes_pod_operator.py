@@ -1429,7 +1429,6 @@ class TestKubernetesPodOperatorSystem:
             < calls_args.find(marker_from_main_container)
         )
 
-    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "log_prefix_enabled, log_formatter, expected_log_message_check",
         [
