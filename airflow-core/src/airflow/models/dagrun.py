@@ -1184,7 +1184,10 @@ class DagRun(Base, LoggingMixin):
         # If enabled on the config, publish metrics twice,
         # once with backward compatible name, and then with tags.
         with DualStatsManager.timer(
-            f"dagrun.dependency-check.{self.dag_id}", "dagrun.dependency-check", tags=self.stats_tags
+            f"dagrun.dependency-check.{self.dag_id}",
+            "dagrun.dependency-check",
+            tags={},
+            extra_tags=self.stats_tags,
         ):
             dag = self.get_dag()
             info = self.task_instance_scheduling_decisions(session)
@@ -1764,7 +1767,8 @@ class DagRun(Base, LoggingMixin):
                     DualStatsManager.incr(
                         f"task_restored_to_dag.{dag.dag_id}",
                         "task_restored_to_dag",
-                        tags={**self.stats_tags, "dag_id": dag.dag_id},
+                        tags=self.stats_tags,
+                        extra_tags={"dag_id": dag.dag_id},
                     )
                     ti.state = None
             except AirflowException:
@@ -1777,7 +1781,8 @@ class DagRun(Base, LoggingMixin):
                     DualStatsManager.incr(
                         f"task_removed_from_dag.{dag.dag_id}",
                         "task_removed_from_dag",
-                        tags={**self.stats_tags, "dag_id": dag.dag_id},
+                        tags=self.stats_tags,
+                        extra_tags={"dag_id": dag.dag_id},
                     )
                     ti.state = TaskInstanceState.REMOVED
                 continue
@@ -1947,7 +1952,8 @@ class DagRun(Base, LoggingMixin):
                     f"task_instance_created_{task_type}",
                     "task_instance_created",
                     count,
-                    tags={**self.stats_tags, "task_type": task_type},
+                    tags=self.stats_tags,
+                    extra_tags={"task_type": task_type},
                 )
             session.flush()
         except IntegrityError:

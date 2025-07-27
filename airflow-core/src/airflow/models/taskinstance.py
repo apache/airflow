@@ -1241,7 +1241,8 @@ class TaskInstance(Base, LoggingMixin):
             f"dag.{self.dag_id}.{self.task_id}.{metric_name}",
             f"task.{metric_name}",
             timing,
-            tags={"task_id": self.task_id, "dag_id": self.dag_id, "queue": self.queue},
+            tags={},
+            extra_tags={"task_id": self.task_id, "dag_id": self.dag_id, "queue": self.queue},
         )
 
     def clear_next_method_args(self) -> None:
@@ -1463,7 +1464,8 @@ class TaskInstance(Base, LoggingMixin):
         DualStatsManager.incr(
             f"operator_failures_{ti.operator}",
             "operator_failures",
-            tags={**ti.stats_tags, "operator": ti.operator},
+            tags=ti.stats_tags,
+            extra_tags={"operator": ti.operator},
         )
         Stats.incr("ti_failures", tags=ti.stats_tags)
 
