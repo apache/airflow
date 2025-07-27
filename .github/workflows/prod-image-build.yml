@@ -136,8 +136,6 @@ jobs:
         if: inputs.upload-package-artifact == 'true'
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        with:
-          use-uv: ${{ inputs.use-uv }}
         if: inputs.upload-package-artifact == 'true'
       - name: "Prepare providers packages - all providers built from sources"
         shell: bash
@@ -218,8 +216,6 @@ jobs:
         run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        with:
-          use-uv: ${{ inputs.use-uv }}
       - name: "Cleanup dist and context file"
         shell: bash
         run: rm -fv ./dist/* ./docker-context-files/*

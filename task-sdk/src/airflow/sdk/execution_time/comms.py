@@ -569,6 +569,13 @@ class DagRunResult(DagRunResponse):
         return cls(**dag_run_response.model_dump(exclude_defaults=True), type="DagRunResult")
 
 
+class PreviousDagRunResult(BaseModel):
+    """Response containing previous DAG run information."""
+
+    dag_run: DagRun | None = None
+    type: Literal["PreviousDagRunResult"] = "PreviousDagRunResult"
+
+
 class PrevSuccessfulDagRunResult(PrevSuccessfulDagRunResponse):
     type: Literal["PrevSuccessfulDagRunResult"] = "PrevSuccessfulDagRunResult"
 
@@ -669,7 +676,8 @@ ToTask = Annotated[
     | DagRunResult
     | CreateHITLDetailPayload
     | HITLDetailRequestResult
-    | OKResponse,
+    | OKResponse
+    | PreviousDagRunResult,
     Field(discriminator="type"),
 ]
 
@@ -870,6 +878,13 @@ class GetDagRun(BaseModel):
     run_id: str
     type: Literal["GetDagRun"] = "GetDagRun"
 
+      
+class GetPreviousDagRun(BaseModel):
+    dag_id: str
+    logical_date: AwareDatetime
+    state: str | None = None
+    type: Literal["GetPreviousDagRun"] = "GetPreviousDagRun"
+
 
 class GetAssetByName(BaseModel):
     name: str
@@ -962,6 +977,7 @@ ToSupervisor = Annotated[
     | GetDagRunState
     | GetDRCount
     | GetPrevSuccessfulDagRun
+    | GetPreviousDagRun
     | GetTaskRescheduleStartDate
     | GetTICount
     | GetTaskStates

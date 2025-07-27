@@ -16,13 +16,28 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Annotated
+
 import structlog
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
+from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
+from airflow.api_fastapi.common.parameters import (
+    QueryHITLDetailBodySearch,
+    QueryHITLDetailDagIdPatternSearch,
+    QueryHITLDetailDagRunIdFilter,
+    QueryHITLDetailResponseReceivedFilter,
+    QueryHITLDetailSubjectSearch,
+    QueryHITLDetailUserIdFilter,
+    QueryLimit,
+    QueryOffset,
+    QueryTIStateFilter,
+    SortParam,
+)
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.hitl import (
     HITLDetail,
@@ -34,7 +49,6 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
 from airflow.models.hitl import HITLDetail as HITLDetailModel
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.utils import timezone
 
 hitl_router = AirflowRouter(tags=["HumanInTheLoop"], prefix="/hitl-details")
 
@@ -262,17 +276,67 @@ def get_mapped_ti_hitl_detail(
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
 )
 def get_hitl_details(
-    readable_ti_filter: ReadableTIFilterDep,
+    limit: QueryLimit,
+    offset: QueryOffset,
+    order_by: Annotated[
+        SortParam,
+        Depends(
+            SortParam(
+                [
+                    "ti_id",
+                    "subject",
+                    "response_at",
+                    "task_instance.dag_id",
+                    "task_instance.run_id",
+                ],
+                HITLDetailModel,
+                to_replace={
+                    "dag_id": TI.dag_id,
+                    "run_id": TI.run_id,
+                },
+            ).dynamic_depends(),
+        ),
+    ],
     session: SessionDep,
+    # ti related filter
+    readable_ti_filter: ReadableTIFilterDep,
+    dag_id_pattern: QueryHITLDetailDagIdPatternSearch,
+    dag_run_id: QueryHITLDetailDagRunIdFilter,
+    ti_state: QueryTIStateFilter,
+    # hitl detail related filter
+    response_received: QueryHITLDetailResponseReceivedFilter,
+    user_id: QueryHITLDetailUserIdFilter,
+    subject_patten: QueryHITLDetailSubjectSearch,
+    body_patten: QueryHITLDetailBodySearch,
 ) -> HITLDetailCollection:
     """Get Human-in-the-loop details."""
-    query = select(HITLDetailModel).join(TI, HITLDetailModel.ti_id == TI.id)
+    query = (
+        select(HITLDetailModel)
+        .join(TI, HITLDetailModel.ti_id == TI.id)
+        .options(joinedload(HITLDetailModel.task_instance))
+    )
     hitl_detail_select, total_entries = paginated_select(
         statement=query,
-        filters=[readable_ti_filter],
+        filters=[
+            # ti related filter
+            readable_ti_filter,
+            dag_id_pattern,
+            dag_run_id,
+            ti_state,
+            # hitl detail related filter
+            response_received,
+            user_id,
+            subject_patten,
+            body_patten,
+        ],
+        offset=offset,
+        limit=limit,
+        order_by=order_by,
         session=session,
     )
+
     hitl_details = session.scalars(hitl_detail_select)
+
     return HITLDetailCollection(
         hitl_details=hitl_details,
         total_entries=total_entries,

@@ -21,9 +21,9 @@ import pendulum
 import pytest
 import time_machine
 
+from airflow._shared.timezones.timezone import utc
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.events import EventsTimetable
-from airflow.utils.timezone import utc
 
 BEFORE_DATE = pendulum.DateTime(2021, 9, 4, tzinfo=utc)  # Precedes all events
 START_DATE = pendulum.DateTime(2021, 9, 7, tzinfo=utc)

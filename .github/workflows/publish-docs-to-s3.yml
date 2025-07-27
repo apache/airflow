@@ -60,6 +60,10 @@ on:  # yamllint disable-line rule:truthy
         required: false
         description: "Override the Airflow Version to use for the docs build"
         type: string
+      apply-commits:
+        required: false
+        description: "Optionally apply commit hashes before building - to patch the docs (coma separated)"
+        type: string
 permissions:
   contents: read
 jobs:
@@ -78,6 +82,7 @@ jobs:
       BUILD_SBOMS: ${{ inputs.build-sboms }}
       AIRFLOW_BASE_VERSION: ${{ inputs.airflow-base-version || '' }}
       AIRFLOW_VERSION: ${{ inputs.airflow-version || '' }}
+      APPLY_COMMITS: ${{ inputs.apply-commits || '' }}
     outputs:
       include-docs: ${{ inputs.include-docs == 'all' && '' || inputs.include-docs }}
       destination-location: ${{ steps.parameters.outputs.destination-location }}
@@ -113,6 +118,7 @@ jobs:
           echo "Build SBOMs: '${BUILD_SBOMS}'"
           echo "Airflow Base Version: '${AIRFLOW_BASE_VERSION}'"
           echo "Airflow Version: '${AIRFLOW_VERSION}'"
+          echo "Apply commits: '${APPLY_COMMITS}'"
           if [[ "${DESTINATION}" == "auto" ]]; then
              if [[ "${REF}" =~ ^.*[0-9]*\.[0-9]*\.[0-9]*$ ]]; then
                 echo "${REF} looks like final release, using live destination"
@@ -162,6 +168,7 @@ jobs:
       INCLUDE_SUCCESS_OUTPUTS: false
       VERBOSE: "true"
       EXTRA_BUILD_OPTIONS: ${{ needs.build-info.outputs.extra-build-options }}
+      APPLY_COMMITS: ${{ inputs.apply-commits || '' }}
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -184,17 +191,43 @@ jobs:
           ref: ${{ inputs.ref }}
           fetch-depth: 0
           fetch-tags: true
+      - name: "Apply patch commits if provided"
+        run: |
+          if [[ "${APPLY_COMMITS}" != "" ]]; then
+            git config --global user.email "bot@airflow.apache.org"
+            git config --global user.name "Your friendly bot"
+            echo "Applying commits ${APPLY_COMMITS} to the docs"
+            # Split APPLY_COMMITS by comma and apply each commit
+            IFS=',' read -ra COMMIT_ARRAY <<< "${APPLY_COMMITS}"
+            for APPLY_COMMIT in "${COMMIT_ARRAY[@]}"; do
+              echo "Applying commit ${APPLY_COMMIT}"
+              git fetch origin "${APPLY_COMMIT}"
+              git cherry-pick "${APPLY_COMMIT}"
+            done
+          else
+            echo "No commits provided to apply, skipping."
+          fi
       - name: "Install Breeze from the ${{ inputs.ref }} reference"
         uses: ./.github/actions/breeze
         with:
-          use-uv: ${{ inputs.use-uv }}
           python-version: "${{ needs.build-info.outputs.default-python-version }}"
       - name: "Building image from the ${{ inputs.ref }} reference"
         env:
           INCLUDE_DOCS: ${{ needs.build-info.outputs.include-docs }}
           INCLUDE_COMMITS: ${{ startsWith(inputs.ref, 'providers') && 'true' || 'false' }}
+        # if the regular breeze ci-image build fails, we will try to build the image using docker buildx
+        # This is needed for the case when we are building an old image which tries to use main as
+        # a cache and it fails because the main branch has changed and does not have the same pyproject.toml
+        # Structure as the one we are trying to build.
         run: >
-          breeze ci-image build
+          breeze ci-image build ||
+          docker buildx build --load --builder default --progress=auto --pull
+          --build-arg AIRFLOW_EXTRAS=devel-ci --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES=false
+          --build-arg AIRFLOW_USE_UV=true --build-arg UV_HTTP_TIMEOUT=300
+          --build-arg BUILD_PROGRESS=auto --build-arg INSTALL_MYSQL_CLIENT_TYPE=mariadb
+          --build-arg VERSION_SUFFIX_FOR_PYPI=dev0
+          -t ghcr.io/apache/airflow/main/ci/python3.9:latest --target main .
+          -f Dockerfile.ci --platform linux/amd64
       - name: "Building docs with --docs-only flag using ${{ inputs.ref }} reference breeze"
         env:
           INCLUDE_DOCS: ${{ needs.build-info.outputs.include-docs }}
@@ -291,8 +324,6 @@ jobs:
         run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        with:
-          use-uv: ${{ inputs.use-uv }}
       - name: "Download docs prepared as artifacts"
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
         with:
