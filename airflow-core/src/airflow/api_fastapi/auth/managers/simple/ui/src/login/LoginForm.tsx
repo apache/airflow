@@ -25,18 +25,20 @@ import type { LoginBody } from "./Login";
 type LoginFormProps = {
   readonly isPending: boolean;
   readonly onLogin: (loginBody: LoginBody) => void;
+  readonly "aria-describedby"?: string;
 };
 
-export const LoginForm = ({ isPending, onLogin }: LoginFormProps) => {
+export const LoginForm = ({ isPending, onLogin, "aria-describedby": ariaDescribedBy }: LoginFormProps) => {
   const {
     control,
-    formState: { isValid },
+    formState: { isValid, errors },
     handleSubmit,
   } = useForm<LoginBody>({
     defaultValues: {
       password: "",
       username: "",
     },
+    mode: "onBlur", // Validate on blur for better UX
   });
 
   return (
@@ -45,36 +47,105 @@ export const LoginForm = ({ isPending, onLogin }: LoginFormProps) => {
         event.preventDefault();
         void handleSubmit(onLogin)();
       }}
+      aria-describedby={ariaDescribedBy}
+      noValidate // We handle validation with react-hook-form
     >
       <Stack gap={4}>
         <Controller
           control={control}
           name="username"
           render={({ field, fieldState }) => (
-            <Field.Root invalid={Boolean(fieldState.error)} required>
-              <Field.Label>Username</Field.Label>
-              {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
-              <Input autoFocus {...field} />
+            <Field.Root 
+              invalid={Boolean(fieldState.error)} 
+              required
+            >
+              <Field.Label htmlFor="username-input">
+                Username
+              </Field.Label>
+              <Input 
+                {...field}
+                id="username-input"
+                type="text"
+                variant="subtle"
+                autoComplete="username"
+                autoCapitalize="none"
+                spellCheck="false"
+                aria-required="true"
+                aria-invalid={Boolean(fieldState.error)}
+                aria-describedby={fieldState.error ? "username-error" : undefined}
+                /* eslint-disable-next-line jsx-a11y/no-autofocus */
+                autoFocus
+              />
+              {fieldState.error && (
+                <Field.ErrorText id="username-error" role="alert">
+                  Username is required
+                </Field.ErrorText>
+              )}
             </Field.Root>
           )}
-          rules={{ required: true }}
+          rules={{ 
+            required: "Username is required",
+            minLength: {
+              value: 1,
+              message: "Username cannot be empty"
+            }
+          }}
         />
 
         <Controller
           control={control}
           name="password"
           render={({ field, fieldState }) => (
-            <Field.Root invalid={Boolean(fieldState.error)} required>
-              <Field.Label>Password</Field.Label>
-              <Input {...field} type="password" />
+            <Field.Root 
+              invalid={Boolean(fieldState.error)} 
+              required
+            >
+              <Field.Label htmlFor="password-input">
+                Password
+              </Field.Label>
+              <Input 
+                {...field}
+                id="password-input"
+                type="password" 
+                variant="subtle"
+                autoComplete="current-password"
+                aria-required="true"
+                aria-invalid={Boolean(fieldState.error)}
+                aria-describedby={fieldState.error ? "password-error" : undefined}
+              />
+              {fieldState.error && (
+                <Field.ErrorText id="password-error" role="alert">
+                  Password is required
+                </Field.ErrorText>
+              )}
             </Field.Root>
           )}
-          rules={{ required: true }}
+          rules={{ 
+            required: "Password is required",
+            minLength: {
+              value: 1,
+              message: "Password cannot be empty"
+            }
+          }}
         />
 
-        <Button colorPalette="blue" disabled={!isValid || isPending} type="submit">
-          Sign in
+        <Button 
+          disabled={!isValid || isPending} 
+          type="submit"
+          size="lg"
+          colorScheme="blue"
+          aria-describedby={isPending ? "loading-status" : undefined}
+          loadingText="Signing in..."
+          loading={isPending}
+        >
+          {isPending ? "Signing in..." : "Sign in"}
         </Button>
+        
+        {isPending && (
+          <span id="loading-status" className="sr-only" aria-live="polite">
+            Signing in, please wait...
+          </span>
+        )}
       </Stack>
     </form>
   );
