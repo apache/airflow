@@ -88,6 +88,13 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
                 f"[red]Request timed out: {e}. "
                 "Please check if the server is running and the API ready to accept calls.[/red]"
             )
+    except ServerResponseError as e:
+        if "Client error message:" in str(e):
+            rich.print(
+                f"[red]Client error: {e}.[/red] "
+                "Please check the command and its parameters. "
+                "If you need help, run the command with --help."
+            )
 
 
 class DefaultHelpParser(argparse.ArgumentParser):
