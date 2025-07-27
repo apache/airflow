@@ -62,6 +62,29 @@ class TestExasolHookConn:
         assert args == ()
         assert kwargs["encryption"] is True
 
+    def test_sqlalchemy_scheme_property(self):
+        self.db_hook = ExasolHook()
+        self.db_hook.get_connection = mock.Mock()
+        self.db_hook.get_connection.return_value = self.connection
+        assert self.db_hook.sqlalchemy_scheme == "exa+websocket"
+
+        self.db_hook = ExasolHook(sqlalchemy_scheme="exa+pyodbc")
+        self.db_hook.get_connection = mock.Mock()
+        self.db_hook.get_connection.return_value = self.connection
+        assert self.db_hook.sqlalchemy_scheme == "exa+pyodbc"
+
+        self.db_hook = ExasolHook()
+        self.db_hook.get_connection = mock.Mock()
+        self.db_hook.get_connection.return_value = self.connection
+        self.connection.extra = json.dumps({"Foo": "Bar", "sqlalchemy_scheme": "exa+turbodbc"})
+        assert self.db_hook.sqlalchemy_scheme == "exa+turbodbc"
+
+        self.db_hook = ExasolHook(sqlalchemy_scheme="exa+invalid")
+        self.db_hook.get_connection = mock.Mock()
+        self.db_hook.get_connection.return_value = self.connection
+        with pytest.raises(ValueError):
+            _ = self.db_hook.sqlalchemy_scheme
+
 
 class TestExasolHook:
     def setup_method(self):

@@ -53,10 +53,12 @@ class ExasolHook(DbApiHook):
     conn_type = "exasol"
     hook_name = "Exasol"
     supports_autocommit = True
+    DEFAULT_SQLALCHEMY_SCHEME = "exa+websocket"  # sqlalchemy-exasol dialect
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args, sqlalchemy_scheme: str | None = None, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.schema = kwargs.pop("schema", None)
+        self._sqlalchemy_scheme = sqlalchemy_scheme
 
     def get_conn(self) -> ExaConnection:
         conn = self.get_connection(self.get_conn_id())
@@ -73,6 +75,18 @@ class ExasolHook(DbApiHook):
 
         conn = pyexasol.connect(**conn_args)
         return conn
+
+    @property
+    def sqlalchemy_scheme(self) -> str:
+        """Sqlalchemy scheme either from constructor, connection extras or default."""
+        extra_scheme = self.connection is not None and self.connection_extra_lower.get("sqlalchemy_scheme")
+        sqlalchemy_scheme = self._sqlalchemy_scheme or extra_scheme or self.DEFAULT_SQLALCHEMY_SCHEME
+        if sqlalchemy_scheme not in ["exa+websocket", "exa+pyodbc", "exa+turbodbc"]:
+            raise ValueError(
+                f"sqlalchemy_scheme in connection extra should be one of 'exa+websocket', 'exa+pyodbc' or 'exa+turbodbc', "
+                f"but got '{sqlalchemy_scheme}'. See https://github.com/exasol/sqlalchemy-exasol?tab=readme-ov-file#using-sqlalchemy-with-exasol-db for more details."
+            )
+        return sqlalchemy_scheme
 
     def _get_pandas_df(
         self, sql, parameters: Iterable | Mapping[str, Any] | None = None, **kwargs
