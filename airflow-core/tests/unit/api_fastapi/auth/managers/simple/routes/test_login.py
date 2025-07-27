@@ -20,35 +20,22 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-import pytest
-
 from tests_common.test_utils.config import conf_vars
-
-TEST_USER_1 = "test1"
-TEST_USER_2 = "test2"
 
 
 class TestLogin:
-    @pytest.mark.parametrize(
-        "test_user",
-        [
-            TEST_USER_1,
-            TEST_USER_2,
-        ],
-    )
     @patch("airflow.api_fastapi.auth.managers.simple.routes.login.SimpleAuthManagerLogin")
-    def test_create_token_json(
+    def test_create_token(
         self,
         mock_simple_auth_manager_login,
         test_client,
         auth_manager,
-        test_user,
     ):
         mock_simple_auth_manager_login.create_token.return_value = "DUMMY_TOKEN"
 
         response = test_client.post(
             "/auth/token",
-            json={"username": test_user, "password": "DUMMY_PASS"},
+            json={"username": "test1", "password": "DUMMY_PASS"},
         )
         assert response.status_code == 201
         assert "access_token" in response.json()
@@ -110,20 +97,13 @@ class TestLogin:
         response = test_client.get("/auth/token/login", follow_redirects=False)
         assert response.status_code == 403
 
-    @pytest.mark.parametrize(
-        "test_user",
-        [
-            TEST_USER_1,
-            TEST_USER_2,
-        ],
-    )
     @patch("airflow.api_fastapi.auth.managers.simple.routes.login.SimpleAuthManagerLogin")
-    def test_create_token_cli(self, mock_simple_auth_manager_login, test_client, auth_manager, test_user):
+    def test_create_token_cli(self, mock_simple_auth_manager_login, test_client, auth_manager):
         mock_simple_auth_manager_login.create_token.return_value = "DUMMY_TOKEN"
 
         response = test_client.post(
             "/auth/token/cli",
-            json={"username": test_user, "password": "DUMMY_PASS"},
+            json={"username": "test1", "password": "DUMMY_PASS"},
         )
         assert response.status_code == 201
         assert response.json()["access_token"]

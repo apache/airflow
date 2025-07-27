@@ -14,27 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-services:
-  mongo:
-    image: mongo:latest
-    labels:
-      breeze.description: "Integration required for MongoDB hooks."
-    volumes:
-      - mongo-db-volume:/data/db
-    healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
-      interval: 5s
-      timeout: 30s
-      retries: 50
-    restart: "on-failure"
-
-  airflow:
-    environment:
-      - INTEGRATION_MONGO=true
-    depends_on:
-      mongo:
-        condition: service_healthy
-
-volumes:
-  mongo-db-volume:
