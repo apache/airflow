@@ -338,7 +338,9 @@ class CommandFactory:
     func_map: dict[tuple, Callable]
     commands_map: dict[str, list[ActionCommand]]
     group_commands_list: list[CLICommand]
-    ouput_command_list: list[str]
+    output_command_list: list[str]
+    exclude_operation_names: list[str]
+    exclude_method_names: list[str]
 
     def __init__(self, file_path: str | Path | None = None):
         self.datamodels_extended_map = {}
@@ -348,10 +350,20 @@ class CommandFactory:
         self.commands_map = {}
         self.group_commands_list = []
         self.file_path = inspect.getfile(BaseOperations) if file_path is None else file_path
+        # Excluded Lists are in Class Level for further usage and avoid searching them
         # Exclude parameters that are not needed for CLI from datamodels
         self.excluded_parameters = ["schema_"]
         # This list is used to determine if the command/operation needs to output data
         self.output_command_list = ["list", "get", "create", "delete"]
+        self.exclude_operation_names = ["LoginOperations", "VersionOperations", "BaseOperations"]
+        self.exclude_method_names = [
+            "error",
+            "__init__",
+            "__init_subclass__",
+            "_check_flag_and_exit_if_server_response_error",
+            # Excluding bulk operation. Out of scope for CLI. Should use implemented commands.
+            "bulk",
+        ]
 
     def _inspect_operations(self) -> None:
         """Parse file and return matching Operation Method with details."""
@@ -386,24 +398,15 @@ class CommandFactory:
         with open(self.file_path, encoding="utf-8") as file:
             tree = ast.parse(file.read(), filename=self.file_path)
 
-        exclude_operation_names = ["LoginOperations", "VersionOperations"]
-        exclude_method_names = [
-            "error",
-            "__init__",
-            "__init_subclass__",
-            "_check_flag_and_exit_if_server_response_error",
-            # Excluding bulk operation. Out of scope for CLI. Should use implemented commands.
-            "bulk",
-        ]
         for node in ast.walk(tree):
             if (
                 isinstance(node, ast.ClassDef)
                 and "Operations" in node.name
-                and node.name not in exclude_operation_names
+                and node.name not in self.exclude_operation_names
                 and node.body
             ):
                 for child in node.body:
-                    if isinstance(child, ast.FunctionDef) and child.name not in exclude_method_names:
+                    if isinstance(child, ast.FunctionDef) and child.name not in self.exclude_method_names:
                         self.operations.append(get_function_details(node=child, parent_node=node))
 
     @staticmethod
