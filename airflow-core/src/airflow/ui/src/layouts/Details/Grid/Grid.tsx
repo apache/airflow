@@ -29,7 +29,7 @@ import { useOpenGroups } from "src/context/openGroups";
 import { useNavigation } from "src/hooks/navigation";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { useGridStructure } from "src/queries/useGridStructure.ts";
-import { getMetaKey, isStatePending } from "src/utils";
+import { isStatePending } from "src/utils";
 
 import { Bar } from "./Bar";
 import { DurationAxis } from "./DurationAxis";
@@ -47,7 +47,6 @@ export const Grid = ({ limit }: Props) => {
   const { t: translate } = useTranslation("dag");
   const gridRef = useRef<HTMLDivElement>(null);
   const [isGridFocused, setIsGridFocused] = useState(false);
-  const metaKey = getMetaKey();
 
   const [selectedIsVisible, setSelectedIsVisible] = useState<boolean | undefined>();
   const [hasActiveRun, setHasActiveRun] = useState<boolean | undefined>();
@@ -153,7 +152,7 @@ export const Grid = ({ limit }: Props) => {
         >
           <Text>{translate("navigation.navigation", { arrow: "↑↓←→" })}</Text>
           <Text>{translate("navigation.longPress", { arrow: "↑↓←→" })}</Text>
-          <Text>{translate("navigation.jump", { arrow: "↑↓←→", metaKey })}</Text>
+          <Text>{translate("navigation.jump", { arrow: "↑↓←→" })}</Text>
         </Box>
       )}
 

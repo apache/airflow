@@ -22,6 +22,7 @@ import { useHotkeys } from "react-hotkeys-hook";
 import type { ArrowKey, NavigationDirection } from "./types";
 
 const ARROW_KEYS = ["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight"] as const;
+const JUMP_KEYS = ["shift+ArrowDown", "shift+ArrowUp", "shift+ArrowLeft", "shift+ArrowRight"] as const;
 
 type Props = {
   enabled?: boolean;
@@ -55,7 +56,7 @@ export const useKeyboardNavigation = ({ enabled = true, onNavigate }: Props) => 
       }
 
       const direction = mapKeyToDirection(event.key as ArrowKey);
-      const isJump = event.metaKey || event.ctrlKey;
+      const isJump = event.shiftKey;
 
       console.log("✅ Navigating:", direction, "isJump:", isJump);
 
@@ -67,9 +68,42 @@ export const useKeyboardNavigation = ({ enabled = true, onNavigate }: Props) => 
     [enabled, onNavigate],
   );
 
+  const handleJumpKeyPress = useCallback(
+    (event: KeyboardEvent) => {
+      console.log("🚀 Jump key pressed:", event.key, "enabled:", enabled);
+
+      if (!enabled) {
+        console.log("❌ Navigation disabled");
+
+        return;
+      }
+
+      const direction = mapKeyToDirection(event.key as ArrowKey);
+
+      console.log("✅ Jump navigating:", direction);
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      onNavigate(direction, true);
+    },
+    [enabled, onNavigate],
+  );
+
   useHotkeys(
     ARROW_KEYS.join(","),
     handleKeyPress,
+    {
+      enabled,
+      enableOnFormTags: false,
+      preventDefault: true,
+    },
+    [enabled, onNavigate],
+  );
+
+  useHotkeys(
+    JUMP_KEYS.join(","),
+    handleJumpKeyPress,
     {
       enabled,
       enableOnFormTags: false,

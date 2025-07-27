@@ -40,7 +40,7 @@
     "warning": "WARNING"
   },
   "navigation": {
-    "jump": "Jump: {{metaKey}}+{{arrow}}",
+    "jump": "Jump: Shift+{{arrow}}",
     "longPress": "Quick navigation: Hold {{arrow}}",
     "navigation": "Navigation: {{arrow}}"
   },
