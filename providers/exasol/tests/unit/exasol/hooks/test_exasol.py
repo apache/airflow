@@ -86,6 +86,52 @@ class TestExasolHookConn:
             _ = self.db_hook.sqlalchemy_scheme
 
 
+class TestExasolHookSqlalchemy:
+    @pytest.mark.parametrize(
+        "hook_scheme, extra, expected_url",
+        [
+            (None, {}, "exa+websocket://login:password@host:1234/schema"),
+            (
+                None,
+                {"CONNECTIONLCALL": "en_US.UTF-8", "driver": "EXAODBC"},
+                "exa+websocket://login:password@host:1234/schema?CONNECTIONLCALL=en_US.UTF-8&driver=EXAODBC",
+            ),
+            (
+                None,
+                {"sqlalchemy_scheme": "exa+turbodbc", "CONNECTIONLCALL": "en_US.UTF-8", "driver": "EXAODBC"},
+                "exa+turbodbc://login:password@host:1234/schema?CONNECTIONLCALL=en_US.UTF-8&driver=EXAODBC",
+            ),
+            (
+                "exa+pyodbc",
+                {
+                    "sqlalchemy_scheme": "exa+turbodbc",  # should be overridden
+                    "CONNECTIONLCALL": "en_US.UTF-8",
+                    "driver": "EXAODBC",
+                },
+                "exa+pyodbc://login:password@host:1234/schema?CONNECTIONLCALL=en_US.UTF-8&driver=EXAODBC",
+            ),
+        ],
+        ids=[
+            "default",
+            "default_with_extra",
+            "scheme_from_extra_turbodbc",
+            "scheme_from_hook",
+        ],
+    )
+    def test_sqlalchemy_url_property(self, hook_scheme, extra, expected_url):
+        connection = models.Connection(
+            login="login",
+            password="password",
+            host="host",
+            port=1234,
+            schema="schema",
+            extra=extra,
+        )
+        hook = ExasolHook(sqlalchemy_scheme=hook_scheme) if hook_scheme else ExasolHook()
+        hook.get_connection = mock.Mock(return_value=connection)
+        assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected_url
+
+
 class TestExasolHook:
     def setup_method(self):
         self.cur = mock.MagicMock(rowcount=lambda: 0)
