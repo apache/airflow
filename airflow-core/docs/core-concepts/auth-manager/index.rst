@@ -271,3 +271,5 @@ Once you have created a new auth manager class implementing the :class:`~airflow
 
 .. note::
     For more information on Airflow's configuration, see :doc:`/howto/set-config` and for more information on managing Python modules in Airflow see :doc:`/administration-and-deployment/modules_management`.
+
+Deprecation Notice for
