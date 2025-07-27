@@ -26,6 +26,35 @@ from airflow import dual_stats_manager
 
 class TestDualStatsManager:
     @pytest.mark.parametrize(
+        "value, expected",
+        [
+            pytest.param(
+                1,
+                True,
+                id="number",
+            ),
+            pytest.param(
+                False,
+                True,
+                id="boolean",
+            ),
+            pytest.param(
+                None,
+                False,
+                id="None",
+            ),
+            pytest.param(
+                {},
+                False,
+                id="empty_dict",
+            ),
+        ],
+    )
+    def test_value_is_provided(self, value: Any, expected: bool):
+        result = dual_stats_manager._value_is_provided(value)
+        assert result == expected
+
+    @pytest.mark.parametrize(
         "count, rate, delta, tags, expected_args_dict",
         [
             pytest.param(
@@ -33,7 +62,7 @@ class TestDualStatsManager:
                 1,
                 False,
                 {},
-                {"count": 1, "rate": 1, "delta": False, "tags": {}},
+                {"count": 1, "rate": 1, "delta": False},
                 id="all_params_empty_tags",
             ),
             pytest.param(
@@ -49,7 +78,7 @@ class TestDualStatsManager:
                 1,
                 False,
                 {},
-                {"rate": 1, "delta": False, "tags": {}},
+                {"rate": 1, "delta": False},
                 id="no_count",
             ),
             pytest.param(
@@ -57,7 +86,7 @@ class TestDualStatsManager:
                 None,
                 False,
                 {},
-                {"count": 1, "delta": False, "tags": {}},
+                {"count": 1, "delta": False},
                 id="no_rate",
             ),
             pytest.param(
@@ -65,7 +94,7 @@ class TestDualStatsManager:
                 1,
                 None,
                 {},
-                {"count": 1, "rate": 1, "tags": {}},
+                {"count": 1, "rate": 1},
                 id="no_delta",
             ),
             pytest.param(
