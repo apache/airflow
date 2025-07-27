@@ -79,7 +79,7 @@ export const Grid = ({ limit }: Props) => {
   }, [gridRuns, setHasActiveRun]);
 
   const { data: dagStructure } = useGridStructure({ hasActiveRun, limit });
-
+  // calculate dag run bar heights relative to max
   const max = Math.max.apply(
     undefined,
     gridRuns === undefined
@@ -101,18 +101,15 @@ export const Grid = ({ limit }: Props) => {
     if (gridRef.current && gridRuns && flatNodes.length > 0) {
       gridRef.current.focus();
       setIsGridFocused(true);
-      console.log("🎯 Grid focused automatically");
     }
   }, [gridRuns, flatNodes.length]);
 
   const handleFocus = () => {
-    console.log("🎯 Grid focus event");
     setIsGridFocused(true);
   };
 
   const handleBlur = (event: React.FocusEvent) => {
     if (!gridRef.current?.contains(event.relatedTarget as Node)) {
-      console.log("😑 Grid blur event");
       setIsGridFocused(false);
     }
   };
@@ -122,7 +119,6 @@ export const Grid = ({ limit }: Props) => {
     if (gridRef.current) {
       gridRef.current.focus();
       setIsGridFocused(true);
-      console.log("🖱️ Grid focused via mouse");
     }
   };
 
