@@ -220,7 +220,8 @@ def set_state(
         "edge_worker.heartbeat_count",
         1,
         1,
-        tags={"worker_name": worker_name},
+        tags={},
+        extra_tags={"worker_name": worker_name},
     )
     set_metrics(
         worker_name=worker_name,

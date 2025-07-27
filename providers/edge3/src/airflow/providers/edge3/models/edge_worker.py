@@ -180,42 +180,48 @@ def set_metrics(
         f"edge_worker.connected.{worker_name}",
         "edge_worker.connected",
         int(connected),
-        tags={"worker_name": worker_name},
+        tags={},
+        extra_tags={"worker_name": worker_name},
     )
 
     DualStatsManager.gauge(
         f"edge_worker.maintenance.{worker_name}",
         "edge_worker.maintenance",
         int(maintenance),
-        tags={"worker_name": worker_name},
+        tags={},
+        extra_tags={"worker_name": worker_name},
     )
 
     DualStatsManager.gauge(
         f"edge_worker.jobs_active.{worker_name}",
         "edge_worker.jobs_active",
         jobs_active,
-        tags={"worker_name": worker_name},
+        tags={},
+        extra_tags={"worker_name": worker_name},
     )
 
     DualStatsManager.gauge(
         f"edge_worker.concurrency.{worker_name}",
         "edge_worker.concurrency",
         concurrency,
-        tags={"worker_name": worker_name},
+        tags={},
+        extra_tags={"worker_name": worker_name},
     )
 
     DualStatsManager.gauge(
         f"edge_worker.free_concurrency.{worker_name}",
         "edge_worker.free_concurrency",
         free_concurrency,
-        tags={"worker_name": worker_name},
+        tags={},
+        extra_tags={"worker_name": worker_name},
     )
 
     DualStatsManager.gauge(
         f"edge_worker.num_queues.{worker_name}",
         "edge_worker.num_queues",
         len(queues),
-        tags={"worker_name": worker_name, "queues": ",".join(queues)},
+        tags={},
+        extra_tags={"worker_name": worker_name, "queues": ",".join(queues)},
     )
 
 
