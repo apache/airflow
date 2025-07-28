@@ -94,7 +94,6 @@ export const Graph = () => {
     [graphData.nodes],
   );
 
-  // Use ref to store previous value and avoid dependency cycle
   const prevObservedGroupIds = useRef<Array<string>>([]);
 
   useEffect(() => {
