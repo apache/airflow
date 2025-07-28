@@ -59,6 +59,8 @@ requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=2.10.0",
     "cohere>=5.13.4",
+     # https://github.com/huggingface/tokenizers/issues/1836
+    "tokenizers>=0.15,!=0.21.4"
 ]
 
 [dependency-groups]
