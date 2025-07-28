@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { UseQueryResult } from "@tanstack/react-query";
-import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GridService, HumanInTheLoopService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GridService, HitlSharedLinksService, HumanInTheLoopService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 export type AssetServiceGetAssetsDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssets>>;
 export type AssetServiceGetAssetsQueryResult<TData = AssetServiceGetAssetsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
@@ -641,6 +641,18 @@ export type HumanInTheLoopServiceGetHitlDetailsDefaultResponse = Awaited<ReturnT
 export type HumanInTheLoopServiceGetHitlDetailsQueryResult<TData = HumanInTheLoopServiceGetHitlDetailsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useHumanInTheLoopServiceGetHitlDetailsKey = "HumanInTheLoopServiceGetHitlDetails";
 export const UseHumanInTheLoopServiceGetHitlDetailsKeyFn = (queryKey?: Array<unknown>) => [useHumanInTheLoopServiceGetHitlDetailsKey, ...(queryKey ?? [])];
+export type HitlSharedLinksServiceRedirectSharedLinkDefaultResponse = Awaited<ReturnType<typeof HitlSharedLinksService.redirectSharedLink>>;
+export type HitlSharedLinksServiceRedirectSharedLinkQueryResult<TData = HitlSharedLinksServiceRedirectSharedLinkDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useHitlSharedLinksServiceRedirectSharedLinkKey = "HitlSharedLinksServiceRedirectSharedLink";
+export const UseHitlSharedLinksServiceRedirectSharedLinkKeyFn = ({ token }: {
+  token: string;
+}, queryKey?: Array<unknown>) => [useHitlSharedLinksServiceRedirectSharedLinkKey, ...(queryKey ?? [{ token }])];
+export type HitlSharedLinksServiceExecuteSharedLinkActionDefaultResponse = Awaited<ReturnType<typeof HitlSharedLinksService.executeSharedLinkAction>>;
+export type HitlSharedLinksServiceExecuteSharedLinkActionQueryResult<TData = HitlSharedLinksServiceExecuteSharedLinkActionDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useHitlSharedLinksServiceExecuteSharedLinkActionKey = "HitlSharedLinksServiceExecuteSharedLinkAction";
+export const UseHitlSharedLinksServiceExecuteSharedLinkActionKeyFn = ({ token }: {
+  token: string;
+}, queryKey?: Array<unknown>) => [useHitlSharedLinksServiceExecuteSharedLinkActionKey, ...(queryKey ?? [{ token }])];
 export type MonitorServiceGetHealthDefaultResponse = Awaited<ReturnType<typeof MonitorService.getHealth>>;
 export type MonitorServiceGetHealthQueryResult<TData = MonitorServiceGetHealthDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useMonitorServiceGetHealthKey = "MonitorServiceGetHealth";
@@ -754,6 +766,8 @@ export type TaskInstanceServicePostClearTaskInstancesMutationResult = Awaited<Re
 export type PoolServicePostPoolMutationResult = Awaited<ReturnType<typeof PoolService.postPool>>;
 export type XcomServiceCreateXcomEntryMutationResult = Awaited<ReturnType<typeof XcomService.createXcomEntry>>;
 export type VariableServicePostVariableMutationResult = Awaited<ReturnType<typeof VariableService.postVariable>>;
+export type HitlSharedLinksServiceGenerateSharedLinkMutationResult = Awaited<ReturnType<typeof HitlSharedLinksService.generateSharedLink>>;
+export type HitlSharedLinksServiceGenerateMappedTiSharedLinkMutationResult = Awaited<ReturnType<typeof HitlSharedLinksService.generateMappedTiSharedLink>>;
 export type BackfillServicePauseBackfillMutationResult = Awaited<ReturnType<typeof BackfillService.pauseBackfill>>;
 export type BackfillServiceUnpauseBackfillMutationResult = Awaited<ReturnType<typeof BackfillService.unpauseBackfill>>;
 export type BackfillServiceCancelBackfillMutationResult = Awaited<ReturnType<typeof BackfillService.cancelBackfill>>;
