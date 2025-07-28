@@ -98,6 +98,7 @@ class TaskInstanceHistory(Base):
     context_carrier = Column(MutableDict.as_mutable(ExtendedJSON))
     span_status = Column(String(250), server_default=SpanStatus.NOT_STARTED, nullable=False)
 
+    max_active_tis_per_dagrun = Column(Integer)
     external_executor_id = Column(StringID())
     trigger_id = Column(Integer)
     trigger_timeout = Column(DateTime)

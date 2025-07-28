@@ -503,6 +503,10 @@ class TaskInstance(Base, LoggingMixin):
     context_carrier = Column(MutableDict.as_mutable(ExtendedJSON))
     span_status = Column(String(250), server_default=SpanStatus.NOT_STARTED, nullable=False)
 
+    # This simply mirrors the value on the task object. It is duplicated here
+    # to improve filtering performance.
+    max_active_tis_per_dagrun = Column(Integer)
+
     external_executor_id = Column(StringID())
 
     # The trigger to resume on if we are in state DEFERRED
