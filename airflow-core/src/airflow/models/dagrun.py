@@ -69,7 +69,7 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models import Deadline, Log
 from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
-from airflow.models.taskinstance import TaskInstance as TI
+from airflow.models.taskinstance import TaskInstance as TI, is_mapped
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
@@ -93,7 +93,7 @@ from airflow.utils.types import NOTSET, DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from datetime import datetime
-    from typing import Literal
+    from typing import Literal, TypeAlias
 
     from opentelemetry.sdk.trace import Span
     from pydantic import NonNegativeInt
@@ -102,17 +102,18 @@ if TYPE_CHECKING:
 
     from airflow.models.dag import DAG
     from airflow.models.dag_version import DagVersion
+    from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.sdk import DAG as SDKDAG
-    from airflow.sdk.types import Operator
-    from airflow.serialization.serialized_objects import SerializedBaseOperator as BaseOperator
+    from airflow.sdk.types import Operator as SdkOperator
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
     from airflow.utils.types import ArgNotSet
 
     CreatedTasks = TypeVar("CreatedTasks", Iterator["dict[str, Any]"], Iterator[TI])
-
-    AttributeValueType = (
+    AttributeValueType: TypeAlias = (
         str | bool | int | float | Sequence[str] | Sequence[bool] | Sequence[int] | Sequence[float]
     )
+    Operator: TypeAlias = MappedOperator | SerializedBaseOperator
 
 RUN_ID_REGEX = r"^(?:manual|scheduled|asset_triggered)__(?:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00)$"
 
@@ -1491,9 +1492,7 @@ class DagRun(Base, LoggingMixin):
             if ti.map_index >= 0:  # Already expanded, we're good.
                 return None
 
-            from airflow.sdk.definitions.mappedoperator import MappedOperator as TaskSDKMappedOperator
-
-            if isinstance(ti.task, TaskSDKMappedOperator):
+            if is_mapped(ti.task):
                 # If we get here, it could be that we are moving from non-mapped to mapped
                 # after task instance clearing or this ti is not yet expanded. Safe to clear
                 # the db references.
@@ -1512,7 +1511,7 @@ class DagRun(Base, LoggingMixin):
         revised_map_index_task_ids: set[str] = set()
         for schedulable in itertools.chain(schedulable_tis, additional_tis):
             if TYPE_CHECKING:
-                assert isinstance(schedulable.task, BaseOperator)
+                assert isinstance(schedulable.task, Operator)
             old_state = schedulable.state
             if not schedulable.are_dependencies_met(session=session, dep_context=dep_context):
                 old_states[schedulable.key] = old_state
@@ -1660,7 +1659,7 @@ class DagRun(Base, LoggingMixin):
             dag, task_instance_mutation_hook, session=session
         )
 
-        def task_filter(task: Operator) -> bool:
+        def task_filter(task: SdkOperator) -> bool:
             return task.task_id not in task_ids and (
                 self.run_type == DagRunType.BACKFILL_JOB
                 or (
@@ -1771,7 +1770,7 @@ class DagRun(Base, LoggingMixin):
         ti_mutation_hook: Callable,
         hook_is_noop: Literal[True],
         dag_version_id: UUIDType,
-    ) -> Callable[[Operator, Iterable[int]], Iterator[dict[str, Any]]]: ...
+    ) -> Callable[[SdkOperator, Iterable[int]], Iterator[dict[str, Any]]]: ...
 
     @overload
     def _get_task_creator(
@@ -1780,7 +1779,7 @@ class DagRun(Base, LoggingMixin):
         ti_mutation_hook: Callable,
         hook_is_noop: Literal[False],
         dag_version_id: UUIDType,
-    ) -> Callable[[Operator, Iterable[int]], Iterator[TI]]: ...
+    ) -> Callable[[SdkOperator, Iterable[int]], Iterator[TI]]: ...
 
     def _get_task_creator(
         self,
@@ -1788,7 +1787,7 @@ class DagRun(Base, LoggingMixin):
         ti_mutation_hook: Callable,
         hook_is_noop: Literal[True, False],
         dag_version_id: UUIDType,
-    ) -> Callable[[Operator, Iterable[int]], Iterator[dict[str, Any]] | Iterator[TI]]:
+    ) -> Callable[[SdkOperator, Iterable[int]], Iterator[dict[str, Any]] | Iterator[TI]]:
         """
         Get the task creator function.
 
@@ -1801,7 +1800,7 @@ class DagRun(Base, LoggingMixin):
         """
         if hook_is_noop:
 
-            def create_ti_mapping(task: Operator, indexes: Iterable[int]) -> Iterator[dict[str, Any]]:
+            def create_ti_mapping(task: SdkOperator, indexes: Iterable[int]) -> Iterator[dict[str, Any]]:
                 created_counts[task.task_type] += 1
                 for map_index in indexes:
                     yield TI.insert_mapping(
@@ -1812,7 +1811,7 @@ class DagRun(Base, LoggingMixin):
 
         else:
 
-            def create_ti(task: Operator, indexes: Iterable[int]) -> Iterator[TI]:
+            def create_ti(task: SdkOperator, indexes: Iterable[int]) -> Iterator[TI]:
                 for map_index in indexes:
                     ti = TI(task, run_id=self.run_id, map_index=map_index, dag_version_id=dag_version_id)
                     ti_mutation_hook(ti)
@@ -1824,8 +1823,8 @@ class DagRun(Base, LoggingMixin):
 
     def _create_tasks(
         self,
-        tasks: Iterable[Operator],
-        task_creator: Callable[[Operator, Iterable[int]], CreatedTasks],
+        tasks: Iterable[SdkOperator],
+        task_creator: Callable[[SdkOperator, Iterable[int]], CreatedTasks],
         *,
         session: Session,
     ) -> CreatedTasks:
@@ -1899,7 +1898,7 @@ class DagRun(Base, LoggingMixin):
             session.rollback()
 
     def _revise_map_indexes_if_mapped(
-        self, task: Operator | BaseOperator, *, dag_version_id: UUIDType, session: Session
+        self, task: SdkOperator | Operator, *, dag_version_id: UUIDType, session: Session
     ) -> Iterator[TI]:
         """
         Check if task increased or reduced in length and handle appropriately.
@@ -1992,25 +1991,23 @@ class DagRun(Base, LoggingMixin):
         empty_ti_ids: list[str] = []
         schedulable_ti_ids: list[str] = []
         for ti in schedulable_tis:
+            task = ti.task
             if TYPE_CHECKING:
-                assert isinstance(ti.task, BaseOperator)
+                assert isinstance(task, Operator)
             if (
-                ti.task.inherits_from_empty_operator
-                and not ti.task.on_execute_callback
-                and not ti.task.on_success_callback
-                and not ti.task.outlets
-                and not ti.task.inlets
+                task.inherits_from_empty_operator
+                and not task.on_execute_callback
+                and not task.on_success_callback
+                and not task.outlets
+                and not task.inlets
             ):
                 empty_ti_ids.append(ti.id)
             # check "start_trigger_args" to see whether the operator supports start execution from triggerer
             # if so, we'll then check "start_from_trigger" to see whether this feature is turned on and defer
             # this task.
             # if not, we'll add this "ti" into "schedulable_ti_ids" and later execute it to run in the worker
-            elif ti.task.start_trigger_args is not None:
-                context = ti.get_template_context()
-                start_from_trigger = ti.task.expand_start_from_trigger(context=context, session=session)
-
-                if start_from_trigger:
+            elif task.start_trigger_args is not None:
+                if task.expand_start_from_trigger(context=ti.get_template_context()):
                     ti.start_date = timezone.utcnow()
                     if ti.state != TaskInstanceState.UP_FOR_RESCHEDULE:
                         ti.try_number += 1

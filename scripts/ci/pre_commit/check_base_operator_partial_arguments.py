@@ -61,11 +61,6 @@ IGNORED = {
     # Task-SDK migration ones.
     "deps",
     "downstream_task_ids",
-    "on_execute_callback",
-    "on_failure_callback",
-    "on_retry_callback",
-    "on_skipped_callback",
-    "on_success_callback",
     "operator_extra_links",
     "start_from_trigger",
     "start_trigger_args",

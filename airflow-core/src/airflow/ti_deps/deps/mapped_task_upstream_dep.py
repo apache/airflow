@@ -51,12 +51,13 @@ class MappedTaskUpstreamDep(BaseTIDep):
         session: Session,
         dep_context: DepContext,
     ) -> Iterator[TIDepStatus]:
-        from airflow.models.taskinstance import TaskInstance
-        from airflow.sdk.definitions.mappedoperator import MappedOperator
+        from airflow.models.taskinstance import TaskInstance, is_mapped
 
-        if isinstance(ti.task, MappedOperator):
+        if ti.task is None:
+            return
+        elif is_mapped(ti.task):
             mapped_dependencies = ti.task.iter_mapped_dependencies()
-        elif ti.task is not None and (task_group := ti.task.get_closest_mapped_task_group()) is not None:
+        elif (task_group := ti.task.get_closest_mapped_task_group()) is not None:
             mapped_dependencies = task_group.iter_mapped_dependencies()
         else:
             return

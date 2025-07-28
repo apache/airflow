@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, NamedTuple
 
 from sqlalchemy import and_, func, or_, select
 
-from airflow.models.taskinstance import PAST_DEPENDS_MET
+from airflow.models.taskinstance import PAST_DEPENDS_MET, is_mapped
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.state import TaskInstanceState
@@ -147,10 +147,8 @@ class TriggerRuleDep(BaseTIDep):
             return get_mapped_ti_count(ti.task, ti.run_id, session=session)
 
         def _iter_expansion_dependencies(task_group: MappedTaskGroup) -> Iterator[str]:
-            from airflow.sdk.definitions.mappedoperator import MappedOperator
-
-            if isinstance(ti.task, MappedOperator):
-                for op in ti.task.iter_mapped_dependencies():
+            if (task := ti.task) is not None and is_mapped(task):
+                for op in task.iter_mapped_dependencies():
                     yield op.task_id
             if task_group and task_group.iter_mapped_task_groups():
                 yield from (

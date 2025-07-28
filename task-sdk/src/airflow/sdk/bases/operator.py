@@ -1503,14 +1503,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         return DagAttributeTypes.OP, self.task_id
 
-    @property
-    def inherits_from_empty_operator(self):
-        """Used to determine if an Operator is inherited from EmptyOperator."""
-        # This looks like `isinstance(self, EmptyOperator) would work, but this also
-        # needs to cope when `self` is a Serialized instance of a EmptyOperator or one
-        # of its subclasses (which don't inherit from anything but BaseOperator).
-        return getattr(self, "_is_empty", False)
-
     def unmap(self, resolve: None | Mapping[str, Any]) -> Self:
         """
         Get the "normal" operator from the current operator.
@@ -1557,7 +1549,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """
         Derive when creating an operator.
 
-        The main method to execute the task. Context is the same dictionary used as when rendering jinja templates.
+        The main method to execute the task. Context is the same dictionary used
+        as when rendering jinja templates.
 
         Refer to get_template_context for more context.
         """
