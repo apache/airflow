@@ -53,6 +53,7 @@ from airflow.providers.databricks.hooks.databricks_base import (
     TOKEN_REFRESH_LEAD_TIME,
     BearerAuth,
 )
+from airflow.providers.databricks.utils import databricks as utils
 
 TASK_ID = "databricks-operator"
 DEFAULT_CONN_ID = "databricks_default"
@@ -129,6 +130,10 @@ LIST_SPARK_VERSIONS_RESPONSE = {
     "versions": [
         {"key": "8.2.x-scala2.12", "name": "8.2 (includes Apache Spark 3.1.1, Scala 2.12)"},
     ]
+}
+ACCESS_CONTROL_DICT = {
+    "user_name": "jsmith@example.com",
+    "permission_level": "CAN_MANAGE",
 }
 
 
@@ -1242,6 +1247,24 @@ class TestDatabricksHook:
         mock_requests.get.assert_called_once_with(
             list_spark_versions_endpoint(HOST),
             json=None,
+            params=None,
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_update_job_permission(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.patch.return_value.json.return_value = {}
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.patch.return_value).status_code = status_code_mock
+
+        self.hook.update_job_permission(1, ACCESS_CONTROL_DICT)
+
+        mock_requests.patch.assert_called_once_with(
+            f"https://{HOST}/api/2.0/permissions/jobs/1",
+            json=utils.normalise_json_content(ACCESS_CONTROL_DICT),
             params=None,
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
             headers=self.hook.user_agent_header,

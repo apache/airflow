@@ -86,7 +86,19 @@ const createColumns = (
   },
   {
     accessorKey: "timetable_description",
-    cell: ({ row: { original } }) => <Schedule dag={original} />,
+    cell: ({ row: { original } }) => {
+      const [latestRun] = original.latest_dag_runs;
+
+      return (
+        <Schedule
+          assetExpression={original.asset_expression}
+          dagId={original.dag_id}
+          latestRunAfter={latestRun?.run_after}
+          timetableDescription={original.timetable_description}
+          timetableSummary={original.timetable_summary}
+        />
+      );
+    },
     enableSorting: false,
     header: () => translate("dagDetails.schedule"),
   },
@@ -131,7 +143,14 @@ const createColumns = (
   },
   {
     accessorKey: "trigger",
-    cell: ({ row: { original } }) => <TriggerDAGButton dag={original} withText={false} />,
+    cell: ({ row: { original } }) => (
+      <TriggerDAGButton
+        dagDisplayName={original.dag_display_name}
+        dagId={original.dag_id}
+        isPaused={original.is_paused}
+        withText={false}
+      />
+    ),
     enableSorting: false,
     header: "",
   },
@@ -231,7 +250,7 @@ export const DagsList = () => {
     lastDagRunState,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
-    orderBy,
+    orderBy: [orderBy],
     owners,
     paused,
     tags: selectedTags,

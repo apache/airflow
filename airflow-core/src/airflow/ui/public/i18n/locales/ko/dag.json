@@ -19,6 +19,7 @@
   },
   "header": {
     "buttons": {
+      "advanced": "고급",
       "dagDocs": "Dag 문서"
     }
   },
