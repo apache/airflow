@@ -40,14 +40,18 @@ airflow_version = "3.1.0"
 def upgrade():
     """Add callback_state to deadline."""
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
+        batch_op.add_column(sa.Column("max_active_tis_per_dag", sa.Integer, nullable=True))
         batch_op.add_column(sa.Column("max_active_tis_per_dagrun", sa.Integer, nullable=True))
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
+        batch_op.add_column(sa.Column("max_active_tis_per_dag", sa.Integer, nullable=True))
         batch_op.add_column(sa.Column("max_active_tis_per_dagrun", sa.Integer, nullable=True))
 
 
 def downgrade():
     """Remove callback_state from deadline."""
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
+        batch_op.drop_column("max_active_tis_per_dag")
         batch_op.drop_column("max_active_tis_per_dagrun")
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
+        batch_op.drop_column("max_active_tis_per_dag")
         batch_op.drop_column("max_active_tis_per_dagrun")

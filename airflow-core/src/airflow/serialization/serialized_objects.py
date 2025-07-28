@@ -1200,6 +1200,8 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
     inlets: Sequence
     is_setup: bool
     is_teardown: bool
+    max_active_tis_per_dag: int | None
+    max_active_tis_per_dagrun: int | None
     on_execute_callback: Sequence
     on_success_callback: Sequence
     outlets: Sequence
