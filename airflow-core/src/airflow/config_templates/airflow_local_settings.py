@@ -287,6 +287,8 @@ if REMOTE_LOGGING:
         )
         remote_task_handler_kwargs = {}
     elif ELASTICSEARCH_HOST:
+        from airflow.providers.elasticsearch.log.es_task_handler import ElasticsearchRemoteLogIO
+
         ELASTICSEARCH_END_OF_LOG_MARK: str = conf.get_mandatory_value("elasticsearch", "END_OF_LOG_MARK")
         ELASTICSEARCH_FRONTEND: str = conf.get_mandatory_value("elasticsearch", "frontend")
         ELASTICSEARCH_WRITE_STDOUT: bool = conf.getboolean("elasticsearch", "WRITE_STDOUT")
@@ -314,6 +316,18 @@ if REMOTE_LOGGING:
                 "offset_field": ELASTICSEARCH_OFFSET_FIELD,
             },
         }
+
+        if ELASTICSEARCH_WRITE_TO_ES:
+            REMOTE_TASK_LOG = ElasticsearchRemoteLogIO(
+                **(
+                    {
+                        "host": ELASTICSEARCH_HOST,
+                        "target_index": ELASTICSEARCH_TARGET_INDEX,
+                        "base_log_folder": BASE_LOG_FOLDER,
+                        "delete_local_copy": delete_local_copy,
+                    }
+                )
+            )
 
         DEFAULT_LOGGING_CONFIG["handlers"].update(ELASTIC_REMOTE_HANDLERS)
     elif OPENSEARCH_HOST:

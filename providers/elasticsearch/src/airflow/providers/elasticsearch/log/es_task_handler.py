@@ -22,10 +22,12 @@ import inspect
 import json
 import logging
 import os
+from pathlib import Path
 import pathlib
 import shutil
 import sys
 import time
+import attrs
 from collections import defaultdict
 from collections.abc import Callable
 from operator import attrgetter
@@ -57,6 +59,7 @@ if TYPE_CHECKING:
 
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
     from airflow.utils.log.file_task_handler import LogMetadata
+    from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
 
 
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
@@ -331,9 +334,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         # end_of_log_mark may contain characters like '\n' which is needed to
         # have the log uploaded but will not be stored in elasticsearch.
+        print(f"self.end_of_log_mark = {self.end_of_log_mark}")
         metadata["end_of_log"] = False
         if logs_by_host:
-            if any(x[-1].message == self.end_of_log_mark for x in logs_by_host.values()):
+            if any(x[-1].event == self.end_of_log_mark for x in logs_by_host.values()):
                 metadata["end_of_log"] = True
 
         cur_ts = pendulum.now()
@@ -464,6 +468,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         :param ti: task instance object
         :param identifier: if set, identifies the Airflow component which is relaying logs from
             exceptional scenarios related to the task instance
+        TODO: This API should be removed in airflow 3
         """
         is_trigger_log_context = getattr(ti, "is_trigger_log_context", None)
         is_ti_raw = getattr(ti, "raw", None)
@@ -504,6 +509,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # calling close method. Here we check if logger is already
         # closed to prevent uploading the log to remote storage multiple
         # times when `logging.shutdown` is called.
+        # TODO: This API should be simplied since Airflow 3 no longer requires this API for writing log to ES
         if self.closed:
             return
 
@@ -529,18 +535,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         if self.write_stdout:
             self.handler.close()
             sys.stdout = sys.__stdout__
-
-        if self.write_to_es and not self.write_stdout:
-            full_path = self.handler.baseFilename  # type: ignore[union-attr]
-            log_relative_path = pathlib.Path(full_path).relative_to(self.local_base).as_posix()
-            local_loc = os.path.join(self.local_base, log_relative_path)
-            if os.path.exists(local_loc):
-                # read log and remove old logs to get just the latest additions
-                log = pathlib.Path(local_loc).read_text()
-                log_lines = self._parse_raw_log(log)
-                success = self._write_to_es(log_lines)
-                if success and self.delete_local_copy:
-                    shutil.rmtree(os.path.dirname(local_loc))
 
         super().close()
 
@@ -661,32 +655,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         callback: type[Hit] | Callable[..., Any] = getattr(doc_class, "from_es", doc_class)
         return callback(hit)
 
-    def _parse_raw_log(self, log: str) -> list[dict[str, Any]]:
-        logs = log.split("\n")
-        parsed_logs = []
-        for line in logs:
-            # Make sure line is not empty
-            if line.strip():
-                parsed_logs.append(json.loads(line))
-
-        return parsed_logs
-
-    def _write_to_es(self, log_lines: list[dict[str, Any]]) -> bool:
-        """
-        Write the log to ElasticSearch; return `True` or fails silently and return `False`.
-
-        :param log_lines: the log_lines to write to the ElasticSearch.
-        """
-        # Prepare the bulk request for Elasticsearch
-        bulk_actions = [{"_index": self.target_index, "_source": log} for log in log_lines]
-        try:
-            _ = helpers.bulk(self.client, bulk_actions)
-            return True
-        except Exception as e:
-            self.log.exception("Unable to insert logs into Elasticsearch. Reason: %s", str(e))
-            return False
-
-
 def getattr_nested(obj, item, default):
     """
     Get item from obj but return default if not found.
@@ -700,3 +668,60 @@ def getattr_nested(obj, item, default):
         return attrgetter(item)(obj)
     except AttributeError:
         return default
+
+
+@attrs.define(kw_only=True)
+class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
+    host: str
+    target_index: str
+    base_log_folder: Path = attrs.field(converter=Path)
+    delete_local_copy: bool
+
+    processors = ()
+
+    def upload(self, path: os.PathLike | str, ti: RuntimeTI):
+        """Write the log to ElasticSearch."""
+        path = Path(path)
+        if path.is_absolute():
+            local_loc = path
+        else:
+            local_loc = self.base_log_folder.joinpath(path)
+        if local_loc.is_file():
+            log_lines = self._parse_raw_log(local_loc.read_text(), ti)
+            success = self._write_to_es(log_lines)
+            if success and self.delete_local_copy:
+                shutil.rmtree(os.path.dirname(local_loc))
+
+    def _parse_raw_log(self, log: str, ti: RuntimeTI) -> list[dict[str, Any]]:
+        logs = log.split("\n")
+        parsed_logs = []
+        offset = 1
+        for line in logs:
+            # Make sure line is not empty
+            if line.strip():
+                # construct log_id which is {dag_id}-{task_id}-{run_id}-{map_index}-{try_number}
+                log_dict = json.loads(line)
+                log_id = f"{ti.dag_id}-{ti.task_id}-{ti.run_id}-{ti.map_index}-{ti.try_number}"
+                log_dict.update({"log_id": log_id, "offset": offset})
+                offset += 1
+                parsed_logs.append(log_dict)
+
+        return parsed_logs
+
+    def _write_to_es(self, log_lines: list[dict[str, Any]]) -> bool:
+        """
+        Write the log to ElasticSearch; return `True` or fails silently and return `False`.
+
+        :param log_lines: the log_lines to write to the ElasticSearch.
+        """
+        es_kwargs = get_es_kwargs_from_config()
+
+        client = elasticsearch.Elasticsearch(self.host, **es_kwargs)
+        # Prepare the bulk request for Elasticsearch
+        bulk_actions = [{"_index": self.target_index, "_source": log} for log in log_lines]
+        try:
+            _ = helpers.bulk(client, bulk_actions)
+            return True
+        except Exception as e:
+            self.log.exception("Unable to insert logs into Elasticsearch. Reason: %s", str(e))
+            return False
