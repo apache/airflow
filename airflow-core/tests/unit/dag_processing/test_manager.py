@@ -571,6 +571,7 @@ class TestDagFileProcessorManager:
                         run_id="run_id",
                         bundle_name="testing",
                         bundle_version=None,
+                        context_from_server=None,
                         is_failure_callback=False,
                     )
                 ],
@@ -586,6 +587,7 @@ class TestDagFileProcessorManager:
                             "msg": None,
                             "dag_id": "dag_id",
                             "run_id": "run_id",
+                            "context_from_server": None,
                             "is_failure_callback": False,
                             "type": "DagCallbackRequest",
                         }
