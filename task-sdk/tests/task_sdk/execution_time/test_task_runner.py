@@ -2066,8 +2066,7 @@ class TestXComAfterTaskExecution:
 
         class CustomOperator(BaseOperator):
             def execute(self, context):
-                value = context["ti"].xcom_pull(task_ids="pull_task", key="key")
-                print(f"Pulled XCom Value: {value}")
+                _ = context["ti"].xcom_pull(task_ids="pull_task", key="key")
 
         task = CustomOperator(task_id="pull_task")
         runtime_ti = create_runtime_ti(task=task)
@@ -2078,6 +2077,7 @@ class TestXComAfterTaskExecution:
             dag_id="test_dag",
             task_id="pull_task",
             run_id="test_run",
+            include_prior_dates=False,
         )
 
         assert not any(
@@ -2092,6 +2092,57 @@ class TestXComAfterTaskExecution:
                 ),
             )
             for x in mock_supervisor_comms.send.call_args_list
+        )
+
+    @pytest.mark.parametrize(
+        ("include_prior_dates", "expected_value"),
+        [
+            pytest.param(True, True, id="include_prior_dates_true"),
+            pytest.param(False, False, id="include_prior_dates_false"),
+            pytest.param(None, False, id="include_prior_dates_default"),
+        ],
+    )
+    def test_xcom_pull_with_include_prior_dates(
+        self,
+        create_runtime_ti,
+        mock_supervisor_comms,
+        include_prior_dates,
+        expected_value,
+    ):
+        """Test that xcom_pull with include_prior_dates parameter correctly behaves as we expect."""
+        task = BaseOperator(task_id="pull_task")
+        runtime_ti = create_runtime_ti(task=task)
+
+        value = {"previous_run_data": "test_value"}
+        ser_value = BaseXCom.serialize_value(value)
+
+        def mock_send_side_effect(*args, **kwargs):
+            msg = kwargs.get("msg") or args[0]
+            if isinstance(msg, GetXComSequenceSlice):
+                assert msg.include_prior_dates is expected_value, (
+                    f"include_prior_dates should be {expected_value} in GetXComSequenceSlice"
+                )
+                return XComSequenceSliceResult(root=[ser_value])
+            return XComResult(key="test_key", value=None)
+
+        mock_supervisor_comms.send.side_effect = mock_send_side_effect
+        kwargs = {"key": "test_key", "task_ids": "previous_task"}
+        if include_prior_dates is not None:
+            kwargs["include_prior_dates"] = include_prior_dates
+        result = runtime_ti.xcom_pull(**kwargs)
+        assert result == value
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=GetXComSequenceSlice(
+                key="test_key",
+                dag_id=runtime_ti.dag_id,
+                run_id=runtime_ti.run_id,
+                task_id="previous_task",
+                start=None,
+                stop=None,
+                step=None,
+                include_prior_dates=expected_value,
+            ),
         )
 
 
