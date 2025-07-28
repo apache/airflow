@@ -648,8 +648,14 @@ class CustomTrigger(BaseTrigger):
         conn = await sync_to_async(BaseHook.get_connection)("test_connection")
         self.log.info("Loaded conn %s", conn.conn_id)
 
-        variable = await sync_to_async(Variable.get)("test_variable")
+        variable = await sync_to_async(Variable.get)("test_get_variable")
         self.log.info("Loaded variable %s", variable)
+
+        await sync_to_async(Variable.set)(key="test_set_variable", value="set_value")
+        self.log.info("Set variable with key test_set_variable")
+
+        await sync_to_async(Variable.delete)("test_delete_variable")
+        self.log.info("Deleted variable with key test_delete_variable")
 
         xcom = await sync_to_async(XCom.get_one)(
             key="test_xcom",
@@ -659,6 +665,25 @@ class CustomTrigger(BaseTrigger):
             map_index=self.map_index,
         )
         self.log.info("Loaded XCom %s", xcom)
+
+        await sync_to_async(XCom.set)(
+            key="test_set_xcom",
+            dag_id=self.dag_id,
+            run_id=self.run_id,
+            task_id=self.task_id,
+            map_index=self.map_index,
+            value="set_xcom",
+        )
+        self.log.info("Set xcom with key test_set_xcom")
+
+        await sync_to_async(XCom.delete)(
+            key="test_delete_xcom",
+            dag_id=self.dag_id,
+            run_id=self.run_id,
+            task_id=self.task_id,
+            map_index=self.map_index,
+        )
+        self.log.info("Delete xcom with key test_delete_xcom")
 
         yield TriggerEvent({"connection": attrs.asdict(conn), "variable": variable, "xcom": xcom})
 
@@ -687,8 +712,8 @@ class DummyTriggerRunnerSupervisor(TriggerRunnerSupervisor):
 
 @pytest.mark.asyncio
 @pytest.mark.execution_timeout(20)
-async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_maker):
-    """Checks that the trigger will successfully access Variables, Connections and XComs."""
+async def test_trigger_can_call_variables_connections_and_xcoms_methods(session, dag_maker):
+    """Checks that the trigger will successfully call Variables, Connections and XComs methods."""
     # Create the test DAG and task
     with dag_maker(dag_id="trigger_accessing_variable_connection_and_xcom", session=session):
         EmptyOperator(task_id="dummy1")
@@ -704,7 +729,7 @@ async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_m
         kwargs={"dag_id": dr.dag_id, "run_id": dr.run_id, "task_id": task_instance.task_id, "map_index": -1},
     )
     session.add(trigger_orm)
-    session.commit()
+    session.flush()
     task_instance.trigger_id = trigger_orm.id
 
     # Create the appropriate Connection, Variable and XCom
@@ -718,7 +743,9 @@ async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_m
         port=443,
         host="example.com",
     )
-    variable = Variable(key="test_variable", val="some_variable_value")
+    get_variable = Variable(key="test_get_variable", val="some_variable_value")
+    delete_variable = Variable(key="test_delete_variable", val="delete_value")
+
     XComModel.set(
         key="test_xcom",
         value="some_xcom_value",
@@ -728,8 +755,20 @@ async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_m
         map_index=-1,
         session=session,
     )
+
+    XComModel.set(
+        key="test_delete_xcom",
+        value="some_xcom_value",
+        task_id=task_instance.task_id,
+        dag_id=dr.dag_id,
+        run_id=dr.run_id,
+        map_index=-1,
+        session=session,
+    )
+
     session.add(connection)
-    session.add(variable)
+    session.add(get_variable)
+    session.add(delete_variable)
 
     job = Job()
     session.add(job)
@@ -758,6 +797,33 @@ async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_m
             "xcom": '"some_xcom_value"',
         }
     }
+    variable_set_val = await sync_to_async(Variable.get)("test_set_variable")
+    assert variable_set_val == "set_value"
+
+    variable_delete_val = await sync_to_async(Variable.get)(key="test_delete_variable", default_var=None)
+    assert variable_delete_val is None
+
+    xcom_set_query = await sync_to_async(XComModel.get_many)(
+        key="test_set_xcom",
+        dag_ids=dr.dag_id,
+        run_id=dr.run_id,
+        task_ids=task_instance.task_id,
+        map_indexes=-1,
+        session=session,
+    )
+    xcom_set_model = xcom_set_query.first()
+    assert xcom_set_model.value == "set_xcom"
+
+    xcom_delete_query = await sync_to_async(XComModel.get_many)(
+        key="test_delete_xcom",
+        dag_ids=dr.dag_id,
+        run_id=dr.run_id,
+        task_ids=task_instance.task_id,
+        map_indexes=-1,
+        session=session,
+    )
+    xcom_delete_model = xcom_delete_query.first()
+    assert xcom_delete_model is None
 
 
 class CustomTriggerDagRun(BaseTrigger):
