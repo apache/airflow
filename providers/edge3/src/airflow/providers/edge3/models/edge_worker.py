@@ -26,8 +26,8 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Integer, String, delete, select
 from sqlalchemy.orm import Mapped
 
-from airflow.dual_stats_manager import DualStatsManager
 from airflow.exceptions import AirflowException
+from airflow.metrics.dual_stats_manager import DualStatsManager
 from airflow.models.base import Base
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
