@@ -25,8 +25,8 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import Column, Integer, String, delete, select
 
-from airflow.dual_stats_manager import DualStatsManager
 from airflow.exceptions import AirflowException
+from airflow.metrics.dual_stats_manager import DualStatsManager
 from airflow.models.base import Base
 from airflow.providers.edge3.version_compat import timezone
 from airflow.stats import Stats
