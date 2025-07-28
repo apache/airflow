@@ -29,6 +29,7 @@ from airflow.metrics.dual_stats_manager import DualStatsManager
 from airflow.executors.workloads import ExecuteTask
 from airflow.providers.common.compat.sdk import Stats, timezone
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
+from airflow.providers.edge3.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.edge3.worker_api.auth import jwt_token_authorization_rest
 from airflow.providers.edge3.worker_api.datamodels import (
     EdgeJobFetched,
@@ -87,11 +88,17 @@ def fetch(
     session.commit()
     # Edge worker does not backport emitted Airflow metrics, so export some metrics
     tags = {"dag_id": job.dag_id, "task_id": job.task_id, "queue": job.queue}
-    # If enabled on the config, publish metrics twice,
-    # once with backward compatible name, and then with tags.
-    DualStatsManager.incr(
-        f"edge_worker.ti.start.{job.queue}.{job.dag_id}.{job.task_id}", "edge_worker.ti.start", tags=tags
-    )
+    if AIRFLOW_V_3_1_PLUS:
+        from airflow.metrics.dual_stats_manager import DualStatsManager
+
+        # If enabled on the config, publish metrics twice,
+        # once with backward compatible name, and then with tags.
+        DualStatsManager.incr(
+            f"edge_worker.ti.start.{job.queue}.{job.dag_id}.{job.task_id}", "edge_worker.ti.start", tags=tags
+        )
+    else:
+        Stats.incr(f"edge_worker.ti.start.{job.queue}.{job.dag_id}.{job.task_id}", tags=tags)
+        Stats.incr("edge_worker.ti.start", tags=tags)
     return EdgeJobFetched(
         dag_id=job.dag_id,
         task_id=job.task_id,
