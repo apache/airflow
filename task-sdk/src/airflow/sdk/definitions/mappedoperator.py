@@ -69,11 +69,11 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions._internal.expandinput import ExpandInput
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.param import ParamsDict
+    from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.triggers.base import StartTriggerArgs
     from airflow.utils.context import Context
     from airflow.utils.operator_resources import Resources
-    from airflow.utils.task_group import TaskGroup
     from airflow.utils.trigger_rule import TriggerRule
 
 TaskStateChangeCallbackAttrType: TypeAlias = TaskStateChangeCallback | list[TaskStateChangeCallback] | None
