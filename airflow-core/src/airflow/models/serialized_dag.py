@@ -50,7 +50,7 @@ from airflow.settings import COMPRESS_SERIALIZED_DAGS, json
 from airflow.utils import timezone
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy import UtcDateTime, is_lock_not_available_error
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -415,11 +415,9 @@ class SerializedDagModel(Base):
                 if do_nothing:
                     return False
             except OperationalError as e:
-                if (
-                    hasattr(e, "orig") and hasattr(e.orig, "pgcode") and e.orig.pgcode == "55P03"
-                ):  # Postgres error code for "could not obtain lock on row in relation [table_name]"
-                    log.warning(
-                        "Another Scheduler is already reparsing dag %s. Skipping reparse request. Details: %s",
+                if is_lock_not_available_error(e):
+                    log.info(
+                        "Another Dag Processor is already reparsing dag %s. Skipping reparse request. Details: %s",
                         dag.dag_id,
                         str(e),
                     )
