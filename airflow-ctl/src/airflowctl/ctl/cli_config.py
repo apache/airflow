@@ -77,21 +77,21 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
         rich.print(f"command failed due to {e}")
         sys.exit(1)
     except httpx.RemoteProtocolError as e:
+        rich.print(f"[red]Remote protocol error: {e}[/red]")
         if "Server disconnected without sending a response." in str(e):
             rich.print(
                 f"[red]Server response error: {e}. "
                 "Please check if the server is running and the API URL is correct.[/red]"
             )
     except httpx.ReadTimeout as e:
+        rich.print(f"[red]Read timeout error: {e}[/red]")
         if "timed out" in str(e):
-            rich.print(
-                f"[red]Request timed out: {e}. "
-                "Please check if the server is running and the API ready to accept calls.[/red]"
-            )
+            rich.print("Please check if the server is running and the API ready to accept calls.[/red]")
     except ServerResponseError as e:
+        rich.print(f"Server response error: {e}")
         if "Client error message:" in str(e):
             rich.print(
-                f"[red]Client error: {e}.[/red] "
+                "[red]Client error, [/red] "
                 "Please check the command and its parameters. "
                 "If you need help, run the command with --help."
             )
