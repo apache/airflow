@@ -879,10 +879,16 @@ def run(
         assert ti.task is not None
         assert isinstance(ti.task, BaseOperator)
 
-    def _on_kill(signum, frame):
+    parent_pid = os.getpid()
+
+    def _on_term(signum, frame):
+        pid = os.getpid()
+        if pid != parent_pid:
+            return
+
         ti.task.on_kill()
 
-    signal.signal(signal.SIGTERM, _on_kill)
+    signal.signal(signal.SIGTERM, _on_term)
 
     msg: ToSupervisor | None = None
     state: TaskInstanceState
