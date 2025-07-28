@@ -64,7 +64,16 @@ const PoolBarCard = ({ pool }: PoolBarCardProps) => {
 
       <Box margin={4}>
         <Flex bg="gray.muted" borderRadius="md" h="20px" overflow="hidden" w="100%">
-          <PoolBar pool={pool} totalSlots={pool.slots} />
+          <PoolBar
+            pool={pool}
+            totalSlots={
+              pool.running_slots +
+              pool.queued_slots +
+              pool.deferred_slots +
+              pool.scheduled_slots +
+              pool.open_slots
+            }
+          />
         </Flex>
       </Box>
     </Box>
