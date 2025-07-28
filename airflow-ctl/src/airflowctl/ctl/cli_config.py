@@ -32,6 +32,7 @@ from functools import partial
 from pathlib import Path
 from typing import Any, NamedTuple
 
+import httpx
 import rich
 
 import airflowctl.api.datamodels.generated as generated_datamodels
@@ -62,14 +63,31 @@ def lazy_load_command(import_path: str) -> Callable:
 
 
 def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
+    import sys
+
     try:
         function(args)
     except AirflowCtlCredentialNotFoundException as e:
         rich.print(f"command failed due to {e}")
+        sys.exit(1)
     except AirflowCtlConnectionException as e:
         rich.print(f"command failed due to {e}")
+        sys.exit(1)
     except AirflowCtlNotFoundException as e:
         rich.print(f"command failed due to {e}")
+        sys.exit(1)
+    except httpx.RemoteProtocolError as e:
+        if "Server disconnected without sending a response." in str(e):
+            rich.print(
+                f"[red]Server response error: {e}. "
+                "Please check if the server is running and the API URL is correct.[/red]"
+            )
+    except httpx.ReadTimeout as e:
+        if "timed out" in str(e):
+            rich.print(
+                f"[red]Request timed out: {e}. "
+                "Please check if the server is running and the API ready to accept calls.[/red]"
+            )
 
 
 class DefaultHelpParser(argparse.ArgumentParser):
@@ -320,6 +338,7 @@ class CommandFactory:
     func_map: dict[tuple, Callable]
     commands_map: dict[str, list[ActionCommand]]
     group_commands_list: list[CLICommand]
+    ouput_command_list: list[str]
 
     def __init__(self, file_path: str | Path | None = None):
         self.datamodels_extended_map = {}
@@ -331,6 +350,8 @@ class CommandFactory:
         self.file_path = inspect.getfile(BaseOperations) if file_path is None else file_path
         # Exclude parameters that are not needed for CLI from datamodels
         self.excluded_parameters = ["schema_"]
+        # This list is used to determine if the command/operation needs to output data
+        self.output_command_list = ["list", "get", "create", "delete"]
 
     def _inspect_operations(self) -> None:
         """Parse file and return matching Operation Method with details."""
@@ -519,12 +540,8 @@ class CommandFactory:
                                 parameter_type=parameter_type, parameter_key=parameter_key
                             )
                         )
-            # This list is used to determine if the command/operation needs to output data
-            output_command_list = [
-                "list",
-                "get",
-            ]
-            if any(operation.get("name").startswith(cmd) for cmd in output_command_list):
+
+            if any(operation.get("name").startswith(cmd) for cmd in self.output_command_list):
                 args.extend([ARG_OUTPUT])
 
             self.args_map[(operation.get("name"), operation.get("parent").name)] = args
@@ -567,10 +584,13 @@ class CommandFactory:
             else:
                 method_output = operation_method_object(**method_params)
 
-            def convert_to_dict(obj: Any) -> dict | Any:
+            def convert_to_dict(obj: Any, api_operation_name: str) -> dict | Any:
                 """Recursively convert an object to a dictionary or list of dictionaries."""
                 if hasattr(obj, "model_dump"):
                     return obj.model_dump(mode="json")
+                # Handle delete operation which returns a string of the deleted entity name
+                if isinstance(obj, str):
+                    return {"operation": api_operation_name, "entity": obj}
                 return obj
 
             def check_operation_and_collect_list_of_dict(dict_obj: dict) -> list:
@@ -593,7 +613,9 @@ class CommandFactory:
                 return [dict_obj]
 
             AirflowConsole().print_as(
-                data=check_operation_and_collect_list_of_dict(convert_to_dict(method_output)),
+                data=check_operation_and_collect_list_of_dict(
+                    convert_to_dict(method_output, api_operation["name"])
+                ),
                 output=args.output,
             )
 

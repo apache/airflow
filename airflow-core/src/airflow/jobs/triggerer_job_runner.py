@@ -38,6 +38,7 @@ from pydantic import BaseModel, Field, TypeAdapter
 from sqlalchemy import func, select
 from structlog.contextvars import bind_contextvars as bind_log_contextvars
 
+from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
@@ -74,7 +75,6 @@ from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffer
 from airflow.stats import Stats
 from airflow.traces.tracer import DebugTrace, Trace, add_debug_span
 from airflow.triggers import base as events
-from airflow.utils import timezone
 from airflow.utils.helpers import log_filename_template_renderer
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
@@ -633,7 +633,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         cancel_trigger_ids = self.running_triggers - requested_trigger_ids
         # Bulk-fetch new trigger records
         new_triggers = Trigger.bulk_fetch(new_trigger_ids)
-        triggers_with_assets = Trigger.fetch_trigger_ids_with_asset()
+        trigger_ids_with_non_task_associations = Trigger.fetch_trigger_ids_with_non_task_associations()
         to_create: list[workloads.RunTrigger] = []
         # Add in new triggers
         for new_id in new_trigger_ids:
@@ -644,11 +644,11 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
             new_trigger_orm = new_triggers[new_id]
 
-            # If the trigger is not associated to a task or an asset, this means the TaskInstance
+            # If the trigger is not associated to a task, an asset, or a deadline, this means the TaskInstance
             # row was updated by either Trigger.submit_event or Trigger.submit_failure
             # and can happen when a single trigger Job is being run on multiple TriggerRunners
             # in a High-Availability setup.
-            if new_trigger_orm.task_instance is None and new_id not in triggers_with_assets:
+            if new_trigger_orm.task_instance is None and new_id not in trigger_ids_with_non_task_associations:
                 log.info(
                     (
                         "TaskInstance Trigger is None. It was likely updated by another trigger job. "

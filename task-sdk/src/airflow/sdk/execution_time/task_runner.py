@@ -44,6 +44,7 @@ from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException
 from airflow.listeners.listener import get_listener_manager
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
+    DagRun,
     TaskInstance,
     TaskInstanceState,
     TIRunContext,
@@ -66,10 +67,12 @@ from airflow.sdk.execution_time.comms import (
     ErrorResponse,
     GetDagRunState,
     GetDRCount,
+    GetPreviousDagRun,
     GetTaskRescheduleStartDate,
     GetTaskStates,
     GetTICount,
     InactiveAssetsResult,
+    PreviousDagRunResult,
     RescheduleTask,
     ResendLoggingFD,
     RetryTask,
@@ -100,9 +103,9 @@ from airflow.sdk.execution_time.context import (
     set_current_context,
 )
 from airflow.sdk.execution_time.xcom import XCom
+from airflow.sdk.timezone import coerce_datetime
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
-from airflow.utils.timezone import coerce_datetime
 
 if TYPE_CHECKING:
     import jinja2
@@ -438,6 +441,30 @@ class RuntimeTaskInstance(TaskInstance):
             assert isinstance(response, TaskRescheduleStartDate)
 
         return response.start_date
+
+    def get_previous_dagrun(self, state: str | None = None) -> DagRun | None:
+        """Return the previous DAG run before the given logical date, optionally filtered by state."""
+        context = self.get_template_context()
+        dag_run = context.get("dag_run")
+
+        log = structlog.get_logger(logger_name="task")
+
+        log.debug("Getting previous DAG run", dag_run=dag_run)
+
+        if dag_run is None:
+            return None
+
+        if dag_run.logical_date is None:
+            return None
+
+        response = SUPERVISOR_COMMS.send(
+            msg=GetPreviousDagRun(dag_id=self.dag_id, logical_date=dag_run.logical_date, state=state)
+        )
+
+        if TYPE_CHECKING:
+            assert isinstance(response, PreviousDagRunResult)
+
+        return response.dag_run
 
     @staticmethod
     def get_ti_count(
@@ -833,6 +860,8 @@ def run(
     log: Logger,
 ) -> tuple[TaskInstanceState, ToSupervisor | None, BaseException | None]:
     """Run the task in this process."""
+    import signal
+
     from airflow.exceptions import (
         AirflowException,
         AirflowFailException,
@@ -849,6 +878,17 @@ def run(
     if TYPE_CHECKING:
         assert ti.task is not None
         assert isinstance(ti.task, BaseOperator)
+
+    parent_pid = os.getpid()
+
+    def _on_term(signum, frame):
+        pid = os.getpid()
+        if pid != parent_pid:
+            return
+
+        ti.task.on_kill()
+
+    signal.signal(signal.SIGTERM, _on_term)
 
     msg: ToSupervisor | None = None
     state: TaskInstanceState

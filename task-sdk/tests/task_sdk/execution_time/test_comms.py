@@ -24,9 +24,9 @@ from socket import socketpair
 import msgspec
 import pytest
 
+from airflow.sdk import timezone
 from airflow.sdk.execution_time.comms import BundleInfo, StartupDetails, _ResponseFrame
 from airflow.sdk.execution_time.task_runner import CommsDecoder
-from airflow.utils import timezone
 
 
 class TestCommsDecoder:
@@ -57,6 +57,7 @@ class TestCommsDecoder:
                     "run_after": "2024-12-01T01:00:00Z",
                     "end_date": None,
                     "run_type": "manual",
+                    "state": "success",
                     "conf": None,
                     "consumed_asset_events": [],
                 },

@@ -50,7 +50,7 @@ export const Overview = () => {
   const { data: failedTasks, isLoading } = useTaskInstanceServiceGetTaskInstances({
     dagId: dagId ?? "",
     dagRunId: "~",
-    orderBy: "-run_after",
+    orderBy: ["-run_after"],
     runAfterGte: startDate,
     runAfterLte: endDate,
     state: ["failed"],
@@ -67,7 +67,7 @@ export const Overview = () => {
   const { data: gridRuns, isLoading: isLoadingRuns } = useGridRuns({ limit });
   const { data: assetEventsData, isLoading: isLoadingAssetEvents } = useAssetServiceGetAssetEvents({
     limit,
-    orderBy: assetSortBy,
+    orderBy: [assetSortBy],
     sourceDagId: dagId,
     timestampGte: startDate,
     timestampLte: endDate,
