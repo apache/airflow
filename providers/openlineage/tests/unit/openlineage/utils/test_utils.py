@@ -69,7 +69,7 @@ if AIRFLOW_V_3_0_PLUS:
 else:
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
     from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
-    from airflow.utils.task_group import TaskGroup
+    from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
 
 BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
 PYTHON_OPERATOR_PATH = "airflow.providers.standard.operators.python"
