@@ -41,10 +41,10 @@ from structlog.contextvars import bind_contextvars as bind_log_contextvars
 from airflow._shared.module_loading import import_string
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
-from airflow.dual_stats_manager import DualStatsManager
 from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
+from airflow.metrics.dual_stats_manager import DualStatsManager
 from airflow.models.trigger import Trigger
 from airflow.observability.stats import Stats
 from airflow.observability.trace import DebugTrace, Trace, add_debug_span

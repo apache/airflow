@@ -48,12 +48,12 @@ from airflow.callbacks.callback_requests import (
 )
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
-from airflow.dual_stats_manager import DualStatsManager
 from airflow.exceptions import DagNotFound
 from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, JobState, perform_heartbeat
 from airflow.models import Deadline, Log
+from airflow.metrics.dual_stats_manager import DualStatsManager
 from airflow.models.asset import (
     AssetActive,
     AssetAliasModel,
