@@ -20,11 +20,12 @@ import datetime
 import enum
 from collections import namedtuple
 from dataclasses import dataclass
-from importlib import import_module
+from importlib import import_module, metadata
 from typing import ClassVar
 
 import attr
 import pytest
+from packaging import version
 from pydantic import BaseModel
 
 from airflow.sdk.definitions.asset import Asset
@@ -59,6 +60,56 @@ def recalculate_patterns():
         _get_regexp_patterns.cache_clear()
         _match_glob.cache_clear()
         _match_regexp.cache_clear()
+
+
+def generate_serializers_importable_and_str_test_cases():
+    """Generate test cases for `test_serializers_importable_and_str` by collecting all serializer import strings defined in modules under `airflow.serialization.serializers`"""
+    import airflow.serialization.serializers
+
+    NUMPY_VERSION = version.parse(metadata.version("numpy"))
+    serializer_collection = []
+
+    for _, name, _ in iter_namespace(airflow.serialization.serializers):
+        if name == "airflow.serialization.serializers.iceberg":
+            try:
+                import pyiceberg  # noqa: F401
+            except ImportError:
+                continue
+        if name == "airflow.serialization.serializers.deltalake":
+            try:
+                import deltalake  # noqa: F401
+            except ImportError:
+                continue
+        mod = import_module(name)
+        for s in getattr(mod, "serializers", list()):
+            if s == "numpy.bool" and NUMPY_VERSION.major < 2:
+                serializer_collection.append(
+                    pytest.param(
+                        name,
+                        s,
+                        marks=pytest.mark.xfail(
+                            reason=f"""
+                        Current NumPy version: {NUMPY_VERSION}
+
+                        In NumPy 1.20, `numpy.bool` was deprecated as an alias for the built-in `bool`.
+                        For NumPy versions <= 1.26, attempting to import `numpy.bool` raises an ImportError.
+                        Starting with NumPy 2.0, `numpy.bool` is reintroduced as the NumPy scalar type,
+                        and `numpy.bool_` becomes an alias for `numpy.bool`.
+
+                        The serializers are loaded lazily at runtime. As a result:
+                        - With NumPy <= 1.26, only `numpy.bool_` is loaded.
+                        - With NumPy >= 2.0, only `numpy.bool` is loaded.
+
+                        This test case deliberately attempts to import both `numpy.bool` and `numpy.bool_`,
+                        regardless of the installed NumPy version. Therefore, when NumPy <= 1.26 is installed,
+                        importing `numpy.bool` will raise an ImportError.
+                        """
+                        ),
+                    )
+                )
+            else:
+                serializer_collection.append((name, s))
+    return serializer_collection
 
 
 class Z:
@@ -386,52 +437,15 @@ class TestSerDe:
         obj = deserialize(serialize(asset))
         assert asset.uri == obj.uri
 
-    def test_serializers_importable_and_str(self):
+    @pytest.mark.parametrize("module_name, s", generate_serializers_importable_and_str_test_cases())
+    def test_serializers_importable_and_str(self, module_name, s):
         """Test if all distributed serializers are lazy loading and can be imported"""
-        from importlib import metadata
-
-        from packaging import version
-
-        import airflow.serialization.serializers
-
-        NUMPY_VERSION = version.parse(metadata.version("numpy"))
-
-        for _, name, _ in iter_namespace(airflow.serialization.serializers):
-            if name == "airflow.serialization.serializers.iceberg":
-                try:
-                    import pyiceberg  # noqa: F401
-                except ImportError:
-                    continue
-            if name == "airflow.serialization.serializers.deltalake":
-                try:
-                    import deltalake  # noqa: F401
-                except ImportError:
-                    continue
-            mod = import_module(name)
-            for s in getattr(mod, "serializers", list()):
-                if not isinstance(s, str):
-                    raise TypeError(f"{s} is not of type str. This is required for lazy loading")
-                try:
-                    import_string(s)
-                except ImportError:
-                    if NUMPY_VERSION.major < 2 and s == "numpy.bool":
-                        pytest.xfail(f"""
-                        Current NumPy version: {NUMPY_VERSION}
-
-                        In NumPy 1.20, `numpy.bool` was deprecated as an alias for the built-in `bool`.
-                        For NumPy versions <= 1.26, attempting to import `numpy.bool` raises an ImportError.
-                        Starting with NumPy 2.0, `numpy.bool` is reintroduced as the NumPy scalar type,
-                        and `numpy.bool_` becomes an alias for `numpy.bool`.
-                        
-                        The serializers are loaded lazily at runtime. As a result:
-                        - With NumPy <= 1.26, only `numpy.bool_` is loaded.
-                        - With NumPy >= 2.0, only `numpy.bool` is loaded.
-                        
-                        This test case deliberately attempts to import both `numpy.bool` and `numpy.bool_`,
-                        regardless of the installed NumPy version. Therefore, when NumPy <= 1.26 is installed,
-                        importing `numpy.bool` will raise an ImportError.
-                        """)
-                    raise AttributeError(f"{s} cannot be imported (located in {name})")
+        if not isinstance(s, str):
+            raise TypeError(f"{s} is not of type str. This is required for lazy loading")
+        try:
+            import_string(s)
+        except ImportError:
+            raise AttributeError(f"{s} cannot be imported (located in {module_name})")
 
     def test_stringify(self):
         i = V(W(10), ["l1", "l2"], (1, 2), 10)
