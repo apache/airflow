@@ -382,6 +382,7 @@ class AwsEcsExecutor(BaseExecutor):
             cmd = ecs_task.command
             queue = ecs_task.queue
             exec_config = ecs_task.executor_config
+            self.log.info("ECS task executor config: %s", exec_config)
             attempt_number = ecs_task.attempt_number
             failure_reasons = []
             if timezone.utcnow() < ecs_task.next_attempt_time:
@@ -406,7 +407,7 @@ class AwsEcsExecutor(BaseExecutor):
                 # wrong.  For any possible failure we want to add the exception reasons to the
                 # failure list so that it is logged to the user and most importantly the task is
                 # added back to the pending list to be retried later.
-                self.log.info("ECS task %s has ran into an exception. No response from Boto3 or something else.", task_key)
+                self.log.info("ECS task %s has ran into an exception. No response from Boto3 or something else. Reason: %s", task_key, str(e))
                 failure_reasons.append(str(e))
             else:
                 # We got a response back, check if there were failures. If so, add them to the
