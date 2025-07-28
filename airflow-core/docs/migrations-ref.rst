@@ -39,6 +39,7 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
+<<<<<<< HEAD
 | ``eaf332f43c7c`` (head) | ``a3c7f2b18d4e`` | ``3.1.0``         | add last_parse_duration to dag model.                        |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``a3c7f2b18d4e``        | ``7582ea3f3dd5`` | ``3.1.0``         | Add tables to store teams and associations with dag bundles. |
@@ -50,6 +51,9 @@ Here's the list of all the Database Migrations that are executed via when you ru
 | ``808787349f22``        | ``3bda03debd04`` | ``3.1.0``         | Modify deadline's callback schema.                           |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``3bda03debd04``        | ``f56f68b9e02f`` | ``3.1.0``         | Add url template and template params to DagBundleModel.      |
+=======
+| ``2f49f2dae90c`` (head) | ``f56f68b9e02f`` | ``3.1.0``         | Add callback_state to deadline.                              |
+>>>>>>> 491a299af7 (Add TI.max_active_tis_per_dagrun)
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``f56f68b9e02f``        | ``09fa89ba1710`` | ``3.1.0``         | Add callback_state to deadline.                              |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+

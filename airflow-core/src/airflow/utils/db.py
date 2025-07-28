@@ -110,7 +110,11 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "2.10.3": "5f2621c13b39",
     "3.0.0": "29ce7909c52b",
     "3.0.3": "fe199e1abd77",
+<<<<<<< HEAD
     "3.1.0": "eaf332f43c7c",
+=======
+    "3.1.0": "2f49f2dae90c",
+>>>>>>> 491a299af7 (Add TI.max_active_tis_per_dagrun)
 }
 
 
