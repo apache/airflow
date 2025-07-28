@@ -66,7 +66,7 @@ work. This means that your user name should be ``user_name@REALM``.
 .. code-block:: bash
 
     kinit user_name@REALM
-    ENDPOINT_URL="http://localhost:8080/"
+    ENDPOINT_URL="http://localhost:8080"
     curl -X GET  \
         --negotiate \  # enables Negotiate (SPNEGO) authentication
         --service airflow \  # matches the `airflow` service name in the `airflow/fully.qualified.domainname@REALM` principal
@@ -106,7 +106,7 @@ Here is a sample curl command you can use to validate the setup:
 
 .. code-block:: bash
 
-    ENDPOINT_URL="http://localhost:8080/"
+    ENDPOINT_URL="http://localhost:8080"
     curl -X GET  \
         --user "username:password" \
         "${ENDPOINT_URL}/api/v1/pools"

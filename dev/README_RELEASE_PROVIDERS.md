@@ -55,6 +55,7 @@
   - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
   - [Close the testing status issue](#close-the-testing-status-issue)
   - [Remove Provider distributions scheduled for removal](#remove-provider-distributions-scheduled-for-removal)
+  - [Misc / Post Release Helpers](#misc--post-release-helpers)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -411,7 +412,7 @@ If you are seeing others there is an issue.
 You can remove the redundant provider files manually with:
 
 ```shell script
-svn rm file_name  // repeate that for every file
+svn rm file_name  // repeat that for every file
 svn commit -m "delete old providers"
 ```
 
@@ -477,7 +478,7 @@ twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*
 Assume that your remote for apache repository is called `apache` you should now
 set tags for the providers in the repo.
 
-Sometimes in cases when there is a connectivity issue to Github, it might be possible that local tags get created
+Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local tags get created
 and lead to annoying errors. The default behaviour would be to clean such local tags up.
 
 If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false.
@@ -1251,7 +1252,7 @@ Copy links to updated packages, sort it alphabetically and save it on the side. 
 Assume that your remote for apache repository is called `apache` you should now
 set tags for the providers in the repo.
 
-Sometimes in cases when there is a connectivity issue to Github, it might be possible that local tags get created
+Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local tags get created
 and lead to annoying errors. The default behaviour would be to clean such local tags up.
 
 If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false.
@@ -1495,3 +1496,23 @@ The following places should be checked:
 Run `breeze setup regenerate-command-images --force`
 
 Update test_get_removed_providers in `/dev/breeze/tests/test_packages.py` by removing the provider from the list
+
+
+## Misc / Post Release Helpers
+
+In case you need to rebuild docs with addition of a commit that is not part of the original release use
+
+
+```shell script
+  breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto> PACKAGE1 \
+  --apply-commits <commit_hash> --skip-write-to-stable-folder \
+  PACKAGE1
+```
+
+Example:
+
+```shell script
+breeze workflow-run publish-docs --ref providers-apache-hive/9.0.0 --site-env live \
+  --apply-commits 4ae273cbedec66c87dc40218c7a94863390a380d --skip-write-to-stable-folder \
+  apache.hive
+```

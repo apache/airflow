@@ -17,7 +17,7 @@
 
 [build-system]
 requires = [
-    "GitPython==3.1.44",
+    "GitPython==3.1.45",
     "gitdb==4.0.12",
     "hatchling==1.27.0",
     "packaging==25.0",
