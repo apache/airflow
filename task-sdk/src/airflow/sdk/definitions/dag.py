@@ -23,6 +23,7 @@ import itertools
 import logging
 import os
 import sys
+import warnings
 import weakref
 from collections import abc
 from collections.abc import Callable, Collection, Iterable, MutableSet
@@ -46,6 +47,7 @@ from airflow.exceptions import (
     DuplicateTaskIdFound,
     FailFastDagInvalidTriggerRule,
     ParamValidationError,
+    RemovedInAirflow4Warning,
     TaskNotFound,
 )
 from airflow.sdk.bases.operator import BaseOperator
@@ -468,6 +470,12 @@ class DAG:
             self.default_args["start_date"] = timezone.convert_to_utc(start_date)
         if end_date := self.default_args.get("end_date", None):
             self.default_args["end_date"] = timezone.convert_to_utc(end_date)
+        if self.access_control is not None:
+            warnings.warn(
+                "The airflow.security.permissions module is deprecated; please see https://airflow.apache.org/docs/apache-airflow/stable/security/deprecated_permissions.html",
+                RemovedInAirflow4Warning,
+                stacklevel=2,
+            )
 
     @params.validator
     def _validate_params(self, _, params: ParamsDict):
