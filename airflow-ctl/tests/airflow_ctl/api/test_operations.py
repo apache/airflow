@@ -832,7 +832,7 @@ class TestDagOperations:
         response = client.dags.get_import_error(import_error_id=0)
         assert response == self.import_error_response
 
-    def test_list_import_error(self):
+    def test_list_import_errors(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/importErrors"
             return httpx.Response(
@@ -840,7 +840,7 @@ class TestDagOperations:
             )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.dags.list_import_error()
+        response = client.dags.list_import_errors()
         assert response == self.import_error_collection_response
 
     def test_get_stats(self):

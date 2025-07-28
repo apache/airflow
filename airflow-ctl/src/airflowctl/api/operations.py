@@ -494,7 +494,7 @@ class DagOperations(BaseOperations):
         except ServerResponseError as e:
             raise e
 
-    def list_import_error(self) -> ImportErrorCollectionResponse | ServerResponseError:
+    def list_import_errors(self) -> ImportErrorCollectionResponse | ServerResponseError:
         return super().execute_list(path="importErrors", data_model=ImportErrorCollectionResponse)
 
     def get_stats(self, dag_ids: list) -> DagStatsCollectionResponse | ServerResponseError:  # type: ignore
