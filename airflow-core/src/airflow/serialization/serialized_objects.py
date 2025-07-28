@@ -25,6 +25,7 @@ import datetime
 import enum
 import itertools
 import logging
+import math
 import weakref
 from collections.abc import Collection, Generator, Iterable, Iterator, Mapping, Sequence
 from functools import cache, cached_property
@@ -720,6 +721,9 @@ class BaseSerialization:
             # enum.IntEnum is an int instance, it causes json dumps error so we use its value.
             if isinstance(var, enum.Enum):
                 return var.value
+            # These are not allowed in JSON. https://datatracker.ietf.org/doc/html/rfc8259#section-6
+            if isinstance(var, float) and (math.isnan(var) or math.isinf(var)):
+                return str(var)
             return var
         elif isinstance(var, dict):
             return cls._encode(
