@@ -25,6 +25,7 @@ import httpx
 import pytest
 from fastapi import FastAPI, HTTPException, Path, Request, status
 
+from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse
 from airflow.models.dagrun import DagRun
 from airflow.models.taskmap import TaskMap
@@ -32,7 +33,6 @@ from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.serialization.serde import deserialize, serialize
 from airflow.utils.session import create_session
-from airflow_shared.timezones import timezone
 
 pytestmark = pytest.mark.db_test
 
