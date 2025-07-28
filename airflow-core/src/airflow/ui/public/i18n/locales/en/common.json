@@ -187,8 +187,6 @@
     "up_for_retry": "Up For Retry",
     "upstream_failed": "Upstream Failed"
   },
-  "switchToDarkMode": "Switch to Dark Mode",
-  "switchToLightMode": "Switch to Light Mode",
   "table": {
     "completedAt": "Completed at",
     "createdAt": "Created at",
