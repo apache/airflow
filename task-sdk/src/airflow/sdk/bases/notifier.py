@@ -17,9 +17,8 @@
 
 from __future__ import annotations
 
-from abc import abstractmethod
-from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from collections.abc import Generator, Sequence
+from typing import TYPE_CHECKING, Any
 
 from airflow.sdk.definitions._internal.templater import Templater
 from airflow.utils.context import context_merge
@@ -33,7 +32,19 @@ if TYPE_CHECKING:
 
 
 class BaseNotifier(LoggingMixin, Templater):
-    """BaseNotifier class for sending notifications."""
+    """
+    BaseNotifier class for sending notifications.
+
+    This class can be used both synchronously and asynchronously.
+    Subclasses should implement the `notify_async` method for optimal performance.
+
+    Usage:
+        # Asynchronous usage (preferred)
+        await BaseNotifier(context=context)
+
+        # Synchronous usage (fallback)
+        BaseNotifier(context=context)()
+    """
 
     template_fields: Sequence[str] = ()
     template_ext: Sequence[str] = ()
@@ -41,6 +52,8 @@ class BaseNotifier(LoggingMixin, Templater):
     def __init__(self):
         super().__init__()
         self.resolve_template_files()
+        # Context stored as attribute here because parameters can't be passed to __await__
+        self.context = {}
 
     def _update_context(self, context: Context) -> Context:
         """
@@ -53,7 +66,7 @@ class BaseNotifier(LoggingMixin, Templater):
         return context
 
     def _render(self, template, context, dag: DAG | None = None):
-        dag = dag or context["dag"]
+        dag = dag or context.get("dag")
         return super()._render(template, context, dag)
 
     def render_template_fields(
@@ -69,19 +82,26 @@ class BaseNotifier(LoggingMixin, Templater):
         :param context: Context dict with values to apply on content.
         :param jinja_env: Jinja environment to use for rendering.
         """
-        dag = context["dag"]
+        dag = context.get("dag")
         if not jinja_env:
             jinja_env = self.get_template_env(dag=dag)
         self._do_render_template_fields(self, self.template_fields, context, jinja_env, set())
 
-    @abstractmethod
-    def notify(self, context: Context) -> None:
+    async def notify_async(self, context: Context) -> None:
         """
-        Send a notification.
+        Send a notification asynchronously. This is required for use with Deadline Alerts.
 
         :param context: The airflow context
         """
-        ...
+        raise NotImplementedError
+
+    def notify(self, context: Context) -> None:
+        """
+        Send a notification synchronously.
+
+        :param context: The airflow context
+        """
+        raise NotImplementedError
 
     def __call__(self, *args) -> None:
         """
@@ -104,4 +124,23 @@ class BaseNotifier(LoggingMixin, Templater):
         try:
             self.notify(context)
         except Exception as e:
-            self.log.exception("Failed to send notification: %s", e)
+            self.log.exception("Failed to send (blocking) notification: %s", e)
+
+    def __await__(self) -> Generator[Any, None, None]:
+        """
+        Make the notifier awaitable.
+
+        Context provided in the constructor is used.
+        """
+        self._update_context(self.context)
+        self.render_template_fields(self.context)
+        try:
+            return self.notify_async(self.context).__await__()
+        except Exception as e:
+            self.log.exception("Failed to send (async) notification: %s", e)
+
+            # Return an empty completed generator to ensure we always return a generator
+            async def empty_generator():
+                return None
+
+            return empty_generator().__await__()
