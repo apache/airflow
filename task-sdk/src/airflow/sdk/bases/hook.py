@@ -80,7 +80,7 @@ class BaseHook(LoggingMixin):
     @classmethod
     async def async_get_connection(cls, conn_id: str) -> Connection:
         """
-        Get connection asynchronously, given connection id.
+        Get connection (async), given connection id.
 
         :param conn_id: connection id
         :return: connection

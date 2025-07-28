@@ -57,8 +57,8 @@ def check_webhook_response(func: Callable) -> Callable:
     return wrapper
 
 
-def check_webhook_response_async(func: Callable) -> Callable:
-    """Check WebhookResponse and raise an error if status code != 200 (async version)."""
+def async_check_webhook_response(func: Callable) -> Callable:
+    """Check WebhookResponse and raise an error if status code != 200 (async)."""
 
     @wraps(func)
     async def wrapper(*args, **kwargs) -> Callable:
@@ -154,11 +154,11 @@ class SlackWebhookHook(BaseHook):
 
     @cached_property
     async def async_client(self) -> AsyncWebhookClient:
-        """Get the underlying slack_sdk.webhook.async_client.AsyncWebhookClient (cached)."""
+        """Get the underlying `slack_sdk.webhook.async_client.AsyncWebhookClient` (cached)."""
         return AsyncWebhookClient(**await self._async_get_conn_params())
 
     def get_conn(self) -> WebhookClient:
-        """Get the underlying slack_sdk.webhook.WebhookClient (cached)."""
+        """Get the underlying `slack_sdk.webhook.WebhookClient` (cached)."""
         return self.client
 
     def _get_conn_params(self) -> dict[str, Any]:
@@ -242,17 +242,17 @@ class SlackWebhookHook(BaseHook):
         body = self._process_body(body)
         return self.client.send_dict(body, headers=headers)
 
-    @check_webhook_response_async
-    async def send_dict_async(self, body: dict[str, Any] | str, *, headers: dict[str, str] | None = None):
+    @async_check_webhook_response
+    async def async_send_dict(self, body: dict[str, Any] | str, *, headers: dict[str, str] | None = None):
         """
-        Perform a Slack Incoming Webhook request with given JSON data block asynchronously.
+        Perform a Slack Incoming Webhook request with given JSON data block (async).
 
         :param body: JSON data structure, expected dict or JSON-string.
         :param headers: Request headers for this request.
         """
         body = self._process_body(body)
-        client = await self.async_client
-        return await client.send_dict(body, headers=headers)
+        async_client = await self.async_client
+        return await async_client.send_dict(body, headers=headers)
 
     def send(
         self,
@@ -285,7 +285,7 @@ class SlackWebhookHook(BaseHook):
         body = {k: v for k, v in locals().items() if v is not None and k != "self"}
         return self.send_dict(body=body, headers=headers)
 
-    async def send_async(
+    async def async_send(
         self,
         *,
         text: str | None = None,
@@ -300,7 +300,7 @@ class SlackWebhookHook(BaseHook):
         **kwargs,
     ):
         """
-        Perform a Slack Incoming Webhook request with given arguments asynchronously.
+        Perform a Slack Incoming Webhook request with given arguments (async).
 
         :param text: The text message
             (even when having blocks, setting this as well is recommended as it works as fallback).
@@ -314,7 +314,7 @@ class SlackWebhookHook(BaseHook):
         :param attachments: (legacy) A collection of attachments.
         """
         body = {k: v for k, v in locals().items() if v is not None and k != "self"}
-        return await self.send_dict_async(body=body, headers=headers)
+        return await self.async_send_dict(body=body, headers=headers)
 
     def send_text(
         self,

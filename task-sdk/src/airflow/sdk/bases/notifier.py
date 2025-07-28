@@ -87,17 +87,24 @@ class BaseNotifier(LoggingMixin, Templater):
             jinja_env = self.get_template_env(dag=dag)
         self._do_render_template_fields(self, self.template_fields, context, jinja_env, set())
 
-    async def notify_async(self, context: Context) -> None:
+    async def async_notify(self, context: Context) -> None:
         """
-        Send a notification asynchronously. This is required for use with Deadline Alerts.
+        Send a notification (async).
+
+        Implementing this is a requirement for running this notifier in the triggerer, which is the
+        recommended approach for using Deadline Alerts.
 
         :param context: The airflow context
+        Note: the context is not available in the current version.
         """
         raise NotImplementedError
 
     def notify(self, context: Context) -> None:
         """
-        Send a notification synchronously.
+        Send a notification (sync).
+
+        Implementing this is a requirement for running this notifier in the DAG processor, which is where the
+        `on_success_callback` and `on_failure_callback` run.
 
         :param context: The airflow context
         """
@@ -135,7 +142,7 @@ class BaseNotifier(LoggingMixin, Templater):
         self._update_context(self.context)
         self.render_template_fields(self.context)
         try:
-            return self.notify_async(self.context).__await__()
+            return self.async_notify(self.context).__await__()
         except Exception as e:
             self.log.exception("Failed to send (async) notification: %s", e)
 
