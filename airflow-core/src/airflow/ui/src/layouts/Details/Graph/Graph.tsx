@@ -19,7 +19,7 @@
 import { useToken } from "@chakra-ui/react";
 import { ReactFlow, Controls, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
@@ -73,7 +73,7 @@ export const Graph = () => {
     "gray.800",
   ]);
 
-  const { allGroupIds, openGroupIds, setAllGroupIds } = useOpenGroups();
+  const { openGroupIds, setAllGroupIds } = useOpenGroups();
 
   const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(`dependencies-${dagId}`, "tasks");
   const [direction] = useLocalStorage<Direction>(`direction-${dagId}`, "RIGHT");
@@ -94,11 +94,15 @@ export const Graph = () => {
     [graphData.nodes],
   );
 
+  // Use ref to store previous value and avoid dependency cycle
+  const prevObservedGroupIds = useRef<Array<string>>([]);
+
   useEffect(() => {
-    if (observedGroupIds !== allGroupIds) {
+    if (JSON.stringify(observedGroupIds) !== JSON.stringify(prevObservedGroupIds.current)) {
       setAllGroupIds(observedGroupIds);
+      prevObservedGroupIds.current = observedGroupIds;
     }
-  }, [allGroupIds, observedGroupIds, setAllGroupIds]);
+  }, [observedGroupIds, setAllGroupIds]);
 
   const { data: dagDependencies = { edges: [], nodes: [] } } = useDependencyGraph(`dag:${dagId}`, {
     enabled: dependencies === "all",
