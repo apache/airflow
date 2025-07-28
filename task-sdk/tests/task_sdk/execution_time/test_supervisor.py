@@ -396,6 +396,8 @@ class TestWatchedSubprocess:
 
             assert os.getpid() != main_pid
             os.kill(os.getpid(), signal.SIGTERM)
+            # Ensure that the signal is serviced before we finish and exit the subprocess.
+            sleep(0.5)
 
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
