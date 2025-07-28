@@ -27,9 +27,14 @@ Create Date: 2025-05-20 10:38:25.635779
 
 from __future__ import annotations
 
+from textwrap import dedent
+
 import sqlalchemy as sa
-from alembic import op
+from alembic import context, op
 from sqlalchemy_utils import UUIDType
+
+from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.models import DagBag
 
 # revision identifiers, used by Alembic.
 revision = "5d3072c51bac"
@@ -39,9 +44,31 @@ depends_on = None
 airflow_version = "3.1.0"
 
 
+def _reserialize_dags():
+    manager = DagBundlesManager()
+    manager.sync_bundles_to_db()
+    bundles = manager.get_all_dag_bundles()
+    for bundle in bundles:
+        bundle.initialize()
+        dag_bag = DagBag(bundle.path, bundle_path=bundle.path, include_examples=False)
+        dag_bag.sync_to_db(bundle.name, bundle_version=bundle.get_current_version())
+
+
 def upgrade():
     """Apply make dag_version_id non-nullable in TaskInstance."""
     conn = op.get_bind()
+    if context.is_offline_mode():
+        print(
+            dedent("""
+        ------------
+        --  WARNING: Unable to serialize the Dags in offline mode!
+        --  If any taskinstance row has a null dag_version_id when you do upgrade, the migration will fail.
+        ------------
+        """)
+        )
+    else:
+        # Reserialize all DAGs to ensure we have dag_version
+        _reserialize_dags()
     if conn.dialect.name == "postgresql":
         update_query = sa.text("""
             UPDATE task_instance
