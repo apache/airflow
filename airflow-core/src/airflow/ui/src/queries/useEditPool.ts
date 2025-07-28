@@ -80,7 +80,7 @@ export const useEditPool = (
       editPoolRequestBody.description === "" ? undefined : editPoolRequestBody.description;
 
     mutate({
-      poolName: initialPool.name,
+      poolName: encodeURIComponent(initialPool.name),
       requestBody: {
         description: parsedDescription,
         include_deferred: editPoolRequestBody.include_deferred,
