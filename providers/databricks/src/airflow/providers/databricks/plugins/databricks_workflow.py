@@ -41,7 +41,6 @@ else:
     from airflow.www import auth  # type: ignore
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.task_group import TaskGroup
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
@@ -51,11 +50,12 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperatorLink
+    from airflow.sdk import BaseOperatorLink, TaskGroup
     from airflow.sdk.execution_time.xcom import XCom
 else:
     from airflow.models import XCom
     from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
+    from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
 
 
 REPAIR_WAIT_ATTEMPTS = os.getenv("DATABRICKS_REPAIR_WAIT_ATTEMPTS", 20)
