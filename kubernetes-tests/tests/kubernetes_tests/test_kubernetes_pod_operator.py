@@ -1453,7 +1453,7 @@ class TestKubernetesPodOperatorSystem:
         ],
     )
     def test_log_output_configurations(
-        self, mock_get_connection, caplog, log_prefix_enabled, log_formatter, expected_log_message_check
+        self, mock_get_connection, log_prefix_enabled, log_formatter, expected_log_message_check
     ):
         """
         Tests various log output configurations (log_prefix, log_formatter)
@@ -1474,9 +1474,11 @@ class TestKubernetesPodOperatorSystem:
             log_formatter=log_formatter,
         )
         context = create_context(k)
-        with caplog.at_level(logging.INFO, logger="airflow.task.operators"):
+        logger = logging.getLogger("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager")
+        with mock.patch.object(logger, "info") as mock_info:
             k.execute(context)
-        assert any(expected_log_message_check(marker, record.message) for record in caplog.records)
+            captured_messages = [call_args[0] for call_args in mock_info.call_args_list if call_args]
+            assert any(expected_log_message_check(marker, msg) for msg in captured_messages)
 
 
 # TODO: Task SDK: https://github.com/apache/airflow/issues/45438
