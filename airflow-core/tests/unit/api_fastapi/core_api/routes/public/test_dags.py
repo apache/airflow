@@ -557,7 +557,6 @@ class TestDagDetails(TestDagEndpoint):
             },
             "description": None,
             "doc_md": "details",
-            "deadline": None,
             "end_date": None,
             "fileloc": __file__,
             "file_token": file_token,
