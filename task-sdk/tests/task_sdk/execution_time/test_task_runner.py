@@ -2094,6 +2094,30 @@ class TestXComAfterTaskExecution:
             for x in mock_supervisor_comms.send.call_args_list
         )
 
+    def test_get_all_uses_custom_deserialize_value(self, mock_supervisor_comms):
+        """
+        Tests that XCom.get_all() calls the custom deserialize_value method.
+        """
+
+        class CustomXCom(BaseXCom):
+            @classmethod
+            def deserialize_value(cls, result):
+                """Custom deserialization that adds a prefix to show it was called."""
+                original_value = super().deserialize_value(result)
+                return f"from custom xcom deserialize:{original_value}"
+
+        serialized_values = ["value1", "value2", "value3"]
+        mock_supervisor_comms.send.return_value = XComSequenceSliceResult(root=serialized_values)
+
+        result = CustomXCom.get_all(key="test_key", dag_id="test_dag", task_id="test_task", run_id="test_run")
+
+        expected = [
+            "from custom xcom deserialize:value1",
+            "from custom xcom deserialize:value2",
+            "from custom xcom deserialize:value3",
+        ]
+        assert result == expected
+
 
 class TestDagParamRuntime:
     DEFAULT_ARGS = {
