@@ -73,13 +73,13 @@ from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
-from airflow.dual_stats_manager import DualStatsManager
 from airflow.exceptions import (
     AirflowInactiveAssetInInletOrOutletException,
     TaskDeferralError,
     TaskDeferred,
 )
 from airflow.listeners.listener import get_listener_manager
+from airflow.metrics.dual_stats_manager import DualStatsManager
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies
 

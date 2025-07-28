@@ -43,10 +43,10 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunConte
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
-from airflow.dual_stats_manager import DualStatsManager
 from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, perform_heartbeat
+from airflow.metrics.dual_stats_manager import DualStatsManager
 from airflow.models import Log
 from airflow.models.asset import (
     AssetActive,

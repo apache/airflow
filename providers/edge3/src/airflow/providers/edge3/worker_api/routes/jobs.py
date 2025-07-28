@@ -21,7 +21,7 @@ from typing import Annotated
 
 from sqlalchemy import select, update
 
-from airflow.dual_stats_manager import DualStatsManager
+from airflow.metrics.dual_stats_manager import DualStatsManager
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.worker_api.auth import jwt_token_authorization_rest
 from airflow.providers.edge3.worker_api.datamodels import (
