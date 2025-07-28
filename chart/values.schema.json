@@ -7372,6 +7372,14 @@
                         "type": "string"
                     }
                 },
+                "labels": {
+                    "description": "Labels to add to the PgBouncer objects and pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "replicas": {
                     "description": "Number of PgBouncer replicas to run in Deployment.",
                     "type": "integer",

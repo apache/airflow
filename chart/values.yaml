@@ -1941,6 +1941,9 @@ triggerer:
   # annotations for the triggerer deployment
   annotations: {}
 
+  # Labels to add to PgBouncer objects and pods
+  labels: {}
+
   podAnnotations: {}
 
   # Labels specific to triggerer objects and pods
@@ -2418,6 +2421,9 @@ pgbouncer:
 
   # annotations to be added to the PgBouncer deployment
   annotations: {}
+  # labels to be added to the PgBouncer deployment
+  labels: {}
+
 
   podAnnotations: {}
 
