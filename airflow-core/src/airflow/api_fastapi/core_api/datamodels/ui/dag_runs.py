@@ -25,8 +25,9 @@ from airflow.utils.state import DagRunState
 class DAGRunLightResponse(BaseModel):
     """DAG Run serializer for responses."""
 
-    run_id: str
+    id: int
     dag_id: str
+    run_id: str
     logical_date: datetime | None
     run_after: datetime
     start_date: datetime | None

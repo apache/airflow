@@ -6460,13 +6460,17 @@ the API server/Web UI can use this data to render connection form UI.`
 
 export const $DAGRunLightResponse = {
     properties: {
-        run_id: {
-            type: 'string',
-            title: 'Run Id'
+        id: {
+            type: 'integer',
+            title: 'Id'
         },
         dag_id: {
             type: 'string',
             title: 'Dag Id'
+        },
+        run_id: {
+            type: 'string',
+            title: 'Run Id'
         },
         logical_date: {
             anyOf: [
@@ -6514,7 +6518,7 @@ export const $DAGRunLightResponse = {
         }
     },
     type: 'object',
-    required: ['run_id', 'dag_id', 'logical_date', 'run_after', 'start_date', 'end_date', 'state'],
+    required: ['id', 'dag_id', 'run_id', 'logical_date', 'run_after', 'start_date', 'end_date', 'state'],
     title: 'DAGRunLightResponse',
     description: 'DAG Run serializer for responses.'
 } as const;
@@ -7083,32 +7087,6 @@ export const $HistoricalMetricDataResponse = {
     required: ['dag_run_types', 'dag_run_states', 'task_instance_states'],
     title: 'HistoricalMetricDataResponse',
     description: 'Historical Metric Data serializer for responses.'
-} as const;
-
-export const $LatestRunResponse = {
-    properties: {
-        id: {
-            type: 'integer',
-            title: 'Id'
-        },
-        dag_id: {
-            type: 'string',
-            title: 'Dag Id'
-        },
-        run_id: {
-            type: 'string',
-            title: 'Run Id'
-        },
-        run_after: {
-            type: 'string',
-            format: 'date-time',
-            title: 'Run After'
-        }
-    },
-    type: 'object',
-    required: ['id', 'dag_id', 'run_id', 'run_after'],
-    title: 'LatestRunResponse',
-    description: 'Base Node serializer for responses.'
 } as const;
 
 export const $LightGridTaskInstanceSummary = {

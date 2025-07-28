@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from unittest import mock
 
 import pendulum
 import pytest
@@ -113,4 +114,28 @@ class TestGetDagRuns(TestPublicDagEndpoint):
 
     def test_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get("/dags", params={})
+        assert response.status_code == 403
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_latest_run_should_return_200(self, test_client):
+        response = test_client.get(f"/dags/{DAG1_ID}/latest_run")
+        assert response.status_code == 200
+        body = response.json()
+        assert body == {
+            "id": mock.ANY,
+            "dag_id": "test_dag1",
+            "run_id": "run_id_5",
+            "logical_date": "2025-01-01T00:00:00Z",
+            "run_after": "2025-01-01T00:00:00Z",
+            "start_date": "2025-01-01T00:00:00Z",
+            "end_date": "2025-01-01T01:00:00Z",
+            "state": "failed",
+        }
+
+    def test_latest_run_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(f"/dags/{DAG1_ID}/latest_run")
+        assert response.status_code == 401
+
+    def test_latest_run_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(f"/dags/{DAG1_ID}/latest_run")
         assert response.status_code == 403
