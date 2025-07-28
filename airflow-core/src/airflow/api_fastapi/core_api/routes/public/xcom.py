@@ -204,14 +204,14 @@ def create_xcom_entry(
         dag.get_task(task_id)
     except TaskNotFound:
         raise HTTPException(
-            status.HTTP_404_NOT_FOUND, f"Task with ID: `{task_id}` not found in DAG: `{dag_id}`"
+            status.HTTP_404_NOT_FOUND, f"Task with ID: `{task_id}` not found in dag: `{dag_id}`"
         )
 
     # Validate DAG Run ID
     if not dag_run:
         if not dag_run:
             raise HTTPException(
-                status.HTTP_404_NOT_FOUND, f"Dag Run with ID: `{dag_run_id}` not found for DAG: `{dag_id}`"
+                status.HTTP_404_NOT_FOUND, f"Dag Run with ID: `{dag_run_id}` not found for dag: `{dag_id}`"
             )
 
     # Check existing XCom
