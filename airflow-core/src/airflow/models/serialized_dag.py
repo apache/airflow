@@ -28,7 +28,6 @@ from typing import TYPE_CHECKING, Any, Callable, Literal
 import sqlalchemy_jsonfield
 import uuid6
 from sqlalchemy import Column, ForeignKey, LargeBinary, String, exc, select, tuple_
-from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.sql.expression import func, literal
 from sqlalchemy_utils import UUIDType
@@ -50,7 +49,7 @@ from airflow.settings import COMPRESS_SERIALIZED_DAGS, json
 from airflow.utils import timezone
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, is_lock_not_available_error
+from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -402,27 +401,17 @@ class SerializedDagModel(Base):
         # If Yes, does nothing
         # If No or the DAG does not exists, updates / writes Serialized DAG to DB
         if min_update_interval is not None:
-            try:
-                do_nothing = session.scalar(
-                    select(literal(True))
-                    .where(
-                        cls.dag_id == dag.dag_id,
-                        (timezone.utcnow() - timedelta(seconds=min_update_interval)) < cls.last_updated,
-                    )
-                    .select_from(cls)
-                    .with_for_update(nowait=True, skip_locked=True)
+            do_nothing = session.scalar(
+                select(literal(True))
+                .where(
+                    cls.dag_id == dag.dag_id,
+                    (timezone.utcnow() - timedelta(seconds=min_update_interval)) < cls.last_updated,
                 )
-                if do_nothing:
-                    return False
-            except OperationalError as e:
-                if is_lock_not_available_error(e):
-                    log.info(
-                        "Another Dag Processor is already reparsing dag %s. Skipping reparse request. Details: %s",
-                        dag.dag_id,
-                        str(e),
-                    )
-                    return False
-                raise
+                .select_from(cls)
+                .with_for_update(nowait=True, skip_locked=True)
+            )
+            if do_nothing:
+                return False
 
         log.debug("Checking if DAG (%s) changed", dag.dag_id)
         new_serialized_dag = cls(dag)
