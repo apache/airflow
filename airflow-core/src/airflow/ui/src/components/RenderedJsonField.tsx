@@ -30,7 +30,7 @@ type Props = {
 
 const RenderedJsonField = ({ content, enableClipboard = true, jsonProps, ...rest }: Props) => {
   const contentFormatted = JSON.stringify(content, undefined, 4);
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
 
   return (
     <Flex {...rest}>
@@ -44,7 +44,7 @@ const RenderedJsonField = ({ content, enableClipboard = true, jsonProps, ...rest
         style={{
           backgroundColor: "inherit",
         }}
-        theme={theme === "dark" ? "monokai" : "rjv-default"}
+        theme={resolvedTheme === "dark" ? "monokai" : "rjv-default"}
         {...jsonProps}
       />
       {enableClipboard ? (
