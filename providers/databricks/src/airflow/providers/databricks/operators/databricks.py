@@ -61,7 +61,11 @@ if TYPE_CHECKING:
     )
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.utils.context import Context
-    from airflow.utils.task_group import TaskGroup
+
+    try:
+        from airflow.sdk import TaskGroup
+    except ImportError:
+        from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperatorLink

@@ -129,12 +129,12 @@ def get_dag_structure(
     # Retrieve, sort the previous DAG Runs
     base_query = select(DagRun.id).where(DagRun.dag_id == dag_id)
     # This comparison is to fall back to DAG timetable when no order_by is provided
-    if order_by.value == order_by.get_primary_key_string():
+    if order_by.value == [order_by.get_primary_key_string()]:
         ordering = list(latest_dag.timetable.run_ordering)
         order_by = SortParam(
             allowed_attrs=ordering,
             model=DagRun,
-        ).set_value(ordering[0])
+        ).set_value(ordering)
     dag_runs_select_filter, _ = paginated_select(
         statement=base_query,
         order_by=order_by,
@@ -226,14 +226,14 @@ def get_grid_runs(
         )
 
         # This comparison is to fall back to DAG timetable when no order_by is provided
-        if order_by.value == order_by.get_primary_key_string():
+        if order_by.value == [order_by.get_primary_key_string()]:
             latest_serdag = _get_latest_serdag(dag_id, session)
             latest_dag = latest_serdag.dag
             ordering = list(latest_dag.timetable.run_ordering)
             order_by = SortParam(
                 allowed_attrs=ordering,
                 model=DagRun,
-            ).set_value(ordering[0])
+            ).set_value(ordering)
 
         dag_runs_select_filter, _ = paginated_select(
             statement=base_query,
@@ -287,7 +287,6 @@ def get_grid_runs(
             detail={"reason": "internal_error", "message": "An unexpected error occurred"},
         )
 
-
 @grid_router.get(
     "/ti_summaries/{dag_id}/{run_id}",
     responses=create_openapi_http_exception_doc(
@@ -340,7 +339,7 @@ def get_grid_ti_summaries(
             )
         ),
         filters=[],
-        order_by=SortParam(allowed_attrs=["task_id", "run_id"], model=TaskInstance).set_value("task_id"),
+        order_by=SortParam(allowed_attrs=["task_id", "run_id"], model=TaskInstance).set_value(["task_id"]),
         limit=None,
         return_total_entries=False,
     )

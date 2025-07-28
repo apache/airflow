@@ -24,7 +24,7 @@ export const prefetchUseAssetServiceGetAssets = (queryClient: QueryClient, { dag
   namePattern?: string;
   offset?: number;
   onlyActive?: boolean;
-  orderBy?: string;
+  orderBy?: string[];
   uriPattern?: string;
 } = {}) => queryClient.prefetchQuery({ queryKey: Common.UseAssetServiceGetAssetsKeyFn({ dagIds, limit, namePattern, offset, onlyActive, orderBy, uriPattern }), queryFn: () => AssetService.getAssets({ dagIds, limit, namePattern, offset, onlyActive, orderBy, uriPattern }) });
 /**
@@ -42,7 +42,7 @@ export const prefetchUseAssetServiceGetAssetAliases = (queryClient: QueryClient,
   limit?: number;
   namePattern?: string;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
 } = {}) => queryClient.prefetchQuery({ queryKey: Common.UseAssetServiceGetAssetAliasesKeyFn({ limit, namePattern, offset, orderBy }), queryFn: () => AssetService.getAssetAliases({ limit, namePattern, offset, orderBy }) });
 /**
 * Get Asset Alias
@@ -76,7 +76,7 @@ export const prefetchUseAssetServiceGetAssetEvents = (queryClient: QueryClient, 
   assetId?: number;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   sourceDagId?: string;
   sourceMapIndex?: number;
   sourceRunId?: string;
@@ -160,7 +160,7 @@ export const prefetchUseBackfillServiceListBackfills = (queryClient: QueryClient
   dagId: string;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
 }) => queryClient.prefetchQuery({ queryKey: Common.UseBackfillServiceListBackfillsKeyFn({ dagId, limit, offset, orderBy }), queryFn: () => BackfillService.listBackfills({ dagId, limit, offset, orderBy }) });
 /**
 * Get Backfill
@@ -188,7 +188,7 @@ export const prefetchUseBackfillServiceListBackfillsUi = (queryClient: QueryClie
   dagId?: string;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
 } = {}) => queryClient.prefetchQuery({ queryKey: Common.UseBackfillServiceListBackfillsUiKeyFn({ active, dagId, limit, offset, orderBy }), queryFn: () => BackfillService.listBackfillsUi({ active, dagId, limit, offset, orderBy }) });
 /**
 * Get Connection
@@ -216,7 +216,7 @@ export const prefetchUseConnectionServiceGetConnections = (queryClient: QueryCli
   connectionIdPattern?: string;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
 } = {}) => queryClient.prefetchQuery({ queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({ connectionIdPattern, limit, offset, orderBy }), queryFn: () => ConnectionService.getConnections({ connectionIdPattern, limit, offset, orderBy }) });
 /**
 * Hook Meta Data
@@ -284,7 +284,7 @@ export const prefetchUseDagRunServiceGetDagRuns = (queryClient: QueryClient, { d
   logicalDateGte?: string;
   logicalDateLte?: string;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   runAfterGte?: string;
   runAfterLte?: string;
   runIdPattern?: string;
@@ -415,7 +415,7 @@ export const prefetchUseDagWarningServiceListDagWarnings = (queryClient: QueryCl
   dagId?: string;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   warningType?: DagWarningType;
 } = {}) => queryClient.prefetchQuery({ queryKey: Common.UseDagWarningServiceListDagWarningsKeyFn({ dagId, limit, offset, orderBy, warningType }), queryFn: () => DagWarningService.listDagWarnings({ dagId, limit, offset, orderBy, warningType }) });
 /**
@@ -455,7 +455,7 @@ export const prefetchUseDagServiceGetDags = (queryClient: QueryClient, { dagDisp
   lastDagRunState?: DagRunState;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   owners?: string[];
   paused?: boolean;
   tags?: string[];
@@ -497,7 +497,7 @@ export const prefetchUseDagServiceGetDagDetails = (queryClient: QueryClient, { d
 export const prefetchUseDagServiceGetDagTags = (queryClient: QueryClient, { limit, offset, orderBy, tagNamePattern }: {
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   tagNamePattern?: string;
 } = {}) => queryClient.prefetchQuery({ queryKey: Common.UseDagServiceGetDagTagsKeyFn({ limit, offset, orderBy, tagNamePattern }), queryFn: () => DagService.getDagTags({ limit, offset, orderBy, tagNamePattern }) });
 /**
@@ -531,7 +531,7 @@ export const prefetchUseDagServiceGetDagsUi = (queryClient: QueryClient, { dagDi
   lastDagRunState?: DagRunState;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   owners?: string[];
   paused?: boolean;
   tags?: string[];
@@ -589,7 +589,7 @@ export const prefetchUseEventLogServiceGetEventLogs = (queryClient: QueryClient,
   limit?: number;
   mapIndex?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   owner?: string;
   runId?: string;
   taskId?: string;
@@ -686,7 +686,7 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstances = (queryClient
   logicalDateGte?: string;
   logicalDateLte?: string;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   pool?: string[];
   queue?: string[];
   runAfterGte?: string;
@@ -829,7 +829,7 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (queryClient: Quer
   logicalDateGte?: string;
   logicalDateLte?: string;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   pool?: string[];
   queue?: string[];
   runAfterGte?: string;
@@ -948,7 +948,7 @@ export const prefetchUseImportErrorServiceGetImportError = (queryClient: QueryCl
 export const prefetchUseImportErrorServiceGetImportErrors = (queryClient: QueryClient, { limit, offset, orderBy }: {
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
 } = {}) => queryClient.prefetchQuery({ queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn({ limit, offset, orderBy }), queryFn: () => ImportErrorService.getImportErrors({ limit, offset, orderBy }) });
 /**
 * Get Jobs
@@ -979,7 +979,7 @@ export const prefetchUseJobServiceGetJobs = (queryClient: QueryClient, { endDate
   jobType?: string;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   startDateGte?: string;
   startDateLte?: string;
 } = {}) => queryClient.prefetchQuery({ queryKey: Common.UseJobServiceGetJobsKeyFn({ endDateGte, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGte, startDateLte }), queryFn: () => JobService.getJobs({ endDateGte, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGte, startDateLte }) });
@@ -1026,7 +1026,7 @@ export const prefetchUsePoolServiceGetPool = (queryClient: QueryClient, { poolNa
 export const prefetchUsePoolServiceGetPools = (queryClient: QueryClient, { limit, offset, orderBy, poolNamePattern }: {
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   poolNamePattern?: string;
 } = {}) => queryClient.prefetchQuery({ queryKey: Common.UsePoolServiceGetPoolsKeyFn({ limit, offset, orderBy, poolNamePattern }), queryFn: () => PoolService.getPools({ limit, offset, orderBy, poolNamePattern }) });
 /**
@@ -1141,7 +1141,7 @@ export const prefetchUseVariableServiceGetVariable = (queryClient: QueryClient, 
 export const prefetchUseVariableServiceGetVariables = (queryClient: QueryClient, { limit, offset, orderBy, variableKeyPattern }: {
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   variableKeyPattern?: string;
 } = {}) => queryClient.prefetchQuery({ queryKey: Common.UseVariableServiceGetVariablesKeyFn({ limit, offset, orderBy, variableKeyPattern }), queryFn: () => VariableService.getVariables({ limit, offset, orderBy, variableKeyPattern }) });
 /**
@@ -1179,7 +1179,7 @@ export const prefetchUseDagVersionServiceGetDagVersions = (queryClient: QueryCli
   dagId: string;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   versionNumber?: number;
 }) => queryClient.prefetchQuery({ queryKey: Common.UseDagVersionServiceGetDagVersionsKeyFn({ bundleName, bundleVersion, dagId, limit, offset, orderBy, versionNumber }), queryFn: () => DagVersionService.getDagVersions({ bundleName, bundleVersion, dagId, limit, offset, orderBy, versionNumber }) });
 /**
@@ -1237,7 +1237,7 @@ export const prefetchUseHumanInTheLoopServiceGetHitlDetails = (queryClient: Quer
   dagRunId?: string;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   responseReceived?: boolean;
   state?: string[];
   subjectSearch?: string;
@@ -1278,6 +1278,17 @@ export const prefetchUseLoginServiceLogin = (queryClient: QueryClient, { next }:
 export const prefetchUseLoginServiceLogout = (queryClient: QueryClient, { next }: {
   next?: string;
 } = {}) => queryClient.prefetchQuery({ queryKey: Common.UseLoginServiceLogoutKeyFn({ next }), queryFn: () => LoginService.logout({ next }) });
+/**
+* Refresh
+* Refresh the authentication token.
+* @param data The data for the request.
+* @param data.next
+* @returns unknown Successful Response
+* @throws ApiError
+*/
+export const prefetchUseLoginServiceRefresh = (queryClient: QueryClient, { next }: {
+  next?: string;
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseLoginServiceRefreshKeyFn({ next }), queryFn: () => LoginService.refresh({ next }) });
 /**
 * Get Auth Menus
 * @returns MenuItemCollectionResponse Successful Response
@@ -1353,7 +1364,7 @@ export const prefetchUseGridServiceGetDagStructure = (queryClient: QueryClient, 
   dagId: string;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   runAfterGte?: string;
   runAfterLte?: string;
 }) => queryClient.prefetchQuery({ queryKey: Common.UseGridServiceGetDagStructureKeyFn({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }), queryFn: () => GridService.getDagStructure({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }) });
@@ -1374,7 +1385,7 @@ export const prefetchUseGridServiceGetGridRuns = (queryClient: QueryClient, { da
   dagId: string;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   runAfterGte?: string;
   runAfterLte?: string;
 }) => queryClient.prefetchQuery({ queryKey: Common.UseGridServiceGetGridRunsKeyFn({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }), queryFn: () => GridService.getGridRuns({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }) });

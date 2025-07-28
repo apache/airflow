@@ -279,7 +279,7 @@ Here is a sample ``curl`` command, which sends a request to retrieve a pool list
 
 .. code-block:: bash
 
-    ENDPOINT_URL="http://localhost:8080/"
+    ENDPOINT_URL="http://localhost:8080"
     curl -X GET  \
         --user "airflow:airflow" \
         "${ENDPOINT_URL}/api/v1/pools"
