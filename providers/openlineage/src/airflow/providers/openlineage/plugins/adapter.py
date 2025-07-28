@@ -34,7 +34,7 @@ from openlineage.client.facet_v2 import (
     tags_job,
 )
 
-from airflow.dual_stats_manager import DualStatsManager
+from airflow.metrics.dual_stats_manager import DualStatsManager
 from airflow.providers.common.compat.sdk import Stats, conf as airflow_conf
 from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION, conf
 from airflow.providers.openlineage.utils.utils import (

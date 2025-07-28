@@ -26,7 +26,7 @@ from sqlalchemy import select
 from airflow.api_fastapi.common.db.common import SessionDep  # noqa: TC001
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.dual_stats_manager import DualStatsManager
+from airflow.metrics.dual_stats_manager import DualStatsManager
 from airflow.providers.common.compat.sdk import Stats, timezone
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState, set_metrics
 from airflow.providers.edge3.worker_api.auth import jwt_token_authorization_rest

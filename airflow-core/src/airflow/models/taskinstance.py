@@ -68,8 +68,8 @@ from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
-from airflow.dual_stats_manager import DualStatsManager
 from airflow.listeners.listener import get_listener_manager
+from airflow.metrics.dual_stats_manager import DualStatsManager
 from airflow.models.asset import AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies
 from airflow.models.dag_version import DagVersion

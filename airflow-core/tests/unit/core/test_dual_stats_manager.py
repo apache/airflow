@@ -21,7 +21,7 @@ from typing import Any
 
 import pytest
 
-from airflow import dual_stats_manager
+from airflow.metrics import dual_stats_manager
 
 
 class TestDualStatsManager:
