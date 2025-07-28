@@ -276,6 +276,9 @@ class TestCliTasks:
         """
         tasks render should render and displays templated fields for a given mapping task
         """
+        dag = DagBag().get_dag("test_mapped_classic")
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
         with redirect_stdout(io.StringIO()) as stdout:
             task_command.task_render(
                 self.parser.parse_args(
