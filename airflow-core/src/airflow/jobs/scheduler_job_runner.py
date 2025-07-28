@@ -1948,7 +1948,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         session=session,
                         executor=executor,
                     )
-                    session.commit()
+                session.commit()
             except NotImplementedError:
                 continue
 
@@ -2023,6 +2023,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     executor.send_callback(request)
             finally:
                 ti.set_state(TaskInstanceState.FAILED, session=session)
+                executor.fail(ti.key)
 
     def _reschedule_stuck_task(self, ti: TaskInstance, session: Session):
         session.execute(

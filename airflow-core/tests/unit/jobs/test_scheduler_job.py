@@ -2094,12 +2094,12 @@ class TestSchedulerJob:
             "stuck in queued tries exceeded",
         ]
 
-        mock_executors[0].fail.assert_not_called()  # just demoing that we don't fail with executor method
         mock_executors[
             0
-        ].send_callback.assert_called_once()  # this should only be called for the tsk that has a callback
+        ].send_callback.assert_called_once()  # this should only be called for the task that has a callback
         states = [x.state for x in dr.get_task_instances(session=session)]
         assert states == ["failed", "failed"]
+        mock_executors[0].fail.assert_called()
 
     @conf_vars({("scheduler", "num_stuck_in_queued_retries"): "2"})
     def test_handle_stuck_queued_tasks_reschedule_sensors(self, dag_maker, session, mock_executors):
@@ -2196,12 +2196,12 @@ class TestSchedulerJob:
             "stuck in queued tries exceeded",
         ]
 
-        mock_executors[0].fail.assert_not_called()  # just demoing that we don't fail with executor method
         mock_executors[
             0
-        ].send_callback.assert_called_once()  # this should only be called for the tsk that has a callback
+        ].send_callback.assert_called_once()  # this should only be called for the task that has a callback
         states = [x.state for x in dr.get_task_instances(session=session)]
         assert states == ["failed", "failed"]
+        mock_executors[0].fail.assert_called()
 
     def test_revoke_task_not_imp_tolerated(self, dag_maker, session, caplog):
         """Test that if executor no implement revoke_task then we don't blow up."""
