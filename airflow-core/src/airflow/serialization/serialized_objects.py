@@ -1269,6 +1269,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
     execution_timeout: datetime.timedelta | None
     executor: str | None
+<<<<<<< HEAD
     executor_config: dict = {}
     ignore_first_depends_on_past: bool = False
 
@@ -1324,6 +1325,29 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
     wait_for_downstream: bool = False
     wait_for_past_depends_before_skipping: bool = False
+=======
+    executor_config: dict | None
+    ignore_first_depends_on_past: bool
+    inlets: Sequence
+    is_setup: bool
+    is_teardown: bool
+    max_active_tis_per_dag: int | None
+    max_active_tis_per_dagrun: int | None
+    on_execute_callback: Sequence
+    on_success_callback: Sequence
+    outlets: Sequence
+    pool: str
+    pool_slots: int
+    priority_weight: int
+    queue: str
+    retries: int | None
+    run_as_user: str | None
+    start_from_trigger: bool
+    start_trigger_args: StartTriggerArgs
+    trigger_rule: TriggerRule
+    wait_for_downstream: bool
+    weight_rule: PriorityWeightStrategy
+>>>>>>> ff96f6d504 (Add max_active_tis_per_dag and set them from task)
 
     is_mapped = False
 
