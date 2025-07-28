@@ -7,6 +7,12 @@
     "Providers": "Providers",
     "Variables": "Variables"
   },
+  "appearance": {
+    "appearance": "Appearance",
+    "darkMode": "Dark Mode",
+    "lightMode": "Light Mode",
+    "systemMode": "Follow System Setting"
+  },
   "asset_one": "Asset",
   "asset_other": "Assets",
   "assetEvent_one": "Asset Event",
