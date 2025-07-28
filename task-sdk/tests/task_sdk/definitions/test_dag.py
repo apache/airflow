@@ -143,18 +143,16 @@ class TestDag:
         assert op8.dag == dag
         assert op9.dag == dag2
 
-    @pytest.mark.parametrize("access_control", [None, {}])
-    def test_none_or_empty_access_control_does_not_warn(self, access_control: dict[str, Any] | None) -> None:
-        """Ensure that `RemovedInAirflow4Warning` warnings do not arise when `access_control` is `None` or empty."""
+    def test_none_or_empty_access_control_does_not_warn(self) -> None:
+        """Ensure that `RemovedInAirflow4Warning` warnings do not arise when `access_control` is `None`."""
         with warnings.catch_warnings():
             warnings.simplefilter("error")
-            _ = DAG(
-                "test-no-warnings-dag", access_control=access_control, schedule=None, start_date=DEFAULT_DATE
-            )
+            _ = DAG("test-no-warnings-dag", access_control=None, schedule=None, start_date=DEFAULT_DATE)
 
     @pytest.mark.parametrize(
         "role_access_control_entry",
         [
+            {},
             {"DAGs": {}},
             {"DAG Runs": {}},
             {"DAGs": {}, "DAG Runs": {}},
@@ -163,11 +161,13 @@ class TestDag:
             {"DAGs": {"can_read"}, "DAG Runs": {"can_read"}},
         ],
     )
-    def test_non_empty_access_control_warns(
-        self, role_access_control_entry: dict[str, set[str]] | None
-    ) -> None:
+    def test_non_empty_access_control_warns(self, role_access_control_entry: dict[str, set[str]]) -> None:
         """Ensure that `RemovedInAirflow4Warning` warnings are triggered when `access_control` is non-empty."""
-        access_control = {"fake-role": role_access_control_entry}
+        access_control = (
+            {"fake-role": role_access_control_entry}
+            if len(role_access_control_entry) > 0
+            else role_access_control_entry
+        )
         with pytest.warns(
             RemovedInAirflow4Warning, match=re.escape("The airflow.security.permissions module is deprecated")
         ):

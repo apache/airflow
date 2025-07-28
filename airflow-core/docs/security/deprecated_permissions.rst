@@ -23,7 +23,7 @@ Since the release of Airflow 3, the Flask AppBuilder (AKA "FAB") provider is
 However, some modules specifically designed for :doc:`apache-airflow-providers-fab:auth-manager/index` remain in the core Airflow distribution as a
 backwards-compatible convenience for Airflow users. One such module which remains in the core distribution for backwards compatibility purposes is ``airflow.security.permissions``
 
-If your on ``airflow.security.permissions`` for any custom role definitions, or for any custom Auth Manager logic --
+If your deployment depends on ``airflow.security.permissions`` for any custom role definitions, or for any custom Auth Manager logic --
 regardless of whether you use the FAB Auth Manager or some other Auth Manager -- you should transition
 to the new authorization standard definitions for resources and actions.
 The deprecated ``airflow.security.permissions`` will be removed in Airflow 4.
@@ -34,10 +34,10 @@ Does this Deprecation Affect My Airflow System?
 Generally speaking, this deprecation warning applies to any Airflow system in which **either** of the following is true:
 
 * The Airflow deployment relies on ``airflow.security.permissions`` to define custom RBAC roles.
-* The Airflow deployment has other custom logic which relies on ``airflow.security.permissions``, including any custom :doc:`core-concepts/auth-manager/index` dependencies.
+* The Airflow deployment has other custom logic which relies on ``airflow.security.permissions``, including any custom :doc:`/core-concepts/auth-manager/index` dependencies.
 
 However, if you rely on the **unmodified** :doc:`apache-airflow-providers-fab:auth-manager/index` and you **do not** use any custom role definitions, then the rest of this doc does not apply to you.
-Similarly, if you rely on the :doc:`simple/index` or any of the other provider Auth Managers, and have no custom code using ``airflow.security.permissions``, then the rest of this doc does not apply to you.
+Similarly, if you rely on the :doc:`/core-concepts/auth-manager/simple/index` or any of the other provider Auth Managers, and have no custom code using ``airflow.security.permissions``, then the rest of this doc does not apply to you.
 
 .. note::
     Each customized Airflow RBAC setup differs on a case-by-case basis. As such, this doc can only provide general
@@ -59,7 +59,7 @@ replacement component in Airflow core:
 | ``DAG.access_control``                      | Generally, DAG-level permissions should be handled via the chosen Auth Manager's ``filter_authorized_dag_ids`` method. |
 +---------------------------------------------+------------------------------------------------------------------------------------------------------------------------+
 
-If you maintain a custom :doc:`core-concepts/auth-manager/index` which relies on the deprecated module, it is
+If you maintain a custom :doc:`/core-concepts/auth-manager/index` which relies on the deprecated module, it is
 recommended you refer to the ``SimpleAuthManager``'s `source code <https://github.com/apache/airflow/blob/main/airflow-core/src/airflow/api_fastapi/auth/managers/simple/simple_auth_manager.py>`_
 as an example for how you might use the ``ResourceMethod`` and ``resource_details`` components.
 

@@ -470,7 +470,7 @@ class DAG:
             self.default_args["start_date"] = timezone.convert_to_utc(start_date)
         if end_date := self.default_args.get("end_date", None):
             self.default_args["end_date"] = timezone.convert_to_utc(end_date)
-        if self.access_control is not None and len(self.access_control) > 0:
+        if self.access_control is not None:
             warnings.warn(
                 "The airflow.security.permissions module is deprecated; please see https://airflow.apache.org/docs/apache-airflow/stable/security/deprecated_permissions.html",
                 RemovedInAirflow4Warning,
