@@ -128,7 +128,6 @@ with DAG(
         external_dag_id=trigger_dag_id,
         external_task_id=task_id,
         poke_interval=5,
-        deferrable=True,
     )
     # [END howto_sensor_mwaa_task]
 
@@ -139,7 +138,6 @@ with DAG(
         external_dag_id=trigger_dag_id,
         external_dag_run_id="{{ task_instance.xcom_pull(task_ids='trigger_dag_run')['RestApiResponse']['dag_run_id'] }}",
         poke_interval=5,
-        deferrable=True,
     )
     # [END howto_sensor_mwaa_dag_run]
 
@@ -156,7 +154,6 @@ with DAG(
         external_dag_id=trigger_dag_id,
         external_task_id=task_id,
         poke_interval=5,
-        deferrable=True,
     )
 
     test_context >> [
