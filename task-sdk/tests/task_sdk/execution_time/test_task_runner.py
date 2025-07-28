@@ -2066,7 +2066,7 @@ class TestXComAfterTaskExecution:
 
         class CustomOperator(BaseOperator):
             def execute(self, context):
-                _ = context["ti"].xcom_pull(task_ids="pull_task", key="key")
+                context["ti"].xcom_pull(task_ids="pull_task", key="key")
 
         task = CustomOperator(task_id="pull_task")
         runtime_ti = create_runtime_ti(task=task)
