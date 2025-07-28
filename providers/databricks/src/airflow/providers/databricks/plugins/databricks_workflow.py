@@ -50,10 +50,10 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.execution_time.xcom import XCom
 else:
-    from airflow.models import XCom
+    from airflow.models import XCom  # type: ignore[no-redef]
     from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
     from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
-    from airflow.www import auth  # type: ignore
+    from airflow.www import auth  # type: ignore[no-redef]
 
 
 REPAIR_WAIT_ATTEMPTS = os.getenv("DATABRICKS_REPAIR_WAIT_ATTEMPTS", 20)
