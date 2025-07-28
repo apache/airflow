@@ -1,8 +1,8 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { UseMutationOptions, UseQueryOptions, useMutation, useQuery } from "@tanstack/react-query";
-import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GridService, HumanInTheLoopService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
-import { BackfillPostBody, BulkBody_BulkTaskInstanceBody_, BulkBody_ConnectionBody_, BulkBody_PoolBody_, BulkBody_VariableBody_, ClearTaskInstancesBody, ConnectionBody, CreateAssetEventsBody, DAGPatchBody, DAGRunClearBody, DAGRunPatchBody, DAGRunsBatchBody, DagRunState, DagWarningType, PatchTaskInstanceBody, PoolBody, PoolPatchBody, TaskInstancesBatchBody, TriggerDAGRunPostBody, UpdateHITLDetailPayload, VariableBody, XComCreateBody, XComUpdateBody } from "../requests/types.gen";
+import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GridService, HitlSharedLinksService, HumanInTheLoopService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { BackfillPostBody, BulkBody_BulkTaskInstanceBody_, BulkBody_ConnectionBody_, BulkBody_PoolBody_, BulkBody_VariableBody_, ClearTaskInstancesBody, ConnectionBody, CreateAssetEventsBody, DAGPatchBody, DAGRunClearBody, DAGRunPatchBody, DAGRunsBatchBody, DagRunState, DagWarningType, GenerateSharedLinkRequest, PatchTaskInstanceBody, PoolBody, PoolPatchBody, TaskInstancesBatchBody, TriggerDAGRunPostBody, UpdateHITLDetailPayload, VariableBody, XComCreateBody, XComUpdateBody } from "../requests/types.gen";
 import * as Common from "./common";
 /**
 * Get Assets
@@ -1278,6 +1278,55 @@ export const useHumanInTheLoopServiceGetHitlDetails = <TData = Common.HumanInThe
   userId?: string[];
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailsKeyFn({ bodySearch, dagId, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, taskId, taskIdPattern, userId }, queryKey), queryFn: () => HumanInTheLoopService.getHitlDetails({ bodySearch, dagId, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, taskId, taskIdPattern, userId }) as TData, ...options });
 /**
+* Redirect Shared Link
+* Redirect to Airflow UI for HITL task interaction via shared link.
+*
+* This endpoint redirects external users to the Airflow UI where they can interact
+* with HITL tasks through a secure shared link. The link must be a ui_redirect-type
+* link, which provides access to the full Airflow interface for decision-making.
+*
+* :param token: Base64-encoded token containing link metadata and expiration
+* :param http_request: HTTP request for base URL extraction
+*
+* :raises HTTPException: 403 if HITL shared links are not enabled
+* :raises HTTPException: 404 if the task instance does not exist
+* :raises HTTPException: 400 if token is invalid or link has expired
+*
+* :return: RedirectResponse to Airflow UI
+* @param data The data for the request.
+* @param data.token
+* @returns unknown Successful Response
+* @throws ApiError
+*/
+export const useHitlSharedLinksServiceRedirectSharedLink = <TData = Common.HitlSharedLinksServiceRedirectSharedLinkDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ token }: {
+  token: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseHitlSharedLinksServiceRedirectSharedLinkKeyFn({ token }, queryKey), queryFn: () => HitlSharedLinksService.redirectSharedLink({ token }) as TData, ...options });
+/**
+* Execute Shared Link Action
+* Execute an action via shared link by making PATCH request to existing HITL endpoint.
+*
+* This endpoint allows external users to execute HITL task actions through a secure
+* shared link. The link must be a direct_action-type link, which enables direct execution
+* of predefined actions (e.g., approve, reject) by making a PATCH request to the existing
+* HITL endpoint without requiring full Airflow authentication.
+*
+* :param token: Base64-encoded token containing link metadata and action data
+* :param session: Database session for data persistence
+*
+* :raises HTTPException: 403 if HITL shared links are not enabled
+* :raises HTTPException: 404 if the task instance or HITL detail does not exist
+* :raises HTTPException: 400 if token is invalid or link has expired
+*
+* :return: HITLDetailResponse containing the execution result
+* @param data The data for the request.
+* @param data.token
+* @returns HITLDetailResponse Successful Response
+* @throws ApiError
+*/
+export const useHitlSharedLinksServiceExecuteSharedLinkAction = <TData = Common.HitlSharedLinksServiceExecuteSharedLinkActionDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ token }: {
+  token: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseHitlSharedLinksServiceExecuteSharedLinkActionKeyFn({ token }, queryKey), queryFn: () => HitlSharedLinksService.executeSharedLinkAction({ token }) as TData, ...options });
+/**
 * Get Health
 * @returns HealthInfoResponse Successful Response
 * @throws ApiError
@@ -1710,6 +1759,103 @@ export const useVariableServicePostVariable = <TData = Common.VariableServicePos
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   requestBody: VariableBody;
 }, TContext>({ mutationFn: ({ requestBody }) => VariableService.postVariable({ requestBody }) as unknown as Promise<TData>, ...options });
+/**
+* Generate Shared Link
+* Generate a shared link for HITL tasks.
+*
+* This endpoint generates a secure, time-limited shared link that allows external users
+* to interact with HITL tasks without requiring full Airflow authentication. The link
+* can be configured for either direct action execution or UI redirection.
+*
+* :param dag_id: The DAG identifier
+* :param dag_run_id: The DAG run identifier
+* :param task_id: The task identifier
+* :param try_number: The try number for the task
+* :param request: Request containing link configuration
+* :param user: The authenticated user creating the shared link
+* :param session: Database session for data persistence
+* :param http_request: HTTP request for base URL extraction
+* :param map_index: The map index for mapped tasks
+*
+* :raises HTTPException: 403 if HITL shared links are not enabled
+* :raises HTTPException: 404 if the task instance does not exist
+* :raises HTTPException: 400 if link generation fails due to invalid parameters
+*
+* :return: GenerateSharedLinkResponse containing the generated link URL and metadata
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.tryNumber
+* @param data.requestBody
+* @param data.mapIndex
+* @returns GenerateSharedLinkResponse Successful Response
+* @throws ApiError
+*/
+export const useHitlSharedLinksServiceGenerateSharedLink = <TData = Common.HitlSharedLinksServiceGenerateSharedLinkMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  mapIndex?: number;
+  requestBody: GenerateSharedLinkRequest;
+  taskId: string;
+  tryNumber: number;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  mapIndex?: number;
+  requestBody: GenerateSharedLinkRequest;
+  taskId: string;
+  tryNumber: number;
+}, TContext>({ mutationFn: ({ dagId, dagRunId, mapIndex, requestBody, taskId, tryNumber }) => HitlSharedLinksService.generateSharedLink({ dagId, dagRunId, mapIndex, requestBody, taskId, tryNumber }) as unknown as Promise<TData>, ...options });
+/**
+* Generate Mapped Ti Shared Link
+* Generate a shared link for mapped HITL tasks.
+*
+* This endpoint generates a secure, time-limited shared link for mapped task instances,
+* allowing external users to interact with specific mapped HITL tasks without requiring
+* full Airflow authentication. The link can be configured for either direct action
+* execution or UI redirection.
+*
+* :param dag_id: The DAG identifier
+* :param dag_run_id: The DAG run identifier
+* :param task_id: The task identifier
+* :param map_index: The map index for the mapped task instance
+* :param try_number: The try number for the task
+* :param request: Request containing link configuration
+* :param user: The authenticated user creating the shared link
+* :param session: Database session for data persistence
+* :param http_request: HTTP request for base URL extraction
+*
+* :raises HTTPException: 403 if HITL shared links are not enabled
+* :raises HTTPException: 404 if the task instance does not exist
+* :raises HTTPException: 400 if link generation fails due to invalid parameters
+*
+* :return: GenerateSharedLinkResponse containing the generated link URL and metadata
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.mapIndex
+* @param data.tryNumber
+* @param data.requestBody
+* @returns GenerateSharedLinkResponse Successful Response
+* @throws ApiError
+*/
+export const useHitlSharedLinksServiceGenerateMappedTiSharedLink = <TData = Common.HitlSharedLinksServiceGenerateMappedTiSharedLinkMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  requestBody: GenerateSharedLinkRequest;
+  taskId: string;
+  tryNumber: number;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  requestBody: GenerateSharedLinkRequest;
+  taskId: string;
+  tryNumber: number;
+}, TContext>({ mutationFn: ({ dagId, dagRunId, mapIndex, requestBody, taskId, tryNumber }) => HitlSharedLinksService.generateMappedTiSharedLink({ dagId, dagRunId, mapIndex, requestBody, taskId, tryNumber }) as unknown as Promise<TData>, ...options });
 /**
 * Pause Backfill
 * @param data The data for the request.

@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { UseQueryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GridService, HumanInTheLoopService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GridService, HitlSharedLinksService, HumanInTheLoopService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 /**
@@ -1277,6 +1277,55 @@ export const useHumanInTheLoopServiceGetHitlDetailsSuspense = <TData = Common.Hu
   taskIdPattern?: string;
   userId?: string[];
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailsKeyFn({ bodySearch, dagId, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, taskId, taskIdPattern, userId }, queryKey), queryFn: () => HumanInTheLoopService.getHitlDetails({ bodySearch, dagId, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, taskId, taskIdPattern, userId }) as TData, ...options });
+/**
+* Redirect Shared Link
+* Redirect to Airflow UI for HITL task interaction via shared link.
+*
+* This endpoint redirects external users to the Airflow UI where they can interact
+* with HITL tasks through a secure shared link. The link must be a ui_redirect-type
+* link, which provides access to the full Airflow interface for decision-making.
+*
+* :param token: Base64-encoded token containing link metadata and expiration
+* :param http_request: HTTP request for base URL extraction
+*
+* :raises HTTPException: 403 if HITL shared links are not enabled
+* :raises HTTPException: 404 if the task instance does not exist
+* :raises HTTPException: 400 if token is invalid or link has expired
+*
+* :return: RedirectResponse to Airflow UI
+* @param data The data for the request.
+* @param data.token
+* @returns unknown Successful Response
+* @throws ApiError
+*/
+export const useHitlSharedLinksServiceRedirectSharedLinkSuspense = <TData = Common.HitlSharedLinksServiceRedirectSharedLinkDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ token }: {
+  token: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseHitlSharedLinksServiceRedirectSharedLinkKeyFn({ token }, queryKey), queryFn: () => HitlSharedLinksService.redirectSharedLink({ token }) as TData, ...options });
+/**
+* Execute Shared Link Action
+* Execute an action via shared link by making PATCH request to existing HITL endpoint.
+*
+* This endpoint allows external users to execute HITL task actions through a secure
+* shared link. The link must be a direct_action-type link, which enables direct execution
+* of predefined actions (e.g., approve, reject) by making a PATCH request to the existing
+* HITL endpoint without requiring full Airflow authentication.
+*
+* :param token: Base64-encoded token containing link metadata and action data
+* :param session: Database session for data persistence
+*
+* :raises HTTPException: 403 if HITL shared links are not enabled
+* :raises HTTPException: 404 if the task instance or HITL detail does not exist
+* :raises HTTPException: 400 if token is invalid or link has expired
+*
+* :return: HITLDetailResponse containing the execution result
+* @param data The data for the request.
+* @param data.token
+* @returns HITLDetailResponse Successful Response
+* @throws ApiError
+*/
+export const useHitlSharedLinksServiceExecuteSharedLinkActionSuspense = <TData = Common.HitlSharedLinksServiceExecuteSharedLinkActionDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ token }: {
+  token: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseHitlSharedLinksServiceExecuteSharedLinkActionKeyFn({ token }, queryKey), queryFn: () => HitlSharedLinksService.executeSharedLinkAction({ token }) as TData, ...options });
 /**
 * Get Health
 * @returns HealthInfoResponse Successful Response
