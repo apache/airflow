@@ -526,7 +526,7 @@ class DagRunOperations(BaseOperations):
     def get(self, dag_id: str, dag_run_id: str) -> DAGRunResponse | ServerResponseError:
         """Get a dag run."""
         try:
-            self.response = self.client.get(f"/dags/{dag_id}/dag_runs/{dag_run_id}")
+            self.response = self.client.get(f"/dags/{dag_id}/dagRuns/{dag_run_id}")
             return DAGRunResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
@@ -548,7 +548,7 @@ class DagRunOperations(BaseOperations):
             "dag_id": dag_id,
         }
         return super().execute_list(
-            path=f"/dags/{dag_id}/dag_runs", data_model=DAGRunCollectionResponse, params=params
+            path=f"/dags/{dag_id}/dagRuns", data_model=DAGRunCollectionResponse, params=params
         )
 
     def trigger(
@@ -558,7 +558,7 @@ class DagRunOperations(BaseOperations):
         try:
             # It is model_dump_json() because it has unparsable json datetime objects
             self.response = self.client.post(
-                f"/dags/{dag_id}/dag_runs", json=trigger_dag_run.model_dump_json()
+                f"/dags/{dag_id}/dagRuns", json=trigger_dag_run.model_dump_json()
             )
             return DAGRunResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:

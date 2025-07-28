@@ -932,7 +932,7 @@ class TestDagRunOperations:
 
     def test_get(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == f"/api/v2/dags/{self.dag_id}/dag_runs/{self.dag_run_id}"
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}"
             return httpx.Response(200, json=json.loads(self.dag_run_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
@@ -941,7 +941,7 @@ class TestDagRunOperations:
 
     def test_list(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == f"/api/v2/dags/{self.dag_id}/dag_runs"
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/dagRuns"
             return httpx.Response(200, json=json.loads(self.dag_run_collection_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
@@ -956,7 +956,7 @@ class TestDagRunOperations:
 
     def test_trigger(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == f"/api/v2/dags/{self.dag_id}/dag_runs"
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/dagRuns"
             return httpx.Response(200, json=json.loads(self.dag_run_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
