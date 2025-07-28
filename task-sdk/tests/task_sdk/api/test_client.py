@@ -29,6 +29,7 @@ import uuid6
 from task_sdk import make_client, make_client_w_dry_run, make_client_w_responses
 from uuid6 import uuid7
 
+from airflow.sdk import timezone
 from airflow.sdk.api.client import RemoteValidationError, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,
@@ -50,7 +51,6 @@ from airflow.sdk.execution_time.comms import (
     RescheduleTask,
     TaskRescheduleStartDate,
 )
-from airflow.utils import timezone
 from airflow.utils.state import TerminalTIState
 
 if TYPE_CHECKING:
@@ -87,6 +87,16 @@ class TestClient:
 
         assert resp.status_code == 200
         assert resp.json() == json_response
+
+    @mock.patch("airflow.sdk.api.client.API_SSL_CERT_PATH", "/capath/does/not/exist/")
+    def test_add_capath(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(status_code=200)
+
+        with pytest.raises(FileNotFoundError) as err:
+            make_client(httpx.MockTransport(handle_request))
+
+        assert isinstance(err.value, FileNotFoundError)
 
     def test_error_parsing(self):
         responses = [

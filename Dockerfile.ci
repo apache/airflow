@@ -687,6 +687,7 @@ function install_from_sources() {
         installation_command_flags=" --editable .[${AIRFLOW_EXTRAS}] \
               --editable ./airflow-core --editable ./task-sdk --editable ./airflow-ctl \
               --editable ./kubernetes-tests --editable ./docker-tests --editable ./helm-tests \
+              --editable ./task-sdk-tests \
               --editable ./devel-common[all] --editable ./dev \
               --group dev --group docs --group docs-gen --group leveldb"
         local -a projects_with_devel_dependencies
@@ -1463,7 +1464,7 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 ARG AIRFLOW_PIP_VERSION=25.1.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
 ARG AIRFLOW_SETUPTOOLS_VERSION=80.9.0
-ARG AIRFLOW_UV_VERSION=0.8.0
+ARG AIRFLOW_UV_VERSION=0.8.3
 # TODO(potiuk): automate with upgrade check (possibly)
 ARG AIRFLOW_PRE_COMMIT_VERSION="4.2.0"
 ARG AIRFLOW_PRE_COMMIT_UV_VERSION="4.1.4"

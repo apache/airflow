@@ -26,9 +26,9 @@ import pendulum
 import pytest
 
 import airflow.cli.commands.backfill_command
+from airflow._shared.timezones import timezone
 from airflow.cli import cli_parser
 from airflow.models.backfill import ReprocessBehavior
-from airflow.utils import timezone
 
 from tests_common.test_utils.db import clear_db_backfills, clear_db_dags, clear_db_runs, parse_and_sync_to_db
 

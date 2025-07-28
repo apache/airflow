@@ -27,26 +27,30 @@ from airflow.exceptions import TaskDeferred
 from airflow.models.dag import DAG
 from airflow.providers.standard.sensors.time import TimeSensor
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
-from airflow.utils import timezone
 
-DEFAULT_TIMEZONE = "Asia/Singapore"  # UTC+08:00
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+
+DEFAULT_TIMEZONE = pendulum.timezone("Asia/Singapore")  # UTC+08:00
 DEFAULT_DATE_WO_TZ = datetime(2015, 1, 1)
-DEFAULT_DATE_WITH_TZ = datetime(2015, 1, 1, tzinfo=timezone.parse_timezone(DEFAULT_TIMEZONE))
+DEFAULT_DATE_WITH_TZ = datetime(2015, 1, 1, tzinfo=DEFAULT_TIMEZONE)
 
 
 class TestTimeSensor:
     @pytest.mark.parametrize(
-        "default_timezone, start_date, target_time ,expected",
+        "tzinfo, start_date, target_time ,expected",
         [
-            ("UTC", DEFAULT_DATE_WO_TZ, time(10, 0), True),
-            ("UTC", DEFAULT_DATE_WITH_TZ, time(16, 0), True),
-            ("UTC", DEFAULT_DATE_WITH_TZ, time(23, 0), False),
+            (timezone.utc, DEFAULT_DATE_WO_TZ, time(10, 0), True),
+            (timezone.utc, DEFAULT_DATE_WITH_TZ, time(16, 0), True),
+            (timezone.utc, DEFAULT_DATE_WITH_TZ, time(23, 0), False),
             (DEFAULT_TIMEZONE, DEFAULT_DATE_WO_TZ, time(23, 0), False),
         ],
     )
     @time_machine.travel(timezone.datetime(2020, 1, 1, 13, 0).replace(tzinfo=timezone.utc))
-    def test_timezone(self, default_timezone, start_date, target_time, expected, monkeypatch):
-        monkeypatch.setattr("airflow.settings.TIMEZONE", timezone.parse_timezone(default_timezone))
+    def test_timezone(self, tzinfo, start_date, target_time, expected, monkeypatch):
+        monkeypatch.setattr("airflow.settings.TIMEZONE", tzinfo)
         dag = DAG("test_timezone", schedule=None, default_args={"start_date": start_date})
         op = TimeSensor(task_id="test", target_time=target_time, dag=dag)
         assert op.poke(None) == expected
@@ -54,7 +58,7 @@ class TestTimeSensor:
     def test_target_time_aware_dag_timezone(self):
         # This behavior should be the same for both deferrable and non-deferrable
         with DAG("test_target_time_aware", schedule=None, start_date=datetime(2020, 1, 1, 13, 0)):
-            aware_time = time(0, 1).replace(tzinfo=timezone.parse_timezone(DEFAULT_TIMEZONE))
+            aware_time = time(0, 1).replace(tzinfo=DEFAULT_TIMEZONE)
             op = TimeSensor(task_id="test", target_time=aware_time)
             assert op.target_datetime.tzinfo == timezone.utc
 
@@ -66,8 +70,8 @@ class TestTimeSensor:
         ],
     )
     def test_target_date_aware_dag_timezone(self, current_datetime, server_timezone):
-        travel_time = pendulum.parse(current_datetime, tz=timezone.parse_timezone(server_timezone))
-        user_timezone = timezone.parse_timezone("Asia/Seoul")
+        travel_time = pendulum.parse(current_datetime, tz=pendulum.timezone(server_timezone))
+        user_timezone = pendulum.timezone("Asia/Seoul")
         expected_target_datetime = pendulum.datetime(2025, 1, 26, 22, 0, 0, tz="UTC")
 
         with time_machine.travel(travel_time, tick=False):
@@ -92,7 +96,7 @@ class TestTimeSensor:
         with DAG(
             dag_id="test_target_time_naive_dag_timezone",
             schedule=None,
-            start_date=datetime(2020, 1, 1, 23, 0, tzinfo=timezone.parse_timezone(DEFAULT_TIMEZONE)),
+            start_date=datetime(2020, 1, 1, 23, 0, tzinfo=DEFAULT_TIMEZONE),
         ):
             op = TimeSensor(task_id="test", target_time=time(9, 0))
 
@@ -111,7 +115,7 @@ class TestTimeSensor:
 
         # This should be converted to UTC in the __init__. Since there is no default timezone, it will become
         # aware, but note changed
-        assert not timezone.is_naive(op.target_datetime)
+        assert op.target_datetime.utcoffset() is not None
 
         with pytest.raises(TaskDeferred) as exc_info:
             op.execute({})

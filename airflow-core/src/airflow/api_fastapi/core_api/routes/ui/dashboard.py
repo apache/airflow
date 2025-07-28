@@ -20,6 +20,7 @@ from fastapi import Depends, status
 from sqlalchemy import func, select
 from sqlalchemy.sql.expression import case, false
 
+from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.parameters import DateTimeQuery, OptionalDateTimeQuery
@@ -33,7 +34,6 @@ from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.taskinstance import TaskInstance
-from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
 
 dashboard_router = AirflowRouter(tags=["Dashboard"], prefix="/dashboard")

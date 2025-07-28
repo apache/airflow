@@ -22,9 +22,9 @@ from unittest.mock import Mock
 import pytest
 import time_machine
 
+from airflow._shared.timezones.timezone import datetime
 from airflow.models import DagRun, TaskInstance
 from airflow.ti_deps.deps.runnable_exec_date_dep import RunnableExecDateDep
-from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
 pytestmark = pytest.mark.db_test

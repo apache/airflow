@@ -31,9 +31,9 @@ from sqlalchemy.dialects import mysql
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.types import JSON, Text, TypeDecorator
 
+from airflow._shared.timezones.timezone import make_naive, utc
 from airflow.configuration import conf
 from airflow.serialization.enums import Encoding
-from airflow.utils.timezone import make_naive, utc
 
 if TYPE_CHECKING:
     from collections.abc import Iterable

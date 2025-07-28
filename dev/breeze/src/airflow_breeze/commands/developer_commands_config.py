@@ -293,6 +293,10 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--forward-credentials",
             ],
         },
+        {
+            "name": "Debugging options",
+            "options": ["--debug", "--debugger"],
+        },
     ],
     "breeze exec": [
         {"name": "Drops in the interactive shell of active airflow container"},
