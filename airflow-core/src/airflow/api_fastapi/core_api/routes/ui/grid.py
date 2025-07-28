@@ -287,6 +287,7 @@ def get_grid_runs(
             detail={"reason": "internal_error", "message": "An unexpected error occurred"},
         )
 
+
 @grid_router.get(
     "/ti_summaries/{dag_id}/{run_id}",
     responses=create_openapi_http_exception_doc(
