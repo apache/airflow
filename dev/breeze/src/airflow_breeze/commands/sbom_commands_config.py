@@ -109,7 +109,7 @@ SBOM_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
         {
-            "name": "Github auth flags",
+            "name": "GitHub auth flags",
             "options": [
                 "--github-token",
             ],

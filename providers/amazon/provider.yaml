@@ -281,6 +281,8 @@ integrations:
   - integration-name: Amazon Systems Manager (SSM)
     external-doc-url: https://aws.amazon.com/systems-manager/
     logo: /docs/integration-logos/AWS-Systems-Manager_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/ssm.rst
     tags: [aws]
   - integration-name: Amazon Web Services
     external-doc-url: https://aws.amazon.com/
@@ -430,6 +432,9 @@ operators:
   - integration-name: AWS Step Functions
     python-modules:
       - airflow.providers.amazon.aws.operators.step_function
+  - integration-name: Amazon Systems Manager (SSM)
+    python-modules:
+      - airflow.providers.amazon.aws.operators.ssm
   - integration-name: Amazon RDS
     python-modules:
       - airflow.providers.amazon.aws.operators.rds
@@ -531,6 +536,9 @@ sensors:
   - integration-name: AWS Step Functions
     python-modules:
       - airflow.providers.amazon.aws.sensors.step_function
+  - integration-name: Amazon Systems Manager (SSM)
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.ssm
   - integration-name: Amazon QuickSight
     python-modules:
       - airflow.providers.amazon.aws.sensors.quicksight
@@ -737,6 +745,9 @@ triggers:
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.triggers.s3
+  - integration-name: Amazon Systems Manager (SSM)
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.ssm
   - integration-name: Amazon EMR
     python-modules:
       - airflow.providers.amazon.aws.triggers.emr

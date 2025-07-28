@@ -1660,6 +1660,42 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         msg = str(exc_info.value)
         assert f"Invalid requirement '{invalid_requirement}'" in msg
 
+    @mock.patch("airflow.providers.standard.operators.python.PythonVirtualenvOperator._prepare_venv")
+    @mock.patch(
+        "airflow.providers.standard.operators.python.PythonVirtualenvOperator._execute_python_callable_in_subprocess"
+    )
+    @mock.patch(
+        "airflow.providers.standard.operators.python.PythonVirtualenvOperator._cleanup_python_pycache_dir"
+    )
+    def test_execute_callable_pycache_cleanup(
+        self, pycache_cleanup_mock, execute_in_subprocess_mock, prepare_venv_mock
+    ):
+        custom_pycache_prefix = "custom/__pycache__"
+        tempdir_name = "tmp"
+        venv_dir_temp_name = "venvrandom"
+        venv_path_tmp = f"/{tempdir_name}/{venv_dir_temp_name}"
+        expected_cleanup_path = Path.cwd() / custom_pycache_prefix / tempdir_name / venv_dir_temp_name
+
+        def f():
+            return 1
+
+        op = PythonVirtualenvOperator(
+            task_id="task",
+            python_callable=f,
+            system_site_packages=False,
+        )
+        with mock.patch.object(sys, "pycache_prefix", new=custom_pycache_prefix):
+            with mock.patch(
+                "airflow.providers.standard.operators.python.TemporaryDirectory"
+            ) as mock_temp_dir:
+                mock_context = mock_temp_dir.return_value.__enter__
+                mock_context.return_value = venv_path_tmp
+                op.execute_callable()
+
+        execute_in_subprocess_mock.assert_called_once()
+        prepare_venv_mock.assert_called_once_with(Path(venv_path_tmp))
+        pycache_cleanup_mock.assert_called_once_with(expected_cleanup_path)
+
 
 # when venv tests are run in parallel to other test they create new processes and this might take
 # quite some time in shared docker environment and get some contention even between different containers

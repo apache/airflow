@@ -132,6 +132,15 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         """
         return None
 
+    def get_url_refresh(self) -> str | None:
+        """
+        Return the URL to refresh the authentication token.
+
+        This is used to refresh the authentication token when it expires.
+        The default implementation returns None, which means that the auth manager does not support refresh token.
+        """
+        return None
+
     @abstractmethod
     def is_authorized_configuration(
         self,

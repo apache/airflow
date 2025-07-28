@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import atexit
+import contextlib
 import io
 import logging
 import os
@@ -128,6 +129,7 @@ if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger, WrappedLogger
 
     from airflow.executors.workloads import BundleInfo
+    from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
     from airflow.secrets import BaseSecretsBackend
     from airflow.typing_compat import Self
@@ -211,7 +213,7 @@ def _reset_signals():
 
 
 def _configure_logs_over_json_channel(log_fd: int):
-    # A channel that the task can send JSON-formated logs over.
+    # A channel that the task can send JSON-formatted logs over.
     #
     # JSON logs sent this way will be handled nicely
     from airflow.sdk.log import configure_logging
@@ -1630,6 +1632,93 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     return backends
 
 
+@contextlib.contextmanager
+def _remote_logging_conn(client: Client):
+    """
+    Pre-fetch the needed remote logging connection.
+
+    If a remote logger is in use, and has the logging/remote_logging option set, we try to fetch the
+    connection it needs, now, directly from the API client, and store it in an env var, so that when the logging
+    hook tries to get the connection it
+    can find it easily from the env vars
+
+    This is needed as the BaseHook.get_connection looks for SUPERVISOR_COMMS, but we are still in the
+    supervisor process when this is needed, so that doesn't exist yet.
+    """
+    from airflow.sdk.log import load_remote_conn_id, load_remote_log_handler
+
+    if load_remote_log_handler() is None or not (conn_id := load_remote_conn_id()):
+        # Nothing to do
+        yield
+        return
+
+    # Since we need to use the API Client directly, we can't use Connection.get as that would try to use
+    # SUPERVISOR_COMMS
+
+    # TODO: Store in the SecretsCache if its enabled - see #48858
+
+    def _get_conn() -> Connection | None:
+        backends = ensure_secrets_backend_loaded()
+        for secrets_backend in backends:
+            try:
+                conn = secrets_backend.get_connection(conn_id=conn_id)
+                if conn:
+                    return conn
+            except Exception:
+                log.exception(
+                    "Unable to retrieve connection from secrets backend (%s). "
+                    "Checking subsequent secrets backend.",
+                    type(secrets_backend).__name__,
+                )
+
+        conn = client.connections.get(conn_id)
+        if isinstance(conn, ConnectionResponse):
+            conn_result = ConnectionResult.from_conn_response(conn)
+            from airflow.sdk.definitions.connection import Connection
+
+            return Connection(**conn_result.model_dump(exclude={"type"}, by_alias=True))
+        return None
+
+    if conn := _get_conn():
+        key = f"AIRFLOW_CONN_{conn_id.upper()}"
+        old = os.getenv(key)
+
+        os.environ[key] = conn.get_uri()
+
+        try:
+            yield
+        finally:
+            if old is None:
+                del os.environ[key]
+            else:
+                os.environ[key] = old
+
+
+def _configure_logging(log_path: str, client: Client) -> tuple[FilteringBoundLogger, BinaryIO | TextIO]:
+    # If we are told to write logs to a file, redirect the task logger to it. Make sure we append to the
+    # file though, otherwise when we resume we would lose the logs from the start->deferral segment if it
+    # lands on the same node as before.
+    from airflow.sdk.log import init_log_file, logging_processors
+
+    log_file_descriptor: BinaryIO | TextIO | None = None
+
+    log_file = init_log_file(log_path)
+
+    pretty_logs = False
+    if pretty_logs:
+        log_file_descriptor = log_file.open("a", buffering=1)
+        underlying_logger: WrappedLogger = structlog.WriteLogger(cast("TextIO", log_file_descriptor))
+    else:
+        log_file_descriptor = log_file.open("ab")
+        underlying_logger = structlog.BytesLogger(cast("BinaryIO", log_file_descriptor))
+
+    with _remote_logging_conn(client):
+        processors = logging_processors(enable_pretty_log=pretty_logs)[0]
+    logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
+
+    return logger, log_file_descriptor
+
+
 def supervise(
     *,
     ti: TaskInstance,
@@ -1705,22 +1794,7 @@ def supervise(
     logger: FilteringBoundLogger | None = None
     log_file_descriptor: BinaryIO | TextIO | None = None
     if log_path:
-        # If we are told to write logs to a file, redirect the task logger to it. Make sure we append to the
-        # file though, otherwise when we resume we would lose the logs from the start->deferral segment if it
-        # lands on the same node as before.
-        from airflow.sdk.log import init_log_file, logging_processors
-
-        log_file = init_log_file(log_path)
-
-        pretty_logs = False
-        if pretty_logs:
-            log_file_descriptor = log_file.open("a", buffering=1)
-            underlying_logger: WrappedLogger = structlog.WriteLogger(cast("TextIO", log_file_descriptor))
-        else:
-            log_file_descriptor = log_file.open("ab")
-            underlying_logger = structlog.BytesLogger(cast("BinaryIO", log_file_descriptor))
-        processors = logging_processors(enable_pretty_log=pretty_logs)[0]
-        logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
+        logger, log_file_descriptor = _configure_logging(log_path, client)
 
     backends = ensure_secrets_backend_loaded()
     log.info(
