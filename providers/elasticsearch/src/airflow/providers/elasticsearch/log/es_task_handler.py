@@ -60,6 +60,7 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
     from airflow.utils.log.file_task_handler import LogMetadata
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
+    from airflow.utils.log.file_task_handler import LogMessages, LogSourceInfo
 
 
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
@@ -463,12 +464,12 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
     def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None:
         """
+        TODO: This API should be removed in airflow 3
         Provide task_instance context to airflow task handler.
 
         :param ti: task instance object
         :param identifier: if set, identifies the Airflow component which is relaying logs from
             exceptional scenarios related to the task instance
-        TODO: This API should be removed in airflow 3
         """
         is_trigger_log_context = getattr(ti, "is_trigger_log_context", None)
         is_ti_raw = getattr(ti, "raw", None)
@@ -655,6 +656,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         callback: type[Hit] | Callable[..., Any] = getattr(doc_class, "from_es", doc_class)
         return callback(hit)
 
+
 def getattr_nested(obj, item, default):
     """
     Get item from obj but return default if not found.
@@ -725,3 +727,6 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
         except Exception as e:
             self.log.exception("Unable to insert logs into Elasticsearch. Reason: %s", str(e))
             return False
+
+    def read(self, relative_path: str, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages]:
+        pass

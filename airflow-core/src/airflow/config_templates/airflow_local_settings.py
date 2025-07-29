@@ -319,14 +319,10 @@ if REMOTE_LOGGING:
 
         if ELASTICSEARCH_WRITE_TO_ES:
             REMOTE_TASK_LOG = ElasticsearchRemoteLogIO(
-                **(
-                    {
-                        "host": ELASTICSEARCH_HOST,
-                        "target_index": ELASTICSEARCH_TARGET_INDEX,
-                        "base_log_folder": BASE_LOG_FOLDER,
-                        "delete_local_copy": delete_local_copy,
-                    }
-                )
+                host=ELASTICSEARCH_HOST,
+                target_index=ELASTICSEARCH_TARGET_INDEX,
+                base_log_folder=BASE_LOG_FOLDER,
+                delete_local_copy=delete_local_copy,
             )
 
         DEFAULT_LOGGING_CONFIG["handlers"].update(ELASTIC_REMOTE_HANDLERS)
