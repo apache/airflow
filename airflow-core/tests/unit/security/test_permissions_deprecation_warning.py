@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,28 +15,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-from cadwyn import HeadVersion, Version, VersionBundle
+import importlib
+import re
 
-from airflow.api_fastapi.execution_api.versions.v2025_04_28 import AddRenderedMapIndexField
-from airflow.api_fastapi.execution_api.versions.v2025_05_20 import DowngradeUpstreamMapIndexes
-from airflow.api_fastapi.execution_api.versions.v2025_08_10 import (
-    AddDagRunStateFieldAndPreviousEndpoint,
-    AddDagVersionIdField,
-    AddIncludePriorDatesToGetXComSlice,
-)
+import pytest
 
-bundle = VersionBundle(
-    HeadVersion(),
-    Version(
-        "2025-08-10",
-        AddDagVersionIdField,
-        AddDagRunStateFieldAndPreviousEndpoint,
-        AddIncludePriorDatesToGetXComSlice,
-    ),
-    Version("2025-05-20", DowngradeUpstreamMapIndexes),
-    Version("2025-04-28", AddRenderedMapIndexField),
-    Version("2025-04-11"),
-)
+from airflow.exceptions import RemovedInAirflow4Warning
+from airflow.security import permissions
+
+
+def test_permissions_import_warns() -> None:
+    """Ensures that imports of `airflow.security.permissions` trigger a `RemovedInAirflow4Warning`."""
+    with pytest.warns(
+        RemovedInAirflow4Warning, match=re.escape("The airflow.security.permissions module is deprecated")
+    ):
+        importlib.reload(permissions)
