@@ -19,9 +19,13 @@
 
 from __future__ import annotations
 
+from collections.abc import (
+    Container,
+)
 from typing import (
     TYPE_CHECKING,
     Any,
+    cast,
 )
 
 from sqlalchemy import select
@@ -29,6 +33,7 @@ from sqlalchemy import select
 from airflow.models.asset import (
     AssetModel,
 )
+from airflow.sdk.definitions.context import Context
 from airflow.sdk.execution_time.context import (
     ConnectionAccessor as ConnectionAccessorSDK,
     OutletEventAccessors as OutletEventAccessorsSDK,
@@ -141,3 +146,32 @@ class OutletEventAccessors(OutletEventAccessorsSDK):
             raise ValueError("Either name or uri must be provided")
 
         return asset.to_public()
+
+
+def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
+    """
+    Merge parameters into an existing context.
+
+    Like ``dict.update()`` , this take the same parameters, and updates
+    ``context`` in-place.
+
+    This is implemented as a free function because the ``Context`` type is
+    "faked" as a ``TypedDict`` in ``context.pyi``, which cannot have custom
+    functions.
+
+    :meta private:
+    """
+    if not context:
+        context = Context()
+
+    context.update(*args, **kwargs)
+
+
+def context_copy_partial(source: Context, keys: Container[str]) -> Context:
+    """
+    Create a context by copying items under selected keys in ``source``.
+
+    :meta private:
+    """
+    new = {k: v for k, v in source.items() if k in keys}
+    return cast("Context", new)
