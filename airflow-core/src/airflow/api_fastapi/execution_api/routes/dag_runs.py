@@ -123,13 +123,13 @@ def clear_dag_run(
                 "message": f"DAG with dag_id: '{dag_id}' has import errors and cannot be triggered",
             },
         )
-    from airflow.jobs.scheduler_job_runner import SchedulerDagBag
+    from airflow.models.dagbag import SchedulerDagBag
 
     dag_run = session.scalar(
         select(DagRunModel).where(DagRunModel.dag_id == dag_id, DagRunModel.run_id == run_id)
     )
     dag_bag = SchedulerDagBag()
-    dag = dag_bag.get_dag(dag_run=dag_run, session=session)
+    dag = dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
     if not dag:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,

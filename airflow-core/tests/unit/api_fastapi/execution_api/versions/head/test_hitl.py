@@ -16,43 +16,60 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
-
 import pytest
-import time_machine
-from uuid6 import uuid7
+from httpx import Client
 
 from tests_common.test_utils.db import AIRFLOW_V_3_1_PLUS
 
 if not AIRFLOW_V_3_1_PLUS:
     pytest.skip("Human in the loop public API compatible with Airflow >= 3.0.1", allow_module_level=True)
 
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
+import time_machine
+
+from airflow._shared.timezones.timezone import convert_to_utc
 from airflow.models.hitl import HITLDetail
 
 if TYPE_CHECKING:
+    from fastapi.testclient import TestClient
+    from sqlalchemy.orm import Session
+
     from airflow.models.taskinstance import TaskInstance
 
+    from tests_common.pytest_plugin import CreateTaskInstance
+
 pytestmark = pytest.mark.db_test
-TI_ID = uuid7()
+
+default_hitl_detail_request_kwargs: dict[str, Any] = {
+    # ti_id decided at a later stage
+    "subject": "This is subject",
+    "body": "this is body",
+    "options": ["Approve", "Reject"],
+    "defaults": ["Approve"],
+    "multiple": False,
+    "params": {"input_1": 1},
+}
+expected_empty_hitl_detail_response_part: dict[str, Any] = {
+    "response_at": None,
+    "chosen_options": None,
+    "user_id": None,
+    "params_input": {},
+    "response_received": False,
+}
 
 
 @pytest.fixture
-def sample_ti(create_task_instance) -> TaskInstance:
+def sample_ti(create_task_instance: CreateTaskInstance) -> TaskInstance:
     return create_task_instance()
 
 
 @pytest.fixture
-def sample_hitl_detail(session, sample_ti) -> HITLDetail:
+def sample_hitl_detail(session: Session, sample_ti: TaskInstance) -> HITLDetail:
     hitl_detail_model = HITLDetail(
         ti_id=sample_ti.id,
-        options=["Approve", "Reject"],
-        subject="This is subject",
-        body="this is body",
-        defaults=["Approve"],
-        multiple=False,
-        params={"input_1": 1},
+        **default_hitl_detail_request_kwargs,
     )
     session.add(hitl_detail_model)
     session.commit()
@@ -61,56 +78,67 @@ def sample_hitl_detail(session, sample_ti) -> HITLDetail:
 
 
 @pytest.fixture
-def expected_sample_hitl_detail_dict(sample_ti) -> dict[str, Any]:
+def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
     return {
-        "body": "this is body",
-        "defaults": ["Approve"],
-        "multiple": False,
-        "options": ["Approve", "Reject"],
-        "params": {"input_1": 1},
-        "params_input": {},
-        "response_at": None,
-        "chosen_options": None,
-        "response_received": False,
-        "subject": "This is subject",
         "ti_id": sample_ti.id,
-        "user_id": None,
+        **default_hitl_detail_request_kwargs,
+        **expected_empty_hitl_detail_response_part,
     }
 
 
-def test_add_hitl_detail(client, create_task_instance, session) -> None:
+@pytest.mark.parametrize(
+    "existing_hitl_detail_args",
+    [
+        None,
+        default_hitl_detail_request_kwargs,
+        {
+            **default_hitl_detail_request_kwargs,
+            **{
+                "params_input": {"input_1": 2},
+                "response_at": convert_to_utc(datetime(2025, 7, 3, 0, 0, 0)),
+                "chosen_options": ["Reject"],
+                "user_id": "Fallback to defaults",
+            },
+        },
+    ],
+    ids=[
+        "no existing hitl detail",
+        "existing hitl detail without response",
+        "existing hitl detail with response",
+    ],
+)
+def test_upsert_hitl_detail(
+    client: TestClient,
+    create_task_instance: CreateTaskInstance,
+    session: Session,
+    existing_hitl_detail_args: dict[str, Any],
+) -> None:
     ti = create_task_instance()
     session.commit()
 
+    if existing_hitl_detail_args:
+        session.add(HITLDetail(ti_id=ti.id, **existing_hitl_detail_args))
+        session.commit()
+
     response = client.post(
-        f"/execution/hitl-details/{ti.id}",
+        f"/execution/hitlDetails/{ti.id}",
         json={
             "ti_id": ti.id,
-            "options": ["Approve", "Reject"],
-            "subject": "This is subject",
-            "body": "this is body",
-            "defaults": ["Approve"],
-            "multiple": False,
-            "params": {"input_1": 1},
+            **default_hitl_detail_request_kwargs,
         },
     )
     assert response.status_code == 201
     assert response.json() == {
         "ti_id": ti.id,
-        "options": ["Approve", "Reject"],
-        "subject": "This is subject",
-        "body": "this is body",
-        "defaults": ["Approve"],
-        "multiple": False,
-        "params": {"input_1": 1},
+        **default_hitl_detail_request_kwargs,
     }
 
 
 @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
 @pytest.mark.usefixtures("sample_hitl_detail")
-def test_update_hitl_detail(client, sample_ti) -> None:
+def test_update_hitl_detail(client: Client, sample_ti: TaskInstance) -> None:
     response = client.patch(
-        f"/execution/hitl-details/{sample_ti.id}",
+        f"/execution/hitlDetails/{sample_ti.id}",
         json={
             "ti_id": sample_ti.id,
             "chosen_options": ["Reject"],
@@ -128,13 +156,7 @@ def test_update_hitl_detail(client, sample_ti) -> None:
 
 
 @pytest.mark.usefixtures("sample_hitl_detail")
-def test_get_hitl_detail(client, sample_ti) -> None:
-    response = client.get(f"/execution/hitl-details/{sample_ti.id}")
+def test_get_hitl_detail(client: Client, sample_ti: TaskInstance) -> None:
+    response = client.get(f"/execution/hitlDetails/{sample_ti.id}")
     assert response.status_code == 200
-    assert response.json() == {
-        "params_input": {},
-        "response_at": None,
-        "chosen_options": None,
-        "response_received": False,
-        "user_id": None,
-    }
+    assert response.json() == expected_empty_hitl_detail_response_part

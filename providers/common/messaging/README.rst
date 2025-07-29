@@ -23,8 +23,9 @@
 
 Package ``apache-airflow-providers-common-messaging``
 
-Release: ``1.0.4``
+Release: ``1.0.5``
 
+Release Date: ``|PypiReleaseDate|``
 
 ``Common Messaging Provider``
 
@@ -36,7 +37,7 @@ This is a provider package for ``common.messaging`` provider. All classes for th
 are in ``airflow.providers.common.messaging`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging/1.0.4/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging/1.0.5/>`_.
 
 Installation
 ------------
@@ -57,4 +58,4 @@ PIP package         Version required
 ==================  ==================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging/1.0.4/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging/1.0.5/changelog.html>`_.

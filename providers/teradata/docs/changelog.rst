@@ -25,6 +25,23 @@
 Changelog
 ---------
 
+3.2.1
+.....
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Cleanup type ignores in teradata provider where possible (#53254)``
+* ``Make teradata provider compatible with mypy 1.16.1 (#53128)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Move all BaseHook usages to version_compat in teradata provider (#52858)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.2.0
 .....
 
