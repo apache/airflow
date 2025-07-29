@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -21,7 +20,7 @@ from textwrap import dedent
 
 import pytest
 
-from airflow.utils.decorators import remove_task_decorator
+from airflow.sdk.definitions._internal.decorators import remove_task_decorator
 
 
 class TestExternalPythonDecorator:

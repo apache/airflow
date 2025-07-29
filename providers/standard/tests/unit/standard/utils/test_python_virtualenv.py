@@ -24,9 +24,9 @@ from unittest import mock
 import pytest
 
 from airflow.providers.standard.utils.python_virtualenv import _generate_pip_conf, _use_uv, prepare_virtualenv
-from airflow.utils.decorators import remove_task_decorator
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import remove_task_decorator
 
 
 class TestPrepareVirtualenv:
