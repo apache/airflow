@@ -23,7 +23,6 @@ import os
 import re
 import shutil
 from io import StringIO
-from pathlib import Path
 from unittest import mock
 from unittest.mock import Mock, patch
 from urllib.parse import quote
