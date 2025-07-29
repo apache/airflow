@@ -26,6 +26,7 @@ import attrs
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+from airflow.utils.helpers import prune_dict
 
 log = logging.getLogger(__name__)
 
@@ -160,6 +161,14 @@ class Connection:
     @property
     def extra_dejson(self) -> dict:
         """Deserialize `extra` property to JSON."""
+        return self.get_extra_dejson()
+
+    def get_extra_dejson(self, nested: bool = False) -> dict:
+        """
+        Deserialize extra property to JSON.
+
+        :param nested: Determines whether nested structures are also deserialized into JSON (default False).
+        """
         extra = {}
         if self.extra:
             try:
@@ -168,3 +177,62 @@ class Connection:
                 log.exception("Failed to deserialize extra property `extra`, returning empty dictionary")
         # TODO: Mask sensitive keys from this list or revisit if it will be done in server
         return extra
+
+    def to_dict(self, *, prune_empty: bool = False, validate: bool = True) -> dict[str, Any]:
+        """
+        Convert Connection to json-serializable dictionary.
+
+        :param prune_empty: Whether or not remove empty values.
+        :param validate: Validate dictionary is JSON-serializable
+
+        :meta private:
+        """
+        conn: dict[str, Any] = {
+            "conn_id": self.conn_id,
+            "conn_type": self.conn_type,
+            "description": self.description,
+            "host": self.host,
+            "login": self.login,
+            "password": self.password,
+            "schema": self.schema,
+            "port": self.port,
+        }
+        if prune_empty:
+            conn = prune_dict(val=conn, mode="strict")
+        if (extra := self.extra_dejson) or not prune_empty:
+            conn["extra"] = extra
+
+        if validate:
+            json.dumps(conn)
+        return conn
+
+    @classmethod
+    def from_json(cls, value, conn_id=None) -> Connection:
+        kwargs = json.loads(value)
+        extra = kwargs.pop("extra", None)
+        if extra:
+            kwargs["extra"] = extra if isinstance(extra, str) else json.dumps(extra)
+        conn_type = kwargs.pop("conn_type", None)
+        if conn_type:
+            kwargs["conn_type"] = cls._normalize_conn_type(conn_type)
+        port = kwargs.pop("port", None)
+        if port:
+            try:
+                kwargs["port"] = int(port)
+            except ValueError:
+                raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.")
+        return cls(conn_id=conn_id, **kwargs)
+
+    def as_json(self) -> str:
+        """Convert Connection to JSON-string object."""
+        conn_repr = self.to_dict(prune_empty=True, validate=False)
+        conn_repr.pop("conn_id", None)
+        return json.dumps(conn_repr)
+
+    @staticmethod
+    def _normalize_conn_type(conn_type):
+        if conn_type == "postgresql":
+            conn_type = "postgres"
+        elif "-" in conn_type:
+            conn_type = conn_type.replace("-", "_")
+        return conn_type
