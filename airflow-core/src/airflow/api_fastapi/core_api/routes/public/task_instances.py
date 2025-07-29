@@ -541,7 +541,7 @@ def get_task_instances_batch(
     order_by = SortParam(
         ["id", "state", "duration", "start_date", "end_date", "map_index"],
         TI,
-    ).set_value(body.order_by)
+    ).set_value([body.order_by] if body.order_by else None)
 
     query = select(TI).join(TI.dag_run)
     task_instance_select, total_entries = paginated_select(

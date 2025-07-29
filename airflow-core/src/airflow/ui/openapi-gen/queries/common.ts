@@ -12,7 +12,7 @@ export const UseAssetServiceGetAssetsKeyFn = ({ dagIds, limit, namePattern, offs
   namePattern?: string;
   offset?: number;
   onlyActive?: boolean;
-  orderBy?: string;
+  orderBy?: string[];
   uriPattern?: string;
 } = {}, queryKey?: Array<unknown>) => [useAssetServiceGetAssetsKey, ...(queryKey ?? [{ dagIds, limit, namePattern, offset, onlyActive, orderBy, uriPattern }])];
 export type AssetServiceGetAssetAliasesDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssetAliases>>;
@@ -22,7 +22,7 @@ export const UseAssetServiceGetAssetAliasesKeyFn = ({ limit, namePattern, offset
   limit?: number;
   namePattern?: string;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
 } = {}, queryKey?: Array<unknown>) => [useAssetServiceGetAssetAliasesKey, ...(queryKey ?? [{ limit, namePattern, offset, orderBy }])];
 export type AssetServiceGetAssetAliasDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssetAlias>>;
 export type AssetServiceGetAssetAliasQueryResult<TData = AssetServiceGetAssetAliasDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
@@ -37,7 +37,7 @@ export const UseAssetServiceGetAssetEventsKeyFn = ({ assetId, limit, offset, ord
   assetId?: number;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   sourceDagId?: string;
   sourceMapIndex?: number;
   sourceRunId?: string;
@@ -86,7 +86,7 @@ export const UseBackfillServiceListBackfillsKeyFn = ({ dagId, limit, offset, ord
   dagId: string;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
 }, queryKey?: Array<unknown>) => [useBackfillServiceListBackfillsKey, ...(queryKey ?? [{ dagId, limit, offset, orderBy }])];
 export type BackfillServiceGetBackfillDefaultResponse = Awaited<ReturnType<typeof BackfillService.getBackfill>>;
 export type BackfillServiceGetBackfillQueryResult<TData = BackfillServiceGetBackfillDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
@@ -102,7 +102,7 @@ export const UseBackfillServiceListBackfillsUiKeyFn = ({ active, dagId, limit, o
   dagId?: string;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
 } = {}, queryKey?: Array<unknown>) => [useBackfillServiceListBackfillsUiKey, ...(queryKey ?? [{ active, dagId, limit, offset, orderBy }])];
 export type ConnectionServiceGetConnectionDefaultResponse = Awaited<ReturnType<typeof ConnectionService.getConnection>>;
 export type ConnectionServiceGetConnectionQueryResult<TData = ConnectionServiceGetConnectionDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
@@ -117,7 +117,7 @@ export const UseConnectionServiceGetConnectionsKeyFn = ({ connectionIdPattern, l
   connectionIdPattern?: string;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
 } = {}, queryKey?: Array<unknown>) => [useConnectionServiceGetConnectionsKey, ...(queryKey ?? [{ connectionIdPattern, limit, offset, orderBy }])];
 export type ConnectionServiceHookMetaDataDefaultResponse = Awaited<ReturnType<typeof ConnectionService.hookMetaData>>;
 export type ConnectionServiceHookMetaDataQueryResult<TData = ConnectionServiceHookMetaDataDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
@@ -148,7 +148,7 @@ export const UseDagRunServiceGetDagRunsKeyFn = ({ dagId, endDateGte, endDateLte,
   logicalDateGte?: string;
   logicalDateLte?: string;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   runAfterGte?: string;
   runAfterLte?: string;
   runIdPattern?: string;
@@ -223,7 +223,7 @@ export const UseDagWarningServiceListDagWarningsKeyFn = ({ dagId, limit, offset,
   dagId?: string;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   warningType?: DagWarningType;
 } = {}, queryKey?: Array<unknown>) => [useDagWarningServiceListDagWarningsKey, ...(queryKey ?? [{ dagId, limit, offset, orderBy, warningType }])];
 export type DagServiceGetDagsDefaultResponse = Awaited<ReturnType<typeof DagService.getDags>>;
@@ -242,7 +242,7 @@ export const UseDagServiceGetDagsKeyFn = ({ dagDisplayNamePattern, dagIdPattern,
   lastDagRunState?: DagRunState;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   owners?: string[];
   paused?: boolean;
   tags?: string[];
@@ -266,7 +266,7 @@ export const useDagServiceGetDagTagsKey = "DagServiceGetDagTags";
 export const UseDagServiceGetDagTagsKeyFn = ({ limit, offset, orderBy, tagNamePattern }: {
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   tagNamePattern?: string;
 } = {}, queryKey?: Array<unknown>) => [useDagServiceGetDagTagsKey, ...(queryKey ?? [{ limit, offset, orderBy, tagNamePattern }])];
 export type DagServiceGetDagsUiDefaultResponse = Awaited<ReturnType<typeof DagService.getDagsUi>>;
@@ -282,7 +282,7 @@ export const UseDagServiceGetDagsUiKeyFn = ({ dagDisplayNamePattern, dagIdPatter
   lastDagRunState?: DagRunState;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   owners?: string[];
   paused?: boolean;
   tags?: string[];
@@ -313,7 +313,7 @@ export const UseEventLogServiceGetEventLogsKeyFn = ({ after, before, dagId, even
   limit?: number;
   mapIndex?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   owner?: string;
   runId?: string;
   taskId?: string;
@@ -360,7 +360,7 @@ export const UseTaskInstanceServiceGetMappedTaskInstancesKeyFn = ({ dagId, dagRu
   logicalDateGte?: string;
   logicalDateLte?: string;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   pool?: string[];
   queue?: string[];
   runAfterGte?: string;
@@ -433,7 +433,7 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = ({ dagId, dagRunId, d
   logicalDateGte?: string;
   logicalDateLte?: string;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   pool?: string[];
   queue?: string[];
   runAfterGte?: string;
@@ -502,7 +502,7 @@ export const useImportErrorServiceGetImportErrorsKey = "ImportErrorServiceGetImp
 export const UseImportErrorServiceGetImportErrorsKeyFn = ({ limit, offset, orderBy }: {
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
 } = {}, queryKey?: Array<unknown>) => [useImportErrorServiceGetImportErrorsKey, ...(queryKey ?? [{ limit, offset, orderBy }])];
 export type JobServiceGetJobsDefaultResponse = Awaited<ReturnType<typeof JobService.getJobs>>;
 export type JobServiceGetJobsQueryResult<TData = JobServiceGetJobsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
@@ -517,7 +517,7 @@ export const UseJobServiceGetJobsKeyFn = ({ endDateGte, endDateLte, executorClas
   jobType?: string;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   startDateGte?: string;
   startDateLte?: string;
 } = {}, queryKey?: Array<unknown>) => [useJobServiceGetJobsKey, ...(queryKey ?? [{ endDateGte, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGte, startDateLte }])];
@@ -544,7 +544,7 @@ export const usePoolServiceGetPoolsKey = "PoolServiceGetPools";
 export const UsePoolServiceGetPoolsKeyFn = ({ limit, offset, orderBy, poolNamePattern }: {
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   poolNamePattern?: string;
 } = {}, queryKey?: Array<unknown>) => [usePoolServiceGetPoolsKey, ...(queryKey ?? [{ limit, offset, orderBy, poolNamePattern }])];
 export type ProviderServiceGetProvidersDefaultResponse = Awaited<ReturnType<typeof ProviderService.getProviders>>;
@@ -604,7 +604,7 @@ export const useVariableServiceGetVariablesKey = "VariableServiceGetVariables";
 export const UseVariableServiceGetVariablesKeyFn = ({ limit, offset, orderBy, variableKeyPattern }: {
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   variableKeyPattern?: string;
 } = {}, queryKey?: Array<unknown>) => [useVariableServiceGetVariablesKey, ...(queryKey ?? [{ limit, offset, orderBy, variableKeyPattern }])];
 export type DagVersionServiceGetDagVersionDefaultResponse = Awaited<ReturnType<typeof DagVersionService.getDagVersion>>;
@@ -623,7 +623,7 @@ export const UseDagVersionServiceGetDagVersionsKeyFn = ({ bundleName, bundleVers
   dagId: string;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   versionNumber?: number;
 }, queryKey?: Array<unknown>) => [useDagVersionServiceGetDagVersionsKey, ...(queryKey ?? [{ bundleName, bundleVersion, dagId, limit, offset, orderBy, versionNumber }])];
 export type HumanInTheLoopServiceGetHitlDetailDefaultResponse = Awaited<ReturnType<typeof HumanInTheLoopService.getHitlDetail>>;
@@ -652,7 +652,7 @@ export const UseHumanInTheLoopServiceGetHitlDetailsKeyFn = ({ bodySearch, dagIdP
   dagRunId?: string;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   responseReceived?: boolean;
   state?: string[];
   subjectSearch?: string;
@@ -678,6 +678,12 @@ export const useLoginServiceLogoutKey = "LoginServiceLogout";
 export const UseLoginServiceLogoutKeyFn = ({ next }: {
   next?: string;
 } = {}, queryKey?: Array<unknown>) => [useLoginServiceLogoutKey, ...(queryKey ?? [{ next }])];
+export type LoginServiceRefreshDefaultResponse = Awaited<ReturnType<typeof LoginService.refresh>>;
+export type LoginServiceRefreshQueryResult<TData = LoginServiceRefreshDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useLoginServiceRefreshKey = "LoginServiceRefresh";
+export const UseLoginServiceRefreshKeyFn = ({ next }: {
+  next?: string;
+} = {}, queryKey?: Array<unknown>) => [useLoginServiceRefreshKey, ...(queryKey ?? [{ next }])];
 export type AuthLinksServiceGetAuthMenusDefaultResponse = Awaited<ReturnType<typeof AuthLinksService.getAuthMenus>>;
 export type AuthLinksServiceGetAuthMenusQueryResult<TData = AuthLinksServiceGetAuthMenusDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAuthLinksServiceGetAuthMenusKey = "AuthLinksServiceGetAuthMenus";
@@ -717,7 +723,7 @@ export const UseGridServiceGetDagStructureKeyFn = ({ dagId, limit, offset, order
   dagId: string;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   runAfterGte?: string;
   runAfterLte?: string;
 }, queryKey?: Array<unknown>) => [useGridServiceGetDagStructureKey, ...(queryKey ?? [{ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }])];
@@ -728,7 +734,7 @@ export const UseGridServiceGetGridRunsKeyFn = ({ dagId, limit, offset, orderBy, 
   dagId: string;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   runAfterGte?: string;
   runAfterLte?: string;
 }, queryKey?: Array<unknown>) => [useGridServiceGetGridRunsKey, ...(queryKey ?? [{ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }])];
@@ -739,12 +745,6 @@ export const UseGridServiceGetGridTiSummariesKeyFn = ({ dagId, runId }: {
   dagId: string;
   runId: string;
 }, queryKey?: Array<unknown>) => [useGridServiceGetGridTiSummariesKey, ...(queryKey ?? [{ dagId, runId }])];
-export type GridServiceGetLatestRunDefaultResponse = Awaited<ReturnType<typeof GridService.getLatestRun>>;
-export type GridServiceGetLatestRunQueryResult<TData = GridServiceGetLatestRunDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
-export const useGridServiceGetLatestRunKey = "GridServiceGetLatestRun";
-export const UseGridServiceGetLatestRunKeyFn = ({ dagId }: {
-  dagId: string;
-}, queryKey?: Array<unknown>) => [useGridServiceGetLatestRunKey, ...(queryKey ?? [{ dagId }])];
 export type CalendarServiceGetCalendarDefaultResponse = Awaited<ReturnType<typeof CalendarService.getCalendar>>;
 export type CalendarServiceGetCalendarQueryResult<TData = CalendarServiceGetCalendarDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useCalendarServiceGetCalendarKey = "CalendarServiceGetCalendar";

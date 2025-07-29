@@ -44,7 +44,7 @@ from task_sdk import FAKE_BUNDLE, make_client
 from uuid6 import uuid7
 
 from airflow.executors.workloads import BundleInfo
-from airflow.sdk import timezone
+from airflow.sdk import BaseOperator, timezone
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
@@ -117,9 +117,13 @@ from airflow.sdk.execution_time.supervisor import (
     ActivitySubprocess,
     InProcessSupervisorComms,
     InProcessTestSupervisor,
+    _remote_logging_conn,
     set_supervisor_comms,
     supervise,
 )
+from airflow.sdk.execution_time.task_runner import run
+
+from tests_common.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
     import kgb
@@ -337,6 +341,85 @@ class TestWatchedSubprocess:
                 {"event": "Log on old socket", "level": "info", "logger": "root", "timestamp": mock.ANY},
             ]
         )
+
+    def test_on_kill_hook_called_when_sigkilled(
+        self,
+        client_with_ti_start,
+        mocked_parse,
+        make_ti_context,
+        mock_supervisor_comms,
+        create_runtime_ti,
+        make_ti_context_dict,
+        capfd,
+    ):
+        main_pid = os.getpid()
+        ti_id = "4d828a62-a417-4936-a7a6-2b3fabacecab"
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-instances/{ti_id}/heartbeat":
+                return httpx.Response(
+                    status_code=409,
+                    json={
+                        "detail": {
+                            "reason": "not_running",
+                            "message": "TI is no longer in the 'running' state. Task state might be externally set and task should terminate",
+                            "current_state": "failed",
+                        }
+                    },
+                )
+            if request.url.path == f"/task-instances/{ti_id}/run":
+                return httpx.Response(200, json=make_ti_context_dict())
+            return httpx.Response(status_code=204)
+
+        def subprocess_main():
+            # Ensure we follow the "protocol" and get the startup message before we do anything
+            CommsDecoder()._get_response()
+
+            class CustomOperator(BaseOperator):
+                def execute(self, context):
+                    for i in range(1000):
+                        print(f"Iteration {i}")
+                        sleep(1)
+
+                def on_kill(self) -> None:
+                    print("On kill hook called!")
+
+            task = CustomOperator(task_id="print-params")
+            runtime_ti = create_runtime_ti(
+                dag_id="c",
+                task=task,
+                conf={
+                    "x": 3,
+                    "text": "Hello World!",
+                    "flag": False,
+                    "a_simple_list": ["one", "two", "three", "actually one value is made per line"],
+                },
+            )
+            run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+            assert os.getpid() != main_pid
+            os.kill(os.getpid(), signal.SIGTERM)
+            # Ensure that the signal is serviced before we finish and exit the subprocess.
+            sleep(0.5)
+
+        proc = ActivitySubprocess.start(
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
+            what=TaskInstance(
+                id=ti_id,
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+                dag_version_id=uuid7(),
+            ),
+            client=make_client(transport=httpx.MockTransport(handle_request)),
+            target=subprocess_main,
+        )
+
+        proc.wait()
+        captured = capfd.readouterr()
+        assert "On kill hook called!" in captured.out
 
     def test_subprocess_sigkilled(self, client_with_ti_start):
         main_pid = os.getpid()
@@ -2143,3 +2226,49 @@ class TestInProcessTestSupervisor:
         # Ensure we got back what we expect
         assert isinstance(response, VariableResult)
         assert response.value == "value"
+
+
+@pytest.mark.parametrize(
+    ("remote_logging", "remote_conn", "expected_env"),
+    (
+        pytest.param(True, "", "AIRFLOW_CONN_AWS_DEFAULT", id="no-conn-id"),
+        pytest.param(True, "aws_default", "AIRFLOW_CONN_AWS_DEFAULT", id="explicit-default"),
+        pytest.param(True, "my_aws", "AIRFLOW_CONN_MY_AWS", id="other"),
+        pytest.param(False, "", "", id="no-remote-logging"),
+    ),
+)
+def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypatch):
+    # This doesn't strictly need the AWS provider, but it does need something that
+    # airflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG knows about
+    pytest.importorskip("airflow.providers.amazon", reason="'amazon' provider not installed")
+
+    # This test is a little bit overly specific to how the logging is currently configured :/
+    monkeypatch.delitem(sys.modules, "airflow.logging_config")
+    monkeypatch.delitem(sys.modules, "airflow.config_templates.airflow_local_settings", raising=False)
+
+    def handle_request(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            status_code=200,
+            json={
+                # Minimal enough to pass validation, we don't care what fields are in here for the tests
+                "conn_id": remote_conn,
+                "conn_type": "aws",
+            },
+        )
+
+    with conf_vars(
+        {
+            ("logging", "remote_logging"): str(remote_logging),
+            ("logging", "remote_base_log_folder"): "cloudwatch://arn:aws:logs:::log-group:test",
+            ("logging", "remote_log_conn_id"): remote_conn,
+        }
+    ):
+        env = os.environ.copy()
+        client = make_client(transport=httpx.MockTransport(handle_request))
+
+        with _remote_logging_conn(client):
+            new_keys = os.environ.keys() - env.keys()
+            if remote_logging:
+                assert new_keys == {expected_env}
+            else:
+                assert not new_keys

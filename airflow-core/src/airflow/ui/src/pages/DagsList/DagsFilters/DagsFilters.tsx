@@ -84,7 +84,7 @@ export const DagsFilters = () => {
 
   const { data, fetchNextPage, fetchPreviousPage } = useDagTagsInfinite({
     limit: 10,
-    orderBy: "name",
+    orderBy: ["name"],
     tagNamePattern: pattern,
   });
 

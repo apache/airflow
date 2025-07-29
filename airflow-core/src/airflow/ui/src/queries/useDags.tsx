@@ -47,7 +47,7 @@ export const useDags = ({
   lastDagRunState?: DagRunState;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: Array<string>;
   owners?: Array<string>;
   paused?: boolean;
   tags?: Array<string>;

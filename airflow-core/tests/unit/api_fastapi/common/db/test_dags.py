@@ -116,7 +116,7 @@ class TestGenerateDagWithLatestRunQuery:
         dag_model, _ = dag_with_queued_run
         query = generate_dag_with_latest_run_query(
             max_run_filters=[],
-            order_by=SortParam(allowed_attrs=["dag_id"], model=DagModel).set_value("dag_id"),
+            order_by=SortParam(allowed_attrs=["dag_id"], model=DagModel).set_value(["dag_id"]),
         )
 
         # Also fetch joined DagRun's state and start_date
@@ -136,7 +136,9 @@ class TestGenerateDagWithLatestRunQuery:
 
         query = generate_dag_with_latest_run_query(
             max_run_filters=[],
-            order_by=SortParam(allowed_attrs=["last_run_state"], model=DagModel).set_value("last_run_state"),
+            order_by=SortParam(allowed_attrs=["last_run_state"], model=DagModel).set_value(
+                ["last_run_state"]
+            ),
         )
         extended_query = query.add_columns(DagRun.state, DagRun.start_date)
         result = session.execute(extended_query).fetchall()
@@ -161,7 +163,7 @@ class TestGenerateDagWithLatestRunQuery:
         query = generate_dag_with_latest_run_query(
             max_run_filters=[],
             order_by=SortParam(allowed_attrs=["last_run_start_date"], model=DagModel).set_value(
-                "last_run_start_date"
+                ["last_run_start_date"]
             ),
         )
         extended_query = query.add_columns(DagRun.state, DagRun.start_date)
@@ -211,7 +213,9 @@ class TestGenerateDagWithLatestRunQuery:
         session.commit()
         query = generate_dag_with_latest_run_query(
             max_run_filters=[],
-            order_by=SortParam(allowed_attrs=["last_run_state"], model=DagModel).set_value("last_run_state"),
+            order_by=SortParam(allowed_attrs=["last_run_state"], model=DagModel).set_value(
+                ["last_run_state"]
+            ),
         )
         extended_query = query.add_columns(DagRun.state, DagRun.start_date)
         result = session.execute(extended_query).fetchall()
@@ -235,7 +239,9 @@ class TestGenerateDagWithLatestRunQuery:
         running_dag_model, _ = dag_with_running_run
         query = generate_dag_with_latest_run_query(
             max_run_filters=[],
-            order_by=SortParam(allowed_attrs=["last_run_state"], model=DagModel).set_value("last_run_state"),
+            order_by=SortParam(allowed_attrs=["last_run_state"], model=DagModel).set_value(
+                ["last_run_state"]
+            ),
         )
         extended_query = query.add_columns(DagRun.state, DagRun.start_date)
 

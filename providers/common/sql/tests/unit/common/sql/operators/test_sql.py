@@ -63,8 +63,6 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
-else:
-    pass  # type: ignore[no-redef]
 
 pytestmark = pytest.mark.db_test
 

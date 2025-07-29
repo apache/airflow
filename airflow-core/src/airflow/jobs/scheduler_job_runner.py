@@ -40,7 +40,7 @@ from sqlalchemy.sql import expression
 from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext
-from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
+from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext, TaskCallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 from airflow.executors import workloads
@@ -1854,6 +1854,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     run_id=dag_run.run_id,
                     bundle_name=dag_model.bundle_name,
                     bundle_version=dag_run.bundle_version,
+                    context_from_server=DagRunContext(
+                        dag_run=dag_run,
+                        last_ti=dag_run.get_last_ti(dag=dag, session=session),
+                    ),
                     is_failure_callback=True,
                     msg="timed_out",
                 )

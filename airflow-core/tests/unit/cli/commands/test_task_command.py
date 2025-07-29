@@ -27,6 +27,7 @@ import shutil
 from argparse import ArgumentParser
 from contextlib import contextmanager, redirect_stdout
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
@@ -38,7 +39,6 @@ from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONF
 from airflow.configuration import conf
 from airflow.exceptions import DagRunNotFound
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
-from airflow.models.dag import DAG
 from airflow.models.dag_version import DagVersion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.bash import BashOperator
@@ -49,6 +49,9 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_runs, parse_and_sync_to_db
+
+if TYPE_CHECKING:
+    from airflow.models.dag import DAG
 
 pytestmark = pytest.mark.db_test
 
@@ -276,10 +279,6 @@ class TestCliTasks:
         """
         tasks render should render and displays templated fields for a given mapping task
         """
-        dag = DagBag().get_dag("test_mapped_classic")
-        bundle_name = "testing"
-        DAG.bulk_write_to_db(bundle_name, None, [dag])
-        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
         with redirect_stdout(io.StringIO()) as stdout:
             task_command.task_render(
                 self.parser.parse_args(

@@ -163,6 +163,30 @@ def test_args_get():
     ]
 
 
+@pytest.fixture(scope="module")
+def test_args_delete():
+    return [
+        (
+            "--backfill-id",
+            {
+                "help": "backfill_id for delete operation in BackfillsOperations",
+                "default": None,
+                "type": str,
+                "dest": None,
+            },
+        ),
+        (
+            "--output",
+            {
+                "help": "Output format. Allowed values: json, yaml, plain, table (default: json)",
+                "default": "json",
+                "type": str,
+                "dest": None,
+            },
+        ),
+    ]
+
+
 class TestCommandFactory:
     @classmethod
     def _save_temp_operations_py(cls, temp_file: str, file_content) -> None:
@@ -183,7 +207,9 @@ class TestCommandFactory:
         except FileNotFoundError:
             pass
 
-    def test_command_factory(self, no_op_method, test_args_create, test_args_list, test_args_get):
+    def test_command_factory(
+        self, no_op_method, test_args_create, test_args_list, test_args_get, test_args_delete
+    ):
         """
         Test the command factory.
         """
@@ -213,6 +239,9 @@ class TestCommandFactory:
                     def get(self, backfill_id: str) -> BackfillResponse | ServerResponseError:
                         self.response = self.client.get(f"backfills/{backfill_id}")
                         return BackfillResponse.model_validate_json(self.response.content)
+                    def delete(self, backfill_id: str) -> ServerResponseError | None:
+                        self.response = self.client.delete(f"backfills/{backfill_id}")
+                        return None
             """,
         )
 
@@ -241,6 +270,12 @@ class TestCommandFactory:
                         assert arg.kwargs["type"] == test_arg[1]["type"]
                 elif sub_command.name == "get":
                     for arg, test_arg in zip(sub_command.args, test_args_get):
+                        assert arg.flags[0] == test_arg[0]
+                        assert arg.kwargs["help"] == test_arg[1]["help"]
+                        assert arg.kwargs["default"] == test_arg[1]["default"]
+                        assert arg.kwargs["type"] == test_arg[1]["type"]
+                elif sub_command.name == "delete":
+                    for arg, test_arg in zip(sub_command.args, test_args_delete):
                         assert arg.flags[0] == test_arg[0]
                         assert arg.kwargs["help"] == test_arg[1]["help"]
                         assert arg.kwargs["default"] == test_arg[1]["default"]
