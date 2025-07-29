@@ -93,7 +93,6 @@ from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
-from airflow.utils.context import Context
 from airflow.utils.email import send_email
 from airflow.utils.helpers import prune_dict, render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -131,6 +130,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
     from airflow.serialization.serialized_objects import SerializedBaseOperator
+    from airflow.utils.context import Context
 
     Operator: TypeAlias = BaseOperator | MappedOperator
 
@@ -367,6 +367,7 @@ def _get_email_subject_content(
 
     else:
         from airflow.sdk.definitions._internal.templater import SandboxedEnvironment
+        from airflow.utils.context import Context
 
         if TYPE_CHECKING:
             assert task_instance.task
