@@ -68,7 +68,7 @@ Misc
    * ``Handle ruff PT028 changes (#53235)``
    * ``Create connection with API instead of directly through Session (#53161)``
    * ``Make dag_version_id in TI non-nullable (#50825)``
-   * ``Changing import path to 'airflow.sdk' in Amazon provider package``
+   * ``Changing import path to 'airflow.sdk' in Amazon provider package (#50659)``
 
 9.10.0
 ......
