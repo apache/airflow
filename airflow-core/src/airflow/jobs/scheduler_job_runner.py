@@ -397,7 +397,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
         @dataclass
-        class Limit:
+        class LimitWindowDescriptor:
             running_now_join: Subquery
             max_units: Column
             window: expression.ColumnElement
@@ -410,7 +410,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .cte()
             )
 
-        def add_window_limit(query: Select, limit: Limit) -> Select:
+        def add_window_limit(query: Select, limit: LimitWindowDescriptor) -> Select:
             inner_query = (
                 query.add_columns(limit.window)
                 .join(limit.running_now_join, TI.id == limit.running_now_join.c.id)
@@ -453,10 +453,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
         limits = [
-            Limit(running_total_tis_per_dagrun, DagModel.max_active_tasks, total_tis_per_dagrun_count),
-            Limit(running_tis_per_dag, TI.max_active_tis_per_dag, tis_per_dag_count),
-            Limit(running_total_tis_per_task_run, TI.max_active_tis_per_dagrun, mapped_tis_per_task_run_count),
-            Limit(running_tis_per_pool, Pool.slots, pool_slots_taken),
+            LimitWindowDescriptor(running_total_tis_per_dagrun, DagModel.max_active_tasks, total_tis_per_dagrun_count),
+            LimitWindowDescriptor(running_tis_per_dag, TI.max_active_tis_per_dag, tis_per_dag_count),
+            LimitWindowDescriptor(running_total_tis_per_task_run, TI.max_active_tis_per_dagrun, mapped_tis_per_task_run_count),
+            LimitWindowDescriptor(running_tis_per_pool, Pool.slots, pool_slots_taken),
         ]
 
         for limit in limits:
