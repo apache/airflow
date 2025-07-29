@@ -70,7 +70,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     BundleInfo,
     ConnectionResponse,
-    DagRunResponse,
+    DagRun,
     DagRunStateResponse,
     HITLDetailRequest,
     InactiveAssetsResponse,
@@ -554,11 +554,11 @@ class DagRunStateResult(DagRunStateResponse):
         return cls(**dr_state_response.model_dump(exclude_defaults=True), type="DagRunStateResult")
 
 
-class DagRunResult(DagRunResponse):
+class DagRunResult(DagRun):
     type: Literal["DagRunResult"] = "DagRunResult"
 
     @classmethod
-    def from_api_response(cls, dag_run_response: DagRunResponse) -> DagRunResult:
+    def from_api_response(cls, dag_run_response: DagRun) -> DagRunResult:
         """
         Create result class from API Response.
 
@@ -878,7 +878,7 @@ class GetDagRun(BaseModel):
     run_id: str
     type: Literal["GetDagRun"] = "GetDagRun"
 
-      
+
 class GetPreviousDagRun(BaseModel):
     dag_id: str
     logical_date: AwareDatetime

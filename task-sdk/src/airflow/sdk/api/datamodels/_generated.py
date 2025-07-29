@@ -537,28 +537,6 @@ class DagRun(BaseModel):
     consumed_asset_events: Annotated[list[AssetEventDagRunReference], Field(title="Consumed Asset Events")]
 
 
-class DagRunResponse(BaseModel):
-    """
-    Schema for DAG Run response.
-    """
-
-    dag_id: Annotated[str, Field(title="Dag Id")]
-    run_id: Annotated[str, Field(title="Run Id")]
-    logical_date: Annotated[AwareDatetime | None, Field(title="Logical Date")] = None
-    data_interval_start: Annotated[AwareDatetime | None, Field(title="Data Interval Start")] = None
-    data_interval_end: Annotated[AwareDatetime | None, Field(title="Data Interval End")] = None
-    run_after: Annotated[AwareDatetime, Field(title="Run After")]
-    start_date: Annotated[AwareDatetime, Field(title="Start Date")]
-    end_date: Annotated[AwareDatetime | None, Field(title="End Date")] = None
-    clear_number: Annotated[int | None, Field(title="Clear Number")] = 0
-    run_type: DagRunType
-    conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
-    state: DagRunState
-    queued_at: Annotated[AwareDatetime | None, Field(title="Queued At")] = None
-    last_scheduling_decision: Annotated[AwareDatetime | None, Field(title="Last Scheduling Decision")] = None
-    duration: Annotated[float | None, Field(title="Duration")] = None
-
-
 class HTTPValidationError(BaseModel):
     detail: Annotated[list[ValidationError] | None, Field(title="Detail")] = None
 

@@ -17,14 +17,11 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 from pydantic import Field
 
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunType
 
 
 class TriggerDAGRunPayload(StrictBaseModel):
@@ -39,23 +36,3 @@ class DagRunStateResponse(BaseModel):
     """Schema for DAG Run State response."""
 
     state: DagRunState
-
-
-class DagRunResponse(BaseModel):
-    """Schema for DAG Run response."""
-
-    dag_id: str
-    run_id: str
-    logical_date: UtcDateTime | None
-    data_interval_start: UtcDateTime | None
-    data_interval_end: UtcDateTime | None
-    run_after: UtcDateTime
-    start_date: UtcDateTime
-    end_date: UtcDateTime | None
-    clear_number: int = 0
-    run_type: DagRunType
-    conf: dict[str, Any] | None
-    state: DagRunState
-    queued_at: UtcDateTime | None
-    last_scheduling_decision: UtcDateTime | None
-    duration: float | None

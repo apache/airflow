@@ -27,10 +27,10 @@ from airflow.api.common.trigger_dag import trigger_dag
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.execution_api.datamodels.dagrun import (
-    DagRunResponse,
     DagRunStateResponse,
     TriggerDAGRunPayload,
 )
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun
 from airflow.exceptions import DagRunAlreadyExists
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun as DagRunModel
@@ -53,9 +53,11 @@ def get_dag_run(
     dag_id: str,
     run_id: str,
     session: SessionDep,
-) -> DagRunResponse:
+) -> DagRun:
     """Get a DAG Run."""
-    dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id))
+    dag_run = session.scalar(
+        select(DagRunModel).where(DagRunModel.dag_id == dag_id, DagRunModel.run_id == run_id)
+    )
     if dag_run is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
@@ -89,7 +91,7 @@ def get_dag_run(
         "duration": duration,
     }
 
-    return DagRunResponse.model_validate(response_data)
+    return DagRun.model_validate(response_data)
 
 
 @router.post(
