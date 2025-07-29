@@ -121,3 +121,6 @@ You can also dive deeper into more specific areas that are important for contrib
 
 * `Execution API versioning <19_execution_api_versioning.rst>`__ describes how to
   version the Task Execution API and how to add new versions of the API.
+
+* `Debugging Airflow Components <20_debugging_airflow_components.rst>`__ describes how to debug
+  Airflow components using Breeze with debugpy and VSCode integration.

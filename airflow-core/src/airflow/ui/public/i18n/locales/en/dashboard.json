@@ -1,6 +1,6 @@
 {
   "favorite": {
-    "favoriteDags_one":   "First {{count}} favorite Dag",
+    "favoriteDags_one": "First {{count}} favorite Dag",
     "favoriteDags_other": "First {{count}} favorite Dags",
     "noDagRuns": "There is no DagRun for this dag yet.",
     "noFavoriteDags": "No favorites yet. Click the star icon next to a Dag in the list to add it to your favorites."

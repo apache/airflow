@@ -2693,7 +2693,7 @@ redis:
   topologySpreadConstraints: []
   priorityClassName: ~
 
-  # Set to 0 for backwards-compatiblity
+  # Set to 0 for backwards-compatibility
   uid: 0
   # If not set, `redis.uid` will be used
   securityContext: {}

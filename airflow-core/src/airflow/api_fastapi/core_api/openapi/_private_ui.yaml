@@ -220,8 +220,11 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: dag_id
+          type: array
+          items:
+            type: string
+          default:
+          - dag_id
           title: Order By
       - name: is_favorite
         in: query
@@ -267,9 +270,9 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/DAGRunLightResponse'
+                anyOf:
+                - $ref: '#/components/schemas/DAGRunLightResponse'
+                - type: 'null'
                 title: Response Get Latest Run Info
         '404':
           content:
@@ -485,8 +488,11 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: id
+          type: array
+          items:
+            type: string
+          default:
+          - id
           title: Order By
       - name: dag_id
         in: query
@@ -560,8 +566,11 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: id
+          type: array
+          items:
+            type: string
+          default:
+          - id
           title: Order By
       - name: run_after_gte
         in: query
@@ -646,8 +655,11 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: id
+          type: array
+          items:
+            type: string
+          default:
+          - id
           title: Order By
       - name: run_after_gte
         in: query
@@ -747,55 +759,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GridTISummaries'
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-  /ui/grid/latest_run/{dag_id}:
-    get:
-      tags:
-      - Grid
-      summary: Get Latest Run
-      description: 'Get information about the latest dag run by run_after.
-
-
-        This is used by the UI to figure out if it needs to rerun queries and resume
-        auto refresh.'
-      operationId: get_latest_run
-      security:
-      - OAuth2PasswordBearer: []
-      - HTTPBearer: []
-      parameters:
-      - name: dag_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Id
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                anyOf:
-                - $ref: '#/components/schemas/LatestRunResponse'
-                - type: 'null'
-                title: Response Get Latest Run
         '400':
           content:
             application/json:
@@ -1179,12 +1142,15 @@ components:
         the API server/Web UI can use this data to render connection form UI.'
     DAGRunLightResponse:
       properties:
-        run_id:
-          type: string
-          title: Run Id
+        id:
+          type: integer
+          title: Id
         dag_id:
           type: string
           title: Dag Id
+        run_id:
+          type: string
+          title: Run Id
         logical_date:
           anyOf:
           - type: string
@@ -1211,8 +1177,9 @@ components:
           $ref: '#/components/schemas/DagRunState'
       type: object
       required:
-      - run_id
+      - id
       - dag_id
+      - run_id
       - logical_date
       - run_after
       - start_date
@@ -1865,29 +1832,6 @@ components:
       - task_instance_states
       title: HistoricalMetricDataResponse
       description: Historical Metric Data serializer for responses.
-    LatestRunResponse:
-      properties:
-        id:
-          type: integer
-          title: Id
-        dag_id:
-          type: string
-          title: Dag Id
-        run_id:
-          type: string
-          title: Run Id
-        run_after:
-          type: string
-          format: date-time
-          title: Run After
-      type: object
-      required:
-      - id
-      - dag_id
-      - run_id
-      - run_after
-      title: LatestRunResponse
-      description: Base Node serializer for responses.
     LightGridTaskInstanceSummary:
       properties:
         task_id:

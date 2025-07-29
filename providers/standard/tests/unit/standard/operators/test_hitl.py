@@ -145,7 +145,7 @@ class TestHITLOperator:
             options=["1", "2", "3", "4", "5"],
             params=input_params,
         )
-        assert hitl_op.serialzed_params == expected_params
+        assert hitl_op.serialized_params == expected_params
 
     def test_execute_complete(self) -> None:
         hitl_op = HITLOperator(

@@ -39,6 +39,7 @@ import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { SearchBar } from "src/components/SearchBar";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
+import { TruncatedText } from "src/components/TruncatedText";
 import { Select } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { dagRunTypeOptions, dagRunStateOptions as stateOptions } from "src/constants/stateOptions";
@@ -64,6 +65,17 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
           header: translate("dagId"),
         },
       ]),
+  {
+    accessorKey: "dag_run_id",
+    cell: ({ row: { original } }: DagRunRow) => (
+      <Link asChild color="fg.info" fontWeight="bold">
+        <RouterLink to={`/dags/${original.dag_id}/runs/${original.dag_run_id}`}>
+          <TruncatedText text={original.dag_run_id} />
+        </RouterLink>
+      </Link>
+    ),
+    header: translate("dagRunId"),
+  },
   {
     accessorKey: "run_after",
     cell: ({ row: { original } }: DagRunRow) => (
@@ -162,7 +174,7 @@ export const DagRuns = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-run_after";
+  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-run_after"];
 
   const { pageIndex, pageSize } = pagination;
   const filteredState = searchParams.get(STATE_PARAM);

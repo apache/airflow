@@ -25,6 +25,29 @@
 Changelog
 ---------
 
+1.6.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prevent FileNotFoundError in deserialize_value of XCom io provider to crash the scheduler (#52702)``
+
+Misc
+~~~~
+
+* ``Deprecate decorators from Core (#53629)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup type ignores (#53298)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Move remaining 'airflow.io' code to Task SDK (#53211)``
+* ``Replace usages of XCOM_RETURN_KEY in providers to not be from utils (#53170)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.6.1
 .....
 

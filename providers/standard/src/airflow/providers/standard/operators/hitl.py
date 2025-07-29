@@ -29,12 +29,12 @@ from collections.abc import Collection, Mapping
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
-from airflow.models.baseoperator import BaseOperator
 from airflow.providers.standard.exceptions import HITLTimeoutError, HITLTriggerEventError
 from airflow.providers.standard.triggers.hitl import HITLTrigger, HITLTriggerEventSuccessPayload
 from airflow.providers.standard.utils.skipmixin import SkipMixin
+from airflow.providers.standard.version_compat import BaseOperator
 from airflow.sdk.definitions.param import ParamsDict
-from airflow.sdk.execution_time.hitl import add_hitl_detail
+from airflow.sdk.execution_time.hitl import upsert_hitl_detail
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
@@ -98,14 +98,14 @@ class HITLOperator(BaseOperator):
         """Add a Human-in-the-loop Response and then defer to HITLTrigger and wait for user input."""
         ti_id = context["task_instance"].id
         # Write Human-in-the-loop input request to DB
-        add_hitl_detail(
+        upsert_hitl_detail(
             ti_id=ti_id,
             options=self.options,
             subject=self.subject,
             body=self.body,
             defaults=self.defaults,
             multiple=self.multiple,
-            params=self.serialzed_params,
+            params=self.serialized_params,
         )
         if self.execution_timeout:
             timeout_datetime = datetime.now(timezone.utc) + self.execution_timeout
@@ -118,7 +118,7 @@ class HITLOperator(BaseOperator):
                 ti_id=ti_id,
                 options=self.options,
                 defaults=self.defaults,
-                params=self.serialzed_params,
+                params=self.serialized_params,
                 multiple=self.multiple,
                 timeout_datetime=timeout_datetime,
             ),
@@ -126,7 +126,7 @@ class HITLOperator(BaseOperator):
         )
 
     @property
-    def serialzed_params(self) -> dict[str, Any]:
+    def serialized_params(self) -> dict[str, Any]:
         return self.params.dump() if isinstance(self.params, ParamsDict) else self.params
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
@@ -156,9 +156,9 @@ class HITLOperator(BaseOperator):
     def validate_params_input(self, params_input: Mapping) -> None:
         """Check whether user provide valid params input."""
         if (
-            self.serialzed_params is not None
+            self.serialized_params is not None
             and params_input is not None
-            and set(self.serialzed_params.keys()) ^ set(params_input)
+            and set(self.serialized_params.keys()) ^ set(params_input)
         ):
             raise ValueError(f"params_input {params_input} does not match params {self.params}")
 
