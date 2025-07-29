@@ -197,7 +197,6 @@ class LoginOperations:
 
 
 # Operations
-# TODO: Get all with limit and offset to overcome default 100 limit for all list operations
 class AssetsOperations(BaseOperations):
     """Assets operations."""
 
