@@ -105,8 +105,6 @@ def _is_safe_bundle_url(url: str) -> bool:
         if not parsed.netloc:
             return False
 
-        if ";" in url:
-            return False
         if any(ord(c) < 32 for c in url):
             return False
 
