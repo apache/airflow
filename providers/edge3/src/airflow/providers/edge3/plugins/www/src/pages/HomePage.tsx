@@ -20,6 +20,7 @@
 import { Box, Button, Heading, Text, VStack } from "@chakra-ui/react";
 
 import { useColorMode } from "src/context/colorMode";
+import { GrCloudComputer } from "react-icons/gr";
 
 export const HomePage = () => {
   const { toggleColorMode } = useColorMode();
@@ -28,6 +29,7 @@ export const HomePage = () => {
     <Box p={8} bg="bg.subtle" flexGrow={1} height="100%">
       <VStack gap={8} align="center" justify="center" flexGrow={1} height="100%">
         <Heading size="2xl" textAlign="center" color="fg">
+          <GrCloudComputer size={128} />
           Welcome to Edge Executor Plugin!
         </Heading>
         <Text fontSize="lg" color="fg.muted">
