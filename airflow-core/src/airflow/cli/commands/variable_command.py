@@ -26,6 +26,7 @@ from sqlalchemy import select
 
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import print_export_output
+from airflow.exceptions import AirflowDuplicateVariableKeyException
 from airflow.models import Variable
 from airflow.secrets.local_filesystem import load_variables
 from airflow.utils import cli as cli_utils
@@ -85,6 +86,8 @@ def variables_import(args, session):
     try:
         # Use load_variables which supports JSON, YAML, and ENV formats
         var_dict = load_variables(args.file)
+    except AirflowDuplicateVariableKeyException as e:
+        raise SystemExit(f"Failed to import variables: {e}")
     except Exception as e:
         # Check if it's a specific format error
         if "Unsupported file format" in str(e):

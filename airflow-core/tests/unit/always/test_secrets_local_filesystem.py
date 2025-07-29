@@ -25,7 +25,12 @@ from unittest import mock
 import pytest
 
 from airflow.configuration import ensure_secrets_loaded
-from airflow.exceptions import AirflowException, AirflowFileParseException, ConnectionNotUnique
+from airflow.exceptions import (
+    AirflowDuplicateVariableKeyException,
+    AirflowException,
+    AirflowFileParseException,
+    ConnectionNotUnique,
+)
 from airflow.models import Variable
 from airflow.secrets import local_filesystem
 from airflow.secrets.local_filesystem import LocalFilesystemBackend
@@ -78,6 +83,9 @@ class TestLoadVariables:
             ("KEY_A=AAA\nKEY_B=BBB", {"KEY_A": "AAA", "KEY_B": "BBB"}),
             ("KEY_A=AAA\n # AAAA\nKEY_B=BBB", {"KEY_A": "AAA", "KEY_B": "BBB"}),
             ("\n\n\n\nKEY_A=AAA\n\n\n\n\nKEY_B=BBB\n\n\n", {"KEY_A": "AAA", "KEY_B": "BBB"}),
+            ("KEY_A=", {"KEY_A": ""}),
+            ("KEY_A=AAA\nKEY_B=", {"KEY_A": "AAA", "KEY_B": ""}),
+            ("KEY_A=\nKEY_B=BBB", {"KEY_A": "", "KEY_B": "BBB"}),
         ],
     )
     def test_env_file_should_load_variables(self, file_content, expected_variables):
@@ -88,12 +96,12 @@ class TestLoadVariables:
     @pytest.mark.parametrize(
         "content, expected_message",
         [
-            ("AA=A\nAA=B", "The \"a.env\" file contains multiple values for keys: ['AA']"),
+            ("AA=A\nAA=B", "Multiple values found for key 'AA' in 'a.env' file"),
         ],
     )
     def test_env_file_invalid_logic(self, content, expected_message):
         with mock_local_file(content):
-            with pytest.raises(AirflowException, match=re.escape(expected_message)):
+            with pytest.raises(AirflowDuplicateVariableKeyException, match=re.escape(expected_message)):
                 local_filesystem.load_variables("a.env")
 
     @pytest.mark.parametrize(
@@ -102,6 +110,7 @@ class TestLoadVariables:
             ({}, {}),
             ({"KEY": "AAA"}, {"KEY": "AAA"}),
             ({"KEY_A": "AAA", "KEY_B": "BBB"}, {"KEY_A": "AAA", "KEY_B": "BBB"}),
+            ({"KEY_A": ["ABC", "DEF"]}, {"KEY_A": ["ABC", "DEF"]}),
         ],
     )
     def test_json_file_should_load_variables(self, file_content, expected_variables):
@@ -121,13 +130,8 @@ class TestLoadVariables:
         "file_content, expected_variables",
         [
             ("KEY: AAA", {"KEY": "AAA"}),
-            (
-                """
-            KEY_A: AAA
-            KEY_B: BBB
-            """,
-                {"KEY_A": "AAA", "KEY_B": "BBB"},
-            ),
+            ("KEY_A: AAA\nKEY_B: BBB", {"KEY_A": "AAA", "KEY_B": "BBB"}),
+            ("KEY_A:\n  - AAA\n  - BBB", {"KEY_A": ["AAA", "BBB"]}),
         ],
     )
     def test_yaml_file_should_load_variables(self, file_content, expected_variables):

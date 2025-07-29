@@ -25,9 +25,11 @@ import os
 from collections import defaultdict
 from inspect import signature
 from json import JSONDecodeError
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import (
+    AirflowDuplicateVariableKeyException,
     AirflowException,
     AirflowFileParseException,
     ConnectionNotUnique,
@@ -86,13 +88,14 @@ def _parse_env_file(file_path: str) -> tuple[dict[str, list[str]], list[FileSynt
             )
             continue
 
-        if not value:
+        if not key:
             errors.append(
                 FileSyntaxError(
                     line_no=line_no,
                     message="Invalid line format. Key is empty.",
                 )
             )
+            continue
         secrets[key].append(value)
     return secrets, errors
 
@@ -235,7 +238,7 @@ def load_variables(file_path: str) -> dict[str, str]:
     secrets = _parse_secret_file(file_path)
 
     # Determine a file format to handle lists correctly
-    ext = file_path.rsplit(".", 2)[-1].lower()
+    ext = Path(file_path).suffix.lower().lstrip(".")
     is_env_file = ext == "env"
 
     variables = {}
@@ -243,8 +246,8 @@ def load_variables(file_path: str) -> dict[str, str]:
         if is_env_file and isinstance(secret_values, list):
             # Only ENV files: Check for duplicate keys
             if len(secret_values) > 1:
-                raise AirflowException(
-                    f"The \"{file_path}\" file contains multiple values for keys: ['{key}']"
+                raise AirflowDuplicateVariableKeyException(
+                    msg=f"Multiple values found for key '{key}' in '{file_path}' file", file_path=file_path
                 )
             variables[key] = secret_values[0]  # Extract single value
         else:
