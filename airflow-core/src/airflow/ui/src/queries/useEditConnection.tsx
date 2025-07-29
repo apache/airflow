@@ -60,9 +60,7 @@ export const useEditConnection = (
   const editConnection = (requestBody: ConnectionBody) => {
     const updateMask: Array<string> = [];
 
-    if (
-      JSON.stringify(JSON.parse(requestBody.extra)) !== JSON.stringify(JSON.parse(initialConnection.extra))
-    ) {
+    if (requestBody.extra !== initialConnection.extra) {
       updateMask.push("extra");
     }
     if (requestBody.conn_type !== initialConnection.conn_type) {
