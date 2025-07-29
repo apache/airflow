@@ -430,13 +430,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             else:
                 resp = conn
         elif isinstance(msg, DeleteVariable):
-            var = self.client.variables.delete(msg.key)
-            if isinstance(var, VariableResponse):
-                var_result = VariableResult.from_variable_response(var)
-                resp = var_result
-                dump_opts = {"exclude_unset": True}
-            else:
-                resp = var
+            resp = self.client.variables.delete(msg.key)
         elif isinstance(msg, GetVariable):
             var = self.client.variables.get(msg.key)
             if isinstance(var, VariableResponse):
@@ -446,21 +440,9 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             else:
                 resp = var
         elif isinstance(msg, PutVariable):
-            var = self.client.variables.set(msg.key, msg.value, msg.description)
-            if isinstance(var, VariableResponse):
-                var_result = VariableResult.from_variable_response(var)
-                resp = var_result
-                dump_opts = {"exclude_unset": True}
-            else:
-                resp = var
+            resp = self.client.variables.set(msg.key, msg.value, msg.description)
         elif isinstance(msg, DeleteXCom):
-            xcom = self.client.xcoms.delete(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
-            if isinstance(xcom, XComResponse):
-                xcom_result = XComResult.from_xcom_response(xcom)
-                resp = xcom_result
-                dump_opts = {"exclude_unset": True}
-            else:
-                resp = xcom
+            resp = self.client.xcoms.delete(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
         elif isinstance(msg, GetXCom):
             xcom = self.client.xcoms.get(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
             if isinstance(xcom, XComResponse):
@@ -470,15 +452,9 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             else:
                 resp = xcom
         elif isinstance(msg, SetXCom):
-            xcom = self.client.xcoms.set(
+            resp = self.client.xcoms.set(
                 msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.value, msg.map_index, msg.mapped_length
             )
-            if isinstance(xcom, XComResponse):
-                xcom_result = XComResult.from_xcom_response(xcom)
-                resp = xcom_result
-                dump_opts = {"exclude_unset": True}
-            else:
-                resp = xcom
         elif isinstance(msg, GetDRCount):
             dr_count = self.client.dag_runs.get_count(
                 dag_id=msg.dag_id,
