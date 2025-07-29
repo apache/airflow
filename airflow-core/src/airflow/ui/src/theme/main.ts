@@ -391,3 +391,10 @@ export const customConfig = defineConfig({
 });
 
 export const system = createSystem(defaultConfig, customConfig);
+
+// Utility function to resolve CSS variables to their computed values
+// See: https://github.com/chakra-ui/panda/discussions/2200
+export const getComputedCSSVariableValue = (variable: string): string =>
+  getComputedStyle(document.documentElement)
+    .getPropertyValue(variable.slice(4, variable.length - 1))
+    .trim();
