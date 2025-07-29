@@ -227,13 +227,25 @@ def send_mime_email(
     dryrun: bool = False,
 ) -> None:
     """
-    Send a MIME email.
+    Send a MIME email using the configured SMTP server.
 
-    :param e_from: The email address of the sender.
-    :param e_to: The email address or a list of email addresses of the recipient(s).
-    :param mime_msg: The MIME message to send.
-    :param conn_id: The ID of the SMTP connection to use.
-    :param dryrun: If True, the email will not be sent, but a log message will be generated.
+    This function sends a pre-built MIME message (typically a MIMEMultipart object) via SMTP.
+    It supports authentication, TLS/SSL, connection retries, and can use Airflow connections
+    or fallback to configuration variables for SMTP parameters.
+
+    :param e_from: Sender email address.
+    :type e_from: str
+    :param e_to: Recipient email address or list of addresses.
+    :type e_to: str or list[str]
+    :param mime_msg: The MIME message to send (should be a MIMEMultipart object).
+    :type mime_msg: MIMEMultipart
+    :param conn_id: Airflow SMTP connection ID to use (default: "smtp_default").
+    :type conn_id: str
+    :param dryrun: If True, do not actually send the email (for testing/logging only).
+    :type dryrun: bool
+
+    :raises AirflowException: If the SMTP connection fails after all retries.
+    :raises smtplib.SMTPException: For SMTP-related errors.
     """
     smtp_host = conf.get_mandatory_value("smtp", "SMTP_HOST")
     smtp_port = conf.getint("smtp", "SMTP_PORT")
