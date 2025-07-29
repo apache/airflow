@@ -56,7 +56,7 @@ export const Details = () => {
           <Table.Cell>
             <Flex gap={1}>
               <StateBadge state={dagRun.state} />
-              {dagRun.state}
+              {translate(`common:states.${dagRun.state}`)}
             </Flex>
           </Table.Cell>
         </Table.Row>
