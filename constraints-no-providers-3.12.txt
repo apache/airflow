@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-29T08:34:30.009333
+# This constraints file was automatically generated on 2025-07-29T16:31:17.792830
 # via `uv sync --resolution highest` for the "v3-0-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -97,7 +97,7 @@ rich-toolkit==0.14.9
 rich==13.9.4
 rignore==0.6.4
 rpds-py==0.26.0
-sentry-sdk==2.33.2
+sentry-sdk==2.34.0
 setproctitle==1.3.6
 shellingham==1.5.4
 six==1.17.0

@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-29T08:39:26.893102
+# This constraints file was automatically generated on 2025-07-29T16:38:03.267830
 # via `uv pip install --resolution highest` for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -693,7 +693,7 @@ scrapbook==0.5.0
 semver==3.0.4
 sendgrid==6.12.4
 sentinels==1.0.0
-sentry-sdk==2.33.2
+sentry-sdk==2.34.0
 setproctitle==1.3.6
 shapely==2.0.7
 shellingham==1.5.4
