@@ -61,7 +61,9 @@ apache-airflow-providers-sendgrid package
 `Sendgrid <https://sendgrid.com/>`__
 
 
-Release: 4.1.2
+Release: 4.1.3
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------
@@ -87,4 +89,5 @@ PIP package         Version required
 ``apache-airflow``  ``>=2.10.0``
 ``sendgrid``        ``>=6.12.3; python_version < "3.12"``
 ``sendgrid``        ``>=6.0.0,<6.12.3; python_version >= "3.12"``
+``werkzeug``        ``>=2.2,<4; python_version >= "3.12"``
 ==================  =============================================
