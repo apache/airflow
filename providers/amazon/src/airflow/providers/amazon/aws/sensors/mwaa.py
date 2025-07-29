@@ -270,9 +270,6 @@ class MwaaTaskSensor(AwsBaseSensor[MwaaHook]):
 
         return state in self.success_states
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        validate_execute_complete_event(event)
-
     def execute(self, context: Context):
         if self.external_dag_run_id is None:
             response = self.hook.invoke_rest_api(
@@ -294,8 +291,9 @@ class MwaaTaskSensor(AwsBaseSensor[MwaaHook]):
                     waiter_delay=int(self.poke_interval),
                     waiter_max_attempts=self.max_retries,
                     aws_conn_id=self.aws_conn_id,
+                    end_from_trigger=True,
                 ),
-                method_name="execute_complete",
+                method_name=None,
             )
         else:
             super().execute(context=context)
