@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import collections
 from typing import Any, Protocol
 
 import structlog
@@ -29,6 +30,9 @@ from airflow.sdk.execution_time.comms import (
     XComResult,
     XComSequenceSliceResult,
 )
+
+# Lightweight wrapper for XCom values
+_XComValueWrapper = collections.namedtuple("_XComValueWrapper", "value")
 
 log = structlog.get_logger(logger_name="task")
 
@@ -290,7 +294,6 @@ class BaseXCom:
         :return: List of all XCom values if found.
         """
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
-        from airflow.serialization.serde import deserialize
 
         msg = SUPERVISOR_COMMS.send(
             msg=GetXComSequenceSlice(
@@ -307,10 +310,10 @@ class BaseXCom:
         if not isinstance(msg, XComSequenceSliceResult):
             raise TypeError(f"Expected XComSequenceSliceResult, received: {type(msg)} {msg}")
 
-        result = deserialize(msg.root)
-        if not result:
+        if not msg.root:
             return None
-        return result
+
+        return [cls.deserialize_value(_XComValueWrapper(value)) for value in msg.root]
 
     @staticmethod
     def serialize_value(
