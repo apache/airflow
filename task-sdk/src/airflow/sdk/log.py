@@ -523,6 +523,16 @@ def load_remote_log_handler() -> RemoteLogIO | None:
     return airflow.logging_config.REMOTE_TASK_LOG
 
 
+def load_remote_conn_id() -> str | None:
+    import airflow.logging_config
+    from airflow.configuration import conf
+
+    if conn_id := conf.get("logging", "remote_log_conn_id", fallback=None):
+        return conn_id
+
+    return airflow.logging_config.DEFAULT_REMOTE_CONN_ID
+
+
 def relative_path_from_logger(logger) -> Path | None:
     if not logger:
         return None
