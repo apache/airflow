@@ -22,16 +22,17 @@ import inspect
 import json
 import logging
 import os
-from pathlib import Path
 import shutil
 import sys
 import time
-import attrs
 from collections import defaultdict
 from collections.abc import Callable
 from operator import attrgetter
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
 from urllib.parse import quote, urlparse
+
+import attrs
 
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
 import elasticsearch
@@ -57,9 +58,8 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
-    from airflow.utils.log.file_task_handler import LogMetadata
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
-    from airflow.utils.log.file_task_handler import LogMessages, LogSourceInfo
+    from airflow.utils.log.file_task_handler import LogMessages, LogMetadata, LogSourceInfo
 
 
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
@@ -463,7 +463,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
     def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None:
         """
-        TODO: This API should be removed in airflow 3
+        TODO: This API should be removed in airflow 3.
+
         Provide task_instance context to airflow task handler.
 
         :param ti: task instance object
