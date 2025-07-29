@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import datetime
 import enum
+import textwrap
 from collections import namedtuple
 from dataclasses import dataclass
 from importlib import import_module, metadata
@@ -83,30 +84,23 @@ def generate_serializers_importable_and_str_test_cases():
         mod = import_module(name)
         for s in getattr(mod, "serializers", list()):
             if s == "numpy.bool" and NUMPY_VERSION.major < 2:
-                serializer_collection.append(
-                    pytest.param(
-                        name,
-                        s,
-                        marks=pytest.mark.xfail(
-                            reason=f"""
-                        Current NumPy version: {NUMPY_VERSION}
+                reason = textwrap.dedent(f"""\
+                    Current NumPy version: {NUMPY_VERSION}
 
-                        In NumPy 1.20, `numpy.bool` was deprecated as an alias for the built-in `bool`.
-                        For NumPy versions <= 1.26, attempting to import `numpy.bool` raises an ImportError.
-                        Starting with NumPy 2.0, `numpy.bool` is reintroduced as the NumPy scalar type,
-                        and `numpy.bool_` becomes an alias for `numpy.bool`.
+                    In NumPy 1.20, `numpy.bool` was deprecated as an alias for the built-in `bool`.
+                    For NumPy versions <= 1.26, attempting to import `numpy.bool` raises an ImportError.
+                    Starting with NumPy 2.0, `numpy.bool` is reintroduced as the NumPy scalar type,
+                    and `numpy.bool_` becomes an alias for `numpy.bool`.
 
-                        The serializers are loaded lazily at runtime. As a result:
-                        - With NumPy <= 1.26, only `numpy.bool_` is loaded.
-                        - With NumPy >= 2.0, only `numpy.bool` is loaded.
+                    The serializers are loaded lazily at runtime. As a result:
+                    - With NumPy <= 1.26, only `numpy.bool_` is loaded.
+                    - With NumPy >= 2.0, only `numpy.bool` is loaded.
 
-                        This test case deliberately attempts to import both `numpy.bool` and `numpy.bool_`,
-                        regardless of the installed NumPy version. Therefore, when NumPy <= 1.26 is installed,
-                        importing `numpy.bool` will raise an ImportError.
-                        """
-                        ),
-                    )
-                )
+                    This test case deliberately attempts to import both `numpy.bool` and `numpy.bool_`,
+                    regardless of the installed NumPy version. Therefore, when NumPy <= 1.26 is installed,
+                    importing `numpy.bool` will raise an ImportError.
+                """)
+                serializer_collection.append(pytest.param(name, s, marks=pytest.mark.xfail(reason=reason)))
             else:
                 serializer_collection.append((name, s))
     return serializer_collection
