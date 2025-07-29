@@ -102,7 +102,10 @@ For example, if you want to use a custom URL for the git dag bundle:
       ]
 
 Above, the ``view_url_template`` is set to a custom URL that will be used to view the Dags in the ``my_git_repo`` bundle. The ``{subdir}`` placeholder will be replaced
-with the ``subdir`` attribute of the bundle. When you specify a custom URL, it overrides the default URL provided by the dag bundle.
+with the ``subdir`` attribute of the bundle. The placeholders are attributes of the bundle. You cannot use any placeholder outside of the bundle's attributes.
+When you specify a custom URL, it overrides the default URL provided by the dag bundle.
+
+The url is verified for safety, and if it is not safe, the view url for the bundle will be set to ``None``. This is to prevent any potential security issues with unsafe URLs.
 
 You can also override the :ref:`config:dag_processor__refresh_interval` per dag bundle by passing it in kwargs.
 This controls how often the dag processor refreshes, or looks for new files, in the dag bundles.

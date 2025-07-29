@@ -335,7 +335,10 @@ class BaseDagBundle(ABC):
 
     def view_url_template(self) -> str | None:
         """
-        URL template to view the bundle on an external website. This is shown to users in the Airflow UI, allowing them to navigate to this url for more details about that version of the bundle.
+        URL template to view the bundle on an external website.
+
+        This is shown to users in the Airflow UI, allowing them to navigate to
+        this url for more details about that version of the bundle.
 
         The template should use format string placeholders like {version}, {subdir}, etc.
         Common placeholders:
