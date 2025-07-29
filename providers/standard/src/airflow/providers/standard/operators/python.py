@@ -496,7 +496,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
 
     def execute(self, context: Context) -> Any:
         serializable_keys = set(self._iter_serializable_context_keys())
-        serializable_context = self.context_copy_partial(context, serializable_keys)
+        serializable_context = _BasePythonVirtualenvOperator.context_copy_partial(context, serializable_keys)
         return super().execute(context=serializable_context)
 
     def get_python_source(self):
