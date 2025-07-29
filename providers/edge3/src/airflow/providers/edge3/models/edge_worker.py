@@ -29,11 +29,15 @@ from airflow.exceptions import AirflowException
 from airflow.models.base import Base
 from airflow.providers.edge3.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.stats import Stats
-from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import timezone
+else:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
