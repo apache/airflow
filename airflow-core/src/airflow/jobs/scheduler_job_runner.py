@@ -454,12 +454,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         limits = [
             Limit(running_total_tis_per_dagrun, DagModel.max_active_tasks, total_tis_per_dagrun_count),
-            Limit(
-                running_tis_per_dag, TaskInstance.max_active_tis_per_dag, tis_per_dag_count
-            ),  # TODO: Add to DB model: TaskInstance.max_active_tis_per_dag, DUMMY:  DagModel.max_active_tasks
-            Limit(
-                running_total_tis_per_task_run, TI.max_tries, mapped_tis_per_task_run_count
-            ),  # TODO: Add to DB model: TI.max_active_tis_per_dagrun, DUMMY: TI.max_tries
+            Limit(running_tis_per_dag, TI.max_active_tis_per_dag, tis_per_dag_count),
+            Limit(running_total_tis_per_task_run, TI.max_active_tis_per_dagrun, mapped_tis_per_task_run_count),
             Limit(running_tis_per_pool, Pool.slots, pool_slots_taken),
         ]
 
