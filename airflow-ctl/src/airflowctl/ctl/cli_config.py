@@ -605,6 +605,8 @@ class CommandFactory:
 
             def check_operation_and_collect_list_of_dict(dict_obj: dict) -> list:
                 """Check if the object is a nested dictionary and collect list of dictionaries."""
+                if isinstance(dict_obj, dict):
+                    return [dict_obj]
 
                 def is_dict_nested(obj: dict) -> bool:
                     """Check if the object is a nested dictionary."""
