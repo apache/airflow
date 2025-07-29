@@ -29,11 +29,11 @@ from airflow.api_fastapi.core_api.datamodels.extra_links import ExtraLinkCollect
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import DagAccessEntity, requires_access_dag
 from airflow.exceptions import TaskNotFound
+from airflow.models import DagRun
 
 if TYPE_CHECKING:
     from airflow.models.mappedoperator import MappedOperator
     from airflow.serialization.serialized_objects import SerializedBaseOperator
-
 
 extra_links_router = AirflowRouter(
     tags=["Extra Links"], prefix="/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links"
@@ -57,7 +57,13 @@ def get_extra_links(
     """Get extra links for task instance."""
     from airflow.models.taskinstance import TaskInstance
 
-    if (dag := dag_bag.get_dag(dag_id)) is None:
+    dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
+
+    if dag_run:
+        dag = dag_bag.get_dag_for_run(dag_run, session=session)
+    else:
+        dag = dag_bag.get_latest_version_of_dag(dag_id, session=session)
+    if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with ID = {dag_id} not found")
 
     try:

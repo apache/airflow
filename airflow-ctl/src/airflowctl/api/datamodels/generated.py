@@ -204,7 +204,7 @@ class ClearTaskInstancesBody(BaseModel):
     run_on_latest_version: Annotated[
         bool | None,
         Field(
-            description="(Experimental) Run on the latest bundle version of the DAG after clearing the task instances.",
+            description="(Experimental) Run on the latest bundle version of the dag after clearing the task instances.",
             title="Run On Latest Version",
         ),
     ] = False
@@ -318,7 +318,7 @@ class DAGRunClearBody(BaseModel):
     run_on_latest_version: Annotated[
         bool | None,
         Field(
-            description="(Experimental) Run on the latest bundle version of the DAG after clearing the DAG Run.",
+            description="(Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run.",
             title="Run On Latest Version",
         ),
     ] = False
