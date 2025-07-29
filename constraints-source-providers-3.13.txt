@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-29T13:55:50.522862
+# This constraints file was automatically generated on 2025-07-29T19:45:14.719099
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -406,15 +406,15 @@ openlineage-python==1.36.0
 openlineage_sql==1.36.0
 openpyxl==3.1.5
 opensearch-py==3.0.0
-opentelemetry-api==1.35.0
-opentelemetry-exporter-otlp-proto-common==1.35.0
-opentelemetry-exporter-otlp-proto-grpc==1.35.0
-opentelemetry-exporter-otlp-proto-http==1.35.0
-opentelemetry-exporter-otlp==1.35.0
-opentelemetry-exporter-prometheus==0.56b0
-opentelemetry-proto==1.35.0
-opentelemetry-sdk==1.35.0
-opentelemetry-semantic-conventions==0.56b0
+opentelemetry-api==1.36.0
+opentelemetry-exporter-otlp-proto-common==1.36.0
+opentelemetry-exporter-otlp-proto-grpc==1.36.0
+opentelemetry-exporter-otlp-proto-http==1.36.0
+opentelemetry-exporter-otlp==1.36.0
+opentelemetry-exporter-prometheus==0.57b0
+opentelemetry-proto==1.36.0
+opentelemetry-sdk==1.36.0
+opentelemetry-semantic-conventions==0.57b0
 opsgenie-sdk==2.1.5
 oracledb==3.2.0
 ordered-set==4.1.0
@@ -519,7 +519,7 @@ readme_renderer==44.0
 redis==5.2.1
 redshift-connector==2.1.7
 referencing==0.36.2
-regex==2024.11.6
+regex==2025.7.29
 requests-file==2.1.0
 requests-kerberos==0.15.0
 requests-mock==1.12.1

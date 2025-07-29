@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-29T13:55:57.649962
+# This constraints file was automatically generated on 2025-07-29T19:45:21.305855
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -65,14 +65,14 @@ methodtools==0.4.7
 more-itertools==10.7.0
 msgspec==0.19.0
 natsort==8.4.0
-opentelemetry-api==1.35.0
-opentelemetry-exporter-otlp-proto-common==1.35.0
-opentelemetry-exporter-otlp-proto-grpc==1.35.0
-opentelemetry-exporter-otlp-proto-http==1.35.0
-opentelemetry-exporter-otlp==1.35.0
-opentelemetry-proto==1.35.0
-opentelemetry-sdk==1.35.0
-opentelemetry-semantic-conventions==0.56b0
+opentelemetry-api==1.36.0
+opentelemetry-exporter-otlp-proto-common==1.36.0
+opentelemetry-exporter-otlp-proto-grpc==1.36.0
+opentelemetry-exporter-otlp-proto-http==1.36.0
+opentelemetry-exporter-otlp==1.36.0
+opentelemetry-proto==1.36.0
+opentelemetry-sdk==1.36.0
+opentelemetry-semantic-conventions==0.57b0
 packaging==25.0
 pathspec==0.12.1
 pendulum==3.1.0
