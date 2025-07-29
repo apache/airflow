@@ -18,15 +18,17 @@
 HITLOperator (Human-in-the-loop)
 ================================
 
+.. versionadded:: 3.1
+
 Human-in-the-Loop (HITL) functionality allows you to incorporate human decision-making directly into your workflows.
 This powerful feature enables workflows to pause and wait for human input, making it perfect for approval processes, manual quality checks, and scenarios where human judgment is essential.
 
 In this tutorial, we will explore how to use the HITL operators in workflows.
 
-A HITL Example DAG
-------------------
+An HITL Example Dag
+-------------------
 
-Here is what HITL looks like in a DAG. We'll break it down and dive into it.
+Here is what HITL looks like in a Dag. We'll break it down and dive into it.
 
 .. exampleinclude:: /../../providers/standard/src/airflow/providers/standard/example_dags/example_hitl_operator.py
    :language: python
@@ -70,12 +72,12 @@ A specialized form of option selection, which has only 'Approval' and 'Rejection
    :start-after: [START howto_hitl_approval_operator]
    :end-before: [END howto_hitl_approval_operator]
 
-As you can see in the body of this code snippet, you can use ``Xcoms`` to get information provided by the user.
+As you can see in the body of this code snippet, you can use XComs to get information provided by the user.
 
 Branch Selection
 ----------------
 
-Users can choose which branch to follow within the DAG.
+Users can choose which branches to follow within the Dag.
 This is commonly applied in scenarios such as content moderation, where human judgment is sometimes required.
 
 This is like option selection, but the option needs to be a task.
