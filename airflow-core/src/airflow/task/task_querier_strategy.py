@@ -20,7 +20,6 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import Protocol
 
-from sqlalchemy import Column
 from sqlalchemy.orm import Query, Session
 
 from airflow.models.taskinstance import TaskInstance
@@ -37,14 +36,26 @@ class TaskQuerierStrategy(Protocol):
     """
 
     def query_tasks_with_locks(
-        self, priority_order: list[Column], session: Session, max_tis: int = 32
+        self,
+        session: Session,
+        **additional_params,
     ) -> list[TaskInstance]:
-        """Get the tasks ready for execution, that need to be scheduled."""
-        query = self.get_query(priority_order, max_tis)
+        """
+        Get the tasks ready for execution, that need to be scheduled.
+
+        Expects getting a priority_order to know how to priorotize the TI's correctly.
+        """
+        priority_order = additional_params["priority_order"]
+        max_tis = additional_params.get("max_tis", 32)
+
+        query = self.get_query(priority_order=priority_order, max_tis=max_tis)
         query = with_row_locks(query, of=TaskInstance, session=session, skip_locked=True)
 
         return session.scalars(query).all()
 
     @abstractmethod
-    def get_query(self, priority_order: list[Column], max_tis: int) -> Query:
+    def get_query(
+        self,
+        **additional_params,
+    ) -> Query:
         """Return the query to run, which is used to get the ready TI's."""
