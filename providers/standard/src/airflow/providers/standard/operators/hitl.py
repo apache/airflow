@@ -29,10 +29,10 @@ from collections.abc import Collection, Mapping
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
-from airflow.models.baseoperator import BaseOperator
 from airflow.providers.standard.exceptions import HITLTimeoutError, HITLTriggerEventError
 from airflow.providers.standard.triggers.hitl import HITLTrigger, HITLTriggerEventSuccessPayload
 from airflow.providers.standard.utils.skipmixin import SkipMixin
+from airflow.providers.standard.version_compat import BaseOperator
 from airflow.sdk.definitions.param import ParamsDict
 from airflow.sdk.execution_time.hitl import upsert_hitl_detail
 
