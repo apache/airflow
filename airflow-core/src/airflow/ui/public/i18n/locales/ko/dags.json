@@ -62,6 +62,7 @@
       "onlyFailed": "실패한 작업만 지우기",
       "past": "과거",
       "queueNew": "새 작업 대기열에 추가",
+      "runOnLatestVersion": "최신 번들 버전으로 실행",
       "upstream": "업스트림"
     }
   },
