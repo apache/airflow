@@ -35,7 +35,6 @@ from airflow.models import Trigger
 from airflow.models.base import Base, StringID
 from airflow.settings import json
 from airflow.triggers.deadline import PAYLOAD_STATUS_KEY, DeadlineCallbackTrigger
-from airflow.utils.decorators import classproperty
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
