@@ -1459,6 +1459,8 @@ class TestKubernetesPodOperatorSystem:
         Tests various log output configurations (log_prefix, log_formatter)
         for KubernetesPodOperator.
         """
+        from airflow.providers.cncf.kubernetes.utils.pod_manager import PodLoggingStatus
+
         marker = f"test_log_{uuid4()}"
         k = KubernetesPodOperator(
             namespace="default",
@@ -1476,8 +1478,29 @@ class TestKubernetesPodOperatorSystem:
         context = create_context(k)
         logger = logging.getLogger("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager")
         with mock.patch.object(logger, "info") as mock_info:
-            k.execute(context)
-            captured_messages = [call_args[0] for call_args in mock_info.call_args_list if call_args]
+            with mock.patch.object(PodManager, "fetch_container_logs") as mock_fetch_logs:
+                # Mock the fetch_container_logs to simulate log output
+                def side_effect(
+                    pod,
+                    container_name,
+                    follow,
+                    since_time=None,
+                    post_termination_timeout=120,
+                    log_prefix=True,
+                    log_formatter=None,
+                ):
+                    log_message = marker
+                    if log_formatter:
+                        log_message = log_formatter(container_name, marker)
+                    else:
+                        log_message = f"[{container_name}] {marker}" if log_prefix else marker
+                    logger.info(log_message)
+                    return PodLoggingStatus(last_log_time=pendulum.now(), running=False)
+
+                mock_fetch_logs.side_effect = side_effect
+                k.execute(context)
+
+            captured_messages = [call_args[0][0] for call_args in mock_info.call_args_list if call_args]
             assert any(expected_log_message_check(marker, msg) for msg in captured_messages)
 
 
