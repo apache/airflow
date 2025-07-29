@@ -26,7 +26,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.utils.sqlalchemy import with_row_locks
 
 
-class TaskQuerierStrategy(Protocol):
+class TaskSelectorStrategy(Protocol):
     """
     Query tasks to be examined for scheduling.
 
