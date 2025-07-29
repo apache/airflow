@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Protocol, Self
+from typing import Protocol
 
 from sqlalchemy import Column
 from sqlalchemy.orm import Query, Session
@@ -37,14 +37,14 @@ class TaskQuerierStrategy(Protocol):
     """
 
     def query_tasks_with_locks(
-        self: Self, priority_order: list[Column], session: Session
+        self, priority_order: list[Column], session: Session, max_tis: int = 32
     ) -> list[TaskInstance]:
         """Get the tasks ready for execution, that need to be scheduled."""
-        query = self.get_query()
+        query = self.get_query(priority_order, max_tis)
         query = with_row_locks(query, of=TaskInstance, session=session, skip_locked=True)
 
         return session.scalars(query).all()
 
     @abstractmethod
-    def get_query(self: Self) -> Query:
+    def get_query(self, priority_order: list[Column], max_tis: int) -> Query:
         """Return the query to run, which is used to get the ready TI's."""

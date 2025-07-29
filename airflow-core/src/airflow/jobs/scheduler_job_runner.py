@@ -415,16 +415,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
         def add_window_limit(query: Select, limit: LimitWindowDescriptor) -> Select:
-            inner_query = (
-                query.add_columns(limit.window)
-                .order_by(*priority_order)
-                .subquery()
-            )
+            inner_query = query.add_columns(limit.window).order_by(*priority_order).subquery()
             return (
                 select(TI)
                 .join(inner_query, TI.id == inner_query.c.id)
                 .join(DR, TI.run_id == DR.id)
-                .join(limit.running_now_join, *(getattr(TI, predicate) == getattr(limit.running_now_join.c, predicate) for predicate in limit.join_predicates))
+                .join(
+                    limit.running_now_join,
+                    *(
+                        getattr(TI, predicate) == getattr(limit.running_now_join.c, predicate)
+                        for predicate in limit.join_predicates
+                    ),
+                )
                 .where(
                     getattr(inner_query.c, limit.window.name) + limit.running_now_join.c.now_running
                     < limit.max_units
@@ -458,10 +460,22 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
         limits = [
-            LimitWindowDescriptor(running_total_tis_per_dagrun, ['dag_id', 'run_id'], DagModel.max_active_tasks, total_tis_per_dagrun_count),
-            LimitWindowDescriptor(running_tis_per_dag, ['dag_id', 'task_id'], TI.max_active_tis_per_dag, tis_per_dag_count),
-            LimitWindowDescriptor(running_total_tis_per_task_run, ['dag_id', 'run_id', 'task_id'], TI.max_active_tis_per_dagrun, mapped_tis_per_task_run_count),
-            LimitWindowDescriptor(running_tis_per_pool, ['pool'], Pool.slots, pool_slots_taken),
+            LimitWindowDescriptor(
+                running_total_tis_per_dagrun,
+                ["dag_id", "run_id"],
+                DagModel.max_active_tasks,
+                total_tis_per_dagrun_count,
+            ),
+            LimitWindowDescriptor(
+                running_tis_per_dag, ["dag_id", "task_id"], TI.max_active_tis_per_dag, tis_per_dag_count
+            ),
+            LimitWindowDescriptor(
+                running_total_tis_per_task_run,
+                ["dag_id", "run_id", "task_id"],
+                TI.max_active_tis_per_dagrun,
+                mapped_tis_per_task_run_count,
+            ),
+            LimitWindowDescriptor(running_tis_per_pool, ["pool"], Pool.slots, pool_slots_taken),
         ]
 
         for limit in limits:
@@ -821,32 +835,30 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @classmethod
     def set_ti_span_attrs(cls, span, state, ti):
-        span.set_attributes(
-            {
-                "airflow.category": "scheduler",
-                "airflow.task.id": ti.id,
-                "airflow.task.task_id": ti.task_id,
-                "airflow.task.dag_id": ti.dag_id,
-                "airflow.task.state": ti.state,
-                "airflow.task.error": state == TaskInstanceState.FAILED,
-                "airflow.task.start_date": str(ti.start_date),
-                "airflow.task.end_date": str(ti.end_date),
-                "airflow.task.duration": ti.duration,
-                "airflow.task.executor_config": str(ti.executor_config),
-                "airflow.task.logical_date": str(ti.logical_date),
-                "airflow.task.hostname": ti.hostname,
-                "airflow.task.log_url": ti.log_url,
-                "airflow.task.operator": str(ti.operator),
-                "airflow.task.try_number": ti.try_number,
-                "airflow.task.executor_state": state,
-                "airflow.task.pool": ti.pool,
-                "airflow.task.queue": ti.queue,
-                "airflow.task.priority_weight": ti.priority_weight,
-                "airflow.task.queued_dttm": str(ti.queued_dttm),
-                "airflow.task.queued_by_job_id": ti.queued_by_job_id,
-                "airflow.task.pid": ti.pid,
-            }
-        )
+        span.set_attributes({
+            "airflow.category": "scheduler",
+            "airflow.task.id": ti.id,
+            "airflow.task.task_id": ti.task_id,
+            "airflow.task.dag_id": ti.dag_id,
+            "airflow.task.state": ti.state,
+            "airflow.task.error": state == TaskInstanceState.FAILED,
+            "airflow.task.start_date": str(ti.start_date),
+            "airflow.task.end_date": str(ti.end_date),
+            "airflow.task.duration": ti.duration,
+            "airflow.task.executor_config": str(ti.executor_config),
+            "airflow.task.logical_date": str(ti.logical_date),
+            "airflow.task.hostname": ti.hostname,
+            "airflow.task.log_url": ti.log_url,
+            "airflow.task.operator": str(ti.operator),
+            "airflow.task.try_number": ti.try_number,
+            "airflow.task.executor_state": state,
+            "airflow.task.pool": ti.pool,
+            "airflow.task.queue": ti.queue,
+            "airflow.task.priority_weight": ti.priority_weight,
+            "airflow.task.queued_dttm": str(ti.queued_dttm),
+            "airflow.task.queued_by_job_id": ti.queued_by_job_id,
+            "airflow.task.pid": ti.pid,
+        })
         if span.is_recording():
             span.add_event(name="airflow.task.queued", timestamp=datetime_to_nano(ti.queued_dttm))
             span.add_event(name="airflow.task.started", timestamp=datetime_to_nano(ti.start_date))
@@ -1147,12 +1159,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 DebugTrace.start_span(span_name="scheduler_job_loop", component="SchedulerJobRunner") as span,
                 Stats.timer("scheduler.scheduler_loop_duration") as timer,
             ):
-                span.set_attributes(
-                    {
-                        "category": "scheduler",
-                        "loop_count": loop_count,
-                    }
-                )
+                span.set_attributes({
+                    "category": "scheduler",
+                    "loop_count": loop_count,
+                })
 
                 with create_session() as session:
                     self._end_spans_of_externally_ended_ops(session)
@@ -1564,14 +1574,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         @add_debug_span
         def _update_state(dag: DAG, dag_run: DagRun):
             span = Trace.get_current_span()
-            span.set_attributes(
-                {
-                    "state": str(DagRunState.RUNNING),
-                    "run_id": dag_run.run_id,
-                    "type": dag_run.run_type,
-                    "dag_id": dag_run.dag_id,
-                }
-            )
+            span.set_attributes({
+                "state": str(DagRunState.RUNNING),
+                "run_id": dag_run.run_id,
+                "type": dag_run.run_type,
+                "dag_id": dag_run.dag_id,
+            })
 
             dag_run.state = DagRunState.RUNNING
             dag_run.start_date = timezone.utcnow()
@@ -1686,13 +1694,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         with DebugTrace.start_span(
             span_name="_schedule_dag_run", component="SchedulerJobRunner", links=links
         ) as span:
-            span.set_attributes(
-                {
-                    "dag_id": dag_run.dag_id,
-                    "run_id": dag_run.run_id,
-                    "run_type": dag_run.run_type,
-                }
-            )
+            span.set_attributes({
+                "dag_id": dag_run.dag_id,
+                "run_id": dag_run.run_id,
+                "run_type": dag_run.run_type,
+            })
             callback: DagCallbackRequest | None = None
 
             dag = dag_run.dag = self.scheduler_dag_bag.get_dag(dag_run=dag_run, session=session)
@@ -1998,16 +2004,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 Stats.gauge("pool.deferred_slots", slot_stats["deferred"], tags={"pool_name": pool_name})
                 Stats.gauge("pool.scheduled_slots", slot_stats["scheduled"], tags={"pool_name": pool_name})
 
-                span.set_attributes(
-                    {
-                        "category": "scheduler",
-                        f"pool.open_slots.{pool_name}": slot_stats["open"],
-                        f"pool.queued_slots.{pool_name}": slot_stats["queued"],
-                        f"pool.running_slots.{pool_name}": slot_stats["running"],
-                        f"pool.deferred_slots.{pool_name}": slot_stats["deferred"],
-                        f"pool.scheduled_slots.{pool_name}": slot_stats["scheduled"],
-                    }
-                )
+                span.set_attributes({
+                    "category": "scheduler",
+                    f"pool.open_slots.{pool_name}": slot_stats["open"],
+                    f"pool.queued_slots.{pool_name}": slot_stats["queued"],
+                    f"pool.running_slots.{pool_name}": slot_stats["running"],
+                    f"pool.deferred_slots.{pool_name}": slot_stats["deferred"],
+                    f"pool.scheduled_slots.{pool_name}": slot_stats["scheduled"],
+                })
 
     @provide_session
     def adopt_or_reset_orphaned_tasks(self, session: Session = NEW_SESSION) -> int:

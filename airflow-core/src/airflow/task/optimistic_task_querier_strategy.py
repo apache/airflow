@@ -16,19 +16,17 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Self
-
-from sqlalchemy import select
+from sqlalchemy import Column, select
 from sqlalchemy.orm import Query, selectinload
 
-from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun, TaskInstance
+from airflow.models import DagRun, TaskInstance
 from airflow.models.dag import DagModel
 from airflow.task.task_querier_strategy import TaskQuerierStrategy
 from airflow.utils.state import DagRunState, TaskInstanceState
 
 
 class OptimisticTaskQuerierStrategy(TaskQuerierStrategy):
-    def get_query(self: Self) -> Query:
+    def get_query(self, priority_order: list[Column], max_tis: int) -> Query:
         query = (
             select(TaskInstance)
             .with_hint(TaskInstance, "USE INDEX (ti_state)", dialect_name="mysql")
@@ -38,7 +36,8 @@ class OptimisticTaskQuerierStrategy(TaskQuerierStrategy):
             .where(~DagModel.is_paused)
             .where(TaskInstance.state == TaskInstanceState.SCHEDULED)
             .where(DagModel.bundle_name.is_not(None))
+            .order_by(priority_order)
             .options(selectinload(TaskInstance.dag_model))
         )
 
-        return query
+        return query.limit(max_tis)
