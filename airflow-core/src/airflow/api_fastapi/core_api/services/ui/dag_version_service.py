@@ -21,7 +21,7 @@ from typing import TypedDict
 
 import structlog
 
-from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 
 log = structlog.get_logger(logger_name=__name__)
@@ -39,8 +39,11 @@ class DagVersionInfo(TypedDict):
 class DagVersionService:
     """Service class for managing Dag version operations."""
 
-    def __init__(self, session: SessionDep):
-        self.session = session
+    def _get_latest_version(self, dag_run: DagRun) -> DagVersion | None:
+        """Get the latest DagVersion used in this DagRun."""
+        if dag_run.dag_versions:
+            return max(dag_run.dag_versions, key=lambda dv: dv.version_number)
+        return dag_run.created_dag_version
 
     def get_version_info_for_runs(self, dag_runs: list[DagRun]) -> list[DagVersionInfo]:
         """
@@ -52,25 +55,21 @@ class DagVersionService:
         Returns:
             List of dictionaries with version information
         """
+        if not dag_runs:
+            return []
+
         version_info_list: list[DagVersionInfo] = []
 
+        # Process runs from newest to oldest, comparing with previous run
         for i, dag_run in enumerate(dag_runs):
-            dag_version_number = None
-            dag_version_id = None
+            latest_version = self._get_latest_version(dag_run)
+            current_versions = {dv.version_number for dv in dag_run.dag_versions}
 
-            # Get version info from created_dag_version
-            if dag_run.created_dag_version:
-                dag_version_number = dag_run.created_dag_version.version_number
-                dag_version_id = str(dag_run.created_dag_version.id)
-
-            # Get current run's versions
-            current_versions = set(dv.version_number for dv in dag_run.dag_versions)
-
-            # Get previous run's versions for comparison
+            # Compare with previous run (next in chronological order)
             previous_versions = set()
             if i + 1 < len(dag_runs):
                 previous_run = dag_runs[i + 1]
-                previous_versions = set(dv.version_number for dv in previous_run.dag_versions)
+                previous_versions = {dv.version_number for dv in previous_run.dag_versions}
 
             # Calculate version changes using set difference
             version_changes = current_versions - previous_versions
@@ -78,8 +77,8 @@ class DagVersionService:
 
             version_info_list.append(
                 {
-                    "dag_version_number": dag_version_number,
-                    "dag_version_id": dag_version_id,
+                    "dag_version_number": latest_version.version_number if latest_version else None,
+                    "dag_version_id": str(latest_version.id) if latest_version else None,
                     "is_version_changed": is_version_changed,
                     "version_changes": sorted(list(version_changes)),
                 }

@@ -248,7 +248,7 @@ def get_grid_runs(
         if not dag_runs:
             return []
 
-        version_service = DagVersionService(session)
+        version_service = DagVersionService()
         version_info_list = version_service.get_version_info_for_runs(dag_runs)
 
         response = []
