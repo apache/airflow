@@ -92,6 +92,8 @@ are provided by the API server.
 
 Release: 1.1.2
 
+Release Date: ``|PypiReleaseDate|``
+
 Provider package
 ----------------
 

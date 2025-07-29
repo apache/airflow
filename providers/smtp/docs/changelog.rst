@@ -28,6 +28,27 @@ Changelog
 ---------
 
 
+2.1.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix: enter SmtpHook before trying to read properties (#53418)``
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup type ignores in smtp provider where possible (#53260)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Moving BaseHook usages to version_compat for smtp (#52950)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.1.1
 .....
 
