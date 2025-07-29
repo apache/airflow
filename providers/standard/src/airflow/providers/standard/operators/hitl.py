@@ -181,7 +181,7 @@ class ApprovalOperator(HITLOperator, SkipMixin):
         self.ignore_downstream_trigger_rules = ignore_downstream_trigger_rules
 
         super().__init__(
-            options=[ApprovalOperator.APPROVE, ApprovalOperator.REJECT],
+            options=[self.APPROVE, self.REJECT],
             multiple=False,
             **kwargs,
         )
@@ -190,7 +190,7 @@ class ApprovalOperator(HITLOperator, SkipMixin):
         ret = super().execute_complete(context=context, event=event)
 
         chosen_option = ret["chosen_options"][0]
-        if chosen_option == ApprovalOperator.APPROVE:
+        if chosen_option == self.APPROVE:
             self.log.info("Approved. Proceeding with downstream tasks...")
             return ret
 
@@ -235,9 +235,9 @@ class HITLEntryOperator(HITLOperator):
 
     def __init__(self, **kwargs) -> None:
         if "options" not in kwargs:
-            kwargs["options"] = [HITLEntryOperator.OK]
+            kwargs["options"] = [self.OK]
 
             if "defaults" not in kwargs:
-                kwargs["defaults"] = [HITLEntryOperator.OK]
+                kwargs["defaults"] = [self.OK]
 
         super().__init__(**kwargs)
