@@ -92,7 +92,10 @@ def _is_safe_bundle_url(url: str) -> bool:
     - Is properly formatted
     - Doesn't contain malicious content
     """
+    import logging
     from urllib.parse import urlparse
+
+    logger = logging.getLogger(__name__)
 
     if not url:
         return False
@@ -100,16 +103,22 @@ def _is_safe_bundle_url(url: str) -> bool:
     try:
         parsed = urlparse(url)
         if parsed.scheme not in {"http", "https"}:
+            logger.error(
+                "Bundle URL uses unsafe scheme '%s'. Only 'http' and 'https' are allowed", parsed.scheme
+            )
             return False
 
         if not parsed.netloc:
+            logger.error("Bundle URL '%s' has no network location", url)
             return False
 
         if any(ord(c) < 32 for c in url):
+            logger.error("Bundle URL '%s' contains control characters (ASCII < 32)", url)
             return False
 
         return True
-    except Exception:
+    except Exception as e:
+        logger.error("Failed to parse bundle URL '%s': %s", url, str(e))
         return False
 
 
