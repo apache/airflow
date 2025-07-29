@@ -863,6 +863,7 @@ class SQLValueCheckOperator(BaseSQLOperator):
         tolerance: Any = None,
         conn_id: str | None = None,
         database: str | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
         **kwargs,
     ):
         super().__init__(conn_id=conn_id, database=database, **kwargs)
@@ -871,6 +872,7 @@ class SQLValueCheckOperator(BaseSQLOperator):
         tol = _convert_to_float_if_possible(tolerance)
         self.tol = tol if isinstance(tol, float) else None
         self.has_tolerance = self.tol is not None
+        self.parameters = parameters
 
     def check_value(self, records):
         if not records:
@@ -903,7 +905,7 @@ class SQLValueCheckOperator(BaseSQLOperator):
 
     def execute(self, context: Context):
         self.log.info("Executing SQL check: %s", self.sql)
-        records = self.get_db_hook().get_first(self.sql)
+        records = self.get_db_hook().get_first(self.sql, self.parameters)
         self.check_value(records)
 
     def _to_float(self, records):

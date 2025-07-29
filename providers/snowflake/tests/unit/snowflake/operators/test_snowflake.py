@@ -18,11 +18,13 @@
 from __future__ import annotations
 
 from unittest import mock
+from unittest.mock import call
 
 import pendulum
 import pytest
 
 from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
@@ -34,7 +36,7 @@ from airflow.providers.snowflake.operators.snowflake import (
     SnowflakeValueCheckOperator,
 )
 from airflow.providers.snowflake.triggers.snowflake_trigger import SnowflakeSqlApiTrigger
-from airflow.utils import timezone
+from airflow.utils import timezone  # type: ignore[attr-defined]
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
@@ -107,25 +109,80 @@ class TestSnowflakeOperatorForParams:
         )
 
 
-@pytest.mark.parametrize(
-    "operator_class, kwargs",
-    [
-        (SnowflakeCheckOperator, dict(sql="Select * from test_table")),
-        (SnowflakeValueCheckOperator, dict(sql="Select * from test_table", pass_value=95)),
-        (SnowflakeIntervalCheckOperator, dict(table="test-table-id", metrics_thresholds={"COUNT(*)": 1.5})),
-    ],
-)
-class TestSnowflakeCheckOperators:
-    @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
+@pytest.fixture(autouse=True)
+def setup_connections(create_connection_without_db):
+    create_connection_without_db(
+        Connection(
+            conn_id="snowflake_default",
+            conn_type="snowflake",
+            host="test_host",
+            port=443,
+            schema="test_schema",
+            login="test_user",
+            password="test_password",
+        )
+    )
+
+
+class TestSnowflakeCheckOperator:
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLCheckOperator.get_db_hook")
     def test_get_db_hook(
         self,
         mock_get_db_hook,
-        operator_class,
-        kwargs,
     ):
-        operator = operator_class(task_id="snowflake_check", snowflake_conn_id="snowflake_default", **kwargs)
-        operator.get_db_hook()
-        mock_get_db_hook.assert_called_once()
+        operator = SnowflakeCheckOperator(
+            task_id="snowflake_check",
+            snowflake_conn_id="snowflake_default",
+            sql="Select * from test_table",
+            parameters={"param1": "value1"},
+        )
+        operator.execute({})
+        mock_get_db_hook.assert_has_calls(
+            [call().get_first("Select * from test_table", {"param1": "value1"})]
+        )
+
+
+class TestSnowflakeValueCheckOperator:
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLValueCheckOperator.get_db_hook")
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLValueCheckOperator.check_value")
+    def test_get_db_hook(
+        self,
+        mock_check_value,
+        mock_get_db_hook,
+    ):
+        mock_get_db_hook.return_value.get_first.return_value = ["test_value"]
+
+        operator = SnowflakeValueCheckOperator(
+            task_id="snowflake_check",
+            sql="Select * from test_table",
+            pass_value=95,
+            parameters={"param1": "value1"},
+        )
+        operator.execute({})
+        mock_get_db_hook.assert_has_calls(
+            [call().get_first("Select * from test_table", {"param1": "value1"})]
+        )
+        assert mock_check_value.call_args == call(["test_value"])
+
+
+class TestSnowflakeIntervalCheckOperator:
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLIntervalCheckOperator.__init__")
+    def test_get_db_hook(
+        self,
+        mock_snowflake_interval_check_operator,
+    ):
+        SnowflakeIntervalCheckOperator(
+            task_id="snowflake_check", table="test-table-id", metrics_thresholds={"COUNT(*)": 1.5}
+        )
+        assert mock_snowflake_interval_check_operator.call_args == mock.call(
+            table="test-table-id",
+            metrics_thresholds={"COUNT(*)": 1.5},
+            date_filter_column="ds",
+            days_back=-7,
+            conn_id="snowflake_default",
+            task_id="snowflake_check",
+            default_args={},
+        )
 
 
 @pytest.mark.parametrize(

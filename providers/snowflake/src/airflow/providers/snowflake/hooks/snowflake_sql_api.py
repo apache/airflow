@@ -435,7 +435,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         :param url: The URL for the API endpoint.
         :param headers: The headers to include in the API call.
         :param params: (Optional) The query parameters to include in the API call.
-        :param data: (Optional) The data to include in the API call.
+        :param json: (Optional) The data to include in the API call.
         :return: The response object from the API call.
         """
         with requests.Session() as session:
