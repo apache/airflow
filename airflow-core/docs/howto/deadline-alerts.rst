@@ -152,23 +152,25 @@ Creating Custom Callbacks
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 You can create custom callbacks for more complex handling. The ``callback_kwargs`` specified in
-the ``DeadlineAlert`` are passed to the callback function. Async callbacks are recommended, and
-you can use Jinja templating in the ``callback_kwargs``:
+the ``DeadlineAlert`` are passed to the callback function. Async callbacks are recommended.
 
 .. code-block:: python
 
-    from datetime import datetime, timedelta
-    from airflow import DAG
-    from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
-    from airflow.providers.standard.operators.empty import EmptyOperator
-
-
+    ## Place this method in `/files/plugins/deadline_callbacks.py`
     async def custom_callback(**kwargs):
         """Handle deadline violation with custom logic."""
         print(f"Deadline exceeded for DAG {kwargs.get("dag_id")}!")
         print(f"Alert type: {kwargs.get("alert_type")}")
         # Additional custom handling here
 
+    ## Place this in a dag file
+    from datetime import timedelta
+
+    from deadline_callbacks import custom_callback
+
+    from airflow import DAG
+    from airflow.providers.standard.operators.empty import EmptyOperator
+    from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 
     with DAG(
         dag_id="custom_deadline_alert",
@@ -176,17 +178,15 @@ you can use Jinja templating in the ``callback_kwargs``:
             reference=DeadlineReference.DAGRUN_QUEUED_AT,
             interval=timedelta(minutes=15),
             callback=custom_callback,
-            callback_kwargs={"alert_type": "time_exceeded", "dag_id": "{{ dag.dag_id }}"},
+            callback_kwargs={"alert_type": "time_exceeded", "dag_id": "custom_deadline_alert"},
         ),
     ):
         EmptyOperator(task_id="example_task")
 
-In this example, we define an async callback function that will be executed by the Triggerer.
-The ``callback_kwargs`` are available in the function, and you can use Jinja templating to access
-DAG and runtime information. This allows for dynamic and context-aware alert handling.
-
 Note: Async callbacks are recommended as they will be executed by the Triggerer.
-Ensure any async callback is importable by the Triggerer.
+Ensure any async callback is importable by the Triggerer.  One easy way to do this
+is to place them in the plugins folder, as mentioned above.  The Triggerer may need
+to be restarted when a callback is added or changed in order to reload the files.
 
 Deadline Calculation
 ^^^^^^^^^^^^^^^^^^^^
