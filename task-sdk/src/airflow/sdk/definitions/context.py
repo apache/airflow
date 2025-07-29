@@ -83,6 +83,9 @@ class Context(TypedDict, total=False):
     var: Any
 
 
+KNOWN_CONTEXT_KEYS: set[str] = set(Context.__annotations__.keys())
+
+
 def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
     """
     Merge parameters into an existing context.
