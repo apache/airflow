@@ -35,7 +35,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,
     AssetResponse,
     ConnectionResponse,
-    DagRunResponse,
+    DagRun,
     DagRunState,
     DagRunStateResponse,
     HITLDetailResponse,
@@ -1029,7 +1029,7 @@ class TestDagRunOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
         result = client.dag_runs.get(dag_id="test_get", run_id="test_run_id")
 
-        assert isinstance(result, DagRunResponse)
+        assert isinstance(result, DagRun)
         assert result.dag_id == "test_get"
         assert result.run_id == "test_run_id"
 
