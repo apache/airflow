@@ -23,7 +23,6 @@ import json
 import logging
 import os
 from pathlib import Path
-import pathlib
 import shutil
 import sys
 import time
@@ -510,7 +509,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # calling close method. Here we check if logger is already
         # closed to prevent uploading the log to remote storage multiple
         # times when `logging.shutdown` is called.
-        # TODO: This API should be simplied since Airflow 3 no longer requires this API for writing log to ES
+        # TODO: This API should be simplified since Airflow 3 no longer requires this API for writing log to ES
         if self.closed:
             return
 
@@ -728,5 +727,5 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
             self.log.exception("Unable to insert logs into Elasticsearch. Reason: %s", str(e))
             return False
 
-    def read(self, relative_path: str, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages]:
+    def read(self, relative_path: str, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages]:  # type: ignore[empty-body]
         pass
