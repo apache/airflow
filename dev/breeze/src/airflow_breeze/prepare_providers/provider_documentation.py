@@ -195,6 +195,61 @@ TYPE_OF_CHANGE_DESCRIPTION = {
 }
 
 
+def classification_result(provider_id, changed_files):
+    changed_files = list(filter(lambda f: provider_id in f, changed_files))
+
+    if not changed_files:
+        return "other"
+
+    def is_doc(f):
+        return re.match(r"^providers/.+/docs/", f) and f.endswith(".rst")
+
+    def is_test_or_example(f):
+        return re.match(r"^providers/.+/tests/", f) or re.match(
+            r"^providers/.+/src/airflow/providers/.+/example_dags/", f
+        )
+
+    all_docs = all(is_doc(f) for f in changed_files)
+    all_test_or_example = all(is_test_or_example(f) for f in changed_files)
+
+    has_docs = any(is_doc(f) for f in changed_files)
+    has_test_or_example = any(is_test_or_example(f) for f in changed_files)
+
+    has_real_code = any(not (is_doc(f) or is_test_or_example(f)) for f in changed_files)
+
+    if all_docs:
+        return "documentation"
+    if all_test_or_example:
+        return "test_or_example_only"
+    if not has_real_code and (has_docs or has_test_or_example):
+        return "documentation"
+    return "other"
+
+
+def classify_provider_pr_files(provider_id: str, commit_hash: str) -> str:
+    """
+    Classify a provider commit based on changed files.
+
+    - Returns 'documentation' if any provider doc files are present.
+    - Returns 'test_or_example_only' if only test/example DAGs changed.
+    - Returns 'other' otherwise.
+    """
+    try:
+        result = run_command(
+            ["git", "diff", "--name-only", f"{commit_hash}^", commit_hash],
+            cwd=AIRFLOW_ROOT_PATH,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        changed_files = result.stdout.strip().splitlines()
+    except subprocess.CalledProcessError:
+        # safe to return other here
+        return "other"
+
+    return classification_result(provider_id, changed_files)
+
+
 def _get_git_log_command(
     folder_paths: list[Path] | None = None, from_commit: str | None = None, to_commit: str | None = None
 ) -> list[str]:
@@ -715,39 +770,6 @@ def _update_commits_rst(
     )
 
 
-def _is_test_or_example_dag_only_changes(commit_hash: str) -> bool:
-    """
-    Check if a commit contains only test-related or example DAG changes
-    by using the git diff command.
-
-    Considers files in airflow/providers/{provider}/tests/
-    and airflow/providers/{provider}/src/airflow/providers/{provider}/example_dags/
-    as test/example-only files.
-
-    :param commit_hash: The full commit hash to check
-    :return: True if changes are only in test/example files, False otherwise
-    """
-    try:
-        result = run_command(
-            ["git", "diff", "--name-only", f"{commit_hash}^", commit_hash],
-            cwd=AIRFLOW_ROOT_PATH,
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        changed_files = result.stdout.strip().splitlines()
-
-        for file_path in changed_files:
-            if not (
-                re.match(r"airflow/providers/[^/]+/tests/", file_path)
-                or re.match(r"airflow/providers/[^/]+/src/airflow/providers/[^/]+/example_dags/", file_path)
-            ):
-                return False
-        return True
-    except subprocess.CalledProcessError:
-        return False
-
-
 def update_release_notes(
     provider_id: str,
     reapply_templates_only: bool,
@@ -817,9 +839,16 @@ def update_release_notes(
                 )
                 change = list_of_list_of_changes[0][table_iter]
 
-                if change.pr and _is_test_or_example_dag_only_changes(change.full_hash):
+                classification = classify_provider_pr_files(provider_id, change.full_hash)
+                if classification == "documentation":
                     get_console().print(
-                        f"[green]Automatically classifying change as SKIPPED since it only contains test changes:[/]\n"
+                        f"[green]Automatically classifying change as DOCUMENTATION since it contains only doc changes:[/]\n"
+                        f"[blue]{formatted_message}[/]"
+                    )
+                    type_of_change = TypeOfChange.DOCUMENTATION
+                elif classification == "test_or_example_only":
+                    get_console().print(
+                        f"[green]Automatically classifying change as SKIPPED since it only contains test/example changes:[/]\n"
                         f"[blue]{formatted_message}[/]"
                     )
                     type_of_change = TypeOfChange.SKIP

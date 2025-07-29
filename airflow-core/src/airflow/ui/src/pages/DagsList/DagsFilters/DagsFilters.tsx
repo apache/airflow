@@ -18,27 +18,37 @@
  */
 import { Box, HStack } from "@chakra-ui/react";
 import type { MultiValue } from "chakra-react-select";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import { useDagServiceGetDagTags } from "openapi/queries";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
+import { useDagTagsInfinite } from "src/queries/useDagTagsInfinite";
 
+import { FavoriteFilter } from "./FavoriteFilter";
 import { PausedFilter } from "./PausedFilter";
 import { ResetButton } from "./ResetButton";
 import { StateFilters } from "./StateFilters";
 import { TagFilter } from "./TagFilter";
 
 const {
+  FAVORITE: FAVORITE_PARAM,
   LAST_DAG_RUN_STATE: LAST_DAG_RUN_STATE_PARAM,
+  OFFSET: OFFSET_PARAM,
   PAUSED: PAUSED_PARAM,
   TAGS: TAGS_PARAM,
   TAGS_MATCH_MODE: TAGS_MATCH_MODE_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
-const getFilterCount = (state: string | null, showPaused: string | null, selectedTags: Array<string>) => {
+type FilterOptions = {
+  selectedTags: Array<string>;
+  showFavorites: string | null;
+  showPaused: string | null;
+  state: string | null;
+};
+
+const getFilterCount = ({ selectedTags, showFavorites, showPaused, state }: FilterOptions) => {
   let count = 0;
 
   if (state !== null) {
@@ -50,6 +60,9 @@ const getFilterCount = (state: string | null, showPaused: string | null, selecte
   if (selectedTags.length > 0) {
     count += 1;
   }
+  if (showFavorites !== null) {
+    count += 1;
+  }
 
   return count;
 };
@@ -58,6 +71,7 @@ export const DagsFilters = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const showPaused = searchParams.get(PAUSED_PARAM);
+  const showFavorites = searchParams.get(FAVORITE_PARAM);
   const state = searchParams.get(LAST_DAG_RUN_STATE_PARAM);
   const selectedTags = searchParams.getAll(TAGS_PARAM);
   const tagFilterMode = searchParams.get(TAGS_MATCH_MODE_PARAM) ?? "any";
@@ -66,8 +80,12 @@ export const DagsFilters = () => {
   const isFailed = state === "failed";
   const isSuccess = state === "success";
 
-  const { data } = useDagServiceGetDagTags({
-    orderBy: "name",
+  const [pattern, setPattern] = useState("");
+
+  const { data, fetchNextPage, fetchPreviousPage } = useDagTagsInfinite({
+    limit: 10,
+    orderBy: ["name"],
+    tagNamePattern: pattern,
   });
 
   const hidePausedDagsByDefault = Boolean(useConfig("hide_paused_dags_by_default"));
@@ -80,7 +98,7 @@ export const DagsFilters = () => {
     ({ value }: { value: Array<string> }) => {
       const [val] = value;
 
-      if (val === undefined || val === "all") {
+      if (val === undefined) {
         searchParams.delete(PAUSED_PARAM);
       } else {
         searchParams.set(PAUSED_PARAM, val);
@@ -89,6 +107,26 @@ export const DagsFilters = () => {
         pagination: { ...pagination, pageIndex: 0 },
         sorting,
       });
+      searchParams.delete(OFFSET_PARAM);
+      setSearchParams(searchParams);
+    },
+    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
+  );
+
+  const handleFavoriteChange = useCallback(
+    ({ value }: { value: Array<string> }) => {
+      const [val] = value;
+
+      if (val === undefined || val === "all") {
+        searchParams.delete(FAVORITE_PARAM);
+      } else {
+        searchParams.set(FAVORITE_PARAM, val);
+      }
+      setTableURLState({
+        pagination: { ...pagination, pageIndex: 0 },
+        sorting,
+      });
+      searchParams.delete(OFFSET_PARAM);
       setSearchParams(searchParams);
     },
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
@@ -105,6 +143,7 @@ export const DagsFilters = () => {
         pagination: { ...pagination, pageIndex: 0 },
         sorting,
       });
+      searchParams.delete(OFFSET_PARAM);
       setSearchParams(searchParams);
     },
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
@@ -124,6 +163,7 @@ export const DagsFilters = () => {
       if (tags.length < 2) {
         searchParams.delete(TAGS_MATCH_MODE_PARAM);
       }
+      searchParams.delete(OFFSET_PARAM);
       setSearchParams(searchParams);
     },
     [searchParams, setSearchParams],
@@ -131,11 +171,13 @@ export const DagsFilters = () => {
 
   const onClearFilters = () => {
     searchParams.delete(PAUSED_PARAM);
+    searchParams.delete(FAVORITE_PARAM);
     searchParams.delete(LAST_DAG_RUN_STATE_PARAM);
     searchParams.delete(TAGS_PARAM);
     searchParams.delete(TAGS_MATCH_MODE_PARAM);
 
     setSearchParams(searchParams);
+    setPattern("");
   };
 
   const handleTagModeChange = useCallback(
@@ -148,7 +190,12 @@ export const DagsFilters = () => {
     [searchParams, setSearchParams],
   );
 
-  const filterCount = getFilterCount(state, showPaused, selectedTags);
+  const filterCount = getFilterCount({
+    selectedTags,
+    showFavorites,
+    showPaused,
+    state,
+  });
 
   return (
     <HStack justifyContent="space-between">
@@ -166,12 +213,20 @@ export const DagsFilters = () => {
           showPaused={showPaused}
         />
         <TagFilter
+          onMenuScrollToBottom={() => {
+            void fetchNextPage();
+          }}
+          onMenuScrollToTop={() => {
+            void fetchPreviousPage();
+          }}
           onSelectTagsChange={handleSelectTagsChange}
           onTagModeChange={handleTagModeChange}
+          onUpdate={setPattern}
           selectedTags={selectedTags}
           tagFilterMode={tagFilterMode}
-          tags={data?.tags ?? []}
+          tags={data?.pages.flatMap((dagResponse) => dagResponse.tags) ?? []}
         />
+        <FavoriteFilter onFavoriteChange={handleFavoriteChange} showFavorites={showFavorites} />
       </HStack>
       <Box>
         <ResetButton filterCount={filterCount} onClearFilters={onClearFilters} />

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 import warnings
 from pathlib import Path
 
@@ -30,11 +31,12 @@ from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 
 from airflow.api_fastapi.auth.tokens import get_signing_key
-from airflow.api_fastapi.core_api.middleware import FlaskExceptionsMiddleware
 from airflow.exceptions import AirflowException
 from airflow.settings import AIRFLOW_PATH
 
 log = logging.getLogger(__name__)
+
+PY313 = sys.version_info >= (3, 13)
 
 
 def init_views(app: FastAPI) -> None:
@@ -54,6 +56,13 @@ def init_views(app: FastAPI) -> None:
     Path(directory).mkdir(exist_ok=True)
 
     templates = Jinja2Templates(directory=directory)
+
+    if dev_mode:
+        app.mount(
+            "/static/i18n/locales",
+            StaticFiles(directory=Path(AIRFLOW_PATH) / "airflow/ui/public/i18n/locales"),
+            name="dev_i18n_static",
+        )
 
     app.mount(
         "/static",
@@ -118,6 +127,13 @@ def init_flask_plugins(app: FastAPI) -> None:
     try:
         from airflow.providers.fab.www.app import create_app
     except ImportError:
+        if PY313:
+            log.info(
+                "Some Airflow 2 plugins have been detected in your environment. Currently FAB provider "
+                "does not support Python 3.13, so you cannot use Airflow 2 plugins with Airflow 3 until "
+                "FAB provider will be Python 3.13 compatible."
+            )
+            return
         raise AirflowException(
             "Some Airflow 2 plugins have been detected in your environment. "
             "To run them with Airflow 3, you must install the FAB provider in your Airflow environment."
@@ -169,8 +185,16 @@ def init_error_handlers(app: FastAPI) -> None:
 def init_middlewares(app: FastAPI) -> None:
     from airflow.configuration import conf
 
-    app.add_middleware(FlaskExceptionsMiddleware)
-    if conf.getboolean("core", "simple_auth_manager_all_admins"):
+    if "SimpleAuthManager" in conf.get("core", "auth_manager") and conf.getboolean(
+        "core", "simple_auth_manager_all_admins"
+    ):
         from airflow.api_fastapi.auth.managers.simple.middleware import SimpleAllAdminMiddleware
 
         app.add_middleware(SimpleAllAdminMiddleware)
+
+
+def init_ui_plugins(app: FastAPI) -> None:
+    """Initialize UI plugins."""
+    from airflow import plugins_manager
+
+    plugins_manager.initialize_ui_plugins()

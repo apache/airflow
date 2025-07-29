@@ -33,6 +33,15 @@ class DagScheduleAssetReference(StrictBaseModel):
     updated_at: datetime
 
 
+class TaskInletAssetReference(StrictBaseModel):
+    """Task inlet reference serializer for assets."""
+
+    dag_id: str
+    task_id: str
+    created_at: datetime
+    updated_at: datetime
+
+
 class TaskOutletAssetReference(StrictBaseModel):
     """Task outlet reference serializer for assets."""
 
@@ -59,8 +68,9 @@ class AssetResponse(BaseModel):
     extra: dict | None = None
     created_at: datetime
     updated_at: datetime
-    consuming_dags: list[DagScheduleAssetReference]
+    scheduled_dags: list[DagScheduleAssetReference]
     producing_tasks: list[TaskOutletAssetReference]
+    consuming_tasks: list[TaskInletAssetReference]
     aliases: list[AssetAliasResponse]
     last_asset_event: LastAssetEventResponse | None = None
 

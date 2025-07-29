@@ -26,13 +26,8 @@ from airbyte_api.models import JobResponse, JobStatusEnum, JobTypeEnum
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
-from airflow.utils import db
-
-# those tests will not work with database isolation because they mock requests
-pytestmark = pytest.mark.db_test
 
 
-@pytest.mark.db_test
 class TestAirbyteHook:
     """
     Test all functions from Airbyte Hook
@@ -55,8 +50,9 @@ class TestAirbyteHook:
     _mock_job_status_success_response_body = {"job": {"status": "succeeded"}}
     _mock_job_cancel_status = "cancelled"
 
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id=self.airbyte_conn_id,
                 conn_type=self.conn_type,
@@ -64,7 +60,7 @@ class TestAirbyteHook:
                 port=self.port,
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id=self.airbyte_conn_id_with_proxy,
                 conn_type=self.conn_type,
@@ -101,7 +97,7 @@ class TestAirbyteHook:
         mock_response = mock.AsyncMock()
         mock_response.job_response = JobResponse(
             connection_id="connection-mock",
-            job_id="1",
+            job_id=1,
             start_time="today",
             job_type=JobTypeEnum.SYNC,
             status=JobStatusEnum.RUNNING,
@@ -115,7 +111,7 @@ class TestAirbyteHook:
         mock_response = mock.Mock()
         mock_response.job_response = JobResponse(
             connection_id="connection-mock",
-            job_id="1",
+            job_id=1,
             start_time="today",
             job_type=JobTypeEnum.SYNC,
             status=JobStatusEnum.CANCELLED,

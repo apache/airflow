@@ -29,7 +29,7 @@ export const useDeleteVariable = ({ onSuccessConfirm }: { onSuccessConfirm: () =
   const onError = (error: Error) => {
     toaster.create({
       description: error.message,
-      title: translate("toaster.delete.error.title", {
+      title: translate("toaster.delete.error", {
         resourceName: translate("admin:variables.variable_one"),
       }),
       type: "error",

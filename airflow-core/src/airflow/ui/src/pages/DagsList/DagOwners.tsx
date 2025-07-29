@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Link, Text } from "@chakra-ui/react";
+import { Link } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
+import { Link as RouterLink } from "react-router-dom";
 
 import { LimitedItemsList } from "src/components/LimitedItemsList";
 
@@ -33,15 +34,15 @@ export const DagOwners = ({
 }) => {
   const { t: translate } = useTranslation("dags");
   const items = owners.map((owner) => {
-    const link = ownerLinks?.[owner];
-    const hasOwnerLink = link !== undefined;
+    const ownerLink = ownerLinks?.[owner];
+    const ownerFilterLink = `/dags?owners=${owner}`;
+    const hasOwnerLink = ownerLink !== undefined;
 
     return hasOwnerLink ? (
       <Link
         aria-label={translate("ownerLink", { owner })}
-        asChild
         color="fg.info"
-        href={link}
+        href={ownerLink}
         key={owner}
         rel="noopener noreferrer"
         target="_blank"
@@ -49,9 +50,9 @@ export const DagOwners = ({
         {owner}
       </Link>
     ) : (
-      <Text as="span" key={owner}>
-        {owner}
-      </Text>
+      <Link asChild color="fg.info" key={owner}>
+        <RouterLink to={ownerFilterLink}>{owner}</RouterLink>
+      </Link>
     );
   });
 

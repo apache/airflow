@@ -34,7 +34,7 @@ how to set up the environment, run checks, build docs and follow the PR workflow
 
 ## Running tests
 
-- [`03_contributors_quick_start.rst`](contributing-docs/03_contributors_quick_start.rst) shows running tests inside Breeze. Use `pytest` inside the container for individual files or invoke `breeze testing` commands to run full suites, e.g. `breeze --backend postgres --python 3.9 testing tests --test-type All`.
+- [`03_contributors_quick_start.rst`](contributing-docs/03_contributors_quick_start.rst) shows running tests inside Breeze. Use `pytest` inside the container for individual files or invoke `breeze testing` commands to run full suites, e.g. `breeze --backend postgres --python 3.10 testing tests --test-type All`.
 
 ## Building documentation
 

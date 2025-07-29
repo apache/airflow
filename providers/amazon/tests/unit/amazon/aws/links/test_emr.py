@@ -32,9 +32,12 @@ from airflow.providers.amazon.aws.links.emr import (
     get_log_uri,
     get_serverless_dashboard_url,
 )
-from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.amazon.aws.links.test_base_aws import BaseAwsLinksTestCase
+
+pytestmark = pytest.mark.db_test
+
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.comms import XComResult
@@ -45,7 +48,7 @@ class TestEmrClusterLink(BaseAwsLinksTestCase):
 
     def test_extra_link(self, mock_supervisor_comms):
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
-            mock_supervisor_comms.get_message.return_value = XComResult(
+            mock_supervisor_comms.send.return_value = XComResult(
                 key=self.link_class.key,
                 value={
                     "region_name": "us-west-1",
@@ -82,7 +85,7 @@ class TestEmrLogsLink(BaseAwsLinksTestCase):
 
     def test_extra_link(self, mock_supervisor_comms):
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
-            mock_supervisor_comms.get_message.return_value = XComResult(
+            mock_supervisor_comms.send.return_value = XComResult(
                 key=self.link_class.key,
                 value={
                     "region_name": "eu-west-2",
@@ -127,7 +130,7 @@ class TestEmrServerlessLogsLink(BaseAwsLinksTestCase):
         mocked_client.get_dashboard_for_job_run.return_value = {"url": "https://example.com/?authToken=1234"}
 
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
-            mock_supervisor_comms.get_message.return_value = XComResult(
+            mock_supervisor_comms.send.return_value = XComResult(
                 key=self.link_class.key,
                 value={
                     "conn_id": "aws-test",
@@ -160,7 +163,7 @@ class TestEmrServerlessDashboardLink(BaseAwsLinksTestCase):
         mocked_client.get_dashboard_for_job_run.return_value = {"url": "https://example.com/?authToken=1234"}
 
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
-            mock_supervisor_comms.get_message.return_value = XComResult(
+            mock_supervisor_comms.send.return_value = XComResult(
                 key=self.link_class.key,
                 value={
                     "conn_id": "aws-test",
@@ -254,7 +257,7 @@ class TestEmrServerlessS3LogsLink(BaseAwsLinksTestCase):
 
     def test_extra_link(self, mock_supervisor_comms):
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
-            mock_supervisor_comms.get_message.return_value = XComResult(
+            mock_supervisor_comms.send.return_value = XComResult(
                 key=self.link_class.key,
                 value={
                     "region_name": "us-west-1",
@@ -282,7 +285,7 @@ class TestEmrServerlessCloudWatchLogsLink(BaseAwsLinksTestCase):
 
     def test_extra_link(self, mock_supervisor_comms):
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
-            mock_supervisor_comms.get_message.return_value = XComResult(
+            mock_supervisor_comms.send.return_value = XComResult(
                 key=self.link_class.key,
                 value={
                     "region_name": "us-west-1",

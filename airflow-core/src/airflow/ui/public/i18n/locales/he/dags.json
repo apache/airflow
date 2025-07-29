@@ -1,0 +1,96 @@
+{
+  "assetSchedule": "{{count}} מתוך {{total}} נכסים עודכנו",
+  "dagActions": {
+    "delete": {
+      "button": "מחק Dag",
+      "warning": "זה ימחק את כל המטא-נתונים הקשורים ל-Dag, כולל ריצות ומשימות"
+    }
+  },
+  "favoriteDag": "הוסף Dag למועדפים",
+  "filters": {
+    "allRunTypes": "כל סוגי הריצות",
+    "allStates": "כל המצבים",
+    "favorite": {
+      "all": "הכל",
+      "favorite": "מועדף",
+      "unfavorite": "לא מועדף"
+    },
+    "paused": {
+      "active": "פעיל",
+      "all": "הכל",
+      "paused": "מושהה"
+    },
+    "runIdPatternFilter": "חפש הרצת Dag"
+  },
+  "ownerLink": "קישור בעלים ל-{{owner}}",
+  "runAndTaskActions": {
+    "affectedTasks": {
+      "noItemsFound": "לא נמצאו משימות.",
+      "title": "משימות שהושפעו: {{count}}"
+    },
+    "clear": {
+      "button": "נקה {{type}}",
+      "buttonTooltip": "לחץ shift+c כדי לנקות",
+      "error": "נכשל לנקות {{type}}",
+      "title": "נקה {{type}}"
+    },
+    "delete": {
+      "button": "מחק {{type}}",
+      "dialog": {
+        "resourceName": "{{type}} {{id}}",
+        "title": "מחק {{type}}",
+        "warning": "זה ימחק את כל המטא-נתונים הקשורים ל-{{type}}."
+      },
+      "error": "שגיאה במחיקת {{type}}",
+      "success": {
+        "description": "בקשת מחיקת ה{{type}} הייתה מוצלחת.",
+        "title": "{{type}} נמחק בהצלחה."
+      }
+    },
+    "markAs": {
+      "button": "סמן {{type}} כ...",
+      "buttonTooltip": {
+        "failed": "לחץ shift+f כדי לסמן ככשלון",
+        "success": "לחץ shift+s כדי לסמן כהצלחה"
+      },
+      "title": "סמן {{type}} כ{{state}}"
+    },
+    "options": {
+      "downstream": "במורד הזרם",
+      "existingTasks": "נקה משימות קיימות",
+      "future": "בעתיד",
+      "onlyFailed": "נקה משימות שנכשלו בלבד",
+      "past": "בעבר",
+      "queueNew": "תזמן משימות חדשות",
+      "runOnLatestVersion": "הרץ על גרסת החבילה האחרונה",
+      "upstream": "במעלה הזרם"
+    }
+  },
+  "search": {
+    "advanced": "חיפוש מתקדם",
+    "clear": "נקה חיפוש",
+    "dags": "חפש Dags",
+    "hotkey": "+K",
+    "tasks": "חפש משימות"
+  },
+  "sort": {
+    "displayName": {
+      "asc": "מיין לפי שם תצוגה (A-Z)",
+      "desc": "מיין לפי שם תצוגה (Z-A)"
+    },
+    "lastRunStartDate": {
+      "asc": "מיין לפי תאריך התחלת ריצה אחרון (מהמוקדם למאוחר)",
+      "desc": "מיין לפי תאריך התחלת ריצה אחרון (מהמאוחר למוקדם)"
+    },
+    "lastRunState": {
+      "asc": "מיין לפי מצב ריצה אחרון (A-Z)",
+      "desc": "מיין לפי מצב ריצה אחרון (Z-A)"
+    },
+    "nextDagRun": {
+      "asc": "מיין לפי ריצת ה-Dag הבאה (מהמוקדם למאוחר)",
+      "desc": "מיין לפי ריצת ה-Dag הבאה (מהמאוחר למוקדם)"
+    },
+    "placeholder": "מיין לפי"
+  },
+  "unfavoriteDag": "הסר Dag ממועדפים"
+}

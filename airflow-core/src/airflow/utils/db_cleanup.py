@@ -36,10 +36,10 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import aliased
 from sqlalchemy.sql.expression import ClauseElement, Executable, tuple_
 
+from airflow._shared.timezones import timezone
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.utils import timezone
 from airflow.utils.db import reflect_tables
 from airflow.utils.helpers import ask_yesno
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -73,6 +73,7 @@ class _TableConfig:
         in the table.  to ignore certain records even if they are the latest in the table, you can
         supply additional filters here (e.g. externally triggered dag runs)
     :param keep_last_group_by: if keeping the last record, can keep the last record for each group
+    :param dependent_tables: list of tables which have FK relationship with this table
     """
 
     table_name: str
@@ -81,6 +82,10 @@ class _TableConfig:
     keep_last: bool = False
     keep_last_filters: Any | None = None
     keep_last_group_by: Any | None = None
+    # We explicitly list these tables instead of detecting foreign keys automatically,
+    # because the relationships are unlikely to change and the number of tables is small.
+    # Relying on automation here would increase complexity and reduce maintainability.
+    dependent_tables: list[str] | None = None
 
     def __post_init__(self):
         self.recency_column = column(self.recency_column_name)
@@ -104,7 +109,11 @@ class _TableConfig:
 
 config_list: list[_TableConfig] = [
     _TableConfig(table_name="job", recency_column_name="latest_heartbeat"),
-    _TableConfig(table_name="dag", recency_column_name="last_parsed_time"),
+    _TableConfig(
+        table_name="dag",
+        recency_column_name="last_parsed_time",
+        dependent_tables=["dag_version", "deadline"],
+    ),
     _TableConfig(
         table_name="dag_run",
         recency_column_name="start_date",
@@ -112,12 +121,17 @@ config_list: list[_TableConfig] = [
         keep_last=True,
         keep_last_filters=[column("run_type") != DagRunType.MANUAL],
         keep_last_group_by=["dag_id"],
+        dependent_tables=["task_instance", "deadline"],
     ),
     _TableConfig(table_name="asset_event", recency_column_name="timestamp"),
     _TableConfig(table_name="import_error", recency_column_name="timestamp"),
     _TableConfig(table_name="log", recency_column_name="dttm"),
     _TableConfig(table_name="sla_miss", recency_column_name="timestamp"),
-    _TableConfig(table_name="task_instance", recency_column_name="start_date"),
+    _TableConfig(
+        table_name="task_instance",
+        recency_column_name="start_date",
+        dependent_tables=["task_instance_history", "xcom"],
+    ),
     _TableConfig(table_name="task_instance_history", recency_column_name="start_date"),
     _TableConfig(table_name="task_reschedule", recency_column_name="start_date"),
     _TableConfig(table_name="xcom", recency_column_name="timestamp"),
@@ -125,8 +139,16 @@ config_list: list[_TableConfig] = [
     _TableConfig(table_name="callback_request", recency_column_name="created_at"),
     _TableConfig(table_name="celery_taskmeta", recency_column_name="date_done"),
     _TableConfig(table_name="celery_tasksetmeta", recency_column_name="date_done"),
-    _TableConfig(table_name="trigger", recency_column_name="created_date"),
-    _TableConfig(table_name="dag_version", recency_column_name="created_at"),
+    _TableConfig(
+        table_name="trigger",
+        recency_column_name="created_date",
+        dependent_tables=["task_instance"],
+    ),
+    _TableConfig(
+        table_name="dag_version",
+        recency_column_name="created_at",
+        dependent_tables=["task_instance", "dag_run"],
+    ),
     _TableConfig(table_name="deadline", recency_column_name="deadline_time"),
 ]
 
@@ -234,6 +256,7 @@ def _do_delete(
             logger.debug("delete statement:\n%s", delete.compile())
             session.execute(delete)
             session.commit()
+
         except BaseException as e:
             raise e
         finally:
@@ -414,17 +437,37 @@ def _suppress_with_logging(table: str, session: Session):
             session.rollback()
 
 
-def _effective_table_names(*, table_names: list[str] | None) -> tuple[set[str], dict[str, _TableConfig]]:
+def _effective_table_names(*, table_names: list[str] | None) -> tuple[list[str], dict[str, _TableConfig]]:
     desired_table_names = set(table_names or config_dict)
-    effective_config_dict = {k: v for k, v in config_dict.items() if k in desired_table_names}
-    effective_table_names = set(effective_config_dict)
-    if desired_table_names != effective_table_names:
-        outliers = desired_table_names - effective_table_names
+
+    outliers = desired_table_names - set(config_dict.keys())
+    if outliers:
         logger.warning(
-            "The following table(s) are not valid choices and will be skipped: %s", sorted(outliers)
+            "The following table(s) are not valid choices and will be skipped: %s",
+            sorted(outliers),
         )
-    if not effective_table_names:
+    desired_table_names = desired_table_names - outliers
+
+    visited: set[str] = set()
+    effective_table_names: list[str] = []
+
+    def collect_deps(table: str):
+        if table in visited:
+            return
+        visited.add(table)
+        config = config_dict[table]
+        for dep in config.dependent_tables or []:
+            collect_deps(dep)
+        effective_table_names.append(table)
+
+    for table_name in desired_table_names:
+        collect_deps(table_name)
+
+    effective_config_dict = {n: config_dict[n] for n in effective_table_names}
+
+    if not effective_config_dict:
         raise SystemExit("No tables selected for db cleanup. Please choose valid table names.")
+
     return effective_table_names, effective_config_dict
 
 
@@ -480,6 +523,8 @@ def run_cleanup(
     :param session: Session representing connection to the metadata database.
     """
     clean_before_timestamp = timezone.coerce_datetime(clean_before_timestamp)
+
+    # Get all tables to clean (root + dependents)
     effective_table_names, effective_config_dict = _effective_table_names(table_names=table_names)
     if dry_run:
         print("Performing dry run for db cleanup.")
@@ -491,6 +536,7 @@ def run_cleanup(
     if not dry_run and confirm:
         _confirm_delete(date=clean_before_timestamp, tables=sorted(effective_table_names))
     existing_tables = reflect_tables(tables=None, session=session).tables
+
     for table_name, table_config in effective_config_dict.items():
         if table_name in existing_tables:
             with _suppress_with_logging(table_name, session):

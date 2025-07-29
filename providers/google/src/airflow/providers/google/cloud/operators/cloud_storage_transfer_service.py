@@ -96,8 +96,8 @@ class TransferJobPreprocessor:
 
         aws_hook = AwsBaseHook(self.aws_conn_id, resource_type="s3")
         aws_credentials = aws_hook.get_credentials()
-        aws_access_key_id = aws_credentials.access_key  # type: ignore[attr-defined]
-        aws_secret_access_key = aws_credentials.secret_key  # type: ignore[attr-defined]
+        aws_access_key_id = aws_credentials.access_key
+        aws_secret_access_key = aws_credentials.secret_key
         self.body[TRANSFER_SPEC][AWS_S3_DATA_SOURCE][AWS_ACCESS_KEY] = {
             ACCESS_KEY_ID: aws_access_key_id,
             SECRET_ACCESS_KEY: aws_secret_access_key,
@@ -586,7 +586,6 @@ class CloudDataTransferServiceGetOperationOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudStorageTransferDetailsLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
                 operation_name=self.operation_name,
             )
@@ -663,7 +662,6 @@ class CloudDataTransferServiceListOperationsOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudStorageTransferListLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
             )
 

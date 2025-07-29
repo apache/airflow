@@ -21,6 +21,7 @@ import json
 import logging
 import re
 import sys
+import warnings
 from contextlib import suppress
 from json import JSONDecodeError
 from typing import Any
@@ -44,7 +45,7 @@ log = logging.getLogger(__name__)
 # the symbols #,!,-,_,.,:,\,/ and () requiring at least one match.
 #
 # You can try the regex here: https://regex101.com/r/69033B/1
-RE_SANITIZE_CONN_ID = re.compile(r"^[\w\#\!\(\)\-\.\:\/\\]{1,}$")
+RE_SANITIZE_CONN_ID = re.compile(r"^[\w#!()\-.:/\\]{1,}$")
 # the conn ID max len should be 250
 CONN_ID_MAX_LEN: int = 250
 
@@ -266,11 +267,20 @@ class Connection(Base, LoggingMixin):
 
         if self.host and "://" in self.host:
             protocol, host = self.host.split("://", 1)
+            # If the protocol in host matches the connection type, don't add it again
+            if protocol == self.conn_type:
+                host_to_use = self.host
+                protocol_to_add = None
+            else:
+                # Different protocol, add it to the URI
+                host_to_use = host
+                protocol_to_add = protocol
         else:
-            protocol, host = None, self.host
+            host_to_use = self.host
+            protocol_to_add = None
 
-        if protocol:
-            uri += f"{protocol}://"
+        if protocol_to_add:
+            uri += f"{protocol_to_add}://"
 
         authority_block = ""
         if self.login is not None:
@@ -285,8 +295,8 @@ class Connection(Base, LoggingMixin):
             uri += authority_block
 
         host_block = ""
-        if host:
-            host_block += quote(host, safe="")
+        if host_to_use:
+            host_block += quote(host_to_use, safe="")
 
         if self.port:
             if host_block == "" and authority_block == "":
@@ -464,10 +474,15 @@ class Connection(Base, LoggingMixin):
         # If this is set it means are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
         # and should use the Task SDK API server path
         if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
-            # TODO: AIP 72: Add deprecation here once we move this module to task sdk.
             from airflow.sdk import Connection as TaskSDKConnection
             from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 
+            warnings.warn(
+                "Using Connection.get_connection_from_secrets from `airflow.models` is deprecated."
+                "Please use `from airflow.sdk import Connection` instead",
+                DeprecationWarning,
+                stacklevel=1,
+            )
             try:
                 conn = TaskSDKConnection.get(conn_id=conn_id)
                 if isinstance(conn, TaskSDKConnection):
@@ -478,7 +493,7 @@ class Connection(Base, LoggingMixin):
                 return conn
             except AirflowRuntimeError as e:
                 if e.error.error == ErrorType.CONNECTION_NOT_FOUND:
-                    raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
+                    raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined") from None
                 raise
 
         # check cache first

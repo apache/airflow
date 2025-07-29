@@ -78,14 +78,14 @@ Run ``python -m pdb <path to dag file>.py`` for an interactive debugging experie
 
 .. code-block:: bash
 
-  root@ef2c84ad4856:/opt/airflow# python -m pdb airflow/example_dags/example_bash_operator.py
-  > /opt/airflow/airflow/example_dags/example_bash_operator.py(18)<module>()
+  root@ef2c84ad4856:/opt/airflow# python -m pdb providers/standard/src/airflow/providers/standard/example_dags/example_bash_operator.py
+  > /opt/airflow/providers/standard/src/airflow/providers/standard/example_dags/example_bash_operator.py(18)<module>()
   -> """Example DAG demonstrating the usage of the BashOperator."""
   (Pdb) b 45
-  Breakpoint 1 at /opt/airflow/airflow/example_dags/example_bash_operator.py:45
+  Breakpoint 1 at /opt/airflow/providers/standard/src/airflow/providers/standard/example_dags/example_bash_operator.py:45
   (Pdb) c
-  > /opt/airflow/airflow/example_dags/example_bash_operator.py(45)<module>()
-  -> bash_command='echo 1',
+  > /opt/airflow/providers/standard/src/airflow/providers/standard/example_dags/example_bash_operator.py(45)<module>()
+  -> task_id="run_after_loop",
   (Pdb) run_this_last
   <Task(EmptyOperator): run_this_last>
 

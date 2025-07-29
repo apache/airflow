@@ -15,3 +15,29 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+from __future__ import annotations
+
+from airflow.utils.deprecation_tools import add_deprecated_classes
+
+__deprecated_classes = {
+    "setup_teardown": {
+        "BaseSetupTeardownContext": "airflow.sdk.definitions._internal.setup_teardown.BaseSetupTeardownContext",
+        "SetupTeardownContext": "airflow.sdk.definitions._internal.setup_teardown.SetupTeardownContext",
+    },
+    "xcom": {
+        "XCOM_RETURN_KEY": "airflow.models.xcom.XCOM_RETURN_KEY",
+    },
+    "task_group": {
+        "TaskGroup": "airflow.sdk.TaskGroup",
+        "get_task_group_children_getter": "airflow.sdk.definitions.taskgroup.get_task_group_children_getter",
+        "task_group_to_dict": "airflow.sdk.definitions.taskgroup.task_group_to_dict",
+    },
+    "timezone": {
+        # Since we have corrected all uses inside core to use the internal version, anything hitting this
+        # should be in user code or custom providers, so redirect them to the public interface in Task SDK
+        "*": "airflow.sdk.timezone"
+    },
+}
+
+add_deprecated_classes(__deprecated_classes, __name__)

@@ -36,4 +36,15 @@ class TestNeo4jOperator:
         op = Neo4jOperator(task_id="basic_neo4j", sql=sql)
         op.execute(mock.MagicMock())
         mock_hook.assert_called_once_with(conn_id="neo4j_default")
-        mock_hook.return_value.run.assert_called_once_with(sql)
+        mock_hook.return_value.run.assert_called_once_with(sql, None)
+
+    @mock.patch("airflow.providers.neo4j.operators.neo4j.Neo4jHook")
+    def test_neo4j_operator_test_with_params(self, mock_hook):
+        sql = """
+            MATCH (actor {name: $name}) RETURN actor
+            """
+        parameters = {"name": "Tom Hanks"}
+        op = Neo4jOperator(task_id="basic_neo4j", sql=sql, parameters=parameters)
+        op.execute(mock.MagicMock())
+        mock_hook.assert_called_once_with(conn_id="neo4j_default")
+        mock_hook.return_value.run.assert_called_once_with(sql, parameters)

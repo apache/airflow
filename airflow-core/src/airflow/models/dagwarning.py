@@ -22,9 +22,9 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import Column, ForeignKeyConstraint, Index, String, Text, delete, select, true
 
+from airflow._shared.timezones import timezone
 from airflow.models.base import Base, StringID
 from airflow.models.dag import DagModel
-from airflow.utils import timezone
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime

@@ -46,5 +46,6 @@ else:
     except (ImportError, ModuleNotFoundError):
         from airflow.providers.standard.operators.python import get_current_context
 
+from airflow.providers.common.compat.version_compat import BaseOperator
 
-__all__ = ["PythonOperator", "_SERIALIZERS", "ShortCircuitOperator", "get_current_context"]
+__all__ = ["BaseOperator", "PythonOperator", "_SERIALIZERS", "ShortCircuitOperator", "get_current_context"]

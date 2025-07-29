@@ -17,12 +17,25 @@
 # under the License.
 from __future__ import annotations
 
+import importlib
 from collections.abc import AsyncIterator
 from functools import cached_property
 from typing import Any
 
-from airflow.providers.common.messaging.providers import MESSAGE_QUEUE_PROVIDERS
+from airflow.providers_manager import ProvidersManager
 from airflow.triggers.base import BaseEventTrigger, TriggerEvent
+
+providers_manager = ProvidersManager()
+providers_manager.initialize_providers_queues()
+
+
+def create_class_by_name(name: str):
+    module_name, class_name = name.rsplit(".", 1)
+    module = importlib.import_module(module_name)
+    return getattr(module, class_name)
+
+
+MESSAGE_QUEUE_PROVIDERS = [create_class_by_name(name)() for name in providers_manager.queue_class_names]
 
 
 class MessageQueueTrigger(BaseEventTrigger):

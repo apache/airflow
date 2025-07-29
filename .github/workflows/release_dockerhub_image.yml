@@ -29,7 +29,7 @@ on:  # yamllint disable-line rule:truthy
         default: false
       limitPythonVersions:
         type: string
-        description: 'Force python versions (e.g. "3.9 3.10")'
+        description: 'Force python versions (e.g. "3.10 3.11")'
         default: ''
 permissions:
   contents: read
@@ -83,7 +83,7 @@ jobs:
           docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
 
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
       - name: "Prepare and cleanup runner"
@@ -96,8 +96,6 @@ jobs:
         run: uv run scripts/ci/airflow_version_check.py "${AIRFLOW_VERSION}" >> "${GITHUB_OUTPUT}"
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        with:
-          use-uv: "true"
       - name: Selective checks
         id: selective-checks
         env:

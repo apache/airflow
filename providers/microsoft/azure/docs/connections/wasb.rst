@@ -27,7 +27,7 @@ The Microsoft Azure Blob Storage connection type enables the Azure Blob Storage 
 Authenticating to Azure Blob Storage
 ------------------------------------
 
-There are six ways to connect to Azure Blob Storage using Airflow.
+There are seven ways to connect to Azure Blob Storage using Airflow.
 
 1. Use `token credentials`_
    i.e. add specific credentials (client_id, secret, tenant) and subscription id to the Airflow connection.
@@ -37,8 +37,9 @@ There are six ways to connect to Azure Blob Storage using Airflow.
    i.e. add a key config to ``sas_token`` in the Airflow connection.
 4. Use a `Connection String`_
    i.e. add connection string to ``connection_string`` in the Airflow connection.
-5. Use managed identity by setting ``managed_identity_client_id``, ``workload_identity_tenant_id`` (under the hook, it uses DefaultAzureCredential_ with these arguments)
-6. Fallback on DefaultAzureCredential_.
+5. Use account key by setting ``account_key`` in the Airflow connection extra fields.
+6. Use managed identity by setting ``managed_identity_client_id``, ``workload_identity_tenant_id`` (under the hook, it uses DefaultAzureCredential_ with these arguments)
+7. Fallback on DefaultAzureCredential_.
    This includes a mechanism to try different options to authenticate: Managed System Identity, environment variables, authentication through Azure CLI, etc.
 
 Only one authorization method can be used at a time. If you need to manage multiple credentials or keys then you should
@@ -84,6 +85,7 @@ Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in Azure connection.
     The following parameters are all optional:
 
+    * ``account_key``: Specify the account key for Azure Blob Storage authentication. This will be checked before falling back to DefaultAzureCredential_.
     * ``client_secret_auth_config``: Extra config to pass while authenticating as a service principal using `ClientSecretCredential`_ It can be left out to fall back on DefaultAzureCredential_.
     * ``managed_identity_client_id``:  The client ID of a user-assigned managed identity. If provided with `workload_identity_tenant_id`, they'll pass to ``DefaultAzureCredential``.
     * ``workload_identity_tenant_id``: ID of the application's Microsoft Entra tenant. Also called its "directory" ID. If provided with `managed_identity_client_id`, they'll pass to ``DefaultAzureCredential``.

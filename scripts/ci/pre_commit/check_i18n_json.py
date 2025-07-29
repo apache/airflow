@@ -17,8 +17,9 @@
 # under the License.
 
 """
-Pre-commit script to check that all .json files in airflow-core/src/airflow/ui/src/i18n/locales/
+Pre-commit script to check that all .json files in airflow-core/src/airflow/ui/public/i18n/locales/
 are valid JSON and do not contain any 'TODO:' entries.
+Also formats JSON files automatically.
 """
 
 from __future__ import annotations
@@ -32,7 +33,7 @@ COMMON_PRECOMMIT_PATH = Path(__file__).parent.resolve()
 sys.path.insert(0, COMMON_PRECOMMIT_PATH.as_posix())  # make sure common_precommit_utils is imported
 from common_precommit_utils import AIRFLOW_ROOT_PATH, console
 
-LOCALES_DIR = AIRFLOW_ROOT_PATH / "airflow-core" / "src" / "airflow" / "ui" / "src" / "i18n" / "locales"
+LOCALES_DIR = AIRFLOW_ROOT_PATH / "airflow-core" / "src" / "airflow" / "ui" / "public" / "i18n" / "locales"
 
 
 def main():
@@ -45,9 +46,14 @@ def main():
             if "TODO:" in content:
                 console.print(f"[bold red][FAIL][/bold red] 'TODO:' found in [yellow]{rel_path}[/yellow]")
                 failed = True
-            # Check if valid JSON
             try:
-                json.loads(content)
+                parsed_json = json.loads(content)
+                formatted_content = (
+                    json.dumps(parsed_json, indent=2, ensure_ascii=False, sort_keys=False) + "\n"
+                )
+                if content != formatted_content:
+                    json_file.write_text(formatted_content, encoding="utf-8")
+                    console.print(f"[bold green][FORMATTED][/bold green] [yellow]{rel_path}[/yellow]")
             except Exception as e:
                 console.print(
                     f"[bold red][FAIL][/bold red] Invalid JSON in [yellow]{rel_path}[/yellow]: [red]{e}[/red]"
@@ -63,7 +69,9 @@ def main():
             "\n[bold red][ERROR][/bold red] Some JSON files are invalid or contain 'TODO:'. Commit aborted."
         )
         sys.exit(1)
-    console.print("[bold green][OK][/bold green] All JSON files are valid and do not contain 'TODO:'.")
+    console.print(
+        "[bold green][OK][/bold green] All JSON files are valid, do not contain 'TODO:', and are properly formatted."
+    )
     sys.exit(0)
 
 

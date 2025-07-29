@@ -141,7 +141,7 @@ The following states are used to track the worker:
       TERMINATING->OFFLINE[label="on clean shutdown if running tasks = 0"];
    }
 
-See also https://github.com/apache/airflow/blob/main/providers/edge3/src/airflow/providers/edge3/models/edge_worker.py#L45
+See also :py:class:`airflow.providers.edge3.models.edge_worker.EdgeWorkerState`
 for a documentation of details of all states of the Edge Worker.
 
 Feature Backlog Edge Provider
@@ -171,7 +171,7 @@ The following features are known missing and will be implemented in increments:
 
 - Tests
 
-  - System tests in Github, test the deployment of the worker with a Dag execution
+  - System tests in GitHub, test the deployment of the worker with a Dag execution
   - Test/Support on Windows for Edge Worker
 
 - Scaling test - Check and define boundaries of workers/jobs. Today it is known to

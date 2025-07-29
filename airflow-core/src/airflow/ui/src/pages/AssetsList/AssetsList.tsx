@@ -67,13 +67,13 @@ const createColumns = (translate: (key: string) => string): Array<ColumnDef<Asse
     header: () => translate("group"),
   },
   {
-    accessorKey: "consuming_dags",
+    accessorKey: "scheduled_dags",
     cell: ({ row: { original } }: AssetRow) =>
-      original.consuming_dags.length ? (
-        <DependencyPopover dependencies={original.consuming_dags} type="Dag" />
+      original.scheduled_dags.length ? (
+        <DependencyPopover dependencies={original.scheduled_dags} type="Dag" />
       ) : undefined,
     enableSorting: false,
-    header: () => translate("consumingDags"),
+    header: () => translate("scheduledDags"),
   },
   {
     accessorKey: "producing_tasks",
@@ -103,7 +103,7 @@ export const AssetsList = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
+  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : undefined;
 
   const { data, error, isLoading } = useAssetServiceGetAssets({
     limit: pagination.pageSize,

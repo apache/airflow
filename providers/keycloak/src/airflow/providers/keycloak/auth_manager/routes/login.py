@@ -18,15 +18,17 @@
 from __future__ import annotations
 
 import logging
+from typing import Annotated
 
-from fastapi import Request  # noqa: TC002
-from keycloak import KeycloakOpenID
+from fastapi import Depends, HTTPException, Request
 from starlette.responses import HTMLResponse, RedirectResponse
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.security import get_user
 from airflow.configuration import conf
+from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import KeycloakAuthManager
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 
 log = logging.getLogger(__name__)
@@ -36,7 +38,7 @@ login_router = AirflowRouter(tags=["KeycloakAuthManagerLogin"])
 @login_router.get("/login")
 def login(request: Request) -> RedirectResponse:
     """Initiate the authentication."""
-    client = _get_keycloak_client()
+    client = KeycloakAuthManager.get_keycloak_client()
     redirect_uri = request.url_for("login_callback")
     auth_url = client.auth_url(redirect_uri=str(redirect_uri), scope="openid")
     return RedirectResponse(auth_url)
@@ -49,7 +51,7 @@ def login_callback(request: Request):
     if not code:
         return HTMLResponse("Missing code", status_code=400)
 
-    client = _get_keycloak_client()
+    client = KeycloakAuthManager.get_keycloak_client()
     redirect_uri = request.url_for("login_callback")
 
     tokens = client.token(
@@ -72,15 +74,24 @@ def login_callback(request: Request):
     return response
 
 
-def _get_keycloak_client() -> KeycloakOpenID:
-    client_id = conf.get("keycloak_auth_manager", "client_id")
-    client_secret = conf.get("keycloak_auth_manager", "client_secret")
-    realm = conf.get("keycloak_auth_manager", "realm")
-    server_url = conf.get("keycloak_auth_manager", "server_url")
+@login_router.get("/refresh")
+def refresh(
+    request: Request, user: Annotated[KeycloakAuthManagerUser, Depends(get_user)]
+) -> RedirectResponse:
+    """Refresh the token."""
+    client = KeycloakAuthManager.get_keycloak_client()
 
-    return KeycloakOpenID(
-        server_url=server_url,
-        client_id=client_id,
-        client_secret_key=client_secret,
-        realm_name=realm,
-    )
+    if not user or not user.refresh_token:
+        raise HTTPException(status_code=400, detail="User is empty or has no refresh token")
+
+    tokens = client.refresh_token(user.refresh_token)
+    user.refresh_token = tokens["refresh_token"]
+    user.access_token = tokens["access_token"]
+    token = get_auth_manager().generate_jwt(user)
+
+    redirect_url = request.query_params.get("next", conf.get("api", "base_url", fallback="/"))
+    response = RedirectResponse(url=redirect_url, status_code=303)
+    secure = bool(conf.get("api", "ssl_cert", fallback=""))
+
+    response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
+    return response
