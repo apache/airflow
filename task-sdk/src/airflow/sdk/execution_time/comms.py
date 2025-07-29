@@ -707,6 +707,7 @@ class GetXComSequenceSlice(BaseModel):
     start: int | None
     stop: int | None
     step: int | None
+    include_prior_dates: bool = False
     type: Literal["GetXComSequenceSlice"] = "GetXComSequenceSlice"
 
 
