@@ -399,7 +399,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         @dataclass
         class LimitWindowDescriptor:
-            running_now_join: Subquery
+            running_now_join: CTE
+            join_predicates: Collection[str]
             max_units: Column
             window: expression.ColumnElement
 
@@ -414,13 +415,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         def add_window_limit(query: Select, limit: LimitWindowDescriptor) -> Select:
             inner_query = (
                 query.add_columns(limit.window)
-                .join(limit.running_now_join, TI.id == limit.running_now_join.c.id)
                 .order_by(*priority_order)
                 .subquery()
             )
             return (
                 select(TI)
                 .join(inner_query, TI.id == inner_query.c.id)
+                .join(DR, TI.run_id == DR.id)
+                .join(limit.running_now_join, *(getattr(TI, predicate) == getattr(limit.running_now_join.c, predicate) for predicate in limit.join_predicates))
                 .where(
                     getattr(inner_query.c, limit.window.name) + limit.running_now_join.c.now_running
                     < limit.max_units
@@ -454,10 +456,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
         limits = [
-            LimitWindowDescriptor(running_total_tis_per_dagrun, DagModel.max_active_tasks, total_tis_per_dagrun_count),
-            LimitWindowDescriptor(running_tis_per_dag, TI.max_active_tis_per_dag, tis_per_dag_count),
-            LimitWindowDescriptor(running_total_tis_per_task_run, TI.max_active_tis_per_dagrun, mapped_tis_per_task_run_count),
-            LimitWindowDescriptor(running_tis_per_pool, Pool.slots, pool_slots_taken),
+            LimitWindowDescriptor(running_total_tis_per_dagrun, ['dag_id', 'run_id'], DagModel.max_active_tasks, total_tis_per_dagrun_count),
+            LimitWindowDescriptor(running_tis_per_dag, ['dag_id', 'task_id'], TI.max_active_tis_per_dag, tis_per_dag_count),
+            LimitWindowDescriptor(running_total_tis_per_task_run, ['dag_id', 'run_id', 'task_id'], TI.max_active_tis_per_dagrun, mapped_tis_per_task_run_count),
+            LimitWindowDescriptor(running_tis_per_pool, ['pool'], Pool.slots, pool_slots_taken),
         ]
 
         for limit in limits:
@@ -469,6 +471,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         timer.start()
 
         try:
+            print(str(query))
             query = with_row_locks(query, of=TI, session=session, skip_locked=True)
             task_instances_to_examine: list[TI] = session.scalars(query).all()
 
