@@ -491,6 +491,7 @@ class XComOperations:
         start: int | None,
         stop: int | None,
         step: int | None,
+        include_prior_dates: bool = False,
     ) -> XComSequenceSliceResponse:
         params = {}
         if start is not None:
@@ -499,6 +500,8 @@ class XComOperations:
             params["stop"] = stop
         if step is not None:
             params["step"] = step
+        if include_prior_dates:
+            params["include_prior_dates"] = include_prior_dates
         resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}/slice", params=params)
         return XComSequenceSliceResponse.model_validate_json(resp.read())
 

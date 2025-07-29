@@ -1132,7 +1132,14 @@ class ActivitySubprocess(WatchedSubprocess):
                 resp = xcom
         elif isinstance(msg, GetXComSequenceSlice):
             xcoms = self.client.xcoms.get_sequence_slice(
-                msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.start, msg.stop, msg.step
+                msg.dag_id,
+                msg.run_id,
+                msg.task_id,
+                msg.key,
+                msg.start,
+                msg.stop,
+                msg.step,
+                msg.include_prior_dates,
             )
             resp = XComSequenceSliceResult.from_response(xcoms)
         elif isinstance(msg, DeferTask):

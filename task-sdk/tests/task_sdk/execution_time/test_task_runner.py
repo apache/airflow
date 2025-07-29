@@ -2049,8 +2049,7 @@ class TestXComAfterTaskExecution:
 
         class CustomOperator(BaseOperator):
             def execute(self, context):
-                value = context["ti"].xcom_pull(task_ids="pull_task", key="key")
-                print(f"Pulled XCom Value: {value}")
+                context["ti"].xcom_pull(task_ids="pull_task", key="key")
 
         task = CustomOperator(task_id="pull_task")
         runtime_ti = create_runtime_ti(task=task)
@@ -2061,6 +2060,7 @@ class TestXComAfterTaskExecution:
             dag_id="test_dag",
             task_id="pull_task",
             run_id="test_run",
+            include_prior_dates=False,
         )
 
         assert not any(

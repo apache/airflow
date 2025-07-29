@@ -361,6 +361,7 @@ class RuntimeTaskInstance(TaskInstance):
                     key=key,
                     task_id=t_id,
                     dag_id=dag_id,
+                    include_prior_dates=include_prior_dates,
                 )
 
                 if values is None:
