@@ -473,7 +473,7 @@ option_auth_manager_start_airflow = click.option(
     "--auth-manager",
     type=click.Choice(ALLOWED_AUTH_MANAGERS, case_sensitive=False),
     help="Specify the auth manager to use with start-airflow",
-    default=ALLOWED_AUTH_MANAGERS[0],
+    default=ALLOWED_AUTH_MANAGERS[1],
     show_default=True,
 )
 
