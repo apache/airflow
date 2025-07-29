@@ -664,7 +664,7 @@ class CustomTrigger(BaseTrigger):
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
-            f"{type(self).__module__}.{type(self).__qualname__}",
+            f"{self.__class__.__module__}.{self.__class__.__qualname__}",
             {
                 "dag_id": self.dag_id,
                 "run_id": self.run_id,
@@ -769,7 +769,7 @@ class CustomTriggerDagRun(BaseTrigger):
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
-            f"{type(self).__module__}.{type(self).__qualname__}",
+            f"{self.__class__.__module__}.{self.__class__.__qualname__}",
             {
                 "trigger_dag_id": self.trigger_dag_id,
                 "run_ids": self.run_ids,
@@ -848,7 +848,7 @@ class CustomTriggerWorkflowStateTrigger(BaseTrigger):
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
-            f"{type(self).__module__}.{type(self).__qualname__}",
+            f"{self.__class__.__module__}.{self.__class__.__qualname__}",
             {
                 "external_dag_id": self.external_dag_id,
                 "execution_dates": self.execution_dates,

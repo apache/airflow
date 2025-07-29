@@ -574,7 +574,7 @@ class DAG:
         return self.dag_id < other.dag_id
 
     def __hash__(self):
-        hash_components: list[Any] = [type(self)]
+        hash_components: list[Any] = [self.__class__]
         for c in _DAG_HASH_ATTRS:
             # If it is a list, convert to tuple because lists can't be hashed
             if isinstance(getattr(self, c, None), list):

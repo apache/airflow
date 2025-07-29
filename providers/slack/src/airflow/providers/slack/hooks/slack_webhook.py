@@ -119,7 +119,7 @@ class SlackWebhookHook(BaseHook):
         self.retry_handlers = retry_handlers
         if "webhook_token" in extra_client_args:
             warnings.warn(
-                f"Provide `webhook_token` as part of {type(self).__name__!r} parameters is disallowed, "
+                f"Provide `webhook_token` as part of {self.__class__.__name__!r} parameters is disallowed, "
                 f"please use Airflow Connection.",
                 UserWarning,
                 stacklevel=2,

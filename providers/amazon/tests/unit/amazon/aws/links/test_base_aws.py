@@ -232,4 +232,4 @@ class BaseAwsLinksTestCase:
     @abstractmethod
     def test_extra_link(self, **kwargs):
         """Test: Expected URL Link."""
-        raise NotImplementedError(f"{type(self).__name__!r} should implement `test_extra_link` test")
+        raise NotImplementedError(f"{self.__class__.__name__!r} should implement `test_extra_link` test")

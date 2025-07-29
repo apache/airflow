@@ -46,7 +46,7 @@ class TaskDecoratorCollection:
     def __getattr__(self, name: str) -> TaskDecorator:
         """Dynamically get provider-registered task decorators, e.g. ``@task.docker``."""
         if name.startswith("__"):
-            raise AttributeError(f"{type(self).__name__} has no attribute {name!r}")
+            raise AttributeError(f"{self.__class__.__name__} has no attribute {name!r}")
         decorators = ProvidersManager().taskflow_decorators
         if name not in decorators:
             raise AttributeError(f"task decorator {name!r} not found")

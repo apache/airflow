@@ -89,7 +89,7 @@ class CronMixin:
 
         This is only for testing purposes and should not be relied on otherwise.
         """
-        if not isinstance(other, type(self)):
+        if not isinstance(other, self.__class__):
             return NotImplemented
         return self._expression == other._expression and self._timezone == other._timezone
 

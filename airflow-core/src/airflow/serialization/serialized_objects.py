@@ -2320,7 +2320,7 @@ class LazyDeserializedDAG(pydantic.BaseModel):
         try:
             return self.data["dag"][name]
         except KeyError:
-            raise AttributeError(f"{type(self).__name__!r} object has no attribute {name!r}") from None
+            raise AttributeError(f"{self.__class__.__name__!r} object has no attribute {name!r}") from None
 
     @property
     def timetable(self) -> Timetable:

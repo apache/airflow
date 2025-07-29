@@ -288,7 +288,7 @@ class KubernetesExecutor(BaseExecutor):
         from airflow.executors import workloads
 
         if not isinstance(workload, workloads.ExecuteTask):
-            raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
+            raise RuntimeError(f"{self.__class__} cannot handle workloads of type {type(workload)}")
         ti = workload.ti
         self.queued_tasks[ti.key] = workload
 
@@ -298,7 +298,7 @@ class KubernetesExecutor(BaseExecutor):
         # Airflow V3 version
         for w in workloads:
             if not isinstance(w, ExecuteTask):
-                raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(w)}")
+                raise RuntimeError(f"{self.__class__} cannot handle workloads of type {type(w)}")
 
             # TODO: AIP-72 handle populating tokens once https://github.com/apache/airflow/issues/45107 is handled.
             command = [w]

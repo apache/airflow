@@ -449,4 +449,4 @@ class DagFileProcessorProcess(WatchedSubprocess):
         return not self._open_sockets
 
     def wait(self) -> int:
-        raise NotImplementedError(f"Don't call wait on {type(self).__name__} objects")
+        raise NotImplementedError(f"Don't call wait on {self.__class__.__name__} objects")

@@ -272,7 +272,7 @@ class DbApiHook(BaseHook):
         """Return a connection object."""
         db = self.connection
         if self.connector is None:
-            raise RuntimeError(f"{type(self).__name__} didn't have `self.connector` set!")
+            raise RuntimeError(f"{self.__class__.__name__} didn't have `self.connector` set!")
         host = db.host or ""
         login = db.login or ""
         schema = db.schema or ""

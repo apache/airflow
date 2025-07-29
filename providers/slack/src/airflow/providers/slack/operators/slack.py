@@ -99,7 +99,7 @@ class SlackAPIOperator(BaseOperator):
 
     def execute(self, context: Context):
         if not self.method:
-            msg = f"Expected non empty `method` attribute in {type(self).__name__!r}, but got {self.method!r}"
+            msg = f"Expected non empty `method` attribute in {self.__class__.__name__!r}, but got {self.method!r}"
             raise ValueError(msg)
         if not self.api_params:
             self.construct_api_call_params()

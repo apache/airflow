@@ -50,7 +50,7 @@ class CustomSerializationTimetable(Timetable):
 
     @property
     def summary(self):
-        return f"{type(self).__name__}({self.value!r})"
+        return f"{self.__class__.__name__}({self.value!r})"
 
     def infer_manual_data_interval(self, *, run_after):
         raise DataInterval.exact(run_after)

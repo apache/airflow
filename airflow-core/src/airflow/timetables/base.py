@@ -242,7 +242,7 @@ class Timetable(Protocol):
         timetable, for example, can use this to display the expression. The
         default implementation returns the timetable's type name.
         """
-        return type(self).__name__
+        return self.__class__.__name__
 
     def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
         """

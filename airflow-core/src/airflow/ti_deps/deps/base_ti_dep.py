@@ -52,7 +52,7 @@ class BaseTIDep:
 
     def __hash__(self) -> int:
         """Compute the hash value based on the task instance dependency type."""
-        return hash(type(self))
+        return hash(self.__class__)
 
     def __repr__(self) -> str:
         """Return a string representation of the task instance dependency."""

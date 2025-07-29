@@ -726,7 +726,7 @@ class WatchedSubprocess:
     __rich_repr__.angular = True  # type: ignore[attr-defined]
 
     def __repr__(self) -> str:
-        rep = f"<{type(self).__name__} id={self.id} pid={self.pid}"
+        rep = f"<{self.__class__.__name__} id={self.id} pid={self.pid}"
         if self._exit_code is not None:
             rep += f" exit_code={self._exit_code}"
         return rep + " >"

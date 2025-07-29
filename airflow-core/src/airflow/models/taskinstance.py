@@ -808,7 +808,7 @@ class TaskInstance(Base, LoggingMixin):
         if source:
             target_state = inspect(self)
             if target_state is None:
-                raise RuntimeError(f"Unable to inspect SQLAlchemy state of {type(self)}: {self}")
+                raise RuntimeError(f"Unable to inspect SQLAlchemy state of {self.__class__}: {self}")
 
             # To deal with `@hybrid_property` we need to get the names from `mapper.columns`
             for attr_name, col in target_state.mapper.columns.items():
@@ -818,7 +818,7 @@ class TaskInstance(Base, LoggingMixin):
                 set_committed_value(self, attr_name, source[col.name])
 
             # ID may have changed, update SQLAs state and object tracking
-            newkey = session.identity_key(type(self), (self.id,))
+            newkey = session.identity_key(self.__class__, (self.id,))
 
             # Delete anything under the new key
             if newkey != target_state.key:

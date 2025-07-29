@@ -181,7 +181,9 @@ class BaseExecutor(LoggingMixin):
 
     def queue_workload(self, workload: workloads.All, session: Session) -> None:
         if not isinstance(workload, workloads.ExecuteTask):
-            raise ValueError(f"Un-handled workload kind {type(workload).__name__!r} in {type(self).__name__}")
+            raise ValueError(
+                f"Un-handled workload kind {type(workload).__name__!r} in {self.__class__.__name__}"
+            )
         ti = workload.ti
         self.queued_tasks[ti.key] = workload
 
@@ -195,7 +197,7 @@ class BaseExecutor(LoggingMixin):
 
         :param workloads: List of workloads to process
         """
-        raise NotImplementedError(f"{type(self).__name__} must implement _process_workloads()")
+        raise NotImplementedError(f"{self.__class__.__name__} must implement _process_workloads()")
 
     def has_task(self, task_instance: TaskInstance) -> bool:
         """

@@ -447,9 +447,9 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             or isinstance(python_callable, types.LambdaType)
             and python_callable.__name__ == "<lambda>"
         ):
-            raise ValueError(f"{type(self).__name__} only supports functions for python_callable arg")
+            raise ValueError(f"{self.__class__.__name__} only supports functions for python_callable arg")
         if inspect.isgeneratorfunction(python_callable):
-            raise ValueError(f"{type(self).__name__} does not support using 'yield' in python_callable")
+            raise ValueError(f"{self.__class__.__name__} does not support using 'yield' in python_callable")
         super().__init__(
             python_callable=python_callable,
             op_args=op_args,

@@ -40,7 +40,7 @@ class DeadlineCallbackTrigger(BaseTrigger):
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
-            f"{type(self).__module__}.{type(self).__qualname__}",
+            f"{self.__class__.__module__}.{self.__class__.__qualname__}",
             {"callback_path": self.callback_path, "callback_kwargs": self.callback_kwargs},
         )
 

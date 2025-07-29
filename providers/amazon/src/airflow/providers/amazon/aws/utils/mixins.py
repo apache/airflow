@@ -116,11 +116,11 @@ class AwsBaseHookMixin(Generic[AwsHookType]):
             except TypeError:
                 # Raise if ``aws_hook_class`` is not a class or not a subclass of Generic/Base AWS Hook
                 raise AttributeError(
-                    f"Class attribute '{type(self).__name__}.aws_hook_class' "
+                    f"Class attribute '{self.__class__.__name__}.aws_hook_class' "
                     f"is not a subclass of AwsGenericHook."
                 ) from None
         else:
-            raise AttributeError(f"Class attribute '{type(self).__name__}.aws_hook_class' should be set.")
+            raise AttributeError(f"Class attribute '{self.__class__.__name__}.aws_hook_class' should be set.")
 
     @property
     def _hook_parameters(self) -> dict[str, Any]:

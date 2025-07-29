@@ -101,7 +101,7 @@ class PsrpHook(BaseHook):
         self._wsman_options = wsman_options or {}
         self._on_output_callback = on_output_callback
         self._exchange_keys = exchange_keys
-        self._host = host or PSHost(None, None, False, type(self).__name__, None, None, "1.0")
+        self._host = host or PSHost(None, None, False, self.__class__.__name__, None, None, "1.0")
 
     def __enter__(self):
         conn = self.get_conn()

@@ -127,7 +127,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         if self._cached_logger is not None:
             return self._cached_logger
 
-        typ = type(self)
+        typ = self.__class__
 
         logger_name: str = (
             self._logger_name if self._logger_name is not None else f"{typ.__module__}.{typ.__qualname__}"

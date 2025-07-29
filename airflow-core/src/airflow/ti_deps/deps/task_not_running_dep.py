@@ -36,7 +36,7 @@ class TaskNotRunningDep(BaseTIDep):
 
     def __hash__(self):
         """Compute the hash value based on the type of the task instance dependency."""
-        return hash(type(self))
+        return hash(self.__class__)
 
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context=None):

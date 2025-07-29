@@ -46,7 +46,7 @@ class _TrivialTimetable(Timetable):
 
         This is only for testing purposes and should not be relied on otherwise.
         """
-        if not isinstance(other, type(self)):
+        if not isinstance(other, self.__class__):
             return NotImplemented
         return True
 

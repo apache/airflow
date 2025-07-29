@@ -869,7 +869,7 @@ class ServerResponseError(httpx.HTTPStatusError):
 
     def __reduce__(self) -> tuple[Any, ...]:
         # Needed because https://github.com/encode/httpx/pull/3108 isn't merged yet.
-        return Exception.__new__, (type(self),) + self.args, self.__dict__
+        return Exception.__new__, (self.__class__,) + self.args, self.__dict__
 
     @classmethod
     def from_response(cls, response: httpx.Response) -> ServerResponseError | None:

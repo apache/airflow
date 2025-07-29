@@ -163,7 +163,7 @@ class AwsConnectionWrapper(LoggingMixin):
 
     def __post_init__(self, conn: Connection | AwsConnectionWrapper | _ConnectionMetadata | None) -> None:
         """Initialize the AwsConnectionWrapper object after instantiation."""
-        if isinstance(conn, type(self)):
+        if isinstance(conn, self.__class__):
             # For every field with init=False we copy reference value from original wrapper
             # For every field with init=True we use init values if it not equal default
             # We can't use ``dataclasses.replace`` in classmethod because

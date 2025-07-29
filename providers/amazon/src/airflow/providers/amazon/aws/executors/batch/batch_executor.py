@@ -37,8 +37,8 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 )
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.sdk import timezone
 from airflow.stats import Stats
-from airflow.utils import timezone
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
@@ -119,7 +119,7 @@ class AwsBatchExecutor(BaseExecutor):
         from airflow.executors import workloads
 
         if not isinstance(workload, workloads.ExecuteTask):
-            raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
+            raise RuntimeError(f"{self.__class__} cannot handle workloads of type {type(workload)}")
         ti = workload.ti
         self.queued_tasks[ti.key] = workload
 
@@ -129,7 +129,7 @@ class AwsBatchExecutor(BaseExecutor):
         # Airflow V3 version
         for w in workloads:
             if not isinstance(w, ExecuteTask):
-                raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(w)}")
+                raise RuntimeError(f"{self.__class__} cannot handle workloads of type {type(w)}")
             command = [w]
             key = w.ti.key
             queue = w.ti.queue

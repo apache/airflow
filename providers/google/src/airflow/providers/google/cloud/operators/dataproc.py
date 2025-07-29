@@ -63,7 +63,7 @@ from airflow.providers.google.cloud.triggers.dataproc import (
 )
 from airflow.providers.google.cloud.utils.dataproc import DataprocOperationType
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
-from airflow.utils import timezone
+from airflow.sdk import timezone
 
 if TYPE_CHECKING:
     from google.api_core import operation
@@ -652,7 +652,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         # TODO: remove one day
         if cluster_config is None and virtual_cluster_config is None:
             warnings.warn(
-                f"Passing cluster parameters by keywords to `{type(self).__name__}` will be deprecated. "
+                f"Passing cluster parameters by keywords to `{self.__class__.__name__}` will be deprecated. "
                 "Please provide cluster_config object using `cluster_config` parameter. "
                 "You can use `airflow.dataproc.ClusterGenerator.generate_cluster` "
                 "method to obtain cluster object.",

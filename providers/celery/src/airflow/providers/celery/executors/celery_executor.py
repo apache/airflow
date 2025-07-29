@@ -337,7 +337,7 @@ class CeleryExecutor(BaseExecutor):
         ]
         if len(tasks) != len(workloads):
             invalid = list(workload for workload in workloads if not isinstance(workload, ExecuteTask))
-            raise ValueError(f"{type(self)}._process_workloads cannot handle {invalid}")
+            raise ValueError(f"{self.__class__}._process_workloads cannot handle {invalid}")
 
         self._send_tasks(tasks)
 
@@ -560,7 +560,7 @@ class CeleryExecutor(BaseExecutor):
         from airflow.executors import workloads
 
         if not isinstance(workload, workloads.ExecuteTask):
-            raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
+            raise RuntimeError(f"{self.__class__} cannot handle workloads of type {type(workload)}")
         ti = workload.ti
         self.queued_tasks[ti.key] = workload
 

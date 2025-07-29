@@ -67,7 +67,7 @@ class PriorityWeightStrategy(ABC):
 
     def __eq__(self, other: object) -> bool:
         """Equality comparison."""
-        if not isinstance(other, type(self)):
+        if not isinstance(other, self.__class__):
             return False
         return self.serialize() == other.serialize()
 
