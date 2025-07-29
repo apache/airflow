@@ -25,7 +25,8 @@ if not AIRFLOW_V_3_1_PLUS:
     pytest.skip("Human in the loop public API compatible with Airflow >= 3.0.1", allow_module_level=True)
 
 import asyncio
-from datetime import timedelta
+import logging
+from datetime import datetime, timedelta
 from unittest import mock
 
 from uuid6 import uuid7
@@ -99,7 +100,9 @@ class TestHITLTrigger:
     @pytest.mark.db_test
     @pytest.mark.asyncio
     @mock.patch("airflow.sdk.execution_time.hitl.update_htil_detail_response")
-    async def test_run_fallback_to_default_due_to_timeout(self, mock_update, mock_supervisor_comms):
+    async def test_run_fallback_to_default_due_to_timeout(self, mock_update, mock_supervisor_comms, caplog):
+        caplog.set_level(logging.INFO)
+
         trigger = HITLTrigger(
             ti_id=TI_ID,
             options=["1", "2", "3", "4", "5"],
@@ -121,6 +124,7 @@ class TestHITLTrigger:
         trigger_task = asyncio.create_task(gen.__anext__())
         await asyncio.sleep(0.3)
         event = await trigger_task
+
         assert event == TriggerEvent(
             HITLTriggerEventSuccessPayload(
                 chosen_options=["1"],
@@ -128,10 +132,17 @@ class TestHITLTrigger:
             )
         )
 
+        assert (
+            "[HITL] timeout reached before receiving response, fallback to default ['1']" in caplog.messages
+        )
+
     @pytest.mark.db_test
     @pytest.mark.asyncio
     @mock.patch("airflow.sdk.execution_time.hitl.update_htil_detail_response")
-    async def test_run(self, mock_update, mock_supervisor_comms):
+    async def test_run(self, mock_update, mock_supervisor_comms, time_machine, caplog):
+        time_machine.move_to(datetime(2025, 7, 29, 2, 0, 0))
+        caplog.set_level(logging.INFO)
+
         trigger = HITLTrigger(
             ti_id=TI_ID,
             options=["1", "2", "3", "4", "5"],
@@ -159,3 +170,5 @@ class TestHITLTrigger:
                 params_input={"input": 50},
             )
         )
+
+        assert "[HITL] user=test options=['3'] at 2025-07-29 02:00:00+00:00" in caplog.messages
