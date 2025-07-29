@@ -64,7 +64,7 @@ class TestDeadlineCallbackTrigger:
         event = await TEST_TRIGGER.run().asend(None)
 
         mock_import_string.assert_called_once_with(TEST_CALLBACK_PATH)
-        mock_callback.assert_called_once_with(**TEST_CALLBACK_KWARGS)
+        mock_callback.assert_called_once_with(mock.ANY, **TEST_CALLBACK_KWARGS)
 
         assert event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.SUCCESS
         assert event.payload[PAYLOAD_BODY_KEY] == callback_return_value
@@ -77,7 +77,7 @@ class TestDeadlineCallbackTrigger:
         event = await TEST_TRIGGER.run().asend(None)
 
         mock_import_string.assert_called_once_with(TEST_CALLBACK_PATH)
-        mock_callback.assert_called_once_with(**TEST_CALLBACK_KWARGS)
+        mock_callback.assert_called_once_with(mock.ANY, **TEST_CALLBACK_KWARGS)
 
         assert event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.FAILED
         assert PAYLOAD_BODY_KEY in event.payload

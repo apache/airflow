@@ -95,6 +95,7 @@ class BaseNotifier(LoggingMixin, Templater):
         recommended approach for using Deadline Alerts.
 
         :param context: The airflow context
+
         Note: the context is not available in the current version.
         """
         raise NotImplementedError

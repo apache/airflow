@@ -282,7 +282,22 @@ class SlackWebhookHook(BaseHook):
         :param headers: Request headers for this request.
         :param attachments: (legacy) A collection of attachments.
         """
-        body = {k: v for k, v in locals().items() if v is not None and k != "self"}
+        body = {
+            k: v
+            for k, v in {
+                "text": text,
+                "attachments": attachments,
+                "blocks": blocks,
+                "response_type": response_type,
+                "replace_original": replace_original,
+                "delete_original": delete_original,
+                "unfurl_links": unfurl_links,
+                "unfurl_media": unfurl_media,
+                # Legacy Integration Parameters
+                **kwargs,
+            }.items()
+            if v is not None
+        }
         return self.send_dict(body=body, headers=headers)
 
     async def async_send(
@@ -313,7 +328,22 @@ class SlackWebhookHook(BaseHook):
         :param headers: Request headers for this request.
         :param attachments: (legacy) A collection of attachments.
         """
-        body = {k: v for k, v in locals().items() if v is not None and k != "self"}
+        body = {
+            k: v
+            for k, v in {
+                "text": text,
+                "attachments": attachments,
+                "blocks": blocks,
+                "response_type": response_type,
+                "replace_original": replace_original,
+                "delete_original": delete_original,
+                "unfurl_links": unfurl_links,
+                "unfurl_media": unfurl_media,
+                # Legacy Integration Parameters
+                **kwargs,
+            }.items()
+            if v is not None
+        }
         return await self.async_send_dict(body=body, headers=headers)
 
     def send_text(
