@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import sys
-from types import FunctionType
 
 import libcst as cst
 
@@ -38,7 +37,7 @@ class _autostacklevel_warn:
         self.warnings.warn(message, category, stacklevel + self.delta, source)
 
 
-def fixup_decorator_warning_stack(func: FunctionType, delta: int = 2):
+def fixup_decorator_warning_stack(func, delta: int = 2):
     if func.__globals__.get("warnings") is sys.modules["warnings"]:
         # Yes, this is more than slightly hacky, but it _automatically_ sets the right stacklevel parameter to
         # `warnings.warn` to ignore the decorator.
