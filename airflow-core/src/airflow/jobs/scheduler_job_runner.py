@@ -334,6 +334,21 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.info("\n\t".join(map(repr, callstack)))
             self.log.info("-" * 80)
 
+    def _aqcuire_lock_for_pgsql(self, session: Session) -> None:
+        from airflow.utils.db import DBLocks
+
+        # Optimization: to avoid littering the DB errors of "ERROR: canceling statement due to lock
+        # timeout", try to take out a transactional advisory lock (unlocks automatically on
+        # COMMIT/ROLLBACK)
+        lock_acquired = session.execute(
+            text("SELECT pg_try_advisory_xact_lock(:id)").bindparams(
+                id=DBLocks.SCHEDULER_CRITICAL_SECTION.value
+            )
+        ).scalar()
+        if not lock_acquired:
+            # Throw an error like the one that would happen with NOWAIT
+            raise OperationalError("Failed to acquire advisory lock", params=None, orig=RuntimeError("55P03"))
+
     def _executable_task_instances_to_queued(self, max_tis: int, session: Session) -> list[TI]:
         """
         Find TIs that are ready for execution based on conditions.
@@ -350,24 +365,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         :return: list[airflow.models.TaskInstance]
         """
         from airflow.models.pool import Pool
-        from airflow.utils.db import DBLocks
 
         executable_tis: list[TI] = []
 
         if session.get_bind().dialect.name == "postgresql":
-            # Optimization: to avoid littering the DB errors of "ERROR: canceling statement due to lock
-            # timeout", try to take out a transactional advisory lock (unlocks automatically on
-            # COMMIT/ROLLBACK)
-            lock_acquired = session.execute(
-                text("SELECT pg_try_advisory_xact_lock(:id)").bindparams(
-                    id=DBLocks.SCHEDULER_CRITICAL_SECTION.value
-                )
-            ).scalar()
-            if not lock_acquired:
-                # Throw an error like the one that would happen with NOWAIT
-                raise OperationalError(
-                    "Failed to acquire advisory lock", params=None, orig=RuntimeError("55P03")
-                )
+            self._aqcuire_lock_for_pgsql(session)
 
         # Get the pool settings. We get a lock on the pool rows, treating this as a "critical section"
         # Throws an exception if lock cannot be obtained, rather than blocking
