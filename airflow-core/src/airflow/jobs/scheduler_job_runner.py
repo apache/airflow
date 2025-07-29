@@ -410,7 +410,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .cte()
             )
 
-        def add_window_limit(query: Select, limit: Limit):
+        def add_window_limit(query: Select, limit: Limit) -> Select:
             inner_query = (
                 query.add_columns(limit.window)
                 .join(limit.running_now_join, TI.id == limit.running_now_join.c.id)
