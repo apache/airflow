@@ -42,6 +42,7 @@ from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException
 from airflow.listeners.listener import get_listener_manager
+from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
     DagRun,
@@ -104,8 +105,6 @@ from airflow.sdk.execution_time.context import (
 )
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.timezone import coerce_datetime
-from airflow.utils.net import get_hostname
-from airflow.utils.platform import getuser
 
 if TYPE_CHECKING:
     import jinja2
