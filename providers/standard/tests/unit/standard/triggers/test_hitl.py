@@ -40,18 +40,21 @@ from airflow.providers.standard.triggers.hitl import (
 from airflow.triggers.base import TriggerEvent
 
 TI_ID = uuid7()
+default_trigger_args = {
+    "ti_id": TI_ID,
+    "options": ["1", "2", "3", "4", "5"],
+    "params": {"input": 1},
+    "multiple": False,
+}
 
 
 class TestHITLTrigger:
     def test_serialization(self):
         trigger = HITLTrigger(
-            ti_id=TI_ID,
-            options=["1", "2", "3", "4", "5"],
-            params={"input": 1},
             defaults=["1"],
-            multiple=False,
             timeout_datetime=None,
             poke_interval=50.0,
+            **default_trigger_args,
         )
         classpath, kwargs = trigger.serialize()
         assert classpath == "airflow.providers.standard.triggers.hitl.HITLTrigger"
@@ -70,12 +73,9 @@ class TestHITLTrigger:
     @mock.patch("airflow.sdk.execution_time.hitl.update_htil_detail_response")
     async def test_run_failed_due_to_timeout(self, mock_update, mock_supervisor_comms):
         trigger = HITLTrigger(
-            ti_id=TI_ID,
-            options=["1", "2", "3", "4", "5"],
-            params={"input": 1},
-            multiple=False,
             timeout_datetime=utcnow() + timedelta(seconds=0.1),
             poke_interval=5,
+            **default_trigger_args,
         )
         mock_supervisor_comms.send.return_value = HITLDetailResponse(
             response_received=False,
@@ -102,13 +102,10 @@ class TestHITLTrigger:
     @mock.patch("airflow.sdk.execution_time.hitl.update_htil_detail_response")
     async def test_run_fallback_to_default_due_to_timeout(self, mock_update, mock_log, mock_supervisor_comms):
         trigger = HITLTrigger(
-            ti_id=TI_ID,
-            options=["1", "2", "3", "4", "5"],
-            params={"input": 1},
             defaults=["1"],
-            multiple=False,
             timeout_datetime=utcnow() + timedelta(seconds=0.1),
             poke_interval=5,
+            **default_trigger_args,
         )
         mock_supervisor_comms.send.return_value = HITLDetailResponse(
             response_received=False,
@@ -142,13 +139,10 @@ class TestHITLTrigger:
         time_machine.move_to(datetime(2025, 7, 29, 2, 0, 0))
 
         trigger = HITLTrigger(
-            ti_id=TI_ID,
-            options=["1", "2", "3", "4", "5"],
-            params={"input": 1},
             defaults=["1"],
-            multiple=False,
             timeout_datetime=None,
             poke_interval=5,
+            **default_trigger_args,
         )
         mock_supervisor_comms.send.return_value = HITLDetailResponse(
             response_received=True,
