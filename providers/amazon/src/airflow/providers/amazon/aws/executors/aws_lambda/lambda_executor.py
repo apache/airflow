@@ -42,8 +42,8 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 )
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
-from airflow.sdk import timezone
 from airflow.stats import Stats
+from airflow.utils import timezone  # type: ignore[attr-defined]
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
