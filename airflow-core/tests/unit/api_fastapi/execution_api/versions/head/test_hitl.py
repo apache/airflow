@@ -121,7 +121,7 @@ def test_upsert_hitl_detail(
         session.commit()
 
     response = client.post(
-        f"/execution/hitl-details/{ti.id}",
+        f"/execution/hitlDetails/{ti.id}",
         json={
             "ti_id": ti.id,
             **default_hitl_detail_request_kwargs,
@@ -138,7 +138,7 @@ def test_upsert_hitl_detail(
 @pytest.mark.usefixtures("sample_hitl_detail")
 def test_update_hitl_detail(client: Client, sample_ti: TaskInstance) -> None:
     response = client.patch(
-        f"/execution/hitl-details/{sample_ti.id}",
+        f"/execution/hitlDetails/{sample_ti.id}",
         json={
             "ti_id": sample_ti.id,
             "chosen_options": ["Reject"],
@@ -157,6 +157,6 @@ def test_update_hitl_detail(client: Client, sample_ti: TaskInstance) -> None:
 
 @pytest.mark.usefixtures("sample_hitl_detail")
 def test_get_hitl_detail(client: Client, sample_ti: TaskInstance) -> None:
-    response = client.get(f"/execution/hitl-details/{sample_ti.id}")
+    response = client.get(f"/execution/hitlDetails/{sample_ti.id}")
     assert response.status_code == 200
     assert response.json() == expected_empty_hitl_detail_response_part
