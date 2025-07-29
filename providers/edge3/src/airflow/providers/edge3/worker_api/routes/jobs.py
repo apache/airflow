@@ -38,6 +38,11 @@ from airflow.providers.edge3.worker_api.datamodels import (
 )
 from airflow.utils.state import TaskInstanceState
 
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import timezone
+else:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+
 jobs_router = AirflowRouter(tags=["Jobs"], prefix="/jobs")
 
 
