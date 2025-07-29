@@ -25,7 +25,7 @@ if not AIRFLOW_V_3_1_PLUS:
     raise AirflowOptionalProviderFeatureException("Human in the loop functionality needs Airflow 3.1+.")
 
 
-from collections.abc import Collection, Mapping
+from collections.abc import Collection, Mapping, Sequence
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.standard.exceptions import HITLTimeoutError, HITLTriggerEventError
@@ -38,6 +38,7 @@ from airflow.sdk.execution_time.hitl import upsert_hitl_detail
 from airflow.sdk.timezone import utcnow
 
 if TYPE_CHECKING:
+    from airflow.sdk import BaseNotifier
     from airflow.sdk.definitions.context import Context
 
 
@@ -66,6 +67,7 @@ class HITLOperator(BaseOperator):
         defaults: str | list[str] | None = None,
         multiple: bool = False,
         params: ParamsDict | dict[str, Any] | None = None,
+        notifiers: Sequence[BaseNotifier] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -78,6 +80,8 @@ class HITLOperator(BaseOperator):
         self.multiple = multiple
 
         self.params: ParamsDict = params if isinstance(params, ParamsDict) else ParamsDict(params or {})
+
+        self.notifiers = notifiers or []
 
         self.validate_defaults()
 
@@ -108,11 +112,16 @@ class HITLOperator(BaseOperator):
             multiple=self.multiple,
             params=self.serialized_params,
         )
+
+        for notifier in self.notifiers:
+            notifier(context)
+
         if self.execution_timeout:
             timeout_datetime = utcnow() + self.execution_timeout
         else:
             timeout_datetime = None
-        self.log.info("Waiting for response")
+
+        self.log.info("[HITL] Waiting for response")
         # Defer the Human-in-the-loop response checking process to HITLTrigger
         self.defer(
             trigger=HITLTrigger(
