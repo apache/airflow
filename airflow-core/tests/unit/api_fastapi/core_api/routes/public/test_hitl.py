@@ -238,7 +238,7 @@ class TestUpdateHITLDetailEndpoint:
         sample_ti_url_identifier: str,
     ) -> None:
         response = test_client.patch(
-            f"/hitl-details/{sample_ti_url_identifier}",
+            f"/hitlDetails/{sample_ti_url_identifier}",
             json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
         )
 
@@ -256,7 +256,7 @@ class TestUpdateHITLDetailEndpoint:
         sample_ti_url_identifier: str,
         expected_ti_not_found_error_msg: str,
     ) -> None:
-        response = test_client.get(f"/hitl-details/{sample_ti_url_identifier}")
+        response = test_client.get(f"/hitlDetails/{sample_ti_url_identifier}")
         assert response.status_code == 404
         assert response.json() == {"detail": expected_ti_not_found_error_msg}
 
@@ -269,7 +269,7 @@ class TestUpdateHITLDetailEndpoint:
         sample_ti: TaskInstance,
     ) -> None:
         response = test_client.patch(
-            f"/hitl-details/{sample_ti_url_identifier}",
+            f"/hitlDetails/{sample_ti_url_identifier}",
             json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
         )
 
@@ -283,7 +283,7 @@ class TestUpdateHITLDetailEndpoint:
         assert response.json() == expected_response
 
         response = test_client.patch(
-            f"/hitl-details/{sample_ti_url_identifier}",
+            f"/hitlDetails/{sample_ti_url_identifier}",
             json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
         )
         assert response.status_code == 409
@@ -300,7 +300,7 @@ class TestUpdateHITLDetailEndpoint:
         unauthenticated_test_client: TestClient,
         sample_ti_url_identifier: str,
     ) -> None:
-        response = unauthenticated_test_client.get(f"/hitl-details/{sample_ti_url_identifier}")
+        response = unauthenticated_test_client.get(f"/hitlDetails/{sample_ti_url_identifier}")
         assert response.status_code == 401
 
     def test_should_respond_403(
@@ -308,7 +308,7 @@ class TestUpdateHITLDetailEndpoint:
         unauthorized_test_client: TestClient,
         sample_ti_url_identifier: str,
     ) -> None:
-        response = unauthorized_test_client.get(f"/hitl-details/{sample_ti_url_identifier}")
+        response = unauthorized_test_client.get(f"/hitlDetails/{sample_ti_url_identifier}")
         assert response.status_code == 403
 
 
@@ -321,7 +321,7 @@ class TestUpdateMappedTIHITLDetail:
         sample_ti_url_identifier: str,
     ) -> None:
         response = test_client.patch(
-            f"/hitl-details/{sample_ti_url_identifier}/-1",
+            f"/hitlDetails/{sample_ti_url_identifier}/-1",
             json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
         )
 
@@ -339,7 +339,7 @@ class TestUpdateMappedTIHITLDetail:
         sample_ti_url_identifier: str,
         expected_mapped_ti_not_found_error_msg: str,
     ) -> None:
-        response = test_client.get(f"/hitl-details/{sample_ti_url_identifier}/-1")
+        response = test_client.get(f"/hitlDetails/{sample_ti_url_identifier}/-1")
         assert response.status_code == 404
         assert response.json() == {"detail": expected_mapped_ti_not_found_error_msg}
 
@@ -352,7 +352,7 @@ class TestUpdateMappedTIHITLDetail:
         sample_ti: TaskInstance,
     ) -> None:
         response = test_client.patch(
-            f"/hitl-details/{sample_ti_url_identifier}/-1",
+            f"/hitlDetails/{sample_ti_url_identifier}/-1",
             json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
         )
 
@@ -366,7 +366,7 @@ class TestUpdateMappedTIHITLDetail:
         assert response.json() == expected_response
 
         response = test_client.patch(
-            f"/hitl-details/{sample_ti_url_identifier}/-1",
+            f"/hitlDetails/{sample_ti_url_identifier}/-1",
             json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
         )
         assert response.status_code == 409
@@ -383,7 +383,7 @@ class TestUpdateMappedTIHITLDetail:
         unauthenticated_test_client: TestClient,
         sample_ti_url_identifier: str,
     ) -> None:
-        response = unauthenticated_test_client.get(f"/hitl-details/{sample_ti_url_identifier}/-1")
+        response = unauthenticated_test_client.get(f"/hitlDetails/{sample_ti_url_identifier}/-1")
         assert response.status_code == 401
 
     def test_should_respond_403(
@@ -391,7 +391,7 @@ class TestUpdateMappedTIHITLDetail:
         unauthorized_test_client: TestClient,
         sample_ti_url_identifier: str,
     ) -> None:
-        response = unauthorized_test_client.get(f"/hitl-details/{sample_ti_url_identifier}/-1")
+        response = unauthorized_test_client.get(f"/hitlDetails/{sample_ti_url_identifier}/-1")
         assert response.status_code == 403
 
 
@@ -403,7 +403,7 @@ class TestGetHITLDetailEndpoint:
         sample_ti_url_identifier: str,
         expected_sample_hitl_detail_dict: dict[str, Any],
     ) -> None:
-        response = test_client.get(f"/hitl-details/{sample_ti_url_identifier}")
+        response = test_client.get(f"/hitlDetails/{sample_ti_url_identifier}")
         assert response.status_code == 200
         assert response.json() == expected_sample_hitl_detail_dict
 
@@ -413,7 +413,7 @@ class TestGetHITLDetailEndpoint:
         sample_ti_url_identifier: str,
         expected_ti_not_found_error_msg: str,
     ) -> None:
-        response = test_client.get(f"/hitl-details/{sample_ti_url_identifier}")
+        response = test_client.get(f"/hitlDetails/{sample_ti_url_identifier}")
         assert response.status_code == 404
         assert response.json() == {"detail": expected_ti_not_found_error_msg}
 
@@ -422,7 +422,7 @@ class TestGetHITLDetailEndpoint:
         unauthenticated_test_client: TestClient,
         sample_ti_url_identifier: str,
     ) -> None:
-        response = unauthenticated_test_client.get(f"/hitl-details/{sample_ti_url_identifier}")
+        response = unauthenticated_test_client.get(f"/hitlDetails/{sample_ti_url_identifier}")
         assert response.status_code == 401
 
     def test_should_respond_403(
@@ -430,7 +430,7 @@ class TestGetHITLDetailEndpoint:
         unauthorized_test_client: TestClient,
         sample_ti_url_identifier: str,
     ) -> None:
-        response = unauthorized_test_client.get(f"/hitl-details/{sample_ti_url_identifier}")
+        response = unauthorized_test_client.get(f"/hitlDetails/{sample_ti_url_identifier}")
         assert response.status_code == 403
 
 
@@ -442,7 +442,7 @@ class TestGetMappedTIHITLDetail:
         sample_ti_url_identifier: str,
         expected_sample_hitl_detail_dict: dict[str, Any],
     ) -> None:
-        response = test_client.get(f"/hitl-details/{sample_ti_url_identifier}/-1")
+        response = test_client.get(f"/hitlDetails/{sample_ti_url_identifier}/-1")
         assert response.status_code == 200
         assert response.json() == expected_sample_hitl_detail_dict
 
@@ -452,7 +452,7 @@ class TestGetMappedTIHITLDetail:
         sample_ti_url_identifier: str,
         expected_mapped_ti_not_found_error_msg: str,
     ) -> None:
-        response = test_client.get(f"/hitl-details/{sample_ti_url_identifier}/-1")
+        response = test_client.get(f"/hitlDetails/{sample_ti_url_identifier}/-1")
         assert response.status_code == 404
         assert response.json() == {"detail": expected_mapped_ti_not_found_error_msg}
 
@@ -461,7 +461,7 @@ class TestGetMappedTIHITLDetail:
         unauthenticated_test_client: TestClient,
         sample_ti_url_identifier: str,
     ) -> None:
-        response = unauthenticated_test_client.get(f"/hitl-details/{sample_ti_url_identifier}/-1")
+        response = unauthenticated_test_client.get(f"/hitlDetails/{sample_ti_url_identifier}/-1")
         assert response.status_code == 401
 
     def test_should_respond_403(
@@ -469,7 +469,7 @@ class TestGetMappedTIHITLDetail:
         unauthorized_test_client: TestClient,
         sample_ti_url_identifier: str,
     ) -> None:
-        response = unauthorized_test_client.get(f"/hitl-details/{sample_ti_url_identifier}/-1")
+        response = unauthorized_test_client.get(f"/hitlDetails/{sample_ti_url_identifier}/-1")
         assert response.status_code == 403
 
 
@@ -480,7 +480,7 @@ class TestGetHITLDetailsEndpoint:
         test_client: TestClient,
         expected_sample_hitl_detail_dict: dict[str, Any],
     ) -> None:
-        response = test_client.get("/hitl-details/")
+        response = test_client.get("/hitlDetails/")
         assert response.status_code == 200
         assert response.json() == {
             "hitl_details": [expected_sample_hitl_detail_dict],
@@ -523,13 +523,13 @@ class TestGetHITLDetailsEndpoint:
         params: dict[str, Any],
         expected_ti_count: int,
     ) -> None:
-        response = test_client.get("/hitl-details/", params=params)
+        response = test_client.get("/hitlDetails/", params=params)
         assert response.status_code == 200
         assert response.json()["total_entries"] == expected_ti_count
         assert len(response.json()["hitl_details"]) == expected_ti_count
 
     def test_should_respond_200_without_response(self, test_client: TestClient) -> None:
-        response = test_client.get("/hitl-details/")
+        response = test_client.get("/hitlDetails/")
         assert response.status_code == 200
         assert response.json() == {
             "hitl_details": [],
@@ -537,9 +537,9 @@ class TestGetHITLDetailsEndpoint:
         }
 
     def test_should_respond_401(self, unauthenticated_test_client: TestClient) -> None:
-        response = unauthenticated_test_client.get("/hitl-details/")
+        response = unauthenticated_test_client.get("/hitlDetails/")
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client: TestClient) -> None:
-        response = unauthorized_test_client.get("/hitl-details/")
+        response = unauthorized_test_client.get("/hitlDetails/")
         assert response.status_code == 403

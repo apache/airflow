@@ -50,7 +50,7 @@ from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDe
 from airflow.models.hitl import HITLDetail as HITLDetailModel
 from airflow.models.taskinstance import TaskInstance as TI
 
-hitl_router = AirflowRouter(tags=["HumanInTheLoop"], prefix="/hitl-details")
+hitl_router = AirflowRouter(tags=["HumanInTheLoop"], prefix="/hitlDetails")
 
 log = structlog.get_logger(__name__)
 

@@ -1256,7 +1256,7 @@ class TestHITLOperations:
         ti_id = uuid7()
 
         def handle_request(request: httpx.Request) -> httpx.Response:
-            if request.url.path in (f"/hitl-details/{ti_id}"):
+            if request.url.path in (f"/hitlDetails/{ti_id}"):
                 return httpx.Response(
                     status_code=201,
                     json={
@@ -1295,7 +1295,7 @@ class TestHITLOperations:
         ti_id = uuid7()
 
         def handle_request(request: httpx.Request) -> httpx.Response:
-            if request.url.path in (f"/hitl-details/{ti_id}"):
+            if request.url.path in (f"/hitlDetails/{ti_id}"):
                 return httpx.Response(
                     status_code=200,
                     json={
@@ -1326,7 +1326,7 @@ class TestHITLOperations:
         ti_id = uuid7()
 
         def handle_request(request: httpx.Request) -> httpx.Response:
-            if request.url.path in (f"/hitl-details/{ti_id}"):
+            if request.url.path in (f"/hitlDetails/{ti_id}"):
                 return httpx.Response(
                     status_code=200,
                     json={

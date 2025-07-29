@@ -5927,7 +5927,7 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/hitl-details/{dag_id}/{dag_run_id}/{task_id}': {
+    '/api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}': {
         patch: {
             req: UpdateHitlDetailData;
             res: {
@@ -5983,7 +5983,7 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/hitl-details/{dag_id}/{dag_run_id}/{task_id}/{map_index}': {
+    '/api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}/{map_index}': {
         patch: {
             req: UpdateMappedTiHitlDetailData;
             res: {
@@ -6039,7 +6039,7 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/hitl-details/': {
+    '/api/v2/hitlDetails/': {
         get: {
             req: GetHitlDetailsData;
             res: {

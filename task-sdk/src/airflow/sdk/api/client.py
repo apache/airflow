@@ -734,7 +734,7 @@ class HITLOperations:
             params=params,
         )
         resp = self.client.post(
-            f"/hitl-details/{ti_id}",
+            f"/hitlDetails/{ti_id}",
             content=payload.model_dump_json(),
         )
         return HITLDetailRequestResult.model_validate_json(resp.read())
@@ -753,14 +753,14 @@ class HITLOperations:
             params_input=params_input,
         )
         resp = self.client.patch(
-            f"/hitl-details/{ti_id}",
+            f"/hitlDetails/{ti_id}",
             content=payload.model_dump_json(),
         )
         return HITLDetailResponse.model_validate_json(resp.read())
 
     def get_detail_response(self, ti_id: uuid.UUID) -> HITLDetailResponse:
         """Get content part of a Human-in-the-loop response for a specific Task Instance."""
-        resp = self.client.get(f"/hitl-details/{ti_id}")
+        resp = self.client.get(f"/hitlDetails/{ti_id}")
         return HITLDetailResponse.model_validate_json(resp.read())
 
 
