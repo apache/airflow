@@ -63,7 +63,6 @@ from airflow.sdk.definitions.asset import (
     AssetUniqueKey,
     BaseAsset,
 )
-from airflow.sdk.definitions.context import Context
 from airflow.sdk.definitions.deadline import DeadlineAlert
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import Param, ParamsDict
@@ -89,6 +88,7 @@ from airflow.triggers.base import BaseTrigger, StartTriggerArgs
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.context import (
     ConnectionAccessor,
+    Context,
     VariableAccessor,
 )
 from airflow.utils.db import LazySelectSequence
