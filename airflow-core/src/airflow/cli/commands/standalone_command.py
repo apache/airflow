@@ -161,28 +161,34 @@ class StandaloneCommand:
         """
         self.print_output(name, colored(output, "red"))
 
+   
     def calculate_env(self):
         """
         Works out the environment variables needed to run subprocesses.
 
-        We override some settings as part of being standalone.
+        We override some settings as part of being standalone, but allow
+        user-defined overrides for auth manager and executor.
         """
         env = dict(os.environ)
 
-        # Make sure we're using a local executor flavour
+        # Force executor to LocalExecutor only if not already set by the user
         executor_class, _ = ExecutorLoader.import_default_executor_cls()
         if not executor_class.is_local:
             self.print_output("standalone", "Forcing executor to LocalExecutor")
             env["AIRFLOW__CORE__EXECUTOR"] = executor_constants.LOCAL_EXECUTOR
 
-        # Make sure we're using SimpleAuthManager
+        # Respect user-defined auth_manager if present
+        custom_auth = os.environ.get("AIRFLOW__CORE__AUTH_MANAGER")
         simple_auth_manager_classpath = (
             "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager"
         )
-        if conf.get("core", "auth_manager") != simple_auth_manager_classpath:
-            self.print_output("standalone", "Forcing auth manager to SimpleAuthManager")
+
+        if not custom_auth:
+            self.print_output("standalone", "No auth_manager provided. Using SimpleAuthManager")
             env["AIRFLOW__CORE__AUTH_MANAGER"] = simple_auth_manager_classpath
-            os.environ["AIRFLOW__CORE__AUTH_MANAGER"] = simple_auth_manager_classpath  # also in this process!
+            os.environ["AIRFLOW__CORE__AUTH_MANAGER"] = simple_auth_manager_classpath
+        else:
+            self.print_output("standalone", f"Using custom auth_manager: {custom_auth}")
 
         return env
 
