@@ -37,6 +37,7 @@ from sqlalchemy import Column, and_, delete, desc, exists, func, or_, select, te
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
+from sqlalchemy.sql.selectable import CTE
 
 from airflow import settings
 from airflow._shared.timezones import timezone
@@ -402,7 +403,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             max_units: Column
             window: expression.ColumnElement
 
-        def running_tasks_group(*group_fields):
+        def running_tasks_group(*group_fields: Column) -> CTE:
             return (
                 select(TI, func.count("*").label("now_running"))
                 .where(TI.state.in_(EXECUTION_STATES))
