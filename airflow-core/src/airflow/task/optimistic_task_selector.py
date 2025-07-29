@@ -16,19 +16,22 @@
 # under the License.
 from __future__ import annotations
 
+import itertools
 from collections import Counter
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, select, update
+from sqlalchemy import Column, select, tuple_, update
 from sqlalchemy.orm import Query, Session, selectinload
 
 from airflow.models import DagRun, Pool, TaskInstance
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.stats import Stats
 from airflow.task.task_selector_strategy import TaskSelectorStrategy
 from airflow.utils.concurency import ConcurrencyMap
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import DagRunState, TaskInstanceState
 
 if TYPE_CHECKING:
@@ -58,6 +61,191 @@ class OptimisticTaskSelector(TaskSelectorStrategy, LoggingMixin):
         )
 
         return query
+
+    def query_tasks_with_locks(self, session: Session, **additional_params) -> Query:
+        priority_order: list[Column] = additional_params["priority_order"]
+        max_tis: int = additional_params.get("max_tis", 32)
+
+        query = self.get_query(
+            priority_order=priority_order,
+            max_tis=max_tis,
+        )
+
+        pools, pool_slots_free = self._get_pool_stats(session)
+
+        if pool_slots_free == 0:
+            self.log.debug("All pools are full!")
+            return []
+
+        starved_pools = {pool_name for pool_name, stats in pools.items() if stats["open"] <= 0}
+
+        # dag_id to # of running tasks and (dag_id, task_id) to # of running tasks.
+        concurrency_map = ConcurrencyMap()
+        concurrency_map.load(session=session)
+
+        # Number of tasks that cannot be scheduled because of no open slot in pool
+        num_starving_tasks_total = 0
+
+        # dag and task ids that can't be queued because of concurrency limits
+        starved_dags: set[str] = set()
+        starved_tasks: set[tuple[str, str]] = set()
+        starved_tasks_task_dagrun_concurrency: set[tuple[str, str, str]] = set()
+
+        # TODO: think about whether the metrics should be extrected from here or not
+        pool_num_starving_tasks: dict[str, int] = Counter()
+        executable_tis: list[TaskInstance] = []
+
+        for loop_count in itertools.count(start=1):
+            num_starved_pools = len(starved_pools)
+            num_starved_dags = len(starved_dags)
+            num_starved_tasks = len(starved_tasks)
+            num_starved_tasks_task_dagrun_concurrency = len(starved_tasks_task_dagrun_concurrency)
+
+            query = self._add_query_predicates(
+                query,
+                starved_pools,
+                starved_tasks,
+                starved_dags,
+                starved_tasks_task_dagrun_concurrency,
+            )
+            query = with_row_locks(query, of=TaskInstance, session=session, skip_locked=True)
+            tasks_to_examine = session.scalars(query).all()
+
+            executable_tis_result, total_starved_tasks = self._examine_task_instances(
+                session,
+                tasks_to_examine,
+                pools,
+                pool_num_starving_tasks,
+                concurrency_map,
+                starved_pools,
+                starved_tasks,
+                starved_dags,
+                starved_tasks_task_dagrun_concurrency,
+            )
+
+            executable_tis.extend(executable_tis_result)
+
+            num_starving_tasks_total += total_starved_tasks
+
+            is_done = executable_tis or len(tasks_to_examine) < max_tis
+            # Check this to avoid accidental infinite loops
+            found_new_filters = (
+                len(starved_pools) > num_starved_pools
+                or len(starved_dags) > num_starved_dags
+                or len(starved_tasks) > num_starved_tasks
+                or len(starved_tasks_task_dagrun_concurrency) > num_starved_tasks_task_dagrun_concurrency
+            )
+
+            if is_done or not found_new_filters:
+                break
+
+            self.log.info(
+                "Found no task instances to queue on query iteration %s "
+                "but there could be more candidate task instances to check.",
+                loop_count,
+            )
+
+        for pool_name, num_starving_tasks in pool_num_starving_tasks.items():
+            Stats.gauge(f"pool.starving_tasks.{pool_name}", num_starving_tasks)
+            # Same metric with tagging
+            Stats.gauge("pool.starving_tasks", num_starving_tasks, tags={"pool_name": pool_name})
+
+        return executable_tis
+
+    def _examine_task_instances(
+        self,
+        session: Session,
+        task_instances_to_examine: list[TaskInstance],
+        pools: dict[str, PoolStats],
+        pool_num_starving_tasks: dict[str, int],
+        concurrency_map: ConcurrencyMap,
+        starved_pools: set[str],
+        starved_tasks: set[tuple[str, str]],
+        starved_dags: set[str],
+        starved_tasks_task_dagrun_concurrency: set[tuple[str, str, str]],
+    ) -> tuple[list[TaskInstance], int]:
+        executable_tis: list[TaskInstance] = []
+        num_starving_tasks_total: int = 0
+
+        for task_instance in task_instances_to_examine:
+            dag_id = task_instance.dag_id
+            dag_run_key = (dag_id, task_instance.run_id)
+            pool_name = task_instance.pool
+
+            pool_stats = pools.get(pool_name)
+
+            if not pool_stats:
+                self.log.warning("Tasks using non-existent pool '%s' will not be scheduled", pool_name)
+                starved_pools.add(pool_name)
+                continue
+
+            open_slots = pool_stats["open"]
+
+            can_tasks_schedule_on_pool = self._check_pool_slots_predicates(task_instance, pool_stats)
+
+            if not can_tasks_schedule_on_pool:
+                # Can't schedule any more, predicates checked in the method above.
+                pool_num_starving_tasks[pool_name] += 1
+                num_starving_tasks_total += 1
+                starved_pools.add(pool_name)
+
+                continue
+
+            # Make sure to emit metrics if pool has no starving tasks
+            pool_num_starving_tasks.setdefault(pool_name, 0)
+
+            if not self._check_dag_max_active_tasks_not_exceeded(
+                task_instance,
+                concurrency_map,
+                starved_dags,
+            ):
+                continue
+
+            if task_instance.dag_model.has_task_concurrency_limits:
+                if (
+                    not self._check_not_serialized_dag(task_instance, session)
+                    or not self._check_task_dag_concurency(task_instance, starved_tasks, concurrency_map)
+                    or not self._check_task_dagrun_concurency(
+                        task_instance, starved_tasks_task_dagrun_concurrency, concurrency_map
+                    )
+                ):
+                    continue
+
+            executable_tis.append(task_instance)
+            open_slots -= task_instance.pool_slots
+            concurrency_map.dag_run_active_tasks_map[dag_run_key] += 1
+            concurrency_map.task_concurrency_map[(task_instance.dag_id, task_instance.task_id)] += 1
+            concurrency_map.task_dagrun_concurrency_map[
+                (task_instance.dag_id, task_instance.run_id, task_instance.task_id)
+            ] += 1
+
+            pool_stats["open"] = open_slots
+
+        return executable_tis, num_starving_tasks_total
+
+    def _add_query_predicates(
+        self,
+        query: Query,
+        starved_pools: set[str],
+        starved_tasks: set[tuple[str, str]],
+        starved_dags: set[str],
+        starved_tasks_task_dagrun_concurrency: set[tuple[str, str, str]],
+    ) -> Query:
+        if starved_pools:
+            query = query.where(TaskInstance.pool.not_in(starved_pools))
+
+        if starved_dags:
+            query = query.where(TaskInstance.dag_id.not_in(starved_dags))
+
+        if starved_tasks:
+            query = query.where(tuple_(TaskInstance.dag_id, TaskInstance.task_id).not_in(starved_tasks))
+
+        if starved_tasks_task_dagrun_concurrency:
+            query = query.where(
+                tuple_(TaskInstance.dag_id, TaskInstance.run_id, TaskInstance.task_id).not_in(
+                    starved_tasks_task_dagrun_concurrency
+                )
+            )
 
     def _get_pool_stats(self, session: Session) -> tuple[dict[str, PoolStats], int]:
         # Get the pool settings. We get a lock on the pool rows, treating this as a "critical section"
@@ -205,97 +393,13 @@ class OptimisticTaskSelector(TaskSelectorStrategy, LoggingMixin):
                 "Not executing %s since the task concurrency per DAG run for this task has been reached.",
                 task_instance,
             )
-            starved_tasks_task_dagrun_concurrency.add((
-                task_instance.dag_id,
-                task_instance.run_id,
-                task_instance.task_id,
-            ))
+            starved_tasks_task_dagrun_concurrency.add(
+                (
+                    task_instance.dag_id,
+                    task_instance.run_id,
+                    task_instance.task_id,
+                )
+            )
             return False
 
         return True
-
-    def query_tasks_with_locks(self, session: Session, **additional_params) -> Query:
-        priority_order: list[Column] = additional_params["priority_order"]
-        max_tis: int = additional_params.get("max_tis", 32)
-
-        task_instances_to_examine = super().query_tasks_with_locks(
-            session,
-            priority_order=priority_order,
-            max_tis=max_tis,
-        )
-
-        pools, pool_slots_free = self._get_pool_stats(session)
-
-        if pool_slots_free == 0:
-            self.log.debug("All pools are full!")
-            return []
-
-        starved_pools = {pool_name for pool_name, stats in pools.items() if stats["open"] <= 0}
-
-        # dag_id to # of running tasks and (dag_id, task_id) to # of running tasks.
-        concurrency_map = ConcurrencyMap()
-        concurrency_map.load(session=session)
-
-        # Number of tasks that cannot be scheduled because of no open slot in pool
-        num_starving_tasks_total = 0
-
-        # dag and task ids that can't be queued because of concurrency limits
-        starved_dags: set[str] = set()
-        starved_tasks: set[tuple[str, str]] = set()
-        starved_tasks_task_dagrun_concurrency: set[tuple[str, str, str]] = set()
-
-        # TODO: think about whether the metrics should be extrected from here or not
-        pool_num_starving_tasks: dict[str, int] = Counter()
-        executable_tis: list[TaskInstance] = []
-
-        for task_instance in task_instances_to_examine:
-            pool_name = task_instance.pool
-
-            pool_stats = pools.get(pool_name)
-
-            if not pool_stats:
-                self.log.warning("Tasks using non-existent pool '%s' will not be scheduled", pool_name)
-                starved_pools.add(pool_name)
-                continue
-
-            open_slots = pool_stats["open"]
-
-            can_tasks_schedule_on_pool = self._check_pool_slots_predicates(task_instance, pool_stats)
-
-            if not can_tasks_schedule_on_pool:
-                # Can't schedule any more, predicates checked in the method above.
-                pool_num_starving_tasks[pool_name] += 1
-                num_starving_tasks_total += 1
-                starved_pools.add(pool_name)
-
-                continue
-
-            # Make sure to emit metrics if pool has no starving tasks
-            pool_num_starving_tasks.setdefault(pool_name, 0)
-
-            if not self._check_dag_max_active_tasks_not_exceeded(
-                task_instance,
-                concurrency_map,
-                starved_dags,
-            ):
-                continue
-
-            if task_instance.dag_model.has_task_concurrency_limits:
-                if (
-                    not self._check_not_serialized_dag(task_instance, session)
-                    or not self._check_task_dag_concurency(task_instance, starved_tasks, concurrency_map)
-                    or not self._check_task_dagrun_concurency(
-                        task_instance, starved_tasks_task_dagrun_concurrency, concurrency_map
-                    )
-                ):
-                    continue
-
-            executable_tis.append(task_instance)
-            open_slots -= task_instance.pool_slots
-            concurrency_map.dag_run_active_tasks_map[dag_run_key] += 1
-            concurrency_map.task_concurrency_map[(task_instance.dag_id, task_instance.task_id)] += 1
-            concurrency_map.task_dagrun_concurrency_map[
-                (task_instance.dag_id, task_instance.run_id, task_instance.task_id)
-            ] += 1
-
-            pool_stats["open"] = open_slots
