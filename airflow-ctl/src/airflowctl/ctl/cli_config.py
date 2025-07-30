@@ -77,16 +77,23 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
         rich.print(f"command failed due to {e}")
         sys.exit(1)
     except httpx.RemoteProtocolError as e:
+        rich.print(f"[red]Remote protocol error: {e}[/red]")
         if "Server disconnected without sending a response." in str(e):
             rich.print(
                 f"[red]Server response error: {e}. "
                 "Please check if the server is running and the API URL is correct.[/red]"
             )
     except httpx.ReadTimeout as e:
+        rich.print(f"[red]Read timeout error: {e}[/red]")
         if "timed out" in str(e):
+            rich.print("Please check if the server is running and the API ready to accept calls.[/red]")
+    except ServerResponseError as e:
+        rich.print(f"Server response error: {e}")
+        if "Client error message:" in str(e):
             rich.print(
-                f"[red]Request timed out: {e}. "
-                "Please check if the server is running and the API ready to accept calls.[/red]"
+                "[red]Client error, [/red] "
+                "Please check the command and its parameters. "
+                "If you need help, run the command with --help."
             )
 
 
@@ -338,7 +345,9 @@ class CommandFactory:
     func_map: dict[tuple, Callable]
     commands_map: dict[str, list[ActionCommand]]
     group_commands_list: list[CLICommand]
-    ouput_command_list: list[str]
+    output_command_list: list[str]
+    exclude_operation_names: list[str]
+    exclude_method_names: list[str]
 
     def __init__(self, file_path: str | Path | None = None):
         self.datamodels_extended_map = {}
@@ -348,10 +357,20 @@ class CommandFactory:
         self.commands_map = {}
         self.group_commands_list = []
         self.file_path = inspect.getfile(BaseOperations) if file_path is None else file_path
+        # Excluded Lists are in Class Level for further usage and avoid searching them
         # Exclude parameters that are not needed for CLI from datamodels
         self.excluded_parameters = ["schema_"]
         # This list is used to determine if the command/operation needs to output data
-        self.output_command_list = ["list", "get", "create", "delete"]
+        self.output_command_list = ["list", "get", "create", "delete", "update"]
+        self.exclude_operation_names = ["LoginOperations", "VersionOperations", "BaseOperations"]
+        self.exclude_method_names = [
+            "error",
+            "__init__",
+            "__init_subclass__",
+            "_check_flag_and_exit_if_server_response_error",
+            # Excluding bulk operation. Out of scope for CLI. Should use implemented commands.
+            "bulk",
+        ]
 
     def _inspect_operations(self) -> None:
         """Parse file and return matching Operation Method with details."""
@@ -386,24 +405,15 @@ class CommandFactory:
         with open(self.file_path, encoding="utf-8") as file:
             tree = ast.parse(file.read(), filename=self.file_path)
 
-        exclude_operation_names = ["LoginOperations", "VersionOperations"]
-        exclude_method_names = [
-            "error",
-            "__init__",
-            "__init_subclass__",
-            "_check_flag_and_exit_if_server_response_error",
-            # Excluding bulk operation. Out of scope for CLI. Should use implemented commands.
-            "bulk",
-        ]
         for node in ast.walk(tree):
             if (
                 isinstance(node, ast.ClassDef)
                 and "Operations" in node.name
-                and node.name not in exclude_operation_names
+                and node.name not in self.exclude_operation_names
                 and node.body
             ):
                 for child in node.body:
-                    if isinstance(child, ast.FunctionDef) and child.name not in exclude_method_names:
+                    if isinstance(child, ast.FunctionDef) and child.name not in self.exclude_method_names:
                         self.operations.append(get_function_details(node=child, parent_node=node))
 
     @staticmethod
@@ -595,6 +605,8 @@ class CommandFactory:
 
             def check_operation_and_collect_list_of_dict(dict_obj: dict) -> list:
                 """Check if the object is a nested dictionary and collect list of dictionaries."""
+                if isinstance(dict_obj, dict):
+                    return [dict_obj]
 
                 def is_dict_nested(obj: dict) -> bool:
                     """Check if the object is a nested dictionary."""
