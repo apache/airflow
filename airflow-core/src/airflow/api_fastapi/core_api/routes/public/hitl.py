@@ -32,6 +32,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryHITLDetailDagRunIdFilter,
     QueryHITLDetailResponseReceivedFilter,
     QueryHITLDetailSubjectSearch,
+    QueryHITLDetailTaskIdPatternSearch,
     QueryHITLDetailUserIdFilter,
     QueryLimit,
     QueryOffset,
@@ -302,6 +303,7 @@ def get_hitl_details(
     readable_ti_filter: ReadableTIFilterDep,
     dag_id_pattern: QueryHITLDetailDagIdPatternSearch,
     dag_run_id: QueryHITLDetailDagRunIdFilter,
+    task_id: QueryHITLDetailTaskIdPatternSearch,
     ti_state: QueryTIStateFilter,
     # hitl detail related filter
     response_received: QueryHITLDetailResponseReceivedFilter,
@@ -322,6 +324,7 @@ def get_hitl_details(
             readable_ti_filter,
             dag_id_pattern,
             dag_run_id,
+            task_id,
             ti_state,
             # hitl detail related filter
             response_received,

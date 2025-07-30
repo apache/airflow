@@ -48,11 +48,12 @@ pytestmark = pytest.mark.db_test
 
 DAG_ID = "test_hitl_dag"
 ANOTHER_DAG_ID = "another_hitl_dag"
+TASK_ID = "sample_task_hitl"
 
 
 @pytest.fixture
 def sample_ti(create_task_instance: CreateTaskInstance) -> TaskInstance:
-    return create_task_instance(dag_id=DAG_ID)
+    return create_task_instance(dag_id=DAG_ID, task_id=TASK_ID)
 
 
 @pytest.fixture
@@ -219,8 +220,8 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
             "scheduled_when": None,
             "start_date": None,
             "state": None,
-            "task_display_name": "op1",
-            "task_id": "op1",
+            "task_display_name": "sample_task_hitl",
+            "task_id": TASK_ID,
             "trigger": None,
             "triggerer_job": None,
             "try_number": 0,
@@ -495,6 +496,7 @@ class TestGetHITLDetailsEndpoint:
             ({"dag_id_pattern": "hitl_dag"}, 5),
             ({"dag_id_pattern": "other_Dag_"}, 3),
             ({"dag_run_id": "hitl_run_0"}, 1),
+            ({"task_id_pattern": "another_hitl"}, 3),
             ({"state": "running"}, 5),
             ({"state": "success"}, 3),
             # hitl detail related filter
@@ -508,6 +510,7 @@ class TestGetHITLDetailsEndpoint:
             "dag_id_hitl_dag",
             "dag_id_other_dag",
             "dag_run_id",
+            "task_id",
             "ti_state_running",
             "ti_state_success",
             "subject",
