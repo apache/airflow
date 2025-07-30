@@ -112,6 +112,9 @@ class HITLTrigger(BaseTrigger):
                     chosen_options=self.defaults,
                     params_input=self.params,
                 )
+                self.log.info(
+                    "[HITL] timeout reached before receiving response, fallback to default %s", self.defaults
+                )
                 yield TriggerEvent(
                     HITLTriggerEventSuccessPayload(
                         chosen_options=self.defaults,
@@ -123,7 +126,9 @@ class HITLTrigger(BaseTrigger):
 
             resp = await sync_to_async(get_hitl_detail_content_detail)(ti_id=self.ti_id)
             if resp.response_received and resp.chosen_options:
-                self.log.info("Responded by %s at %s", resp.user_id, resp.response_at)
+                self.log.info(
+                    "[HITL] user=%s options=%s at %s", resp.user_id, resp.chosen_options, resp.response_at
+                )
                 yield TriggerEvent(
                     HITLTriggerEventSuccessPayload(
                         chosen_options=resp.chosen_options,
