@@ -25,11 +25,12 @@ if not AIRFLOW_V_3_1_PLUS:
     pytest.skip("Human in the loop public API compatible with Airflow >= 3.1.0", allow_module_level=True)
 
 import asyncio
-from datetime import timedelta
+from datetime import datetime, timedelta
 from unittest import mock
 
 from uuid6 import uuid7
 
+from airflow._shared.timezones.timezone import utc, utcnow
 from airflow.api_fastapi.execution_api.datamodels.hitl import HITLDetailResponse
 from airflow.providers.standard.triggers.hitl import (
     HITLTrigger,
@@ -37,21 +38,23 @@ from airflow.providers.standard.triggers.hitl import (
     HITLTriggerEventSuccessPayload,
 )
 from airflow.triggers.base import TriggerEvent
-from airflow.utils.timezone import utcnow
 
 TI_ID = uuid7()
+default_trigger_args = {
+    "ti_id": TI_ID,
+    "options": ["1", "2", "3", "4", "5"],
+    "params": {"input": 1},
+    "multiple": False,
+}
 
 
 class TestHITLTrigger:
     def test_serialization(self):
         trigger = HITLTrigger(
-            ti_id=TI_ID,
-            options=["1", "2", "3", "4", "5"],
-            params={"input": 1},
             defaults=["1"],
-            multiple=False,
             timeout_datetime=None,
             poke_interval=50.0,
+            **default_trigger_args,
         )
         classpath, kwargs = trigger.serialize()
         assert classpath == "airflow.providers.standard.triggers.hitl.HITLTrigger"
@@ -70,12 +73,9 @@ class TestHITLTrigger:
     @mock.patch("airflow.sdk.execution_time.hitl.update_htil_detail_response")
     async def test_run_failed_due_to_timeout(self, mock_update, mock_supervisor_comms):
         trigger = HITLTrigger(
-            ti_id=TI_ID,
-            options=["1", "2", "3", "4", "5"],
-            params={"input": 1},
-            multiple=False,
             timeout_datetime=utcnow() + timedelta(seconds=0.1),
             poke_interval=5,
+            **default_trigger_args,
         )
         mock_supervisor_comms.send.return_value = HITLDetailResponse(
             response_received=False,
@@ -98,16 +98,14 @@ class TestHITLTrigger:
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
+    @mock.patch.object(HITLTrigger, "log")
     @mock.patch("airflow.sdk.execution_time.hitl.update_htil_detail_response")
-    async def test_run_fallback_to_default_due_to_timeout(self, mock_update, mock_supervisor_comms):
+    async def test_run_fallback_to_default_due_to_timeout(self, mock_update, mock_log, mock_supervisor_comms):
         trigger = HITLTrigger(
-            ti_id=TI_ID,
-            options=["1", "2", "3", "4", "5"],
-            params={"input": 1},
             defaults=["1"],
-            multiple=False,
             timeout_datetime=utcnow() + timedelta(seconds=0.1),
             poke_interval=5,
+            **default_trigger_args,
         )
         mock_supervisor_comms.send.return_value = HITLDetailResponse(
             response_received=False,
@@ -121,22 +119,27 @@ class TestHITLTrigger:
         trigger_task = asyncio.create_task(gen.__anext__())
         await asyncio.sleep(0.3)
         event = await trigger_task
+
         assert event == TriggerEvent(
             HITLTriggerEventSuccessPayload(chosen_options=["1"], params_input={"input": 1}, timedout=True)
         )
 
+        assert mock_log.info.call_args == mock.call(
+            "[HITL] timeout reached before receiving response, fallback to default %s", ["1"]
+        )
+
     @pytest.mark.db_test
     @pytest.mark.asyncio
+    @mock.patch.object(HITLTrigger, "log")
     @mock.patch("airflow.sdk.execution_time.hitl.update_htil_detail_response")
-    async def test_run(self, mock_update, mock_supervisor_comms):
+    async def test_run(self, mock_update, mock_log, mock_supervisor_comms, time_machine):
+        time_machine.move_to(datetime(2025, 7, 29, 2, 0, 0))
+
         trigger = HITLTrigger(
-            ti_id=TI_ID,
-            options=["1", "2", "3", "4", "5"],
-            params={"input": 1},
             defaults=["1"],
-            multiple=False,
             timeout_datetime=None,
             poke_interval=5,
+            **default_trigger_args,
         )
         mock_supervisor_comms.send.return_value = HITLDetailResponse(
             response_received=True,
@@ -156,4 +159,11 @@ class TestHITLTrigger:
                 params_input={"input": 50},
                 timedout=False,
             )
+        )
+
+        assert mock_log.info.call_args == mock.call(
+            "[HITL] user=%s options=%s at %s",
+            "test",
+            ["3"],
+            datetime(2025, 7, 29, 2, 0, 0, tzinfo=utc),
         )
