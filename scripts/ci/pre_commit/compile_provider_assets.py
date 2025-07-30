@@ -67,6 +67,10 @@ SKIP_PATH_REGEXPS = [".*/node_modules.*"]
 
 
 def compile_assets(provider_name: str):
+    if provider_name not in PROVIDERS_PATHS:
+        raise ValueError(
+            f"Provider '{provider_name}' is not supported. Supported providers: {list(PROVIDERS_PATHS.keys())}"
+        )
     provider_paths = PROVIDERS_PATHS[provider_name]
     www_directory = provider_paths["www"]
     dist_directory = provider_paths["dist"]
