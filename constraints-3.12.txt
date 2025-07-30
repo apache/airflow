@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-30T02:26:47.142812
+# This constraints file was automatically generated on 2025-07-30T13:58:17.258399
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -210,7 +210,7 @@ docutils==0.21.2
 duckdb==1.3.2
 durationpy==0.10
 elastic-transport==8.17.1
-elasticsearch==8.18.1
+elasticsearch==8.19.0
 email_validator==2.2.0
 entrypoints==0.4
 eralchemy2==1.4.1
@@ -423,7 +423,7 @@ natsort==8.4.0
 nbclient==0.10.2
 nbconvert==7.16.6
 nbformat==5.10.4
-neo4j==5.28.1
+neo4j==5.28.2
 nest-asyncio==1.6.0
 networkx==3.5
 nh3==0.3.0
@@ -431,7 +431,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.3.1
 objsize==0.7.1
-openai==1.97.1
+openai==1.98.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
 opencensus-context==0.1.3
@@ -520,7 +520,7 @@ pykerberos==1.2.4
 pymongo==4.13.2
 pymssql==2.3.7
 pyodbc==5.2.0
-pyodps==0.12.4
+pyodps==0.12.4.1
 pyparsing==3.2.3
 pyproject_hooks==1.2.0
 pypsrp==0.8.1
@@ -594,7 +594,7 @@ scrapbook==0.5.0
 segment-analytics-python==2.3.4
 semver==3.0.4
 sendgrid==6.11.0
-sentry-sdk==2.34.0
+sentry-sdk==2.34.1
 setproctitle==1.3.6
 setuptools==80.9.0
 shapely==2.1.1
