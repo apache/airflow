@@ -31,7 +31,12 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests_common.test_utils.db import (
+    clear_db_connections,
+    clear_db_dags,
+    clear_db_runs,
+    clear_db_serialized_dags,
+)
 from tests_common.test_utils.logs import check_last_log
 
 pytestmark = pytest.mark.db_test
@@ -58,6 +63,7 @@ class TestDagEndpoint:
 
     @staticmethod
     def _clear_db():
+        clear_db_connections()
         clear_db_runs()
         clear_db_dags()
         clear_db_serialized_dags()
@@ -241,6 +247,11 @@ class TestGetDags(TestDagEndpoint):
                 {"order_by": "-last_run_start_date", "exclude_stale": False},
                 3,
                 [DAG3_ID, DAG1_ID, DAG2_ID],
+            ),
+            (
+                {"order_by": ["next_dagrun", "-dag_display_name"], "exclude_stale": False},
+                3,
+                [DAG3_ID, DAG2_ID, DAG1_ID],
             ),
             # Search
             ({"dag_id_pattern": "1"}, 1, [DAG1_ID]),
@@ -543,7 +554,6 @@ class TestDagDetails(TestDagEndpoint):
             },
             "description": None,
             "doc_md": "details",
-            "deadline": None,
             "end_date": None,
             "fileloc": __file__,
             "file_token": file_token,
@@ -632,7 +642,6 @@ class TestGetDag(TestDagEndpoint):
             "is_stale": False,
             "owners": ["airflow"],
             "timetable_summary": None,
-            "deadline": None,
             "tags": [],
             "has_task_concurrency_limits": True,
             "next_dagrun_data_interval_start": None,

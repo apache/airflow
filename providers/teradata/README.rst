@@ -23,8 +23,9 @@
 
 Package ``apache-airflow-providers-teradata``
 
-Release: ``3.2.0``
+Release: ``3.2.1``
 
+Release Date: ``|PypiReleaseDate|``
 
 `Teradata <https://www.teradata.com/>`__
 
@@ -36,7 +37,7 @@ This is a provider package for ``teradata`` provider. All classes for this provi
 are in ``airflow.providers.teradata`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-teradata/3.2.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-teradata/3.2.1/>`_.
 
 Installation
 ------------
@@ -45,7 +46,7 @@ You can install this package on top of an existing Airflow 2 installation (see `
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-teradata``
 
-The package supports the following python versions: 3.10,3.11,3.12
+The package supports the following python versions: 3.10,3.11,3.12,3.13
 
 Requirements
 ------------
@@ -82,4 +83,4 @@ Dependent package                                                               
 ======================================================================================================================  ===================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-teradata/3.2.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-teradata/3.2.1/changelog.html>`_.

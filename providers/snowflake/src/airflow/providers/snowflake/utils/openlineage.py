@@ -199,6 +199,7 @@ def _run_single_query_with_hook(hook: SnowflakeHook, sql: str) -> list[dict]:
     with closing(hook.get_conn()) as conn:
         hook.set_autocommit(conn, False)
         with hook._get_cursor(conn, return_dictionaries=True) as cur:
+            cur.execute("ALTER SESSION SET STATEMENT_TIMEOUT_IN_SECONDS = 3;")  # only for this session
             cur.execute(sql)
             result = cur.fetchall()
         conn.commit()
@@ -232,25 +233,36 @@ def _get_queries_details_from_snowflake(
     if not query_ids:
         return {}
     query_condition = f"IN {tuple(query_ids)}" if len(query_ids) > 1 else f"= '{query_ids[0]}'"
+    # https://docs.snowflake.com/en/sql-reference/account-usage#differences-between-account-usage-and-information-schema
+    # INFORMATION_SCHEMA.QUERY_HISTORY has no latency, so it's better than ACCOUNT_USAGE.QUERY_HISTORY
+    # https://docs.snowflake.com/en/sql-reference/functions/query_history
+    # SNOWFLAKE.INFORMATION_SCHEMA.QUERY_HISTORY() function seems the most suitable function for the job,
+    # we get history of queries executed by the user, and we're using the same credentials.
     query = (
         "SELECT "
         "QUERY_ID, EXECUTION_STATUS, START_TIME, END_TIME, QUERY_TEXT, ERROR_CODE, ERROR_MESSAGE "
         "FROM "
-        "table(information_schema.query_history()) "
+        "table(snowflake.information_schema.query_history()) "
         f"WHERE "
         f"QUERY_ID {query_condition}"
         f";"
     )
 
     try:
-        # Can't import the SnowflakeSqlApiHook class and do proper isinstance check - circular imports
-        if hook.__class__.__name__ == "SnowflakeSqlApiHook":
-            result = _run_single_query_with_api_hook(hook=hook, sql=query)  # type: ignore[arg-type]
+        # Note: need to lazy import here to avoid circular imports
+        from airflow.providers.snowflake.hooks.snowflake_sql_api import SnowflakeSqlApiHook
+
+        if isinstance(hook, SnowflakeSqlApiHook):
+            result = _run_single_query_with_api_hook(hook=hook, sql=query)
             result = _process_data_from_api(data=result)
         else:
             result = _run_single_query_with_hook(hook=hook, sql=query)
     except Exception as e:
-        log.warning("OpenLineage could not retrieve extra metadata from Snowflake. Error encountered: %s", e)
+        log.info(
+            "OpenLineage encountered an error while retrieving additional metadata about SQL queries"
+            " from Snowflake. The process will continue with default values. Error details: %s",
+            e,
+        )
         result = []
 
     return {row["QUERY_ID"]: row for row in result} if result else {}
@@ -416,8 +428,8 @@ def emit_openlineage_events_for_snowflake_queries(
         event_batch = _create_snowflake_event_pair(
             job_namespace=namespace(),
             job_name=f"{task_instance.dag_id}.{task_instance.task_id}.query.{counter}",
-            start_time=query_metadata.get("START_TIME", default_event_time),  # type: ignore[arg-type]
-            end_time=query_metadata.get("END_TIME", default_event_time),  # type: ignore[arg-type]
+            start_time=query_metadata.get("START_TIME", default_event_time),
+            end_time=query_metadata.get("END_TIME", default_event_time),
             # `EXECUTION_STATUS` can be `success`, `fail` or `incident` (Snowflake outage, so still failure)
             is_successful=query_metadata.get("EXECUTION_STATUS", default_state).lower() == "success",
             run_facets={**query_specific_run_facets, **common_run_facets, **additional_run_facets},

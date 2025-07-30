@@ -61,6 +61,8 @@ class TaskCallbackRequest(BaseCallbackRequest):
     """Simplified Task Instance representation"""
     task_callback_type: TaskInstanceState | None = None
     """Whether on success, on failure, on retry"""
+    context_from_server: ti_datamodel.TIRunContext | None = None
+    """Task execution context from the Server"""
     type: Literal["TaskCallbackRequest"] = "TaskCallbackRequest"
 
     @property
@@ -75,11 +77,19 @@ class TaskCallbackRequest(BaseCallbackRequest):
         }
 
 
+class DagRunContext(BaseModel):
+    """Class to pass context info from the server to build a Execution context object."""
+
+    dag_run: ti_datamodel.DagRun | None = None
+    last_ti: ti_datamodel.TaskInstance | None = None
+
+
 class DagCallbackRequest(BaseCallbackRequest):
     """A Class with information about the success/failure DAG callback to be executed."""
 
     dag_id: str
     run_id: str
+    context_from_server: DagRunContext | None = None
     is_failure_callback: bool | None = True
     """Flag to determine whether it is a Failure Callback or Success Callback"""
     type: Literal["DagCallbackRequest"] = "DagCallbackRequest"

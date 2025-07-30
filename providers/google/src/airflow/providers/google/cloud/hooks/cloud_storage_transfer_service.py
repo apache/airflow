@@ -58,7 +58,7 @@ if TYPE_CHECKING:
     from google.cloud.storage_transfer_v1.services.storage_transfer_service.pagers import (
         ListTransferJobsAsyncPager,
     )
-    from google.longrunning import operations_pb2  # type: ignore[attr-defined]
+    from google.longrunning import operations_pb2
     from proto import Message
 
 log = logging.getLogger(__name__)

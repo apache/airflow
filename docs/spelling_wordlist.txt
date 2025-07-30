@@ -788,6 +788,7 @@ grpc
 GSoD
 gsuite
 Gunicorn
+gunicorn
 gz
 Gzip
 gzipped
@@ -1158,6 +1159,7 @@ mssql
 mTLS
 mtls
 muldelete
+multi-cloud
 multimodal
 Multinamespace
 mutex
@@ -1707,6 +1709,7 @@ StrictUndefined
 Stringified
 stringified
 Struct
+StructuredLogMessage
 STS
 subchart
 subclassed
@@ -1980,6 +1983,7 @@ views
 virtualenv
 virtualenvs
 virtualized
+Vite
 vm
 VolumeKmsKeyId
 VolumeMount

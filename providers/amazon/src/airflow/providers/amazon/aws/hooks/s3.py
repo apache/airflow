@@ -635,6 +635,10 @@ class S3Hook(AwsBaseHook):
         delimiter: str | None = "/",
     ) -> list[Any]:
         """Get a list of files in the bucket."""
+        # Validate that bucket_keys is in fact a list, otherwise, the characters will be split
+        if isinstance(bucket_keys, str):
+            bucket_keys = [bucket_keys]
+
         keys: list[Any] = []
         for key in bucket_keys:
             prefix = key
@@ -652,7 +656,9 @@ class S3Hook(AwsBaseHook):
             response = paginator.paginate(**params)
             async for page in response:
                 if "Contents" in page:
-                    keys.extend(k for k in page["Contents"] if isinstance(k.get("Size"), (int, float)))
+                    keys.extend(
+                        k.get("Key") for k in page["Contents"] if isinstance(k.get("Size"), (int, float))
+                    )
         return keys
 
     async def _list_keys_async(
@@ -1559,15 +1565,14 @@ class S3Hook(AwsBaseHook):
         else:
             file = NamedTemporaryFile(dir=local_path, prefix="airflow_tmp_", delete=False)  # type: ignore
 
-        with file:
-            extra_args = {**self.extra_args}
-            if self._requester_pays:
-                extra_args["RequestPayer"] = "requester"
-            s3_obj.download_fileobj(
-                file,
-                ExtraArgs=extra_args,
-                Config=self.transfer_config,
-            )
+        extra_args = {**self.extra_args}
+        if self._requester_pays:
+            extra_args["RequestPayer"] = "requester"
+        s3_obj.download_fileobj(
+            file,
+            ExtraArgs=extra_args,
+            Config=self.transfer_config,
+        )
         get_hook_lineage_collector().add_input_asset(
             context=self, scheme="s3", asset_kwargs={"bucket": bucket_name, "key": key}
         )

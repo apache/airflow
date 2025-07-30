@@ -19,7 +19,8 @@
       "active": "Active",
       "all": "All",
       "paused": "Paused"
-    }
+    },
+    "runIdPatternFilter": "Search Dag Runs"
   },
   "ownerLink": "Owner link for {{owner}}",
   "runAndTaskActions": {
@@ -61,6 +62,7 @@
       "onlyFailed": "Clear only failed tasks",
       "past": "Past",
       "queueNew": "Queue up new tasks",
+      "runOnLatestVersion": "Run with latest bundle version",
       "upstream": "Upstream"
     }
   },

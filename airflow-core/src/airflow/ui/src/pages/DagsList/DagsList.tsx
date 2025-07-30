@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -84,7 +86,19 @@ const createColumns = (
   },
   {
     accessorKey: "timetable_description",
-    cell: ({ row: { original } }) => <Schedule dag={original} />,
+    cell: ({ row: { original } }) => {
+      const [latestRun] = original.latest_dag_runs;
+
+      return (
+        <Schedule
+          assetExpression={original.asset_expression}
+          dagId={original.dag_id}
+          latestRunAfter={latestRun?.run_after}
+          timetableDescription={original.timetable_description}
+          timetableSummary={original.timetable_summary}
+        />
+      );
+    },
     enableSorting: false,
     header: () => translate("dagDetails.schedule"),
   },
@@ -129,7 +143,14 @@ const createColumns = (
   },
   {
     accessorKey: "trigger",
-    cell: ({ row: { original } }) => <TriggerDAGButton dag={original} withText={false} />,
+    cell: ({ row: { original } }) => (
+      <TriggerDAGButton
+        dagDisplayName={original.dag_display_name}
+        dagId={original.dag_id}
+        isPaused={original.is_paused}
+        withText={false}
+      />
+    ),
     enableSorting: false,
     header: "",
   },
@@ -150,7 +171,8 @@ const createColumns = (
   },
 ];
 
-const { FAVORITE, LAST_DAG_RUN_STATE, NAME_PATTERN, PAUSED, TAGS, TAGS_MATCH_MODE } = SearchParamsKeys;
+const { FAVORITE, LAST_DAG_RUN_STATE, NAME_PATTERN, OWNERS, PAUSED, TAGS, TAGS_MATCH_MODE } =
+  SearchParamsKeys;
 
 const cardDef: CardDef<DAGWithLatestDagRunsResponse> = {
   card: ({ row }) => <DagCard dag={row} />,
@@ -176,6 +198,7 @@ export const DagsList = () => {
   const lastDagRunState = searchParams.get(LAST_DAG_RUN_STATE) as DagRunState;
   const selectedTags = searchParams.getAll(TAGS);
   const selectedMatchMode = searchParams.get(TAGS_MATCH_MODE) as "all" | "any";
+  const owners = searchParams.getAll(OWNERS);
 
   const { setTableURLState, tableURLState } = useTableURLState();
 
@@ -227,7 +250,8 @@ export const DagsList = () => {
     lastDagRunState,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
-    orderBy,
+    orderBy: [orderBy],
+    owners,
     paused,
     tags: selectedTags,
     tagsMatchMode: selectedMatchMode,

@@ -129,6 +129,9 @@ airflow_venv
 .idea/
 *.iml
 
+# Cursor
+.cursor/
+
 # vim
 *.swp
 

@@ -17,12 +17,12 @@
 
 [build-system]
 requires = [
-    "GitPython==3.1.44",
+    "GitPython==3.1.45",
     "gitdb==4.0.12",
     "hatchling==1.27.0",
     "packaging==25.0",
     "pathspec==0.12.1",
-    "pluggy==1.5.0",
+    "pluggy==1.6.0",
     "smmap==5.0.2",
     "tomli==2.2.1; python_version < '3.11'",
     "trove-classifiers==2025.5.9.12",
@@ -34,7 +34,12 @@ name = "apache-airflow"
 description = "Programmatically author, schedule and monitor data pipelines"
 readme = { file = "generated/PYPI_README.md", content-type = "text/markdown" }
 license-files.globs = ["LICENSE"]
-requires-python = ">=3.10,!=3.13"
+# We know that it will take a while before we can support Python 3.14 because of all our dependencies
+# It takes about 4-7 months after Python release before we can support it, so we limit it to <3.14
+# proactively. This way we also have a chance to test it with Python 3.14 and bump the upper binding
+# and manually mark providers that do not support it yet with !-3.14 - until they support it - which will
+# also exclude resolving uv workspace dependencies for those providers.
+requires-python = ">=3.10, <3.14"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -53,6 +58,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
     "Topic :: System :: Monitoring",
 ]
@@ -63,12 +69,13 @@ version = "3.1.0"
 dependencies = [
     "apache-airflow-task-sdk<1.2.0,>=1.0.0",
     "apache-airflow-core==3.1.0",
+    "natsort>=8.4.0",
 ]
 
 packages = []
 
 [project.optional-dependencies]
-# Automatically generated airflow optional dependencies
+# Automatically generated airflow optional dependencies (update_airflow_pyproject_toml.py)
 "all-core" = [
     "apache-airflow-core[all]"
 ]
@@ -100,7 +107,7 @@ packages = []
     "apache-airflow-providers-amazon>=9.0.0"
 ]
 "apache.beam" = [
-    "apache-airflow-providers-apache-beam>=5.8.1"
+    "apache-airflow-providers-apache-beam>=5.8.1; python_version !=\"3.13\""
 ]
 "apache.cassandra" = [
     "apache-airflow-providers-apache-cassandra>=3.7.0"
@@ -127,7 +134,7 @@ packages = []
     "apache-airflow-providers-apache-impala>=1.5.2"
 ]
 "apache.kafka" = [
-    "apache-airflow-providers-apache-kafka>=1.6.1"
+    "apache-airflow-providers-apache-kafka>=1.6.1; python_version !=\"3.13\""
 ]
 "apache.kylin" = [
     "apache-airflow-providers-apache-kylin>=3.8.0"
@@ -145,7 +152,7 @@ packages = []
     "apache-airflow-providers-apache-spark>=4.11.1"
 ]
 "apache.tinkerpop" = [
-    "apache-airflow-providers-apache-tinkerpop"
+    "apache-airflow-providers-apache-tinkerpop>=1.0.0"
 ]
 "apprise" = [
     "apache-airflow-providers-apprise>=1.4.1"
@@ -211,7 +218,7 @@ packages = []
     "apache-airflow-providers-exasol>=4.6.1"
 ]
 "fab" = [
-    "apache-airflow-providers-fab>=2.2.0" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
+    "apache-airflow-providers-fab>=2.2.0; python_version !=\"3.13\"" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
 ]
 "facebook" = [
     "apache-airflow-providers-facebook>=3.7.0"
@@ -373,10 +380,10 @@ packages = []
     "apache-airflow-providers-weaviate>=3.0.0"
 ]
 "yandex" = [
-    "apache-airflow-providers-yandex>=4.0.0"
+    "apache-airflow-providers-yandex>=4.0.0; python_version !=\"3.13\""
 ]
 "ydb" = [
-    "apache-airflow-providers-ydb>=1.4.0"
+    "apache-airflow-providers-ydb>=1.4.0; python_version !=\"3.13\""
 ]
 "zendesk" = [
     "apache-airflow-providers-zendesk>=4.9.0"
@@ -387,7 +394,7 @@ packages = []
     "apache-airflow-providers-airbyte>=5.0.0",
     "apache-airflow-providers-alibaba>=3.0.0",
     "apache-airflow-providers-amazon>=9.0.0",
-    "apache-airflow-providers-apache-beam>=5.8.1",
+    "apache-airflow-providers-apache-beam>=5.8.1; python_version !=\"3.13\"",
     "apache-airflow-providers-apache-cassandra>=3.7.0",
     "apache-airflow-providers-apache-drill>=2.8.1",
     "apache-airflow-providers-apache-druid>=3.12.0",
@@ -396,13 +403,13 @@ packages = []
     "apache-airflow-providers-apache-hive>=8.2.1",
     "apache-airflow-providers-apache-iceberg>=1.2.0",
     "apache-airflow-providers-apache-impala>=1.5.2",
-    "apache-airflow-providers-apache-kafka>=1.6.1",
+    "apache-airflow-providers-apache-kafka>=1.6.1; python_version !=\"3.13\"",
     "apache-airflow-providers-apache-kylin>=3.8.0",
     "apache-airflow-providers-apache-livy>=3.9.2",
     "apache-airflow-providers-apache-pig>=4.6.0",
     "apache-airflow-providers-apache-pinot>=4.5.1",
     "apache-airflow-providers-apache-spark>=4.11.1",
-    "apache-airflow-providers-apache-tinkerpop",
+    "apache-airflow-providers-apache-tinkerpop>=1.0.0",
     "apache-airflow-providers-apprise>=1.4.1",
     "apache-airflow-providers-arangodb>=2.7.0",
     "apache-airflow-providers-asana>=2.7.0",
@@ -424,7 +431,7 @@ packages = []
     "apache-airflow-providers-edge3>=1.0.0",
     "apache-airflow-providers-elasticsearch>=5.5.2",
     "apache-airflow-providers-exasol>=4.6.1",
-    "apache-airflow-providers-fab>=2.2.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
+    "apache-airflow-providers-fab>=2.2.0; python_version !=\"3.13\"", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-facebook>=3.7.0",
     "apache-airflow-providers-ftp>=3.12.0",
     "apache-airflow-providers-git>=0.0.2", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
@@ -478,8 +485,8 @@ packages = []
     "apache-airflow-providers-trino>=5.8.1",
     "apache-airflow-providers-vertica>=3.9.1",
     "apache-airflow-providers-weaviate>=3.0.0",
-    "apache-airflow-providers-yandex>=4.0.0",
-    "apache-airflow-providers-ydb>=1.4.0",
+    "apache-airflow-providers-yandex>=4.0.0; python_version !=\"3.13\"",
+    "apache-airflow-providers-ydb>=1.4.0; python_version !=\"3.13\"",
     "apache-airflow-providers-zendesk>=4.9.0",
 ]
 # End of automatically generated airflow optional dependencies
@@ -503,11 +510,11 @@ packages = []
     "cloudpickle>=2.2.1",
 ]
 "github-enterprise" = [
-    "apache-airflow-providers-fab",
+    "apache-airflow-providers-fab>=2.2.0; python_version !=\"3.13\"",
     "authlib>=1.0.0",
 ]
 "google-auth" = [
-    "apache-airflow-providers-fab",
+    "apache-airflow-providers-fab>=2.2.0; python_version !=\"3.13\"",
     "authlib>=1.0.0",
 ]
 "ldap" = [
@@ -528,7 +535,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.7.19",
+    "uv>=0.8.3",
 ]
 
 
@@ -556,11 +563,9 @@ bypass-selection = true
 # Needed until https://github.com/astral-sh/ruff/issues/8237 is available.
 [tool.black]
 line-length = 110
-target-version = ['py310', 'py311', 'py312']
 
 ## ruff settings ##
 [tool.ruff]
-target-version = "py310"
 line-length = 110
 extend-exclude = [
     ".eggs",
@@ -615,7 +620,6 @@ extend-select = [
     "RET506", # Unnecessary {branch} after raise statement
     "RET507", # Unnecessary {branch} after continue statement
     "RET508", # Unnecessary {branch} after break statement
-    "SIM105", # Use contextlib.suppress({exception}) instead of try-except-pass
 ]
 ignore = [
     "D100", # Unwanted; Docstring at the top of every file.
@@ -651,6 +655,7 @@ ignore = [
     "E501", # Formatted code may exceed the line length, leading to line-too-long (E501) errors.
     "ASYNC110", # TODO: Use `anyio.Event` instead of awaiting `anyio.sleep` in a `while` loop
     "UP038",
+    "SIM105", # Use contextlib.suppress({exception}) instead of try-except-pass
 ]
 unfixable = [
     # PT022 replace empty `yield` to empty `return`. Might be fixed with a combination of PLR1711
@@ -675,7 +680,7 @@ section-order = [
   "testing"
 ]
 
-known-first-party = ["airflow"]
+known-first-party = ["airflow", "airflow_shared", "airflow_shared.*"]
 
 # Make sure we put the "dev" imports at the end, not as a third-party module
 [tool.ruff.lint.isort.sections]
@@ -689,7 +694,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 
 # Those are needed so that __init__.py chaining of packages properly works for IDEs
 # the first non-comment line of such empty __init__.py files should be:
-# __path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
+#
 "airflow-core/tests/unit/__init__.py" = ["I002"]
 "airflow-core/tests/system/__init__.py" = ["I002"]
 "airflow-core/tests/integration/__init__.py" = ["I002"]
@@ -745,6 +750,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 "dev/breeze/tests/*" = ["TID253", "S101", "TRY002"]
 "airflow-core/tests/*" = ["D", "TID253", "S101", "TRY002"]
 "docker-tests/*" = ["D", "TID253", "S101", "TRY002"]
+"task-sdk-tests/*" = ["D", "TID253", "S101", "TRY002"]
 "kubernetes-tests/*" = ["D", "TID253", "S101", "TRY002"]
 "helm-tests/*" = ["D", "TID253", "S101", "TRY002"]
 "providers/**/tests/*" = ["D", "TID253", "S101", "TRY002"]
@@ -756,6 +762,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 "airflow-core/src/airflow/security/kerberos.py" = [ "E402" ]
 "airflow-core/src/airflow/security/utils.py" = [ "E402" ]
 "airflow-core/tests/unit/always/test_connection.py" = [ "E402" ]
+"airflow-core/tests/unit/always/test_providers_manager.py"  = [ "E402" ]
 "providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_auto_ml.py" = [ "E402"]
 "providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_batch_prediction_job.py" = [ "E402"]
 "providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_custom_job.py" = [ "E402"]
@@ -766,14 +773,24 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 "providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_model_service.py" = [ "E402"]
 "providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_pipeline_job.py" = [ "E402"]
 "providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_prediction_service.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_ray.py" = [ "E402" ]
 "providers/google/tests/unit/google/cloud/links/test_translate.py" = [ "E402"]
 "providers/google/tests/unit/google/cloud/operators/test_automl.py" = [ "E402"]
 "providers/google/tests/unit/google/cloud/operators/test_vertex_ai.py" = [ "E402"]
 "providers/google/tests/unit/google/cloud/operators/vertex_ai/test_generative_model.py" = [ "E402"]
 "providers/google/tests/unit/google/cloud/triggers/test_vertex_ai.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/sensors/test_vertex_ai.py" = [ "E402"]
 "providers/microsoft/azure/tests/conftest.py" = ["E402"]
 "providers/qdrant/tests/unit/qdrant/hooks/test_qdrant.py" = ["E402"]
 "providers/qdrant/tests/unit/qdrant/operators/test_qdrant.py" = ["E402"]
+"providers/yandex/tests/unit/yandex/hooks/test_yandex.py" = ["E402"]
+"providers/yandex/tests/unit/yandex/hooks/test_yq.py" = ["E402"]
+"providers/yandex/tests/unit/yandex/operators/test_dataproc.py" = ["E402"]
+"providers/yandex/tests/unit/yandex/operators/test_yq.py" = ["E402"]
+"providers/yandex/tests/unit/yandex/secrets/test_lockbox.py" = ["E402"]
+"providers/ydb/tests/unit/ydb/hooks/test_ydb.py" = ["E402"]
+"providers/ydb/tests/unit/ydb/operators/test_ydb.py" = ["E402"]
+"providers/ydb/tests/unit/ydb/utils/test_credentials.py" = ["E402"]
 
 # Remove some docstring rules from files that do not need docstrings
 "providers/apache/hdfs/src/airflow/providers/apache/hdfs/sensors/hdfs.py" = ["D101"]
@@ -794,20 +811,30 @@ ban-relative-imports = "all"
 # that they're imported lazily (e.g., within a function definition).
 banned-module-level-imports = ["numpy", "pandas", "polars"]
 
+
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
+
 # Direct import from the airflow package modules and constraints
 "airflow.AirflowException".msg = "Use airflow.exceptions.AirflowException instead."
 "airflow.Dataset".msg = "Use airflow.datasets.Dataset instead."
+
 # Deprecated imports
 "airflow.models.baseoperator.BaseOperatorLink".msg = "Use airflow.models.baseoperatorlink.BaseOperatorLink"
 "airflow.models.errors.ImportError".msg = "Use airflow.models.errors.ParseImportError"
 "airflow.models.ImportError".msg = "Use airflow.models.errors.ParseImportError"
+
+# Note: we have to specify these all here (not in sub pyproject.toml files), else we'd have to duplicate these
+# all rules in each project https://github.com/astral-sh/ruff/issues/18723
+# Add this once providers are sorted
+# "airflow.utils.timezone".msg = "Use airflow.sdk.timezone (or airflow._shared.timezones.timezone from within airflow-core)"
+# "airflow_shared".msg = "Use airflow._shared or airflow.sdk._shared instead"
+
 # Deprecated in Python 3.11, Pending Removal in Python 3.15: https://github.com/python/cpython/issues/90817
 # Deprecation warning in Python 3.11 also recommends using locale.getencoding but it available in Python 3.11
 "locale.getdefaultlocale".msg = "Use locale.setlocale() and locale.getlocale() instead."
 # Deprecated in Python 3.12: https://github.com/python/cpython/issues/103857
-"datetime.datetime.utcnow".msg = "Use airflow.utils.timezone.utcnow or datetime.datetime.now(tz=datetime.timezone.utc)"
-"datetime.datetime.utcfromtimestamp".msg = "Use airflow.utils.timezone.from_timestamp or datetime.datetime.fromtimestamp(tz=datetime.timezone.utc)"
+"datetime.datetime.utcnow".msg = "Use airflow.sdk.timezone.utcnow or datetime.datetime.now(tz=datetime.timezone.utc)"
+"datetime.datetime.utcfromtimestamp".msg = "Use airflow.sdk.timezone.from_timestamp or datetime.datetime.fromtimestamp(tz=datetime.timezone.utc)"
 # Deprecated in Python 3.12: https://github.com/python/cpython/issues/94309
 "typing.Hashable".msg = "Use collections.abc.Hashable"
 "typing.Sized".msg = "Use collections.abc.Sized"
@@ -984,7 +1011,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/helm-tests/tests",
     "$MYPY_CONFIG_FILE_DIR/kubernetes-tests/tests",
     "$MYPY_CONFIG_FILE_DIR/docker-tests/tests",
-    # Automatically generated mypy paths
+    "$MYPY_CONFIG_FILE_DIR/task-sdk-tests/tests",
+    # Automatically generated mypy paths (update_airflow_pyproject_toml.py)
     "$MYPY_CONFIG_FILE_DIR/providers/airbyte/src",
     "$MYPY_CONFIG_FILE_DIR/providers/airbyte/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/alibaba/src",
@@ -1229,10 +1257,12 @@ dev = [
     "apache-airflow-dev",
     "apache-airflow-devel-common[no-doc]",
     "apache-airflow-docker-tests",
+    "apache-airflow-task-sdk-tests",
     "apache-airflow-helm-tests",
     "apache-airflow-kubernetes-tests",
     "apache-airflow-task-sdk",
-    "apache-airflow-ctl"
+    "apache-airflow-ctl",
+    "apache-airflow-shared-timezones",
 ]
 
 # To build docs:
@@ -1274,11 +1304,13 @@ apache-airflow-ctl = {workspace = true}
 apache-airflow-task-sdk = { workspace = true }
 apache-airflow-devel-common = { workspace = true }
 apache-airflow-docker-tests = { workspace = true }
+apache-airflow-task-sdk-tests = { workspace = true }
 apache-airflow-helm-tests = { workspace = true }
 apache-airflow-kubernetes-tests = { workspace = true }
 apache-airflow-providers = { workspace = true }
 apache-aurflow-docker-stack = { workspace = true }
-# Automatically generated provider workspace items
+apache-airflow-shared-timezones = { workspace = true }
+# Automatically generated provider workspace items (update_airflow_pyproject_toml.py)
 apache-airflow-providers-airbyte = { workspace = true }
 apache-airflow-providers-alibaba = { workspace = true }
 apache-airflow-providers-amazon = { workspace = true }
@@ -1387,12 +1419,14 @@ members = [
     "dev",
     "devel-common",
     "docker-tests",
+    "task-sdk-tests",
     "helm-tests",
     "kubernetes-tests",
     "task-sdk",
     "providers-summary-docs",
     "docker-stack-docs",
-    # Automatically generated provider workspace members
+    "shared/timezones",
+    # Automatically generated provider workspace members (update_airflow_pyproject_toml.py)
     "providers/airbyte",
     "providers/alibaba",
     "providers/amazon",

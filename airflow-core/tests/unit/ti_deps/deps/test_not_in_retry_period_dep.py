@@ -18,15 +18,16 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from unittest import mock
 from unittest.mock import Mock
 
 import pytest
 import time_machine
 
+from airflow._shared.timezones.timezone import datetime
 from airflow.models import TaskInstance
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.utils.state import State
-from airflow.utils.timezone import datetime
 
 pytestmark = pytest.mark.db_test
 
@@ -34,7 +35,7 @@ pytestmark = pytest.mark.db_test
 class TestNotInRetryPeriodDep:
     def _get_task_instance(self, state, end_date=None, retry_delay=timedelta(minutes=15)):
         task = Mock(retry_delay=retry_delay, retry_exponential_backoff=False)
-        ti = TaskInstance(task=task, state=state)
+        ti = TaskInstance(task=task, state=state, dag_version_id=mock.MagicMock())
         ti.end_date = end_date
         return ti
 

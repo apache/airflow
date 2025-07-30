@@ -61,7 +61,7 @@ with DAG(
                 all_tags = [x.name for x in repo.get_tags()]
                 result = tag_name in all_tags
 
-        except GithubException as github_error:  # type: ignore[misc]
+        except GithubException as github_error:
             raise AirflowException(f"Failed to execute GithubSensor, error: {github_error}")
         except Exception as e:
             raise AirflowException(f"GitHub operator error: {e}")

@@ -253,7 +253,7 @@ class SnowflakeHook(DbApiHook):
 
         This is used in ``get_uri()`` and ``get_connection()``.
         """
-        conn = self.get_connection(self.snowflake_conn_id)  # type: ignore[attr-defined]
+        conn = self.get_connection(self.get_conn_id())
         extra_dict = conn.extra_dejson
         account = self._get_field(extra_dict, "account") or ""
         warehouse = self._get_field(extra_dict, "warehouse") or ""
@@ -461,7 +461,7 @@ class SnowflakeHook(DbApiHook):
     def get_autocommit(self, conn):
         return getattr(conn, "autocommit_mode", False)
 
-    @overload  # type: ignore[override]
+    @overload
     def run(
         self,
         sql: str | Iterable[str],
@@ -544,16 +544,16 @@ class SnowflakeHook(DbApiHook):
                 results = []
                 for sql_statement in sql_list:
                     self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
-                    self._run_command(cur, sql_statement, parameters)  # type: ignore[attr-defined]
+                    self._run_command(cur, sql_statement, parameters)
 
                     if handler is not None:
-                        result = self._make_common_data_structure(handler(cur))  # type: ignore[attr-defined]
+                        result = self._make_common_data_structure(handler(cur))
                         if return_single_query_results(sql, return_last, split_statements):
                             _last_result = result
                             _last_description = cur.description
                         else:
                             results.append(result)
-                            self.descriptions.append(cur.description)  # type: ignore[has-type]
+                            self.descriptions.append(cur.description)
 
                     query_id = cur.sfqid
                     self.log.info("Rows affected: %s", cur.rowcount)

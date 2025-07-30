@@ -17,9 +17,10 @@
 
 from __future__ import annotations
 
+from http.client import HTTPException
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Depends, status
 from sqlalchemy import and_, func, select
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -47,10 +48,12 @@ from airflow.api_fastapi.common.parameters import (
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
 from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
+from airflow.api_fastapi.core_api.datamodels.ui.dag_runs import DAGRunLightResponse
 from airflow.api_fastapi.core_api.datamodels.ui.dags import (
     DAGWithLatestDagRunsCollectionResponse,
     DAGWithLatestDagRunsResponse,
 )
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
     ReadableDagsFilterDep,
     requires_access_dag,
@@ -191,3 +194,32 @@ def get_dags(
         total_entries=total_entries,
         dags=list(dag_runs_by_dag_id.values()),
     )
+
+
+@dags_router.get(
+    "/{dag_id}/latest_run",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN))],
+)
+def get_latest_run_info(dag_id: str, session: SessionDep) -> DAGRunLightResponse | None:
+    """Get latest run."""
+    if dag_id == "~":
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "`~` was supplied as dag_id, but querying multiple dags is not supported.",
+        )
+    return session.execute(
+        select(
+            DagRun.id,
+            DagRun.dag_id,
+            DagRun.run_id,
+            DagRun.end_date,
+            DagRun.logical_date,
+            DagRun.run_after,
+            DagRun.start_date,
+            DagRun.state,
+        )
+        .where(DagRun.dag_id == dag_id)
+        .order_by(DagRun.run_after.desc())
+        .limit(1)
+    ).one_or_none()

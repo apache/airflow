@@ -23,8 +23,9 @@
 
 Package ``apache-airflow-providers-redis``
 
-Release: ``4.1.1``
+Release: ``4.2.0``
 
+Release Date: ``|PypiReleaseDate|``
 
 `Redis <https://redis.io/>`__
 
@@ -36,7 +37,7 @@ This is a provider package for ``redis`` provider. All classes for this provider
 are in ``airflow.providers.redis`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-redis/4.1.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-redis/4.2.0/>`_.
 
 Installation
 ------------
@@ -45,7 +46,7 @@ You can install this package on top of an existing Airflow 2 installation (see `
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-redis``
 
-The package supports the following python versions: 3.10,3.11,3.12
+The package supports the following python versions: 3.10,3.11,3.12,3.13
 
 Requirements
 ------------
@@ -58,4 +59,4 @@ PIP package         Version required
 ==================  ===========================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-redis/4.1.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-redis/4.2.0/changelog.html>`_.
