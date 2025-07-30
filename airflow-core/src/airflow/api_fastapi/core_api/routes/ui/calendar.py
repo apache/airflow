@@ -59,7 +59,7 @@ def get_calendar(
     granularity: Literal["hourly", "daily"] = "daily",
 ) -> CalendarTimeRangeCollectionResponse:
     """Get calendar data for a DAG including historical and planned DAG runs."""
-    dag = dag_bag.get_latest_version_of_dag(dag_id, session)
+    dag = dag_bag.get_latest_version_of_dag(dag_id, session=session)
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with dag_id: '{dag_id}' not found")
     calendar_service = CalendarService()

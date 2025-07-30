@@ -110,7 +110,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.query import Query
     from sqlalchemy.orm.session import Session
 
-    from airflow.models.dagbag import DagBag
+    from airflow.models.dagbag import SchedulerDagBag
     from airflow.sdk.types import Operator
     from airflow.serialization.serialized_objects import MaybeSerializedDAG
 
@@ -878,7 +878,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         exclude_task_ids: Collection[str | tuple[str, int]] | None,
         exclude_run_ids: frozenset[str] | None,
         session: Session,
-        dag_bag: DagBag | None = ...,
+        dag_bag: SchedulerDagBag | None = ...,
     ) -> Iterable[TaskInstance]: ...  # pragma: no cover
 
     @overload
@@ -895,7 +895,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         exclude_task_ids: Collection[str | tuple[str, int]] | None,
         exclude_run_ids: frozenset[str] | None,
         session: Session,
-        dag_bag: DagBag | None = ...,
+        dag_bag: SchedulerDagBag | None = ...,
         recursion_depth: int = ...,
         max_recursion_depth: int = ...,
         visited_external_tis: set[TaskInstanceKey] = ...,
@@ -914,11 +914,13 @@ class DAG(TaskSDKDag, LoggingMixin):
         exclude_task_ids: Collection[str | tuple[str, int]] | None,
         exclude_run_ids: frozenset[str] | None,
         session: Session,
-        dag_bag: DagBag | None = None,
+        dag_bag: SchedulerDagBag | None = None,
         recursion_depth: int = 0,
         max_recursion_depth: int | None = None,
         visited_external_tis: set[TaskInstanceKey] | None = None,
     ) -> Iterable[TaskInstance] | set[TaskInstanceKey]:
+        from airflow.models.dagbag import SchedulerDagBag
+
         TI = TaskInstance
 
         # If we are looking at dependent dags we want to avoid UNION calls
@@ -1021,10 +1023,11 @@ class DAG(TaskSDKDag, LoggingMixin):
 
                 for tii in external_tis:
                     if not dag_bag:
-                        from airflow.models.dagbag import DagBag
-
-                        dag_bag = DagBag(read_dags_from_db=True)
-                    external_dag = dag_bag.get_dag(tii.dag_id, session=session)
+                        dag_bag = SchedulerDagBag()
+                    if not isinstance(dag_bag, SchedulerDagBag):  # Compat: This used to take non-db object.
+                        external_dag = dag_bag.get_dag(tii.dag_id, session=session)
+                    else:
+                        external_dag = dag_bag.get_dag_for_run(tii.dag_run, session=session)
                     if not external_dag:
                         raise AirflowException(f"Could not find dag {tii.dag_id}")
                     downstream = external_dag.partial_subset(
@@ -1283,7 +1286,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         confirm_prompt: bool = False,
         dag_run_state: DagRunState = DagRunState.QUEUED,
         session: Session = NEW_SESSION,
-        dag_bag: DagBag | None = None,
+        dag_bag: SchedulerDagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
@@ -1301,7 +1304,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         dag_run_state: DagRunState = DagRunState.QUEUED,
         dry_run: Literal[False] = False,
         session: Session = NEW_SESSION,
-        dag_bag: DagBag | None = None,
+        dag_bag: SchedulerDagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
@@ -1320,7 +1323,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         confirm_prompt: bool = False,
         dag_run_state: DagRunState = DagRunState.QUEUED,
         session: Session = NEW_SESSION,
-        dag_bag: DagBag | None = None,
+        dag_bag: SchedulerDagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
@@ -1339,7 +1342,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         dag_run_state: DagRunState = DagRunState.QUEUED,
         dry_run: Literal[False] = False,
         session: Session = NEW_SESSION,
-        dag_bag: DagBag | None = None,
+        dag_bag: SchedulerDagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
@@ -1359,7 +1362,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         dag_run_state: DagRunState = DagRunState.QUEUED,
         dry_run: bool = False,
         session: Session = NEW_SESSION,
-        dag_bag: DagBag | None = None,
+        dag_bag: SchedulerDagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,

@@ -111,7 +111,7 @@ def get_dag_versions(
     query = select(DagVersion).options(joinedload(DagVersion.dag_model))
 
     if dag_id != "~":
-        dag = dag_bag.get_latest_version_of_dag(dag_id, session)
+        dag = dag_bag.get_latest_version_of_dag(dag_id, session=session)
         if not dag:
             raise HTTPException(status.HTTP_404_NOT_FOUND, f"The DAG with dag_id: `{dag_id}` was not found")
 

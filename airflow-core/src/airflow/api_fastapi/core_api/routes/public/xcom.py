@@ -195,7 +195,7 @@ def create_xcom_entry(
     if dag_run:
         dag = dag_bag.get_dag_for_run(dag_run, session)
     else:
-        dag = dag_bag.get_latest_version_of_dag(dag_id, session)
+        dag = dag_bag.get_latest_version_of_dag(dag_id, session=session)
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with ID: `{dag_id}` was not found")
 

@@ -40,6 +40,7 @@ from airflow.configuration import conf
 from airflow.exceptions import DagRunNotFound
 from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbag import SchedulerDagBag
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.serialization.serialized_objects import SerializedDAG
@@ -79,7 +80,7 @@ class TestCliTasks:
     run_id = "TEST_RUN_ID"
     dag_id = "example_python_operator"
     parser: ArgumentParser
-    dagbag: DagBag
+    dagbag: SchedulerDagBag
     dag: DAG
     dag_run: DagRun
 
@@ -90,8 +91,9 @@ class TestCliTasks:
         cls.parser = cli_parser.get_parser()
         clear_db_runs()
 
-        cls.dagbag = DagBag(read_dags_from_db=True, include_examples=True)
-        cls.dag = cls.dagbag.get_dag(cls.dag_id)
+        cls.dagbag = SchedulerDagBag()
+        with create_session() as session:
+            cls.dag = cls.dagbag.get_latest_version_of_dag(cls.dag_id, session=session)
         data_interval = cls.dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE)
         cls.dag_run = cls.dag.create_dagrun(
             state=State.RUNNING,
@@ -109,9 +111,9 @@ class TestCliTasks:
 
     @conf_vars({("core", "load_examples"): "true"})
     @pytest.mark.execution_timeout(120)
-    def test_cli_list_tasks(self):
-        for dag_id in self.dagbag.dags:
-            args = self.parser.parse_args(["tasks", "list", dag_id])
+    def test_cli_list_tasks(self, session):
+        for dag in self.dagbag.iter_all_latest_version_dags(session=session):
+            args = self.parser.parse_args(["tasks", "list", dag.dag_id])
             task_command.task_list(args)
 
     def test_test(self):
