@@ -42,6 +42,7 @@ from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException
 from airflow.listeners.listener import get_listener_manager
+from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
     DagRun,
@@ -104,8 +105,6 @@ from airflow.sdk.execution_time.context import (
 )
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.timezone import coerce_datetime
-from airflow.utils.net import get_hostname
-from airflow.utils.platform import getuser
 
 if TYPE_CHECKING:
     import jinja2
@@ -362,6 +361,7 @@ class RuntimeTaskInstance(TaskInstance):
                     key=key,
                     task_id=t_id,
                     dag_id=dag_id,
+                    include_prior_dates=include_prior_dates,
                 )
 
                 if values is None:
@@ -860,6 +860,8 @@ def run(
     log: Logger,
 ) -> tuple[TaskInstanceState, ToSupervisor | None, BaseException | None]:
     """Run the task in this process."""
+    import signal
+
     from airflow.exceptions import (
         AirflowException,
         AirflowFailException,
@@ -876,6 +878,17 @@ def run(
     if TYPE_CHECKING:
         assert ti.task is not None
         assert isinstance(ti.task, BaseOperator)
+
+    parent_pid = os.getpid()
+
+    def _on_term(signum, frame):
+        pid = os.getpid()
+        if pid != parent_pid:
+            return
+
+        ti.task.on_kill()
+
+    signal.signal(signal.SIGTERM, _on_term)
 
     msg: ToSupervisor | None = None
     state: TaskInstanceState

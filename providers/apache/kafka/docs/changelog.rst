@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+1.10.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add validation for commit_cadence in Kafka ConsumeFromTopicOperator (#52015)``
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup type ignores (#53300)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Make kafka provider compatible with mypy 1.16.1 (#53125)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Replace BaseHook to Task SDK for apache/kafka (#52784)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.10.0
 ......
 

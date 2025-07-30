@@ -161,6 +161,8 @@ class OptimisticTaskSelector(TaskSelectorStrategy, LoggingMixin):
             # Same metric with tagging
             Stats.gauge("pool.starving_tasks", num_starving_tasks, tags={"pool_name": pool_name})
 
+        Stats.gauge("scheduler.tasks.starving", num_starving_tasks_total)
+
         return executable_tis
 
     def _examine_task_instances(
