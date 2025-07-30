@@ -35,7 +35,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import type { TaskInstanceResponse, GridRunsResponse } from "openapi/requests/types.gen";
-import { system, getComputedCSSVariableValue } from "src/theme";
+import { getComputedCSSVariableValue } from "src/theme";
 
 ChartJS.register(
   CategoryScale,
@@ -74,16 +74,22 @@ export const DurationChart = ({
   }
 
   // Get states and create color tokens for them
-  const states = entries.map(entry => entry.state).filter(Boolean);
-  const stateColorTokens = useToken("colors", states.map(state => `${state}.solid`));
-  
+  const states = entries.map((entry) => entry.state).filter(Boolean);
+  const stateColorTokens = useToken(
+    "colors",
+    states.map((state) => `${state}.solid`),
+  );
+
   // Create a mapping of state to color for easy lookup
   const stateColorMap = Object.fromEntries(
-    states.map((state, index) => [state, getComputedCSSVariableValue(stateColorTokens[index] || "oklch(0.5 0 0)")])
+    states.map((state, index) => [
+      state,
+      getComputedCSSVariableValue(stateColorTokens[index] || "oklch(0.5 0 0)"),
+    ]),
   );
 
   const runAnnotation = {
-    borderColor: "green",
+    borderColor: "grey",
     borderWidth: 1,
     label: {
       content: (ctx: PartialEventContext) => average(ctx, 1).toFixed(2),
