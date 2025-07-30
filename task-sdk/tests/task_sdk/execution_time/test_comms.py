@@ -21,6 +21,7 @@ import threading
 import uuid
 from socket import socketpair
 
+from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
 import msgspec
 import pytest
 
@@ -147,3 +148,39 @@ class TestCommsDecoder:
         # It actually failed to read at all for large values, but lets just make sure we get it all
         assert len(msg.value) == 10 * 1024 * 1024 + 1
         assert msg.value[-1] == "b"
+
+    def test_payload_with_builtin_subclass(self):
+
+        class CustomFloat(float):
+            """A custom subclass of float."""
+
+            def __str__(self):
+                return f"CustomFloat({super().__str__()})"
+
+        msg = AssetEventResponse(
+            id=1,
+            asset=AssetResponse(
+                name="asset",
+                uri="s3://bucket/obj",
+                group="asset",
+                extra={"subclassed_float": CustomFloat(1.25)},
+            ),
+            created_dagruns=[],
+            timestamp=timezone.parse("2024-10-31T12:00:00Z"),
+        ).model_json_schema()  # Using a subclass of float
+        resp_frame = _ResponseFrame(0, msg, None)
+        assert resp_frame.as_bytes()
+
+    def test_payload_with_builtin_subclass_not_supported(self):
+        """Test that a subclass of a built-in type that is not supported raises NotImplementedError."""
+
+        class CustomClass:
+            """A custom class."""
+
+            def __init__(self, items):
+                self.items = items
+
+        msg = {"type": "XComResult", "key": "a", "value": CustomClass([1, 2, 3])}
+        resp_frame = _ResponseFrame(0, msg, None)
+        with pytest.raises(NotImplementedError):
+            resp_frame.as_bytes()
