@@ -107,23 +107,19 @@ export const Grid = ({ limit }: Props) => {
             )}
           </Flex>
           <Flex flexDirection="row-reverse">
-            {gridRuns?.map((dr: GridRunsResponse) => {
-              const showVersionIndicator = dr.is_version_changed;
-
-              return (
-                <Bar
-                  key={dr.run_id}
-                  max={max}
-                  nodes={flatNodes}
-                  run={dr}
-                  showVersionIndicator={showVersionIndicator}
-                  versionChanges={dr.version_changes}
-                  versionNumber={dr.dag_version_number}
-                />
-              );
-            })}
+            {gridRuns?.map((dr: GridRunsResponse) => (
+              <Bar
+                key={dr.run_id}
+                max={max}
+                nodes={flatNodes}
+                run={dr}
+                showVersionIndicator={dr.is_version_changed}
+                versionChanges={dr.version_changes}
+                versionNumber={dr.dag_version_number}
+              />
+            ))}
           </Flex>
-          {selectedIsVisible === undefined || !selectedIsVisible ? undefined : (
+          {selectedIsVisible ? (
             <Link to={`/dags/${dagId}`}>
               <IconButton
                 aria-label={translate("grid.buttons.resetToLatest")}
@@ -138,7 +134,7 @@ export const Grid = ({ limit }: Props) => {
                 <FiChevronsRight />
               </IconButton>
             </Link>
-          )}
+          ) : undefined}
         </Flex>
       </Box>
     </Flex>

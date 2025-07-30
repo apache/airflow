@@ -63,15 +63,14 @@ export const Bar = ({
       transition="background-color 0.2s"
     >
       {/* Dag version change indicator - shows when version changes between runs */}
-      {showVersionIndicator ? (
+      {Boolean(showVersionIndicator) && (
         <VersionIndicator
           aria-label="Dag version change indicator"
           orientation="vertical"
-          position="left"
           versionChanges={versionChanges}
           versionNumber={versionNumber}
         />
-      ) : undefined}
+      )}
 
       <Flex
         alignItems="flex-end"

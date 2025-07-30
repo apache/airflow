@@ -20,7 +20,6 @@ import { Box, Text } from "@chakra-ui/react";
 
 type VersionIndicatorProps = {
   readonly orientation: "horizontal" | "vertical";
-  readonly position?: "left" | "right";
   readonly styleOverrides?: object;
   readonly versionChanges?: Array<number>;
   readonly versionNumber?: number | null;
@@ -28,47 +27,21 @@ type VersionIndicatorProps = {
 
 export const VersionIndicator = ({
   orientation,
-  position,
   styleOverrides,
   versionChanges,
   versionNumber,
 }: VersionIndicatorProps) => {
   const isVertical = orientation === "vertical";
 
-  // Calculate position styles based on position prop
-  const getPositionStyles = () => {
-    if (!position) {
-      return {
-        left: isVertical ? "-1px" : "0",
-        right: undefined,
-      };
-    }
-
-    if (position === "left") {
-      return {
-        left: "-1px",
-        right: undefined,
-      };
-    }
-
-    // position === "right"
-    return {
-      left: undefined,
-      right: "-1px",
-    };
-  };
-
-  const positionStyles = getPositionStyles();
-
   return (
     <Box
       bg="orange.400"
       height={isVertical ? "100px" : "2px"}
+      left={isVertical ? "-1px" : "0"}
       position="absolute"
       top={isVertical ? "0" : "-1px"}
       width={isVertical ? "2px" : "18px"}
       zIndex={3}
-      {...positionStyles}
       {...styleOverrides}
     >
       <Text

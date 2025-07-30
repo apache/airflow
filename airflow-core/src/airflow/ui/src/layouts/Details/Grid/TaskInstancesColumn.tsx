@@ -50,15 +50,14 @@ export const TaskInstancesColumn = ({ nodes, runId, taskInstances }: Props) => {
     const prevNode = idx > 0 ? nodes[idx - 1] : undefined;
     const prevTaskInstance = prevNode ? taskInstanceMap.get(prevNode.id) : undefined;
 
-    const showVersionIndicator = Boolean(
-      prevTaskInstance && prevTaskInstance.dag_version_number !== taskInstance.dag_version_number,
-    );
+    const showVersionIndicator =
+      prevTaskInstance && prevTaskInstance.dag_version_number !== taskInstance.dag_version_number;
 
     return (
       <Box key={node.id} position="relative">
-        {showVersionIndicator ? (
+        {Boolean(showVersionIndicator) && (
           <VersionIndicator orientation="horizontal" versionNumber={taskInstance.dag_version_number} />
-        ) : undefined}
+        )}
         <GridTI
           dagId={dagId}
           instance={taskInstance}
