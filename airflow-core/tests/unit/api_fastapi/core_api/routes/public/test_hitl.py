@@ -16,25 +16,17 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime
+from typing import TYPE_CHECKING, Any
 from unittest import mock
 
 import pytest
+import time_machine
 from sqlalchemy.orm import Session
 
 from airflow._shared.timezones.timezone import utcnow
-from airflow.utils.state import TaskInstanceState
-
-from tests_common.test_utils.db import AIRFLOW_V_3_1_PLUS
-
-if not AIRFLOW_V_3_1_PLUS:
-    pytest.skip("Human in the loop public API compatible with Airflow >= 3.0.1", allow_module_level=True)
-
-from datetime import datetime
-from typing import TYPE_CHECKING, Any
-
-import time_machine
-
 from airflow.models.hitl import HITLDetail
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from fastapi.testclient import TestClient
