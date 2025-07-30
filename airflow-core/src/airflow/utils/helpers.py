@@ -244,11 +244,6 @@ def render_template_to_string(template: jinja2.Template, context: Context) -> st
     return render_template(template, cast("MutableMapping[str, Any]", context), native=False)
 
 
-def render_template_as_native(template: jinja2.Template, context: Context) -> Any:
-    """Shorthand to ``render_template(native=True)`` with better typing support."""
-    return render_template(template, cast("MutableMapping[str, Any]", context), native=True)
-
-
 def exactly_one(*args) -> bool:
     """
     Return True if exactly one of args is "truthy", and False otherwise.
