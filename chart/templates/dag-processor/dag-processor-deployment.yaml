@@ -46,9 +46,10 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-    {{- with .Values.labels }}
-      {{- toYaml . | nindent 4 }}
-      {{- mustMerge .Values.dagProcessor.labels .Values.labels | toYaml | nindent 4 }}
+    {{- if or (.Values.labels) (.Values.dagProcessor.labels) }}
+      {{- $global := default (dict) .Values.labels -}}
+      {{- $component := default (dict) .Values.dagProcessor.labels -}}
+      {{- mustMerge $component $global | toYaml | nindent 4 }}
     {{- end }}
   {{- if .Values.dagProcessor.annotations }}
   annotations: {{- toYaml .Values.dagProcessor.annotations | nindent 4 }}
