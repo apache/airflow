@@ -1266,6 +1266,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         self.log.exception("Something went wrong when trying to save task event logs.")
 
                 with create_session() as session:
+                    # Only retrieve expired deadlines that haven't been processed yet.
+                    # `callback_state` is null/None by default until the handler set it.
                     for deadline in session.scalars(
                         select(Deadline)
                         .where(Deadline.deadline_time < datetime.now(timezone.utc))
