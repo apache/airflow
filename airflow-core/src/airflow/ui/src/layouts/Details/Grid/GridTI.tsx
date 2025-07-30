@@ -143,7 +143,7 @@ const Instance = ({ dagId, instance, isGroup, isMapped, runId, search, taskId }:
             position="absolute"
             right={0}
             visibility="hidden"
-            zIndex={1}
+            zIndex={1000}
           >
             {translate("taskId")}: {taskId}
             <br />
