@@ -388,6 +388,20 @@ repos:
         always_run: true
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4', 'pyyaml>=6.0.2', 'tomli>=2.0.1']
+      - id: check-shared-distributions-structure
+        name: Check shared distributions structure
+        entry: ./scripts/ci/pre_commit/check_shared_distributions_structure.py
+        language: python
+        additional_dependencies: ['rich>=12.4.4', 'tomli>=2.0.1']
+        pass_filenames: false
+        files: ^shared/.*$
+      - id: check-shared-distributions-usage
+        name: Check shared distributions usage
+        entry: ./scripts/ci/pre_commit/check_shared_distributions_usage.py
+        language: python
+        additional_dependencies: ['rich>=12.4.4', 'tomli>=2.0.1']
+        pass_filenames: false
+        files: ^shared/.*$|^.*/pyproject.toml$|^.*/_shared/.*$
       - id: validate-operators-init
         name: No templated field logic checks in operator __init__
         description: Prevent templated field logic checks in operators' __init__
@@ -1621,6 +1635,7 @@ repos:
           ^airflow-core/src/airflow/models/__init__\.py$|
           ^airflow-core/src/airflow/api/common/mark_tasks\.py$|
           ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/assets\.py$|
+          ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/connections\.py$|
           ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/hitl\.py$|
           ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/variables\.py$|
           ^airflow-core/src/airflow/api_fastapi/core_api/routes/ui/grid\.py$|

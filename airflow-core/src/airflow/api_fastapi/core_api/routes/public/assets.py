@@ -371,7 +371,7 @@ def materialize_asset(
         )
 
     dag: DAG | None
-    if not (dag := dag_bag.get_dag(dag_id)):
+    if not (dag := dag_bag.get_latest_version_of_dag(dag_id, session)):
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with ID `{dag_id}` was not found")
 
     return dag.create_dagrun(

@@ -170,10 +170,10 @@ def make_dag_with_multiple_versions(dag_maker, configure_git_connection_for_dag_
 
 @pytest.fixture(scope="module")
 def dagbag():
-    from airflow.models import DagBag
+    from airflow.models.dagbag import SchedulerDagBag
 
     parse_and_sync_to_db(os.devnull, include_examples=True)
-    return DagBag(read_dags_from_db=True)
+    return SchedulerDagBag()
 
 
 @pytest.fixture

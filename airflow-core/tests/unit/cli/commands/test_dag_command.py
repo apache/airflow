@@ -843,7 +843,7 @@ class TestCliDags:
         )
         from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
 
-        with mock.patch.object(AfterWorkdayTimetable, "get_next_workday", side_effect=[DEFAULT_DATE]):
+        with mock.patch.object(AfterWorkdayTimetable, "get_next_workday", return_value=DEFAULT_DATE):
             dag_command.dag_test(cli_args)
         assert "data_interval" in mock__get_or_create_dagrun.call_args.kwargs
 
