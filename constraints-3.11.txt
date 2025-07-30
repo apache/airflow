@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-30T13:58:51.456045
+# This constraints file was automatically generated on 2025-07-30T19:48:48.622311
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -247,7 +247,7 @@ google-api-python-client==2.177.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.40.3
-google-cloud-aiplatform==1.105.0
+google-cloud-aiplatform==1.106.0
 google-cloud-alloydb==0.4.8
 google-cloud-appengine-logging==1.6.2
 google-cloud-audit-log==0.3.2
@@ -561,7 +561,7 @@ readme_renderer==44.0
 redis==5.2.1
 redshift-connector==2.1.7
 referencing==0.36.2
-regex==2025.7.31
+regex==2025.7.33
 requests-file==2.1.0
 requests-kerberos==0.15.0
 requests-mock==1.12.1
@@ -699,7 +699,7 @@ uritemplate==4.2.0
 urllib3==2.5.0
 userpath==1.9.2
 uuid6==2025.0.1
-uv==0.8.3
+uv==0.8.4
 uvicorn==0.35.0
 uvloop==0.21.0
 validators==0.35.0
