@@ -49,7 +49,7 @@ metadata:
     {{- if or (.Values.labels) (.Values.dagProcessor.labels) }}
       {{- $global := default (dict) .Values.labels -}}
       {{- $component := default (dict) .Values.dagProcessor.labels -}}
-      {{- mustMerge $component $global | toYaml | nindent 4 }}
+      {{- mustMerge $global $component | toYaml | nindent 4 }}
     {{- end }}
   {{- if .Values.dagProcessor.annotations }}
   annotations: {{- toYaml .Values.dagProcessor.annotations | nindent 4 }}
@@ -74,7 +74,7 @@ spec:
         component: dag-processor
         release: {{ .Release.Name }}
         {{- if or (.Values.labels) (.Values.dagProcessor.labels) }}
-          {{- mustMerge .Values.dagProcessor.labels .Values.labels | toYaml | nindent 8 }}
+          {{- mustMerge .Values.labels .Values.dagProcessor.labels | toYaml | nindent 8 }}
         {{- end }}
       annotations:
         checksum/metadata-secret: {{ include (print $.Template.BasePath "/secrets/metadata-connection-secret.yaml") . | sha256sum }}
