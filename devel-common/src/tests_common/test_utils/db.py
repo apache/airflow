@@ -156,6 +156,8 @@ def parse_and_sync_to_db(folder: Path | str, include_examples: bool = False):
             dagbag.sync_to_db(session=session)  # type: ignore[call-arg]
         session.commit()
 
+    return dagbag
+
 
 def clear_db_runs():
     with create_session() as session:

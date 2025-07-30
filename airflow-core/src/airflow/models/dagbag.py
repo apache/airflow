@@ -33,11 +33,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
 
-from sqlalchemy import (
-    Column,
-    String,
-    inspect,
-)
+from sqlalchemy import Column, String, inspect, select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.attributes import NO_VALUE
 from tabulate import tabulate
@@ -81,6 +77,7 @@ if TYPE_CHECKING:
     from airflow.models import DagRun
     from airflow.models.dag import DAG
     from airflow.models.dagwarning import DagWarning
+    from airflow.models.serialized_dag import SerializedDagModel
     from airflow.utils.types import ArgNotSet
 
 
@@ -755,27 +752,26 @@ class DBDagBag:
         self._dags: dict[str, DAG] = {}  # dag_version_id to dag
         self.load_op_links = load_op_links
 
+    def _read_dag(self, serdag: SerializedDagModel) -> DAG | None:
+        serdag.load_op_links = self.load_op_links
+        if dag := serdag.dag:
+            self._dags[serdag.dag_version_id] = dag
+        return dag
+
     def _get_dag(self, version_id: str, session: Session) -> DAG | None:
         if dag := self._dags.get(version_id):
             return dag
         dag_version = session.get(DagVersion, version_id, options=[joinedload(DagVersion.serialized_dag)])
         if not dag_version:
             return None
-        serdag = dag_version.serialized_dag
-        if not serdag:
+        if not (serdag := dag_version.serialized_dag):
             return None
-        serdag.load_op_links = self.load_op_links
-        dag = serdag.dag
-        if not dag:
-            return None
-        self._dags[version_id] = dag
-        return dag
+        return self._read_dag(serdag)
 
     @staticmethod
-    def _version_from_dag_run(dag_run, session):
+    def _version_from_dag_run(dag_run: DagRun, *, session: Session) -> DagVersion:
         if not dag_run.bundle_version:
-            dag_version = DagVersion.get_latest_version(dag_id=dag_run.dag_id, session=session)
-            if dag_version:
+            if dag_version := DagVersion.get_latest_version(dag_id=dag_run.dag_id, session=session):
                 return dag_version
 
         # Check if created_dag_version relationship is already loaded to avoid DetachedInstanceError
@@ -788,27 +784,25 @@ class DBDagBag:
         return session.get(DagVersion, dag_run.created_dag_version_id)
 
     def get_dag_for_run(self, dag_run: DagRun, session: Session) -> DAG | None:
-        version = self._version_from_dag_run(dag_run=dag_run, session=session)
-        if not version:
-            return None
-        return self._get_dag(version_id=version.id, session=session)
+        if version := self._version_from_dag_run(dag_run=dag_run, session=session):
+            return self._get_dag(version_id=version.id, session=session)
+        return None
 
-    def get_latest_version_of_dag(self, dag_id: str, session: Session) -> DAG | None:
-        """
-        Get the latest version of a DAG by its ID.
-
-        This method retrieves the latest version of the DAG with the given ID.
-        """
+    def iter_all_latest_version_dags(self, *, session: Session) -> Generator[DAG, None, None]:
+        """Walk through all latest version dags available in the database."""
         from airflow.models.serialized_dag import SerializedDagModel
 
-        serdag = SerializedDagModel.get(dag_id, session=session)
-        if not serdag:
-            return None
-        serdag.load_op_links = self.load_op_links
-        dag = serdag.dag
+        for sdm in session.scalars(select(SerializedDagModel)):
+            if dag := self._read_dag(sdm):
+                yield dag
 
-        self._dags[serdag.dag_version.id] = dag
-        return dag
+    def get_latest_version_of_dag(self, dag_id: str, *, session: Session) -> DAG | None:
+        """Get the latest version of a dag by its id."""
+        from airflow.models.serialized_dag import SerializedDagModel
+
+        if not (serdag := SerializedDagModel.get(dag_id, session=session)):
+            return None
+        return self._read_dag(serdag)
 
 
 def generate_md5_hash(context):

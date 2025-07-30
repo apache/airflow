@@ -36,9 +36,10 @@ from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel, DagRun
+from airflow.models.dagbag import DBDagBag
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
-from airflow.sdk import task
+from airflow.sdk import BaseOperator, task
 from airflow.sdk.definitions.dag import _run_inline_trigger
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.session import create_session
@@ -368,9 +369,11 @@ class TestCliDags:
         assert any("airflow/example_dags/example_complex.py" in d["fileloc"] for d in dag_list)
 
     @conf_vars({("core", "load_examples"): "true"})
-    def test_dagbag_dag_col(self):
-        dagbag = DagBag(include_examples=True, read_dags_from_db=True)
-        dag_details = dag_command._get_dagbag_dag_details(dagbag.get_dag("tutorial_dag"))
+    def test_dagbag_dag_col(self, session):
+        dagbag = DBDagBag()
+        dag_details = dag_command._get_dagbag_dag_details(
+            dagbag.get_latest_version_of_dag("tutorial_dag", session=session)
+        )
         assert sorted(dag_details) == sorted(dag_command.DAG_DETAIL_FIELDS)
 
     @conf_vars({("core", "load_examples"): "false"})

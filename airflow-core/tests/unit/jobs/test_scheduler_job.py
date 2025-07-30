@@ -154,11 +154,11 @@ def create_dagrun(session):
     def _create_dagrun(
         dag: DAG,
         *,
-        logical_date: datetime,
+        logical_date: datetime.datetime,
         data_interval: DataInterval,
         run_type: DagRunType,
         state: DagRunState = DagRunState.RUNNING,
-        start_date: datetime | None = None,
+        start_date: datetime.datetime | None = None,
     ) -> DagRun:
         run_after = logical_date or timezone.utcnow()
         run_id = DagRun.generate_run_id(
@@ -6867,10 +6867,7 @@ class TestSchedulerJobQueriesCount:
             dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False, read_dags_from_db=False)
             dagbag.sync_to_db("testing", None)
 
-            dag_ids = dagbag.dag_ids
-            dagbag = DagBag(read_dags_from_db=True)
-            for i, dag_id in enumerate(dag_ids):
-                dag = dagbag.get_dag(dag_id)
+            for i, dag in enumerate(dagbag.dags.values()):
                 dr = dag.create_dagrun(
                     state=State.RUNNING,
                     run_id=f"{DagRunType.MANUAL.value}__{i}",

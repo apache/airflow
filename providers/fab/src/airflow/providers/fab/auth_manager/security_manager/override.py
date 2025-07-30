@@ -70,7 +70,6 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.models import DagBag
 from airflow.providers.fab.auth_manager.models import (
     Action,
     Group,
@@ -101,6 +100,7 @@ from airflow.providers.fab.auth_manager.views.user_edit import (
     CustomUserInfoEditView,
 )
 from airflow.providers.fab.auth_manager.views.user_stats import CustomUserStatsChartView
+from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.fab.www.security import permissions
 from airflow.providers.fab.www.security_manager import AirflowSecurityManagerV2
 from airflow.providers.fab.www.session import AirflowDatabaseSessionInterface
@@ -111,11 +111,28 @@ if TYPE_CHECKING:
         RESOURCE_ASSET,
         RESOURCE_ASSET_ALIAS,
     )
+    from airflow.sdk import DAG
 else:
     from airflow.providers.common.compat.security.permissions import (
         RESOURCE_ASSET,
         RESOURCE_ASSET_ALIAS,
     )
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.models.dagbag import DBDagBag
+    from airflow.utils.session import create_session
+
+    def _iter_dags() -> Iterable[DAG]:
+        with create_session() as session:
+            yield from DBDagBag().iter_all_latest_version_dags(session=session)
+else:
+    from airflow.models.dagbag import DagBag
+
+    def _iter_dags() -> Iterable[DAG]:
+        dagbag = DagBag(read_dags_from_db=True)
+        dagbag.collect_dags_from_db()
+        return dagbag.dags.values()
+
 
 log = logging.getLogger(__name__)
 
@@ -938,11 +955,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         if you only need to sync a single DAG.
         """
         perms = self.get_all_permissions()
-        dagbag = DagBag(read_dags_from_db=True)
-        dagbag.collect_dags_from_db()
-        dags = dagbag.dags.values()
 
-        for dag in dags:
+        for dag in _iter_dags():
+            print(dag)
             for resource_name, resource_values in self.RESOURCE_DETAILS_MAP.items():
                 dag_resource_name = permissions.resource_name(dag.dag_id, resource_name)
                 for action_name in resource_values["actions"]:
