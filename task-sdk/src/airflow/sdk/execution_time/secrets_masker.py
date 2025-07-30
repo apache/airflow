@@ -27,7 +27,7 @@ from collections.abc import Callable, Generator, Iterable, Iterator
 from enum import Enum
 from functools import cache, cached_property
 from re import Pattern
-from typing import Any, TextIO, TypeAlias, TypeVar
+from typing import Any, TextIO, TypeAlias, TypeVar, overload
 
 from airflow import settings
 
@@ -116,9 +116,17 @@ def redact(value: Redactable, name: str | None = None, max_depth: int | None = N
     return _secrets_masker().redact(value, name, max_depth)
 
 
+@overload
+def merge(new_value: str, old_value: str, name: str | None = None, max_depth: int | None = None) -> str: ...
+
+
+@overload
+def merge(new_value: dict, old_value: dict, name: str | None = None, max_depth: int | None = None) -> str: ...
+
+
 def merge(
     new_value: Redacted, old_value: Redactable, name: str | None = None, max_depth: int | None = None
-) -> Redactable:
+) -> Redacted:
     """
     Merge a redacted value with its original unredacted counterpart.
 
@@ -313,7 +321,7 @@ class SecretsMasker(logging.Filter):
         depth: int,
         max_depth: int,
         force_sensitive: bool = False,
-    ) -> Redactable:
+    ) -> Redacted:
         """Merge a redacted item with its original unredacted counterpart."""
         if depth > max_depth:
             if isinstance(new_item, str) and new_item == "***":
@@ -394,7 +402,7 @@ class SecretsMasker(logging.Filter):
 
     def merge(
         self, new_item: Redacted, old_item: Redactable, name: str | None = None, max_depth: int | None = None
-    ) -> Redactable:
+    ) -> Redacted:
         """
         Merge a redacted item with its original unredacted counterpart.
 

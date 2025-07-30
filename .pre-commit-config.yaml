@@ -1636,6 +1636,7 @@ repos:
           ^airflow-core/src/airflow/api/common/mark_tasks\.py$|
           ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/assets\.py$|
           ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/connections\.py$|
+          ^airflow-core/src/airflow/api_fastapi/core_api/services/public/connections\.py$|
           ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/hitl\.py$|
           ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/variables\.py$|
           ^airflow-core/src/airflow/api_fastapi/core_api/routes/ui/grid\.py$|
