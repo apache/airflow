@@ -28,11 +28,12 @@ a custom callback function.
 Creating a Deadline Alert
 -------------------------
 
-To create a Deadline Alert, you'll need to specify three components:
+To create a Deadline Alert, there are three three components you must specify and one optional one:
 
-* A reference: When to start counting from
-* An interval: How far before or after the reference point to trigger the alert
-* A callback: What to do when the deadline is exceeded
+* Reference: When to start counting from
+* Interval: How far before or after the reference point to trigger the alert
+* Callback: What to do when the deadline is exceeded
+* Callback Kwargs:  Optional values to pass to the Callback when it is run
 
 Here is how Deadlines are calculated:
 
@@ -43,7 +44,7 @@ Here is how Deadlines are calculated:
         |                                     |
      Start time                          Trigger point
 
-Here's an example DAG implementation. If the DAG has not finished 15 minutes after it was queued, send an email:
+Below is an example DAG implementation. If the DAG has not finished 15 minutes after it was queued, send an email:
 
 .. code-block:: python
 
@@ -102,7 +103,7 @@ Here's an example using a fixed datetime:
         dag_id="fixed_deadline_alert",
         deadline=DeadlineAlert(
             reference=DeadlineReference.FIXED_DATETIME(tomorrow_at_ten),
-            interval=timedelta(minutes=-30),  # Alert 30 minutes before the deadline
+            interval=timedelta(minutes=-30),  # Alert 30 minutes before the reference.
             callback=SmtpNotifier(
                 to="team@example.com",
                 subject="Report will be late",
@@ -116,9 +117,12 @@ The timeline for this example would look like this:
 
 ::
 
-    |------|----------|---------|----------|--------|
-        Deadline    Queued    Start    Reference
-         08:00      09:15     09:17     10:00
+    |------|----------|---------|------------|--------|
+         Queued     Start    Deadline    Reference
+         09:15      09:17     09:30       10:00
+
+.. note::
+    Note that since the interval is a negative value, the deadline is before the reference in this case.
 
 Using Callbacks
 ---------------
@@ -137,7 +141,7 @@ Here's an example using the Slack notifier if the DagRun has not finished within
         dag_id="slack_deadline_alert",
         deadline=DeadlineAlert(
             reference=DeadlineReference.DAGRUN_QUEUED_AT,
-            interval=timedelta(minutes=15),
+            interval=timedelta(minutes=30),
             callback=SlackNotifier(
                 slack_conn_id="slack_default",
                 channel="#alerts",
@@ -152,7 +156,7 @@ Creating Custom Callbacks
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 You can create custom callbacks for more complex handling. The ``callback_kwargs`` specified in
-the ``DeadlineAlert`` are passed to the callback function. Async callbacks are recommended.
+the ``DeadlineAlert`` are passed to the callback function.
 
 .. code-block:: python
 
@@ -184,10 +188,14 @@ the ``DeadlineAlert`` are passed to the callback function. Async callbacks are r
     ):
         EmptyOperator(task_id="example_task")
 
-Note: Async callbacks are recommended as they will be executed by the Triggerer.
-Ensure any async callback is importable by the Triggerer.  One easy way to do this
-is to place them in the plugins folder, as mentioned above.  The Triggerer may need
-to be restarted when a callback is added or changed in order to reload the files.
+.. note::
+    Regarding Deadline callbacks:
+
+    * Async callbacks are recommended as they will be executed by the Triggerer.
+    * Users must ensure any async callback is importable by the Triggerer.
+    * One easy way to do this is to place the callback as a top-level method in a new file in the plugins folder.
+    * The Triggerer may need to be restarted when a callback is added or changed in order to reload the files.
+
 
 Deadline Calculation
 ^^^^^^^^^^^^^^^^^^^^
