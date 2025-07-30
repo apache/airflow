@@ -139,7 +139,7 @@ class MwaaDagRunSensor(AwsBaseSensor[MwaaHook]):
         return state in self.success_states
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        validate_execute_complete_event(event)
+        return None
 
     def execute(self, context: Context):
         if self.deferrable:
@@ -271,6 +271,9 @@ class MwaaTaskSensor(AwsBaseSensor[MwaaHook]):
 
         return state in self.success_states
 
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        return None
+
     def execute(self, context: Context):
         if self.external_dag_run_id is None:
             response = self.hook.invoke_rest_api(
@@ -294,7 +297,7 @@ class MwaaTaskSensor(AwsBaseSensor[MwaaHook]):
                     aws_conn_id=self.aws_conn_id,
                     end_from_trigger=True,
                 ),
-                method_name=None,
+                method_name="execute_complete",
             )
         else:
             super().execute(context=context)
