@@ -39,12 +39,23 @@ if TYPE_CHECKING:
 
 
 class OptimisticTaskSelector(TaskSelectorStrategy, LoggingMixin):
+    """
+    Optimistic task selector.
+
+    This task selector contains the way the old airflow scheduler fetches tasks.
+    It works in an optimistic manner meaning that it always fetches `max_tis` tasks untill it can get at least
+    1 task to be scheduled, this causes issues as described in GitHub Issue #45636.
+    The 'old scheduler' can be seen here:
+    https://github.com/apache/airflow/blob/478a2b458bae57a04aebcda3ac5b231fb49ff764/airflow-core/src/airflow/jobs/scheduler_job_runner.py#L293
+    """
+
     def __init__(self) -> None:
         super().__init__()
         self.num_starving_tasks_total = 0
+        self.priority_order = [-TaskInstance.priority_weight, DagRun.logical_date, TaskInstance.map_index]
 
     def get_query(self, **additional_params) -> Query:
-        priority_order = additional_params["priority_order"]
+        priority_order = self.priority_order
         max_tis = additional_params.get("max_tis", 32)
         query = (
             select(TaskInstance)

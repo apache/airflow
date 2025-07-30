@@ -27,17 +27,15 @@ import time
 from collections import Counter, defaultdict, deque
 from collections.abc import Callable, Collection, Iterable, Iterator
 from contextlib import ExitStack
-from dataclasses import dataclass
 from datetime import date, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Column, and_, delete, desc, exists, func, or_, select, text, tuple_, update
+from sqlalchemy import and_, delete, desc, exists, func, or_, select, text, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
-from sqlalchemy.sql.selectable import CTE
 
 from airflow import settings
 from airflow._shared.timezones import timezone
@@ -68,6 +66,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.trigger import TRIGGER_FAIL_REPR, TriggerFailureReason
 from airflow.stats import Stats
+from airflow.task.task_selectors import TASK_SELECTOR_PARAMS_PROVIDERS, TASK_SELECTORS
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.traces import utils as trace_utils
@@ -90,7 +89,6 @@ if TYPE_CHECKING:
 
     from pendulum.datetime import DateTime
     from sqlalchemy.orm import Query, Session
-    from sqlalchemy.sql.selectable import Select, Subquery
 
     from airflow.executors.base_executor import BaseExecutor
     from airflow.executors.executor_utils import ExecutorName
@@ -258,6 +256,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         self.scheduler_dag_bag = SchedulerDagBag()
 
+        task_selector_type = conf.get("scheduler", "scheduler_task_selector_strategy")
+
+        self.task_selector = TASK_SELECTORS[task_selector_type]
+        self.task_selector_params_provider = TASK_SELECTOR_PARAMS_PROVIDERS[task_selector_type]
+
     @provide_session
     def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
         Stats.incr("scheduler_heartbeat", 1, 1)
@@ -364,124 +367,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         :param max_tis: Maximum number of TIs to queue in this loop.
         :return: list[airflow.models.TaskInstance]
         """
-        from airflow.models.pool import Pool
-
         executable_tis: list[TI] = []
 
         if session.get_bind().dialect.name == "postgresql":
             self._aqcuire_lock_for_pgsql(session)
-
-        # Get the pool settings. We get a lock on the pool rows, treating this as a "critical section"
-        # Throws an exception if lock cannot be obtained, rather than blocking
-        pools = Pool.slots_stats(lock_rows=True, session=session)
-
-        # If the pools are full, there is no point doing anything!
-        # If _somehow_ the pool is overfull, don't let the limit go negative - it breaks SQL
-        pool_slots_free = sum(max(0, pool["open"]) for pool in pools.values())
-        starved_pools = {pool_name for pool_name, stats in pools.items() if stats["open"] <= 0}
-        starved_tasks: set[tuple[str, str]] = set()
-
-        if pool_slots_free == 0:
-            self.log.debug("All pools are full!")
-            return []
-
-        priority_order = [-TI.priority_weight, DR.logical_date, TI.map_index]
-
-        query = (
-            select(TI)
-            .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
-            .join(TI.dag_run)
-            .where(DR.state == DagRunState.RUNNING)
-            .join(TI.dag_model)
-            .where(~DM.is_paused)
-            .where(TI.state == TaskInstanceState.SCHEDULED)
-            .where(DM.bundle_name.is_not(None))
-            .options(selectinload(TI.dag_model))
-        )
-
-        @dataclass
-        class LimitWindowDescriptor:
-            running_now_join: CTE
-            join_predicates: Collection[str]
-            max_units: Column
-            window: expression.ColumnElement
-
-        def running_tasks_group(*group_fields: Column) -> CTE:
-            return (
-                select(TI, func.count("*").label("now_running"))
-                .where(TI.state.in_(EXECUTION_STATES))
-                .group_by(*group_fields)
-                .cte()
-            )
-
-        def add_window_limit(query: Select, limit: LimitWindowDescriptor) -> Select:
-            inner_query = query.add_columns(limit.window).order_by(*priority_order).subquery()
-            return (
-                select(TI)
-                .join(inner_query, TI.id == inner_query.c.id)
-                .join(DR, TI.run_id == DR.id)
-                .join(
-                    limit.running_now_join,
-                    *(
-                        getattr(TI, predicate) == getattr(limit.running_now_join.c, predicate)
-                        for predicate in limit.join_predicates
-                    ),
-                )
-                .where(
-                    getattr(inner_query.c, limit.window.name) + limit.running_now_join.c.now_running
-                    < limit.max_units
-                )
-            )
-
-        running_total_tis_per_dagrun = running_tasks_group(TI.dag_id, TI.run_id)
-        running_tis_per_dag = running_tasks_group(TI.dag_id, TI.task_id)
-        running_total_tis_per_task_run = running_tasks_group(TI.dag_id, TI.run_id, TI.task_id)
-        running_tis_per_pool = running_tasks_group(TI.pool)
-
-        total_tis_per_dagrun_count = (
-            func.row_number()
-            .over(partition_by=(TI.dag_id, TI.run_id), order_by=priority_order)
-            .label("total_tis_per_dagrun_count")
-        )
-        tis_per_dag_count = (
-            func.row_number()
-            .over(partition_by=(TI.dag_id, TI.task_id), order_by=priority_order)
-            .label("tis_per_dag_count")
-        )
-        mapped_tis_per_task_run_count = (
-            func.row_number()
-            .over(partition_by=(TI.dag_id, TI.run_id, TI.task_id), order_by=priority_order)
-            .label("mapped_tis_per_dagrun_count")
-        )
-        pool_slots_taken = (
-            func.sum(TI.pool_slots)
-            .over(partition_by=(TI.pool), order_by=priority_order)
-            .label("pool_slots_taken")
-        )
-
-        limits = [
-            LimitWindowDescriptor(
-                running_total_tis_per_dagrun,
-                ["dag_id", "run_id"],
-                DagModel.max_active_tasks,
-                total_tis_per_dagrun_count,
-            ),
-            LimitWindowDescriptor(
-                running_tis_per_dag, ["dag_id", "task_id"], TI.max_active_tis_per_dag, tis_per_dag_count
-            ),
-            LimitWindowDescriptor(
-                running_total_tis_per_task_run,
-                ["dag_id", "run_id", "task_id"],
-                TI.max_active_tis_per_dagrun,
-                mapped_tis_per_task_run_count,
-            ),
-            LimitWindowDescriptor(running_tis_per_pool, ["pool"], Pool.slots, pool_slots_taken),
-        ]
-
-        for limit in limits:
-            query = add_window_limit(query, limit)
-
-        query = query.limit(max_tis)
 
         timer = Stats.timer("scheduler.critical_section_query_duration")
         timer.start()
@@ -835,30 +724,32 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @classmethod
     def set_ti_span_attrs(cls, span, state, ti):
-        span.set_attributes({
-            "airflow.category": "scheduler",
-            "airflow.task.id": ti.id,
-            "airflow.task.task_id": ti.task_id,
-            "airflow.task.dag_id": ti.dag_id,
-            "airflow.task.state": ti.state,
-            "airflow.task.error": state == TaskInstanceState.FAILED,
-            "airflow.task.start_date": str(ti.start_date),
-            "airflow.task.end_date": str(ti.end_date),
-            "airflow.task.duration": ti.duration,
-            "airflow.task.executor_config": str(ti.executor_config),
-            "airflow.task.logical_date": str(ti.logical_date),
-            "airflow.task.hostname": ti.hostname,
-            "airflow.task.log_url": ti.log_url,
-            "airflow.task.operator": str(ti.operator),
-            "airflow.task.try_number": ti.try_number,
-            "airflow.task.executor_state": state,
-            "airflow.task.pool": ti.pool,
-            "airflow.task.queue": ti.queue,
-            "airflow.task.priority_weight": ti.priority_weight,
-            "airflow.task.queued_dttm": str(ti.queued_dttm),
-            "airflow.task.queued_by_job_id": ti.queued_by_job_id,
-            "airflow.task.pid": ti.pid,
-        })
+        span.set_attributes(
+            {
+                "airflow.category": "scheduler",
+                "airflow.task.id": ti.id,
+                "airflow.task.task_id": ti.task_id,
+                "airflow.task.dag_id": ti.dag_id,
+                "airflow.task.state": ti.state,
+                "airflow.task.error": state == TaskInstanceState.FAILED,
+                "airflow.task.start_date": str(ti.start_date),
+                "airflow.task.end_date": str(ti.end_date),
+                "airflow.task.duration": ti.duration,
+                "airflow.task.executor_config": str(ti.executor_config),
+                "airflow.task.logical_date": str(ti.logical_date),
+                "airflow.task.hostname": ti.hostname,
+                "airflow.task.log_url": ti.log_url,
+                "airflow.task.operator": str(ti.operator),
+                "airflow.task.try_number": ti.try_number,
+                "airflow.task.executor_state": state,
+                "airflow.task.pool": ti.pool,
+                "airflow.task.queue": ti.queue,
+                "airflow.task.priority_weight": ti.priority_weight,
+                "airflow.task.queued_dttm": str(ti.queued_dttm),
+                "airflow.task.queued_by_job_id": ti.queued_by_job_id,
+                "airflow.task.pid": ti.pid,
+            }
+        )
         if span.is_recording():
             span.add_event(name="airflow.task.queued", timestamp=datetime_to_nano(ti.queued_dttm))
             span.add_event(name="airflow.task.started", timestamp=datetime_to_nano(ti.start_date))
@@ -1159,10 +1050,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 DebugTrace.start_span(span_name="scheduler_job_loop", component="SchedulerJobRunner") as span,
                 Stats.timer("scheduler.scheduler_loop_duration") as timer,
             ):
-                span.set_attributes({
-                    "category": "scheduler",
-                    "loop_count": loop_count,
-                })
+                span.set_attributes(
+                    {
+                        "category": "scheduler",
+                        "loop_count": loop_count,
+                    }
+                )
 
                 with create_session() as session:
                     self._end_spans_of_externally_ended_ops(session)
@@ -1574,12 +1467,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         @add_debug_span
         def _update_state(dag: DAG, dag_run: DagRun):
             span = Trace.get_current_span()
-            span.set_attributes({
-                "state": str(DagRunState.RUNNING),
-                "run_id": dag_run.run_id,
-                "type": dag_run.run_type,
-                "dag_id": dag_run.dag_id,
-            })
+            span.set_attributes(
+                {
+                    "state": str(DagRunState.RUNNING),
+                    "run_id": dag_run.run_id,
+                    "type": dag_run.run_type,
+                    "dag_id": dag_run.dag_id,
+                }
+            )
 
             dag_run.state = DagRunState.RUNNING
             dag_run.start_date = timezone.utcnow()
@@ -1694,11 +1589,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         with DebugTrace.start_span(
             span_name="_schedule_dag_run", component="SchedulerJobRunner", links=links
         ) as span:
-            span.set_attributes({
-                "dag_id": dag_run.dag_id,
-                "run_id": dag_run.run_id,
-                "run_type": dag_run.run_type,
-            })
+            span.set_attributes(
+                {
+                    "dag_id": dag_run.dag_id,
+                    "run_id": dag_run.run_id,
+                    "run_type": dag_run.run_type,
+                }
+            )
             callback: DagCallbackRequest | None = None
 
             dag = dag_run.dag = self.scheduler_dag_bag.get_dag(dag_run=dag_run, session=session)
@@ -2004,14 +1901,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 Stats.gauge("pool.deferred_slots", slot_stats["deferred"], tags={"pool_name": pool_name})
                 Stats.gauge("pool.scheduled_slots", slot_stats["scheduled"], tags={"pool_name": pool_name})
 
-                span.set_attributes({
-                    "category": "scheduler",
-                    f"pool.open_slots.{pool_name}": slot_stats["open"],
-                    f"pool.queued_slots.{pool_name}": slot_stats["queued"],
-                    f"pool.running_slots.{pool_name}": slot_stats["running"],
-                    f"pool.deferred_slots.{pool_name}": slot_stats["deferred"],
-                    f"pool.scheduled_slots.{pool_name}": slot_stats["scheduled"],
-                })
+                span.set_attributes(
+                    {
+                        "category": "scheduler",
+                        f"pool.open_slots.{pool_name}": slot_stats["open"],
+                        f"pool.queued_slots.{pool_name}": slot_stats["queued"],
+                        f"pool.running_slots.{pool_name}": slot_stats["running"],
+                        f"pool.deferred_slots.{pool_name}": slot_stats["deferred"],
+                        f"pool.scheduled_slots.{pool_name}": slot_stats["scheduled"],
+                    }
+                )
 
     @provide_session
     def adopt_or_reset_orphaned_tasks(self, session: Session = NEW_SESSION) -> int:

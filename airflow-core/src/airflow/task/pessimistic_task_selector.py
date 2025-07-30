@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Collection
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -46,104 +47,125 @@ class LimitWindowDescriptor:
         join_on (Subquery): the subquery on which we join for the window to get the additional parallelism
         limits data.
         choose_up_to (Column): a column which describes how many TI's we select.
-        window_over (ColumnElement): the column over which we window
+        window_over (ColumnElement): the column over which we window.
+        join_predicates (Column): the predicates on which we join the window for additional data and task
+        concurency limits.
     """
 
-    join_on: Subquery
-    choose_up_to: Column
-    window_over: expression.ColumnElement
+    running_now_join: Subquery
+    join_predicates: Collection[str]
+    max_units: Column
+    window: expression.ColumnElement
 
 
-class PessimisticTaskQuerierStrategy(TaskSelectorStrategy):
-    """Pessimisticly query task instances ready for scheduling."""
+TI = TaskInstance
+DR = DagRun
+DM = DagModel
+
+
+class PessimisticTaskSelector(TaskSelectorStrategy):
+    """
+    Pessimisticly query task instances ready for scheduling.
+
+    Works by delegating almost all the work from python do sql.
+    Uses a few nested window functions to query only ready tasks.
+    """
+
+    def __init__(self) -> None:
+        self.priority_order = [-TaskInstance.priority_weight, DagRun.logical_date, TaskInstance.map_index]
 
     def get_query(self, **additional_params) -> Query:
-        priority_order: list[Column] = additional_params["priority_order"]
+        priority_order: list[Column] = self.priority_order
         max_tis: int = additional_params["max_tis"]
         query = (
-            select(TaskInstance)
-            .with_hint(TaskInstance, "USE INDEX (ti_state)", dialect_name="mysql")
-            .join(TaskInstance.dag_run)
-            .where(DagRun.state == DagRunState.RUNNING)
-            .join(TaskInstance.dag_model)
-            .where(~DagModel.is_paused)
-            .where(TaskInstance.state == TaskInstanceState.SCHEDULED)
-            .where(DagModel.bundle_name.is_not(None))
-            .options(selectinload(TaskInstance.dag_model))
+            select(TI)
+            .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
+            .join(TI.dag_run)
+            .where(DR.state == DagRunState.RUNNING)
+            .join(TI.dag_model)
+            .where(~DM.is_paused)
+            .where(TI.state == TaskInstanceState.SCHEDULED)
+            .where(DM.bundle_name.is_not(None))
+            .options(selectinload(TI.dag_model))
         )
 
-        def running_tasks_group(*group_fields: Column) -> CTE:
-            return (
-                select(TaskInstance, func.count("*").label("now_running"))
-                .where(TaskInstance.state.in_(EXECUTION_STATES))
-                .group_by(*group_fields)
-                .cte()
-            )
-
-        def add_window_limit(query: Select, limit: LimitWindowDescriptor) -> Select:
-            inner_query = (
-                query.add_columns(limit.window_over)
-                .join(limit.join_on, TaskInstance.id == limit.join_on.c.id)
-                .subquery()
-            )
-            return (
-                select(TaskInstance)
-                .join(inner_query, TaskInstance.id == inner_query.c.id)
-                .where(
-                    getattr(inner_query.c, limit.window_over.name) + limit.join_on.c.now_running
-                    < limit.choose_up_to
-                )
-            )
-
-        running_total_tis_per_dagrun = running_tasks_group(TaskInstance.dag_id, TaskInstance.run_id)
-        running_tis_per_dag = running_tasks_group(TaskInstance.dag_id, TaskInstance.task_id)
-        running_total_tis_per_task_run = running_tasks_group(
-            TaskInstance.dag_id, TaskInstance.run_id, TaskInstance.task_id
-        )
-        running_tis_per_pool = running_tasks_group(TaskInstance.pool)
+        running_total_tis_per_dagrun = self._running_tasks_group(TI.dag_id, TI.run_id)
+        running_tis_per_dag = self._running_tasks_group(TI.dag_id, TI.task_id)
+        running_total_tis_per_task_run = self._running_tasks_group(TI.dag_id, TI.run_id, TI.task_id)
+        running_tis_per_pool = self._running_tasks_group(TI.pool)
 
         total_tis_per_dagrun_count = (
             func.row_number()
-            .over(partition_by=(TaskInstance.dag_id, TaskInstance.run_id), order_by=priority_order)
+            .over(partition_by=(TI.dag_id, TI.run_id), order_by=priority_order)
             .label("total_tis_per_dagrun_count")
         )
         tis_per_dag_count = (
             func.row_number()
-            .over(partition_by=(TaskInstance.dag_id, TaskInstance.task_id), order_by=priority_order)
+            .over(partition_by=(TI.dag_id, TI.task_id), order_by=priority_order)
             .label("tis_per_dag_count")
         )
         mapped_tis_per_task_run_count = (
             func.row_number()
-            .over(
-                partition_by=(TaskInstance.dag_id, TaskInstance.run_id, TaskInstance.task_id),
-                order_by=priority_order,
-            )
+            .over(partition_by=(TI.dag_id, TI.run_id, TI.task_id), order_by=priority_order)
             .label("mapped_tis_per_dagrun_count")
         )
         pool_slots_taken = (
-            func.sum(TaskInstance.pool_slots)
-            .over(partition_by=(TaskInstance.pool), order_by=priority_order)
+            func.sum(TI.pool_slots)
+            .over(partition_by=(TI.pool), order_by=priority_order)
             .label("pool_slots_taken")
         )
 
         limits = [
             LimitWindowDescriptor(
-                running_total_tis_per_dagrun, DagModel.max_active_tasks, total_tis_per_dagrun_count
+                running_total_tis_per_dagrun,
+                ["dag_id", "run_id"],
+                DagModel.max_active_tasks,
+                total_tis_per_dagrun_count,
             ),
             LimitWindowDescriptor(
-                running_tis_per_dag, TaskInstance.max_active_tis_per_dag, tis_per_dag_count
+                running_tis_per_dag, ["dag_id", "task_id"], TI.max_active_tis_per_dag, tis_per_dag_count
             ),
             LimitWindowDescriptor(
                 running_total_tis_per_task_run,
-                TaskInstance.max_active_tis_per_dagrun,
+                ["dag_id", "run_id", "task_id"],
+                TI.max_active_tis_per_dagrun,
                 mapped_tis_per_task_run_count,
             ),
-            LimitWindowDescriptor(running_tis_per_pool, Pool.slots, pool_slots_taken),
+            LimitWindowDescriptor(running_tis_per_pool, ["pool"], Pool.slots, pool_slots_taken),
         ]
 
         for limit in limits:
-            query = add_window_limit(query, limit)
+            query = self._add_window_limit(priority_order, query, limit)
 
         query = query.limit(max_tis)
 
         return query
+
+    def _running_tasks_group(self, *group_fields: Column) -> CTE:
+        return (
+            select(TI, func.count("*").label("now_running"))
+            .where(TI.state.in_(EXECUTION_STATES))
+            .group_by(*group_fields)
+            .cte()
+        )
+
+    def _add_window_limit(
+        self, priority_order: list[Column], query: Select, limit: LimitWindowDescriptor
+    ) -> Select:
+        inner_query = query.add_columns(limit.window).order_by(*priority_order).subquery()
+        return (
+            select(TI)
+            .join(inner_query, TI.id == inner_query.c.id)
+            .join(DR, TI.run_id == DR.id)
+            .join(
+                limit.running_now_join,
+                *(
+                    getattr(TI, predicate) == getattr(limit.running_now_join.c, predicate)
+                    for predicate in limit.join_predicates
+                ),
+            )
+            .where(
+                getattr(inner_query.c, limit.window.name) + limit.running_now_join.c.now_running
+                < limit.max_units
+            )
+        )
