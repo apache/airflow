@@ -305,130 +305,105 @@ class SecretsMasker(logging.Filter):
             )
             return item
 
+    def _merge_all(self, new_item: Redacted, old_item: Redactable, depth: int, max_depth: int) -> Redactable:
+        if depth > max_depth:
+            if isinstance(new_item, str) and new_item == "***":
+                return old_item
+            return new_item
+
+        if isinstance(new_item, dict) and isinstance(old_item, dict):
+            merged = {}
+            for key in new_item.keys():
+                if key in old_item:
+                    merged[key] = self._merge_all(new_item[key], old_item[key], depth + 1, max_depth)
+                else:
+                    # Key only in new_item, use new value
+                    merged[key] = new_item[key]
+            return merged
+
+        if isinstance(new_item, (list, tuple)) and isinstance(old_item, (list, tuple)):
+            merged_list = []
+            for i in range(len(new_item)):
+                if i < len(old_item):
+                    if isinstance(new_item[i], str) and new_item[i] == "***":
+                        merged_list.append(old_item[i])
+                    else:
+                        merged_list.append(self._merge_all(new_item[i], old_item[i], depth + 1, max_depth))
+                else:
+                    merged_list.append(new_item[i])
+
+            if isinstance(new_item, list):
+                return list(merged_list)
+            return tuple(merged_list)
+
+        if isinstance(new_item, set) and isinstance(old_item, set):
+            # Sets are unordered, we cannot restore original items.
+            return new_item
+
+        if _is_v1_env_var(new_item) and _is_v1_env_var(old_item):
+            # TODO: Handle Kubernetes V1EnvVar objects if needed
+            return new_item
+
+        if isinstance(new_item, str) and new_item == "***":
+            return old_item
+        return new_item
+
     def _merge(
         self, new_item: Redacted, old_item: Redactable, name: str | None, depth: int, max_depth: int
     ) -> Redactable:
         """
-        Merge a redacted item with its original unredacted counterpart when field wasn't updated.
+        Merge a redacted item with its original unredacted counterpart.
 
         Recursively walks through both items, restoring original values for sensitive fields
         that haven't been modified (still contain "***").
         """
         if depth > max_depth:
+            if isinstance(new_item, str) and new_item == "***":
+                return old_item
             return new_item
-        try:
-            # If the name indicates this is a sensitive field and the new value is still "***",
-            # restore the original value
-            if name and should_hide_value_for_key(name):
-                if self._is_redacted_value(new_item):
-                    return old_item
-                # Value is not redacted, keep the new value
-                return new_item
 
-            # Handle different data types
+        try:
+            if name and should_hide_value_for_key(name):
+                return self._merge_all(new_item, old_item, depth, max_depth)
+
             if isinstance(new_item, dict) and isinstance(old_item, dict):
                 merged = {}
-                # Only process keys from new_item, ignore keys only in old_item
                 for key in new_item.keys():
                     if key in old_item:
-                        # Key exists in both, merge recursively
                         merged[key] = self._merge(
                             new_item[key], old_item[key], name=key, depth=depth + 1, max_depth=max_depth
                         )
                     else:
-                        # Key only in new_item, use new value
                         merged[key] = new_item[key]
                 return merged
 
-            if isinstance(new_item, list) and isinstance(old_item, list):
-                # For lists, merge element by element up to the length of new_item only
-                # Items are redacted individually, not the entire list
-                merged_list: list[Any] = []
+            if isinstance(new_item, (list, tuple)) and isinstance(old_item, (list, tuple)):
+                merged_list = []
                 for i in range(len(new_item)):
                     if i < len(old_item):
-                        # If the list field name is sensitive and the new item is redacted, restore original
-                        if (
-                            name
-                            and should_hide_value_for_key(name)
-                            and isinstance(new_item[i], str)
-                            and new_item[i] == "***"
-                        ):
-                            merged_list.append(old_item[i])
-                        else:
-                            # Merge with corresponding old item recursively
-                            merged_list.append(
-                                self._merge(
-                                    new_item[i], old_item[i], name=None, depth=depth + 1, max_depth=max_depth
-                                )
+                        merged_list.append(
+                            self._merge(
+                                new_item[i], old_item[i], name=None, depth=depth + 1, max_depth=max_depth
                             )
+                        )
                     else:
-                        # New item has more elements, use new value
                         merged_list.append(new_item[i])
-                return merged_list
 
-            if isinstance(new_item, (tuple, set)) and isinstance(old_item, (tuple, set)):
-                # For tuples and sets, convert to lists for processing, then back to original type
-                # Process only up to the length of new_item, items are redacted individually
-                new_list = list(new_item)
-                old_list = list(old_item)
-                merged_list = []
-                for i in range(len(new_list)):
-                    if i < len(old_list):
-                        # If the field name is sensitive and the new item is redacted, restore original
-                        if (
-                            name
-                            and should_hide_value_for_key(name)
-                            and isinstance(new_list[i], str)
-                            and new_list[i] == "***"
-                        ):
-                            merged_list.append(old_list[i])
-                        else:
-                            # Merge with corresponding old item recursively
-                            merged_list.append(
-                                self._merge(
-                                    new_list[i], old_list[i], name=None, depth=depth + 1, max_depth=max_depth
-                                )
-                            )
-                    else:
-                        # New item has more elements, use new value
-                        merged_list.append(new_list[i])
+                if isinstance(new_item, list):
+                    return list(merged_list)
+                return tuple(merged_list)
 
-                # Return the same type as the new_item
-                if isinstance(new_item, tuple):
-                    return tuple(merged_list)
-                return set(merged_list)
-
-            if isinstance(new_item, Enum):
-                # If the new item is an Enum, it can't be redacted, so we return it as is
+            if isinstance(new_item, set) and isinstance(old_item, set):
+                # Sets are unordered, we cannot restore original items.
                 return new_item
 
             if _is_v1_env_var(new_item) and _is_v1_env_var(old_item):
-                # Handle Kubernetes V1EnvVar objects
-                if hasattr(new_item, "to_dict") and hasattr(old_item, "to_dict"):
-                    new_dict = new_item.to_dict()
-                    old_dict = old_item.to_dict()
-                    merged_dict = self._merge(new_dict, old_dict, name=name, depth=depth, max_depth=max_depth)
-                    # Try to reconstruct the V1EnvVar object
-                    try:
-                        if isinstance(merged_dict, dict):
-                            return type(new_item)(**merged_dict)
-                        return new_item
-                    except (ValueError, TypeError):
-                        return new_item
+                # TODO: Handle Kubernetes V1EnvVar objects if needed
                 return new_item
-
             return new_item
 
-        except Exception as exc:
-            # If any error occurs during merging, log it and return the new item
-            log.warning(
-                "Unable to merge value of type %s with %s, using new value. Error was: %s: %s",
-                type(new_item).__name__,
-                type(old_item).__name__,
-                type(exc).__name__,
-                exc,
-                extra={self.ALREADY_FILTERED_FLAG: True},
-            )
+        except (TypeError, AttributeError, ValueError):
+            # If any error occurs during processing, return the new item
             return new_item
 
     def _is_redacted_value(self, value: Any) -> bool:

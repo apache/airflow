@@ -835,13 +835,13 @@ class TestSecretsMaskerMerge:
             (
                 ["secret1", "secret2", "secret3"],
                 ["***", "new_secret2", "***"],
-                "password",  # sensitive field name
+                "password",
                 ["secret1", "new_secret2", "secret3"],
             ),
             (
                 ["value1", "value2", "value3"],
                 ["***", "new_value2", "***"],
-                "normal_list",  # non-sensitive field name
+                "normal_list",
                 ["***", "new_value2", "***"],
             ),
         ],
