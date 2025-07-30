@@ -90,7 +90,11 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
           <VStack align="start" gap={4}>
             <Heading size="xl">
               <strong>
-                {translate("dags:runAndTaskActions.markAs.dialog.title", { state, type: "Task Instance" })}:
+                {translate("dags:runAndTaskActions.markAs.title", {
+                  state,
+                  type: translate("taskInstance_one"),
+                })}
+                :
               </strong>{" "}
               {taskInstance.task_display_name} <Time datetime={taskInstance.start_date} />{" "}
               <StateBadge state={state} />
@@ -108,20 +112,20 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
               options={[
                 {
                   disabled: taskInstance.logical_date === null,
-                  label: translate("dags:runAndTaskActions.markAs.dialog.options.past"),
+                  label: translate("dags:runAndTaskActions.options.past"),
                   value: "past",
                 },
                 {
                   disabled: taskInstance.logical_date === null,
-                  label: translate("dags:runAndTaskActions.markAs.dialog.options.future"),
+                  label: translate("dags:runAndTaskActions.options.future"),
                   value: "future",
                 },
                 {
-                  label: translate("dags:runAndTaskActions.markAs.dialog.options.upstream"),
+                  label: translate("dags:runAndTaskActions.options.upstream"),
                   value: "upstream",
                 },
                 {
-                  label: translate("dags:runAndTaskActions.markAs.dialog.options.downstream"),
+                  label: translate("dags:runAndTaskActions.options.downstream"),
                   value: "downstream",
                 },
               ]}
@@ -149,7 +153,7 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
                 });
               }}
             >
-              {translate("dags:runAndTaskActions.markAs.dialog.confirm")}
+              {translate("modal.confirm")}
             </Button>
           </Flex>
         </Dialog.Body>

@@ -18,6 +18,7 @@
  */
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { usePoolServiceGetPoolsKey, usePoolServicePatchPool } from "openapi/queries";
 import type { PoolBody } from "openapi/requests/types.gen";
@@ -33,6 +34,7 @@ export const useEditPool = (
 ) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
+  const { t: translate } = useTranslation(["common", "admin"]);
 
   const onSuccess = async () => {
     await queryClient.invalidateQueries({
@@ -40,8 +42,12 @@ export const useEditPool = (
     });
 
     toaster.create({
-      description: "Pool has been edited successfully",
-      title: "Pool Edit Request Submitted",
+      description: translate("toaster.update.success.description", {
+        resourceName: translate("admin:pools.pool_one"),
+      }),
+      title: translate("toaster.update.success.title", {
+        resourceName: translate("admin:pools.pool_one"),
+      }),
       type: "success",
     });
 

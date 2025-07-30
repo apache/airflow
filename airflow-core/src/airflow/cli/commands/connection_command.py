@@ -369,7 +369,7 @@ def connections_test(args) -> None:
 
     print(f"Retrieving connection: {args.conn_id!r}")
     try:
-        conn = BaseHook.get_connection(args.conn_id)
+        conn = Connection.get_connection_from_secrets(args.conn_id)
     except AirflowNotFoundException:
         console.print("[bold yellow]\nConnection not found.\n")
         raise SystemExit(1)

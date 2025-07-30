@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-google``
 
-Release: ``15.1.0``
+Release: ``16.0.0``
 
 
 Google services including:
@@ -43,7 +43,7 @@ This is a provider package for ``google`` provider. All classes for this provide
 are in ``airflow.providers.google`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/15.1.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/16.0.0/>`_.
 
 Installation
 ------------
@@ -77,8 +77,8 @@ PIP package                                  Version required
 ``google-auth-httplib2``                     ``>=0.0.1``
 ``google-cloud-aiplatform[evaluation,ray]``  ``>=1.73.0; python_version < "3.12"``
 ``google-cloud-aiplatform[evaluation]``      ``>=1.73.0; python_version >= "3.12"``
-``ray[default]``                             ``==2.42.0; python_version >= "3.12"``
-``google-cloud-bigquery-storage``            ``==2.31.0; python_version >= "3.12"``
+``ray[default]``                             ``>=2.42.0; python_version >= "3.12"``
+``google-cloud-bigquery-storage``            ``>=2.31.0; python_version >= "3.12"``
 ``google-cloud-alloydb``                     ``>=0.4.0``
 ``google-cloud-automl``                      ``>=2.12.0``
 ``google-cloud-bigquery``                    ``!=3.21.*,!=3.22.0,!=3.23.*,>=3.4.0``
@@ -121,16 +121,15 @@ PIP package                                  Version required
 ``httpx``                                    ``>=0.25.0``
 ``looker-sdk``                               ``>=22.4.0,!=24.18.0``
 ``pandas-gbq``                               ``>=0.7.0``
-``pandas``                                   ``>=2.1.2,<2.2``
 ``proto-plus``                               ``>=1.19.6``
 ``pyarrow``                                  ``>=14.0.1``
 ``python-slugify``                           ``>=7.0.0``
 ``PyOpenSSL``                                ``>=23.0.0``
 ``sqlalchemy-bigquery``                      ``>=1.2.1``
 ``sqlalchemy-spanner``                       ``>=1.6.2``
-``tenacity``                                 ``>=8.1.0``
+``tenacity``                                 ``>=8.3.0``
 ``immutabledict``                            ``>=4.2.0``
-``types-protobuf``                           ``!=5.29.1.20250402``
+``types-protobuf``                           ``>=5.27.0,!=5.29.1.20250402``
 ===========================================  ======================================
 
 Cross provider package dependencies
@@ -156,6 +155,7 @@ Dependent package                                                               
 `apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_        ``common.compat``
 `apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_              ``common.sql``
 `apache-airflow-providers-facebook <https://airflow.apache.org/docs/apache-airflow-providers-facebook>`_                  ``facebook``
+`apache-airflow-providers-http <https://airflow.apache.org/docs/apache-airflow-providers-http>`_                          ``http``
 `apache-airflow-providers-microsoft-azure <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure>`_    ``microsoft.azure``
 `apache-airflow-providers-microsoft-mssql <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-mssql>`_    ``microsoft.mssql``
 `apache-airflow-providers-mysql <https://airflow.apache.org/docs/apache-airflow-providers-mysql>`_                        ``mysql``
@@ -170,4 +170,4 @@ Dependent package                                                               
 ========================================================================================================================  ====================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/15.1.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/16.0.0/changelog.html>`_.

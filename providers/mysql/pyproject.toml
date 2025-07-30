@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-mysql"
-version = "6.3.0"
+version = "6.3.1"
 description = "Provider package apache-airflow-providers-mysql for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -62,10 +62,8 @@ dependencies = [
     # The mysqlclient package creates friction when installing on MacOS as it needs pkg-config to
     # Install and compile, and it's really only used by MySQL provider, so we can skip it on MacOS
     # Instead, if someone attempts to use it on MacOS, they will get explanatory error on how to install it
-    'mysqlclient>=2.1.0; sys_platform != "darwin" and python_version<"3.12"',
-    'mysqlclient>=2.2.1; sys_platform != "darwin" and python_version>="3.12"',
-    'mysql-connector-python>=8.0.29; python_version<"3.12"',
-    'mysql-connector-python>=8.2.0; python_version>="3.12"',
+    'mysqlclient>=2.2.5; sys_platform != "darwin"',
+    'mysql-connector-python>=9.0.0',
     "aiomysql>=0.2.0",
 ]
 
@@ -131,8 +129,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-mysql/6.3.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-mysql/6.3.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-mysql/6.3.1"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-mysql/6.3.1/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

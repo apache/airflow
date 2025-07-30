@@ -19,6 +19,7 @@
 import { Box, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
+import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
@@ -34,6 +35,7 @@ import { TaskLogHeader } from "./TaskLogHeader";
 export const Logs = () => {
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { t: translate } = useTranslation("dag");
 
   const tryNumberParam = searchParams.get(SearchParamsKeys.TRY_NUMBER);
   const logLevelFilters = searchParams.getAll(SearchParamsKeys.LOG_LEVEL);
@@ -104,7 +106,7 @@ export const Logs = () => {
       />
       {showExternalLogRedirect && externalLogName && taskInstance ? (
         tryNumber === undefined ? (
-          <p>No try number</p>
+          <p>{translate("logs.noTryNumber")}</p>
         ) : (
           <ExternalLogLink
             externalLogName={externalLogName}

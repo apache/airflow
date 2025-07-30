@@ -497,7 +497,9 @@ class OpenLineageAdapter(LoggingMixin):
         nominal_end_time: str | None = None,
         run_facets: dict[str, RunFacet] | None = None,
     ) -> Run:
-        facets: dict[str, RunFacet] = get_processing_engine_facet()  # type: ignore[assignment]
+        facets: dict[str, RunFacet] = {}
+        if run_facets:
+            facets.update(run_facets)
         if nominal_start_time:
             facets.update(
                 {
@@ -508,8 +510,7 @@ class OpenLineageAdapter(LoggingMixin):
                     )
                 }
             )
-        if run_facets:
-            facets.update(run_facets)
+        facets.update(get_processing_engine_facet())
 
         return Run(run_id, facets)
 
@@ -522,11 +523,9 @@ class OpenLineageAdapter(LoggingMixin):
         job_tags: list[str] | None = None,
         job_facets: dict[str, JobFacet] | None = None,
     ):
-        facets: dict[str, JobFacet] = {
-            "jobType": job_type_job.JobTypeJobFacet(
-                jobType=job_type, integration="AIRFLOW", processingType="BATCH", producer=_PRODUCER
-            )
-        }
+        facets: dict[str, JobFacet] = {}
+        if job_facets:
+            facets.update(job_facets)
         if job_description:
             facets.update(
                 {
@@ -560,7 +559,12 @@ class OpenLineageAdapter(LoggingMixin):
                     )
                 }
             )
-        if job_facets:
-            facets.update(job_facets)
+        facets.update(
+            {
+                "jobType": job_type_job.JobTypeJobFacet(
+                    jobType=job_type, integration="AIRFLOW", processingType="BATCH", producer=_PRODUCER
+                )
+            }
+        )
 
         return Job(namespace=conf.namespace(), name=job_name, facets=facets)

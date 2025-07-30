@@ -17,6 +17,24 @@
  under the License.
  -->
 
+# v3.0.2
+
+## Major changes:
+
+- Add `owner_links` field to DAGDetailsResponse ([#50557](https://github.com/apache/airflow/pull/50557))
+- Allow non-string valid JSON values in Variable import ([#49844](https://github.com/apache/airflow/pull/49844))
+- Add `bundle_version` to DagRun response ([#49726](https://github.com/apache/airflow/pull/49726))
+- Use `NonNegativeInt` for `backfill_id` ([#49691](https://github.com/apache/airflow/pull/49691))
+- Rename operation IDs for task instance endpoints to include map indexes ([#49608](https://github.com/apache/airflow/pull/49608))
+- Remove filtering by last dag run state in patch dags endpoint ([#51176](https://github.com/apache/airflow/pull/51176))
+- Make `dag_run` nullable in Details page ([#50719](https://github.com/apache/airflow/pull/50719))
+
+## Bug Fixes
+
+- Fix OpenAPI schema for `get_log` API ([#50547](https://github.com/apache/airflow/pull/50547))
+- Fix bulk action annotation ([#50852](https://github.com/apache/airflow/pull/50852))
+- Fix `patch_task_instance` endpoint ([#50550](https://github.com/apache/airflow/pull/50550))
+
 # v3.0.0
 
 This is the first release of the **Airflow 3.0.0** Python client. It introduces compatibility with the new [Airflow 3.0 REST API](https://airflow.apache.org/docs/apache-airflow/3.0.0/stable-rest-api-ref.html), and includes several **breaking changes** and behavior updates.

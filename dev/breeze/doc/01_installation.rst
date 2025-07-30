@@ -157,6 +157,17 @@ We highly recommend using ``uv`` to manage your Python environments, as it is ve
 easy to use, it is faster than any of the other tools availables (way faster!) and has a lot of features
 that make it easier to work with Python.
 
+The ``gh`` cli needed for release managers
+------------------------------------------
+
+The ``gh`` GitHub CLI is a command line tool that allows you to interact with GitHub repositories, issues, pull
+requests, and more. It is useful for release managers to automate tasks such as creating releases,
+managing issues, and starting workflows (for example during documentation building). Release
+managers should have ``gh`` installed (see `gh installation guide <https://github.com/cli/cli>`_) and they
+should follow configuration steps to authorize ``gh`` in their local airflow repository (basically
+running ``gh auth login`` command and following the instructions).
+
+
 Alternative: pipx tool
 ----------------------
 

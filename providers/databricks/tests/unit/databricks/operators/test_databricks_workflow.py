@@ -34,8 +34,6 @@ from airflow.providers.databricks.operators.databricks_workflow import (
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils import timezone
 
-pytestmark = pytest.mark.db_test
-
 DEFAULT_DATE = timezone.datetime(2021, 1, 1)
 
 

@@ -29,6 +29,17 @@
 Changelog
 ---------
 
+3.9.1
+.....
+
+Misc
+~~~~
+
+* ``Bump min version of neo4j sdk to 5.20 (#50882)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.9.0
 .....
 

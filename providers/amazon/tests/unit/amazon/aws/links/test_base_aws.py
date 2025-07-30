@@ -132,7 +132,6 @@ class OperatorAndTi(NamedTuple):
     task_instance: TaskInstance
 
 
-@pytest.mark.db_test
 @pytest.mark.need_serialized_dag
 class BaseAwsLinksTestCase:
     """Base class for AWS Provider links tests."""

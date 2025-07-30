@@ -25,6 +25,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+import requests
 from vertexai.generative_models import HarmBlockThreshold, HarmCategory, Part, Tool, grounding
 from vertexai.preview.evaluation import MetricPromptTemplateExamples
 
@@ -32,21 +33,97 @@ from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.vertex_ai.generative_model import (
     CountTokensOperator,
     CreateCachedContentOperator,
+    DeleteExperimentRunOperator,
     GenerateFromCachedContentOperator,
     GenerativeModelGenerateContentOperator,
     RunEvaluationOperator,
     TextEmbeddingModelGetEmbeddingsOperator,
 )
 
+
+def get_actual_models() -> dict[str, str]:
+    models: dict[str, str] = {
+        "multimodal": "",
+        "text-embedding": "",
+        "cached-model": "",
+    }
+    try:
+        response = requests.get(
+            "https://generativelanguage.googleapis.com/v1/models",
+            {"key": GEMINI_API_KEY},
+            timeout=10,
+        )
+        response.raise_for_status()
+        available_models = response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching models from API: {e}")
+        return models
+
+    for model in available_models.get("models", []):
+        try:
+            model_name = model["name"].split("/")[-1]
+            splited_model_name = model_name.split("-")
+            if not splited_model_name[-1].isdigit():
+                # We are not using model aliases because sometimes it is not guaranteed to work
+                continue
+            if not models["text-embedding"] and ("text" in model_name and "embedding" in model_name):
+                models["text-embedding"] = model_name
+            elif (
+                models["text-embedding"]
+                and ("text" in model_name and "embedding" in model_name)
+                and int(splited_model_name[-1]) > int(models["text-embedding"].split("-")[-1])
+            ):
+                models["text-embedding"] = model_name
+            elif ("vision" not in model_name or "image" in model_name) and (
+                "flash" in model_name or "pro" in model_name
+            ):
+                if not models["multimodal"] and "pro" in model_name:
+                    models["multimodal"] = model_name
+                elif (
+                    models["multimodal"]
+                    and "pro" in model_name
+                    and float(models["multimodal"].split("-")[1]) < float(splited_model_name[1])
+                ):
+                    models["multimodal"] = model_name
+                elif (
+                    models["multimodal"]
+                    and "pro" in model_name
+                    and (
+                        float(models["multimodal"].split("-")[1]) == float(splited_model_name[1])
+                        and int(splited_model_name[-1]) > int(models["multimodal"].split("-")[-1])
+                    )
+                ):
+                    models["multimodal"] = model_name
+                if "createCachedContent" in model["supportedGenerationMethods"]:
+                    if not models["cached-model"]:
+                        models["cached-model"] = model_name
+                    elif models["cached-model"] and float(models["cached-model"].split("-")[1]) < float(
+                        splited_model_name[1]
+                    ):
+                        models["cached-model"] = model_name
+                    elif (
+                        models["cached-model"]
+                        and float(models["cached-model"].split("-")[1]) == float(splited_model_name[1])
+                        and int(splited_model_name[-1]) > int(models["cached-model"].split("-")[-1])
+                    ):
+                        models["cached-model"] = model_name
+        except (ValueError, IndexError) as e:
+            print(f"Could not parse model name '{model.get('name')}'. Skipping. Error: {e}")
+            continue
+    if not any(models.values()):
+        raise ValueError(f"Some of the models not found {models}")
+    return models
+
+
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+MODELS = get_actual_models()
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 DAG_ID = "vertex_ai_generative_model_dag"
 REGION = "us-central1"
 PROMPT = "In 10 words or less, why is Apache Airflow amazing?"
 CONTENTS = [PROMPT]
-TEXT_EMBEDDING_MODEL = "textembedding-gecko"
-MULTIMODAL_MODEL = "gemini-pro"
-MULTIMODAL_VISION_MODEL = "gemini-pro-vision"
-VISION_PROMPT = "In 10 words or less, describe this content."
+TEXT_EMBEDDING_MODEL = MODELS["text-embedding"]
+MULTIMODAL_MODEL = MODELS["multimodal"]
 MEDIA_GCS_PATH = "gs://download.tensorflow.org/example_images/320px-Felis_catus-cat_on_snow.jpg"
 MIME_TYPE = "image/jpeg"
 TOOLS = [Tool.from_google_search_retrieval(grounding.GoogleSearchRetrieval())]
@@ -90,7 +167,7 @@ EXPERIMENT_NAME = "eval-experiment-airflow-operator"
 EXPERIMENT_RUN_NAME = "eval-experiment-airflow-operator-run"
 PROMPT_TEMPLATE = "{instruction}. Article: {context}. Summary:"
 
-CACHED_MODEL = "gemini-1.5-pro-002"
+CACHED_MODEL = MODELS["cached-model"]
 CACHED_SYSTEM_INSTRUCTION = """
 You are an expert researcher. You always stick to the facts in the sources provided, and never make up new facts.
 Now look at these research papers, and answer the following questions.
@@ -162,6 +239,16 @@ with DAG(
     )
     # [END how_to_cloud_vertex_ai_run_evaluation_operator]
 
+    # [START how_to_cloud_vertex_ai_delete_experiment_run_operator]
+    delete_experiment_run = DeleteExperimentRunOperator(
+        task_id="delete_experiment_run_task",
+        project_id=PROJECT_ID,
+        location=REGION,
+        experiment_name=EXPERIMENT_NAME,
+        experiment_run_name=EXPERIMENT_RUN_NAME,
+    )
+    # [END how_to_cloud_vertex_ai_delete_experiment_run_operator]
+
     # [START how_to_cloud_vertex_ai_create_cached_content_operator]
     create_cached_content_task = CreateCachedContentOperator(
         task_id="create_cached_content_task",
@@ -188,6 +275,7 @@ with DAG(
     # [END how_to_cloud_vertex_ai_generate_from_cached_content_operator]
 
     create_cached_content_task >> generate_from_cached_content_task
+    run_evaluation_task >> delete_experiment_run
 
     from tests_common.test_utils.watcher import watcher
 

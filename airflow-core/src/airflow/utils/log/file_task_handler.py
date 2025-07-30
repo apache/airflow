@@ -34,7 +34,6 @@ import pendulum
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.helpers import parse_template_string, render_template
 from airflow.utils.log.logging_mixin import SetContextPropagate
@@ -45,7 +44,7 @@ from airflow.utils.state import State, TaskInstanceState
 if TYPE_CHECKING:
     from airflow.executors.base_executor import BaseExecutor
     from airflow.models.taskinstance import TaskInstance
-    from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.models.taskinstancehistory import TaskInstanceHistory
     from airflow.typing_compat import TypeAlias
 
 
@@ -180,32 +179,6 @@ def _interleave_logs(*logs: str | LogMessages) -> Iterable[StructuredLogMessage]
         last = msg
 
 
-def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
-    """
-    Given TI | TIKey, return a TI object.
-
-    Will raise exception if no TI is found in the database.
-    """
-    from airflow.models.taskinstance import TaskInstance
-
-    if isinstance(ti, TaskInstance):
-        return ti
-    val = (
-        session.query(TaskInstance)
-        .filter(
-            TaskInstance.task_id == ti.task_id,
-            TaskInstance.dag_id == ti.dag_id,
-            TaskInstance.run_id == ti.run_id,
-            TaskInstance.map_index == ti.map_index,
-        )
-        .one_or_none()
-    )
-    if not val:
-        raise AirflowException(f"Could not find TaskInstance for {ti}")
-    val.try_number = ti.try_number
-    return val
-
-
 class FileTaskHandler(logging.Handler):
     """
     FileTaskHandler is a python log handler that handles and reads task instance logs.
@@ -253,7 +226,9 @@ class FileTaskHandler(logging.Handler):
         Some handlers emit "end of log" markers, and may not wish to do so when task defers.
         """
 
-    def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None | SetContextPropagate:
+    def set_context(
+        self, ti: TaskInstance | TaskInstanceHistory, *, identifier: str | None = None
+    ) -> None | SetContextPropagate:
         """
         Provide task_instance context to airflow task handler.
 
@@ -309,9 +284,10 @@ class FileTaskHandler(logging.Handler):
             self.handler.close()
 
     @provide_session
-    def _render_filename(self, ti: TaskInstance, try_number: int, session=NEW_SESSION) -> str:
+    def _render_filename(
+        self, ti: TaskInstance | TaskInstanceHistory, try_number: int, session=NEW_SESSION
+    ) -> str:
         """Return the worker log filename."""
-        ti = _ensure_ti(ti, session)
         dag_run = ti.get_dagrun(session=session)
 
         date = dag_run.logical_date or dag_run.run_after
@@ -344,8 +320,8 @@ class FileTaskHandler(logging.Handler):
         raise RuntimeError(f"Unable to render log filename for {ti}. This should never happen")
 
     def _get_executor_get_task_log(
-        self, ti: TaskInstance
-    ) -> Callable[[TaskInstance, int], tuple[list[str], list[str]]]:
+        self, ti: TaskInstance | TaskInstanceHistory
+    ) -> Callable[[TaskInstance | TaskInstanceHistory, int], tuple[list[str], list[str]]]:
         """
         Get the get_task_log method from executor of current task instance.
 
@@ -367,7 +343,7 @@ class FileTaskHandler(logging.Handler):
 
     def _read(
         self,
-        ti: TaskInstance,
+        ti: TaskInstance | TaskInstanceHistory,
         try_number: int,
         metadata: dict[str, Any] | None = None,
     ):
@@ -455,7 +431,8 @@ class FileTaskHandler(logging.Handler):
         return logs, {"end_of_log": end_of_log, "log_pos": log_pos}
 
     @staticmethod
-    def _get_pod_namespace(ti: TaskInstance):
+    @staticmethod
+    def _get_pod_namespace(ti: TaskInstance | TaskInstanceHistory):
         pod_override = ti.executor_config.get("pod_override")
         namespace = None
         with suppress(Exception):
@@ -463,7 +440,10 @@ class FileTaskHandler(logging.Handler):
         return namespace or conf.get("kubernetes_executor", "namespace")
 
     def _get_log_retrieval_url(
-        self, ti: TaskInstance, log_relative_path: str, log_type: LogType | None = None
+        self,
+        ti: TaskInstance | TaskInstanceHistory,
+        log_relative_path: str,
+        log_type: LogType | None = None,
     ) -> tuple[str, str]:
         """Given TI, generate URL with which to fetch logs from service log server."""
         if log_type == LogType.TRIGGER:
@@ -487,7 +467,7 @@ class FileTaskHandler(logging.Handler):
 
     def read(
         self,
-        task_instance: TaskInstance,
+        task_instance: TaskInstance | TaskInstanceHistory,
         try_number: int | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> tuple[list[StructuredLogMessage] | str, dict[str, Any]]:

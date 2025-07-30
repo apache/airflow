@@ -25,6 +25,17 @@
 Changelog
 ---------
 
+1.0.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Move MESSAGE_QUEUE_PROVIDERS array to where it belongs - to msq_queue (#51774)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.0.2
 .....
 

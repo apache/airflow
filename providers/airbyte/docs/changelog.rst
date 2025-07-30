@@ -27,6 +27,19 @@ Changelog
 ---------
 
 
+5.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add option to create connections using proxies (#49729)``
+
+Misc
+~~~~
+
+* ``Bump some provider dependencies for faster resolution (#51727)``
+
 5.1.0
 .....
 

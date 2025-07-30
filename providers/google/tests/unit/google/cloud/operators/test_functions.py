@@ -342,7 +342,6 @@ class TestGcfFunctionDeploy:
         with pytest.raises(AirflowException, match=message):
             op.execute(None)
 
-    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "source_code, message",
         [
@@ -730,11 +729,7 @@ class TestGcfFunctionInvokeOperator:
         )
 
         mock_xcom.assert_called_with(
-            context,
-            key="cloud_functions_details",
-            value={
-                "location": GCP_LOCATION,
-                "function_name": function_id,
-                "project_id": GCP_PROJECT_ID,
-            },
+            context=context,
+            key="execution_id",
+            value=exec_id,
         )

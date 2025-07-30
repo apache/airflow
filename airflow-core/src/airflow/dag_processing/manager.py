@@ -77,6 +77,8 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import prohibit_commit, with_row_locks
 
 if TYPE_CHECKING:
+    from socket import socket
+
     from sqlalchemy.orm import Session
 
     from airflow.callbacks.callback_requests import CallbackRequest
@@ -388,17 +390,18 @@ class DagFileProcessorManager(LoggingMixin):
         """
         events = self.selector.select(timeout=timeout)
         for key, _ in events:
-            socket_handler = key.data
+            socket_handler, on_close = key.data
 
             # BrokenPipeError should be caught and treated as if the handler returned false, similar
             # to EOF case
             try:
                 need_more = socket_handler(key.fileobj)
-            except BrokenPipeError:
+            except (BrokenPipeError, ConnectionResetError):
                 need_more = False
             if not need_more:
-                self.selector.unregister(key.fileobj)
-                key.fileobj.close()  # type: ignore[union-attr]
+                sock: socket = key.fileobj  # type: ignore[assignment]
+                on_close(sock)
+                sock.close()
 
     def _queue_requested_files_for_parsing(self) -> None:
         """Queue any files requested for parsing as requested by users via UI/API."""
@@ -573,7 +576,7 @@ class DagFileProcessorManager(LoggingMixin):
             self.deactivate_deleted_dags(bundle_name=bundle.name, present=found_files)
             self.clear_orphaned_import_errors(
                 bundle_name=bundle.name,
-                observed_filelocs={str(x.absolute_path) for x in found_files},  # todo: make relative
+                observed_filelocs={str(x.rel_path) for x in found_files},  # todo: make relative
             )
 
     def _find_files_in_bundle(self, bundle: BaseDagBundle) -> list[Path]:
@@ -1141,11 +1144,16 @@ def process_parse_results(
         stat.import_errors = 1
     else:
         # record DAGs and import errors to database
+        import_errors = {}
+        if parsing_result.import_errors:
+            import_errors = {
+                (bundle_name, rel_path): error for rel_path, error in parsing_result.import_errors.items()
+            }
         update_dag_parsing_results_in_db(
             bundle_name=bundle_name,
             bundle_version=bundle_version,
             dags=parsing_result.serialized_dags,
-            import_errors=parsing_result.import_errors or {},
+            import_errors=import_errors,
             warnings=set(parsing_result.warnings or []),
             session=session,
         )

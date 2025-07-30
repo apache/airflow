@@ -402,6 +402,9 @@ class TestEdgeWorker:
             "worker_name",
             "state",
             "queues",
+            "jobs_active",
+            "concurrency",
+            "free_concurrency",
             "maintenance_comment",
         ]:
             assert key in edge_workers[0]

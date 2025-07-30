@@ -30,7 +30,6 @@ import keyring
 import structlog
 from httpx import URL
 from keyring.errors import NoKeyringError
-from platformdirs import user_config_path
 from uuid6 import uuid7
 
 from airflowctl import __version__ as version
@@ -130,7 +129,7 @@ class Credentials:
 
     def save(self):
         """Save the credentials to keyring and URL to disk as a file."""
-        default_config_dir = user_config_path("airflow", "Apache Software Foundation")
+        default_config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
         if not os.path.exists(default_config_dir):
             os.makedirs(default_config_dir)
         with open(os.path.join(default_config_dir, self.input_cli_config_file), "w") as f:
@@ -146,7 +145,7 @@ class Credentials:
 
     def load(self) -> Credentials:
         """Load the credentials from keyring and URL from disk file."""
-        default_config_dir = user_config_path("airflow", "Apache Software Foundation")
+        default_config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
         credential_path = os.path.join(default_config_dir, self.input_cli_config_file)
         try:
             with open(credential_path) as f:
@@ -295,7 +294,6 @@ def get_client(kind: Literal[ClientKind.CLI, ClientKind.AUTH] = ClientKind.CLI):
     api_client = None
     try:
         # API URL always loaded from the config file, please save with it if you are using other than ClientKind.CLI
-
         credentials = Credentials(client_kind=kind).load()
         api_client = Client(
             base_url=credentials.api_url or "http://localhost:8080",

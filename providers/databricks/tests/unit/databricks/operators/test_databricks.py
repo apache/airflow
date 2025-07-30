@@ -48,8 +48,6 @@ from airflow.providers.databricks.triggers.databricks import (
 )
 from airflow.providers.databricks.utils import databricks as utils
 
-pytestmark = pytest.mark.db_test
-
 DATE = "2017-04-20"
 TASK_ID = "databricks-operator"
 DEFAULT_CONN_ID = "databricks_default"
@@ -812,7 +810,6 @@ class TestDatabricksSubmitRunOperator:
         )
         assert expected == utils.normalise_json_content(op.json)
 
-    @pytest.mark.db_test
     def test_init_with_templating(self):
         json = {
             "new_cluster": NEW_CLUSTER,
@@ -1250,7 +1247,6 @@ class TestDatabricksRunNowOperator:
 
         assert expected == op.json
 
-    @pytest.mark.db_test
     def test_init_with_templating(self):
         json = {"notebook_params": NOTEBOOK_PARAMS, "jar_params": TEMPLATED_JAR_PARAMS}
 

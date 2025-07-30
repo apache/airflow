@@ -108,7 +108,7 @@ def sbom():
 SBOM_INDEX_TEMPLATE = """
 {% set project_name = " " + provider_id + " " if provider_id else " " -%}
 <html>
-<head><title>CycloneDX SBOMs for Apache Airflow{{project_name}}{{ version }}</title></head>ń
+<head><title>CycloneDX SBOMs for Apache Airflow{{project_name}}{{ version }}</title></head>
 <body>
     <h1>CycloneDX SBOMs for Apache Airflow{{project_name}}{{ version }}</h1>
     <ul>

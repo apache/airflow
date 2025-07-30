@@ -153,7 +153,10 @@ class AutoMLTrainModelOperator(GoogleCloudBaseOperator):
         project_id = self.project_id or hook.project_id
         if project_id:
             TranslationLegacyModelTrainLink.persist(
-                context=context, task_instance=self, project_id=project_id
+                context=context,
+                dataset_id=self.model["dataset_id"],
+                project_id=project_id,
+                location=self.location,
             )
         operation_result = hook.wait_for_operation(timeout=self.timeout, operation=operation)
         result = Model.to_dict(operation_result)
@@ -164,10 +167,10 @@ class AutoMLTrainModelOperator(GoogleCloudBaseOperator):
         if project_id:
             TranslationLegacyModelLink.persist(
                 context=context,
-                task_instance=self,
                 dataset_id=self.model["dataset_id"] or "-",
                 model_id=model_id,
                 project_id=project_id,
+                location=self.location,
             )
         return result
 
@@ -313,10 +316,10 @@ class AutoMLPredictOperator(GoogleCloudBaseOperator):
         if project_id and self.model_id and dataset_id:
             TranslationLegacyModelPredictLink.persist(
                 context=context,
-                task_instance=self,
                 model_id=self.model_id,
                 dataset_id=dataset_id,
                 project_id=project_id,
+                location=self.location,
             )
         return PredictResponse.to_dict(result)
 
@@ -417,9 +420,9 @@ class AutoMLCreateDatasetOperator(GoogleCloudBaseOperator):
         if project_id:
             TranslationLegacyDatasetLink.persist(
                 context=context,
-                task_instance=self,
                 dataset_id=dataset_id,
                 project_id=project_id,
+                location=self.location,
             )
         return result
 
@@ -530,9 +533,9 @@ class AutoMLImportDataOperator(GoogleCloudBaseOperator):
         if project_id:
             TranslationLegacyDatasetLink.persist(
                 context=context,
-                task_instance=self,
                 dataset_id=self.dataset_id,
                 project_id=project_id,
+                location=self.location,
             )
 
 
@@ -649,9 +652,9 @@ class AutoMLTablesListColumnSpecsOperator(GoogleCloudBaseOperator):
         if project_id:
             TranslationLegacyDatasetLink.persist(
                 context=context,
-                task_instance=self,
                 dataset_id=self.dataset_id,
                 project_id=project_id,
+                location=self.location,
             )
         return result
 
@@ -749,9 +752,9 @@ class AutoMLTablesUpdateDatasetOperator(GoogleCloudBaseOperator):
         if project_id:
             TranslationLegacyDatasetLink.persist(
                 context=context,
-                task_instance=self,
                 dataset_id=hook.extract_object_id(self.dataset),
                 project_id=project_id,
+                location=self.location,
             )
         return Dataset.to_dict(result)
 
@@ -845,10 +848,10 @@ class AutoMLGetModelOperator(GoogleCloudBaseOperator):
         if project_id:
             TranslationLegacyModelLink.persist(
                 context=context,
-                task_instance=self,
                 dataset_id=model["dataset_id"],
                 model_id=self.model_id,
                 project_id=project_id,
+                location=self.location,
             )
         return model
 
@@ -1154,9 +1157,9 @@ class AutoMLTablesListTableSpecsOperator(GoogleCloudBaseOperator):
         if project_id:
             TranslationLegacyDatasetLink.persist(
                 context=context,
-                task_instance=self,
                 dataset_id=self.dataset_id,
                 project_id=project_id,
+                location=self.location,
             )
         return result
 
@@ -1252,7 +1255,7 @@ class AutoMLListDatasetOperator(GoogleCloudBaseOperator):
         )
         project_id = self.project_id or hook.project_id
         if project_id:
-            TranslationDatasetListLink.persist(context=context, task_instance=self, project_id=project_id)
+            TranslationDatasetListLink.persist(context=context, project_id=project_id)
         return result
 
 

@@ -23,7 +23,7 @@ from unittest.mock import MagicMock, call
 
 import pytest
 
-from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred
 from airflow.providers.apache.beam.operators.beam import (
     BeamBasePipelineOperator,
     BeamRunGoPipelineOperator,
@@ -32,6 +32,7 @@ from airflow.providers.apache.beam.operators.beam import (
 )
 from airflow.providers.apache.beam.triggers.beam import BeamJavaPipelineTrigger, BeamPythonPipelineTrigger
 from airflow.providers.google.cloud.operators.dataflow import DataflowConfiguration
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.version import version
 
 TASK_ID = "test-beam-operator"
@@ -233,13 +234,7 @@ class TestBeamRunPythonPipelineOperator:
         }
         gcs_provide_file.assert_any_call(object_url=PY_FILE)
         gcs_provide_file.assert_any_call(object_url=REQURIEMENTS_FILE)
-        persist_link_mock.assert_called_once_with(
-            op,
-            {},
-            expected_options["project"],
-            expected_options["region"],
-            op.dataflow_job_id,
-        )
+        persist_link_mock.assert_called_once_with(context={}, region="us-central1")
         beam_hook_mock.return_value.start_python_pipeline.assert_called_once_with(
             variables=expected_options,
             py_file=gcs_provide_file.return_value.__enter__.return_value.name,
@@ -446,13 +441,7 @@ class TestBeamRunJavaPipelineOperator:
             "output": "gs://test/output",
             "impersonateServiceAccount": TEST_IMPERSONATION_ACCOUNT,
         }
-        persist_link_mock.assert_called_once_with(
-            op,
-            {},
-            expected_options["project"],
-            expected_options["region"],
-            op.dataflow_job_id,
-        )
+        persist_link_mock.assert_called_once_with(context={})
         beam_hook_mock.return_value.start_java_pipeline.assert_called_once_with(
             variables=expected_options,
             jar=gcs_provide_file.return_value.__enter__.return_value.name,
@@ -753,13 +742,7 @@ class TestBeamRunGoPipelineOperator:
             "labels": {"foo": "bar", "airflow-version": TEST_VERSION},
             "region": "us-central1",
         }
-        persist_link_mock.assert_called_once_with(
-            op,
-            {},
-            expected_options["project"],
-            expected_options["region"],
-            op.dataflow_job_id,
-        )
+        persist_link_mock.assert_called_once_with(context={})
         expected_go_file = "/tmp/apache-beam-go/main.go"
         gcs_download_method.assert_called_once_with(
             bucket_name="my-bucket", object_name="example/main.go", filename=expected_go_file
@@ -859,13 +842,7 @@ class TestBeamRunGoPipelineOperator:
             worker_binary=expected_worker_binary,
             process_line_callback=mock.ANY,
         )
-        mock_persist_link.assert_called_once_with(
-            operator,
-            {},
-            dataflow_config.project_id,
-            dataflow_config.location,
-            operator.dataflow_job_id,
-        )
+        mock_persist_link.assert_called_once_with(context={})
         wait_for_done_method.assert_called_once_with(
             job_name=expected_job_name,
             location=dataflow_config.location,
@@ -970,8 +947,20 @@ class TestBeamRunPythonPipelineOperatorAsync:
             **self.default_op_kwargs,
         )
         magic_mock = mock.MagicMock()
-        with pytest.raises(TaskDeferred):
-            op.execute(context=magic_mock)
+        if AIRFLOW_V_3_0_PLUS:
+            with pytest.raises(TaskDeferred):
+                op.execute(context=magic_mock)
+        else:
+            exception_msg = (
+                "GoogleBaseLink.persist method call with no extra value is Deprecated for Airflow 3."
+                " The method calls (only with context) needs to be removed after the Airflow 3 Migration"
+                " completed!"
+            )
+            with (
+                pytest.raises(TaskDeferred),
+                pytest.warns(AirflowProviderDeprecationWarning, match=exception_msg),
+            ):
+                op.execute(context=magic_mock)
 
         dataflow_hook_mock.assert_called_once_with(
             gcp_conn_id=dataflow_config.gcp_conn_id,
@@ -1005,8 +994,20 @@ class TestBeamRunPythonPipelineOperatorAsync:
     def test_on_kill_direct_runner(self, _, dataflow_mock, __):
         dataflow_cancel_job = dataflow_mock.return_value.cancel_job
         op = BeamRunPythonPipelineOperator(runner="DataflowRunner", **self.default_op_kwargs)
-        with pytest.raises(TaskDeferred):
-            op.execute(mock.MagicMock())
+        if AIRFLOW_V_3_0_PLUS:
+            with pytest.raises(TaskDeferred):
+                op.execute(mock.MagicMock())
+        else:
+            exception_msg = (
+                "GoogleBaseLink.persist method call with no extra value is Deprecated for Airflow 3."
+                " The method calls (only with context) needs to be removed after the Airflow 3 Migration"
+                " completed!"
+            )
+            with (
+                pytest.raises(TaskDeferred),
+                pytest.warns(AirflowProviderDeprecationWarning, match=exception_msg),
+            ):
+                op.execute(mock.MagicMock())
         op.on_kill()
         dataflow_cancel_job.assert_not_called()
 
@@ -1075,8 +1076,20 @@ class TestBeamRunJavaPipelineOperatorAsync:
         )
         dataflow_hook_mock.return_value.is_job_dataflow_running.return_value = False
         magic_mock = mock.MagicMock()
-        with pytest.raises(TaskDeferred):
-            op.execute(context=magic_mock)
+        if AIRFLOW_V_3_0_PLUS:
+            with pytest.raises(TaskDeferred):
+                op.execute(context=magic_mock)
+        else:
+            exception_msg = (
+                "GoogleBaseLink.persist method call with no extra value is Deprecated for Airflow 3."
+                " The method calls (only with context) needs to be removed after the Airflow 3 Migration"
+                " completed!"
+            )
+            with (
+                pytest.raises(TaskDeferred),
+                pytest.warns(AirflowProviderDeprecationWarning, match=exception_msg),
+            ):
+                op.execute(context=magic_mock)
 
         dataflow_hook_mock.assert_called_once_with(
             gcp_conn_id=dataflow_config.gcp_conn_id,

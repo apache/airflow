@@ -42,6 +42,7 @@ from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.log.file_task_handler import (
@@ -605,6 +606,38 @@ class TestFilenameRendering:
         fth = FileTaskHandler("")
         rendered_filename = fth._render_filename(filename_rendering_ti, 42)
         assert expected_filename == rendered_filename
+
+    def test_jinja_id_in_template_for_history(
+        self, create_log_template, create_task_instance, logical_date, session
+    ):
+        """Test that Jinja template using ti.id works for both TaskInstance and TaskInstanceHistory"""
+        create_log_template("{{ ti.id }}.log")
+        ti = create_task_instance(
+            dag_id="dag_history_test",
+            task_id="history_task",
+            run_type=DagRunType.SCHEDULED,
+            logical_date=DEFAULT_DATE,
+            catchup=True,
+        )
+        TaskInstanceHistory.record_ti(ti, session=session)
+        session.flush()
+        tih = (
+            session.query(TaskInstanceHistory)
+            .filter_by(
+                dag_id=ti.dag_id,
+                task_id=ti.task_id,
+                run_id=ti.run_id,
+                map_index=ti.map_index,
+                try_number=ti.try_number,
+            )
+            .one()
+        )
+        fth = FileTaskHandler("")
+        rendered_ti = fth._render_filename(ti, ti.try_number, session=session)
+        rendered_tih = fth._render_filename(tih, ti.try_number, session=session)
+        expected = f"{ti.id}.log"
+        assert rendered_ti == expected
+        assert rendered_tih == expected
 
 
 class TestLogUrl:

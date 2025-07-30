@@ -84,7 +84,7 @@ class TestDeadline:
     def test_add_deadline(self, dagrun, session):
         assert session.query(Deadline).count() == 0
         deadline_orm = Deadline(
-            deadline=DEFAULT_DATE,
+            deadline_time=DEFAULT_DATE,
             callback=TEST_CALLBACK_PATH,
             callback_kwargs=TEST_CALLBACK_KWARGS,
             dag_id=DAG_ID,
@@ -98,20 +98,20 @@ class TestDeadline:
         result = session.scalars(select(Deadline)).first()
         assert result.dag_id == deadline_orm.dag_id
         assert result.dagrun_id == deadline_orm.dagrun_id
-        assert result.deadline == deadline_orm.deadline
+        assert result.deadline_time == deadline_orm.deadline_time
         assert result.callback == deadline_orm.callback
         assert result.callback_kwargs == deadline_orm.callback_kwargs
 
     def test_orm(self):
         deadline_orm = Deadline(
-            deadline=DEFAULT_DATE,
+            deadline_time=DEFAULT_DATE,
             callback=TEST_CALLBACK_PATH,
             callback_kwargs=TEST_CALLBACK_KWARGS,
             dag_id=DAG_ID,
             dagrun_id=RUN_ID,
         )
 
-        assert deadline_orm.deadline == DEFAULT_DATE
+        assert deadline_orm.deadline_time == DEFAULT_DATE
         assert deadline_orm.callback == TEST_CALLBACK_PATH
         assert deadline_orm.callback_kwargs == TEST_CALLBACK_KWARGS
         assert deadline_orm.dag_id == DAG_ID
@@ -119,7 +119,7 @@ class TestDeadline:
 
     def test_repr_with_callback_kwargs(self):
         deadline_orm = Deadline(
-            deadline=DEFAULT_DATE,
+            deadline_time=DEFAULT_DATE,
             callback=TEST_CALLBACK_PATH,
             callback_kwargs=TEST_CALLBACK_KWARGS,
             dag_id=DAG_ID,
@@ -129,12 +129,12 @@ class TestDeadline:
         assert (
             repr(deadline_orm)
             == f"[DagRun Deadline] Dag: {deadline_orm.dag_id} Run: {deadline_orm.dagrun_id} needed by "
-            f"{deadline_orm.deadline} or run: {TEST_CALLBACK_PATH}({json.dumps(deadline_orm.callback_kwargs)})"
+            f"{deadline_orm.deadline_time} or run: {TEST_CALLBACK_PATH}({json.dumps(deadline_orm.callback_kwargs)})"
         )
 
     def test_repr_without_callback_kwargs(self):
         deadline_orm = Deadline(
-            deadline=DEFAULT_DATE,
+            deadline_time=DEFAULT_DATE,
             callback=TEST_CALLBACK_PATH,
             dag_id=DAG_ID,
             dagrun_id=RUN_ID,
@@ -144,7 +144,7 @@ class TestDeadline:
         assert (
             repr(deadline_orm)
             == f"[DagRun Deadline] Dag: {deadline_orm.dag_id} Run: {deadline_orm.dagrun_id} needed by "
-            f"{deadline_orm.deadline} or run: {TEST_CALLBACK_PATH}()"
+            f"{deadline_orm.deadline_time} or run: {TEST_CALLBACK_PATH}()"
         )
 
 

@@ -74,6 +74,7 @@ triggers:
   - integration-name: Apache Kafka
     python-modules:
       - airflow.providers.apache.kafka.triggers.await_message
+      - airflow.providers.apache.kafka.triggers.msg_queue
 
 connection-types:
   - hook-class-name: airflow.providers.apache.kafka.hooks.base.KafkaBaseHook

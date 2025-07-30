@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+4.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Support cert and proxies in Vault client session setup (#49906)``
+
+Doc-only
+~~~~~~~~
+
+* ``docs: Add missing RoleArn in aws authentication section (#51474)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.2.0
 .....
 

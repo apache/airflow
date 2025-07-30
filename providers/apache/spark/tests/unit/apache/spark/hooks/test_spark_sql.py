@@ -26,7 +26,6 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.apache.spark.hooks.spark_sql import SparkSqlHook
-from airflow.utils import db
 
 from tests_common.test_utils.db import clear_db_connections
 
@@ -68,7 +67,12 @@ class TestSparkSqlHook:
     @classmethod
     def setup_class(cls) -> None:
         clear_db_connections(add_default_connections_back=False)
-        db.merge_conn(Connection(conn_id="spark_default", conn_type="spark", host="yarn://yarn-master"))
+
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(conn_id="spark_default", conn_type="spark", host="yarn://yarn-master")
+        )
 
     @classmethod
     def teardown_class(cls) -> None:

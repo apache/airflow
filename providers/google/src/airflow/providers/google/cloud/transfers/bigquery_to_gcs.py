@@ -254,7 +254,6 @@ class BigQueryToGCSOperator(BaseOperator):
         dataset_id, project_id, table_id = conf["datasetId"], conf["projectId"], conf["tableId"]
         BigQueryTableLink.persist(
             context=context,
-            task_instance=self,
             dataset_id=dataset_id,
             project_id=project_id,
             table_id=table_id,

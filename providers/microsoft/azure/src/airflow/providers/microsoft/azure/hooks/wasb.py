@@ -67,8 +67,9 @@ class WasbHook(BaseHook):
     These parameters have to be passed in Airflow Data Base: account_name and account_key.
 
     Additional options passed in the 'extra' field of the connection will be
-    passed to the `BlockBlockService()` constructor. For example, authenticate
-    using a SAS token by adding {"sas_token": "YOUR_TOKEN"}.
+    passed to the `BlobServiceClient()` constructor. For example, authenticate
+    using a SAS token by adding {"sas_token": "YOUR_TOKEN"} or using an account key
+    by adding {"account_key": "YOUR_ACCOUNT_KEY"}.
 
     If no authentication configuration is provided, DefaultAzureCredential will be used (applicable
     when using Azure compute infrastructure).
@@ -121,7 +122,7 @@ class WasbHook(BaseHook):
                 "tenant_id": "tenant",
                 "shared_access_key": "shared access key",
                 "sas_token": "account url or token",
-                "extra": "additional options for use with ClientSecretCredential or DefaultAzureCredential",
+                "extra": "additional options for use with ClientSecretCredential, DefaultAzureCredential, or account_key authentication",
             },
         }
 
@@ -198,13 +199,18 @@ class WasbHook(BaseHook):
         # Fall back to old auth (password) or use managed identity if not provided.
         credential = conn.password
         if not credential:
-            managed_identity_client_id = self._get_field(extra, "managed_identity_client_id")
-            workload_identity_tenant_id = self._get_field(extra, "workload_identity_tenant_id")
-            credential = get_sync_default_azure_credential(
-                managed_identity_client_id=managed_identity_client_id,
-                workload_identity_tenant_id=workload_identity_tenant_id,
-            )
-            self.log.info("Using DefaultAzureCredential as credential")
+            # Check for account_key in extra fields before falling back to DefaultAzureCredential
+            account_key = self._get_field(extra, "account_key")
+            if account_key:
+                credential = account_key
+            else:
+                managed_identity_client_id = self._get_field(extra, "managed_identity_client_id")
+                workload_identity_tenant_id = self._get_field(extra, "workload_identity_tenant_id")
+                credential = get_sync_default_azure_credential(
+                    managed_identity_client_id=managed_identity_client_id,
+                    workload_identity_tenant_id=workload_identity_tenant_id,
+                )
+                self.log.info("Using DefaultAzureCredential as credential")
         return BlobServiceClient(
             account_url=account_url,
             credential=credential,
@@ -646,13 +652,18 @@ class WasbAsyncHook(WasbHook):
         # Fall back to old auth (password) or use managed identity if not provided.
         credential = conn.password
         if not credential:
-            managed_identity_client_id = self._get_field(extra, "managed_identity_client_id")
-            workload_identity_tenant_id = self._get_field(extra, "workload_identity_tenant_id")
-            credential = get_async_default_azure_credential(
-                managed_identity_client_id=managed_identity_client_id,
-                workload_identity_tenant_id=workload_identity_tenant_id,
-            )
-            self.log.info("Using DefaultAzureCredential as credential")
+            # Check for account_key in extra fields before falling back to DefaultAzureCredential
+            account_key = self._get_field(extra, "account_key")
+            if account_key:
+                credential = account_key
+            else:
+                managed_identity_client_id = self._get_field(extra, "managed_identity_client_id")
+                workload_identity_tenant_id = self._get_field(extra, "workload_identity_tenant_id")
+                credential = get_async_default_azure_credential(
+                    managed_identity_client_id=managed_identity_client_id,
+                    workload_identity_tenant_id=workload_identity_tenant_id,
+                )
+                self.log.info("Using DefaultAzureCredential as credential")
         self.blob_service_client = AsyncBlobServiceClient(
             account_url=account_url,
             credential=credential,

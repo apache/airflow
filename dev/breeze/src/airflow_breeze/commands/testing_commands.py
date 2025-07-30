@@ -68,6 +68,7 @@ from airflow_breeze.commands.common_package_installation_options import (
 )
 from airflow_breeze.commands.release_management_commands import option_distribution_format
 from airflow_breeze.global_constants import (
+    ALL_TEST_SUITES,
     ALL_TEST_TYPE,
     ALLOWED_TEST_TYPE_CHOICES,
     GroupOfTests,
@@ -92,7 +93,7 @@ from airflow_breeze.utils.parallel import (
     check_async_run_results,
     run_with_pool,
 )
-from airflow_breeze.utils.path_utils import FILES_PATH, cleanup_python_generated_files
+from airflow_breeze.utils.path_utils import AIRFLOW_CTL_ROOT_PATH, FILES_PATH, cleanup_python_generated_files
 from airflow_breeze.utils.run_tests import (
     file_name_from_test_type,
     generate_args_for_pytest,
@@ -517,6 +518,15 @@ option_test_type_providers_group = click.option(
     show_default=True,
     type=NotVerifiedBetterChoice(ALLOWED_TEST_TYPE_CHOICES[GroupOfTests.PROVIDERS]),
 )
+option_test_type = click.option(
+    "--test-type",
+    help="Type for shell tests to run - used when forcing "
+    "lowest dependencies to determine which distribution to force lowest dependencies for",
+    default=ALL_TEST_TYPE,
+    envvar="TEST_TYPE",
+    show_default=True,
+    type=NotVerifiedBetterChoice([*ALL_TEST_SUITES.keys(), *all_selective_core_test_types()]),
+)
 option_test_type_helm = click.option(
     "--test-type",
     help="Type of helm tests to run",
@@ -751,55 +761,30 @@ def task_sdk_tests(**kwargs):
         allow_extra_args=False,
     ),
 )
-@option_collect_only
-@option_dry_run
-@option_enable_coverage
-@option_force_sa_warnings
-@option_forward_credentials
-@option_github_repository
-@option_keep_env_variables
-@option_mount_sources
+@option_parallelism
 @option_python
-@option_skip_docker_compose_down
-@option_test_timeout
+@option_dry_run
 @option_verbose
 @click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
-def airflow_ctl_tests(**kwargs):
-    _run_test_command(
-        test_group=GroupOfTests.CTL,
-        airflow_constraints_reference="constraints-main",
-        backend="none",
-        clean_airflow_installation=False,
-        debug_resources=False,
-        downgrade_pendulum=False,
-        downgrade_sqlalchemy=False,
-        db_reset=False,
-        include_success_outputs=False,
-        integration=(),
-        install_airflow_with_constraints=False,
-        run_db_tests_only=False,
-        run_in_parallel=False,
-        skip_db_tests=True,
-        use_xdist=True,
-        excluded_parallel_test_types="",
-        excluded_providers="",
-        force_lowest_dependencies=False,
-        no_db_cleanup=True,
-        parallel_test_types="",
-        parallelism=0,
-        distribution_format="wheel",
-        providers_constraints_location="",
-        providers_skip_constraints=False,
-        skip_cleanup=False,
-        skip_providers="",
-        test_type=ALL_TEST_TYPE,
-        total_test_timeout=DEFAULT_TOTAL_TEST_TIMEOUT,
-        upgrade_boto=False,
-        use_airflow_version=None,
-        allow_pre_releases=False,
-        use_distributions_from_dist=False,
-        **kwargs,
-    )
+def airflow_ctl_tests(python: str, parallelism: int, extra_pytest_args: tuple):
+    parallelism_args = ["-n", str(parallelism)] if parallelism > 1 else []
+    test_command = [
+        "uv",
+        "run",
+        "--python",
+        python,
+        "pytest",
+        "--color=yes",
+        *parallelism_args,
+        *extra_pytest_args,
+    ]
+    result = run_command(test_command, cwd=AIRFLOW_CTL_ROOT_PATH, check=False)
+    if result.returncode != 0:
+        get_console().print(
+            f"[error]Airflow CTL tests failed with return code {result.returncode}.[/]\n"
+            f"Command: {' '.join(test_command)}\n"
+        )
+        sys.exit(result.returncode)
 
 
 @group_for_testing.command(

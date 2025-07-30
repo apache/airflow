@@ -18,6 +18,7 @@
  */
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useConnectionServiceGetConnectionsKey, useConnectionServicePatchConnection } from "openapi/queries";
 import { toaster } from "src/components/ui";
@@ -33,15 +34,19 @@ export const useEditConnection = (
 ) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
-
+  const { t: translate } = useTranslation(["common", "admin"]);
   const onSuccess = async () => {
     await queryClient.invalidateQueries({
       queryKey: [useConnectionServiceGetConnectionsKey],
     });
 
     toaster.create({
-      description: "Connection has been edited successfully",
-      title: "Connection Edit Request Submitted",
+      description: translate("toaster.edit.success.description", {
+        resourceName: translate("admin:connections.connection_one"),
+      }),
+      title: translate("toaster.edit.success.title", {
+        resourceName: translate("admin:connections.connection_one"),
+      }),
       type: "success",
     });
 

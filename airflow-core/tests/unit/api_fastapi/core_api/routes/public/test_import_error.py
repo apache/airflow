@@ -51,7 +51,7 @@ BUNDLE_NAME = "dag_maker"
 @pytest.fixture(scope="class")
 @provide_session
 def permitted_dag_model(session: Session = NEW_SESSION) -> DagModel:
-    dag_model = DagModel(fileloc=FILENAME1, dag_id="dag_id1", is_paused=False)
+    dag_model = DagModel(fileloc=FILENAME1, relative_fileloc=FILENAME1, dag_id="dag_id1", is_paused=False)
     session.add(dag_model)
     session.commit()
     return dag_model
@@ -60,7 +60,7 @@ def permitted_dag_model(session: Session = NEW_SESSION) -> DagModel:
 @pytest.fixture(scope="class")
 @provide_session
 def not_permitted_dag_model(session: Session = NEW_SESSION) -> DagModel:
-    dag_model = DagModel(fileloc=FILENAME1, dag_id="dag_id4", is_paused=False)
+    dag_model = DagModel(fileloc=FILENAME1, relative_fileloc=FILENAME1, dag_id="dag_id4", is_paused=False)
     session.add(dag_model)
     session.commit()
     return dag_model

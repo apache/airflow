@@ -17,7 +17,6 @@
 
 Apache Airflow Task SDK
 =================================
-
 :any:`DAG` is where to start. :any:`dag`
 
 The Apache Airflow Task SDK provides python-native interfaces for defining DAGs,

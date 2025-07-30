@@ -68,7 +68,6 @@ class DagFileParseRequest(BaseModel):
     bundle_path: Path
     """Passing bundle path around lets us figure out relative file path."""
 
-    requests_fd: int
     callback_requests: list[CallbackRequest] = Field(default_factory=list)
     type: Literal["DagFileParseRequest"] = "DagFileParseRequest"
 
@@ -102,18 +101,16 @@ ToDagProcessor = Annotated[
 def _parse_file_entrypoint():
     import structlog
 
-    from airflow.sdk.execution_time import task_runner
+    from airflow.sdk.execution_time import comms, task_runner
 
     # Parse DAG file, send JSON back up!
-    comms_decoder = task_runner.CommsDecoder[ToDagProcessor, ToManager](
-        input=sys.stdin,
-        decoder=TypeAdapter[ToDagProcessor](ToDagProcessor),
+    comms_decoder = comms.CommsDecoder[ToDagProcessor, ToManager](
+        body_decoder=TypeAdapter[ToDagProcessor](ToDagProcessor),
     )
 
-    msg = comms_decoder.get_message()
+    msg = comms_decoder._get_response()
     if not isinstance(msg, DagFileParseRequest):
         raise RuntimeError(f"Required first message to be a DagFileParseRequest, it was {msg}")
-    comms_decoder.request_socket = os.fdopen(msg.requests_fd, "wb", buffering=0)
 
     task_runner.SUPERVISOR_COMMS = comms_decoder
     log = structlog.get_logger(logger_name="task")
@@ -125,7 +122,7 @@ def _parse_file_entrypoint():
 
     result = _parse_file(msg, log)
     if result is not None:
-        comms_decoder.send_request(log, result)
+        comms_decoder.send(result)
 
 
 def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileParsingResult | None:
@@ -266,20 +263,18 @@ class DagFileProcessorProcess(WatchedSubprocess):
         msg = DagFileParseRequest(
             file=os.fspath(path),
             bundle_path=bundle_path,
-            requests_fd=self._requests_fd,
             callback_requests=callbacks,
         )
-        self.send_msg(msg)
+        self.send_msg(msg, request_id=0)
 
-    def _handle_request(self, msg: ToManager, log: FilteringBoundLogger) -> None:  # type: ignore[override]
+    def _handle_request(self, msg: ToManager, log: FilteringBoundLogger, req_id: int) -> None:  # type: ignore[override]
         from airflow.sdk.api.datamodels._generated import ConnectionResponse, VariableResponse
 
         resp: BaseModel | None = None
         dump_opts = {}
         if isinstance(msg, DagFileParsingResult):
             self.parsing_result = msg
-            return
-        if isinstance(msg, GetConnection):
+        elif isinstance(msg, GetConnection):
             conn = self.client.connections.get(msg.conn_id)
             if isinstance(conn, ConnectionResponse):
                 conn_result = ConnectionResult.from_conn_response(conn)
@@ -301,10 +296,16 @@ class DagFileProcessorProcess(WatchedSubprocess):
             resp = self.client.variables.delete(msg.key)
         else:
             log.error("Unhandled request", msg=msg)
+            self.send_msg(
+                None,
+                request_id=req_id,
+                error=ErrorResponse(
+                    detail={"status_code": 400, "message": "Unhandled request"},
+                ),
+            )
             return
 
-        if resp:
-            self.send_msg(resp, **dump_opts)
+        self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
 
     @property
     def is_ready(self) -> bool:
@@ -312,7 +313,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
             # Process still alive, def can't be finished yet
             return False
 
-        return self._num_open_sockets == 0
+        return not self._open_sockets
 
     def wait(self) -> int:
         raise NotImplementedError(f"Don't call wait on {type(self).__name__} objects")

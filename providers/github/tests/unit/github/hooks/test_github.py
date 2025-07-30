@@ -24,17 +24,15 @@ from github import BadCredentialsException, Github, NamedUser
 
 from airflow.models import Connection
 from airflow.providers.github.hooks.github import GithubHook
-from airflow.utils import db
-
-pytestmark = pytest.mark.db_test
-
 
 github_client_mock = Mock(name="github_client_for_test")
 
 
 class TestGithubHook:
-    def setup_class(self):
-        db.merge_conn(
+    # TODO: Potential performance issue, converted setup_class to a setup_connections function level fixture
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id="github_default",
                 conn_type="github",

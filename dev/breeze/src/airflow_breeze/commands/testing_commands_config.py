@@ -184,16 +184,13 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         TEST_ADVANCED_FLAGS,
     ],
     "breeze testing airflow-ctl-tests": [
-        TEST_OPTIONS_NON_DB,
         {
             "name": "Test environment",
             "options": [
                 "--python",
-                "--forward-credentials",
-                "--force-sa-warnings",
+                "--parallelism",
             ],
         },
-        TEST_ADVANCED_FLAGS,
     ],
     "breeze testing core-integration-tests": [
         TEST_OPTIONS_DB,

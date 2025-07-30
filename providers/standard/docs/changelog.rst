@@ -35,6 +35,38 @@
 Changelog
 ---------
 
+1.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: merge TimeDeltaSensorAsync to TimeDeltaSensor (#51133)``
+* ``Add timezone support for date calculation in TimeSensor (#51043)``
+* ``Merging 'TimeSensorAsync' with 'TimeSensor' (#50864)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Airflow V2 incompatibility in ExternalTaskSensor (#51479)``
+* ``bug fix: DateTimeSensor can't render jinja template if use native obj (#50744)``
+* ``Fix backward compatibility for timeout in defer() with Airflow 2.11 (#50869)``
+
+Misc
+~~~~
+
+* ``Port ''ti.run'' to Task SDK execution path (#50141)``
+
+Doc-only
+~~~~~~~~
+
+* ``Move example_dags in standard provider to example_dags in sources (#51260)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Replace .parent.parent constructs (#51501)``
+   * ``Improve testing for context serialization (#50566)``
+
 1.2.0
 .....
 

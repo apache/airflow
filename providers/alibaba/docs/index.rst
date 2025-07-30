@@ -77,7 +77,7 @@ apache-airflow-providers-alibaba package
 Alibaba Cloud integration (including `Alibaba Cloud <https://www.alibabacloud.com/>`__).
 
 
-Release: 3.1.0
+Release: 3.2.0
 
 Provider package
 ----------------
@@ -104,4 +104,5 @@ PIP package                   Version required
 ``oss2``                      ``>=2.14.0``
 ``alibabacloud_adb20211201``  ``>=1.0.0``
 ``alibabacloud_tea_openapi``  ``>=0.3.7``
+``pyodps``                    ``>=0.12.2.2``
 ============================  ==================

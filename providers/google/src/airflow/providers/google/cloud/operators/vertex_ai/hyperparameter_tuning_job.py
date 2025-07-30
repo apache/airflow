@@ -258,9 +258,7 @@ class CreateHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
         self.log.info("Hyperparameter Tuning job was created. Job id: %s", hyperparameter_tuning_job_id)
 
         self.xcom_push(context, key="hyperparameter_tuning_job_id", value=hyperparameter_tuning_job_id)
-        VertexAITrainingLink.persist(
-            context=context, task_instance=self, training_id=hyperparameter_tuning_job_id
-        )
+        VertexAITrainingLink.persist(context=context, training_id=hyperparameter_tuning_job_id)
 
         if self.deferrable:
             self.defer(
@@ -355,9 +353,7 @@ class GetHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-            VertexAITrainingLink.persist(
-                context=context, task_instance=self, training_id=self.hyperparameter_tuning_job_id
-            )
+            VertexAITrainingLink.persist(context=context, training_id=self.hyperparameter_tuning_job_id)
             self.log.info("Hyperparameter tuning job was gotten.")
             return types.HyperparameterTuningJob.to_dict(result)
         except NotFound:
@@ -487,6 +483,12 @@ class ListHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
         hook = HyperparameterTuningJobHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -503,5 +505,5 @@ class ListHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        VertexAIHyperparameterTuningJobListLink.persist(context=context, task_instance=self)
+        VertexAIHyperparameterTuningJobListLink.persist(context=context)
         return [types.HyperparameterTuningJob.to_dict(result) for result in results]

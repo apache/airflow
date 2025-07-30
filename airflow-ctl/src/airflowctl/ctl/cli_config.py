@@ -250,6 +250,41 @@ ARG_POOL_FILE = Arg(
     ),
 )
 
+# Config arguments
+ARG_CONFIG_SECTION = Arg(
+    flags=("--section",),
+    type=str,
+    dest="section",
+    help="The section of the configuration",
+)
+ARG_CONFIG_OPTION = Arg(
+    flags=("--option",),
+    type=str,
+    dest="option",
+    help="The option of the configuration",
+)
+ARG_CONFIG_IGNORE_SECTION = Arg(
+    flags=("--ignore-section",),
+    type=str,
+    dest="ignore_section",
+    help="The configuration section being ignored",
+)
+ARG_CONFIG_IGNORE_OPTION = Arg(
+    flags=("--ignore-option",),
+    type=str,
+    dest="ignore_option",
+    help="The configuration option being ignored",
+)
+ARG_CONFIG_VERBOSE = Arg(
+    flags=(
+        "-v",
+        "--verbose",
+    ),
+    help="Enables detailed output, including the list of ignored sections and options",
+    default=False,
+    action="store_true",
+)
+
 
 class ActionCommand(NamedTuple):
     """Single CLI command."""
@@ -352,7 +387,7 @@ class CommandFactory:
         with open(self.file_path, encoding="utf-8") as file:
             tree = ast.parse(file.read(), filename=self.file_path)
 
-        exclude_operation_names = ["LoginOperations"]
+        exclude_operation_names = ["LoginOperations", "VersionOperations"]
         exclude_method_names = [
             "error",
             "__init__",
@@ -574,10 +609,12 @@ def merge_commands(
         List of merged commands.
     """
     merge_command_map = {}
+    new_commands: list[CLICommand] = []
     for command in commands_will_be_merged:
+        if isinstance(command, ActionCommand):
+            new_commands.append(command)
         if isinstance(command, GroupCommand):
             merge_command_map[command.name] = command
-    new_commands: list[CLICommand] = []
     merged_commands = []
     # Common commands
     for command in base_commands:
@@ -643,6 +680,22 @@ POOL_COMMANDS = (
     ),
 )
 
+CONFIG_COMMANDS = (
+    ActionCommand(
+        name="lint",
+        help="Lint options for the configuration changes while migrating from Airflow 2 to Airflow 3",
+        description="Lint options for the configuration changes while migrating from Airflow 2 to Airflow 3",
+        func=lazy_load_command("airflowctl.ctl.commands.config_command.lint"),
+        args=(
+            ARG_CONFIG_SECTION,
+            ARG_CONFIG_OPTION,
+            ARG_CONFIG_IGNORE_SECTION,
+            ARG_CONFIG_IGNORE_OPTION,
+            ARG_CONFIG_VERBOSE,
+        ),
+    ),
+)
+
 VARIABLE_COMMANDS = (
     ActionCommand(
         name="import",
@@ -670,10 +723,22 @@ core_commands: list[CLICommand] = [
         help="Manage Airflow pools",
         subcommands=POOL_COMMANDS,
     ),
+    ActionCommand(
+        name="version",
+        help="Show version information",
+        description="Show version information",
+        func=lazy_load_command("airflowctl.ctl.commands.version_command.version_info"),
+        args=(),
+    ),
     GroupCommand(
         name="variables",
         help="Manage Airflow variables",
         subcommands=VARIABLE_COMMANDS,
+    ),
+    GroupCommand(
+        name="config",
+        help="View, lint and update configurations.",
+        subcommands=CONFIG_COMMANDS,
     ),
 ]
 # Add generated group commands

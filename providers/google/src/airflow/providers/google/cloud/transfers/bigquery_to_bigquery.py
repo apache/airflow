@@ -183,7 +183,6 @@ class BigQueryToBigQueryOperator(BaseOperator):
         dest_table_info = self._job_conf["configuration"]["copy"]["destinationTable"]
         BigQueryTableLink.persist(
             context=context,
-            task_instance=self,
             dataset_id=dest_table_info["datasetId"],
             project_id=dest_table_info["projectId"],
             table_id=dest_table_info["tableId"],

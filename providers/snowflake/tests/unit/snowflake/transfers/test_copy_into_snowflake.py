@@ -549,3 +549,26 @@ class TestCopyFromExternalStageToSnowflake:
             },
             job_facets={"sql": SQLJobFacet(query=expected_sql)},
         )
+
+    def test_init_with_invalid_parameters(self):
+        # Test by passing invalid parameters to the operator
+        import re
+
+        with pytest.raises(ValueError, match=re.escape("Invalid table: semicolons (;) not allowed.")):
+            _ = CopyFromExternalStageToSnowflakeOperator(
+                task_id="test",
+                table="table; some_new_table",
+                stage="stage",
+                database="",
+                schema="schema",
+                file_format="CSV",
+            )
+        with pytest.raises(ValueError, match=re.escape("Invalid stage: semicolons (;) not allowed.")):
+            _ = CopyFromExternalStageToSnowflakeOperator(
+                task_id="test",
+                table="table",
+                stage="stage; some_new_stabge",
+                database="",
+                schema="schema",
+                file_format="CSV",
+            )

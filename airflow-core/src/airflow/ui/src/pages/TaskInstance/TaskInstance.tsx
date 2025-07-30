@@ -17,7 +17,8 @@
  * under the License.
  */
 import { ReactFlowProvider } from "@xyflow/react";
-import { FiCode } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
+import { FiCode, FiDatabase } from "react-icons/fi";
 import { MdDetails, MdOutlineEventNote, MdOutlineTask, MdReorder, MdSyncAlt } from "react-icons/md";
 import { PiBracketsCurlyBold } from "react-icons/pi";
 import { useParams } from "react-router-dom";
@@ -32,17 +33,23 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { Header } from "./Header";
 
-const tabs = [
-  { icon: <MdReorder />, label: "Logs", value: "" },
-  { icon: <PiBracketsCurlyBold />, label: "Rendered Templates", value: "rendered_templates" },
-  { icon: <MdSyncAlt />, label: "XCom", value: "xcom" },
-  { icon: <MdOutlineEventNote />, label: "Events", value: "events" },
-  { icon: <FiCode />, label: "Code", value: "code" },
-  { icon: <MdDetails />, label: "Details", value: "details" },
-];
-
 export const TaskInstance = () => {
+  const { t: translate } = useTranslation("dag");
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
+
+  const tabs = [
+    { icon: <MdReorder />, label: translate("tabs.logs"), value: "" },
+    {
+      icon: <PiBracketsCurlyBold />,
+      label: translate("tabs.renderedTemplates"),
+      value: "rendered_templates",
+    },
+    { icon: <MdSyncAlt />, label: translate("tabs.xcom"), value: "xcom" },
+    { icon: <FiDatabase />, label: translate("tabs.assetEvents"), value: "asset_events" },
+    { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
+    { icon: <FiCode />, label: translate("tabs.code"), value: "code" },
+    { icon: <MdDetails />, label: translate("tabs.details"), value: "details" },
+  ];
 
   const refetchInterval = useAutoRefresh({ dagId });
 
@@ -97,7 +104,9 @@ export const TaskInstance = () => {
       ...tabs.slice(0, 1),
       {
         icon: <MdOutlineTask />,
-        label: `Task Instances [${mappedTaskInstance?.task_count ?? ""}]`,
+        label: translate("tabs.mappedTaskInstances_other", {
+          count: Number(mappedTaskInstance?.task_count ?? 0),
+        }),
         value: "task_instances",
       },
       ...tabs.slice(1),

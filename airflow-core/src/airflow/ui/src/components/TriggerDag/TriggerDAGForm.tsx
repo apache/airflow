@@ -50,7 +50,7 @@ export type DagRunTriggerParams = {
 };
 
 const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: TriggerDAGFormProps) => {
-  const { t: translate } = useTranslation("components");
+  const { t: translate } = useTranslation(["common", "components"]);
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
   const [formError, setFormError] = useState(false);
   const initialParamsDict = useDagParams(dagId, open);
@@ -112,7 +112,7 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
             <Field.Root invalid={Boolean(errors.date)} orientation="horizontal">
               <Stack>
                 <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
-                  {translate("triggerDag.logicalDate")}
+                  {translate("logicalDate")}
                 </Field.Label>
               </Stack>
               <Stack css={{ flexBasis: "70%" }}>
@@ -129,12 +129,12 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
             <Field.Root mt={6} orientation="horizontal">
               <Stack>
                 <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
-                  {translate("triggerDag.runId")}
+                  {translate("runId")}
                 </Field.Label>
               </Stack>
               <Stack css={{ flexBasis: "70%" }}>
                 <Input {...field} size="sm" />
-                <Field.HelperText>{translate("triggerDag.runIdHelp")}</Field.HelperText>
+                <Field.HelperText>{translate("components:triggerDag.runIdHelp")}</Field.HelperText>
               </Stack>
             </Field.Root>
           )}
@@ -144,8 +144,8 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
           name="note"
           render={({ field }) => (
             <Field.Root mt={6}>
-              <Field.Label fontSize="md">{translate("triggerDag.notes")}</Field.Label>
-              <EditableMarkdown field={field} placeholder={translate("triggerDag.notesPlaceholder")} />
+              <Field.Label fontSize="md">{translate("note.dagRun")}</Field.Label>
+              <EditableMarkdown field={field} placeholder={translate("note.placeholder")} />
             </Field.Root>
           )}
         />
@@ -169,7 +169,7 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
             disabled={Boolean(errors.conf) || Boolean(errors.date) || formError || isPending}
             onClick={() => void handleSubmit(onSubmit)()}
           >
-            <FiPlay /> {translate("triggerDag.trigger")}
+            <FiPlay /> {translate("components:triggerDag.button")}
           </Button>
         </HStack>
       </Box>

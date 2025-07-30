@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-cncf-kubernetes"
-version = "10.5.0"
+version = "10.6.0"
 description = "Provider package apache-airflow-providers-cncf-kubernetes for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -69,13 +69,9 @@ dependencies = [
     # limiting minimum airflow version supported in cncf.kubernetes provider, due to the
     # potential breaking changes in Airflow Core as well (kubernetes is added as extra, so Airflow
     # core is not hard-limited via install-requirements, only by extra).
-    "kubernetes>=29.0.0,<33.0.0",
-    # The Kubernetes_asyncio package is used for providing Asynchronous (AsyncIO) client library for
-    # standard Kubernetes API. The version is limited by minimum 18.20.1 because of introducing the ability to
-    # load kubernetes config file from dictionary in that release and is limited to the next MAJOR version
-    # (started from current 24.2.2 version) to prevent introducing some problems that could be due to some
-    #  major changes in the package.
-    "kubernetes_asyncio>=29.0.0,<33.0.0",
+    "kubernetes>=32.0.0,<33.0.0",
+    # the version is limited to the next MAJOR version and should by synced with the kubernetes version
+    "kubernetes_asyncio>=32.0.0,<33.0.0",
 ]
 
 [dependency-groups]
@@ -112,8 +108,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.5.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.5.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.6.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.6.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

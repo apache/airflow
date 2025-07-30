@@ -145,7 +145,6 @@ class GCSCreateBucketOperator(GoogleCloudBaseOperator):
         )
         StorageLink.persist(
             context=context,
-            task_instance=self,
             uri=self.bucket_name,
             project_id=self.project_id or hook.project_id,
         )
@@ -260,7 +259,6 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
 
         StorageLink.persist(
             context=context,
-            task_instance=self,
             uri=self.bucket,
             project_id=hook.project_id,
         )
@@ -439,7 +437,6 @@ class GCSBucketCreateAclEntryOperator(GoogleCloudBaseOperator):
         )
         StorageLink.persist(
             context=context,
-            task_instance=self,
             uri=self.bucket,
             project_id=hook.project_id,
         )
@@ -522,7 +519,6 @@ class GCSObjectCreateAclEntryOperator(GoogleCloudBaseOperator):
         )
         FileDetailsLink.persist(
             context=context,
-            task_instance=self,
             uri=f"{self.bucket}/{self.object_name}",
             project_id=hook.project_id,
         )
@@ -631,7 +627,6 @@ class GCSFileTransformOperator(GoogleCloudBaseOperator):
             self.log.info("Uploading file to %s as %s", self.destination_bucket, self.destination_object)
             FileDetailsLink.persist(
                 context=context,
-                task_instance=self,
                 uri=f"{self.destination_bucket}/{self.destination_object}",
                 project_id=hook.project_id,
             )
@@ -829,7 +824,6 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
         )
         StorageLink.persist(
             context=context,
-            task_instance=self,
             uri=self.destination_bucket,
             project_id=destination_hook.project_id,
         )
@@ -1080,7 +1074,6 @@ class GCSSynchronizeBucketsOperator(GoogleCloudBaseOperator):
         )
         StorageLink.persist(
             context=context,
-            task_instance=self,
             uri=self._get_uri(self.destination_bucket, self.destination_object),
             project_id=hook.project_id,
         )

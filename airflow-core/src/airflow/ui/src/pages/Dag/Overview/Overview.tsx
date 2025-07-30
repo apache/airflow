@@ -142,7 +142,7 @@ export const Overview = () => {
             isLoading={isLoadingAssetEvents}
             ml={0}
             setOrderBy={setAssetSortBy}
-            title={translate("overview.charts.assetEvent")}
+            titleKey="dag:overview.charts.assetEvent"
           />
         ) : undefined}
       </HStack>

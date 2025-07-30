@@ -19,7 +19,7 @@
 ---
 apiVersion: v2
 name: airflow
-version: 1.17.0-dev
+version: 1.17.0
 appVersion: 3.0.2
 description: The official Helm chart to deploy Apache Airflow, a platform to
   programmatically author, schedule, and monitor workflows
@@ -63,293 +63,118 @@ annotations:
     - title: Code View
       url: https://airflow.apache.org/docs/apache-airflow/3.0.2/_images/dag_overview_code.png
   artifacthub.io/changes: |
-    - description: Allow passing custom env to log groomer sidecar containers
+    - description: Add extra secret annotations to most secrets
       kind: added
       links:
-      - name: '#46003'
-        url: https://github.com/apache/airflow/pull/46003
-    - description: Allow using existing persistence claim in Redis StatefulSet
+      - name: '#48890'
+        url: https://github.com/apache/airflow/pull/48890
+    - description: Add support for EdgeExecutor
       kind: added
       links:
-      - name: '#41619'
-        url: https://github.com/apache/airflow/pull/41619
-    - description: Add ``hostAliases`` support in Triggerer
-      kind: added
-      links:
-      - name: '#41725'
-        url: https://github.com/apache/airflow/pull/41725
-    - description: Enable HPA for Airflow Webserver
-      kind: added
-      links:
-      - name: '#41955'
-        url: https://github.com/apache/airflow/pull/41955
-    - description: Add env support for database migration job
-      kind: added
-      links:
-      - name: '#42345'
-        url: https://github.com/apache/airflow/pull/42345
-    - description: Support NodePort on Redis Service
-      kind: added
-      links:
-      - name: '#41811'
-        url: https://github.com/apache/airflow/pull/41811
-    - description: Add heartbeat metric for DAG processor
-      kind: added
-      links:
-      - name: '#42398'
-        url: https://github.com/apache/airflow/pull/42398
-    - description: Option to enable ipv6 ipaddress resolve support for StatsD host
-      kind: added
-      links:
-      - name: '#42625'
-        url: https://github.com/apache/airflow/pull/42625
-    - description: Allow customizing ``podManagementPolicy`` in worker
-      kind: added
-      links:
-      - name: '#42673'
-        url: https://github.com/apache/airflow/pull/42673
-    - description: Support multiple executors in chart
-      kind: added
-      links:
-      - name: '#43606'
-        url: https://github.com/apache/airflow/pull/43606
-    - description: Swap internal RPC server for API server in the helm chart
-      kind: added
-      links:
-      - name: '#44463'
-        url: https://github.com/apache/airflow/pull/44463
-    - description: Add OpenSearch remote logging options
-      kind: added
-      links:
-      - name: '#45082'
-        url: https://github.com/apache/airflow/pull/45082
-    - description: Add ``startupProbe`` to flower deployment
-      kind: added
-      links:
-      - name: '#45012'
-        url: https://github.com/apache/airflow/pull/45012
-    - description: Add PgBouncer and StatsD ingress
-      kind: added
-      links:
-      - name: '#41759'
-        url: https://github.com/apache/airflow/pull/41759
-    - description: Add environment variable controlling the log grooming frequency
-      kind: added
-      links:
-      - name: '#46237'
-        url: https://github.com/apache/airflow/pull/46237
-    - description: Update metrics names to allow multiple executors to report metrics
+      - name: '#50897'
+        url: https://github.com/apache/airflow/pull/50897
+    - description: Unify k8s labels & add some missing k8s labels
       kind: changed
       links:
-      - name: '#40778'
-        url: https://github.com/apache/airflow/pull/40778
-    - description: Add a specific internal IP address for the ClusterIP service
-      kind: changed
-      links:
-      - name: '#40912'
-        url: https://github.com/apache/airflow/pull/40912
-    - description: Remove scheduler automate ServiceAccount token
-      kind: changed
-      links:
-      - name: '#44173'
-        url: https://github.com/apache/airflow/pull/44173
-    - description: More controls for PgBouncer secrets configuration
-      kind: changed
-      links:
-      - name: '#45248'
-        url: https://github.com/apache/airflow/pull/45248
-    - description: Add ``ti.running`` metric export
-      kind: changed
-      links:
-      - name: '#47773'
-        url: https://github.com/apache/airflow/pull/47773
-    - description: Add optional configuration for ``startupProbe`` ``initialDelaySeconds``
-      kind: changed
-      links:
-      - name: '#47094'
-        url: https://github.com/apache/airflow/pull/47094
-    - description: Introduce ``worker.extraPorts`` to expose additional ports to worker
-        container
-      kind: changed
-      links:
-      - name: '#46679'
-        url: https://github.com/apache/airflow/pull/46679
-    - description: Enable ``AIRFLOW__CELERY__BROKER_URL_CMD`` when ``passwordSecretName``
-        is true
+      - name: '#49522'
+        url: https://github.com/apache/airflow/pull/49522
+    - description: Fix missing api server ingress
       kind: fixed
       links:
-      - name: '#40270'
-        url: https://github.com/apache/airflow/pull/40270
-    - description: Properly implement termination grace period seconds
+      - name: '#49727'
+        url: https://github.com/apache/airflow/pull/49727
+    - description: Replace break function in ``pod-launcher-rolebinding`` template
       kind: fixed
       links:
-      - name: '#41374'
-        url: https://github.com/apache/airflow/pull/41374
-    - description: Add kerberos env to base container env, add webserver-config volume
+      - name: '#49219'
+        url: https://github.com/apache/airflow/pull/49219
+    - description: Add ``webserver_config.py`` file to api-server
       kind: fixed
       links:
-      - name: '#41645'
-        url: https://github.com/apache/airflow/pull/41645
-    - description: Fix ``volumeClaimTemplates`` missing ``apiVersion`` and ``kind``
+      - name: '#50108'
+        url: https://github.com/apache/airflow/pull/50108
+    - description: Declare missing API server properties
       kind: fixed
       links:
-      - name: '#41771'
-        url: https://github.com/apache/airflow/pull/41771
-    - description: Render global volumes and volume mounts into cleanup job (#40191)
+      - name: '#51012'
+        url: https://github.com/apache/airflow/pull/51012
+    - description: Add missing api server replicas parameter
       kind: fixed
       links:
-      - name: '#42268'
-        url: https://github.com/apache/airflow/pull/42268
-    - description: Fix flower ingress service reference
+      - name: '#50814'
+        url: https://github.com/apache/airflow/pull/50814
+    - description: Fix FAB ``enable_proxy_fix`` default for Airflow 3
       kind: fixed
       links:
-      - name: '#41179'
-        url: https://github.com/apache/airflow/pull/41179
-    - description: Fix ``volumeClaimTemplate`` for scheduler in local and persistent mode
+      - name: '#50056'
+        url: https://github.com/apache/airflow/pull/50056
+    - description: Add the dag processor ServiceAccount to SecurityContextConstraints role binding
       kind: fixed
       links:
-      - name: '#42946'
-        url: https://github.com/apache/airflow/pull/42946
-    - description: Fix role binding for multiple executors
-      kind: fixed
-      links:
-      - name: '#44424'
-        url: https://github.com/apache/airflow/pull/44424
-    - description: Set container name to ``envSourceContainerName`` in KEDA ScaledObject
-      kind: fixed
-      links:
-      - name: '#44963'
-        url: https://github.com/apache/airflow/pull/44963
-    - description: Update scheduler-deployment to cope with multiple executors
-      kind: fixed
-      links:
-      - name: '#46039'
-        url: https://github.com/apache/airflow/pull/46039
-    - description: Replace disallowed characters in metadata label
-      kind: fixed
-      links:
-      - name: '#46811'
-        url: https://github.com/apache/airflow/pull/46811
-    - description: Grant Airflow API Server Permission to Read Pod Logs
-      kind: fixed
-      links:
-      - name: '#47212'
-        url: https://github.com/apache/airflow/pull/47212
-    - description: Fix scheduler ServiceAccount auto-mount for multi-executor
-      kind: fixed
-      links:
-      - name: '#46486'
-        url: https://github.com/apache/airflow/pull/46486
-    - description: 'Docs: Reflect in docs that ``extraInitContainers`` is supported for
-        jobs'
+      - name: '#51080'
+        url: https://github.com/apache/airflow/pull/51080
+    - description: 'Generate JWT secret during HELM install'
       kind: changed
       links:
-      - name: '#41674'
-        url: https://github.com/apache/airflow/pull/41674
-    - description: 'Docs: Add guide how to PgBouncer with Kubernetes Secret'
+      - name: '#49923'
+        url: https://github.com/apache/airflow/pull/49923
+    - description: 'Always deploy JWT secret'
       kind: changed
       links:
-      - name: '#42460'
-        url: https://github.com/apache/airflow/pull/42460
-    - description: 'Docs: Update descriptions private registry params'
+      - name: '#51799'
+        url: https://github.com/apache/airflow/pull/51799
+    - description: 'Add missing ``workers.kerberosInitContainer`` configuration in values'
       kind: changed
       links:
-      - name: '#43721'
-        url: https://github.com/apache/airflow/pull/43721
-    - description: 'Docs: Change description for kerberos ``reinitFrequency``'
+      - name: '#51405'
+        url: https://github.com/apache/airflow/pull/51405
+    - description: 'Truncate the executor label length'
       kind: changed
       links:
-      - name: '#45343'
-        url: https://github.com/apache/airflow/pull/45343
-    - description: 'Docs: Update Helm eviction configuration guide to reflect ``workers.safeToEvict``
-        default value'
+      - name: '#51817'
+        url: https://github.com/apache/airflow/pull/51817
+    - description: 'Fix execution_api_server_url when base_url has a subpath'
       kind: changed
       links:
-      - name: '#44852'
-        url: https://github.com/apache/airflow/pull/44852
-    - description: 'Docs: Add info that ``storageClassName`` can be templated'
+      - name: '#51454
+        url: https://github.com/apache/airflow/pull/51454
+    - description: 'Docs: Bump minimum helm version in docs'
       kind: changed
       links:
-      - name: '#45176'
-        url: https://github.com/apache/airflow/pull/45176
-    - description: 'Docs: Fix broker-url secret name in production guide'
+      - name: '#48700'
+        url: https://github.com/apache/airflow/pull/48700
+    - description: 'Docs: Clarify which worker fields apply to Celery and Kubernetes worker pods'
       kind: changed
       links:
-      - name: '#45863'
-        url: https://github.com/apache/airflow/pull/45863
-    - description: 'Docs: Replace DAGs with dags in docs'
+      - name: '#50458'
+        url: https://github.com/apache/airflow/pull/50458
+    - description: 'Docs: Capitalize the term airflow'
       kind: changed
       links:
-      - name: '#47959'
-        url: https://github.com/apache/airflow/pull/47959
-    - description: 'Docs: Enhance ``airflowLocalSettings`` value description'
+      - name: '#49450'
+        url: https://github.com/apache/airflow/pull/49450
+    - description: 'Docs: Add EdgeExecutor to readme'
       kind: changed
       links:
-      - name: '#47855'
-        url: https://github.com/apache/airflow/pull/47855
-    - description: 'Docs: Be consistent with denoting templated params'
+      - name: '#51017'
+        url: https://github.com/apache/airflow/pull/51017
+    - description: 'Docs: Add 3.X/2.X clarification for CeleryKubernetesExecutor'
       kind: changed
       links:
-      - name: '#46481'
-        url: https://github.com/apache/airflow/pull/46481
-    - description: 'Misc: Support templated hostname in NOTES'
+      - name: '#49916'
+        url: https://github.com/apache/airflow/pull/49916
+    - description: 'Misc: Default Airflow image is updated to ``3.0.2``'
       kind: changed
       links:
-      - name: '#41423'
-        url: https://github.com/apache/airflow/pull/41423
-    - description: 'Misc: Default airflow version to 2.10.5'
+      - name: '#51594'
+        url: https://github.com/apache/airflow/pull/51594
+    - description: 'Misc: Bump minimal Kubernetes version to 1.30'
       kind: changed
       links:
-      - name: '#46624'
-        url: https://github.com/apache/airflow/pull/46624
-    - description: 'Misc: Changing triggerer config option ``default_capacity`` to ``capacity``'
+      - name: '#51515'
+        url: https://github.com/apache/airflow/pull/51515
+    - description: 'Misc: Delete unneeded ``and`` operator'
       kind: changed
       links:
-      - name: '#48032'
-        url: https://github.com/apache/airflow/pull/48032
-    - description: 'Misc: AIP-84 Move public api under /api/v2'
-      kind: changed
-      links:
-      - name: '#47760'
-        url: https://github.com/apache/airflow/pull/47760
-    - description: 'Misc: Default to the FabAuthManager in the chart'
-      kind: changed
-      links:
-      - name: '#47976'
-        url: https://github.com/apache/airflow/pull/47976
-    - description: 'Misc: Update PgBouncer to ``1.23.1`` and PgBouncer exporter to ``0.18.0``'
-      kind: changed
-      links:
-      - name: '#47416'
-        url: https://github.com/apache/airflow/pull/47416
-    - description: 'Misc: Move api-server to port 8080'
-      kind: changed
-      links:
-      - name: '#47310'
-        url: https://github.com/apache/airflow/pull/47310
-    - description: 'Misc: Start the api-server in Airflow 3, webserver in Airflow 2'
-      kind: changed
-      links:
-      - name: '#47085'
-        url: https://github.com/apache/airflow/pull/47085
-    - description: 'Misc: Move ``fastapi-api`` command to ``api-server``'
-      kind: changed
-      links:
-      - name: '#47076'
-        url: https://github.com/apache/airflow/pull/47076
-    - description: 'Misc: Move execution_api_server_url config to the core section'
-      kind: changed
-      links:
-      - name: '#46969'
-        url: https://github.com/apache/airflow/pull/46969
-    - description: 'Misc: Use standalone dag processor for Airflow 3'
-      kind: changed
-      links:
-      - name: '#45659'
-        url: https://github.com/apache/airflow/pull/45659
-    - description: 'Misc: Update ``quay.io/prometheus/statsd-exporter`` from ``v0.26.1``
-        to ``v0.28.0``'
-      kind: changed
-      links:
-      - name: '#43393'
-        url: https://github.com/apache/airflow/pull/43393
+      - name: '#51114'
+        url: https://github.com/apache/airflow/pull/51114

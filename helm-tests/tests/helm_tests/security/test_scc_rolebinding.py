@@ -41,6 +41,7 @@ class TestSCCActivation:
                 "cleanup": {"enabled": True},
                 "flower": {"enabled": True},
                 "rbac": {"create": rbac_enabled, "createSCCRoleBinding": scc_enabled},
+                "dagProcessor": {"enabled": True},
             },
             show_only=["templates/rbac/security-context-constraint-rolebinding.yaml"],
         )
@@ -60,6 +61,7 @@ class TestSCCActivation:
             assert jmespath.search("subjects[6].name", docs[0]) == "release-name-airflow-migrate-database-job"
             assert jmespath.search("subjects[7].name", docs[0]) == "release-name-airflow-create-user-job"
             assert jmespath.search("subjects[8].name", docs[0]) == "release-name-airflow-cleanup"
+            assert jmespath.search("subjects[9].name", docs[0]) == "release-name-airflow-dag-processor"
 
     @pytest.mark.parametrize(
         "rbac_enabled,scc_enabled,created,namespace,expected_name",
@@ -118,3 +120,4 @@ class TestSCCActivation:
             assert jmespath.search("subjects[2].name", docs[0]) == "release-name-airflow-scheduler"
             assert jmespath.search("subjects[3].name", docs[0]) == "release-name-airflow-triggerer"
             assert jmespath.search("subjects[4].name", docs[0]) == "release-name-airflow-migrate-database-job"
+            assert len(docs[0]["subjects"]) == 5

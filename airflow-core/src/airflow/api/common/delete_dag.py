@@ -76,7 +76,7 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session: Session =
     session.execute(
         delete(ParseImportError)
         .where(
-            ParseImportError.filename == dag.fileloc,
+            ParseImportError.filename == dag.relative_fileloc,
             ParseImportError.bundle_name == dag.bundle_name,
         )
         .execution_options(synchronize_session="fetch")

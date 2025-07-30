@@ -34,6 +34,7 @@ from airflow.executors import workloads
 from airflow.hooks.base import BaseHook
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import (
+    TriggerCommsDecoder,
     TriggererJobRunner,
     TriggerRunner,
     TriggerRunnerSupervisor,
@@ -172,7 +173,6 @@ def supervisor_builder(mocker, session):
             pid=process.pid,
             stdin=mocker.Mock(),
             process=process,
-            requests_fd=-1,
             capacity=10,
         )
         # Mock the selector
@@ -302,10 +302,9 @@ class TestTriggerRunner:
             id=1, ti=None, classpath="fake.classpath", encrypted_kwargs={}
         )
         trigger_runner = TriggerRunner()
-        trigger_runner.requests_sock = MagicMock()
-        trigger_runner.response_sock = AsyncMock()
-        trigger_runner.response_sock.readline.return_value = (
-            b'{"type": "TriggerStateSync", "to_create": [], "to_cancel": []}\n'
+        trigger_runner.comms_decoder = AsyncMock(spec=TriggerCommsDecoder)
+        trigger_runner.comms_decoder.asend.return_value = messages.TriggerStateSync(
+            to_create=[], to_cancel=[]
         )
 
         trigger_runner.to_create.append(workload)
@@ -316,9 +315,9 @@ class TestTriggerRunner:
         await trigger_runner.sync_state_to_supervisor(ids)
 
         # Check that we sent the right info in the failure message
-        assert trigger_runner.requests_sock.write.call_count == 1
-        blob = trigger_runner.requests_sock.write.mock_calls[0].args[0]
-        msg = messages.TriggerStateChanges.model_validate_json(blob)
+        assert trigger_runner.comms_decoder.asend.call_count == 1
+        msg = trigger_runner.comms_decoder.asend.mock_calls[0].args[0]
+        assert isinstance(msg, messages.TriggerStateChanges)
 
         assert msg.events is None
         assert msg.failures is not None
@@ -552,6 +551,7 @@ def test_failed_trigger(session, dag_maker, supervisor_builder):
                 )
             ],
         ),
+        req_id=1,
         log=MagicMock(),
     )
 
@@ -622,10 +622,6 @@ class DummyTriggerRunnerSupervisor(TriggerRunnerSupervisor):
         super().handle_events()
 
 
-@pytest.mark.xfail(
-    reason="We know that test is flaky and have no time to fix it before 3.0. "
-    "We should fix it later. TODO: AIP-72"
-)
 @pytest.mark.asyncio
 @pytest.mark.execution_timeout(20)
 async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_maker):
@@ -726,13 +722,8 @@ class CustomTriggerDagRun(BaseTrigger):
         yield TriggerEvent({"count": dag_run_states_count, "dag_run_state": dag_run_state})
 
 
-@pytest.mark.xfail(
-    reason="We know that test is flaky and have no time to fix it before 3.0. "
-    "We should fix it later. TODO: AIP-72"
-)
 @pytest.mark.asyncio
-@pytest.mark.flaky(reruns=2, reruns_delay=10)
-@pytest.mark.execution_timeout(30)
+@pytest.mark.execution_timeout(10)
 async def test_trigger_can_fetch_trigger_dag_run_count_and_state_in_deferrable(session, dag_maker):
     """Checks that the trigger will successfully fetch the count of trigger DAG runs."""
     # Create the test DAG and task
@@ -822,13 +813,8 @@ class CustomTriggerWorkflowStateTrigger(BaseTrigger):
         yield TriggerEvent({"ti_count": ti_count, "dr_count": dr_count, "task_states": task_states})
 
 
-@pytest.mark.xfail(
-    reason="We know that test is flaky and have no time to fix it before 3.0. "
-    "We should fix it later. TODO: AIP-72"
-)
 @pytest.mark.asyncio
-@pytest.mark.flaky(reruns=2, reruns_delay=10)
-@pytest.mark.execution_timeout(30)
+@pytest.mark.execution_timeout(10)
 async def test_trigger_can_fetch_dag_run_count_ti_count_in_deferrable(session, dag_maker):
     """Checks that the trigger will successfully fetch the count of DAG runs, Task count and task states."""
     # Create the test DAG and task

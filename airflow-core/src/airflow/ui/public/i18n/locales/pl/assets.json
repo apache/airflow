@@ -1,0 +1,29 @@
+{
+  "consumingDags": "Przetwarzanie DAG-ów",
+  "createEvent": {
+    "button": "Utwórz zdarzenie",
+    "manual": {
+      "description": "Utwórz ręcznie zdarzenie zasobu",
+      "extra": "Dodatkowe informacje o zdarzeniu zasobu",
+      "label": "Ręcznie"
+    },
+    "materialize": {
+      "description": "Wykonaj DAG zależny od tego zasobu",
+      "descriptionWithDag": "Wykonaj DAG zależny od tego zasobu: {{dagName}}",
+      "label": "Materializuj",
+      "unpauseDag": "Wznów {{dagName}} przy wywołaniu"
+    },
+    "success": {
+      "manualDescription": "Ręczne utworzenie zdarzenia zasobu zakończone sukcesem.",
+      "manualTitle": "Zdarzenie zasobu utworzone",
+      "materializeDescription": "Zależny DAG {{dagId}} został pomyślnie wywołany.",
+      "materializeTitle": "Materializowanie zasobu"
+    },
+    "title": "Utwórz zdarzenie zasobu dla {{name}}"
+  },
+  "group": "Grupa",
+  "lastAssetEvent": "Ostatnie zdarzenie zasobu",
+  "name": "Nazwa",
+  "producingTasks": "Zadania produkujące",
+  "searchPlaceholder": "Szukaj zasobów"
+}

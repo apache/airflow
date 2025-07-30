@@ -1,0 +1,38 @@
+{
+  "group": "Grupa",
+  "health": {
+    "dagProcessor": "Processor Dagów",
+    "health": "Stan Systemu",
+    "healthy": "Prawidłowy",
+    "lastHeartbeat": "Ostatni czas sprawdzenia",
+    "metaDatabase": "Baza Danych Meta",
+    "scheduler": "Planer zadań",
+    "status": "Stan",
+    "triggerer": "Cyngiel",
+    "unhealthy": "Nieprawidłowy"
+  },
+  "history": "Historia",
+  "importErrors": {
+    "dagImportError_one": "Błąd importu Daga",
+    "dagImportError_other": "Błędy importu Dagów",
+    "searchByFile": "Szukaj według plików",
+    "timestamp": "Znacznik czasu"
+  },
+  "managePools": "Zarządzaj pulami",
+  "noAssetEvents": "Nie znaleziono zdarzeń zasobów.",
+  "poolSlots": "",
+  "sortBy": {
+    "newestFirst": "Najnowsze Pierwsze",
+    "oldestFirst": "Najstarsze Pierwsze"
+  },
+  "source": "Kod źródłowy",
+  "stats": {
+    "activeDags": "Aktywne Dagi",
+    "failedDags": "Nieudane Dagi",
+    "queuedDags": "Zakolejkowane Dagi",
+    "runningDags": "Wykonane Dagi",
+    "stats": "Statystyki"
+  },
+  "uri": "Uri",
+  "welcome": "Witaj"
+}

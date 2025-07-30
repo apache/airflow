@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-trino"
-version = "6.2.0"
+version = "6.3.0"
 description = "Provider package apache-airflow-providers-trino for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -110,8 +110,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-trino/6.2.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-trino/6.2.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-trino/6.3.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-trino/6.3.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-beam``
 
-Release: ``6.1.0``
+Release: ``6.1.1``
 
 
 `Apache Beam <https://beam.apache.org/>`__.
@@ -36,7 +36,7 @@ This is a provider package for ``apache.beam`` provider. All classes for this pr
 are in ``airflow.providers.apache.beam`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-beam/6.1.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-beam/6.1.1/>`_.
 
 Installation
 ------------
@@ -50,15 +50,14 @@ The package supports the following python versions: 3.9,3.10,3.11,3.12
 Requirements
 ------------
 
-==================  ======================================
+==================  ==================
 PIP package         Version required
-==================  ======================================
+==================  ==================
 ``apache-airflow``  ``>=2.10.0``
-``apache-beam``     ``>=2.53.0; python_version < "3.12"``
-``apache-beam``     ``>=2.57.0; python_version >= "3.12"``
+``apache-beam``     ``>=2.60.0``
 ``pyarrow``         ``>=14.0.1``
 ``numpy``           ``>=1.26.0``
-==================  ======================================
+==================  ==================
 
 Cross provider package dependencies
 -----------------------------------
@@ -81,4 +80,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-beam/6.1.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-beam/6.1.1/changelog.html>`_.

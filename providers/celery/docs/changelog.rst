@@ -27,6 +27,34 @@
 Changelog
 ---------
 
+3.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Enhance Celery CLI with Worker and Queue Management Features (#51257)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Celery executor subprocess to stream stdout/stderr using subprocess.run (#50682)``
+
+Misc
+~~~~
+
+* ``Add worker_umask to celery provider.yaml (#51218)``
+* ``Remove Airflow 2 code path in executors (#51009)``
+* ``Prevent legacy static hybrid executors to be running in Airflow 3 (#51733)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update the executor and provider doc to highlight the two statically coded hybrid executors are no longer supported in Airflow 3.0.0+ (#51715)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.11.0
 ......
 

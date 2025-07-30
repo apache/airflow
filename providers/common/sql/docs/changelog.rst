@@ -25,6 +25,22 @@
 Changelog
 ---------
 
+1.27.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: Use source hook instead of destination hook when reading records in non-paginated mode in GenericTransfer (#50598)``
+
+Misc
+~~~~
+
+* ``Port ''ti.run'' to Task SDK execution path (#50141)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.27.1
 ......
 

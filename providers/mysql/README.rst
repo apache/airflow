@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-mysql``
 
-Release: ``6.3.0``
+Release: ``6.3.1``
 
 
 `MySQL <https://www.mysql.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``mysql`` provider. All classes for this provider
 are in ``airflow.providers.mysql`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-mysql/6.3.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-mysql/6.3.1/>`_.
 
 Installation
 ------------
@@ -50,17 +50,15 @@ The package supports the following python versions: 3.9,3.10,3.11,3.12
 Requirements
 ------------
 
-=======================================  ==================================================================
+=======================================  =====================================
 PIP package                              Version required
-=======================================  ==================================================================
+=======================================  =====================================
 ``apache-airflow``                       ``>=2.10.0``
 ``apache-airflow-providers-common-sql``  ``>=1.20.0``
-``mysqlclient``                          ``>=2.1.0; sys_platform != "darwin" and python_version < "3.12"``
-``mysqlclient``                          ``>=2.2.1; sys_platform != "darwin" and python_version >= "3.12"``
-``mysql-connector-python``               ``>=8.0.29; python_version < "3.12"``
-``mysql-connector-python``               ``>=8.2.0; python_version >= "3.12"``
+``mysqlclient``                          ``>=2.2.5; sys_platform != "darwin"``
+``mysql-connector-python``               ``>=9.0.0``
 ``aiomysql``                             ``>=0.2.0``
-=======================================  ==================================================================
+=======================================  =====================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -87,4 +85,4 @@ Dependent package                                                               
 ==============================================================================================================  ===============
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-mysql/6.3.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-mysql/6.3.1/changelog.html>`_.

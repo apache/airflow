@@ -616,7 +616,9 @@ def initialize():
     # The webservers import this file from models.py with the default settings.
 
     if not os.environ.get("PYTHON_OPERATORS_VIRTUAL_ENV_MODE", None):
-        configure_orm()
+        is_worker = os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1"
+        if not is_worker:
+            configure_orm()
     configure_action_logging()
 
     # mask the sensitive_config_values

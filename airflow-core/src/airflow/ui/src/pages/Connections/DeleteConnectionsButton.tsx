@@ -43,7 +43,7 @@ const DeleteConnectionsButton = ({ clearSelections, deleteKeys: connectionIds }:
 
   return (
     <>
-      <Button aria-label="Delete selected connections" onClick={onOpen} size="sm" variant="outline">
+      <Button aria-label={translate("deleteActions.button")} onClick={onOpen} size="sm" variant="outline">
         <FiTrash2 /> {translate("deleteActions.button")}
       </Button>
 

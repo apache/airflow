@@ -199,7 +199,7 @@ like system, this command will install all necessary dependencies that should be
 Forking and cloning Project
 ---------------------------
 
-1. Goto |airflow_github| and fork the project
+1. Go to |airflow_github| and fork the project
 
    .. |airflow_github| raw:: html
 
@@ -212,7 +212,7 @@ Forking and cloning Project
             alt="Forking Apache Airflow project">
      </div>
 
-2. Goto your github account's fork of Airflow click on ``Code`` you will find the link to your repo
+2. Go to your github account's fork of Airflow click on ``Code`` you will find the link to your repo
 
    .. raw:: html
 
@@ -768,7 +768,7 @@ Raising Pull Request
 
     <div align="center" style="padding-bottom:10px">
       <img src="images/quick_start/pr1.png"
-           alt="Goto fork and select branches">
+           alt="Go to fork and select branches">
     </div>
 
 2. Click on ``New pull request`` button on branch from which you want to raise a pull request

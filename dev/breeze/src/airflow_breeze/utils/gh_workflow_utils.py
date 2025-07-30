@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import sys
 import time
+from shutil import which
 
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.run_utils import run_command
@@ -54,6 +55,16 @@ def tigger_workflow(workflow_name: str, repo: str, branch: str = "main", **kwarg
     time.sleep(5)
 
 
+def make_sure_gh_is_installed():
+    if not which("gh"):
+        get_console().print(
+            "[red]Error! The `gh` tool is not installed.[/]\n\n"
+            "[yellow]You need to install `gh` tool (see https://github.com/cli/cli) and "
+            "run `gh auth login` to connect your repo to GitHub."
+        )
+        sys.exit(1)
+
+
 def get_workflow_run_id(workflow_name: str, repo: str) -> int:
     """
     Get the latest workflow run ID for a given workflow name and repository.
@@ -61,6 +72,7 @@ def get_workflow_run_id(workflow_name: str, repo: str) -> int:
     :param workflow_name: The name of the workflow to check.
     :param repo: The repository in the format 'owner/repo'.
     """
+    make_sure_gh_is_installed()
     command = [
         "gh",
         "run",
@@ -96,6 +108,7 @@ def get_workflow_run_info(run_id: str, repo: str, fields: str) -> dict:
     :param repo: Workflow repository example: 'apache/airflow'
     :param fields: Comma-separated fields to retrieve from the workflow run to fetch. eg: "status,conclusion,name,jobs"
     """
+    make_sure_gh_is_installed()
     command = ["gh", "run", "view", run_id, "--json", fields, "--repo", repo]
 
     result = run_command(command, capture_output=True, check=False)

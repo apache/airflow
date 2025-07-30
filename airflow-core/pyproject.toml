@@ -100,8 +100,18 @@ dependencies = [
     "linkify-it-py>=2.0.0",
     "lockfile>=0.12.2",
     "methodtools>=0.4.7",
-    "opentelemetry-api>=1.26.0",
-    "opentelemetry-exporter-otlp>=1.26.0",
+    "opentelemetry-api>=1.27.0",
+    "opentelemetry-exporter-otlp>=1.27.0",
+    # opentelemetry-proto is a transitive dependency of
+    # opentelemetry-exporter-otlp and other OpenTelemetry packages.
+    # opentelemetry-proto adds a very restrictive dependency on
+    # protobuf, causing conflicts with other packages, so to help
+    # the pip resolver we add it as a direct dependency with an upper
+    # bound, which signals to the pip resolver it is a problematic
+    # dependency and should be resolved as early as possible.
+    # This may be removed when future versions of pip are able
+    # to handle this dependency resolution automatically.
+    "opentelemetry-proto<9999",
     "packaging>=23.2",
     "pathspec>=0.9.0",
     'pendulum>=2.1.2,<4.0;python_version<"3.12"',
@@ -117,7 +127,7 @@ dependencies = [
     "python-dateutil>=2.7.0",
     "python-slugify>=5.0",
     # Requests 3 if it will be released, will be heavily breaking.
-    "requests>=2.31.0,<3",
+    "requests>=2.32.0,<3",
     "rich-argparse>=1.0.0",
     "rich>=13.6.0",
     "setproctitle>=1.3.3",
@@ -130,7 +140,7 @@ dependencies = [
     "sqlalchemy-utils>=0.41.2",
     "svcs>=25.1.0",
     "tabulate>=0.9.0",
-    "tenacity>=8.0.0,!=8.2.0",
+    "tenacity>=8.3.0",
     "termcolor>=3.0.0",
     # temporarily exclude 4.14.0 due to its broken compat with cadwyn
     # See https://github.com/zmievsa/cadwyn/issues/283

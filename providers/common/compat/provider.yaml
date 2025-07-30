@@ -22,12 +22,13 @@ description: |
   Common Compatibility Provider - providing compatibility code for previous Airflow versions
 
 state: ready
-source-date-epoch: 1747132145
+source-date-epoch: 1749896334
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 1.7.1
   - 1.7.0
   - 1.6.1
   - 1.6.0

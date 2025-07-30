@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+12.4.1
+......
+
+Misc
+~~~~
+
+* ``Port ''ti.run'' to Task SDK execution path (#50141)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 12.4.0
 ......
 

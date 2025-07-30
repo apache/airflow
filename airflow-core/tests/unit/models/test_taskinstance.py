@@ -1886,7 +1886,7 @@ class TestTaskInstance:
     def test_inlet_asset_extra(self, dag_maker, session, mock_supervisor_comms):
         from airflow.sdk.definitions.asset import Asset
 
-        mock_supervisor_comms.get_message.return_value = AssetEventsResult(
+        mock_supervisor_comms.send.return_value = AssetEventsResult(
             asset_events=[
                 AssetEventResponse(
                     id=1,
@@ -1960,7 +1960,7 @@ class TestTaskInstance:
     @pytest.mark.need_serialized_dag
     def test_inlet_unresolved_asset_alias(self, dag_maker, session, mock_supervisor_comms):
         asset_alias_name = "test_inlet_asset_extra_asset_alias"
-        mock_supervisor_comms.get_message.return_value = AssetEventsResult(asset_events=[])
+        mock_supervisor_comms.send.return_value = AssetEventsResult(asset_events=[])
 
         asset_alias_model = AssetAliasModel(name=asset_alias_name)
         session.add(asset_alias_model)
