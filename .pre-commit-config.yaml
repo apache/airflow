@@ -1625,9 +1625,9 @@ repos:
         entry: "import AIRFLOW_V_3"
         files: ^airflow-core/.*\.py$
         pass_filenames: true
+         # TODO (@amoghrajesh): revisit last few in this list as they all rely on versioned secrets masker imports
         exclude: >
           (?x)
-           # TODO (@amoghrajesh): revisit last few in this list as they all rely on versioned secrets masker imports
           ^airflow-core/tests/integration/otel/dags/otel_test_dag_with_pause_between_tasks\.py$|
           ^airflow-core/tests/integration/otel/dags/otel_test_dag_with_pause_in_task\.py$|
           ^airflow-core/tests/integration/otel/test_otel\.py$|
