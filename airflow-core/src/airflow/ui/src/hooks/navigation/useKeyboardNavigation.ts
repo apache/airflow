@@ -47,12 +47,12 @@ const mapKeyToDirection = (key: ArrowKey): NavigationDirection => {
 
 const isValidDirectionForMode = (direction: NavigationDirection, mode: NavigationMode): boolean => {
   switch (mode) {
-    case "grid":
-      return true;
     case "run":
       return direction === "left" || direction === "right";
     case "task":
       return direction === "down" || direction === "up";
+    case "TI":
+      return true;
     default:
       return false;
   }

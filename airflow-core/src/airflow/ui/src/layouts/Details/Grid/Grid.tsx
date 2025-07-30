@@ -41,12 +41,12 @@ dayjs.extend(dayjsDuration);
 
 const getArrowsForMode = (navigationMode: string) => {
   switch (navigationMode) {
-    case "grid":
-      return "↑↓←→";
     case "run":
       return "←→";
     case "task":
       return "↑↓";
+    case "TI":
+      return "↑↓←→";
     default:
       return "↑↓←→";
   }
@@ -92,6 +92,7 @@ export const Grid = ({ limit }: Props) => {
 
   const { data: dagStructure } = useGridStructure({ hasActiveRun, limit });
   // calculate dag run bar heights relative to max
+
   const max = Math.max.apply(
     undefined,
     gridRuns === undefined
@@ -169,7 +170,7 @@ export const Grid = ({ limit }: Props) => {
       )}
 
       <Box flexGrow={1} minWidth={7} position="relative" top="100px">
-        <TaskNames nodes={flatNodes} onRowClick={() => setMode("row")} />
+        <TaskNames nodes={flatNodes} onRowClick={() => setMode("task")} />
       </Box>
       <Box position="relative">
         <Flex position="relative">
@@ -191,8 +192,8 @@ export const Grid = ({ limit }: Props) => {
                 key={dr.run_id}
                 max={max}
                 nodes={flatNodes}
-                onCellClick={() => setMode("grid")}
-                onColumnClick={() => setMode("column")}
+                onCellClick={() => setMode("TI")}
+                onColumnClick={() => setMode("run")}
                 run={dr}
               />
             ))}

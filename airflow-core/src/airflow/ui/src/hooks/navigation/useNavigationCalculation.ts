@@ -47,12 +47,12 @@ const getNextIndex = ({ current, direction, isJump, maxLength }: GetNextIndexOpt
 
 const isValidDirectionForMode = (direction: NavigationDirection, mode: NavigationMode): boolean => {
   switch (mode) {
-    case "grid":
-      return true;
     case "run":
       return direction === "left" || direction === "right";
     case "task":
       return direction === "down" || direction === "up";
+    case "TI":
+      return true;
     default:
       return false;
   }
@@ -122,16 +122,16 @@ export const useNavigationCalculation = ({ mode, runs, tasks }: Props) => {
   const buildNavigationPath = useCallback(
     (run: GridRunsResponse, task: GridTask): string => {
       switch (mode) {
-        case "grid":
-          const taskGroupPath = task.isGroup ? "group/" : "";
-
-          return `/dags/${dagId}/runs/${run.run_id}/tasks/${taskGroupPath}${task.id}`;
         case "run":
           return `/dags/${dagId}/runs/${run.run_id}`;
         case "task":
           const groupPath = task.isGroup ? "group/" : "";
 
           return `/dags/${dagId}/tasks/${groupPath}${task.id}`;
+        case "TI":
+          const taskGroupPath = task.isGroup ? "group/" : "";
+
+          return `/dags/${dagId}/runs/${run.run_id}/tasks/${taskGroupPath}${task.id}`;
         default:
           return `/dags/${dagId}`;
       }

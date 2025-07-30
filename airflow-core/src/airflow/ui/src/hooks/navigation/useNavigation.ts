@@ -20,7 +20,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import type {
-  ClickTarget,
   NavigationDirection,
   NavigationIndices,
   NavigationMode,
@@ -30,22 +29,9 @@ import type {
 import { useKeyboardNavigation } from "./useKeyboardNavigation";
 import { useNavigationCalculation } from "./useNavigationCalculation";
 
-const detectModeFromClick = (target: ClickTarget): NavigationMode => {
-  switch (target) {
-    case "column":
-      return "run";
-    case "grid":
-      return "grid";
-    case "row":
-      return "task";
-    default:
-      return "grid";
-  }
-};
-
 const detectModeFromUrl = (pathname: string): NavigationMode => {
   if (pathname.includes("/runs/") && pathname.includes("/tasks/")) {
-    return "grid";
+    return "TI";
   }
   if (pathname.includes("/runs/") && !pathname.includes("/tasks/")) {
     return "run";
@@ -54,16 +40,15 @@ const detectModeFromUrl = (pathname: string): NavigationMode => {
     return "task";
   }
 
-  return "grid";
+  return "TI";
 };
 
 export const useNavigation = ({ enabled = true, runs, tasks }: UseNavigationProps): UseNavigationReturn => {
   const { dagId = "", groupId = "", runId = "", taskId = "" } = useParams();
   const navigate = useNavigate();
   const [isNavigating, setIsNavigating] = useState(false);
-  const [mode, setMode] = useState<NavigationMode>("grid");
+  const [mode, setMode] = useState<NavigationMode>("TI");
 
-  // Auto-detect mode from URL
   useEffect(() => {
     if (typeof globalThis !== "undefined") {
       const detectedMode = detectModeFromUrl(globalThis.location.pathname);
@@ -72,7 +57,6 @@ export const useNavigation = ({ enabled = true, runs, tasks }: UseNavigationProp
     }
   }, [dagId, groupId, runId, taskId]);
 
-  // Calculate current indices from URL params
   const currentIndices = useMemo((): NavigationIndices => {
     const runIndex = Math.max(
       0,
@@ -89,12 +73,6 @@ export const useNavigation = ({ enabled = true, runs, tasks }: UseNavigationProp
   }, [groupId, runId, runs, taskId, tasks]);
 
   const { getNavigationTarget } = useNavigationCalculation({ mode, runs, tasks });
-
-  const setModeFromClick = useCallback((target: ClickTarget) => {
-    const newMode = detectModeFromClick(target);
-
-    setMode(newMode);
-  }, []);
 
   const handleNavigation = useCallback(
     (direction: NavigationDirection, isJump: boolean = false) => {
@@ -129,6 +107,6 @@ export const useNavigation = ({ enabled = true, runs, tasks }: UseNavigationProp
     handleNavigation,
     isNavigating,
     mode,
-    setMode: setModeFromClick,
+    setMode,
   };
 };

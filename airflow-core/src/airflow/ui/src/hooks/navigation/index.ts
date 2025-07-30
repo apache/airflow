@@ -23,7 +23,6 @@ export { useKeyboardNavigation } from "./useKeyboardNavigation";
 
 export type {
   ArrowKey,
-  ClickTarget,
   NavigationActions,
   NavigationContext,
   NavigationDirection,

@@ -19,13 +19,11 @@
 import type { GridRunsResponse } from "openapi/requests";
 import type { GridTask } from "src/layouts/Details/Grid/utils";
 
-export type NavigationMode = "grid" | "run" | "task";
+export type NavigationMode = "run" | "task" | "TI";
 
 export type ArrowKey = "ArrowDown" | "ArrowLeft" | "ArrowRight" | "ArrowUp";
 
 export type NavigationDirection = "down" | "left" | "right" | "up";
-
-export type ClickTarget = "column" | "grid" | "row";
 
 export type NavigationIndices = {
   runIndex: number;
@@ -56,7 +54,7 @@ export type NavigationState = {
 
 export type NavigationActions = {
   handleNavigation: (direction: NavigationDirection, isJump?: boolean) => void;
-  setMode: (target: ClickTarget) => void;
+  setMode: (mode: NavigationMode) => void;
 };
 
 export type UseNavigationProps = {

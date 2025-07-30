@@ -64,7 +64,6 @@ export const TaskNames = ({ nodes, onRowClick }: Props) => {
       id={node.id.replaceAll(".", "-")}
       key={node.id}
       maxHeight="20px"
-      onClick={onRowClick}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       transition="background-color 0.2s"
@@ -73,6 +72,7 @@ export const TaskNames = ({ nodes, onRowClick }: Props) => {
         <Flex alignItems="center">
           <Link asChild data-testid={node.id} display="inline">
             <RouterLink
+              onClick={onRowClick}
               replace
               to={{
                 pathname: `/dags/${dagId}/tasks/group/${node.id}`,
@@ -111,6 +111,7 @@ export const TaskNames = ({ nodes, onRowClick }: Props) => {
       ) : (
         <Link asChild data-testid={node.id} display="inline">
           <RouterLink
+            onClick={onRowClick}
             replace
             to={{
               pathname: `/dags/${dagId}/tasks/${node.id}`,
