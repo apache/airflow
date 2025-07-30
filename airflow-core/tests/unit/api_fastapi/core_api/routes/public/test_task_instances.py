@@ -103,7 +103,7 @@ class TestTaskInstanceEndpoint:
         with_ti_history=False,
     ):
         """Method to create task instances using kwargs and default arguments"""
-        dag = self.dagbag.get_latest_version_of_dag(dag_id, session)
+        dag = self.dagbag.get_latest_version_of_dag(dag_id, session=session)
         tasks = dag.tasks
         counter = len(tasks)
         if task_instances is not None:

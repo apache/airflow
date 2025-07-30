@@ -272,12 +272,12 @@ def get_dag(
     dags folder.
     """
     from airflow.models.dagbag import DagBag
+    from airflow.models.serialized_dag import SerializedDagModel
 
     bundle_names = bundle_names or []
     dag: DAG | None = None
     if from_db:
-        dagbag = DagBag(read_dags_from_db=True)
-        dag = dagbag.get_dag(dag_id)  # get_dag loads from the DB as requested
+        dag = SerializedDagModel.get_dag(dag_id)
     elif bundle_names:
         manager = DagBundlesManager()
         for bundle_name in bundle_names:
@@ -286,8 +286,7 @@ def get_dag(
                 dagbag = DagBag(
                     dag_folder=dagfile_path or bundle.path, bundle_path=bundle.path, include_examples=False
                 )
-            dag = dagbag.dags.get(dag_id)
-            if dag:
+            if dag := dagbag.dags.get(dag_id):
                 break
     if not dag:
         if from_db:
