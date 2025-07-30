@@ -59,12 +59,8 @@ const isValidDirectionForMode = (direction: NavigationDirection, mode: Navigatio
 };
 
 export const useKeyboardNavigation = ({ enabled = true, mode, onNavigate }: Props) => {
-  const handleNormalKeyPress = useCallback(
-    (event: KeyboardEvent) => {
-      if (!enabled) {
-        return;
-      }
-
+  const createKeyHandler = useCallback(
+    (isJump: boolean) => (event: KeyboardEvent) => {
       const direction = mapKeyToDirection(event.key as ArrowKey);
 
       if (!isValidDirectionForMode(direction, mode)) {
@@ -74,52 +70,20 @@ export const useKeyboardNavigation = ({ enabled = true, mode, onNavigate }: Prop
       event.preventDefault();
       event.stopPropagation();
 
-      onNavigate(direction, false);
+      onNavigate(direction, isJump);
     },
-    [enabled, mode, onNavigate],
+    [mode, onNavigate],
   );
 
-  const handleJumpKeyPress = useCallback(
-    (event: KeyboardEvent) => {
-      if (!enabled) {
-        return;
-      }
+  const handleNormalKeyPress = createKeyHandler(false);
+  const handleJumpKeyPress = createKeyHandler(true);
 
-      const direction = mapKeyToDirection(event.key as ArrowKey);
+  useHotkeys(ARROW_KEYS.join(","), handleNormalKeyPress, { enabled, preventDefault: true }, [
+    mode,
+    onNavigate,
+  ]);
 
-      if (!isValidDirectionForMode(direction, mode)) {
-        return;
-      }
-
-      event.preventDefault();
-      event.stopPropagation();
-
-      onNavigate(direction, true);
-    },
-    [enabled, mode, onNavigate],
-  );
-
-  useHotkeys(
-    ARROW_KEYS.join(","),
-    handleNormalKeyPress,
-    {
-      enabled,
-      enableOnFormTags: false,
-      preventDefault: true,
-    },
-    [enabled, mode, onNavigate],
-  );
-
-  useHotkeys(
-    JUMP_KEYS.join(","),
-    handleJumpKeyPress,
-    {
-      enabled,
-      enableOnFormTags: false,
-      preventDefault: true,
-    },
-    [enabled, mode, onNavigate],
-  );
+  useHotkeys(JUMP_KEYS.join(","), handleJumpKeyPress, { enabled, preventDefault: true }, [mode, onNavigate]);
 
   return {
     handleKeyPress: handleNormalKeyPress,
