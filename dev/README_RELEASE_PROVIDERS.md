@@ -412,7 +412,7 @@ If you are seeing others there is an issue.
 You can remove the redundant provider files manually with:
 
 ```shell script
-svn rm file_name  // repeate that for every file
+svn rm file_name  // repeat that for every file
 svn commit -m "delete old providers"
 ```
 
@@ -478,7 +478,7 @@ twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*
 Assume that your remote for apache repository is called `apache` you should now
 set tags for the providers in the repo.
 
-Sometimes in cases when there is a connectivity issue to Github, it might be possible that local tags get created
+Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local tags get created
 and lead to annoying errors. The default behaviour would be to clean such local tags up.
 
 If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false.
@@ -647,6 +647,14 @@ issue. There is a comment generated with NOTE TO RELEASE MANAGER about this in t
 Hit Preview button on "create issue" screen before creating it to verify how it will look like
 for the contributors.
 
+By default, the command will output a clickable link to create the issue from terminal if you don't want this option use --no-include-browser-link flag
+
+```shell script
+cd "${AIRFLOW_REPO_ROOT}"
+
+breeze release-management generate-issue-content-providers --only-available-in-dist --no-include-browser-link --github-token TOKEN \
+    --excluded-pr-list PR_NUMBER1,PR_NUMBER2
+```
 
 
 ## Prepare voting email for Providers release candidate
@@ -1252,7 +1260,7 @@ Copy links to updated packages, sort it alphabetically and save it on the side. 
 Assume that your remote for apache repository is called `apache` you should now
 set tags for the providers in the repo.
 
-Sometimes in cases when there is a connectivity issue to Github, it might be possible that local tags get created
+Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local tags get created
 and lead to annoying errors. The default behaviour would be to clean such local tags up.
 
 If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false.

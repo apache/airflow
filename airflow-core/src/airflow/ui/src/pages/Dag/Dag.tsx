@@ -70,7 +70,7 @@ export const Dag = () => {
   const displayTabs = tabs.filter((tab) => !(dag?.timetable_summary === null && tab.value === "backfills"));
 
   const {
-    data: latestRuns,
+    data: latestRun,
     error: runsError,
     isLoading: isLoadingRuns,
   } = useDagServiceGetLatestRunInfo(
@@ -81,14 +81,14 @@ export const Dag = () => {
     {
       enabled: Boolean(dagId),
       refetchInterval: (query) => {
-        setHasPendingRuns(query.state.data?.some((run) => isStatePending(run.state)));
+        if (query.state.data && isStatePending(query.state.data.state)) {
+          setHasPendingRuns(true);
+        }
 
         return hasPendingRuns ? refetchInterval : false;
       },
     },
   );
-
-  const [latestRun] = latestRuns ?? [];
 
   return (
     <ReactFlowProvider>
@@ -96,7 +96,7 @@ export const Dag = () => {
         <Header
           dag={dag}
           isRefreshing={Boolean(isStatePending(latestRun?.state) && Boolean(refetchInterval))}
-          latestRunInfo={latestRun}
+          latestRunInfo={latestRun ?? undefined}
         />
       </DetailsLayout>
     </ReactFlowProvider>

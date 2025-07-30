@@ -29,8 +29,7 @@ __deprecated_classes = {
         "XCOM_RETURN_KEY": "airflow.models.xcom.XCOM_RETURN_KEY",
     },
     "task_group": {
-        "TaskGroup": "airflow.sdk.definitions.taskgroup.TaskGroup",
-        "MappedTaskGroup": "airflow.sdk.definitions.taskgroup.MappedOperator",
+        "TaskGroup": "airflow.sdk.TaskGroup",
         "get_task_group_children_getter": "airflow.sdk.definitions.taskgroup.get_task_group_children_getter",
         "task_group_to_dict": "airflow.sdk.definitions.taskgroup.task_group_to_dict",
     },
@@ -38,6 +37,10 @@ __deprecated_classes = {
         # Since we have corrected all uses inside core to use the internal version, anything hitting this
         # should be in user code or custom providers, so redirect them to the public interface in Task SDK
         "*": "airflow.sdk.timezone"
+    },
+    "decorators": {
+        "remove_task_decorator": "airflow.sdk.definitions._internal.decorators.remove_task_decorator",
+        "fixup_decorator_warning_stack": "airflow.sdk.definitions._internal.decorators.fixup_decorator_warning_stack",
     },
 }
 

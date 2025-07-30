@@ -41,7 +41,7 @@ from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.assets.manager import AssetManager
-from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
+from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext, TaskCallbackRequest
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
@@ -460,7 +460,7 @@ class TestSchedulerJob:
         scheduler_job = Job(executor=executor)
         self.job_runner = SchedulerJobRunner(scheduler_job)
         self.job_runner.scheduler_dag_bag = mock.MagicMock()
-        self.job_runner.scheduler_dag_bag.get_dag.side_effect = Exception("failed")
+        self.job_runner.scheduler_dag_bag.get_dag_for_run.side_effect = Exception("failed")
 
         session = settings.Session()
 
@@ -976,7 +976,7 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
         self.job_runner.scheduler_dag_bag = mock.MagicMock()
-        self.job_runner.scheduler_dag_bag.get_dag.return_value = None
+        self.job_runner.scheduler_dag_bag.get_dag_for_run.return_value = None
 
         dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
 
@@ -2560,6 +2560,10 @@ class TestSchedulerJob:
             run_id=dr.run_id,
             bundle_name=orm_dag.bundle_name,
             bundle_version=orm_dag.bundle_version,
+            context_from_server=DagRunContext(
+                dag_run=dr,
+                last_ti=dr.get_last_ti(dag, session),
+            ),
             msg="timed_out",
         )
 
@@ -2592,18 +2596,10 @@ class TestSchedulerJob:
         session.refresh(dr)
         assert dr.state == State.FAILED
 
-        expected_callback = DagCallbackRequest(
-            filepath=dr.dag.relative_fileloc,
-            dag_id=dr.dag_id,
-            is_failure_callback=True,
-            run_id=dr.run_id,
-            bundle_name=dr.dag.get_bundle_name(),
-            bundle_version=dr.dag.get_bundle_version(),
-            msg="timed_out",
-        )
-
-        # Verify dag failure callback request is sent
-        assert callback == expected_callback
+        assert isinstance(callback, DagCallbackRequest)
+        assert callback.dag_id == dr.dag_id
+        assert callback.run_id == dr.run_id
+        assert callback.msg == "timed_out"
 
         session.rollback()
         session.close()
@@ -2675,6 +2671,10 @@ class TestSchedulerJob:
             msg=expected_callback_msg,
             bundle_name=dag.get_bundle_name(),
             bundle_version=dag.get_bundle_version(),
+            context_from_server=DagRunContext(
+                dag_run=dr,
+                last_ti=ti,
+            ),
         )
 
         # Verify dag failure callback request is sent to file processor
@@ -2751,6 +2751,10 @@ class TestSchedulerJob:
             msg="timed_out",
             bundle_name=dag.get_bundle_name(),
             bundle_version=dag.get_bundle_version(),
+            context_from_server=DagRunContext(
+                dag_run=dr,
+                last_ti=dr.get_last_ti(dag, session),
+            ),
         )
 
         assert callback == expected_callback
@@ -3468,7 +3472,7 @@ class TestSchedulerJob:
         dr = drs[0]
 
         self.job_runner._schedule_dag_run(dag_run=dr, session=session)
-        len(self.job_runner.scheduler_dag_bag.get_dag(dr, session).tasks) == 1
+        len(self.job_runner.scheduler_dag_bag.get_dag_for_run(dr, session).tasks) == 1
         dag_version_1 = DagVersion.get_latest_version(dr.dag_id, session=session)
         assert dr.dag_versions[-1].id == dag_version_1.id
 
@@ -3486,7 +3490,7 @@ class TestSchedulerJob:
         assert len(drs) == 1
         dr = drs[0]
         assert dr.dag_versions[-1].id == dag_version_2.id
-        assert len(self.job_runner.scheduler_dag_bag.get_dag(dr, session).tasks) == 2
+        assert len(self.job_runner.scheduler_dag_bag.get_dag_for_run(dr, session).tasks) == 2
 
         if SQLALCHEMY_V_1_4:
             tis_count = (
@@ -4331,7 +4335,7 @@ class TestSchedulerJob:
         # assert len(self.job_runner.scheduler_dag_bag._dags) == 1  # sanity check
         # Get serialized dag
         dr = DagRun.find(dag_id=dag.dag_id)[0]
-        s_dag_2 = self.job_runner.scheduler_dag_bag.get_dag(dr, session=session)
+        s_dag_2 = self.job_runner.scheduler_dag_bag.get_dag_for_run(dr, session=session)
         custom_task = s_dag_2.task_dict["custom_task"]
         # Test that custom_task has no Operator Links (after de-serialization) in the Scheduling Loop
         assert not custom_task.operator_extra_links
@@ -6652,6 +6656,41 @@ class TestSchedulerJob:
         assert callback_request.context_from_server is not None
         assert callback_request.context_from_server.dag_run.logical_date == dag_run.logical_date
         assert callback_request.context_from_server.max_tries == ti.max_tries
+
+    def test_scheduler_passes_context_from_server_on_dag_timeout(self, dag_maker, session):
+        """Test that scheduler passes context_from_server when DAG times out."""
+        from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
+
+        def on_failure_callback(context):
+            print("DAG failed")
+
+        with dag_maker(
+            dag_id="test_dag",
+            session=session,
+            on_failure_callback=on_failure_callback,
+            dagrun_timeout=timedelta(seconds=60),  # 1 minute timeout
+        ):
+            EmptyOperator(task_id="test_task")
+
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+        # Set the start time to make it appear timed out
+        dag_run.start_date = timezone.utcnow() - timedelta(seconds=120)  # 2 minutes ago
+        session.merge(dag_run)
+        session.commit()
+
+        mock_executor = MagicMock()
+        scheduler_job = Job(executor=mock_executor)
+        self.job_runner = SchedulerJobRunner(scheduler_job)
+
+        callback_req = self.job_runner._schedule_dag_run(dag_run, session)
+
+        assert isinstance(callback_req, DagCallbackRequest)
+        assert callback_req.is_failure_callback
+        assert callback_req.msg == "timed_out"
+        assert callback_req.context_from_server == DagRunContext(
+            dag_run=dag_run,
+            last_ti=dag_run.get_task_instance(task_id="test_task"),
+        )
 
 
 @pytest.mark.need_serialized_dag
