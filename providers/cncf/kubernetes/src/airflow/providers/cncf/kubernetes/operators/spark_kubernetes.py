@@ -295,7 +295,6 @@ class SparkKubernetesOperator(KubernetesPodOperator):
 
     def update_pod_spec_add_xcom_sidecar(self)->None:
         if self.do_xcom_push:
-            try:
                 self.log.debug("Adding xcom sidecar to driver pod spec in task %s", self.task_id)
                 driver_template = self.template_body["spark"]["spec"]
                 driver_with_xcom_template = add_sidecar_to_spark_operator_pod_spec(
@@ -304,8 +303,6 @@ class SparkKubernetesOperator(KubernetesPodOperator):
                     sidecar_container_resources=self.hook.get_xcom_sidecar_container_resources(),
                 )
                 self.template_body["spark"]["spec"]= driver_with_xcom_template
-            except KeyError as e:
-                raise AirflowException("Spec missing in SparkApplication template") from e
 
     def execute(self, context: Context):
         self.name = self.create_job_name()
