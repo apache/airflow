@@ -28,7 +28,7 @@ from sqlalchemy.sql.selectable import CTE
 from airflow.models import DagRun, TaskInstance
 from airflow.models.dag import DagModel
 from airflow.models.pool import Pool
-from airflow.task.task_querier_strategy import TaskQuerierStrategy
+from airflow.task.task_selector_strategy import TaskSelectorStrategy
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.utils.state import DagRunState, TaskInstanceState
 
@@ -54,10 +54,12 @@ class LimitWindowDescriptor:
     window_over: expression.ColumnElement
 
 
-class PessimisticTaskQuerierStrategy(TaskQuerierStrategy):
+class PessimisticTaskQuerierStrategy(TaskSelectorStrategy):
     """Pessimisticly query task instances ready for scheduling."""
 
-    def get_query(self, priority_order: list[Column], max_tis: int) -> Query:
+    def get_query(self, **additional_params) -> Query:
+        priority_order: list[Column] = additional_params["priority_order"]
+        max_tis: int = additional_params["max_tis"]
         query = (
             select(TaskInstance)
             .with_hint(TaskInstance, "USE INDEX (ti_state)", dialect_name="mysql")
