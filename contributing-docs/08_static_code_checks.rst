@@ -131,6 +131,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-airflow-v-imports-in-tests                          | Check AIRFLOW_V imports in tests                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-airflow-version-checks-in-core                      | No AIRFLOW_V_3* imports in airflow-core                | *       |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-apache-license-rat                                  | Check if licenses are OK for Apache                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-base-operator-partial-arguments                     | Check BaseOperator and partial() arguments             |         |

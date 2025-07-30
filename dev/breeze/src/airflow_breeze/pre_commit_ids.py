@@ -30,6 +30,7 @@ PRE_COMMIT_LIST = [
     "check-airflow-k8s-not-used",
     "check-airflow-providers-bug-report-template",
     "check-airflow-v-imports-in-tests",
+    "check-airflow-version-checks-in-core",
     "check-apache-license-rat",
     "check-base-operator-partial-arguments",
     "check-base-operator-usage",
