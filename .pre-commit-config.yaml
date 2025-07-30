@@ -1621,8 +1621,8 @@ repos:
         require_serial: true
       - id: check-airflow-version-checks-in-core
         language: pygrep
-        name: No AIRFLOW_V_3* imports in airflow-core
-        entry: "import AIRFLOW_V_3"
+        name: No AIRFLOW_V_* imports in airflow-core
+        entry: "import AIRFLOW_V_"
         files: ^airflow-core/.*\.py$
         pass_filenames: true
          # TODO (@amoghrajesh): revisit last few in this list as they all rely on versioned secrets masker imports
