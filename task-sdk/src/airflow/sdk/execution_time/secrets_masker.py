@@ -116,6 +116,19 @@ def redact(value: Redactable, name: str | None = None, max_depth: int | None = N
     return _secrets_masker().redact(value, name, max_depth)
 
 
+def merge(
+    new_value: Redacted, old_value: Redactable, name: str | None = None, max_depth: int | None = None
+) -> Redactable:
+    """
+    Merge a redacted value with its original unredacted counterpart.
+
+    Takes a user-modified redacted value and merges it with the original unredacted value.
+    For sensitive fields that still contain "***" (unchanged), the original value is restored.
+    For fields that have been updated by the user, the new value is preserved.
+    """
+    return _secrets_masker().merge(new_value, old_value, name, max_depth)
+
+
 @cache
 def _secrets_masker() -> SecretsMasker:
     for flt in logging.getLogger("airflow.task").filters:
@@ -292,6 +305,147 @@ class SecretsMasker(logging.Filter):
             )
             return item
 
+    def _merge(
+        self, new_item: Redacted, old_item: Redactable, name: str | None, depth: int, max_depth: int
+    ) -> Redactable:
+        """
+        Merge a redacted item with its original unredacted counterpart when field wasn't updated.
+
+        Recursively walks through both items, restoring original values for sensitive fields
+        that haven't been modified (still contain "***").
+        """
+        if depth > max_depth:
+            return new_item
+        try:
+            # If the name indicates this is a sensitive field and the new value is still "***",
+            # restore the original value
+            if name and should_hide_value_for_key(name):
+                if self._is_redacted_value(new_item):
+                    return old_item
+                # Value is not redacted, keep the new value
+                return new_item
+
+            # Handle different data types
+            if isinstance(new_item, dict) and isinstance(old_item, dict):
+                merged = {}
+                # Only process keys from new_item, ignore keys only in old_item
+                for key in new_item.keys():
+                    if key in old_item:
+                        # Key exists in both, merge recursively
+                        merged[key] = self._merge(
+                            new_item[key], old_item[key], name=key, depth=depth + 1, max_depth=max_depth
+                        )
+                    else:
+                        # Key only in new_item, use new value
+                        merged[key] = new_item[key]
+                return merged
+
+            if isinstance(new_item, list) and isinstance(old_item, list):
+                # For lists, merge element by element up to the length of new_item only
+                # Items are redacted individually, not the entire list
+                merged_list: list[Any] = []
+                for i in range(len(new_item)):
+                    if i < len(old_item):
+                        # If the list field name is sensitive and the new item is redacted, restore original
+                        if (
+                            name
+                            and should_hide_value_for_key(name)
+                            and isinstance(new_item[i], str)
+                            and new_item[i] == "***"
+                        ):
+                            merged_list.append(old_item[i])
+                        else:
+                            # Merge with corresponding old item recursively
+                            merged_list.append(
+                                self._merge(
+                                    new_item[i], old_item[i], name=None, depth=depth + 1, max_depth=max_depth
+                                )
+                            )
+                    else:
+                        # New item has more elements, use new value
+                        merged_list.append(new_item[i])
+                return merged_list
+
+            if isinstance(new_item, (tuple, set)) and isinstance(old_item, (tuple, set)):
+                # For tuples and sets, convert to lists for processing, then back to original type
+                # Process only up to the length of new_item, items are redacted individually
+                new_list = list(new_item)
+                old_list = list(old_item)
+                merged_list = []
+                for i in range(len(new_list)):
+                    if i < len(old_list):
+                        # If the field name is sensitive and the new item is redacted, restore original
+                        if (
+                            name
+                            and should_hide_value_for_key(name)
+                            and isinstance(new_list[i], str)
+                            and new_list[i] == "***"
+                        ):
+                            merged_list.append(old_list[i])
+                        else:
+                            # Merge with corresponding old item recursively
+                            merged_list.append(
+                                self._merge(
+                                    new_list[i], old_list[i], name=None, depth=depth + 1, max_depth=max_depth
+                                )
+                            )
+                    else:
+                        # New item has more elements, use new value
+                        merged_list.append(new_list[i])
+
+                # Return the same type as the new_item
+                if isinstance(new_item, tuple):
+                    return tuple(merged_list)
+                return set(merged_list)
+
+            if isinstance(new_item, Enum):
+                # If the new item is an Enum, it can't be redacted, so we return it as is
+                return new_item
+
+            if _is_v1_env_var(new_item) and _is_v1_env_var(old_item):
+                # Handle Kubernetes V1EnvVar objects
+                if hasattr(new_item, "to_dict") and hasattr(old_item, "to_dict"):
+                    new_dict = new_item.to_dict()
+                    old_dict = old_item.to_dict()
+                    merged_dict = self._merge(new_dict, old_dict, name=name, depth=depth, max_depth=max_depth)
+                    # Try to reconstruct the V1EnvVar object
+                    try:
+                        if isinstance(merged_dict, dict):
+                            return type(new_item)(**merged_dict)
+                        return new_item
+                    except (ValueError, TypeError):
+                        return new_item
+                return new_item
+
+            return new_item
+
+        except Exception as exc:
+            # If any error occurs during merging, log it and return the new item
+            log.warning(
+                "Unable to merge value of type %s with %s, using new value. Error was: %s: %s",
+                type(new_item).__name__,
+                type(old_item).__name__,
+                type(exc).__name__,
+                exc,
+                extra={self.ALREADY_FILTERED_FLAG: True},
+            )
+            return new_item
+
+    def _is_redacted_value(self, value: Any) -> bool:
+        """
+        Check if a value appears to be a redacted placeholder.
+
+        Returns True if the value is exactly "***" or contains only redacted placeholders
+        in the case of collections.
+        """
+        if isinstance(value, str):
+            return value == "***"
+        if isinstance(value, dict):
+            return all(self._is_redacted_value(v) for v in value.values())
+        if isinstance(value, (list, tuple, set)):
+            return all(self._is_redacted_value(v) for v in value)
+        return False
+
     def redact(self, item: Redactable, name: str | None = None, max_depth: int | None = None) -> Redacted:
         """
         Redact an any secrets found in ``item``, if it is a string.
@@ -301,6 +455,18 @@ class SecretsMasker(logging.Filter):
         is redacted.
         """
         return self._redact(item, name, depth=0, max_depth=max_depth or self.MAX_RECURSION_DEPTH)
+
+    def merge(
+        self, new_item: Redacted, old_item: Redactable, name: str | None = None, max_depth: int | None = None
+    ) -> Redactable:
+        """
+        Merge a redacted item with its original unredacted counterpart.
+
+        Takes a user-modified redacted item and merges it with the original unredacted item.
+        For sensitive fields that still contain "***" (unchanged), the original value is restored.
+        For fields that have been updated, the new value is preserved.
+        """
+        return self._merge(new_item, old_item, name, depth=0, max_depth=max_depth or self.MAX_RECURSION_DEPTH)
 
     @cached_property
     def _mask_adapter(self) -> None | Callable:
