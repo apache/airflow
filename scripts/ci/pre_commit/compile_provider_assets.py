@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import argparse
 import hashlib
 import os
 import re
@@ -109,5 +110,12 @@ def compile_assets(provider_name: str):
 
 
 if __name__ == "__main__":
-    provider = sys.argv[1]
-    compile_assets(provider)
+    parser = argparse.ArgumentParser(description="Compile provider assets for the specified provider.")
+    parser.add_argument(
+        "provider",
+        type=str,
+        help="The name of the provider whose assets should be compiled.",
+        choices=list(PROVIDERS_PATHS.keys()),
+    )
+    args = parser.parse_args()
+    compile_assets(args.provider)
