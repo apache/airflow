@@ -70,16 +70,17 @@ const globalStyles = `
 `;
 
 // Inject global styles
-const styleSheet = document.createElement('style');
-styleSheet.type = 'text/css';
-styleSheet.innerHTML = globalStyles;
-document.head.appendChild(styleSheet);
+const styleSheet = document.createElement("style");
 
-interface ErrorBoundaryProps {
-  children: React.ReactNode;
+styleSheet.type = "text/css";
+styleSheet.innerHTML = globalStyles;
+document.head.append(styleSheet);
+
+type ErrorBoundaryProps = {
+  readonly children: React.ReactNode;
 }
 
-interface ErrorBoundaryState {
+type ErrorBoundaryState = {
   hasError: boolean;
 }
 
@@ -95,34 +96,36 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('Application error:', error, errorInfo);
+    console.error("Application error:", error, errorInfo);
   }
 
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ 
-          padding: '50px', 
-          textAlign: 'center', 
-          fontFamily: 'Arial, sans-serif',
-          color: '#721c24',
-          backgroundColor: '#f8d7da',
-          border: '1px solid #f5c6cb',
-          borderRadius: '4px',
-          margin: '20px'
-        }}>
+        <div
+          style={{
+            backgroundColor: "#f8d7da",
+            border: "1px solid #f5c6cb",
+            borderRadius: "4px",
+            color: "#721c24",
+            fontFamily: "Arial, sans-serif",
+            margin: "20px",
+            padding: "50px",
+            textAlign: "center",
+          }}
+        >
           <h1>Something went wrong</h1>
           <p>Please refresh the page and try again.</p>
-          <button 
+          <button
             onClick={() => window.location.reload()}
             style={{
-              padding: '10px 20px',
-              backgroundColor: '#dc3545',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              marginTop: '10px'
+              backgroundColor: "#dc3545",
+              border: "none",
+              borderRadius: "4px",
+              color: "white",
+              cursor: "pointer",
+              marginTop: "10px",
+              padding: "10px 20px",
             }}
           >
             Reload Page
