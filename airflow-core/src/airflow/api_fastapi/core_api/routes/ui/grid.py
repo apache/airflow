@@ -45,7 +45,7 @@ from airflow.api_fastapi.core_api.datamodels.ui.grid import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_dag
-from airflow.api_fastapi.core_api.services.ui.dag_version_service import DagVersionService
+from airflow.api_fastapi.core_api.services.ui.dag_version import DagVersionService
 from airflow.api_fastapi.core_api.services.ui.grid import (
     _find_aggregates,
     _merge_node_dicts,
