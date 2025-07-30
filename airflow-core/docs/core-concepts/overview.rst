@@ -98,7 +98,7 @@ and can be scaled by running multiple instances of the components above.
 The separation of components also allow for increased security, by isolating the components from each other
 and by allowing to perform different tasks. For example separating *dag processor* from *scheduler*
 allows to make sure that the *scheduler* does not have access to the *DAG files* and cannot execute
-code provided by *DAG author*.
+code provided by *Dag author*.
 
 Also while single person can run and manage Airflow installation, Airflow Deployment in more complex
 setup can involve various roles of users that can interact with different parts of the system, which is
@@ -106,7 +106,7 @@ an important aspect of secure Airflow deployment. The roles are described in det
 :doc:`/security/security_model` and generally speaking include:
 
 * Deployment Manager - a person that installs and configures Airflow and manages the deployment
-* DAG author - a person that writes dags and submits them to Airflow
+* Dag author - a person that writes dags and submits them to Airflow
 * Operations User - a person that triggers dags and tasks and monitors their execution
 
 Architecture Diagrams
@@ -153,13 +153,13 @@ Distributed Airflow architecture
 ................................
 
 This is the architecture of Airflow where components of Airflow are distributed among multiple machines
-and where various roles of users are introduced - *Deployment Manager*, **DAG author**,
+and where various roles of users are introduced - *Deployment Manager*, **Dag author**,
 **Operations User**. You can read more about those various roles in the :doc:`/security/security_model`.
 
 In the case of a distributed deployment, it is important to consider the security aspects of the components.
 The *webserver* does not have access to the *DAG files* directly. The code in the ``Code`` tab of the
 UI is read from the *metadata database*. The *webserver* cannot execute any code submitted by the
-**DAG author**. It can only execute code that is installed as an *installed package* or *plugin* by
+**Dag author**. It can only execute code that is installed as an *installed package* or *plugin* by
 the **Deployment Manager**. The **Operations User** only has access to the UI and can only trigger
 dags and tasks, but cannot author dags.
 
@@ -178,7 +178,7 @@ Separate DAG processing architecture
 In a more complex installation where security and isolation are important, you'll also see the
 standalone *dag processor* component that allows to separate *scheduler* from accessing *DAG files*.
 This is suitable if the deployment focus is on isolation between parsed tasks. While Airflow does not yet
-support full multi-tenant features, it can be used to make sure that **DAG author** provided code is never
+support full multi-tenant features, it can be used to make sure that **Dag author** provided code is never
 executed in the context of the scheduler.
 
 .. image:: ../img/diagram_dag_processor_airflow_architecture.png
