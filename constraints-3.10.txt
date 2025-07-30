@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-07-29T19:48:53.939720
+# This constraints file was automatically generated on 2025-07-30T02:26:42.816691
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -453,7 +453,7 @@ opentelemetry-proto==1.27.0
 opentelemetry-sdk==1.27.0
 opentelemetry-semantic-conventions==0.48b0
 opsgenie-sdk==2.1.5
-oracledb==3.2.0
+oracledb==3.3.0
 ordered-set==4.1.0
 orjson==3.11.1
 oss2==2.19.1
@@ -562,7 +562,7 @@ readme_renderer==44.0
 redis==5.2.1
 redshift-connector==2.1.7
 referencing==0.36.2
-regex==2025.7.29
+regex==2025.7.31
 requests-file==2.1.0
 requests-kerberos==0.15.0
 requests-mock==1.12.1
