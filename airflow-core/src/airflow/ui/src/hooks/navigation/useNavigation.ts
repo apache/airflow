@@ -121,6 +121,25 @@ export const useNavigation = ({ enabled = true, runs, tasks }: UseNavigationProp
         return;
       }
 
+      const isAtBoundary = () => {
+        switch (direction) {
+          case "down":
+            return currentIndices.taskIndex >= tasks.length - 1;
+          case "left":
+            return currentIndices.runIndex >= runs.length - 1;
+          case "right":
+            return currentIndices.runIndex <= 0;
+          case "up":
+            return currentIndices.taskIndex <= 0;
+          default:
+            return false;
+        }
+      };
+
+      if (!isJump && isAtBoundary()) {
+        return;
+      }
+
       let newRunIndex = currentIndices.runIndex;
       let newTaskIndex = currentIndices.taskIndex;
 
@@ -139,6 +158,10 @@ export const useNavigation = ({ enabled = true, runs, tasks }: UseNavigationProp
           break;
         default:
           break;
+      }
+
+      if (newRunIndex === currentIndices.runIndex && newTaskIndex === currentIndices.taskIndex) {
+        return;
       }
 
       const run = runs[newRunIndex];

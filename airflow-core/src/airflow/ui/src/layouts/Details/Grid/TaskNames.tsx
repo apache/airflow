@@ -69,7 +69,6 @@ export const TaskNames = ({ nodes, onRowClick }: Props) => {
       transition="background-color 0.2s"
     >
       {node.isGroup ? (
-
         <Link asChild data-testid={node.id} display="block" width="100%">
           <RouterLink
             onClick={onRowClick}
