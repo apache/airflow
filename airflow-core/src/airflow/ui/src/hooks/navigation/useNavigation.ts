@@ -19,6 +19,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
+import type { GridRunsResponse } from "openapi/requests";
+import type { GridTask } from "src/layouts/Details/Grid/utils";
+
 import type {
   NavigationDirection,
   NavigationIndices,
@@ -27,7 +30,6 @@ import type {
   UseNavigationReturn,
 } from "./types";
 import { useKeyboardNavigation } from "./useKeyboardNavigation";
-import { useNavigationCalculation } from "./useNavigationCalculation";
 
 const detectModeFromUrl = (pathname: string): NavigationMode => {
   if (pathname.includes("/runs/") && pathname.includes("/tasks/")) {
@@ -43,10 +45,55 @@ const detectModeFromUrl = (pathname: string): NavigationMode => {
   return "TI";
 };
 
+const isValidDirection = (direction: NavigationDirection, mode: NavigationMode): boolean => {
+  switch (mode) {
+    case "run":
+      return direction === "left" || direction === "right";
+    case "task":
+      return direction === "down" || direction === "up";
+    case "TI":
+      return true;
+    default:
+      return false;
+  }
+};
+
+const getNextIndex = (
+  current: number,
+  direction: number,
+  options: { isJump: boolean; max: number },
+): number => {
+  if (options.isJump) {
+    return direction > 0 ? options.max - 1 : 0;
+  }
+
+  return Math.max(0, Math.min(options.max - 1, current + direction));
+};
+
+const buildPath = (params: {
+  dagId: string;
+  mode: NavigationMode;
+  run: GridRunsResponse;
+  task: GridTask;
+}): string => {
+  const { dagId, mode, run, task } = params;
+  const groupPath = task.isGroup ? "group/" : "";
+
+  switch (mode) {
+    case "run":
+      return `/dags/${dagId}/runs/${run.run_id}`;
+    case "task":
+      return `/dags/${dagId}/tasks/${groupPath}${task.id}`;
+    case "TI":
+      return `/dags/${dagId}/runs/${run.run_id}/tasks/${groupPath}${task.id}`;
+    default:
+      return `/dags/${dagId}`;
+  }
+};
+
 export const useNavigation = ({ enabled = true, runs, tasks }: UseNavigationProps): UseNavigationReturn => {
   const { dagId = "", groupId = "", runId = "", taskId = "" } = useParams();
   const navigate = useNavigate();
-  const [isNavigating, setIsNavigating] = useState(false);
   const [mode, setMode] = useState<NavigationMode>("TI");
 
   useEffect(() => {
@@ -58,46 +105,56 @@ export const useNavigation = ({ enabled = true, runs, tasks }: UseNavigationProp
   }, [dagId, groupId, runId, taskId]);
 
   const currentIndices = useMemo((): NavigationIndices => {
-    const runIndex = Math.max(
-      0,
-      runs.findIndex((run) => run.run_id === runId),
-    );
+    const runMap = new Map(runs.map((run, index) => [run.run_id, index]));
+    const taskMap = new Map(tasks.map((task, index) => [task.id, index]));
 
+    const runIndex = runMap.get(runId) ?? 0;
     const currentTaskId = groupId || taskId;
-    const taskIndex = Math.max(
-      0,
-      tasks.findIndex((task) => task.id === currentTaskId),
-    );
+    const taskIndex = taskMap.get(currentTaskId) ?? 0;
 
     return { runIndex, taskIndex };
   }, [groupId, runId, runs, taskId, tasks]);
 
-  const { getNavigationTarget } = useNavigationCalculation({ mode, runs, tasks });
-
   const handleNavigation = useCallback(
     (direction: NavigationDirection, isJump: boolean = false) => {
-      if (!enabled || !dagId) {
+      if (!enabled || !dagId || !isValidDirection(direction, mode)) {
         return;
       }
 
-      setIsNavigating(true);
+      let newRunIndex = currentIndices.runIndex;
+      let newTaskIndex = currentIndices.taskIndex;
 
-      const target = getNavigationTarget(currentIndices, direction, isJump);
-
-      if (target.isValid) {
-        navigate(target.path, { replace: true });
+      switch (direction) {
+        case "down":
+          newTaskIndex = getNextIndex(currentIndices.taskIndex, 1, { isJump, max: tasks.length });
+          break;
+        case "left":
+          newRunIndex = getNextIndex(currentIndices.runIndex, 1, { isJump, max: runs.length });
+          break;
+        case "right":
+          newRunIndex = getNextIndex(currentIndices.runIndex, -1, { isJump, max: runs.length });
+          break;
+        case "up":
+          newTaskIndex = getNextIndex(currentIndices.taskIndex, -1, { isJump, max: tasks.length });
+          break;
+        default:
+          break;
       }
 
-      setTimeout(() => {
-        setIsNavigating(false);
-      }, 100);
+      const run = runs[newRunIndex];
+      const task = tasks[newTaskIndex];
+
+      if (run && task) {
+        const path = buildPath({ dagId, mode, run, task });
+
+        navigate(path, { replace: true });
+      }
     },
-    [currentIndices, dagId, enabled, getNavigationTarget, navigate],
+    [currentIndices, dagId, enabled, mode, runs, tasks, navigate],
   );
 
   useKeyboardNavigation({
     enabled: enabled && Boolean(dagId),
-    mode,
     onNavigate: handleNavigation,
   });
 
@@ -105,7 +162,6 @@ export const useNavigation = ({ enabled = true, runs, tasks }: UseNavigationProp
     currentIndices,
     enabled: enabled && Boolean(dagId),
     handleNavigation,
-    isNavigating,
     mode,
     setMode,
   };

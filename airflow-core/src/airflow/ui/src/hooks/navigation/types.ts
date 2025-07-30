@@ -30,37 +30,16 @@ export type NavigationIndices = {
   taskIndex: number;
 };
 
-export type NavigationContext = {
-  dagId: string;
-  groupId?: string;
-  runId?: string;
-  taskId?: string;
-};
-
-export type NavigationTarget = {
-  indices: NavigationIndices;
-  isValid: boolean;
-  path: string;
-  run?: GridRunsResponse;
-  task?: GridTask;
-};
-
-export type NavigationState = {
-  currentIndices: NavigationIndices;
-  enabled: boolean;
-  isNavigating: boolean;
-  mode: NavigationMode;
-};
-
-export type NavigationActions = {
-  handleNavigation: (direction: NavigationDirection, isJump?: boolean) => void;
-  setMode: (mode: NavigationMode) => void;
-};
-
 export type UseNavigationProps = {
   enabled?: boolean;
   runs: Array<GridRunsResponse>;
   tasks: Array<GridTask>;
 };
 
-export type UseNavigationReturn = NavigationActions & NavigationState;
+export type UseNavigationReturn = {
+  currentIndices: NavigationIndices;
+  enabled: boolean;
+  handleNavigation: (direction: NavigationDirection, isJump?: boolean) => void;
+  mode: NavigationMode;
+  setMode: (mode: NavigationMode) => void;
+};

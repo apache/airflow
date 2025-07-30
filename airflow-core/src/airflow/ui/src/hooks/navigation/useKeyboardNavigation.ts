@@ -19,14 +19,13 @@
 import { useCallback } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
-import type { ArrowKey, NavigationDirection, NavigationMode } from "./types";
+import type { ArrowKey, NavigationDirection } from "./types";
 
 const ARROW_KEYS = ["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight"] as const;
 const JUMP_KEYS = ["shift+ArrowDown", "shift+ArrowUp", "shift+ArrowLeft", "shift+ArrowRight"] as const;
 
 type Props = {
   enabled?: boolean;
-  mode: NavigationMode;
   onNavigate: (direction: NavigationDirection, isJump?: boolean) => void;
 };
 
@@ -45,45 +44,25 @@ const mapKeyToDirection = (key: ArrowKey): NavigationDirection => {
   }
 };
 
-const isValidDirectionForMode = (direction: NavigationDirection, mode: NavigationMode): boolean => {
-  switch (mode) {
-    case "run":
-      return direction === "left" || direction === "right";
-    case "task":
-      return direction === "down" || direction === "up";
-    case "TI":
-      return true;
-    default:
-      return false;
-  }
-};
-
-export const useKeyboardNavigation = ({ enabled = true, mode, onNavigate }: Props) => {
+export const useKeyboardNavigation = ({ enabled = true, onNavigate }: Props) => {
   const createKeyHandler = useCallback(
     (isJump: boolean) => (event: KeyboardEvent) => {
       const direction = mapKeyToDirection(event.key as ArrowKey);
-
-      if (!isValidDirectionForMode(direction, mode)) {
-        return;
-      }
 
       event.preventDefault();
       event.stopPropagation();
 
       onNavigate(direction, isJump);
     },
-    [mode, onNavigate],
+    [onNavigate],
   );
 
   const handleNormalKeyPress = createKeyHandler(false);
   const handleJumpKeyPress = createKeyHandler(true);
 
-  useHotkeys(ARROW_KEYS.join(","), handleNormalKeyPress, { enabled, preventDefault: true }, [
-    mode,
-    onNavigate,
-  ]);
+  useHotkeys(ARROW_KEYS.join(","), handleNormalKeyPress, { enabled, preventDefault: true }, [onNavigate]);
 
-  useHotkeys(JUMP_KEYS.join(","), handleJumpKeyPress, { enabled, preventDefault: true }, [mode, onNavigate]);
+  useHotkeys(JUMP_KEYS.join(","), handleJumpKeyPress, { enabled, preventDefault: true }, [onNavigate]);
 
   return {
     handleKeyPress: handleNormalKeyPress,
