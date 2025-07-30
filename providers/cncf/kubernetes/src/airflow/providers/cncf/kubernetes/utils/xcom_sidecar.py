@@ -69,27 +69,23 @@ def add_xcom_sidecar(
     return pod_cp
 
 
-def add_sidecar_to_spark_operator_pod_spec(spec: dict, sidecar_container_image: str | None = None,
-                                           sidecar_container_resources: dict | None = None):
+def add_sidecar_to_spark_operator_pod_spec(
+    spec: dict, sidecar_container_image: str | None = None, sidecar_container_resources: dict | None = None
+):
     # The Spark Operator expects a custom SparkApplication object, which is different from the standard Kubernetes Pod model.
     driver_template = copy.deepcopy(spec)
     driver_template["volumes"] = [PodDefaults.VOLUME.to_dict()]
     driver_template["driver"]["volumeMounts"] = [
-        {
-            "name": PodDefaults.VOLUME_MOUNT_NAME,
-            "mountPath": PodDefaults.XCOM_MOUNT_PATH
-        }]
+        {"name": PodDefaults.VOLUME_MOUNT_NAME, "mountPath": PodDefaults.XCOM_MOUNT_PATH}
+    ]
     driver_template["driver"]["sidecars"] = [
         {
             "name": PodDefaults.SIDECAR_CONTAINER_NAME,
             "command": PodDefaults.XCOM_SIDECAR_COMMAND,
             "image": sidecar_container_image or PodDefaults.SIDECAR_CONTAINER.image,
             "volumeMounts": [
-                {
-                    "name": PodDefaults.VOLUME_MOUNT_NAME,
-                    "mountPath": PodDefaults.XCOM_MOUNT_PATH
-                }
-            ]
+                {"name": PodDefaults.VOLUME_MOUNT_NAME, "mountPath": PodDefaults.XCOM_MOUNT_PATH}
+            ],
         }
     ]
     if sidecar_container_resources:
