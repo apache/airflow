@@ -390,7 +390,7 @@ export type ClearTaskInstancesBody = {
     include_future?: boolean;
     include_past?: boolean;
     /**
-     * (Experimental) Run on the latest bundle version of the DAG after clearing the task instances.
+     * (Experimental) Run on the latest bundle version of the dag after clearing the task instances.
      */
     run_on_latest_version?: boolean;
 };
@@ -597,7 +597,7 @@ export type DAGRunClearBody = {
     dry_run?: boolean;
     only_failed?: boolean;
     /**
-     * (Experimental) Run on the latest bundle version of the DAG after clearing the DAG Run.
+     * (Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run.
      */
     run_on_latest_version?: boolean;
 };
@@ -5927,7 +5927,7 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/hitl-details/{dag_id}/{dag_run_id}/{task_id}': {
+    '/api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}': {
         patch: {
             req: UpdateHitlDetailData;
             res: {
@@ -5983,7 +5983,7 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/hitl-details/{dag_id}/{dag_run_id}/{task_id}/{map_index}': {
+    '/api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}/{map_index}': {
         patch: {
             req: UpdateMappedTiHitlDetailData;
             res: {
@@ -6039,7 +6039,7 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/hitl-details/': {
+    '/api/v2/hitlDetails/': {
         get: {
             req: GetHitlDetailsData;
             res: {

@@ -39,7 +39,6 @@ from airflow.api_fastapi.core_api.datamodels.dag_versions import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_dag
-from airflow.models.dag import DAG
 from airflow.models.dag_version import DagVersion
 
 dag_versions_router = AirflowRouter(tags=["DagVersion"], prefix="/dags/{dag_id}/dagVersions")
@@ -112,7 +111,7 @@ def get_dag_versions(
     query = select(DagVersion).options(joinedload(DagVersion.dag_model))
 
     if dag_id != "~":
-        dag: DAG = dag_bag.get_dag(dag_id)
+        dag = dag_bag.get_latest_version_of_dag(dag_id, session)
         if not dag:
             raise HTTPException(status.HTTP_404_NOT_FOUND, f"The DAG with dag_id: `{dag_id}` was not found")
 
