@@ -154,16 +154,7 @@ export const Grid = ({ limit }: Props) => {
       width="100%"
     >
       {Boolean(isGridFocused) && (
-        <Box
-          borderRadius="md"
-          color="gray.400"
-          fontSize="xs"
-          position="absolute"
-          px={0}
-          py={12}
-          top={0}
-          zIndex={10}
-        >
+        <Box borderRadius="md" color="gray.400" fontSize="xs" position="absolute" px={0} py={12} top={0}>
           <Text>{translate("navigation.navigation", { arrow: getArrowsForMode(mode) })}</Text>
           <Text>{translate("navigation.jump", { arrow: getArrowsForMode(mode) })}</Text>
         </Box>
