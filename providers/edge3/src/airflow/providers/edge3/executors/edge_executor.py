@@ -140,19 +140,41 @@ class EdgeExecutor(BaseExecutor):
         del self.edge_queued_tasks[key]
 
         self.validate_airflow_tasks_run_command(command)  # type: ignore[attr-defined]
-        session.add(
-            EdgeJobModel(
+
+        # Check if job already exists with same dag_id, task_id, run_id, map_index, try_number
+        existing_job = (
+            session.query(EdgeJobModel)
+            .filter_by(
                 dag_id=key.dag_id,
                 task_id=key.task_id,
                 run_id=key.run_id,
                 map_index=key.map_index,
                 try_number=key.try_number,
-                state=TaskInstanceState.QUEUED,
-                queue=queue or DEFAULT_QUEUE,
-                concurrency_slots=task_instance.pool_slots,
-                command=str(command),
             )
+            .first()
         )
+
+        if existing_job:
+            # self.log.info(f"EdgeExecutor: Job already exists for {key}, updating it.")
+            existing_job.state = TaskInstanceState.QUEUED
+            existing_job.queue = queue or DEFAULT_QUEUE
+            existing_job.concurrency_slots = task_instance.pool_slots
+            existing_job.command = str(command)
+        else:
+            session.add(
+                EdgeJobModel(
+                    dag_id=key.dag_id,
+                    task_id=key.task_id,
+                    run_id=key.run_id,
+                    map_index=key.map_index,
+                    try_number=key.try_number,
+                    state=TaskInstanceState.QUEUED,
+                    queue=queue or DEFAULT_QUEUE,
+                    concurrency_slots=task_instance.pool_slots,
+                    command=str(command),
+                )
+            )
+            # self.log.info(f"EdgeExecutor: Inserted new job for {key}")
 
     @provide_session
     def queue_workload(
@@ -168,19 +190,41 @@ class EdgeExecutor(BaseExecutor):
 
         task_instance = workload.ti
         key = task_instance.key
-        session.add(
-            EdgeJobModel(
+
+        # Check if job already exists with same dag_id, task_id, run_id, map_index, try_number
+        existing_job = (
+            session.query(EdgeJobModel)
+            .filter_by(
                 dag_id=key.dag_id,
                 task_id=key.task_id,
                 run_id=key.run_id,
                 map_index=key.map_index,
                 try_number=key.try_number,
-                state=TaskInstanceState.QUEUED,
-                queue=task_instance.queue,
-                concurrency_slots=task_instance.pool_slots,
-                command=workload.model_dump_json(),
             )
+            .first()
         )
+
+        if existing_job:
+            # self.log.info(f"EdgeExecutor: Workload already exists for {key}, updating it.")
+            existing_job.state = TaskInstanceState.QUEUED
+            existing_job.queue = task_instance.queue
+            existing_job.concurrency_slots = task_instance.pool_slots
+            existing_job.command = workload.model_dump_json()
+        else:
+            session.add(
+                EdgeJobModel(
+                    dag_id=key.dag_id,
+                    task_id=key.task_id,
+                    run_id=key.run_id,
+                    map_index=key.map_index,
+                    try_number=key.try_number,
+                    state=TaskInstanceState.QUEUED,
+                    queue=task_instance.queue,
+                    concurrency_slots=task_instance.pool_slots,
+                    command=workload.model_dump_json(),
+                )
+            )
+            # self.log.info(f"EdgeExecutor: Inserted new workload for {key}")
 
     def _check_worker_liveness(self, session: Session) -> bool:
         """Reset worker state if heartbeat timed out."""
