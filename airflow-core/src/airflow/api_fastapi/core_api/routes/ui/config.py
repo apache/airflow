@@ -20,7 +20,9 @@ from typing import Any
 
 from fastapi import Depends, status
 
+from airflow import plugins_manager
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.plugins import AppBuilderMenuItemResponse
 from airflow.api_fastapi.core_api.datamodels.ui.config import ConfigResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_authenticated
@@ -48,7 +50,7 @@ API_CONFIG_KEYS = [
 )
 def get_configs() -> ConfigResponse:
     """Get configs for UI."""
-    config = {key: conf.get("api", key) for key in API_CONFIG_KEYS}
+    config: dict[str, Any] = {key: conf.get("api", key) for key in API_CONFIG_KEYS}
 
     task_log_reader = TaskLogReader()
     additional_config: dict[str, Any] = {
@@ -60,5 +62,21 @@ def get_configs() -> ConfigResponse:
     }
 
     config.update({key: value for key, value in additional_config.items()})
+
+    # Get plugin menu items from the already initialized plugin manager
+    plugins_extra_menu_items: list[AppBuilderMenuItemResponse] = []
+
+    # Use flask_appbuilder_menu_links which contains the menu items
+    # The plugin manager should already be initialized at this point
+    if plugins_manager.flask_appbuilder_menu_links is not None:
+        for menu_link in plugins_manager.flask_appbuilder_menu_links:
+            menu_item = AppBuilderMenuItemResponse(
+                name=menu_link.get("name", ""),
+                href=menu_link.get("href", ""),
+                category=menu_link.get("category"),
+            )
+            plugins_extra_menu_items.append(menu_item)
+
+    config["plugins_extra_menu_items"] = plugins_extra_menu_items
 
     return ConfigResponse.model_validate(config)

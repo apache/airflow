@@ -19,6 +19,7 @@ from __future__ import annotations
 from pydantic import BaseModel
 
 from airflow.api_fastapi.common.types import UIAlert
+from airflow.api_fastapi.core_api.datamodels.plugins import AppBuilderMenuItemResponse
 
 
 class ConfigResponse(BaseModel):
@@ -35,3 +36,4 @@ class ConfigResponse(BaseModel):
     dashboard_alert: list[UIAlert]
     show_external_log_redirect: bool
     external_log_name: str | None = None
+    plugins_extra_menu_items: list[AppBuilderMenuItemResponse]

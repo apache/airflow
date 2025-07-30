@@ -21,7 +21,7 @@ import { useTranslation } from "react-i18next";
 import { FiChevronRight } from "react-icons/fi";
 import { LuPlug } from "react-icons/lu";
 
-import { usePluginServiceImportErrors } from "openapi/queries";
+import { useAuthLinksServiceGetAuthMenus, usePluginServiceImportErrors } from "openapi/queries";
 import { ErrorAlert, type ExpandedApiError } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
 
@@ -30,10 +30,22 @@ import { PluginImportErrorsModal } from "./PluginImportErrorsModal";
 export const PluginImportErrors = ({ iconOnly = false }: { readonly iconOnly?: boolean }) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { t: translate } = useTranslation("admin");
-  const { data, error, isLoading } = usePluginServiceImportErrors();
+  const { data: authLinks } = useAuthLinksServiceGetAuthMenus();
+
+  const canReadPlugins = authLinks?.authorized_menu_items.includes("Plugins");
+
+  const { data, error, isLoading } = usePluginServiceImportErrors(undefined, {
+    // When authLinks is loading, canReadPlugins is undefined, so !!canReadPlugins is false.
+    // This correctly disables the query until the auth check is complete and returns true.
+    enabled: Boolean(canReadPlugins),
+  });
 
   const importErrorsCount = data?.total_entries ?? 0;
   const importErrors = data?.import_errors ?? [];
+
+  if (!canReadPlugins) {
+    return null;
+  }
 
   if (isLoading) {
     return <Skeleton height="9" width="225px" />;

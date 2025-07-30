@@ -19,8 +19,8 @@
 import type { ReactNode } from "react";
 import { LuPlug } from "react-icons/lu";
 
-import { usePluginServiceGetPlugins } from "openapi/queries";
-import type { ExternalViewResponse, ReactAppResponse } from "openapi/requests/types.gen";
+import { useConfigServiceGetConfigs } from "openapi/queries";
+import type { AppBuilderMenuItemResponse } from "openapi/requests/types.gen";
 import { useColorMode } from "src/context/colorMode";
 
 type TabPlugin = {
@@ -31,36 +31,22 @@ type TabPlugin = {
 
 export const usePluginTabs = (destination: string): Array<TabPlugin> => {
   const { colorMode } = useColorMode();
-  const { data: pluginData } = usePluginServiceGetPlugins();
+  const { data: config } = useConfigServiceGetConfigs();
 
-  // Get external views with the specified destination and ensure they have url_route
   const externalViews =
-    pluginData?.plugins
-      .flatMap((plugin) => [...plugin.external_views, ...plugin.react_apps])
-      .filter(
-        (view: ExternalViewResponse | ReactAppResponse) =>
-          view.destination === destination && Boolean(view.url_route),
-      ) ?? [];
+    config?.plugins_extra_menu_items?.filter(
+      (item: AppBuilderMenuItemResponse) =>
+        item.category?.toLowerCase() === destination,
+    ) ?? [];
 
   return externalViews.map((view) => {
-    // Choose icon based on theme - prefer dark mode icon if available and in dark mode
-    let iconSrc = view.icon;
-
-    if (colorMode === "dark" && view.icon_dark_mode !== undefined && view.icon_dark_mode !== null) {
-      iconSrc = view.icon_dark_mode;
-    }
-
-    const icon =
-      iconSrc !== undefined && iconSrc !== null ? (
-        <img alt={view.name} src={iconSrc} style={{ height: "1rem", width: "1rem" }} />
-      ) : (
-        <LuPlug />
-      );
+    // an icon can be provided for menu items, but for now we will just use the default
+    const icon = <LuPlug />;
 
     return {
       icon,
       label: view.name,
-      value: `plugin/${view.url_route}`,
+      value: view.href,
     };
   });
 };
