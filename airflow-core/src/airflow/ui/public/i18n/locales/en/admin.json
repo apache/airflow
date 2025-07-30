@@ -1,19 +1,19 @@
 {
-  "columns":{
+  "columns": {
     "description": "Description",
     "key": "Key",
     "name": "Name",
     "value": "Value"
   },
-  "config":{
-    "columns":{
+  "config": {
+    "columns": {
       "section": "Section"
     },
     "title": "Airflow Configuration"
   },
-  "connections":{
-    "add":"Add Connection",
-    "columns":{
+  "connections": {
+    "add": "Add Connection",
+    "columns": {
       "connectionId": "Connection ID",
       "connectionType": "Connection Type",
       "host": "Host",
@@ -21,7 +21,7 @@
     },
     "connection_one": "Connection",
     "connection_other": "Connections",
-    "delete":{
+    "delete": {
       "deleteConnection_one": "Delete 1 connection",
       "deleteConnection_other": "Delete {{count}} connections",
       "firstConfirmMessage_one": "You are about to delete the following connection:",
@@ -29,7 +29,7 @@
       "title": "Delete Connection"
     },
     "edit": "Edit Connection",
-    "form":{
+    "form": {
       "connectionIdRequired": "Connection ID is required",
       "connectionIdRequirement": "Connection ID cannot contain only spaces",
       "connectionTypeRequired": "Connection Type is required",
@@ -39,7 +39,12 @@
       "selectConnectionType": "Select Connection Type",
       "standardFields": "Standard Fields"
     },
-    "noRowMessage": "No connections found",
+    "nothingFound": {
+      "description": "Connections defined via environment variables or secrets managers are not listed here.",
+      "documentationLink": "Learn more in the Airflow documentation.",
+      "learnMore": "These are resolved at runtime and are not visible in the UI.",
+      "title": "No connection found!"
+    },
     "searchPlaceholder": "Search Connections",
     "test": "Test Connection",
     "testDisabled": "Test connection feature is disabled. Please contact an administrator to enable it.",
@@ -55,9 +60,9 @@
       }
     }
   },
-  "deleteActions":{
+  "deleteActions": {
     "button": "Delete",
-    "modal":{
+    "modal": {
       "confirmButton": "Yes, Delete",
       "secondConfirmMessage": "This action is permanent and cannot be undone.",
       "thirdConfirmMessage": " Are you sure you want to proceed?"
@@ -65,7 +70,7 @@
     "selected": "Selected",
     "tooltip": "Delete selected connections"
   },
-  "formActions":{
+  "formActions": {
     "reset": "Reset",
     "save": "Save"
   },
@@ -80,7 +85,7 @@
   "pools": {
     "add": "Add Pool",
     "deferredSlotsIncluded": "Deferred Slots Included",
-    "delete":{
+    "delete": {
       "title": "Delete Pool",
       "warning": "This will remove all metadata related to the pool and may affect tasks using this pool."
     },
@@ -122,7 +127,7 @@
       "title": "Delete Variable",
       "tooltip": "Delete selected variables"
     },
-    "edit":  "Edit Variable",
+    "edit": "Edit Variable",
     "export": "Export",
     "exportTooltip": "Export selected variables",
     "form": {

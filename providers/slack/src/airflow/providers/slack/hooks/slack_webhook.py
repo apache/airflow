@@ -19,14 +19,15 @@ from __future__ import annotations
 
 import json
 import warnings
+from collections.abc import Callable
 from functools import cached_property, wraps
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from slack_sdk import WebhookClient
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
-from airflow.hooks.base import BaseHook
 from airflow.providers.slack.utils import ConnectionExtraConfig
+from airflow.providers.slack.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from slack_sdk.http_retry import RetryHandler

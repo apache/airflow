@@ -6,14 +6,21 @@
       "warning": "Diese Aktion löscht alle Metadaten zu diesem Dag mit allen Läufen und Task Instanzen."
     }
   },
+  "favoriteDag": "Dag als Favorit hinzufügen",
   "filters": {
     "allRunTypes": "Alle Arten von Läufen",
     "allStates": "Alle Stati",
+    "favorite": {
+      "all": "Alle",
+      "favorite": "Favorisierte",
+      "unfavorite": "Nicht favorisierte"
+    },
     "paused": {
       "active": "Aktiv",
       "all": "Alle",
       "paused": "Pausiert"
-    }
+    },
+    "runIdPatternFilter": "Dag Läufe suchen"
   },
   "ownerLink": "Besitzer Verlinkungen zu {{owner}}",
   "runAndTaskActions": {
@@ -23,7 +30,7 @@
     },
     "clear": {
       "button": "{{type}} zurücksetzen",
-      "buttonTooltip": "STRG+C zum Zurücksetzen tippen",
+      "buttonTooltip": "Umschalttaste+C zum Zurücksetzen tippen",
       "error": "Fehler beim Zurücksetzen von {{type}}",
       "title": "{{type}} bereinigen und neu planen"
     },
@@ -43,8 +50,8 @@
     "markAs": {
       "button": "{{type}} markieren...",
       "buttonTooltip": {
-        "failed": "STRG+F tippen um als fehlgeschlagen zu markieren",
-        "success": "STRG+S tippen um als erfolgreich zu markieren"
+        "failed": "Umschalttaste+F tippen um als fehlgeschlagen zu markieren",
+        "success": "Umschalttaste+S tippen um als erfolgreich zu markieren"
       },
       "title": "{{type}} auf den Status {{state}} setzen"
     },
@@ -83,5 +90,6 @@
       "desc": "Sortiert nach nächstem Laufdatum (Letzter-Erster)"
     },
     "placeholder": "Sortieren nach"
-  }
+  },
+  "unfavoriteDag": "Von den Favoriten entfernen"
 }

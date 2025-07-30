@@ -20,10 +20,13 @@ from __future__ import annotations
 import datetime
 import json
 import uuid
+from math import ceil
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import httpx
 import pytest
+from pydantic import BaseModel
 
 from airflowctl.api.client import Client, ClientKind
 from airflowctl.api.datamodels.auth_generated import LoginBody, LoginResponse
@@ -90,6 +93,7 @@ from airflowctl.api.datamodels.generated import (
     VariableResponse,
     VersionInfo,
 )
+from airflowctl.api.operations import BaseOperations
 from airflowctl.exceptions import AirflowCtlConnectionException
 
 if TYPE_CHECKING:
@@ -106,6 +110,15 @@ def make_api_client(
     return Client(base_url=base_url, transport=transport, token=token, kind=kind)
 
 
+class HelloResponse(BaseModel):
+    name: str
+
+
+class HelloCollectionResponse(BaseModel):
+    hellos: list[HelloResponse]
+    total_entries: int
+
+
 class TestBaseOperations:
     def test_server_connection_refused(self):
         client = make_api_client(base_url="http://localhost")
@@ -113,6 +126,70 @@ class TestBaseOperations:
             AirflowCtlConnectionException, match="Connection refused. Is the API server running?"
         ):
             client.connections.get("1")
+
+    @pytest.mark.parametrize(
+        "total_entries, limit, expected_response",
+        [
+            (1, 50, (HelloCollectionResponse(hellos=[HelloResponse(name="hello")], total_entries=1))),
+            (
+                150,
+                50,
+                (
+                    HelloCollectionResponse(
+                        hellos=[
+                            HelloResponse(name="hello"),
+                        ]
+                        * 150,
+                        total_entries=150,
+                    )
+                ),
+            ),
+            (
+                90,
+                50,
+                (HelloCollectionResponse(hellos=[HelloResponse(name="hello")] * 90, total_entries=90)),
+            ),
+        ],
+    )
+    def test_execute_list(self, total_entries, limit, expected_response):
+        get_response_mock = []
+
+        mock_client = Mock()
+        mock_client.get.side_effect = get_response_mock
+        base_operation = BaseOperations(client=mock_client)
+
+        nb_of_pages = ceil(total_entries / limit)
+        for page in range(nb_of_pages):
+            if page == nb_of_pages - 1 and (remaining_entries := total_entries % limit) > 0:
+                # partial page
+                get_response_mock.append(
+                    Mock(
+                        content=json.dumps(
+                            {
+                                "hellos": [{"name": "hello"}] * remaining_entries,
+                                "total_entries": total_entries,
+                            }
+                        )
+                    )
+                )
+                continue
+            # page is full
+            get_response_mock.append(
+                Mock(
+                    content=json.dumps(
+                        {
+                            "hellos": [{"name": "hello"}] * limit,
+                            "total_entries": total_entries,
+                        }
+                    )
+                )
+            )
+
+        response = base_operation.execute_list(
+            path="some_fake_path", data_model=HelloCollectionResponse, limit=limit
+        )
+
+        assert expected_response == response
 
 
 class TestAssetsOperations:
@@ -367,7 +444,7 @@ class TestBackfillOperations:
             return httpx.Response(200, json=json.loads(self.backfills_collection_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.backfills.list()
+        response = client.backfills.list(dag_id="dag_id")
         assert response == self.backfills_collection_response
 
     def test_pause(self):
@@ -487,9 +564,10 @@ class TestConnectionsOperations:
         ]
     )
 
-    connection_bulk_action_response = BulkActionResponse(
-        success=[connection_id],
-        errors=[],
+    connection_bulk_response = BulkResponse(
+        create=BulkActionResponse(success=[connection_id], errors=[]),
+        update=None,
+        delete=None,
     )
 
     def test_get(self):
@@ -522,13 +600,11 @@ class TestConnectionsOperations:
     def test_bulk(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/connections"
-            return httpx.Response(
-                200, json=json.loads(self.connection_bulk_action_response.model_dump_json())
-            )
+            return httpx.Response(200, json=json.loads(self.connection_bulk_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.bulk(connections=self.connection_bulk_body)
-        assert response == self.connection_bulk_action_response
+        assert response == self.connection_bulk_response
 
     def test_delete(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -954,9 +1030,10 @@ class TestPoolsOperations:
         pools=[pool_response],
         total_entries=1,
     )
-    pool_bulk_action_response = BulkActionResponse(
-        success=[pool_name],
-        errors=[],
+    pool_bulk_aresponse = BulkResponse(
+        create=BulkActionResponse(success=[pool_name], errors=[]),
+        update=None,
+        delete=None,
     )
 
     def test_get(self):
@@ -989,11 +1066,11 @@ class TestPoolsOperations:
     def test_bulk(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/pools"
-            return httpx.Response(200, json=json.loads(self.pool_bulk_action_response.model_dump_json()))
+            return httpx.Response(200, json=json.loads(self.pool_bulk_aresponse.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.pools.bulk(pools=self.pools_bulk_body)
-        assert response == self.pool_bulk_action_response
+        assert response == self.pool_bulk_aresponse
 
     def test_delete(self):
         def handle_request(request: httpx.Request) -> httpx.Response:

@@ -25,9 +25,6 @@ import pytest
 from airflow.models import Connection
 from airflow.providers.apache.kafka.operators.produce import ProduceToTopicOperator
 
-pytestmark = pytest.mark.db_test
-
-
 log = logging.getLogger(__name__)
 
 

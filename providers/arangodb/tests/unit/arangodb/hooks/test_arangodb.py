@@ -24,9 +24,6 @@ from arango.cursor import Cursor
 from airflow.models import Connection
 from airflow.providers.arangodb.hooks.arangodb import ArangoDBHook
 
-pytestmark = pytest.mark.db_test
-
-
 arangodb_client_mock = Mock(name="arangodb_client_for_test")
 
 

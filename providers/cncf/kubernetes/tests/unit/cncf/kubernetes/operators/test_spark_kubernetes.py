@@ -23,7 +23,7 @@ import json
 from datetime import date
 from functools import cached_property
 from unittest import mock
-from unittest.mock import patch
+from unittest.mock import mock_open, patch
 from uuid import uuid4
 
 import pendulum
@@ -32,9 +32,11 @@ import yaml
 from kubernetes.client import models as k8s
 
 from airflow import DAG
+from airflow.exceptions import TaskDeferred
 from airflow.models import Connection, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKubernetesOperator
 from airflow.providers.cncf.kubernetes.pod_generator import MAX_LABEL_LEN
+from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
@@ -209,7 +211,12 @@ def create_context(task):
             execution_date=logical_date,
             run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),
         )
-    task_instance = TaskInstance(task=task)
+    if AIRFLOW_V_3_0_PLUS:
+        from uuid6 import uuid7
+
+        task_instance = TaskInstance(task=task, dag_version_id=uuid7())
+    else:
+        task_instance = TaskInstance(task=task)
     task_instance.dag_run = dag_run
     task_instance.dag_id = dag.dag_id
     task_instance.xcom_push = mock.Mock()
@@ -222,7 +229,6 @@ def create_context(task):
     }
 
 
-@pytest.mark.db_test
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_requested_container_logs")
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
@@ -473,7 +479,6 @@ class TestSparkKubernetesOperatorCreateApplication:
         )
 
 
-@pytest.mark.db_test
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_requested_container_logs")
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
@@ -753,6 +758,41 @@ class TestSparkKubernetesOperator:
         label_selector = op._build_find_pod_label_selector(context) + ",spark-role=driver"
         op.find_spark_job(context)
         mock_get_kube_client.list_namespaced_pod.assert_called_with("default", label_selector=label_selector)
+
+    @pytest.mark.asyncio
+    def test_execute_deferrable(
+        self,
+        mock_create_namespaced_crd,
+        mock_get_namespaced_custom_object_status,
+        mock_cleanup,
+        mock_create_job_name,
+        mock_get_kube_client,
+        mock_create_pod,
+        mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
+        data_file,
+        mocker,
+    ):
+        task_name = "test_execute_deferrable"
+        job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+
+        mock_create_job_name.return_value = task_name
+        op = SparkKubernetesOperator(
+            template_spec=job_spec,
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            task_id=task_name,
+            get_logs=True,
+            deferrable=True,
+        )
+        context = create_context(op)
+
+        mock_file = mock_open(read_data='{"a": "b"}')
+        mocker.patch("builtins.open", mock_file)
+
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute(context)
+
+        assert isinstance(exc.value.trigger, KubernetesPodTrigger)
 
 
 @pytest.mark.db_test

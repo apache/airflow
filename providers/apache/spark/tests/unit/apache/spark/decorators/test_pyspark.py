@@ -21,7 +21,12 @@ from unittest import mock
 
 import pytest
 
-from airflow.decorators import task
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import task
+else:
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.models import Connection
 from airflow.utils import timezone
 
@@ -103,11 +108,11 @@ class TestPysparkDecorator:
             return [random.random() for _ in range(100)]
 
         with dag_maker():
-            ret = f()
+            f()
 
         dr = dag_maker.create_dagrun()
-        ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date)
         ti = dr.get_task_instances()[0]
+        ti.run()
         assert len(ti.xcom_pull()) == 100
         assert config.get("spark.master") == "spark://none"
         assert config.get("spark.executor.memory") == "2g"
@@ -130,11 +135,11 @@ class TestPysparkDecorator:
             return e
 
         with dag_maker():
-            ret = f()
+            f()
 
         dr = dag_maker.create_dagrun()
-        ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date)
         ti = dr.get_task_instances()[0]
+        ti.run()
         assert ti.xcom_pull() == e
         assert config.get("spark.master") == "local[*]"
         spark_mock.builder.config.assert_called_once_with(conf=conf_mock())
@@ -154,11 +159,11 @@ class TestPysparkDecorator:
             return True
 
         with dag_maker():
-            ret = f()
+            f()
 
         dr = dag_maker.create_dagrun()
-        ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date)
         ti = dr.get_task_instances()[0]
+        ti.run()
         assert ti.xcom_pull()
         assert config.get("spark.remote") == "sc://localhost"
         assert config.get("spark.master") is None
@@ -180,11 +185,11 @@ class TestPysparkDecorator:
             return True
 
         with dag_maker():
-            ret = f()
+            f()
 
         dr = dag_maker.create_dagrun()
-        ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date)
         ti = dr.get_task_instances()[0]
+        ti.run()
         assert ti.xcom_pull()
         assert config.get("spark.remote") == "sc://localhost/;user_id=connect;token=1234;use_ssl=True"
         assert config.get("spark.master") is None

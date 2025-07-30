@@ -19,11 +19,17 @@
       "host": "Host",
       "port": "Port"
     },
+    "connection_few": "Połączenia",
+    "connection_many": "Połączeń",
     "connection_one": "Połączenie",
     "connection_other": "Połączenia",
     "delete": {
+      "deleteConnection_few": "Usuń {{count}} połączenia",
+      "deleteConnection_many": "Usuń {{count}} połączeń",
       "deleteConnection_one": "Usuń 1 połączenie",
       "deleteConnection_other": "Usuń {{count}} połączenia",
+      "firstConfirmMessage_few": "Zamierzasz usunąć następujące połączenia:",
+      "firstConfirmMessage_many": "Zamierzasz usunąć następujące połączenia:",
       "firstConfirmMessage_one": "Zamierzasz usunąć następujące połączenie:",
       "firstConfirmMessage_other": "Zamierzasz usunąć następujące połączenia:",
       "title": "Usuń połączenie"
@@ -39,7 +45,12 @@
       "selectConnectionType": "Wybierz typ połączenia",
       "standardFields": "Standardowe pola"
     },
-    "noRowMessage": "Nie znaleziono połączeń",
+    "nothingFound": {
+      "description": "Połączenia zdefiniowane za pomocą zmiennych środowiskowych lub menedżerów sekretów nie są tutaj wyświetlane.",
+      "documentationLink": "Dowiedz się więcej w dokumentacji Airflow.",
+      "learnMore": "Są one rozwiązywane w czasie wykonywania i nie są widoczne w interfejsie użytkownika.",
+      "title": "Nie znaleziono połączeń!"
+    },
     "searchPlaceholder": "Szukaj połączeń",
     "test": "Test połączenia",
     "testDisabled": "Testowanie połączeń wyłączone. Skontaktuj się z administratorem, aby je włączyć.",
@@ -73,6 +84,8 @@
     "columns": {
       "source": "Źródło"
     },
+    "importError_few": "Błędy importu wtyczek",
+    "importError_many": "Błędów importu wtyczek",
     "importError_one": "Błąd importu wtyczki",
     "importError_other": "Błędy importu wtyczek",
     "searchPlaceholder": "Szukaj po pliku"
@@ -94,6 +107,8 @@
       "slots": "Miejsca"
     },
     "noPoolsFound": "Nie znaleziono pul",
+    "pool_few": "Pule",
+    "pool_many": "Puli",
     "pool_one": "Pula",
     "pool_other": "Pule",
     "searchPlaceholder": "Szukaj pul",
@@ -115,8 +130,12 @@
       "isEncrypted": "Zaszyfrowana"
     },
     "delete": {
+      "deleteVariable_few": "Usuń {{count}} zmienne",
+      "deleteVariable_many": "Usuń {{count}} zmiennych",
       "deleteVariable_one": "Usuń 1 zmienną",
       "deleteVariable_other": "Usuń {{count}} zmienne",
+      "firstConfirmMessage_few": "Zamierzasz usunąć następujące zmienne:",
+      "firstConfirmMessage_many": "Zamierzasz usunąć następujące zmienne:",
       "firstConfirmMessage_one": "Zamierzasz usunąć następującą zmienną:",
       "firstConfirmMessage_other": "Zamierzasz usunąć następujące zmienne:",
       "title": "Usuń zmienną",
@@ -155,6 +174,8 @@
     },
     "noRowsMessage": "Nie znaleziono zmiennych",
     "searchPlaceholder": "Szukaj kluczy",
+    "variable_few": "Zmienne",
+    "variable_many": "Zmiennych",
     "variable_one": "Zmienna",
     "variable_other": "Zmienne"
   }

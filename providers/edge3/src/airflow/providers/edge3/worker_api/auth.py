@@ -58,7 +58,7 @@ if AIRFLOW_V_3_0_PLUS:
 
 else:
     # Airflow 2.10 compatibility
-    from airflow.utils.jwt_signer import JWTSigner  # type: ignore
+    from airflow.utils.jwt_signer import JWTSigner
 
     @cache
     def jwt_signer() -> JWTSigner:

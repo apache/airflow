@@ -488,7 +488,7 @@ class CloudFunctionInvokeFunctionOperator(GoogleCloudBaseOperator):
             project_id=self.project_id,
         )
         self.log.info("Function called successfully. Execution id %s", result.get("executionId"))
-        self.xcom_push(context=context, key="execution_id", value=result.get("executionId"))
+        context["ti"].xcom_push(key="execution_id", value=result.get("executionId"))
 
         project_id = self.project_id or hook.project_id
         if project_id:

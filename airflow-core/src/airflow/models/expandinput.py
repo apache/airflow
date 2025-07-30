@@ -20,15 +20,16 @@ from __future__ import annotations
 import functools
 import operator
 from collections.abc import Iterable, Sized
-from typing import TYPE_CHECKING, Any, ClassVar, Union
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import attrs
 
 if TYPE_CHECKING:
+    from typing import TypeGuard
+
     from sqlalchemy.orm import Session
 
     from airflow.models.xcom_arg import SchedulerXComArg
-    from airflow.typing_compat import TypeGuard
 
 from airflow.sdk.definitions._internal.expandinput import (
     DictOfListsExpandInput,
@@ -138,7 +139,7 @@ _EXPAND_INPUT_TYPES: dict[str, type[SchedulerExpandInput]] = {
     "list-of-dicts": SchedulerListOfDictsExpandInput,
 }
 
-SchedulerExpandInput = Union[SchedulerDictOfListsExpandInput, SchedulerListOfDictsExpandInput]
+SchedulerExpandInput = SchedulerDictOfListsExpandInput | SchedulerListOfDictsExpandInput
 
 
 def create_expand_input(kind: str, value: Any) -> SchedulerExpandInput:

@@ -22,9 +22,6 @@ import pytest
 from airflow.models import Connection
 from airflow.providers.pagerduty.hooks.pagerduty import PagerdutyHook
 
-pytestmark = pytest.mark.db_test
-
-
 DEFAULT_CONN_ID = "pagerduty_default"
 
 

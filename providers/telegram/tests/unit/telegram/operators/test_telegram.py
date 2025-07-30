@@ -26,8 +26,6 @@ import airflow
 from airflow.models import Connection
 from airflow.providers.telegram.operators.telegram import TelegramOperator
 
-pytestmark = pytest.mark.db_test
-
 TELEGRAM_TOKEN = "xxx:xxx"
 
 

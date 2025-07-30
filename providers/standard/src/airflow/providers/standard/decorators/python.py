@@ -16,8 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING
 
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS

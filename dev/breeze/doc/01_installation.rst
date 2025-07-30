@@ -332,7 +332,7 @@ that Breeze works on
 
 .. warning:: Upgrading from earlier Python version
 
-    If you used Breeze with Python 3.8 and when running it, it will complain that it needs Python 3.9. In this
+    If you used Breeze with Python 3.8 and when running it, it will complain that it needs Python 3.10. In this
     case you should force-reinstall Breeze with ``uv`` (or ``pipx``):
 
         .. code-block:: bash
@@ -373,13 +373,13 @@ that Breeze works on
 
         .. code-block:: bash
 
-            uv tool install  --python 3.9.16 ./dev/breeze --force
+            uv tool install  --python 3.10.16 ./dev/breeze --force
 
         or
 
         .. code-block:: bash
 
-            pipx install -e ./dev/breeze --python /Users/airflow/.pyenv/versions/3.9.16/bin/python --force
+            pipx install -e ./dev/breeze --python /Users/airflow/.pyenv/versions/3.10.16/bin/python --force
 
 
 Running Breeze for the first time

@@ -27,8 +27,6 @@ from airflow.providers.apache.kafka.triggers.await_message import AwaitMessageTr
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, get_base_airflow_version_tuple
 
-pytestmark = pytest.mark.db_test
-
 
 def apply_function_false(message):
     return False

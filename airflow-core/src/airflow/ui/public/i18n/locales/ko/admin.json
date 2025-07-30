@@ -12,39 +12,44 @@
     "title": "Airflow 구성"
   },
   "connections": {
-    "add": "연결 추가",
+    "add": "커넥션 추가",
     "columns": {
-      "connectionId": "연결 ID",
-      "connectionType": "연결 유형",
+      "connectionId": "커넥션 ID",
+      "connectionType": "커넥션 유형",
       "host": "호스트",
       "port": "포트"
     },
-    "connection_one": "연결",
-    "connection_other": "연결들",
+    "connection_one": "커넥션",
+    "connection_other": "커넥션들",
     "delete": {
-      "deleteConnection_one": "연결 1개 삭제",
-      "deleteConnection_other": "연결 {{count}}개 삭제",
-      "firstConfirmMessage_one": "다음 연결을 삭제하려고 합니다:",
-      "firstConfirmMessage_other": "다음 연결들을 삭제하려고 합니다:",
-      "title": "연결 삭제"
+      "deleteConnection_one": "커넥션 1개 삭제",
+      "deleteConnection_other": "커넥션 {{count}}개 삭제",
+      "firstConfirmMessage_one": "다음 커넥션을 삭제하려고 합니다:",
+      "firstConfirmMessage_other": "다음 커넥션들을 삭제하려고 합니다:",
+      "title": "커넥션 삭제"
     },
-    "edit": "연결 편집",
+    "edit": "커넥션 편집",
     "form": {
-      "connectionIdRequired": "연결 ID는 필수 항목입니다",
-      "connectionIdRequirement": "연결 ID는 공백만으로 구성될 수 없습니다",
-      "connectionTypeRequired": "연결 유형은 필수 항목입니다",
+      "connectionIdRequired": "커넥션 ID는 필수 항목입니다",
+      "connectionIdRequirement": "커넥션 ID는 공백만으로 구성될 수 없습니다",
+      "connectionTypeRequired": "커넥션 유형은 필수 항목입니다",
       "extraFields": "추가 필드",
       "extraFieldsJson": "추가 필드 JSON",
-      "helperText": "연결 유형이 보이지 않나요? 해당 Airflow Provider 패키지가 설치되어 있는지 확인하세요.",
-      "selectConnectionType": "연결 유형 선택",
+      "helperText": "커넥션 유형이 보이지 않나요? 해당 Airflow Provider 패키지가 설치되어 있는지 확인하세요.",
+      "selectConnectionType": "커넥션 유형 선택",
       "standardFields": "기본 필드"
     },
-    "noRowMessage": "연결을 찾을 수 없습니다.",
-    "searchPlaceholder": "연결 검색",
-    "test": "연결 테스트",
-    "testDisabled": "연결 테스트 기능이 비활성화되어 있습니다. 관리자에게 활성화를 요청하세요.",
+    "nothingFound": {
+      "description": "환경 변수나 시크릿 매니저를 통해 정의된 커넥션은 여기에 표시되지 않습니다.",
+      "documentationLink": "자세한 내용은 Airflow 문서를 참고하세요.",
+      "learnMore": "이러한 커넥션은 런타임 시점에 해결되며 UI에는 표시되지 않습니다.",
+      "title": "커넥션을 찾을 수 없습니다."
+    },
+    "searchPlaceholder": "커넥션 검색",
+    "test": "커넥션 테스트",
+    "testDisabled": "커넥션 테스트 기능이 비활성화되어 있습니다. 관리자에게 활성화를 요청하세요.",
     "typeMeta": {
-      "error": "연결 유형 메타 정보를 가져오지 못했습니다",
+      "error": "커넥션 유형 메타 정보를 가져오지 못했습니다",
       "standardFields": {
         "description": "설명",
         "host": "호스트",
@@ -63,7 +68,7 @@
       "thirdConfirmMessage": "정말로 계속하시겠습니까?"
     },
     "selected": "선택됨",
-    "tooltip": "선택된 연결들 삭제"
+    "tooltip": "선택된 커넥션들 삭제"
   },
   "formActions": {
     "reset": "초기화",

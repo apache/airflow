@@ -26,9 +26,6 @@ from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
 from airflow.providers.apache.livy.sensors.livy import LivySensor
 from airflow.utils import timezone
 
-pytestmark = pytest.mark.db_test
-
-
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 

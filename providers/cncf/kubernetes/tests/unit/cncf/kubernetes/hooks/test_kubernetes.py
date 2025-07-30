@@ -31,15 +31,12 @@ import yaml
 from kubernetes.client import V1Deployment, V1DeploymentStatus
 from kubernetes.client.rest import ApiException
 from kubernetes.config import ConfigException
-from sqlalchemy.orm import make_transient
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
-from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook, KubernetesHook
-from airflow.utils.db import merge_conn
 
-from tests_common.test_utils.db import clear_db_connections
+from tests_common.test_utils.db import clear_test_connections
 from tests_common.test_utils.providers import get_provider_min_airflow_version
 
 pytestmark = pytest.mark.db_test
@@ -80,16 +77,18 @@ DEFAULT_CONN_ID = "kubernetes_default"
 
 
 @pytest.fixture
-def remove_default_conn(session):
-    before_conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).one_or_none()
-    if before_conn:
-        session.delete(before_conn)
-        session.commit()
+def remove_default_conn(monkeypatch):
+    original_env_var = os.environ.get(f"AIRFLOW_CONN_{DEFAULT_CONN_ID.upper()}")
+
+    # remove the env variable to simulate no default connection
+    if original_env_var:
+        monkeypatch.delenv(f"AIRFLOW_CONN_{DEFAULT_CONN_ID.upper()}")
+
     yield
-    if before_conn:
-        make_transient(before_conn)
-        session.add(before_conn)
-        session.commit()
+
+    # restore the original env variable
+    if original_env_var:
+        monkeypatch.setenv(f"AIRFLOW_CONN_{DEFAULT_CONN_ID.upper()}", original_env_var)
 
 
 class TestKubernetesHook:
@@ -139,7 +138,7 @@ class TestKubernetesHook:
 
     @classmethod
     def teardown_class(cls) -> None:
-        clear_db_connections()
+        clear_test_connections()
 
     @pytest.mark.parametrize(
         "in_cluster_param, conn_id, in_cluster_called",
@@ -440,8 +439,8 @@ class TestKubernetesHook:
 
     def test_missing_default_connection_is_ok(self, remove_default_conn):
         # prove to ourselves that the default conn doesn't exist
-        with pytest.raises(AirflowNotFoundException):
-            BaseHook.get_connection(DEFAULT_CONN_ID)
+        k8s_conn_exists = os.environ.get(f"AIRFLOW_CONN_{DEFAULT_CONN_ID.upper()}")
+        assert k8s_conn_exists is None
 
         # verify K8sHook still works
         hook = KubernetesHook()
@@ -840,9 +839,9 @@ class TestAsyncKubernetesHook:
 
     @staticmethod
     @pytest.fixture
-    def kubernetes_connection():
+    def kubernetes_connection(create_connection_without_db):
         extra = {"kube_config": '{"test": "kube"}'}
-        merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_type="kubernetes",
                 conn_id=CONN_ID,
@@ -850,7 +849,7 @@ class TestAsyncKubernetesHook:
             ),
         )
         yield
-        clear_db_connections()
+        clear_test_connections()
 
     @pytest.mark.asyncio
     @mock.patch(INCLUSTER_CONFIG_LOADER)
@@ -883,7 +882,29 @@ class TestAsyncKubernetesHook:
         await hook._load_config()
         assert not incluster_config.called
         assert hook._is_in_cluster is False
-        kube_config_loader.assert_called_once()
+        kube_config_loader.assert_called_once_with(
+            config_dict={"a": "b"}, config_base_path=None, active_context=None, temp_file_path=None
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch(INCLUSTER_CONFIG_LOADER)
+    @mock.patch(KUBE_CONFIG_MERGER)
+    async def test_load_config_with_config_dict_and_cluster_context(
+        self, kube_config_merger, incluster_config, kube_config_loader
+    ):
+        cluster_context = "some_kubernetes_cluster"
+        hook = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_dict={"a": "b"},
+            cluster_context=cluster_context,
+        )
+        await hook._load_config()
+        assert not incluster_config.called
+        assert hook._is_in_cluster is False
+        kube_config_loader.assert_called_once_with(
+            config_dict={"a": "b"}, config_base_path=None, active_context=cluster_context, temp_file_path=None
+        )
 
     @pytest.mark.asyncio
     @mock.patch(INCLUSTER_CONFIG_LOADER)
@@ -910,12 +931,12 @@ class TestAsyncKubernetesHook:
     @mock.patch(INCLUSTER_CONFIG_LOADER)
     @mock.patch(KUBE_CONFIG_MERGER)
     async def test_load_config_with_conn_id_kube_config_path(
-        self, kube_config_merger, incluster_config, kube_config_loader, tmp_path
+        self, kube_config_merger, incluster_config, kube_config_loader, tmp_path, create_connection_without_db
     ):
         file_name = f"{tmp_path}/config"
         extra = {"kube_config_path": file_name}
         try:
-            merge_conn(
+            create_connection_without_db(
                 Connection(
                     conn_type="kubernetes",
                     conn_id=CONN_ID,
@@ -937,7 +958,7 @@ class TestAsyncKubernetesHook:
         except:
             raise
         finally:
-            clear_db_connections()
+            clear_test_connections()
 
     @pytest.mark.asyncio
     @mock.patch(INCLUSTER_CONFIG_LOADER)

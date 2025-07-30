@@ -141,7 +141,6 @@ class TestFTPHook:
             assert msg == "Test"
 
 
-@pytest.mark.db_test
 class TestIntegrationFTPHook:
     @pytest.fixture(autouse=True)
     def setup_connections(self, create_connection_without_db):

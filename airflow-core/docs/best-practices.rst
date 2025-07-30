@@ -771,52 +771,28 @@ This is an example test want to verify the structure of a code-generated DAG aga
 
 .. code-block:: python
 
-    import datetime
-
     import pendulum
-    import pytest
 
     from airflow.sdk import DAG
-    from airflow.utils.state import DagRunState, TaskInstanceState
-    from airflow.utils.types import DagRunTriggeredByType, DagRunType
-
-    DATA_INTERVAL_START = pendulum.datetime(2021, 9, 13, tz="UTC")
-    DATA_INTERVAL_END = DATA_INTERVAL_START + datetime.timedelta(days=1)
-
-    TEST_DAG_ID = "my_custom_operator_dag"
-    TEST_TASK_ID = "my_custom_operator_task"
-    TEST_RUN_ID = "my_custom_operator_dag_run"
+    from airflow.utils.state import TaskInstanceState
 
 
-    @pytest.fixture()
-    def dag():
+    def test_my_custom_operator_execute_no_trigger(dag):
+        TEST_TASK_ID = "my_custom_operator_task"
         with DAG(
-            dag_id=TEST_DAG_ID,
+            dag_id="my_custom_operator_dag",
             schedule="@daily",
-            start_date=DATA_INTERVAL_START,
+            start_date=pendulum.datetime(2021, 9, 13, tz="UTC"),
         ) as dag:
             MyCustomOperator(
                 task_id=TEST_TASK_ID,
                 prefix="s3://bucket/some/prefix",
             )
-        return dag
 
-
-    def test_my_custom_operator_execute_no_trigger(dag):
-        dagrun = dag.create_dagrun(
-            run_id=TEST_RUN_ID,
-            logical_date=DATA_INTERVAL_START,
-            data_interval=(DATA_INTERVAL_START, DATA_INTERVAL_END),
-            run_type=DagRunType.MANUAL,
-            triggered_by=DagRunTriggeredByType.TIMETABLE,
-            state=DagRunState.RUNNING,
-            start_date=DATA_INTERVAL_END,
-        )
+        dagrun = dag.test()
         ti = dagrun.get_task_instance(task_id=TEST_TASK_ID)
-        ti.task = dag.get_task(task_id=TEST_TASK_ID)
-        ti.run(ignore_ti_state=True)
         assert ti.state == TaskInstanceState.SUCCESS
-        # Assert something related to tasks results.
+        # Assert something related to tasks results: ti.xcom_pull()
 
 
 Self-Checks
@@ -1010,7 +986,7 @@ There are certain limitations and overhead introduced by this operator:
   same worker might be affected by previous tasks creating/modifying files etc.
 
 You can see detailed examples of using :class:`airflow.providers.standard.operators.python.PythonVirtualenvOperator` in
-:ref:`this section in the Taskflow API tutorial <taskflow-dynamically-created-virtualenv>`.
+:ref:`this section in the TaskFlow API tutorial <taskflow-dynamically-created-virtualenv>`.
 
 
 Using ExternalPythonOperator
@@ -1078,7 +1054,7 @@ The nice thing about this is that you can switch the decorator back at any time 
 developing it "dynamically" with ``PythonVirtualenvOperator``.
 
 You can see detailed examples of using :class:`airflow.providers.standard.operators.python.ExternalPythonOperator` in
-:ref:`Taskflow External Python example <taskflow-external-python-environment>`
+:ref:`TaskFlow External Python example <taskflow-external-python-environment>`
 
 Using DockerOperator or Kubernetes Pod Operator
 -----------------------------------------------
@@ -1142,9 +1118,9 @@ The drawbacks:
   containers etc. in order to author a DAG that uses those operators.
 
 You can see detailed examples of using :class:`airflow.operators.providers.Docker` in
-:ref:`Taskflow Docker example <taskflow-docker_environment>`
+:ref:`TaskFlow Docker example <taskflow-docker_environment>`
 and :class:`airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator`
-:ref:`Taskflow Kubernetes example <tasfklow-kpo>`
+:ref:`TaskFlow Kubernetes example <tasfklow-kpo>`
 
 Using multiple Docker Images and Celery Queues
 ----------------------------------------------

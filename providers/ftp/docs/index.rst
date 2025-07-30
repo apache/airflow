@@ -84,7 +84,9 @@ apache-airflow-providers-ftp package
 `File Transfer Protocol (FTP) <https://tools.ietf.org/html/rfc114>`__
 
 
-Release: 3.13.0
+Release: 3.13.2
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------
@@ -136,5 +138,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-ftp 3.13.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ftp-3.13.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ftp-3.13.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ftp-3.13.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-ftp 3.13.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ftp-3.13.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ftp-3.13.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ftp-3.13.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-ftp 3.13.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ftp-3.13.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ftp-3.13.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ftp-3.13.2.tar.gz.sha512>`__)
+* `The apache-airflow-providers-ftp 3.13.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ftp-3.13.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ftp-3.13.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ftp-3.13.2-py3-none-any.whl.sha512>`__)

@@ -30,8 +30,6 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.providers.apache.kafka.triggers.msg_queue import KafkaMessageQueueTrigger
     from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
 
-pytestmark = pytest.mark.db_test
-
 
 def apply_function_false(message):
     return False

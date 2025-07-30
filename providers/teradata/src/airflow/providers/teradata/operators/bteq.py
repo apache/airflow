@@ -36,10 +36,10 @@ if TYPE_CHECKING:
     except ImportError:
         from airflow.utils.context import Context
 
-from airflow.models import BaseOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.teradata.hooks.bteq import BteqHook
 from airflow.providers.teradata.hooks.teradata import TeradataHook
+from airflow.providers.teradata.version_compat import BaseOperator
 
 
 def contains_template(parameter_value):
@@ -141,8 +141,6 @@ class BteqOperator(BaseOperator):
         elif self.bteq_script_encoding == "UTF16":
             self.temp_file_read_encoding = "UTF-16"
 
-        if not self.remote_working_dir:
-            self.remote_working_dir = "/tmp"
         # Handling execution on local:
         if not self._ssh_hook:
             if self.sql:

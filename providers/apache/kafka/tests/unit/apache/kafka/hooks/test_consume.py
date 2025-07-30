@@ -27,8 +27,6 @@ from airflow.models import Connection
 # Import Hook
 from airflow.providers.apache.kafka.hooks.consume import KafkaConsumerHook
 
-pytestmark = pytest.mark.db_test
-
 
 class TestConsumerHook:
     """

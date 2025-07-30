@@ -20,6 +20,67 @@
 Changelog
 ---------
 
+2.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove 'MENU' from 'ResourceMethod' in auth manager (#52731)``
+
+Misc
+~~~~
+
+* ``Fix FAB provider in unreachable code (#53436)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup mypy ignore for fab provider in init_jinja_globals (#53328)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Remove unused batch methods from auth manager (#52883)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 7 updates (#52807)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove extra slash from endpoint URL (#53755)``
+* ``Fix spelling of GitHub brand name (#53735)``
+* ``Clarify FAB auth provider versioning and webserver_config.py deprecation for Airflow 3.x (#53606)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Cleanup mypy ignore in fab provider where possible (#53282)``
+
+2.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``[AIP-68] Support pluginv2 views (#52582)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Set prefix to generate correctly the FAB Auth Manager API ref (#52329)``
+* ``Fix airflow pin for fab provider (#52351)``
+* ``Sanitize Username (#52419)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.9 (#52072)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 4 updates (#52108)``
+
+Doc-only
+~~~~~~~~
+
+* ``Enable LDAP users to generate an Airflow token with 'FabAuthManager' (#52295)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``remove pytest db_test marker where unnecessary (#52171)``
+
 2.2.1
 .....
 

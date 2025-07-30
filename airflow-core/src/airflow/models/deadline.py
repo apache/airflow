@@ -19,29 +19,68 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
+from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 import sqlalchemy_jsonfield
 import uuid6
-from sqlalchemy import Column, ForeignKey, Index, Integer, String, select
+from sqlalchemy import Column, ForeignKey, Index, Integer, String, and_, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import UUIDType
 
+from airflow._shared.timezones import timezone
+from airflow.models import Trigger
 from airflow.models.base import Base, StringID
 from airflow.settings import json
-from airflow.utils import timezone
-from airflow.utils.decorators import classproperty
+from airflow.triggers.deadline import PAYLOAD_STATUS_KEY, DeadlineCallbackTrigger
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from airflow.triggers.base import TriggerEvent
+
 
 logger = logging.getLogger(__name__)
+
+
+class classproperty:
+    """
+    Decorator that converts a method with a single cls argument into a property.
+
+    Mypy won't let us use both @property and @classmethod together, this is a workaround
+    to combine the two.
+
+    Usage:
+
+    class Circle:
+        def __init__(self, radius):
+            self.radius = radius
+
+        @classproperty
+        def pi(cls):
+            return 3.14159
+
+    print(Circle.pi)  # Outputs: 3.14159
+    """
+
+    def __init__(self, method):
+        self.method = method
+
+    def __get__(self, instance, cls=None):
+        return self.method(cls)
+
+
+class DeadlineCallbackState(str, Enum):
+    """All possible states of deadline callbacks."""
+
+    QUEUED = "queued"
+    SUCCESS = "success"
+    FAILED = "failed"
 
 
 class Deadline(Base):
@@ -61,10 +100,16 @@ class Deadline(Base):
     callback = Column(String(500), nullable=False)
     # Serialized kwargs to pass to the callback.
     callback_kwargs = Column(sqlalchemy_jsonfield.JSONField(json=json))
+    # The state of the deadline callback
+    callback_state = Column(String(20))
 
     dagrun = relationship("DagRun", back_populates="deadlines")
 
-    __table_args__ = (Index("deadline_time_idx", deadline_time, unique=False),)
+    # The Trigger where the callback is running
+    trigger_id = Column(Integer, ForeignKey("trigger.id"), nullable=True)
+    trigger = relationship("Trigger", back_populates="deadline")
+
+    __table_args__ = (Index("deadline_callback_state_time_idx", callback_state, deadline_time, unique=False),)
 
     def __init__(
         self,
@@ -100,9 +145,80 @@ class Deadline(Base):
 
     @classmethod
     @provide_session
-    def add_deadline(cls, deadline: Deadline, session: Session = NEW_SESSION):
-        """Add the provided deadline to the table."""
-        session.add(deadline)
+    def prune_deadlines(cls, *, session: Session, conditions: dict[Column, Any]) -> int:
+        """
+        Remove deadlines from the table which match the provided conditions and return the number removed.
+
+        NOTE: This should only be used to remove deadlines which are associated with
+            successful DagRuns. If the deadline was missed, it will be handled by the
+            scheduler.
+
+        :param conditions: Dictionary of conditions to evaluate against.
+        :param session: Session to use.
+        """
+        from airflow.models import DagRun  # Avoids circular import
+
+        # Assemble the filter conditions.
+        filter_conditions = [column == value for column, value in conditions.items()]
+        if not filter_conditions:
+            return 0
+
+        try:
+            # Get deadlines which match the provided conditions and their associated DagRuns.
+            deadline_dagrun_pairs = (
+                session.query(Deadline, DagRun).join(DagRun).filter(and_(*filter_conditions)).all()
+            )
+        except AttributeError as e:
+            logger.exception("Error resolving deadlines: %s", e)
+            raise
+
+        if not deadline_dagrun_pairs:
+            return 0
+
+        deleted_count = 0
+        dagruns_to_refresh = set()
+
+        for deadline, dagrun in deadline_dagrun_pairs:
+            if dagrun.end_date <= deadline.deadline_time:
+                # If the DagRun finished before the Deadline:
+                session.delete(deadline)
+                deleted_count += 1
+                dagruns_to_refresh.add(dagrun)
+        session.flush()
+
+        logger.debug("%d deadline records were deleted matching the conditions %s", deleted_count, conditions)
+
+        # Refresh any affected DAG runs.
+        for dagrun in dagruns_to_refresh:
+            session.refresh(dagrun)
+
+        return deleted_count
+
+    def handle_miss(self, session: Session):
+        """Handle a missed deadline by creating a trigger to run the callback."""
+        # TODO: check to see if the callback is meant to run in triggerer or executor. For now, the code below assumes it's for the triggerer
+        callback_trigger = DeadlineCallbackTrigger(
+            callback_path=self.callback,
+            callback_kwargs=self.callback_kwargs,
+        )
+
+        trigger_orm = Trigger.from_object(callback_trigger)
+        session.add(trigger_orm)
+        session.flush()
+        self.trigger_id = trigger_orm.id
+        self.callback_state = DeadlineCallbackState.QUEUED
+        session.add(self)
+
+    def handle_callback_event(self, event: TriggerEvent, session: Session):
+        if (status := event.payload.get(PAYLOAD_STATUS_KEY)) and status in {
+            DeadlineCallbackState.SUCCESS,
+            DeadlineCallbackState.FAILED,
+        }:
+            self.trigger = None
+            self.callback_state = event.payload[PAYLOAD_STATUS_KEY]
+            session.add(self)
+        else:
+            logger.error("Unexpected event received: %s", event.payload)
 
 
 class ReferenceModels:
@@ -143,7 +259,7 @@ class ReferenceModels:
         def reference_name(cls: Any) -> str:
             return cls.__name__
 
-        def evaluate_with(self, **kwargs: Any) -> datetime:
+        def evaluate_with(self, *, session: Session, interval: timedelta, **kwargs: Any) -> datetime:
             """Validate the provided kwargs and evaluate this deadline with the given conditions."""
             filtered_kwargs = {k: v for k, v in kwargs.items() if k in self.required_kwargs}
 
@@ -155,10 +271,10 @@ class ReferenceModels:
             if extra_kwargs := kwargs.keys() - filtered_kwargs.keys():
                 self.log.debug("Ignoring unexpected parameters: %s", ", ".join(extra_kwargs))
 
-            return self._evaluate_with(**filtered_kwargs)
+            return self._evaluate_with(session=session, **filtered_kwargs) + interval
 
         @abstractmethod
-        def _evaluate_with(self, **kwargs: Any) -> datetime:
+        def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime:
             """Must be implemented by subclasses to perform the actual evaluation."""
             raise NotImplementedError
 
@@ -192,7 +308,7 @@ class ReferenceModels:
 
         _datetime: datetime
 
-        def _evaluate_with(self, **kwargs: Any) -> datetime:
+        def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime:
             return self._datetime
 
         def serialize_reference(self) -> dict:
@@ -208,22 +324,23 @@ class ReferenceModels:
     class DagRunLogicalDateDeadline(BaseDeadlineReference):
         """A deadline that returns a DagRun's logical date."""
 
-        required_kwargs = {"dag_id"}
+        required_kwargs = {"dag_id", "run_id"}
 
-        def _evaluate_with(self, **kwargs: Any) -> datetime:
+        def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime:
             from airflow.models import DagRun
 
-            return _fetch_from_db(DagRun.logical_date, **kwargs)
+            return _fetch_from_db(DagRun.logical_date, session=session, **kwargs)
 
     class DagRunQueuedAtDeadline(BaseDeadlineReference):
         """A deadline that returns when a DagRun was queued."""
 
-        required_kwargs = {"dag_id"}
+        required_kwargs = {"dag_id", "run_id"}
 
-        def _evaluate_with(self, **kwargs: Any) -> datetime:
+        @provide_session
+        def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime:
             from airflow.models import DagRun
 
-            return _fetch_from_db(DagRun.queued_at, **kwargs)
+            return _fetch_from_db(DagRun.queued_at, session=session, **kwargs)
 
 
 DeadlineReferenceType = ReferenceModels.BaseDeadlineReference

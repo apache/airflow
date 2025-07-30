@@ -44,8 +44,16 @@ ANSWER = ""
 APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 
 # Checked before putting in build cache
-ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.9", "3.10", "3.11", "3.12"]
+ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13"]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
+# We set 3.12 as default image version until FAB supports Python 3.13
+DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES = "3.12"
+
+
+# Maps each supported Python version to the minimum Airflow version that supports it.
+# Used to filter Airflow versions incompatible with a given Python runtime.
+PYTHON_TO_MIN_AIRFLOW_MAPPING = {"3.10": "2.4.0"}
+
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 # Database Backends used when starting Breeze. The "none" value means that the configuration is invalid.
 # No database will be started - access to a database will fail.
@@ -56,14 +64,12 @@ NONE_BACKEND = "none"
 ALLOWED_BACKENDS = [SQLITE_BACKEND, MYSQL_BACKEND, POSTGRES_BACKEND, NONE_BACKEND]
 ALLOWED_PROD_BACKENDS = [MYSQL_BACKEND, POSTGRES_BACKEND]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
-TESTABLE_CORE_INTEGRATIONS = [
-    "kerberos",
-]
+TESTABLE_CORE_INTEGRATIONS = ["kerberos", "redis"]
 TESTABLE_PROVIDERS_INTEGRATIONS = [
     "celery",
     "cassandra",
     "drill",
-    "gremlin",
+    "tinkerpop",
     "kafka",
     "mongo",
     "mssql",
@@ -194,7 +200,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "25.1.1"
-UV_VERSION = "0.7.8"
+UV_VERSION = "0.8.3"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -206,6 +212,11 @@ REGULAR_DOC_PACKAGES = [
     "helm-chart",
     "apache-airflow-providers",
     "task-sdk",
+]
+
+DESTINATION_LOCATIONS = [
+    "s3://live-docs-airflow-apache-org/docs/",
+    "s3://staging-docs-airflow-apache-org/docs/",
 ]
 
 
@@ -248,6 +259,7 @@ class GroupOfTests(Enum):
     CORE = "core"
     PROVIDERS = "providers"
     TASK_SDK = "task-sdk"
+    TASK_SDK_INTEGRATION = "task-sdk-integration"
     CTL = "airflow-ctl"
     HELM = "helm"
     INTEGRATION_CORE = "integration-core"
@@ -283,6 +295,7 @@ ALLOWED_TEST_TYPE_CHOICES: dict[GroupOfTests, list[str]] = {
     GroupOfTests.CORE: [*ALL_TEST_SUITES.keys(), *all_selective_core_test_types()],
     GroupOfTests.PROVIDERS: [*ALL_TEST_SUITES.keys()],
     GroupOfTests.TASK_SDK: [ALL_TEST_TYPE],
+    GroupOfTests.TASK_SDK_INTEGRATION: [ALL_TEST_TYPE],
     GroupOfTests.HELM: [ALL_TEST_TYPE, *all_helm_test_packages()],
     GroupOfTests.CTL: [ALL_TEST_TYPE],
 }
@@ -339,7 +352,7 @@ ALLOWED_PLATFORMS = [*SINGLE_PLATFORMS, MULTI_PLATFORM]
 
 ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
 
-ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
+ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
 
 
 def normalize_platform_machine(platform_machine: str) -> str:
@@ -370,6 +383,13 @@ REDIS_HOST_PORT = "26379"
 SSH_PORT = "12322"
 VITE_DEV_PORT = "5173"
 WEB_HOST_PORT = "28080"
+BREEZE_DEBUG_SCHEDULER_PORT = "50231"
+BREEZE_DEBUG_DAG_PROCESSOR_PORT = "50232"
+BREEZE_DEBUG_TRIGGERER_PORT = "50233"
+BREEZE_DEBUG_APISERVER_PORT = "50234"
+BREEZE_DEBUG_CELERY_WORKER_PORT = "50235"
+BREEZE_DEBUG_EDGE_PORT = "50236"
+BREEZE_DEBUG_WEBSERVER_PORT = "50237"
 
 CELERY_BROKER_URLS_MAP = {"rabbitmq": "amqp://guest:guest@rabbitmq:5672", "redis": "redis://redis:6379/0"}
 SQLITE_URL = "sqlite:////root/airflow/sqlite/airflow.db"
@@ -379,7 +399,7 @@ PRODUCTION_IMAGE = False
 # All python versions include all past python versions available in previous branches
 # Even if we remove them from the main version. This is needed to make sure we can cherry-pick
 # changes from main to the previous branch.
-ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.9", "3.10", "3.11", "3.12"]
+ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13"]
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ALL_PYTHON_MAJOR_MINOR_VERSIONS
 CURRENT_POSTGRES_VERSIONS = ["13", "14", "15", "16", "17"]
 DEFAULT_POSTGRES_VERSION = CURRENT_POSTGRES_VERSIONS[0]
@@ -680,6 +700,7 @@ NUM_RUNS = ""
 
 MIN_DOCKER_VERSION = "24.0.0"
 MIN_DOCKER_COMPOSE_VERSION = "2.20.2"
+MIN_GH_VERSION = "2.70.0"
 
 AIRFLOW_SOURCES_FROM = "."
 AIRFLOW_SOURCES_TO = "/opt/airflow"
@@ -724,24 +745,34 @@ DEFAULT_EXTRAS = [
 
 PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
-        "python-version": "3.9",
+        "python-version": "3.10",
         "airflow-version": "2.10.5",
-        "remove-providers": "cloudant common.messaging fab git keycloak",
+        "remove-providers": "common.messaging fab git keycloak",
         "run-tests": "true",
     },
     {
-        "python-version": "3.9",
+        "python-version": "3.10",
         "airflow-version": "2.11.0",
-        "remove-providers": "cloudant common.messaging fab git keycloak",
+        "remove-providers": "common.messaging fab git keycloak",
         "run-tests": "true",
     },
     {
-        "python-version": "3.9",
-        "airflow-version": "3.0.2",
-        "remove-providers": "cloudant",
+        "python-version": "3.10",
+        "airflow-version": "3.0.3",
+        "remove-providers": "",
         "run-tests": "true",
     },
 ]
+
+ALL_PYTHON_VERSION_TO_PATCH_VERSION: dict[str, str] = {
+    "3.6": "v3.6.15",
+    "3.7": "v3.7.17",
+    "3.8": "v3.8.20",
+    "3.9": "v3.9.23",
+    "3.10": "v3.10.18",
+    "3.11": "v3.11.13",
+    "3.12": "v3.12.11",
+}
 
 # Number of slices for low dep tests
 NUMBER_OF_LOW_DEP_SLICES = 5

@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any
 import pagerduty
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+from airflow.providers.pagerduty.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -61,17 +61,19 @@ class PagerdutyEventsHook(BaseHook):
         self, integration_key: str | None = None, pagerduty_events_conn_id: str | None = None
     ) -> None:
         super().__init__()
-        self.integration_key = None
+        self.integration_key = ""
         self._client = None
 
         if pagerduty_events_conn_id is not None:
             conn = self.get_connection(pagerduty_events_conn_id)
-            self.integration_key = conn.get_password()
+            password = conn.password
+            if password is not None:
+                self.integration_key = password
 
         if integration_key is not None:  # token takes higher priority
             self.integration_key = integration_key
 
-        if self.integration_key is None:
+        if self.integration_key == "":
             raise AirflowException(
                 "Cannot get token: No valid integration key nor pagerduty_events_conn_id supplied."
             )
@@ -89,7 +91,7 @@ class PagerdutyEventsHook(BaseHook):
         class_type: str | None = None,
         images: list[Any] | None = None,
         links: list[Any] | None = None,
-    ) -> dict:
+    ) -> str:
         """
         Create event for service integration.
 
@@ -193,7 +195,7 @@ class PagerdutyEventsHook(BaseHook):
         custom_details: Any | None = None,
         timestamp: datetime | None = None,
         links: list[Any] | None = None,
-    ) -> dict:
+    ) -> str:
         """
         Create change event for service integration.
 

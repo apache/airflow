@@ -17,11 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any
 
-from airflow.models import BaseOperator
 from airflow.providers.grpc.hooks.grpc import GrpcHook
+from airflow.providers.grpc.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     try:

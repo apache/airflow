@@ -26,7 +26,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const i18nNamespace = "i18n";
-
 /**
  * Extract all nested keys from translation object
  * @param {Record<string, any>} obj
@@ -167,8 +166,6 @@ export const i18nRules = {
     [i18nNamespace]: i18nPlugin,
   },
   rules: {
-    "@typescript-eslint/no-unused-expressions": "off",
     [`${i18nNamespace}/check-translation-completeness`]: "warn",
-    "no-unused-expressions": "off",
   },
 };

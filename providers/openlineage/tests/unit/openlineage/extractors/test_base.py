@@ -24,7 +24,13 @@ from attrs import Factory, define, field
 from openlineage.client.event_v2 import Dataset
 from openlineage.client.facet_v2 import BaseFacet, JobFacet, parent_run, sql_job
 
-from airflow.models.baseoperator import BaseOperator
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseOperator
+else:
+    from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
+
 from airflow.models.taskinstance import TaskInstanceState
 from airflow.providers.openlineage.extractors.base import (
     BaseExtractor,
@@ -38,7 +44,7 @@ from tests_common.test_utils.compat import PythonOperator
 
 if TYPE_CHECKING:
     from openlineage.client.facet_v2 import RunFacet
-pytestmark = pytest.mark.db_test
+
 
 INPUTS = [Dataset(namespace="database://host:port", name="inputtable")]
 OUTPUTS = [Dataset(namespace="database://host:port", name="inputtable")]
@@ -205,7 +211,7 @@ class OperatorDifferentOperatorLineageClass(BaseOperator):
             job_facets: dict[str, BaseFacet] = Factory(dict)
             some_other_param: dict = Factory(dict)
 
-        return DifferentOperatorLineage(  # type: ignore
+        return DifferentOperatorLineage(
             name="unused",
             inputs=INPUTS,
             outputs=OUTPUTS,
@@ -226,7 +232,7 @@ class OperatorWrongOperatorLineageClass(BaseOperator):
             outputs: list[Dataset] = Factory(list)
             some_other_param: dict = Factory(dict)
 
-        return WrongOperatorLineage(  # type: ignore
+        return WrongOperatorLineage(
             inputs=INPUTS,
             outputs=OUTPUTS,
             some_other_param={"asdf": "fdsa"},

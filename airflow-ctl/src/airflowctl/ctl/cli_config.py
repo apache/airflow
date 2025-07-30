@@ -22,21 +22,23 @@ from __future__ import annotations
 
 import argparse
 import ast
+import datetime
 import getpass
 import inspect
 import os
-import textwrap
 from argparse import Namespace
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from functools import partial
 from pathlib import Path
-from typing import Any, Callable, NamedTuple, Union
+from typing import Any, NamedTuple
 
+import httpx
 import rich
 
 import airflowctl.api.datamodels.generated as generated_datamodels
 from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, provide_api_client
 from airflowctl.api.operations import BaseOperations, ServerResponseError
+from airflowctl.ctl.console_formatting import AirflowConsole
 from airflowctl.exceptions import (
     AirflowCtlConnectionException,
     AirflowCtlCredentialNotFoundException,
@@ -61,14 +63,31 @@ def lazy_load_command(import_path: str) -> Callable:
 
 
 def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
+    import sys
+
     try:
         function(args)
     except AirflowCtlCredentialNotFoundException as e:
         rich.print(f"command failed due to {e}")
+        sys.exit(1)
     except AirflowCtlConnectionException as e:
         rich.print(f"command failed due to {e}")
+        sys.exit(1)
     except AirflowCtlNotFoundException as e:
         rich.print(f"command failed due to {e}")
+        sys.exit(1)
+    except httpx.RemoteProtocolError as e:
+        if "Server disconnected without sending a response." in str(e):
+            rich.print(
+                f"[red]Server response error: {e}. "
+                "Please check if the server is running and the API URL is correct.[/red]"
+            )
+    except httpx.ReadTimeout as e:
+        if "timed out" in str(e):
+            rich.print(
+                f"[red]Request timed out: {e}. "
+                "Please check if the server is running and the API ready to accept calls.[/red]"
+            )
 
 
 class DefaultHelpParser(argparse.ArgumentParser):
@@ -164,6 +183,25 @@ class Password(argparse.Action):
         setattr(namespace, self.dest, values)
 
 
+# Common Positional Arguments
+ARG_FILE = Arg(
+    flags=("file",),
+    metavar="FILEPATH",
+    help="File path to read from or write to. "
+    "For import commands, it is a file to read from. For export commands, it is a file to write to.",
+)
+ARG_OUTPUT = Arg(
+    (
+        "--output",
+        "-o",
+    ),
+    help="Output format. Allowed values: json, yaml, plain, table (default: json)",
+    metavar="(table, json, yaml, plain)",
+    choices=("table", "json", "yaml", "plain"),
+    default="json",
+    type=str,
+)
+
 # Authentication arguments
 ARG_AUTH_URL = Arg(
     flags=("--api-url",),
@@ -198,56 +236,14 @@ ARG_AUTH_PASSWORD = Arg(
     action=Password,
     nargs="?",
 )
-ARG_VARIABLE_IMPORT = Arg(
-    flags=("file",),
-    metavar="file",
-    help="Import variables from JSON file",
-)
+
+# Variable Commands Args
 ARG_VARIABLE_ACTION_ON_EXISTING_KEY = Arg(
     flags=("-a", "--action-on-existing-key"),
     type=str,
     default="overwrite",
     help="Action to take if we encounter a variable key that already exists.",
     choices=("overwrite", "fail", "skip"),
-)
-ARG_VARIABLE_EXPORT = Arg(
-    flags=("file",),
-    metavar="file",
-    help="Export all variables to JSON file",
-)
-
-ARG_OUTPUT = Arg(
-    flags=("-o", "--output"),
-    type=str,
-    default="json",
-    help="Output format. Only json format is supported (default: json)",
-)
-
-# Pool Commands Args
-ARG_POOL_FILE = Arg(
-    ("file",),
-    metavar="FILEPATH",
-    help="Pools JSON file. Example format::\n"
-    + textwrap.indent(
-        textwrap.dedent(
-            """
-            [
-                {
-                    "name": "pool_1",
-                    "slots": 5,
-                    "description": "",
-                    "include_deferred": true,
-                    "occupied_slots": 0,
-                    "running_slots": 0,
-                    "queued_slots": 0,
-                    "scheduled_slots": 0,
-                    "open_slots": 5,
-                    "deferred_slots": 0
-                }
-            ]"""
-        ),
-        " " * 4,
-    ),
 )
 
 # Config arguments
@@ -330,7 +326,7 @@ class GroupCommandParser(NamedTuple):
         )
 
 
-CLICommand = Union[ActionCommand, GroupCommand, GroupCommandParser]
+CLICommand = ActionCommand | GroupCommand | GroupCommandParser
 
 
 class CommandFactory:
@@ -342,6 +338,7 @@ class CommandFactory:
     func_map: dict[tuple, Callable]
     commands_map: dict[str, list[ActionCommand]]
     group_commands_list: list[CLICommand]
+    ouput_command_list: list[str]
 
     def __init__(self, file_path: str | Path | None = None):
         self.datamodels_extended_map = {}
@@ -353,6 +350,8 @@ class CommandFactory:
         self.file_path = inspect.getfile(BaseOperations) if file_path is None else file_path
         # Exclude parameters that are not needed for CLI from datamodels
         self.excluded_parameters = ["schema_"]
+        # This list is used to determine if the command/operation needs to output data
+        self.output_command_list = ["list", "get", "create", "delete"]
 
     def _inspect_operations(self) -> None:
         """Parse file and return matching Operation Method with details."""
@@ -432,6 +431,33 @@ class CommandFactory:
         return type_name in primitive_types
 
     @staticmethod
+    def _python_type_from_string(type_name: str) -> type:
+        """
+        Return the corresponding Python *type* for a primitive type name string.
+
+        This helper is used when generating ``argparse`` CLI arguments from the
+        OpenAPI-derived operation signatures. Without this mapping the CLI would
+        incorrectly assume every primitive parameter is a *string*, potentially
+        leading to type errors or unexpected behaviour when invoking the REST
+        API.
+        """
+        mapping: dict[str, type] = {
+            "int": int,
+            "float": float,
+            "bool": bool,
+            "str": str,
+            "bytes": bytes,
+            "list": list,
+            "dict": dict,
+            "tuple": tuple,
+            "set": set,
+            "datetime.datetime": datetime.datetime,
+        }
+        # Default to ``str`` to preserve previous behaviour for any unrecognised
+        # type names while still allowing the CLI to function.
+        return mapping.get(type_name, str)
+
+    @staticmethod
     def _create_arg(
         arg_flags: tuple,
         arg_type: type,
@@ -497,15 +523,15 @@ class CommandFactory:
             for parameter in operation.get("parameters"):
                 for parameter_key, parameter_type in parameter.items():
                     if self._is_primitive_type(type_name=parameter_type):
+                        python_type = self._python_type_from_string(parameter_type)
+                        is_bool = parameter_type == "bool"
                         args.append(
                             self._create_arg(
                                 arg_flags=("--" + self._sanitize_arg_parameter_key(parameter_key),),
-                                arg_type=type(parameter_type),
-                                arg_action=argparse.BooleanOptionalAction
-                                if type(parameter_type) is bool
-                                else None,
+                                arg_type=None if is_bool else python_type,
+                                arg_action=argparse.BooleanOptionalAction if is_bool else None,
                                 arg_help=f"{parameter_key} for {operation.get('name')} operation in {operation.get('parent').name}",
-                                arg_default=False if type(parameter_type) is bool else None,
+                                arg_default=False if is_bool else None,
                             )
                         )
                     else:
@@ -514,6 +540,10 @@ class CommandFactory:
                                 parameter_type=parameter_type, parameter_key=parameter_key
                             )
                         )
+
+            if any(operation.get("name").startswith(cmd) for cmd in self.output_command_list):
+                args.extend([ARG_OUTPUT])
+
             self.args_map[(operation.get("name"), operation.get("parent").name)] = args
 
     def _create_func_map_from_operation(self):
@@ -550,9 +580,44 @@ class CommandFactory:
 
             if datamodel:
                 method_params = datamodel.model_validate(method_params)
-                rich.print(operation_method_object(method_params))
+                method_output = operation_method_object(method_params)
             else:
-                rich.print(operation_method_object(**method_params))
+                method_output = operation_method_object(**method_params)
+
+            def convert_to_dict(obj: Any, api_operation_name: str) -> dict | Any:
+                """Recursively convert an object to a dictionary or list of dictionaries."""
+                if hasattr(obj, "model_dump"):
+                    return obj.model_dump(mode="json")
+                # Handle delete operation which returns a string of the deleted entity name
+                if isinstance(obj, str):
+                    return {"operation": api_operation_name, "entity": obj}
+                return obj
+
+            def check_operation_and_collect_list_of_dict(dict_obj: dict) -> list:
+                """Check if the object is a nested dictionary and collect list of dictionaries."""
+
+                def is_dict_nested(obj: dict) -> bool:
+                    """Check if the object is a nested dictionary."""
+                    return any(isinstance(i, dict) or isinstance(i, list) for i in obj.values())
+
+                # Find result from list operation
+                if is_dict_nested(dict_obj):
+                    for _, value in dict_obj.items():
+                        if isinstance(value, list):
+                            return value
+                        if isinstance(value, dict):
+                            result = check_operation_and_collect_list_of_dict(value)
+                            if result:
+                                return result
+                # If not nested, return the object as a list which the result should be already a dict
+                return [dict_obj]
+
+            AirflowConsole().print_as(
+                data=check_operation_and_collect_list_of_dict(
+                    convert_to_dict(method_output, api_operation["name"])
+                ),
+                output=args.output,
+            )
 
         for operation in self.operations:
             self.func_map[(operation.get("name"), operation.get("parent").name)] = partial(
@@ -662,24 +727,6 @@ AUTH_COMMANDS = (
     ),
 )
 
-POOL_COMMANDS = (
-    ActionCommand(
-        name="import",
-        help="Import pools",
-        func=lazy_load_command("airflowctl.ctl.commands.pool_command.import_"),
-        args=(ARG_POOL_FILE,),
-    ),
-    ActionCommand(
-        name="export",
-        help="Export all pools",
-        func=lazy_load_command("airflowctl.ctl.commands.pool_command.export"),
-        args=(
-            ARG_POOL_FILE,
-            ARG_OUTPUT,
-        ),
-    ),
-)
-
 CONFIG_COMMANDS = (
     ActionCommand(
         name="lint",
@@ -696,18 +743,51 @@ CONFIG_COMMANDS = (
     ),
 )
 
+CONNECTION_COMMANDS = (
+    ActionCommand(
+        name="import",
+        help="Import connections",
+        func=lazy_load_command("airflowctl.ctl.commands.connection_command.import_"),
+        args=(Arg(flags=("file",), metavar="FILEPATH", help="Connections JSON file"),),
+    ),
+    ActionCommand(
+        name="export",
+        help="Export all connections",
+        func=lazy_load_command("airflowctl.ctl.commands.connection_command.export"),
+        args=(ARG_FILE,),
+    ),
+)
+
+POOL_COMMANDS = (
+    ActionCommand(
+        name="import",
+        help="Import pools",
+        func=lazy_load_command("airflowctl.ctl.commands.pool_command.import_"),
+        args=(ARG_FILE,),
+    ),
+    ActionCommand(
+        name="export",
+        help="Export all pools",
+        func=lazy_load_command("airflowctl.ctl.commands.pool_command.export"),
+        args=(
+            ARG_FILE,
+            ARG_OUTPUT,
+        ),
+    ),
+)
+
 VARIABLE_COMMANDS = (
     ActionCommand(
         name="import",
         help="Import variables",
         func=lazy_load_command("airflowctl.ctl.commands.variable_command.import_"),
-        args=(ARG_VARIABLE_IMPORT, ARG_VARIABLE_ACTION_ON_EXISTING_KEY),
+        args=(ARG_FILE, ARG_VARIABLE_ACTION_ON_EXISTING_KEY),
     ),
     ActionCommand(
         name="export",
         help="Export all variables",
         func=lazy_load_command("airflowctl.ctl.commands.variable_command.export"),
-        args=(ARG_VARIABLE_EXPORT,),
+        args=(ARG_FILE,),
     ),
 )
 
@@ -717,6 +797,16 @@ core_commands: list[CLICommand] = [
         help="Manage authentication for CLI. "
         "Either pass token from environment variable/parameter or pass username and password.",
         subcommands=AUTH_COMMANDS,
+    ),
+    GroupCommand(
+        name="config",
+        help="View, lint and update configurations.",
+        subcommands=CONFIG_COMMANDS,
+    ),
+    GroupCommand(
+        name="connections",
+        help="Manage Airflow connections",
+        subcommands=CONNECTION_COMMANDS,
     ),
     GroupCommand(
         name="pools",
@@ -734,11 +824,6 @@ core_commands: list[CLICommand] = [
         name="variables",
         help="Manage Airflow variables",
         subcommands=VARIABLE_COMMANDS,
-    ),
-    GroupCommand(
-        name="config",
-        help="View, lint and update configurations.",
-        subcommands=CONFIG_COMMANDS,
     ),
 ]
 # Add generated group commands

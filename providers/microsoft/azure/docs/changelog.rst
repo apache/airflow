@@ -27,6 +27,78 @@
 Changelog
 ---------
 
+12.6.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add support for custom Azure Blob endpoint domain in ADLS connection and updated document (#53521)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Resolve OOM When Reading Large Logs in Webserver (#49470)``
+
+Misc
+~~~~
+
+* ``Set up process for sharing code between different components (#53149)``
+* ``Deprecate decorators from Core (#53629)``
+* ``Bump mypy to 1.17.0 (#53523)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Bumping min version of azure-storage-blob to 12.26.0 (#53440)``
+* ``Remove 'airflow.utils.xcom' module and add backcompat shim (#53187)``
+* ``Cleanup type ignores in 4 microsoft providers where possible (#53312)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Import XCOM_RETURN_KEY in providers from task SDK (#53180)``
+* ``Replace usages of XCOM_RETURN_KEY in providers to not be from utils (#53170)``
+* ``Make microsoft azure provider compatible with mypy 1.16.1 (#53107)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Replace BaseHook to Task SDK for microsoft azure (#52821)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make dag_version_id in TI non-nullable (#50825)``
+
+12.5.0
+......
+
+Features
+~~~~~~~~
+
+* ``feat: added 'request_body' support in the 'PowerBIDatasetRefreshOperator' (enables support for enhanced dataset refreshes) (#51397)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(provider): Fix kwargs handling in Azure Data Lake Storage V2 Hook methods (#51847)``
+* ``fix 'conn_name_attr' in AzureBaseHook (#51948)``
+* ``fix(azure): check account_key before DefaultAzureCredential (#51999)``
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Provider Migration: Update azure for Airflow 3.0 compatibility (#52618)``
+* ``Upgrade ruff to latest version (0.12.1) (#52562)``
+* ``Bump microsoft kiota packages to 1.9.4 and update tests (#52367)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Use BaseSensorOperator from task sdk in providers (#52296)``
+* ``Add deprecation to 'airflow/sensors/base.py' (#52249)``
+
+Doc-only
+~~~~~~~~
+
+* ``docs: clarify remote logging configuration for Azure Blob Storage (#51988)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make sure all test version imports come from test_common (#52425)``
+   * ``Remove pytest db markers from microsoft azure provider (#52107)``
+   * ``Switch the Supervisor/task process from line-based to length-prefixed (#51699)``
+
 12.4.1
 ......
 

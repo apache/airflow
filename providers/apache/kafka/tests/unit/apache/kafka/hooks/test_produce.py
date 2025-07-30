@@ -26,9 +26,6 @@ from confluent_kafka.admin import AdminClient
 from airflow.models import Connection
 from airflow.providers.apache.kafka.hooks.produce import KafkaProducerHook
 
-pytestmark = pytest.mark.db_test
-
-
 log = logging.getLogger(__name__)
 
 
