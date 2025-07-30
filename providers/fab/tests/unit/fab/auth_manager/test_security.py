@@ -28,7 +28,7 @@ import pytest
 import time_machine
 from flask_appbuilder import SQLA, Model, expose, has_access
 from flask_appbuilder.views import BaseView, ModelView
-from sqlalchemy import Column, Date, Float, Integer, String
+from sqlalchemy import Column, Date, Float, Integer, String, delete
 
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
@@ -1026,7 +1026,7 @@ def test_permissions_work_for_dags_with_dot_in_dagname(
             security_manager.sync_perm_for_dag(dag2.dag_id, access_control={role_name: READ_WRITE})
             assert_user_has_dag_perms(perms=["GET", "PUT"], dag_id=dag_id, user=user)
             assert_user_does_not_have_dag_perms(perms=["GET", "PUT"], dag_id=dag_id_2, user=user)
-            session.query(DagModel).delete()
+            session.execute(delete(DagModel))
 
 
 @pytest.fixture
