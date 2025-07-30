@@ -21,7 +21,6 @@ import threading
 import uuid
 from socket import socketpair
 
-from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
 import msgspec
 import pytest
 
