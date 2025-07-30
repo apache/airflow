@@ -247,8 +247,8 @@ class DagBundlesManager(LoggingMixin):
 
         # Extract template placeholders using regex
         # This matches {placeholder} patterns in the template
-        placeholder_pattern = r"\{([^}]+)\}"
-        placeholders = re.findall(placeholder_pattern, template)
+        PLACEHOLDER_PATTERN = re.compile(r"\{([^}]+)\}")
+        placeholders = PLACEHOLDER_PATTERN.findall(template)
 
         # Extract values for each placeholder found in the template
         for placeholder in placeholders:
