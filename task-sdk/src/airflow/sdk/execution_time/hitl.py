@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.execution_api.datamodels.hitl import HITLDetailResponse
 
 
-def add_hitl_detail(
+def upsert_hitl_detail(
     ti_id: UUID,
     options: list[str],
     subject: str,

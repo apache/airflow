@@ -25,6 +25,7 @@ Package ``apache-airflow-providers-snowflake``
 
 Release: ``6.5.1``
 
+Release Date: ``|PypiReleaseDate|``
 
 `Snowflake <https://www.snowflake.com/>`__
 

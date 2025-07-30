@@ -542,7 +542,7 @@ export const useDagServiceGetDagsUiSuspense = <TData = Common.DagServiceGetDagsU
 * Get latest run.
 * @param data The data for the request.
 * @param data.dagId
-* @returns DAGRunLightResponse Successful Response
+* @returns unknown Successful Response
 * @throws ApiError
 */
 export const useDagServiceGetLatestRunInfoSuspense = <TData = Common.DagServiceGetLatestRunInfoDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId }: {
@@ -1413,19 +1413,6 @@ export const useGridServiceGetGridTiSummariesSuspense = <TData = Common.GridServ
   dagId: string;
   runId: string;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseGridServiceGetGridTiSummariesKeyFn({ dagId, runId }, queryKey), queryFn: () => GridService.getGridTiSummaries({ dagId, runId }) as TData, ...options });
-/**
-* Get Latest Run
-* Get information about the latest dag run by run_after.
-*
-* This is used by the UI to figure out if it needs to rerun queries and resume auto refresh.
-* @param data The data for the request.
-* @param data.dagId
-* @returns unknown Successful Response
-* @throws ApiError
-*/
-export const useGridServiceGetLatestRunSuspense = <TData = Common.GridServiceGetLatestRunDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId }: {
-  dagId: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseGridServiceGetLatestRunKeyFn({ dagId }, queryKey), queryFn: () => GridService.getLatestRun({ dagId }) as TData, ...options });
 /**
 * Get Calendar
 * Get calendar data for a DAG including historical and planned DAG runs.

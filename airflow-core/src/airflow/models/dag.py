@@ -1282,11 +1282,11 @@ class DAG(TaskSDKDag, LoggingMixin):
         only_running: bool = False,
         confirm_prompt: bool = False,
         dag_run_state: DagRunState = DagRunState.QUEUED,
-        run_on_latest_version: bool = False,
         session: Session = NEW_SESSION,
         dag_bag: DagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
+        run_on_latest_version: bool = False,
     ) -> list[TaskInstance]: ...  # pragma: no cover
 
     @overload
@@ -1300,11 +1300,11 @@ class DAG(TaskSDKDag, LoggingMixin):
         confirm_prompt: bool = False,
         dag_run_state: DagRunState = DagRunState.QUEUED,
         dry_run: Literal[False] = False,
-        run_on_latest_version: bool = False,
         session: Session = NEW_SESSION,
         dag_bag: DagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
+        run_on_latest_version: bool = False,
     ) -> int: ...  # pragma: no cover
 
     @overload
@@ -1319,11 +1319,11 @@ class DAG(TaskSDKDag, LoggingMixin):
         only_running: bool = False,
         confirm_prompt: bool = False,
         dag_run_state: DagRunState = DagRunState.QUEUED,
-        run_on_latest_version: bool = False,
         session: Session = NEW_SESSION,
         dag_bag: DagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
+        run_on_latest_version: bool = False,
     ) -> list[TaskInstance]: ...  # pragma: no cover
 
     @overload
@@ -1338,11 +1338,11 @@ class DAG(TaskSDKDag, LoggingMixin):
         confirm_prompt: bool = False,
         dag_run_state: DagRunState = DagRunState.QUEUED,
         dry_run: Literal[False] = False,
-        run_on_latest_version: bool = False,
         session: Session = NEW_SESSION,
         dag_bag: DagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
+        run_on_latest_version: bool = False,
     ) -> int: ...  # pragma: no cover
 
     @provide_session
@@ -1358,11 +1358,11 @@ class DAG(TaskSDKDag, LoggingMixin):
         confirm_prompt: bool = False,
         dag_run_state: DagRunState = DagRunState.QUEUED,
         dry_run: bool = False,
-        run_on_latest_version: bool = False,
         session: Session = NEW_SESSION,
         dag_bag: DagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
+        run_on_latest_version: bool = False,
     ) -> int | Iterable[TaskInstance]:
         """
         Clear a set of task instances associated with the current dag for a specified date range.

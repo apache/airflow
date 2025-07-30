@@ -390,7 +390,7 @@ export type ClearTaskInstancesBody = {
     include_future?: boolean;
     include_past?: boolean;
     /**
-     * (Experimental) Run on the latest bundle version of the DAG after clearing the task instances.
+     * (Experimental) Run on the latest bundle version of the dag after clearing the task instances.
      */
     run_on_latest_version?: boolean;
 };
@@ -597,7 +597,7 @@ export type DAGRunClearBody = {
     dry_run?: boolean;
     only_failed?: boolean;
     /**
-     * (Experimental) Run on the latest bundle version of the DAG after clearing the DAG Run.
+     * (Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run.
      */
     run_on_latest_version?: boolean;
 };
@@ -1687,8 +1687,9 @@ export type ConnectionHookMetaData = {
  * DAG Run serializer for responses.
  */
 export type DAGRunLightResponse = {
-    run_id: string;
+    id: number;
     dag_id: string;
+    run_id: string;
     logical_date: string | null;
     run_after: string;
     start_date: string | null;
@@ -1834,16 +1835,6 @@ export type HistoricalMetricDataResponse = {
     dag_run_types: DAGRunTypes;
     dag_run_states: DAGRunStates;
     task_instance_states: TaskInstanceStateCount;
-};
-
-/**
- * Base Node serializer for responses.
- */
-export type LatestRunResponse = {
-    id: number;
-    dag_id: string;
-    run_id: string;
-    run_after: string;
 };
 
 /**
@@ -2432,7 +2423,7 @@ export type GetLatestRunInfoData = {
     dagId: string;
 };
 
-export type GetLatestRunInfoResponse = Array<DAGRunLightResponse>;
+export type GetLatestRunInfoResponse = DAGRunLightResponse | null;
 
 export type GetEventLogData = {
     eventLogId: number;
@@ -3055,12 +3046,6 @@ export type GetGridTiSummariesData = {
 };
 
 export type GetGridTiSummariesResponse = GridTISummaries;
-
-export type GetLatestRunData = {
-    dagId: string;
-};
-
-export type GetLatestRunResponse = LatestRunResponse | null;
 
 export type GetCalendarData = {
     dagId: string;
@@ -4591,7 +4576,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: Array<DAGRunLightResponse>;
+                200: DAGRunLightResponse | null;
                 /**
                  * Not Found
                  */
@@ -5948,7 +5933,7 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/hitl-details/{dag_id}/{dag_run_id}/{task_id}': {
+    '/api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}': {
         patch: {
             req: UpdateHitlDetailData;
             res: {
@@ -6004,7 +5989,7 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/hitl-details/{dag_id}/{dag_run_id}/{task_id}/{map_index}': {
+    '/api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}/{map_index}': {
         patch: {
             req: UpdateMappedTiHitlDetailData;
             res: {
@@ -6060,7 +6045,7 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/hitl-details/': {
+    '/api/v2/hitlDetails/': {
         get: {
             req: GetHitlDetailsData;
             res: {
@@ -6291,29 +6276,6 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: GridTISummaries;
-                /**
-                 * Bad Request
-                 */
-                400: HTTPExceptionResponse;
-                /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
-    '/ui/grid/latest_run/{dag_id}': {
-        get: {
-            req: GetLatestRunData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: LatestRunResponse | null;
                 /**
                  * Bad Request
                  */
