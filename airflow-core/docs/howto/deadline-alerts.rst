@@ -156,14 +156,15 @@ the ``DeadlineAlert`` are passed to the callback function. Async callbacks are r
 
 .. code-block:: python
 
-    ## Place this method in `/files/plugins/deadline_callbacks.py`
+    # Place this method in `/files/plugins/deadline_callbacks.py`
     async def custom_callback(**kwargs):
         """Handle deadline violation with custom logic."""
         print(f"Deadline exceeded for DAG {kwargs.get("dag_id")}!")
         print(f"Alert type: {kwargs.get("alert_type")}")
         # Additional custom handling here
 
-    ## Place this in a dag file
+
+    # Place this in a dag file
     from datetime import timedelta
 
     from deadline_callbacks import custom_callback
