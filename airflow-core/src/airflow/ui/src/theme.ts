@@ -21,6 +21,7 @@
 
 /* eslint-disable max-lines */
 import { createSystem, defaultConfig, defineConfig } from "@chakra-ui/react";
+import type { CSSProperties } from "react";
 
 const generateSemanticTokens = (color: string, darkContrast: string = "white") => ({
   solid: { value: `{colors.${color}.600}` },
@@ -54,7 +55,7 @@ export const customConfig = defineConfig({
         },
         gray: {
           // Values modified from original Tailwind to improve contrast
-          "50":  { value: "oklch(0.985 0.004 253)" }, // Original: oklch(0.985 0.002 247.839)
+          "50": { value: "oklch(0.985 0.004 253)" }, // Original: oklch(0.985 0.002 247.839)
           "100": { value: "oklch(0.955 0.006 253)" }, // Original: oklch(0.967 0.003 264.542)
           "200": { value: "oklch(0.915 0.01 253)" }, // Original: oklch(0.928 0.006 264.531)
           "300": { value: "oklch(0.85 0.016 253)" }, // Original: oklch(0.872 0.01 258.338)
@@ -82,8 +83,8 @@ export const customConfig = defineConfig({
           "950": { value: "oklch(0.258 0.092 26.042)" },
         },
         // Values modified from original Tailwind to improve contrast
-        "orange": {
-          "50":  { value: "oklch(0.982 0.013 83.915)" },
+        orange: {
+          "50": { value: "oklch(0.982 0.013 83.915)" },
           "100": { value: "oklch(0.961 0.033 82.320)" },
           "200": { value: "oklch(0.918 0.065 79.975)" },
           "300": { value: "oklch(0.857 0.118 76.815)" },
@@ -93,7 +94,7 @@ export const customConfig = defineConfig({
           "700": { value: "oklch(0.553 0.184 41.777)" },
           "800": { value: "oklch(0.469 0.144 45.164)" },
           "900": { value: "oklch(0.414 0.110 48.717)" },
-          "950": { value: "oklch(0.271 0.069 52.345)" }
+          "950": { value: "oklch(0.271 0.069 52.345)" },
         },
         amber: {
           "50": { value: "oklch(0.987 0.022 95.277)" },
@@ -134,19 +135,19 @@ export const customConfig = defineConfig({
           "900": { value: "oklch(0.405 0.101 131.063)" },
           "950": { value: "oklch(0.274 0.072 132.109)" },
         },
-        "green": {
+        green: {
           // Values modified from original Tailwind to improve contrast
-          "50":  { "value": "oklch(0.982 0.018 155.826)" },
-          "100": { "value": "oklch(0.962 0.044 156.743)" },
-          "200": { "value": "oklch(0.925 0.084 155.995)" },
-          "300": { "value": "oklch(0.75 0.18 153.0)" }, // Original: oklch(0.871 0.15 154.449)
-          "400": { "value": "oklch(0.625 0.209 150.0)" }, // Original: oklch(0.792 0.209 151.711)
-          "500": { "value": "oklch(0.528 0.219 149.579)" }, // Original: oklch(0.723 0.219 149.579)
-          "600": { "value": "oklch(0.47 0.20 149.0)" }, // Original: oklch(0.627 0.194 149.214)
-          "700": { "value": "oklch(0.40 0.16 149.5)" }, // Original: oklch(0.527 0.154 150.069)
-          "800": { "value": "oklch(0.448 0.119 151.328)" },
-          "900": { "value": "oklch(0.393 0.095 152.535)" },
-          "950": { "value": "oklch(0.266 0.065 152.934)" }
+          "50": { value: "oklch(0.982 0.018 155.826)" },
+          "100": { value: "oklch(0.962 0.044 156.743)" },
+          "200": { value: "oklch(0.925 0.084 155.995)" },
+          "300": { value: "oklch(0.75 0.18 153.0)" }, // Original: oklch(0.871 0.15 154.449)
+          "400": { value: "oklch(0.625 0.209 150.0)" }, // Original: oklch(0.792 0.209 151.711)
+          "500": { value: "oklch(0.528 0.219 149.579)" }, // Original: oklch(0.723 0.219 149.579)
+          "600": { value: "oklch(0.47 0.20 149.0)" }, // Original: oklch(0.627 0.194 149.214)
+          "700": { value: "oklch(0.40 0.16 149.5)" }, // Original: oklch(0.527 0.154 150.069)
+          "800": { value: "oklch(0.448 0.119 151.328)" },
+          "900": { value: "oklch(0.393 0.095 152.535)" },
+          "950": { value: "oklch(0.266 0.065 152.934)" },
         },
         emerald: {
           "50": { value: "oklch(0.979 0.021 166.113)" },
@@ -398,3 +399,132 @@ export const getComputedCSSVariableValue = (variable: string): string =>
   getComputedStyle(document.documentElement)
     .getPropertyValue(variable.slice(4, variable.length - 1))
     .trim();
+
+/**
+ * Returns ReactFlow style props that use Chakra UI CSS variables
+ *
+ * @param colorMode - Current color mode (light/dark)
+ * @returns Style object to pass to ReactFlow's style prop
+ *
+ * @example
+ * ```tsx
+ * import { getReactFlowThemeStyle } from "src/theme";
+ *
+ * const { colorMode } = useColorMode();
+ *
+ * <ReactFlow
+ *   style={getReactFlowThemeStyle(colorMode)}
+ *   nodes={nodes}
+ *   edges={edges}
+ * />
+ * ```
+ */
+export const getReactFlowThemeStyle = (colorMode: "dark" | "light"): CSSProperties =>
+  ({
+    // Background
+    "--xy-background-color":
+      colorMode === "dark" ? "var(--chakra-colors-steel-950)" : "var(--chakra-colors-steel-50)",
+    "--xy-background-pattern-color":
+      colorMode === "dark" ? "var(--chakra-colors-gray-200)" : "var(--chakra-colors-gray-800)",
+
+    // Nodes
+    // "--xy-node-color": "var(--chakra-colors-fg)",
+    // "--xy-node-border": "var(--chakra-colors-gray-emphasized)",
+    // "--xy-node-background": colorMode === "dark"
+    //   ? "var(--chakra-colors-gray-900)"
+    //   : "var(--chakra-colors-white)",
+    // "--xy-node-group-background": colorMode === "dark"
+    //   ? "var(--chakra-colors-gray-800)"
+    //   : "var(--chakra-colors-gray-50)",
+    // "--xy-node-boxshadow-hover": colorMode === "dark"
+    //   ? "0 1px 4px 1px var(--chakra-colors-gray-700)"
+    //   : "0 1px 4px 1px var(--chakra-colors-gray-300)",
+    // "--xy-node-boxshadow-selected": "0 0 0 2px var(--chakra-colors-blue-focusRing)",
+
+    // Node text
+    // "--xy-node-label": "var(--chakra-colors-fg)",
+
+    // Handles
+    // "--xy-handle": "var(--chakra-colors-gray-emphasized)",
+    // "--xy-handle-border": "var(--chakra-colors-gray-emphasized)",
+    // "--xy-handle-border-hover": "var(--chakra-colors-blue-solid)",
+    // "--xy-handle-border-connecting": "var(--chakra-colors-blue-solid)",
+    // "--xy-handle-border-valid": "var(--chakra-colors-green-solid)",
+    // "--xy-handle-border-invalid": "var(--chakra-colors-red-solid)",
+
+    // Edges
+    // "--xy-edge-stroke": "var(--chakra-colors-gray-emphasized)",
+    // "--xy-edge-stroke-hover": "var(--chakra-colors-blue-solid)",
+    // "--xy-edge-stroke-selected": "var(--chakra-colors-blue-solid)",
+    // "--xy-edge-stroke-width": "1px",
+    // "--xy-edge-stroke-width-hover": "2px",
+    // "--xy-edge-stroke-width-selected": "2px",
+    // "--xy-edge-label-color": "var(--chakra-colors-fg)",
+    // "--xy-edge-label-background": colorMode === "dark"
+    //   ? "var(--chakra-colors-black)"
+    //   : "var(--chakra-colors-white)",
+
+    // Connection line
+    // "--xy-connectionline-stroke": "var(--chakra-colors-blue-solid)",
+    // "--xy-connectionline-stroke-width": "2px",
+
+    // Controls
+    // "--xy-controls-button-background": colorMode === "dark"
+    //   ? "var(--chakra-colors-gray-800)"
+    //   : "var(--chakra-colors-white)",
+    // "--xy-controls-button-background-hover": colorMode === "dark"
+    //   ? "var(--chakra-colors-gray-700)"
+    //   : "var(--chakra-colors-gray-50)",
+    // "--xy-controls-button-color": "var(--chakra-colors-fg)",
+    // "--xy-controls-button-color-hover": "var(--chakra-colors-fg)",
+    // "--xy-controls-button-border": "var(--chakra-colors-gray-emphasized)",
+    // "--xy-controls-box-shadow": colorMode === "dark"
+    //   ? "0 2px 4px var(--chakra-colors-gray-900)"
+    //   : "0 2px 4px var(--chakra-colors-gray-200)",
+
+    // MiniMap
+    // "--xy-minimap-background": colorMode === "dark"
+    //   ? "var(--chakra-colors-black)"
+    //   : "var(--chakra-colors-white)",
+    // "--xy-minimap-mask": colorMode === "dark"
+    //   ? "var(--chakra-colors-gray-600)"
+    //   : "var(--chakra-colors-gray-300)",
+    // "--xy-minimap-node": "var(--chakra-colors-gray-emphasized)",
+    // Additional minimap variables that might be needed
+    // "--xy-minimap-background-color": colorMode === "dark"
+    //   ? "var(--chakra-colors-black)"
+    //   : "var(--chakra-colors-white)",
+    // Override any potential default dark colors
+    backgroundColor: colorMode === "dark" ? "var(--chakra-colors-black)" : "var(--chakra-colors-white)",
+
+    // Selection
+    // "--xy-selection-background": "var(--chakra-colors-blue-subtle)",
+    // "--xy-selection-border": "var(--chakra-colors-blue-solid)",
+
+    // Panel
+    // "--xy-panel-background": colorMode === "dark"
+    //   ? "var(--chakra-colors-gray-800)"
+    //   : "var(--chakra-colors-white)",
+    // "--xy-panel-border": "var(--chakra-colors-gray-emphasized)",
+
+    // Attribution
+    // "--xy-attribution-background": colorMode === "dark"
+    //   ? "var(--chakra-colors-gray-800)"
+    //   : "var(--chakra-colors-white)",
+    // "--xy-attribution-color": "var(--chakra-colors-gray-muted)",
+
+    // Resize handles
+    // "--xy-resize-handle": "var(--chakra-colors-blue-solid)",
+    // "--xy-resize-handle-background": colorMode === "dark"
+    //   ? "var(--chakra-colors-black)"
+    //   : "var(--chakra-colors-white)",
+
+    // Node Toolbar
+    // "--xy-node-toolbar-background": colorMode === "dark"
+    //   ? "var(--chakra-colors-gray-800)"
+    //   : "var(--chakra-colors-white)",
+    // "--xy-node-toolbar-border": "var(--chakra-colors-gray-emphasized)",
+    // "--xy-node-toolbar-box-shadow": colorMode === "dark"
+    //   ? "0 2px 4px var(--chakra-colors-gray-900)"
+    //   : "0 2px 4px var(--chakra-colors-gray-200)",
+  }) as CSSProperties;

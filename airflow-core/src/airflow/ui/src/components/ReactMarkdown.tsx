@@ -58,7 +58,14 @@ const components = {
     </Link>
   ),
   blockquote: ({ children }: PropsWithChildren) => (
-    <Box as="blockquote" borderColor="border.emphasized" borderLeft="solid 2px" fontStyle="italic" my={3} pl={2}>
+    <Box
+      as="blockquote"
+      borderColor="border.emphasized"
+      borderLeft="solid 2px"
+      fontStyle="italic"
+      my={3}
+      pl={2}
+    >
       {children}
     </Box>
   ),
