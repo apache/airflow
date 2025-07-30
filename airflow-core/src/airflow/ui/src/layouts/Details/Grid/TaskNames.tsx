@@ -36,7 +36,7 @@ const onMouseEnter = (event: MouseEvent<HTMLDivElement>) => {
   const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
 
   tasks.forEach((task) => {
-    task.style.backgroundColor = "var(--chakra-colors-blue-subtle)";
+    task.style.backgroundColor = "var(--chakra-colors-info-subtle)";
   });
 };
 
@@ -56,9 +56,9 @@ export const TaskNames = ({ nodes }: Props) => {
 
   return nodes.map((node) => (
     <Box
-      bg={node.id === taskId || node.id === groupId ? "blue.muted" : undefined}
+      bg={node.id === taskId || node.id === groupId ? "info.muted" : undefined}
       borderBottomWidth={1}
-      borderColor={node.isGroup ? "border.emphasized" : "border.muted"}
+      borderColor={node.isGroup ? "border.emphasized" : "border"}
       id={node.id.replaceAll(".", "-")}
       key={node.id}
       maxHeight="20px"

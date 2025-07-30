@@ -35,7 +35,7 @@ export const FieldBool = ({ name }: FlexibleFormElementProps) => {
   return (
     <Switch
       checked={Boolean(param.value)}
-      colorPalette="blue"
+      colorPalette="button"
       id={`element_${name}`}
       name={`element_${name}`}
       onCheckedChange={(event) => onCheck(event.checked)}

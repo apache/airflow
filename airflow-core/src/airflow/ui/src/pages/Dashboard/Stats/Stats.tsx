@@ -82,7 +82,7 @@ export const Stats = () => {
         />
 
         <StatsCard
-          colorScheme="blue"
+          colorScheme="active"
           count={activeDagsCount}
           icon={<FiZap />}
           isLoading={isStatsLoading}

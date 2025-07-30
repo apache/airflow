@@ -190,7 +190,7 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
             </Center>
           </Box>
         ) : undefined}
-        <Button colorPalette="blue" disabled={!Boolean(fileContent) || isPending} onClick={onSubmit}>
+        <Button colorPalette="button" disabled={!Boolean(fileContent) || isPending} onClick={onSubmit}>
           <FiUploadCloud /> {translate("variables.import.button")}
         </Button>
       </Box>
