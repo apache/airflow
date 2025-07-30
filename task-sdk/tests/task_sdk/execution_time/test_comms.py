@@ -21,11 +21,11 @@ import threading
 import uuid
 from socket import socketpair
 
-from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
 import msgspec
 import pytest
 
 from airflow.sdk import timezone
+from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
 from airflow.sdk.execution_time.comms import BundleInfo, StartupDetails, _ResponseFrame
 from airflow.sdk.execution_time.task_runner import CommsDecoder
 
