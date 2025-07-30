@@ -754,7 +754,6 @@ class TestSecretsMaskerMerge:
             assert result == expected
 
     def test_merge_dictionaries(self):
-        """Test merging dictionaries with sensitive and non-sensitive keys."""
         secrets_masker = SecretsMasker()
 
         old_data = {
@@ -783,7 +782,6 @@ class TestSecretsMaskerMerge:
             assert result == expected
 
     def test_merge_nested_dictionaries(self):
-        """Test merging nested dictionary structures."""
         secrets_masker = SecretsMasker()
 
         old_data = {
@@ -820,6 +818,7 @@ class TestSecretsMaskerMerge:
     @pytest.mark.parametrize(
         ("old_data", "new_data", "name", "expected"),
         [
+            # Lists
             (
                 ["original_item1", "original_item2", "original_item3"],
                 ["new_item1", "new_item2"],
@@ -844,46 +843,91 @@ class TestSecretsMaskerMerge:
                 "normal_list",
                 ["***", "new_value2", "***"],
             ),
+            # Tuples
+            (
+                ("original_item1", "original_item2", "original_item3"),
+                ("new_item1", "new_item2"),
+                None,
+                ("new_item1", "new_item2"),
+            ),
+            (
+                ("original_item1", "original_item2"),
+                ("new_item1", "new_item2", "new_item3", "new_item4"),
+                None,
+                ("new_item1", "new_item2", "new_item3", "new_item4"),
+            ),
+            (
+                ("secret1", "secret2", "secret3"),
+                ("***", "new_secret2", "***"),
+                "password",
+                ("secret1", "new_secret2", "secret3"),
+            ),
+            (
+                ("value1", "value2", "value3"),
+                ("***", "new_value2", "***"),
+                "normal_tuple",
+                ("***", "new_value2", "***"),
+            ),
+            # Sets
+            (
+                {"original_item1", "original_item2", "original_item3"},
+                {"new_item1", "new_item2"},
+                None,
+                {"new_item1", "new_item2"},
+            ),
+            (
+                {"original_item1", "original_item2"},
+                {"new_item1", "new_item2", "new_item3", "new_item4"},
+                None,
+                {"new_item1", "new_item2", "new_item3", "new_item4"},
+            ),
+            (
+                {"secret1", "secret2", "secret3"},
+                {"***", "new_secret2", "***"},
+                "password",
+                {"***", "new_secret2", "***"},
+            ),
+            (
+                {"value1", "value2", "value3"},
+                {"***", "new_value2", "***"},
+                "normal_tuple",
+                {"***", "new_value2", "***"},
+            ),
+            # Mixed collections
+            (
+                ["original_item1", "original_item2", "original_item3"],
+                ("new_item1", "new_item2"),
+                None,
+                ("new_item1", "new_item2"),
+            ),
+            (
+                ("original_item1", "original_item2"),
+                ["new_item1", "new_item2", "new_item3", "new_item4"],
+                None,
+                ["new_item1", "new_item2", "new_item3", "new_item4"],
+            ),
+            (
+                ["secret1", "secret2", "secret3"],
+                ("***", "new_secret2", "***"),
+                "password",
+                ("secret1", "new_secret2", "secret3"),
+            ),
+            (
+                ("value1", "value2", "value3"),
+                ["***", "new_value2", "***"],
+                "normal_tuple",
+                ["***", "new_value2", "***"],
+            ),
         ],
     )
-    def test_merge_lists(self, old_data, new_data, name, expected):
-        """Test merging list structures with various scenarios."""
+    def test_merge_collections(self, old_data, new_data, name, expected):
         secrets_masker = SecretsMasker()
 
-        # Call merge directly on the instance instead of using the global function
         with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
             result = secrets_masker.merge(new_data, old_data, name)
             assert result == expected
 
-    def test_merge_tuples_and_sets(self):
-        """Test merging tuple and set structures."""
-        secrets_masker = SecretsMasker()
-
-        # Test tuples
-        old_tuple = ("original_item1", "original_item2", "original_item3")
-        new_tuple = ("new_item1", "new_item2")
-        expected_tuple = (
-            "new_item1",
-            "new_item2",
-        )  # Only process items from new_tuple, ignore remaining old items
-
-        with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
-            result = secrets_masker.merge(new_tuple, old_tuple)
-            assert result == expected_tuple
-            assert isinstance(result, tuple)
-
-        # Test sets (note: order is not guaranteed in sets)
-        old_set = {"original_item1", "original_item2", "original_item3"}
-        new_set = {"new_item1", "new_item2"}
-
-        with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
-            result = merge(new_set, old_set)
-            assert isinstance(result, set)
-            # For sets, we expect only the items from new_set since order is not preserved
-            assert result == new_set
-
     def test_merge_mismatched_types(self):
-        """Test merging when types don't match between new and old."""
         secrets_masker = SecretsMasker()
 
         old_data = {"key": "value"}
@@ -897,22 +941,20 @@ class TestSecretsMaskerMerge:
             assert result == expected
 
     def test_merge_with_missing_keys(self):
-        """Test merging dictionaries with different keys."""
         secrets_masker = SecretsMasker()
 
         old_data = {"password": "original_password", "old_only_key": "old_value", "common_key": "old_common"}
 
         new_data = {
-            "password": "***",  # Unchanged redacted
+            "password": "***",
             "new_only_key": "new_value",
             "common_key": "new_common",
         }
 
         expected = {
-            "password": "original_password",  # Restored from original
-            "new_only_key": "new_value",  # Kept from new
-            "common_key": "new_common",  # User modification
-            # old_only_key is ignored since it's not in new_data
+            "password": "original_password",
+            "new_only_key": "new_value",
+            "common_key": "new_common",
         }
 
         with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
@@ -920,38 +962,33 @@ class TestSecretsMaskerMerge:
             assert result == expected
 
     def test_merge_complex_redacted_structures(self):
-        """Test merging when nested structures have redacted items."""
         secrets_masker = SecretsMasker()
 
         old_data = {
-            "sensitive_config": {
+            "some_config": {
                 "nested_password": "original_nested_password",
                 "nested_list": ["item1", "item2"],
             },
             "normal_field": "normal_value",
         }
 
-        # Simulate what happens when sensitive fields are redacted individually
         new_data = {
-            "sensitive_config": {"nested_password": "***", "nested_list": ["***", "***"]},
+            "some_config": {"nested_password": "***", "nested_list": ["***", "***"]},
             "normal_field": "new_normal_value",
         }
 
         with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
             result = merge(new_data, old_data)
-            # The nested_password should be restored because it's a sensitive field name
-            # The nested_list items remain "***" because individual list items don't have sensitive context
             expected = {
-                "sensitive_config": {
-                    "nested_password": "original_nested_password",  # Restored because sensitive field name
-                    "nested_list": ["***", "***"],  # Individual items stay redacted without sensitive context
+                "some_config": {
+                    "nested_password": "original_nested_password",
+                    "nested_list": ["***", "***"],
                 },
-                "normal_field": "new_normal_value",  # Kept because it's not sensitive
+                "normal_field": "new_normal_value",
             }
             assert result == expected
 
     def test_merge_partially_redacted_structures(self):
-        """Test merging when structures are partially redacted."""
         secrets_masker = SecretsMasker()
 
         old_data = {
@@ -964,22 +1001,22 @@ class TestSecretsMaskerMerge:
 
         new_data = {
             "config": {
-                "password": "***",  # Unchanged redacted
-                "host": "new_host",  # Modified
+                "password": "***",
+                "host": "new_host",
                 "nested": {
-                    "api_key": "***",  # Unchanged redacted
-                    "timeout": 60,  # Modified
+                    "api_key": "***",
+                    "timeout": 60,
                 },
             }
         }
 
         expected = {
             "config": {
-                "password": "original_password",  # Restored
-                "host": "new_host",  # Kept modification
+                "password": "original_password",
+                "host": "new_host",
                 "nested": {
-                    "api_key": "original_api_key",  # Restored
-                    "timeout": 60,  # Kept modification
+                    "api_key": "original_api_key",
+                    "timeout": 60,
                 },
             }
         }
@@ -989,37 +1026,19 @@ class TestSecretsMaskerMerge:
             assert result == expected
 
     def test_merge_max_depth(self):
-        """Test merge respects max_depth parameter."""
         secrets_masker = SecretsMasker()
 
-        # Create deeply nested structure
         old_data = {"level1": {"level2": {"level3": {"password": "original_password"}}}}
         new_data = {"level1": {"level2": {"level3": {"password": "***"}}}}
 
         with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
-            # With max_depth=1, should stop early and return new_data
             result = merge(new_data, old_data, max_depth=1)
             assert result == new_data
 
-            # With sufficient depth, should merge properly
             result = merge(new_data, old_data, max_depth=10)
             assert result["level1"]["level2"]["level3"]["password"] == "original_password"
 
-    def test_merge_error_handling(self):
-        """Test merge handles errors gracefully."""
-        secrets_masker = SecretsMasker()
-
-        # Create a situation that might cause an error (e.g., incompatible structures)
-        old_data = "simple_string"
-        new_data = {"complex": "dict"}
-
-        with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
-            # Should not raise an exception and should prefer new_data
-            result = merge(new_data, old_data)
-            assert result == new_data
-
     def test_merge_enum_values(self):
-        """Test merging enum values."""
         secrets_masker = SecretsMasker()
 
         old_enum = MyEnum.testname
@@ -1030,40 +1049,7 @@ class TestSecretsMaskerMerge:
             assert result == new_enum
             assert isinstance(result, MyEnum)
 
-    def test_is_redacted_value_helper(self):
-        """Test the _is_redacted_value helper method."""
-        secrets_masker = SecretsMasker()
-
-        # Test basic redacted values
-        assert secrets_masker._is_redacted_value("***") is True
-        assert secrets_masker._is_redacted_value("not_redacted") is False
-        assert secrets_masker._is_redacted_value("") is False
-
-        # Test redacted collections
-        assert secrets_masker._is_redacted_value({"key": "***"}) is True
-        assert secrets_masker._is_redacted_value({"key": "value"}) is False
-        assert secrets_masker._is_redacted_value({"key1": "***", "key2": "***"}) is True
-        assert secrets_masker._is_redacted_value({"key1": "***", "key2": "value"}) is False
-
-        assert secrets_masker._is_redacted_value(["***", "***"]) is True
-        assert secrets_masker._is_redacted_value(["***", "value"]) is False
-        assert secrets_masker._is_redacted_value(("***", "***")) is True
-        assert secrets_masker._is_redacted_value(("***", "value")) is False
-
-    def test_public_merge_function(self):
-        """Test the public merge function works correctly."""
-        secrets_masker = SecretsMasker()
-
-        old_data = {"password": "original_password", "normal": "original_normal"}
-        new_data = {"password": "***", "normal": "new_normal"}
-        expected = {"password": "original_password", "normal": "new_normal"}
-
-        with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
-            result = merge(new_data, old_data)
-            assert result == expected
-
-    def test_merge_real_world_scenario(self):
-        """Test a realistic scenario combining redact and merge."""
+    def test_merge_round_trip(self):
         secrets_masker = SecretsMasker()
 
         # Original data with sensitive information
@@ -1075,26 +1061,26 @@ class TestSecretsMaskerMerge:
 
         with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
             # Step 1: Redact the original data
-            redacted_config = redact(original_config)
+            redacted_dict = redact(original_config)
 
             # Verify sensitive fields are redacted
-            assert redacted_config["database"]["password"] == "***"
-            assert redacted_config["api"]["api_key"] == "***"
-            assert redacted_config["database"]["host"] == "db.example.com"  # Not sensitive
+            assert redacted_dict["database"]["password"] == "***"
+            assert redacted_dict["api"]["api_key"] == "***"
+            assert redacted_dict["database"]["host"] == "db.example.com"
 
-            # Step 2: User modifies some fields (simulating user editing redacted data)
-            user_modified_config = redacted_config.copy()
-            user_modified_config["database"]["host"] = "new-db.example.com"  # User changed host
-            user_modified_config["api"]["timeout"] = 60  # User changed timeout
-            user_modified_config["api"]["api_key"] = "new_api_key_67890"  # User changed API key
+            # Step 2: User modifies some fields
+            updated_dict = redacted_dict.copy()
+            updated_dict["database"]["host"] = "new-db.example.com"
+            updated_dict["api"]["timeout"] = 60
+            updated_dict["api"]["api_key"] = "new_api_key_67890"
             # User left password as "***" (unchanged)
 
             # Step 3: Merge to restore unchanged sensitive values
-            final_config = merge(user_modified_config, original_config)
+            final_dict = merge(updated_dict, original_config)
 
             # Verify the results
-            assert final_config["database"]["password"] == "super_secret_password"  # Restored
-            assert final_config["database"]["host"] == "new-db.example.com"  # User modification kept
-            assert final_config["api"]["api_key"] == "new_api_key_67890"  # User modification kept
-            assert final_config["api"]["timeout"] == 60  # User modification kept
-            assert final_config["app_name"] == "my_application"  # Unchanged
+            assert final_dict["database"]["password"] == "super_secret_password"  # Restored
+            assert final_dict["database"]["host"] == "new-db.example.com"  # User modification kept
+            assert final_dict["api"]["api_key"] == "new_api_key_67890"  # User modification kept
+            assert final_dict["api"]["timeout"] == 60  # User modification kept
+            assert final_dict["app_name"] == "my_application"  # Unchanged
