@@ -122,10 +122,7 @@ class TestHITLTrigger:
         await asyncio.sleep(0.3)
         event = await trigger_task
         assert event == TriggerEvent(
-            HITLTriggerEventSuccessPayload(
-                chosen_options=["1"],
-                params_input={"input": 1},
-            )
+            HITLTriggerEventSuccessPayload(chosen_options=["1"], params_input={"input": 1}, timedout=True)
         )
 
     @pytest.mark.db_test
@@ -157,5 +154,6 @@ class TestHITLTrigger:
             HITLTriggerEventSuccessPayload(
                 chosen_options=["3"],
                 params_input={"input": 50},
+                timedout=False,
             )
         )

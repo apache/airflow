@@ -43,6 +43,7 @@ class HITLTriggerEventSuccessPayload(TypedDict, total=False):
 
     chosen_options: list[str]
     params_input: dict[str, Any]
+    timedout: bool
 
 
 class HITLTriggerEventFailurePayload(TypedDict):
@@ -115,6 +116,7 @@ class HITLTrigger(BaseTrigger):
                     HITLTriggerEventSuccessPayload(
                         chosen_options=self.defaults,
                         params_input=self.params,
+                        timedout=True,
                     )
                 )
                 return
@@ -126,6 +128,7 @@ class HITLTrigger(BaseTrigger):
                     HITLTriggerEventSuccessPayload(
                         chosen_options=resp.chosen_options,
                         params_input=resp.params_input,
+                        timedout=False,
                     )
                 )
                 return
