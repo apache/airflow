@@ -44,7 +44,7 @@ export const DagRunMetrics = ({ dagRunStates, endDate, startDate, total }: DagRu
         <RouterLink
           to={`/dag_runs?start_date=${startDate}${endDate === undefined ? "" : `&end_date=${endDate}`}`}
         >
-          <StateBadge colorPalette="blue" fontSize="md" variant="solid">
+          <StateBadge colorPalette="button" fontSize="md" variant="solid">
             <FiBarChart />
             {total}
           </StateBadge>

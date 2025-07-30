@@ -48,7 +48,7 @@ const AddConnectionButton = () => {
     <Box>
       <ActionButton
         actionName={translate("connections.add")}
-        colorPalette="blue"
+        colorPalette="button"
         icon={<FiPlusCircle />}
         onClick={onOpen}
         text={translate("connections.add")}

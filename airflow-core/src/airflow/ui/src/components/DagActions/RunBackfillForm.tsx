@@ -190,7 +190,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
               <HStack align="stretch">
                 {reprocessBehaviors.map((item) => (
                   <RadioCardItem
-                    colorPalette="blue"
+                    colorPalette="button"
                     indicatorPlacement="start"
                     key={item.value}
                     label={translate(item.label)}
@@ -224,7 +224,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
           control={control}
           name="run_backwards"
           render={({ field }) => (
-            <Checkbox checked={field.value} colorPalette="blue" onChange={field.onChange}>
+            <Checkbox checked={field.value} colorPalette="button" onChange={field.onChange}>
               {translate("backfill.backwards")}
             </Checkbox>
           )}
@@ -234,7 +234,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
           <>
             <Checkbox
               checked={unpause}
-              colorPalette="blue"
+              colorPalette="button"
               onChange={() => setUnpause(!unpause)}
               wordBreak="break-all"
             >
@@ -257,7 +257,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
           <Spacer />
           <Button onClick={() => void handleSubmit(onCancel)()}>{translate("common:modal.cancel")}</Button>
           <Button
-            colorPalette="blue"
+            colorPalette="button"
             disabled={
               Boolean(errors.date) || isPendingDryRun || formError || affectedTasks.total_entries === 0
             }
