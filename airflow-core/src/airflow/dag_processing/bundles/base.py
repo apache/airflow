@@ -286,8 +286,20 @@ class BaseDagBundle(ABC):
         This method must ultimately be safe to call concurrently from different threads or processes.
         If it isn't naturally safe, you'll need to make it so with some form of locking.
         There is a `lock` context manager on this class available for this purpose.
+
+        If you override this method, ensure you call `super().initialize()`
+        at the end of your method, after the bundle is initialized, not the beginning.
         """
         self.is_initialized = True
+
+        # Check if the bundle path exists after initialization
+        bundle_path = self.path
+        if not bundle_path.exists():
+            log.warning(
+                "Bundle '%s' path does not exist: %s. This may cause DAG loading issues.",
+                self.name,
+                bundle_path,
+            )
 
     @property
     @abstractmethod
