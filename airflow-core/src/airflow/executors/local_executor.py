@@ -31,7 +31,7 @@ import multiprocessing
 import multiprocessing.sharedctypes
 import os
 from multiprocessing import Queue, SimpleQueue
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from setproctitle import setproctitle
 
@@ -43,7 +43,7 @@ from airflow.utils.state import TaskInstanceState
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    TaskInstanceStateType = tuple[workloads.TaskInstance, TaskInstanceState, Optional[Exception]]
+    TaskInstanceStateType = tuple[workloads.TaskInstance, TaskInstanceState, Exception | None]
 
 
 def _run_worker(
@@ -162,7 +162,7 @@ class LocalExecutor(BaseExecutor):
 
         # Mypy sees this value as `SynchronizedBase[c_uint]`, but that isn't the right runtime type behaviour
         # (it looks like an int to python)
-        self._unread_messages = multiprocessing.Value(ctypes.c_uint)  # type: ignore[assignment]
+        self._unread_messages = multiprocessing.Value(ctypes.c_uint)
 
     def _check_workers(self):
         # Reap any dead workers

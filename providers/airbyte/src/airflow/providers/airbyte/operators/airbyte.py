@@ -25,12 +25,12 @@ from airbyte_api.models import JobStatusEnum
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
 from airflow.providers.airbyte.triggers.airbyte import AirbyteSyncTrigger
+from airflow.providers.airbyte.version_compat import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.airbyte.version_compat import Context
 
 
 class AirbyteTriggerSyncOperator(BaseOperator):

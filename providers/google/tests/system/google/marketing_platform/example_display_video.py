@@ -17,69 +17,74 @@
 # under the License.
 """
 Example Airflow DAG that shows how to use DisplayVideo.
+
+In order to run this test, make sure you followed steps:
+1. In your GCP project, create a service account that will be used to operate on Google Ads.
+The name should be in format `display-video-service-account@{PROJECT_ID}.iam.gserviceaccount.com`
+2. Generate a key for this service account and store it in the Secret Manager
+under the name `google_display_video_service_account_key`.
+3. Give this service account Editor permissions.
+4. Make sure Google Display Video API is enabled in your GCP project.
+5. Login to https://displayvideo.google.com/
+6. In the Users section add your GCP service account to the list.
+7. Store values of your advertiser id and GMP partner id to Secret Manager under names `google_display_video_advertiser_id`
+and `google_display_video_gmp_partner_id`.
 """
 
 from __future__ import annotations
 
+import json
 import os
 from datetime import datetime
-from typing import cast
 
+from google.cloud.exceptions import NotFound
+
+try:
+    from airflow.sdk import task
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.models.dag import DAG
-from airflow.models.xcom_arg import XComArg
+from airflow.providers.google.cloud.hooks.secret_manager import (
+    GoogleCloudSecretManagerHook,
+)
+from airflow.providers.google.cloud.operators.bigquery import BigQueryCreateEmptyDatasetOperator
+from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
 from airflow.providers.google.marketing_platform.operators.display_video import (
-    GoogleDisplayVideo360CreateQueryOperator,
     GoogleDisplayVideo360CreateSDFDownloadTaskOperator,
-    GoogleDisplayVideo360DeleteReportOperator,
-    GoogleDisplayVideo360DownloadLineItemsOperator,
-    GoogleDisplayVideo360DownloadReportV2Operator,
-    GoogleDisplayVideo360RunQueryOperator,
     GoogleDisplayVideo360SDFtoGCSOperator,
-    GoogleDisplayVideo360UploadLineItemsOperator,
 )
 from airflow.providers.google.marketing_platform.sensors.display_video import (
     GoogleDisplayVideo360GetSDFDownloadOperationSensor,
-    GoogleDisplayVideo360RunQuerySensor,
 )
 from airflow.utils.trigger_rule import TriggerRule
 
+from tests_common.test_utils.api_client_helpers import create_airflow_connection, delete_airflow_connection
+
 DAG_ID = "display_video"
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
+BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
+OBJECT_NAME = "files/report.csv"
+PATH_TO_UPLOAD_FILE = os.environ.get("GCP_GCS_PATH_TO_UPLOAD_FILE", "test-gcs-example.csv")
+BUCKET_FILE_LOCATION = PATH_TO_UPLOAD_FILE.rpartition("/")[-1]
+
+CONNECTION_TYPE = "google_cloud_platform"
+CONN_ID = "google_display_video_default"
+
+DISPLAY_VIDEO_ADVERTISER_ID = "google_display_video_advertiser_id"
+DISPLAY_VIDEO_GMP_PARTNER_ID = "google_display_video_gmp_partner_id"
+DISPLAY_VIDEO_SERVICE_ACCOUNT_KEY = "google_display_video_service_account_key"
 
 # [START howto_display_video_env_variables]
-BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
-ADVERTISER_ID = os.environ.get("GMP_ADVERTISER_ID", 1234567)
-OBJECT_NAME = "files/report.csv"
-PATH_TO_UPLOAD_FILE = os.environ.get("GCP_GCS_PATH_TO_UPLOAD_FILE", "test-gcs-example.txt")
-PATH_TO_SAVED_FILE = os.environ.get("GCP_GCS_PATH_TO_SAVED_FILE", "test-gcs-example-download.txt")
-BUCKET_FILE_LOCATION = PATH_TO_UPLOAD_FILE.rpartition("/")[-1]
-SDF_VERSION = "SDF_VERSION_5_5"
+ADVERTISER_ID = "{{ task_instance.xcom_pull('get_display_video_advertiser_id') }}"
+GMP_PARTNER_ID = "{{ task_instance.xcom_pull('get_display_video_gmp_partner_id') }}"
+SDF_VERSION = "SDF_VERSION_8_1"
 BQ_DATASET = f"bq_dataset_{DAG_ID}_{ENV_ID}"
-GMP_PARTNER_ID = os.environ.get("GMP_PARTNER_ID", 123)
-ENTITY_TYPE = os.environ.get("GMP_ENTITY_TYPE", "LineItem")
+ENTITY_TYPE = "CAMPAIGN"
 ERF_SOURCE_OBJECT = GoogleDisplayVideo360Hook.erf_uri(GMP_PARTNER_ID, ENTITY_TYPE)
-
-REPORT_V2 = {
-    "metadata": {
-        "title": "Airflow Test Report",
-        "dataRange": {"range": "LAST_7_DAYS"},
-        "format": "CSV",
-        "sendNotification": False,
-    },
-    "params": {
-        "type": "STANDARD",
-        "groupBys": ["FILTER_DATE", "FILTER_PARTNER"],
-        "filters": [{"type": "FILTER_PARTNER", "value": ADVERTISER_ID}],
-        "metrics": ["METRIC_IMPRESSIONS", "METRIC_CLICKS"],
-    },
-    "schedule": {"frequency": "ONE_TIME"},
-}
-
-PARAMETERS = {
-    "dataRange": {"range": "LAST_7_DAYS"},
-}
 
 CREATE_SDF_DOWNLOAD_TASK_BODY_REQUEST: dict = {
     "version": SDF_VERSION,
@@ -87,61 +92,76 @@ CREATE_SDF_DOWNLOAD_TASK_BODY_REQUEST: dict = {
     "inventorySourceFilter": {"inventorySourceIds": []},
 }
 
-DOWNLOAD_LINE_ITEMS_REQUEST: dict = {"filterType": ADVERTISER_ID, "format": "CSV", "fileSpec": "EWF"}
 # [END howto_display_video_env_variables]
 
 
-with DAG(
-    "display_video_misc",
-    start_date=datetime(2021, 1, 1),
-    catchup=False,
-    tags=["example", "display_video_misc"],
-) as dag:
-    # [START howto_google_display_video_upload_multiple_entity_read_files_to_big_query]
-    upload_erf_to_bq = GCSToBigQueryOperator(
-        task_id="upload_erf_to_bq",
-        bucket=BUCKET_NAME,
-        source_objects=ERF_SOURCE_OBJECT,
-        destination_project_dataset_table=f"{BQ_DATASET}.gcs_to_bq_table",
-        write_disposition="WRITE_TRUNCATE",
-    )
-    # [END howto_google_display_video_upload_multiple_entity_read_files_to_big_query]
+def get_secret(secret_id: str) -> str:
+    hook = GoogleCloudSecretManagerHook()
+    if hook.secret_exists(secret_id=secret_id):
+        return hook.access_secret(secret_id=secret_id).payload.data.decode()
+    raise NotFound("The secret '%s' not found", secret_id)
 
-    # [START howto_google_display_video_download_line_items_operator]
-    download_line_items = GoogleDisplayVideo360DownloadLineItemsOperator(
-        task_id="download_line_items",
-        request_body=DOWNLOAD_LINE_ITEMS_REQUEST,
-        bucket_name=BUCKET_NAME,
-        object_name=OBJECT_NAME,
-        gzip=False,
-    )
-    # [END howto_google_display_video_download_line_items_operator]
-
-    # [START howto_google_display_video_upload_line_items_operator]
-    upload_line_items = GoogleDisplayVideo360UploadLineItemsOperator(
-        task_id="upload_line_items",
-        bucket_name=BUCKET_NAME,
-        object_name=BUCKET_FILE_LOCATION,
-    )
-    # [END howto_google_display_video_upload_line_items_operator]
 
 with DAG(
     "display_video_sdf",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "display_video_sdf"],
-) as dag_sdf:
+    render_template_as_native_obj=True,
+) as dag:
+
+    @task
+    def get_display_video_advertiser_id():
+        return get_secret(secret_id=DISPLAY_VIDEO_ADVERTISER_ID).strip()
+
+    get_display_video_advertiser_id_task = get_display_video_advertiser_id()
+
+    @task
+    def get_display_video_gmp_partner_id():
+        return get_secret(secret_id=DISPLAY_VIDEO_GMP_PARTNER_ID).strip()
+
+    get_display_video_gmp_partner_id_task = get_display_video_gmp_partner_id()
+
+    @task
+    def get_display_video_service_account_key():
+        return get_secret(secret_id=DISPLAY_VIDEO_SERVICE_ACCOUNT_KEY)
+
+    get_display_video_service_account_key_task = get_display_video_service_account_key()
+
+    @task
+    def create_connection_display_video(connection_id: str, key) -> None:
+        conn_extra_json = json.dumps(
+            {
+                "keyfile_dict": key,
+                "project": PROJECT_ID,
+                "scope": "https://www.googleapis.com/auth/display-video, https://www.googleapis.com/auth/cloud-platform",
+            }
+        )
+        create_airflow_connection(
+            connection_id=connection_id,
+            connection_conf={"conn_type": CONNECTION_TYPE, "extra": conn_extra_json},
+        )
+
+    create_connection_display_video_task = create_connection_display_video(
+        connection_id=CONN_ID, key=get_display_video_service_account_key_task
+    )
+
+    create_bucket = GCSCreateBucketOperator(
+        task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID, gcp_conn_id=CONN_ID
+    )
+
     # [START howto_google_display_video_create_sdf_download_task_operator]
     create_sdf_download_task = GoogleDisplayVideo360CreateSDFDownloadTaskOperator(
-        task_id="create_sdf_download_task", body_request=CREATE_SDF_DOWNLOAD_TASK_BODY_REQUEST
+        task_id="create_sdf_download_task",
+        body_request=CREATE_SDF_DOWNLOAD_TASK_BODY_REQUEST,
+        gcp_conn_id=CONN_ID,
     )
     operation_name = '{{ task_instance.xcom_pull("create_sdf_download_task")["name"] }}'
     # [END howto_google_display_video_create_sdf_download_task_operator]
 
     # [START howto_google_display_video_wait_for_operation_sensor]
     wait_for_operation = GoogleDisplayVideo360GetSDFDownloadOperationSensor(
-        task_id="wait_for_operation",
-        operation_name=operation_name,
+        task_id="wait_for_operation", operation_name=operation_name, gcp_conn_id=CONN_ID
     )
     # [END howto_google_display_video_wait_for_operation_sensor]
 
@@ -152,79 +172,69 @@ with DAG(
         bucket_name=BUCKET_NAME,
         object_name=BUCKET_FILE_LOCATION,
         gzip=False,
+        gcp_conn_id=CONN_ID,
     )
     # [END howto_google_display_video_save_sdf_in_gcs_operator]
+
+    create_dataset = BigQueryCreateEmptyDatasetOperator(
+        task_id="create_dataset", dataset_id=BQ_DATASET, gcp_conn_id=CONN_ID
+    )
 
     # [START howto_google_display_video_gcs_to_big_query_operator]
     upload_sdf_to_big_query = GCSToBigQueryOperator(
         task_id="upload_sdf_to_big_query",
         bucket=BUCKET_NAME,
-        source_objects=[save_sdf_in_gcs.output],
+        source_objects=[PATH_TO_UPLOAD_FILE],
         destination_project_dataset_table=f"{BQ_DATASET}.gcs_to_bq_table",
         schema_fields=[
             {"name": "name", "type": "STRING", "mode": "NULLABLE"},
             {"name": "post_abbr", "type": "STRING", "mode": "NULLABLE"},
         ],
         write_disposition="WRITE_TRUNCATE",
+        gcp_conn_id=CONN_ID,
     )
     # [END howto_google_display_video_gcs_to_big_query_operator]
 
-    create_sdf_download_task >> wait_for_operation >> save_sdf_in_gcs
-
-    # Task dependency created via `XComArgs`:
-    #   save_sdf_in_gcs >> upload_sdf_to_big_query
-
-with DAG(
-    "display_video_v2",
-    start_date=datetime(2021, 1, 1),
-    catchup=False,
-    tags=["example", "display_video_v2"],
-) as dag_v2:
-    # [START howto_google_display_video_create_query_operator]
-    create_query_v2 = GoogleDisplayVideo360CreateQueryOperator(body=REPORT_V2, task_id="create_query")
-
-    query_id = cast("str", XComArg(create_query_v2, key="query_id"))
-    # [END howto_google_display_video_create_query_operator]
-
-    # [START howto_google_display_video_run_query_report_operator]
-    run_query_v2 = GoogleDisplayVideo360RunQueryOperator(
-        query_id=query_id, parameters=PARAMETERS, task_id="run_report"
-    )
-
-    query_id = cast("str", XComArg(run_query_v2, key="query_id"))
-    report_id = cast("str", XComArg(run_query_v2, key="report_id"))
-    # [END howto_google_display_video_run_query_report_operator]
-
-    # [START howto_google_display_video_wait_run_query_sensor]
-    wait_for_query = GoogleDisplayVideo360RunQuerySensor(
-        task_id="wait_for_query",
-        query_id=query_id,
-        report_id=report_id,
-    )
-    # [END howto_google_display_video_wait_run_query_sensor]
-
-    # [START howto_google_display_video_get_report_operator]
-    get_report_v2 = GoogleDisplayVideo360DownloadReportV2Operator(
-        query_id=query_id,
-        report_id=report_id,
-        task_id="get_report",
+    delete_bucket = GCSDeleteBucketOperator(
+        task_id="delete_bucket",
         bucket_name=BUCKET_NAME,
-        report_name="test1.csv",
+        gcp_conn_id=CONN_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
-    # [END howto_google_display_video_get_report_operator]
 
-    # [START howto_google_display_video_delete_query_report_operator]
-    delete_report_v2 = GoogleDisplayVideo360DeleteReportOperator(
-        report_id=report_id, task_id="delete_report", trigger_rule=TriggerRule.ALL_DONE
+    @task(task_id="delete_connection_task")
+    def delete_connection_display_video(connection_id: str) -> None:
+        delete_airflow_connection(connection_id=connection_id)
+
+    delete_connection_task = delete_connection_display_video(connection_id=CONN_ID)
+
+    (
+        # TEST SETUP
+        [
+            get_display_video_advertiser_id_task,
+            get_display_video_gmp_partner_id_task,
+            get_display_video_service_account_key_task,
+        ]
+        >> create_connection_display_video_task
+        >> create_bucket
+        >> create_dataset
+        # TEST BODY
+        >> create_sdf_download_task
+        >> wait_for_operation
+        >> save_sdf_in_gcs
+        >> upload_sdf_to_big_query
+        # TEST TEARDOWN
+        >> delete_bucket
+        >> delete_connection_task
     )
-    # [END howto_google_display_video_delete_query_report_operator]
 
-    create_query_v2 >> run_query_v2 >> wait_for_query >> get_report_v2 >> delete_report_v2
+    from tests_common.test_utils.watcher import watcher
 
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)
-test_run_sdf = get_test_run(dag_sdf)
-test_run_v2 = get_test_run(dag_v2)

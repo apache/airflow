@@ -18,14 +18,20 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow import settings
-from airflow.decorators import task
-from airflow.models.baseoperator import chain
-from airflow.models.connection import Connection
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.transfers.http_to_s3 import HttpToS3Operator
 from airflow.providers.standard.operators.bash import BashOperator
+
+from tests_common.test_utils.api_client_helpers import make_authenticated_rest_api_request
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import DAG, chain, task
+else:
+    # Airflow 2.10 compat
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
+    from airflow.models.baseoperator import chain  # type: ignore[attr-defined,no-redef]
+    from airflow.models.dag import DAG  # type: ignore[attr-defined,no-redef,assignment]
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import SystemTestContextBuilder
@@ -51,15 +57,16 @@ exit 0
 
 @task
 def create_connection(conn_id_name: str):
-    conn = Connection(
-        conn_id=conn_id_name,
-        conn_type="http",
-        host="localhost",
-        port=8083,
+    make_authenticated_rest_api_request(
+        path="/api/v2/connections",
+        method="POST",
+        body={
+            "connection_id": conn_id_name,
+            "conn_type": "http",
+            "host": "localhost",
+            "port": 8083,
+        },
     )
-    session = settings.Session()
-    session.add(conn)
-    session.commit()
 
 
 with DAG(

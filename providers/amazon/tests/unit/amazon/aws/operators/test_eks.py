@@ -386,7 +386,7 @@ class TestEksCreateClusterOperator:
 
 class TestEksCreateFargateProfileOperator:
     def setup_method(self) -> None:
-        self.create_fargate_profile_params = CreateFargateProfileParams(  # type: ignore
+        self.create_fargate_profile_params = CreateFargateProfileParams(
             cluster_name=CLUSTER_NAME,
             pod_execution_role_arn=POD_EXECUTION_ROLE_ARN[1],
             selectors=SELECTORS[1],

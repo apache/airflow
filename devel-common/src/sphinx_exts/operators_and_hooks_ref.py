@@ -27,9 +27,7 @@ import jinja2
 import rich_click as click
 import yaml
 from docutils import nodes
-
-# No stub exists for docutils.parsers.rst.directives. See https://github.com/python/typeshed/issues/5755.
-from docutils.parsers.rst import Directive, directives  # type: ignore[attr-defined]
+from docutils.parsers.rst import Directive, directives
 from docutils.statemachine import StringList
 from provider_yaml_utils import get_all_provider_yaml_paths, load_package_data
 from sphinx.util import nested_parse_with_titles

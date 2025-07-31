@@ -26,9 +26,16 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.opensearch.hooks.opensearch import OpenSearchHook
 
-opensearchpy = pytest.importorskip("opensearchpy")
-pytestmark = pytest.mark.db_test
+try:
+    import importlib.util
 
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
+opensearchpy = pytest.importorskip("opensearchpy")
 
 MOCK_SEARCH_RETURN = {"status": "test"}
 DEFAULT_CONN = opensearchpy.connection.http_requests.RequestsHttpConnection
@@ -54,7 +61,7 @@ class TestOpenSearchHook:
         with pytest.raises(AirflowException, match="must include one of either a query or a document id"):
             hook.delete(index_name="test_index")
 
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     def test_hook_param_bool(self, mock_get_connection):
         mock_conn = Connection(
             conn_id="opensearch_default", extra={"use_ssl": "True", "verify_certs": "True"}

@@ -26,6 +26,38 @@
 Changelog
 ---------
 
+2.10.2
+......
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Move all BaseHook usages to version_compat in asana (#52788)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.10.1
+......
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Replace 'models.BaseOperator' to Task SDK one for Asana & Arangodb (#52374)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Add default conn name to asana provider operators (#52185)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Refactor asana operator tests free from db access (#52192)``
+   * ``Remove pytest.mark.db_test where possible from asana provider (#52093)``
+   * ``Introducing fixture to create 'Connections' without DB in provider tests (#51930)``
+
 2.10.0
 ......
 

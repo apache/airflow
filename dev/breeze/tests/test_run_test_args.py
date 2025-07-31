@@ -86,7 +86,8 @@ def test_irregular_provider_with_extra_ignore_should_be_valid_cmd(mock_run_comma
     # positional arg of the command call
     run_cmd_call = mock_run_command.call_args_list[1]
     arg_str = " ".join(run_cmd_call.args[0])
-    assert f"--ignore=providers/{fake_provider_name}/tests/ " in arg_str
+    assert f"--ignore=providers/{fake_provider_name}/tests " in arg_str
+    assert f"providers/{fake_provider_name}/tests" not in arg_str.split(" ")
 
 
 def test_test_is_skipped_if_all_are_ignored(mock_run_command):

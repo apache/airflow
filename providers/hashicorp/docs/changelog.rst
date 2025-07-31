@@ -27,6 +27,39 @@
 Changelog
 ---------
 
+4.3.2
+.....
+
+Misc
+~~~~
+
+* ``Fixed mypy unreachable code errors (#53437)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Move all BaseHook usages to version_compat in HashiCorp (#52812)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix gcp auth in hashicorp vault provider. (#51991)``
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.3.0
 .....
 

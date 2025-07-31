@@ -90,7 +90,7 @@ class MLEngineStartTrainingJobTrigger(BaseTrigger):
             },
         )
 
-    async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         """Get current job execution status and yields a TriggerEvent."""
         hook = self._get_async_hook()
         try:

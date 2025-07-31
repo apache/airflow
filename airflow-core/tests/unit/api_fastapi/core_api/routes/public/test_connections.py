@@ -27,7 +27,7 @@ from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils.session import provide_session
 
 from tests_common.test_utils.api_fastapi import _check_last_log
-from tests_common.test_utils.db import clear_db_connections, clear_db_logs
+from tests_common.test_utils.db import clear_db_connections, clear_db_logs, clear_test_connections
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
 pytestmark = pytest.mark.db_test
@@ -84,6 +84,7 @@ def _create_connections(session) -> None:
 class TestConnectionEndpoint:
     @pytest.fixture(autouse=True)
     def setup(self) -> None:
+        clear_test_connections(False)
         clear_db_connections(False)
         clear_db_logs()
 
@@ -463,6 +464,27 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "host": TEST_CONN_HOST,
                     "login": "test_login_patch",
                     "password": "test_password_patch",
+                    "port": 80,
+                    "schema": None,
+                },
+            ),
+            (
+                # Sensitive "***" should be ignored.
+                {
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "port": 80,
+                    "login": "test_login_patch",
+                    "password": "***",
+                },
+                {
+                    "conn_type": TEST_CONN_TYPE,
+                    "connection_id": TEST_CONN_ID,
+                    "description": TEST_CONN_DESCRIPTION,
+                    "extra": None,
+                    "host": TEST_CONN_HOST,
+                    "login": "test_login_patch",
+                    "password": None,
                     "port": 80,
                     "schema": None,
                 },

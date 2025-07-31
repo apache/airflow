@@ -20,7 +20,7 @@ from contextlib import contextmanager, suppress
 from itertools import chain
 from typing import TYPE_CHECKING
 from unittest import mock
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock
 
 import pytest
 from flask import Flask, g
@@ -30,6 +30,7 @@ from airflow.api_fastapi.common.types import MenuItem
 from airflow.exceptions import AirflowConfigException
 from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.utils.db import resetdb
 
 from tests_common.test_utils.config import conf_vars
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
@@ -154,7 +155,6 @@ class TestFabAuthManager:
         result = auth_manager_with_appbuilder.serialize_user(user)
         assert result == {"sub": str(user.id)}
 
-    @pytest.mark.db_test
     @mock.patch.object(FabAuthManager, "get_user")
     def test_is_logged_in(self, mock_get_user, auth_manager_with_appbuilder):
         user = Mock()
@@ -163,7 +163,6 @@ class TestFabAuthManager:
 
         assert auth_manager_with_appbuilder.is_logged_in() is False
 
-    @pytest.mark.db_test
     @mock.patch.object(FabAuthManager, "get_user")
     def test_is_logged_in_with_inactive_user(self, mock_get_user, auth_manager_with_appbuilder):
         user = Mock()
@@ -690,11 +689,9 @@ class TestFabAuthManager:
 
         delete_user(flask_app, "username")
 
-    @pytest.mark.db_test
     def test_security_manager_return_fab_security_manager_override(self, auth_manager_with_appbuilder):
         assert isinstance(auth_manager_with_appbuilder.security_manager, FabAirflowSecurityManagerOverride)
 
-    @pytest.mark.db_test
     def test_security_manager_return_custom_provided(self, flask_app, auth_manager_with_appbuilder):
         class TestSecurityManager(FabAirflowSecurityManagerOverride):
             pass
@@ -702,7 +699,6 @@ class TestFabAuthManager:
         flask_app.config["SECURITY_MANAGER_CLASS"] = TestSecurityManager
         assert isinstance(auth_manager_with_appbuilder.security_manager, TestSecurityManager)
 
-    @pytest.mark.db_test
     def test_security_manager_wrong_inheritance_raise_exception(
         self, flask_app, auth_manager_with_appbuilder
     ):
@@ -735,3 +731,32 @@ class TestFabAuthManager:
     def test_get_db_manager(self, auth_manager):
         result = auth_manager.get_db_manager()
         assert result == "airflow.providers.fab.auth_manager.models.db.FABDBManager"
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize("skip_init", [False, True])
+@conf_vars(
+    {("database", "external_db_managers"): "airflow.providers.fab.auth_manager.models.db.FABDBManager"}
+)
+@mock.patch("airflow.providers.fab.auth_manager.models.db.FABDBManager")
+@mock.patch("airflow.utils.db.create_global_lock", new=MagicMock)
+@mock.patch("airflow.utils.db.drop_airflow_models")
+@mock.patch("airflow.utils.db.drop_airflow_moved_tables")
+@mock.patch("airflow.utils.db.initdb")
+@mock.patch("airflow.settings.engine.connect")
+def test_resetdb(
+    mock_connect,
+    mock_init,
+    mock_drop_moved,
+    mock_drop_airflow,
+    mock_fabdb_manager,
+    skip_init,
+):
+    session_mock = MagicMock()
+    resetdb(session_mock, skip_init=skip_init)
+    mock_drop_airflow.assert_called_once_with(mock_connect.return_value)
+    mock_drop_moved.assert_called_once_with(mock_connect.return_value)
+    if skip_init:
+        mock_init.assert_not_called()
+    else:
+        mock_init.assert_called_once_with(session=session_mock)

@@ -26,10 +26,10 @@ import json
 import logging
 import os
 import tempfile
-from collections.abc import Generator, Sequence
+from collections.abc import Callable, Generator, Sequence
 from contextlib import ExitStack, contextmanager
 from subprocess import check_output
-from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 import google.auth
 import google.oauth2.service_account
@@ -39,7 +39,7 @@ import tenacity
 from asgiref.sync import sync_to_async
 from gcloud.aio.auth.token import Token, TokenResponse
 from google.api_core.exceptions import Forbidden, ResourceExhausted, TooManyRequests
-from google.auth import _cloud_sdk, compute_engine  # type: ignore[attr-defined]
+from google.auth import _cloud_sdk, compute_engine
 from google.auth.environment_vars import CLOUD_SDK_CONFIG_DIR, CREDENTIALS
 from google.auth.exceptions import RefreshError
 from google.auth.transport import _http_client
@@ -50,12 +50,12 @@ from requests import Session
 
 from airflow import version
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
 from airflow.providers.google.cloud.utils.credentials_provider import (
     _get_scopes,
     _get_target_principal_and_delegates,
     get_credentials_and_project_id,
 )
+from airflow.providers.google.version_compat import BaseHook
 from airflow.utils.process_utils import patch_environ
 
 if TYPE_CHECKING:

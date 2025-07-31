@@ -20,7 +20,7 @@ from __future__ import annotations
 import warnings
 from datetime import datetime, timedelta
 from time import sleep
-from typing import TYPE_CHECKING, Any, NoReturn
+from typing import TYPE_CHECKING, Any
 
 from deprecated.classic import deprecated
 from packaging.version import Version
@@ -28,8 +28,7 @@ from packaging.version import Version
 from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseSensorOperator
 from airflow.utils import timezone
 
 if TYPE_CHECKING:
@@ -106,7 +105,7 @@ class TimeDeltaSensor(BaseSensorOperator):
     Asynchronous execution
     """
 
-    def execute(self, context: Context) -> bool | NoReturn:
+    def execute(self, context: Context) -> Any:
         """
         Depending on the deferrable flag, either execute the sensor in a blocking way or defer it.
 

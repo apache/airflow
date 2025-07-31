@@ -24,15 +24,15 @@ from sqlalchemy import or_
 from airflow import models
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.transfers.s3_to_sql import S3ToSqlOperator
-from airflow.utils import db
 from airflow.utils.session import create_session
 
 pytestmark = pytest.mark.db_test
 
 
 class TestS3ToSqlTransfer:
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             models.Connection(
                 conn_id="s3_test",
                 conn_type="aws",
@@ -41,7 +41,7 @@ class TestS3ToSqlTransfer:
                 ' "aws_secret_access_key"}',
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             models.Connection(
                 conn_id="sql_test",
                 conn_type="postgres",

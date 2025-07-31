@@ -22,11 +22,15 @@ import signal
 
 from airflow import settings
 from airflow.cli.simple_table import AirflowConsole
+from airflow.exceptions import AirflowConfigException
 from airflow.models.backfill import ReprocessBehavior, _create_backfill, _do_dry_run
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import sigint_handler
+from airflow.utils.platform import getuser
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import create_session
+
+log = logging.getLogger(__name__)
 
 
 @cli_utils.action_cli
@@ -53,6 +57,7 @@ def create_backfill(args) -> None:
             reverse=args.run_backwards,
             dag_run_conf=args.dag_run_conf,
             reprocess_behavior=reprocess_behavior,
+            run_on_latest_version=args.run_on_latest_version,
         )
         for k, v in params.items():
             console.print(f"    - {k} = {v}")
@@ -70,6 +75,11 @@ def create_backfill(args) -> None:
             console.print(f"    - {d}")
         return
 
+    try:
+        user = getuser()
+    except AirflowConfigException as e:
+        log.warning("Failed to get user name from os: %s, not setting the triggering user", e)
+        user = None
     _create_backfill(
         dag_id=args.dag_id,
         from_date=args.from_date,
@@ -77,5 +87,7 @@ def create_backfill(args) -> None:
         max_active_runs=args.max_active_runs,
         reverse=args.run_backwards,
         dag_run_conf=args.dag_run_conf,
+        triggering_user_name=user,
         reprocess_behavior=reprocess_behavior,
+        run_on_latest_version=args.run_on_latest_version,
     )

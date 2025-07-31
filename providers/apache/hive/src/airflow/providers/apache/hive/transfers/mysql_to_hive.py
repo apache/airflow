@@ -23,7 +23,7 @@ import csv
 from collections.abc import Sequence
 from contextlib import closing
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 try:
     import MySQLdb
@@ -36,8 +36,8 @@ except ImportError:
     )
 
 
-from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
+from airflow.providers.apache.hive.version_compat import BaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 
 if TYPE_CHECKING:
@@ -97,7 +97,7 @@ class MySqlToHiveOperator(BaseOperator):
         recreate: bool = False,
         partition: dict | None = None,
         delimiter: str = chr(1),
-        quoting: int | None = None,
+        quoting: Literal[0, 1, 2, 3] = csv.QUOTE_MINIMAL,
         quotechar: str = '"',
         escapechar: str | None = None,
         mysql_conn_id: str = "mysql_default",
@@ -113,7 +113,7 @@ class MySqlToHiveOperator(BaseOperator):
         self.create = create
         self.recreate = recreate
         self.delimiter = str(delimiter)
-        self.quoting = quoting or csv.QUOTE_MINIMAL
+        self.quoting = quoting
         self.quotechar = quotechar
         self.escapechar = escapechar
         self.mysql_conn_id = mysql_conn_id

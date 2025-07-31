@@ -22,8 +22,10 @@ import { LuChartColumn } from "react-icons/lu";
 import { MdOutlineEventNote, MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
-import { useDagServiceGetDagDetails, useGridServiceGridData, useTaskServiceGetTask } from "openapi/queries";
+import { useTaskServiceGetTask } from "openapi/queries";
+import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+import { useGridStructure } from "src/queries/useGridStructure.ts";
 import { getGroupTask } from "src/utils/groupTask";
 
 import { GroupTaskHeader } from "./GroupTaskHeader";
@@ -33,10 +35,14 @@ export const Task = () => {
   const { t: translate } = useTranslation("dag");
   const { dagId = "", groupId, taskId } = useParams();
 
+  // Get external views with task destination
+  const externalTabs = usePluginTabs("task");
+
   const tabs = [
     { icon: <LuChartColumn />, label: translate("tabs.overview"), value: "" },
     { icon: <MdOutlineTask />, label: translate("tabs.taskInstances"), value: "task_instances" },
     { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
+    ...externalTabs,
   ];
 
   const displayTabs = groupId === undefined ? tabs : tabs.filter((tab) => tab.value !== "events");
@@ -49,37 +55,15 @@ export const Task = () => {
     enabled: groupId === undefined,
   });
 
-  const { data: gridData } = useGridServiceGridData(
-    {
-      dagId,
-      includeDownstream: true,
-      includeUpstream: true,
-    },
-    undefined,
-    { enabled: groupId !== undefined },
-  );
+  const { data: dagStructure } = useGridStructure({ limit: 1 });
 
-  const groupTask =
-    groupId === undefined ? undefined : getGroupTask(gridData?.structure.nodes ?? [], groupId);
-
-  const {
-    data: dag,
-    error: dagError,
-    isLoading: isDagLoading,
-  } = useDagServiceGetDagDetails({
-    dagId,
-  });
+  const groupTask = getGroupTask(dagStructure, groupId);
 
   return (
     <ReactFlowProvider>
-      <DetailsLayout
-        dag={dag}
-        error={error ?? dagError}
-        isLoading={isLoading || isDagLoading}
-        tabs={displayTabs}
-      >
+      <DetailsLayout error={error} isLoading={isLoading} tabs={displayTabs}>
         {task === undefined ? undefined : <Header task={task} />}
-        {groupTask ? <GroupTaskHeader groupTask={groupTask} /> : undefined}
+        {groupTask ? <GroupTaskHeader title={groupTask.label} /> : undefined}
       </DetailsLayout>
     </ReactFlowProvider>
   );

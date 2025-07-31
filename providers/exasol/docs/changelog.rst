@@ -27,6 +27,37 @@
 Changelog
 ---------
 
+4.8.2
+.....
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Refactoring get con part dbapihook in providers (#53335)``
+* ``Cleanup mypy ignore in exasol provider where possible (#53278)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.8.1
+.....
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.9 (#52072)``
+* ``Bump upper binding on pandas in all providers (#52060)``
+* ``Bump pyexasol>=0.26.0 (#51838)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Clean up messy default connection overrides in provider tests (#52137)``
+   * ``Remove pytest.mark.db_test: exasol (#52057)``
+
 4.8.0
 .....
 

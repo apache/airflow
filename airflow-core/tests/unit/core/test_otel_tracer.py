@@ -28,7 +28,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from airflow.configuration import conf
 from airflow.traces import otel_tracer
 from airflow.traces.otel_tracer import OtelTrace
-from airflow.traces.tracer import EmptyTrace, Trace
+from airflow.traces.tracer import DebugTrace, EmptyTrace, Trace
 from airflow.utils.dates import datetime_to_nano
 
 from tests_common.test_utils.config import env_vars
@@ -42,7 +42,6 @@ def name():
 class TestOtelTrace:
     def test_get_otel_tracer_from_trace_metaclass(self):
         """Test that `Trace.some_method()`, uses an `OtelTrace` instance when otel is configured."""
-        conf.add_section("traces")
         conf.set("traces", "otel_on", "True")
         conf.set("traces", "otel_debugging_on", "True")
 
@@ -59,6 +58,22 @@ class TestOtelTrace:
 
         task_tracer.get_otel_tracer_provider()
         assert task_tracer.use_simple_processor is True
+
+    def test_debug_trace_metaclass(self):
+        """Test that `DebugTrace.some_method()`, uses the correct instance when the debug_traces flag is configured."""
+        conf.set("traces", "otel_on", "True")
+        conf.set("traces", "otel_debug_traces_on", "False")
+
+        assert DebugTrace.check_debug_traces_flag is True
+
+        # Factory hasn't been configured, it defaults to EmptyTrace.
+        assert not isinstance(DebugTrace.factory(), OtelTrace)
+        assert isinstance(DebugTrace.factory(), EmptyTrace)
+
+        DebugTrace.configure_factory()
+        # Factory has been configured, it should still be EmptyTrace.
+        assert not isinstance(DebugTrace.factory(), OtelTrace)
+        assert isinstance(DebugTrace.factory(), EmptyTrace)
 
     @patch("opentelemetry.sdk.trace.export.ConsoleSpanExporter")
     @patch("airflow.traces.otel_tracer.conf")

@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import json
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 import pytest
 from kubernetes.client.rest import ApiException
@@ -27,7 +27,7 @@ from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.sensors.spark_kubernetes import SparkKubernetesSensor
-from airflow.utils import db, timezone
+from airflow.utils import timezone
 
 pytestmark = pytest.mark.db_test
 
@@ -555,9 +555,12 @@ TEST_POD_LOG_RESULT = "LOG LINE 1\nLOG LINE 2"
 
 @patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_conn")
 class TestSparkKubernetesSensor:
-    def setup_method(self):
-        db.merge_conn(Connection(conn_id="kubernetes_default", conn_type="kubernetes", extra=json.dumps({})))
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(conn_id="kubernetes_default", conn_type="kubernetes", extra=json.dumps({}))
+        )
+        create_connection_without_db(
             Connection(
                 conn_id="kubernetes_with_namespace",
                 conn_type="kubernetes",
@@ -838,9 +841,7 @@ class TestSparkKubernetesSensor:
         mock_log_call.assert_called_once_with(
             "spark-pi-2020-02-24-1-driver", namespace="default", container="spark-kubernetes-driver"
         )
-        log_info_call = info_log_call.mock_calls[2]
-        log_value = log_info_call[1][0]
-        assert log_value == TEST_POD_LOG_RESULT
+        assert call(TEST_POD_LOG_RESULT) in info_log_call.mock_calls
 
     @patch(
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
@@ -885,6 +886,4 @@ class TestSparkKubernetesSensor:
         mock_log_call.assert_called_once_with(
             "spark-pi-2020-02-24-1-driver", namespace="default", container="spark-kubernetes-driver"
         )
-        log_info_call = info_log_call.mock_calls[2]
-        log_value = log_info_call[1][0]
-        assert log_value == TEST_POD_LOG_RESULT
+        assert call(TEST_POD_LOG_RESULT) in info_log_call.mock_calls

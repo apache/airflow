@@ -592,7 +592,7 @@ def get_min_airflow_version(provider_id: str) -> str:
 
 
 def get_python_requires(provider_id: str) -> str:
-    python_requires = "~=3.9"
+    python_requires = "~=3.10"
     provider_details = get_provider_details(provider_id=provider_id)
     for p in provider_details.excluded_python_versions:
         python_requires += f", !={p}"
@@ -645,8 +645,8 @@ def get_provider_jinja_context(
     ]
     cross_providers_dependencies = get_cross_provider_dependent_packages(provider_id=provider_id)
 
+    requires_python_version: str = f">={DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
     # Most providers require the same python versions, but some may have exclusions
-    requires_python_version: str = f"~={DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
     for excluded_python_version in provider_details.excluded_python_versions:
         requires_python_version += f",!={excluded_python_version}"
 
@@ -916,7 +916,7 @@ def regenerate_pyproject_toml(
     )
 
 
-AIRFLOW_PACKAGE_MATCHER = re.compile(r"(^.*\")(apache-airflow.*>=[\d.]*)(\".*)$")
+AIRFLOW_PACKAGE_MATCHER = re.compile(r"(^.*\")(apache-airflow.*>=[\d.]*)((\".*)$|;.*$)")
 
 
 def modify_dependency_with_suffix(dependency: str, version_suffix: str) -> str:
@@ -1059,7 +1059,12 @@ def update_version_suffix_in_non_provider_pyproject_toml(version_suffix: str, py
                 get_console().print(
                     f"[info]Updating version suffix to {floored_version_suffix} for {base_line}."
                 )
-                base_line = base_line.rstrip('",') + f'{floored_version_suffix}",'
+                if ";" in base_line:
+                    split_on_semicolon = base_line.split(";")
+                    # If there is a semicolon, we need to remove it before adding the version suffix
+                    base_line = split_on_semicolon[0] + f"{floored_version_suffix};" + split_on_semicolon[1]
+                else:
+                    base_line = base_line.rstrip('",') + f'{floored_version_suffix}",'
             if base_line.strip().startswith('"apache-airflow-core') and "==" in base_line:
                 get_console().print(f"[info]Updating version suffix to {version_suffix} for {base_line}.")
                 base_line = base_line.rstrip('",') + f'{version_suffix}",'

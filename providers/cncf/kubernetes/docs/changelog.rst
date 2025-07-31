@@ -28,6 +28,65 @@ Changelog
 ---------
 
 
+10.6.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Pass cluster context to AsyncKubernetesHook (#53504)``
+* ``Handle multiple pods to prevent KubernetesJobOperator falls with parallelism option (#49899)``
+* ``(fix): Handle pod evictions correctly during retry in KubernetesPodOperator (#53059)``
+
+Misc
+~~~~
+
+* ``Deprecate decorators from Core (#53629)``
+* ``Use asyncio.run instead of loop.run_until_complete. (#53475)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Remove 'airflow.utils.xcom' module and add backcompat shim (#53187)``
+* ``Cleanup mypy ignores cncf provider where possible (#53264)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Replace usages of XCOM_RETURN_KEY in providers to not be from utils (#53170)``
+* ``Make cncf provider compatible with mypy 1.16.1 (#53121)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Move all BaseHook usages to version_compat in cncf (#52798)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Making some brittle tests related to log assertion more robust (#53743)``
+   * ``Make dag_version_id in TI non-nullable (#50825)``
+
+10.6.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix deferrable mode for SparkKubernetesOperator (#51956)``
+* ``Reduce log noise from K8s Pod Operator for XCom (#51812)``
+* ``Prevent legacy static hybrid executors to be running in Airflow 3 (#51760)``
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Update Kubernetes provider for Airflow 3.0 compatibility (#52664)``
+* ``Upgrade ruff to latest version (0.12.1) (#52562)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Use BaseSensorOperator from task sdk in providers (#52296)``
+* ``Move type-ignores up one line (#52195)``
+* ``Ignore mypy errors for deprecated executors (#52187)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make sure all test version imports come from test_common (#52425)``
+   * ``Separate out creation of default Connections for tests and non-tests (#52129)``
+   * ``Remove @pytest.mark.db_test for cncf (#52153)``
+   * ``Remove residual occurences of 'merge_conn' from cncf tests (#52064)``
+   * ``Introducing fixture to create 'Connections' without DB in provider tests (#51930)``
+
 10.6.0
 ......
 

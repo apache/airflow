@@ -41,7 +41,7 @@ ACCEPTED_NON_INIT_DIRS = [
     "non_python_src",
 ]
 
-PATH_EXTENSION_STRING = '__path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore'
+PATH_EXTENSION_STRING = '__path__ = __import__("pkgutil").extend_path(__path__, __name__)'
 
 ALLOWED_SUB_FOLDERS_OF_TESTS = ["unit", "system", "integration"]
 

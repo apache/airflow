@@ -36,18 +36,18 @@ classifiers = [
     "Intended Audience :: Developers",
     "Framework :: Apache Airflow",
     "License :: OSI Approved :: Apache Software License",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
-requires-python = "~=3.9"
+requires-python = ">=3.10, !=3.13"
 
 dependencies = [
     "black>=23.11.0",
-    # TODO: Click 8.2.0 is Python 3.10+ only by mistake (should be ~3.8) so we should limit it
-    #       until this is fixed https://github.com/pallets/click/issues/2896
-    "click>=8.1.8, <8.2.0",
+    # There is a bug in Click 8.2.0 and 8.2.1 that makes flag variables do not properly evaluate
+    # "false"-y values set in environment variables. See https://github.com/pallets/click/issues/2952
+    "click>=8.1.8,<8.2.0",
     "filelock>=3.13.0",
     "flit>=3.12.0",
     "flit-core>=3.12.0",
@@ -59,7 +59,7 @@ dependencies = [
     "inputimeout>=1.0.4",
     "jinja2>=3.1.5",
     "jsonschema>=4.19.1",
-    "packaging>=23.2",
+    "packaging>=25.0",
     "pre-commit>=3.5.0",
     "pre-commit-uv>=4.1.3",
     "psutil>=5.9.6",
@@ -76,7 +76,6 @@ dependencies = [
     "twine>=4.0.2",
     "tqdm>=4.67.1",
     "boto3>=1.34.90",
-    "awswrangler>=3.11.0",
     "semver>=3.0.4"
 ]
 
@@ -88,7 +87,7 @@ name = "airflow_breeze"
 
 [tool.black]
 line-length = 110
-target-version = ['py39', 'py310', 'py311', 'py312']
+target-version = ['py310', 'py311', 'py312']
 
 [tool.pytest.ini_options]
 addopts = "-rasl --verbosity=2 -p no:flaky -p no:nose -p no:legacypath"

@@ -6,14 +6,21 @@
       "warning": "سيؤدي هذا إلى إزالة جميع البيانات الوصفية المرتبطة بالDag، بما في ذلك التشغيلات والمهام."
     }
   },
+  "favoriteDag": "تفضيل الDag",
   "filters": {
     "allRunTypes": "جميع أنواع التشغيلات",
     "allStates": "جميع الحالات",
+    "favorite": {
+      "all": "الكل",
+      "favorite": "تفضيل",
+      "unfavorite": "إلغاء التفضيل"
+    },
     "paused": {
       "active": "مفعّل",
       "all": "الكل",
       "paused": "متوقف"
-    }
+    },
+    "runIdPatternFilter": "بحث تشغيلات الDag"
   },
   "ownerLink": "رابط المالك لـ{{owner}}",
   "runAndTaskActions": {
@@ -55,6 +62,7 @@
       "onlyFailed": "مسح المهام الفاشلة فقط",
       "past": "الماضي",
       "queueNew": "إضافة مهام جديدة للانتظار",
+      "runOnLatestVersion": "تشغيل بآخر إصدار الحزمة",
       "upstream": "المهام السابقة"
     }
   },
@@ -83,5 +91,6 @@
       "desc": "الترتيب حسب التشغيل التالي (الأحدث-الأقدم)"
     },
     "placeholder": "الترتيب حسب"
-  }
+  },
+  "unfavoriteDag": "إلغاء تفضيل الDag"
 }

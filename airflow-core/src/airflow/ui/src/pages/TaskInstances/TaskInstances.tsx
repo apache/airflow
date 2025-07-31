@@ -116,7 +116,11 @@ const taskInstanceColumns = ({
       row: {
         original: { state },
       },
-    }) => <StateBadge state={state}>{translate(`common:states.${state}`)}</StateBadge>,
+    }) => (
+      <StateBadge state={state}>
+        {state ? translate(`common:states.${state}`) : translate("common:states.no_status")}
+      </StateBadge>
+    ),
     header: () => translate("state"),
   },
   {
@@ -188,7 +192,7 @@ export const TaskInstances = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-start_date";
+  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-start_date", "-run_after"];
 
   const filteredState = searchParams.getAll(STATE_PARAM);
   const startDate = searchParams.get(START_DATE_PARAM);

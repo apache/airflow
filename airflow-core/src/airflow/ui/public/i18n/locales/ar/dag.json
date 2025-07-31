@@ -19,25 +19,54 @@
   },
   "header": {
     "buttons": {
-      "dagDocs": "وثائق DAG"
+      "advanced": "متقدم",
+      "dagDocs": "وثائق Dag"
     }
   },
   "logs": {
+    "allLevels": "جميع مستويات السجل",
+    "allSources": "جميع المصادر",
+    "critical": "حرِج",
+    "debug": "تصحيح",
+    "error": "خطأ",
+    "fullscreen": {
+      "button": "ملء الشاشة",
+      "tooltip": "اضغط على {{hotkey}} للدخول إلى وضع ملء الشاشة"
+    },
+    "info": "معلومات",
     "noTryNumber": "لا يوجد رقم محاولة",
-    "viewInExternal": "عرض السجلات في {{name}} (المحاولة {{attempt}})"
+    "settings": "سجل الاعدادات",
+    "viewInExternal": "عرض السجلات في {{name}} (المحاولة {{attempt}})",
+    "warning": "تحذير"
   },
   "overview": {
     "buttons": {
+      "failedRun_few": "فشل تشغيلات",
+      "failedRun_many": "فشل تشغيلات",
       "failedRun_one": "فشل تشغيل",
       "failedRun_other": "فشل تشغيلات",
+      "failedRun_two": "فشل تشغيلين",
+      "failedRun_zero": "لا يوجد أي فشل في التشغيل",
+      "failedTask_few": "فشل مهام",
+      "failedTask_many": "فشل مهام",
       "failedTask_one": "فشل مهمة",
       "failedTask_other": "فشل مهام",
+      "failedTask_two": "فشل مهمتين",
+      "failedTask_zero": "لا يوجد أي فشل في المهمة",
+      "failedTaskInstance_few": "فشل مثيلات مهمة",
+      "failedTaskInstance_many": "فشل مثيلات مهمة",
       "failedTaskInstance_one": "فشل مثيل مهمة",
-      "failedTaskInstance_other": "فشل مثيلات المهام"
+      "failedTaskInstance_other": "فشل مثيلات مهمة",
+      "failedTaskInstance_two": "فشل مثيلين مهمة",
+      "failedTaskInstance_zero": "لا يوجد أي فشل في مثيلات مهمة"
     },
     "charts": {
-      "assetEvent_one": "تم إنشاء حدث أصل",
-      "assetEvent_other": "تم إنشاء أحداث أصل"
+      "assetEvent_few": "تم إنشاء واقعات أصل",
+      "assetEvent_many": "تم إنشاء واقعات أصل",
+      "assetEvent_one": "تم إنشاء واقعة أصل",
+      "assetEvent_other": "تم إنشاء واقعات أصل",
+      "assetEvent_two": "تم إنشاء واقعتين أصل",
+      "assetEvent_zero": "لا توجد أي واقعة أصل"
     },
     "failedLogs": {
       "title": "سجلات المهام الفاشلة الأخيرة",
@@ -51,12 +80,12 @@
       "showGrid": "عرض الشبكة"
     },
     "dagRuns": {
-      "label": "عدد تشغيلات DAG"
+      "label": "عدد تشغيلات Dag"
     },
     "dependencies": {
       "label": "التبعيات",
       "options": {
-        "allDagDependencies": "جميع تبعيات DAG",
+        "allDagDependencies": "جميع تبعيات Dag",
         "externalConditions": "الشروط الخارجية",
         "onlyTasks": "المهام فقط"
       },
@@ -70,12 +99,12 @@
   "parse": {
     "toaster": {
       "error": {
-        "description": "فشل في إعادة تحليل DAG. يمكن أن يكون بسبب تحليل جاري حالياً",
-        "title": "فشل في إعادة تحليل DAG"
+        "description": "فشل في إعادة تحليل Dag. يمكن أن يكون بسبب تحليل جاري حالياً",
+        "title": "فشل في إعادة تحليل Dag"
       },
       "success": {
         "description": "Dag سوف يعاد تحليله قريباً.",
-        "title": "تم إعادة تحليل DAG بنجاح"
+        "title": "تم إعادة تحليل Dag بنجاح"
       }
     }
   },
@@ -86,8 +115,12 @@
     "code": "الكود",
     "details": "التفاصيل",
     "logs": "السجلات",
+    "mappedTaskInstances_few": "مثيلات مهمة [{{count}}]",
+    "mappedTaskInstances_many": "مثيل مهمة [{{count}}]",
     "mappedTaskInstances_one": "مثيل مهمة [{{count}}]",
-    "mappedTaskInstances_other": "مثيلات المهام [{{count}}]",
+    "mappedTaskInstances_other": "مثيل مهمة [{{count}}]",
+    "mappedTaskInstances_two": "مثيلان لمهمة [{{count}}]",
+    "mappedTaskInstances_zero": "لا توجد أي مثيل مهمة",
     "overview": "نظرة عامة",
     "renderedTemplates": "القوالب المعروضة",
     "runs": "تشغيلات",
@@ -98,13 +131,5 @@
   "taskGroups": {
     "collapseAll": "طي جميع مجموعات المهام",
     "expandAll": "توسيع جميع مجموعات المهام"
-  },
-  "taskLogs": {
-    "allLogLevels": "جميع مستويات السجل",
-    "allSources": "جميع المصادر",
-    "fullscreen": {
-      "button": "ملء الشاشة",
-      "tooltip": "اضغط على {{hotkey}} للدخول إلى وضع ملء الشاشة"
-    }
   }
 }

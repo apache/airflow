@@ -37,6 +37,7 @@ import type { ConnectionBody } from "./Connections";
 type AddConnectionFormProps = {
   readonly error: unknown;
   readonly initialConnection: ConnectionBody;
+  readonly isEditMode?: boolean;
   readonly isPending: boolean;
   readonly mutateConnection: (requestBody: ConnectionBody) => void;
 };
@@ -44,6 +45,7 @@ type AddConnectionFormProps = {
 const ConnectionForm = ({
   error,
   initialConnection,
+  isEditMode = false,
   isPending,
   mutateConnection,
 }: AddConnectionFormProps) => {
@@ -202,6 +204,7 @@ const ConnectionForm = ({
               initialParamsDict={paramsDic}
               key={selectedConnType}
               setError={setFormErrors}
+              subHeader={isEditMode ? translate("connections.form.helperTextForRedactedFields") : undefined}
             />
             <Accordion.Item key="extraJson" value="extraJson">
               <Accordion.ItemTrigger cursor="button">
@@ -220,6 +223,11 @@ const ConnectionForm = ({
                         }}
                       />
                       {Boolean(errors.conf) ? <Field.ErrorText>{errors.conf}</Field.ErrorText> : undefined}
+                      {isEditMode ? (
+                        <Field.HelperText>
+                          {translate("connections.form.helperTextForRedactedFields")}
+                        </Field.HelperText>
+                      ) : undefined}
                     </Field.Root>
                   )}
                 />

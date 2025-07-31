@@ -94,7 +94,7 @@ def _is_outdated(path: str):
 
 
 def should_be_refreshed(pkg_name: str, refresh_airflow_inventories: bool) -> bool:
-    if pkg_name in ["helm-chart", "docker-stack"] or pkg_name.startswith("apache-airflow"):
+    if pkg_name in ["helm-chart", "docker-stack", "task-sdk"] or pkg_name.startswith("apache-airflow"):
         return refresh_airflow_inventories
     return False
 
@@ -117,7 +117,7 @@ def fetch_inventories(clean_build: bool, refresh_airflow_inventories: bool = Fal
                 (CACHE_PATH / pkg_name / "objects.inv").as_posix(),
             )
         )
-    for pkg_name in ["apache-airflow", "helm-chart"]:
+    for pkg_name in ["apache-airflow", "helm-chart", "task-sdk"]:
         to_download.append(
             (
                 pkg_name,

@@ -61,10 +61,16 @@ function check_db_backend {
     elif [[ ${BACKEND} == "sqlite" ]]; then
         return
     elif [[ ${BACKEND} == "none" ]]; then
-        echo "${COLOR_YELLOW}WARNING: Using no database backend!${COLOR_RESET}"
-        return
+        echo "${COLOR_YELLOW}WARNING: Using no database backend${COLOR_RESET}"
+
+        if [[ ${START_AIRFLOW=} == "true" ]]; then
+            echo "${COLOR_RED}ERROR: 'start-airflow' cannot be used with --backend=none${COLOR_RESET}"
+            echo "${COLOR_RED}Supported values are: [postgres,mysql,sqlite]${COLOR_RESET}"
+            echo "${COLOR_RED}Please specify one using '--backend'${COLOR_RESET}"
+            exit 1
+        fi
     else
-        echo "Unknown backend. Supported values: [postgres,mysql,mssql,sqlite]. Current value: [${BACKEND}]"
+        echo "${COLOR_RED}ERROR: Unknown backend. Supported values: [postgres,mysql,sqlite]. Current value: [${BACKEND}]${COLOR_RESET}"
         exit 1
     fi
 }
@@ -182,7 +188,7 @@ if [[ ${INTEGRATION_YDB} == "true" ]]; then
     check_service "YDB Cluster" "run_nc ydb 2136" 50
 fi
 
-if [[ ${INTEGRATION_GREMLIN} == "true" ]]; then
+if [[ ${INTEGRATION_TINKERPOP} == "true" ]]; then
     check_service "gremlin" "run_nc gremlin 8182" 100 30
 fi
 

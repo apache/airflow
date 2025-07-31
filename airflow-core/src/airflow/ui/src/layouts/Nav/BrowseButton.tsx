@@ -18,12 +18,14 @@
  */
 import { useTranslation } from "react-i18next";
 import { FiGlobe } from "react-icons/fi";
-import { Link } from "react-router-dom";
+import { Link as RouterLink } from "react-router-dom";
 
 import type { MenuItem } from "openapi/requests/types.gen";
 import { Menu } from "src/components/ui";
+import type { NavItemResponse } from "src/utils/types";
 
 import { NavButton } from "./NavButton";
+import { PluginMenuItem } from "./PluginMenuItem";
 
 const links = [
   {
@@ -38,19 +40,25 @@ const links = [
   },
 ];
 
-export const BrowseButton = ({ authorizedMenuItems }: { readonly authorizedMenuItems: Array<MenuItem> }) => {
+export const BrowseButton = ({
+  authorizedMenuItems,
+  externalViews,
+}: {
+  readonly authorizedMenuItems: Array<MenuItem>;
+  readonly externalViews: Array<NavItemResponse>;
+}) => {
   const { t: translate } = useTranslation("common");
   const menuItems = links
     .filter(({ title }) => authorizedMenuItems.includes(title as MenuItem))
     .map((link) => (
       <Menu.Item asChild key={link.key} value={translate(`browse.${link.key}`)}>
-        <Link aria-label={translate(`browse.${link.key}`)} to={link.href}>
+        <RouterLink aria-label={translate(`browse.${link.key}`)} to={link.href}>
           {translate(`browse.${link.key}`)}
-        </Link>
+        </RouterLink>
       </Menu.Item>
     ));
 
-  if (!menuItems.length) {
+  if (!menuItems.length && !externalViews.length) {
     return undefined;
   }
 
@@ -59,7 +67,12 @@ export const BrowseButton = ({ authorizedMenuItems }: { readonly authorizedMenuI
       <Menu.Trigger asChild>
         <NavButton icon={<FiGlobe size="1.75rem" />} title={translate("nav.browse")} />
       </Menu.Trigger>
-      <Menu.Content>{menuItems}</Menu.Content>
+      <Menu.Content>
+        {menuItems}
+        {externalViews.map((view) => (
+          <PluginMenuItem {...view} key={view.name} />
+        ))}
+      </Menu.Content>
     </Menu.Root>
   );
 };

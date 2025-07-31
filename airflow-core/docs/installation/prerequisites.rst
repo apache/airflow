@@ -20,15 +20,15 @@ Prerequisites
 
 Airflow® is tested with:
 
-* Python: 3.9, 3.10, 3.11, 3.12
+* Python: 3.10, 3.11, 3.12, 3.13
 
 * Databases:
 
-  * PostgreSQL: 12, 13, 14, 15, 16
+  * PostgreSQL: 13, 14, 15, 16, 17
   * MySQL: 8.0, `Innovation <https://dev.mysql.com/blog-archive/introducing-mysql-innovation-and-long-term-support-lts-versions>`_
   * SQLite: 3.15.0+
 
-* Kubernetes: 1.26, 1.27, 1.28, 1.29, 1.30
+* Kubernetes: 1.30, 1.31, 1.32, 1.33
 
 While we recommend a minimum of 4GB of memory for Airflow, the actual requirements heavily depend on your chosen deployment.
 

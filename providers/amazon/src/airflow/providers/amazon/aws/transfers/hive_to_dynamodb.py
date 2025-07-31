@@ -20,11 +20,11 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING
 
-from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
+from airflow.providers.amazon.version_compat import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
 
 if TYPE_CHECKING:

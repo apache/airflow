@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import pytest
 
+pytest.importorskip("snowflake-snowpark-python")
+
 from airflow.providers.snowflake.utils.snowpark import inject_session_into_op_kwargs
 
 

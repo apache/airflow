@@ -98,7 +98,9 @@ def job_trigger():
         ssl_ca_cert=SSL_CA_CERT,
         job_name=JOB_NAME,
         job_namespace=NAMESPACE,
-        pod_name=POD_NAME,
+        pod_names=[
+            POD_NAME,
+        ],
         pod_namespace=NAMESPACE,
         base_container_name=BASE_CONTAINER_NAME,
         gcp_conn_id=GCP_CONN_ID,
@@ -328,7 +330,6 @@ def async_get_operation_result():
     return func
 
 
-@pytest.mark.db_test
 class TestGKEOperationTrigger:
     def test_serialize(self, operation_trigger):
         classpath, trigger_init_kwargs = operation_trigger.serialize()
@@ -483,7 +484,9 @@ class TestGKEStartJobTrigger:
             "ssl_ca_cert": SSL_CA_CERT,
             "job_name": JOB_NAME,
             "job_namespace": NAMESPACE,
-            "pod_name": POD_NAME,
+            "pod_names": [
+                POD_NAME,
+            ],
             "pod_namespace": NAMESPACE,
             "base_container_name": BASE_CONTAINER_NAME,
             "gcp_conn_id": GCP_CONN_ID,
@@ -522,7 +525,9 @@ class TestGKEStartJobTrigger:
             {
                 "name": JOB_NAME,
                 "namespace": NAMESPACE,
-                "pod_name": POD_NAME,
+                "pod_names": [
+                    POD_NAME,
+                ],
                 "pod_namespace": NAMESPACE,
                 "status": "success",
                 "message": "Job completed successfully",
@@ -560,7 +565,9 @@ class TestGKEStartJobTrigger:
             {
                 "name": JOB_NAME,
                 "namespace": NAMESPACE,
-                "pod_name": POD_NAME,
+                "pod_names": [
+                    POD_NAME,
+                ],
                 "pod_namespace": NAMESPACE,
                 "status": "error",
                 "message": "Job failed with error: Error",

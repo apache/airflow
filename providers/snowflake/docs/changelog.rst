@@ -27,6 +27,56 @@
 Changelog
 ---------
 
+6.5.1
+.....
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``another magic pip resolver hint (#53329)``
+* ``fix: Improve logging and timeouts in OL helpers (#53139)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Cleanup type ignores in snowflake provider where possible (#53258)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Make snowpark optional for snowflake provider and disable it for Python 3.13 (#53489)``
+* ``Deprecate decorators from Core (#53629)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make dag_version_id in TI non-nullable (#50825)``
+   * ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+   * ``Replace 'mock.patch("utcnow")' with time_machine. (#53642)``
+
+6.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Add explicit support for SnowflakeSqlApiHook to Openlineage helper (#52161)``
+* ``feat: Add new query related methods to SnowflakeSqlApiHook (#52157)``
+* ``feat: Add SnowflakeSqlApiHook Retry Logic (#51463)``
+
+
+Misc
+~~~~
+
+* ``Provider Migration: Update Snowflake provider for Airflow 3.0 compatibility (#52629)``
+* ``Disable UP038 ruff rule and revert mandatory 'X | Y' in insintance checks (#52644)``
+* ``Bump pyarrow to 16.1.0 minimum version for several providers (#52635)``
+* ``Replace models.BaseOperator to Task SDK one for Common Providers (#52443)``
+* ``Relax snowflake-snowpark-python for Python>=3.12 (#52356)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Replace 'models.BaseOperator' to Task SDK one for Standard Provider (#52292)``
+* ``Bump upper binding on pandas in all providers (#52060)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix StopIteration in snowflake sql tests (#52394)``
+   * ``Make sure all test version imports come from test_common (#52425)``
+   * ``Add tests to test whether snowflake sql API handles invalid JSON (#52118)``
+
 6.4.0
 .....
 

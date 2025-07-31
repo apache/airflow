@@ -76,6 +76,8 @@ def test_get_field_non_prefixed(input, expected):
 
 
 def test_add_managed_identity_connection_widgets():
+    pytest.importorskip("airflow.providers.fab")
+
     class FakeHook:
         @classmethod
         @add_managed_identity_connection_widgets

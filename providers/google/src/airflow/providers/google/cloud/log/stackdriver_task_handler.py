@@ -159,7 +159,7 @@ class StackdriverTaskHandler(logging.Handler):
         """Object responsible for sending data to Stackdriver."""
         # The Transport object is badly defined (no init) but in the docs client/name as constructor
         # arguments are a requirement for any class that derives from Transport class, hence ignore:
-        return self.transport_type(self._client, self.gcp_log_name)  # type: ignore[call-arg]
+        return self.transport_type(self._client, self.gcp_log_name)
 
     def _get_labels(self, task_instance=None):
         if task_instance:

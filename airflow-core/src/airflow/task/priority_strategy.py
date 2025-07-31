@@ -52,7 +52,7 @@ class PriorityWeightStrategy(ABC):
         was returned by ``serialize`` during DAG serialization. The default
         implementation constructs the priority weight strategy without any arguments.
         """
-        return cls(**data)  # type: ignore[call-arg]
+        return cls(**data)
 
     def serialize(self) -> dict[str, Any]:
         """

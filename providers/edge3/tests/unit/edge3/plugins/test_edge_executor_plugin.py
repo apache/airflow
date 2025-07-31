@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import importlib
+from unittest.mock import patch
 
 import pytest
 import time_machine
@@ -43,23 +44,49 @@ def test_plugin_inactive():
         assert len(rep.appbuilder_views) == 0
 
 
-def test_plugin_active():
-    with conf_vars({("edge", "api_enabled"): "true"}):
+@pytest.mark.db_test
+def test_plugin_active_apiserver():
+    mock_cli = ["airflow", "api-server"] if AIRFLOW_V_3_0_PLUS else ["gunicorn", "airflow-webserver"]
+    with conf_vars({("edge", "api_enabled"): "true"}), patch("sys.argv", mock_cli):
         importlib.reload(edge_executor_plugin)
 
         from airflow.providers.edge3.plugins.edge_executor_plugin import (
             EDGE_EXECUTOR_ACTIVE,
+            RUNNING_ON_APISERVER,
             EdgeExecutorPlugin,
         )
 
         rep = EdgeExecutorPlugin()
         assert EDGE_EXECUTOR_ACTIVE
-        assert len(rep.appbuilder_views) == 2
+        assert RUNNING_ON_APISERVER
         if AIRFLOW_V_3_0_PLUS:
-            assert len(rep.flask_blueprints) == 1
+            assert len(rep.appbuilder_views) == 0
+            assert len(rep.flask_blueprints) == 0
             assert len(rep.fastapi_apps) == 1
         else:
+            assert len(rep.appbuilder_views) == 2
             assert len(rep.flask_blueprints) == 2
+
+
+@patch("sys.argv", ["airflow", "some-other-command"])
+def test_plugin_active_non_apiserver():
+    with conf_vars({("edge", "api_enabled"): "true"}):
+        importlib.reload(edge_executor_plugin)
+
+        from airflow.providers.edge3.plugins.edge_executor_plugin import (
+            EDGE_EXECUTOR_ACTIVE,
+            RUNNING_ON_APISERVER,
+            EdgeExecutorPlugin,
+        )
+
+        rep = EdgeExecutorPlugin()
+        assert EDGE_EXECUTOR_ACTIVE
+        assert not RUNNING_ON_APISERVER
+        assert len(rep.appbuilder_views) == 0
+        assert len(rep.flask_blueprints) == 0
+        assert len(rep.appbuilder_views) == 0
+        if AIRFLOW_V_3_0_PLUS:
+            assert len(rep.fastapi_apps) == 0
 
 
 @pytest.fixture
@@ -73,6 +100,7 @@ def test_plugin_is_airflow_plugin(plugin):
     assert isinstance(plugin, AirflowPlugin)
 
 
+@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Plugin endpoint is not used in Airflow 3.0+")
 @pytest.mark.parametrize(
     "initial_comment, expected_comment",
     [

@@ -31,4 +31,4 @@ def md5(string: ReadableBuffer = b"", /) -> hashlib._Hash:
     :param string: The data to hash. Default to empty str byte.
     :return: The hashed value.
     """
-    return hashlib.md5(string, usedforsecurity=False)  # type: ignore
+    return hashlib.md5(string, usedforsecurity=False)

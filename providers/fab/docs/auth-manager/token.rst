@@ -30,7 +30,7 @@ Example
 
 .. code-block:: bash
 
-    ENDPOINT_URL="http://localhost:8080/"
+    ENDPOINT_URL="http://localhost:8080"
     curl -X 'POST' \
         "${ENDPOINT_URL}/auth/token" \
         -H 'Content-Type: application/json' \
@@ -40,3 +40,6 @@ Example
         }'
 
 This process will return a token that you can use in the Airflow public API requests.
+
+Only users from database (`AUTH_TYPE = AUTH_DB`) or from LDAP (`AUTH_TYPE = AUTH_LDAP`) can be used to generate a token.
+See :doc:`Airflow public API <webserver-authentication>` for more details.

@@ -72,7 +72,9 @@ apache-airflow-providers-git package
 `Distributed version control system (GIT) <https://git-scm.com/>`__
 
 
-Release: 0.0.3
+Release: 0.0.5
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------

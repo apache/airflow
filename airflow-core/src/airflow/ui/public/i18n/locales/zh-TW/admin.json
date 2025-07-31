@@ -1,19 +1,19 @@
 {
-  "columns":{
+  "columns": {
     "description": "描述",
     "key": "鍵",
     "name": "名稱",
     "value": "值"
   },
-  "config":{
-    "columns":{
+  "config": {
+    "columns": {
       "section": "區段"
     },
     "title": "Airflow 設定"
   },
-  "connections":{
-    "add":"新增連線",
-    "columns":{
+  "connections": {
+    "add": "新增連線",
+    "columns": {
       "connectionId": "連線 ID",
       "connectionType": "連線類型",
       "host": "主機",
@@ -21,7 +21,7 @@
     },
     "connection_one": "連線",
     "connection_other": "連線",
-    "delete":{
+    "delete": {
       "deleteConnection_one": "刪除 1 個連線",
       "deleteConnection_other": "刪除 {{count}} 個連線",
       "firstConfirmMessage_one": "您即將刪除以下連線：",
@@ -29,7 +29,7 @@
       "title": "刪除連線"
     },
     "edit": "編輯連線",
-    "form":{
+    "form": {
       "connectionIdRequired": "連線 ID 是必填的",
       "connectionIdRequirement": "連線 ID 不能只包含空格",
       "connectionTypeRequired": "連線類型是必填的",
@@ -39,7 +39,9 @@
       "selectConnectionType": "選擇連線類型",
       "standardFields": "標準欄位"
     },
-    "noRowMessage": "找不到連線",
+    "nothingFound": {
+      "title": "找不到連線"
+    },
     "searchPlaceholder": "搜尋連線",
     "test": "測試連線",
     "testDisabled": "測試連線功能已停用。請聯繫管理員以啟用。",
@@ -55,9 +57,9 @@
       }
     }
   },
-  "deleteActions":{
+  "deleteActions": {
     "button": "刪除",
-    "modal":{
+    "modal": {
       "confirmButton": "確定刪除",
       "secondConfirmMessage": "此動作無法復原。",
       "thirdConfirmMessage": "您確定要繼續嗎？"
@@ -65,7 +67,7 @@
     "selected": "已選取",
     "tooltip": "刪除所選連線"
   },
-  "formActions":{
+  "formActions": {
     "reset": "重置",
     "save": "儲存"
   },
@@ -80,7 +82,7 @@
   "pools": {
     "add": "新增資源池",
     "deferredSlotsIncluded": "包含延後任務",
-    "delete":{
+    "delete": {
       "title": "刪除資源池",
       "warning": "這將刪除所有與此資源池相關的系統資料，可能會影響使用此資源池的任務。"
     },

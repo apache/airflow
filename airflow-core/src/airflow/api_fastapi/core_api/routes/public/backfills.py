@@ -24,6 +24,7 @@ from pydantic import NonNegativeInt
 from sqlalchemy import select, update
 from sqlalchemy.orm import joinedload
 
+from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import (
     SessionDep,
@@ -41,7 +42,7 @@ from airflow.api_fastapi.core_api.datamodels.backfills import (
 from airflow.api_fastapi.core_api.openapi.exceptions import (
     create_openapi_http_exception_doc,
 )
-from airflow.api_fastapi.core_api.security import requires_access_backfill, requires_access_dag
+from airflow.api_fastapi.core_api.security import GetUserDep, requires_access_backfill, requires_access_dag
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import DagNotFound
 from airflow.models import DagRun
@@ -56,7 +57,6 @@ from airflow.models.backfill import (
     _create_backfill,
     _do_dry_run,
 )
-from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 
 backfills_router = AirflowRouter(tags=["Backfill"], prefix="/backfills")
@@ -229,6 +229,7 @@ def cancel_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> Backfil
 )
 def create_backfill(
     backfill_request: BackfillPostBody,
+    user: GetUserDep,
 ) -> BackfillResponse:
     from_date = timezone.coerce_datetime(backfill_request.from_date)
     to_date = timezone.coerce_datetime(backfill_request.to_date)
@@ -240,6 +241,7 @@ def create_backfill(
             max_active_runs=backfill_request.max_active_runs,
             reverse=backfill_request.run_backwards,
             dag_run_conf=backfill_request.dag_run_conf,
+            triggering_user_name=user.get_name(),
             reprocess_behavior=backfill_request.reprocess_behavior,
         )
         return BackfillResponse.model_validate(backfill_obj)

@@ -17,6 +17,7 @@
     "auditLog": "審計日誌",
     "xcoms": "XComs"
   },
+  "collapseDetailsPanel": "收起詳細資訊",
   "createdAssetEvent_one": "已建立資源事件",
   "createdAssetEvent_other": "已建立資源事件",
   "dag_one": "Dag",
@@ -128,6 +129,13 @@
     "manual": "手動觸發",
     "scheduled": "已排程"
   },
+  "scroll": {
+    "direction": {
+      "bottom": "最下方",
+      "top": "最上方"
+    },
+    "tooltip": "按 {{hotkey}} 捲動到{{direction}}"
+  },
   "seconds": "{{count}} 秒",
   "security": {
     "actions": "操作",
@@ -137,6 +145,7 @@
     "users": "使用者"
   },
   "selectLanguage": "選擇語言",
+  "showDetailsPanel": "顯示詳細資訊",
   "sourceAssetEvent_one": "來源資源事件",
   "sourceAssetEvent_other": "來源資源事件",
   "startDate": "開始日期",
@@ -223,7 +232,7 @@
     "title": "選擇時區",
     "utc": "UTC"
   },
-    "toaster": {
+  "toaster": {
     "bulkDelete": {
       "error": "批次刪除 {{resourceName}} 請求失敗",
       "success": {

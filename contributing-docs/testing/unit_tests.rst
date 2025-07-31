@@ -69,6 +69,55 @@ For avoid this make sure:
         with pytest.warns(AirflowProviderDeprecationWarning, match="expected warning pattern"):
             SomeDeprecatedClass(foo="bar", spam="egg")
 
+Mocking time-related functionality in tests
+-------------------------------------------
+
+Mocking sleep calls
+...................
+
+To speed up test execution and avoid unnecessary delays, you should mock sleep calls in tests or set the sleep time to 0.
+If the method you're testing includes a call to ``time.sleep()`` or ``asyncio.sleep()``, mock these calls instead.
+How to mock ``sleep()`` depends on how it's imported:
+
+* If ``time.sleep`` is imported as ``import time``:
+
+.. code-block:: python
+
+    @mock.patch("time.sleep", return_value=None)
+    def test_your_test():
+        pass
+
+* If ``sleep`` is imported directly using ``from time import sleep``:
+
+.. code-block:: python
+
+    @mock.patch("path.to.the.module.sleep", return_value=None)
+    def test_your_test():
+        pass
+
+For methods that use ``asyncio`` for async sleep calls you can proceed identically.
+
+**NOTE:** There are certain cases in which the method functioning correctly depends on actual time passing.
+In those cases the test with the mock will fail. Then it's okay to leave it unmocked.
+Use your judgment and prefer mocking whenever possible.
+
+Controlling date and time
+.........................
+
+Some features rely on the current date and time, e.g a function that generates timestamps, or passing of time.
+To test such features reliably, we use the ``time-machine`` library to control the system's time:
+
+.. code-block:: python
+
+    @time_machine.travel(datetime(2025, 3, 27, 21, 58, 1, 2345), tick=False)
+    def test_log_message(self):
+        """
+        The tested code uses datetime.now() to generate a timestamp.
+        Freezing time ensures the timestamp is predictable and testable.
+        """
+
+By setting ``tick=False``, time is frozen at the specified moment and does not advance during the test.
+If you want time to progress from a fixed starting point, you can set ``tick=True``.
 
 Airflow configuration for unit tests
 ------------------------------------
@@ -185,7 +234,7 @@ rerun in Breeze as you will (``-n auto`` will parallelize tests using ``pytest-x
 
 .. code-block:: bash
 
-    breeze shell --backend none --python 3.9
+    breeze shell --backend none --python 3.10
     > pytest airflow-core/tests --skip-db-tests -n auto
 
 
@@ -227,7 +276,7 @@ You can also run DB tests with ``breeze`` dockerized environment. You can choose
 ``--backend`` flag. The default is ``sqlite`` but you can also use others such as ``postgres`` or ``mysql``.
 You can also select backend version and Python version to use. You can specify the ``test-type`` to run -
 breeze will list the test types you can run with ``--help`` and provide auto-complete for them. Example
-below runs the ``Core`` tests with ``postgres`` backend and ``3.9`` Python version
+below runs the ``Core`` tests with ``postgres`` backend and ``3.10`` Python version
 
 You can also run the commands via ``breeze testing core-tests`` or ``breeze testing providers-tests``
 - by adding the parallel flags manually:
@@ -249,7 +298,7 @@ either by package/module/test or by test type - whatever ``pytest`` supports.
 
 .. code-block:: bash
 
-    breeze shell --backend postgres --python 3.9
+    breeze shell --backend postgres --python 3.10
     > pytest airflow-core/tests --run-db-tests-only
 
 As explained before, you cannot run DB tests in parallel using ``pytest-xdist`` plugin, but ``breeze`` has
@@ -258,7 +307,7 @@ and you can run the tests using ``--run-in-parallel`` flag.
 
 .. code-block:: bash
 
-    breeze testing core-tests --run-db-tests-only --backend postgres --python 3.9 --run-in-parallel
+    breeze testing core-tests --run-db-tests-only --backend postgres --python 3.10 --run-in-parallel
 
 Examples of marking test as DB test
 ...................................
@@ -1168,7 +1217,7 @@ Herr id how to reproduce it.
 
 .. code-block:: bash
 
-   breeze ci-image build --python 3.9
+   breeze ci-image build --python 3.10
 
 2. Build providers from latest sources:
 

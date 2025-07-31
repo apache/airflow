@@ -25,5 +25,6 @@
   "lastAssetEvent": "마지막 에셋 이벤트",
   "name": "이름",
   "producingTasks": "생성하는 태스크",
+  "scheduledDags": "스케줄 된 Dags",
   "searchPlaceholder": "에셋 검색"
 }

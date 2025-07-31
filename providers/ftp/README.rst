@@ -23,8 +23,9 @@
 
 Package ``apache-airflow-providers-ftp``
 
-Release: ``3.13.0``
+Release: ``3.13.2``
 
+Release Date: ``|PypiReleaseDate|``
 
 `File Transfer Protocol (FTP) <https://tools.ietf.org/html/rfc114>`__
 
@@ -36,7 +37,7 @@ This is a provider package for ``ftp`` provider. All classes for this provider p
 are in ``airflow.providers.ftp`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-ftp/3.13.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-ftp/3.13.2/>`_.
 
 Installation
 ------------
@@ -45,7 +46,7 @@ You can install this package on top of an existing Airflow 2 installation (see `
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-ftp``
 
-The package supports the following python versions: 3.9,3.10,3.11,3.12
+The package supports the following python versions: 3.10,3.11,3.12,3.13
 
 Requirements
 ------------
@@ -77,4 +78,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-ftp/3.13.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-ftp/3.13.2/changelog.html>`_.

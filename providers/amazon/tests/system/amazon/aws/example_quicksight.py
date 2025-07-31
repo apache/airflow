@@ -22,9 +22,6 @@ from datetime import datetime
 
 import boto3
 
-from airflow.decorators import task
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.quicksight import QuickSightCreateIngestionOperator
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateBucketOperator,
@@ -32,6 +29,17 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3DeleteBucketOperator,
 )
 from airflow.providers.amazon.aws.sensors.quicksight import QuickSightSensor
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import DAG, chain, task
+else:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
+    from airflow.models.baseoperator import chain  # type: ignore[attr-defined,no-redef]
+    from airflow.models.dag import DAG  # type: ignore[attr-defined,no-redef,assignment]
+
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
@@ -43,6 +51,9 @@ https://quicksight.aws.amazon.com/sn/console/signup?#
 2. The activation process creates an IAM Role called `aws-quicksight-service-role-v0`.
  You have to add a policy named 'AWSQuickSightS3Policy' with the S3 access permissions.
  The policy name is enforced, and the permissions json can be copied from `AmazonS3FullAccess`.
+3. Navigate to your QuickSight account, select your user account and click "Manage QuickSight".
+ Then select 'Security & Permissions' and under "IAM role in use" specify the
+ `aws-quicksight-service-role-v0` role.
 
 NOTES:  If Create Ingestion fails for any reason, that ingestion name will remain in use and
  future runs will stall with the sensor returning a status of QUEUED "forever".  If you run

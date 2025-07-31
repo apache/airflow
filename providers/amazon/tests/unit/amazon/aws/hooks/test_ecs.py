@@ -20,8 +20,8 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
-from airflow.providers.amazon.aws.hooks.ecs import EcsHook, should_retry, should_retry_eni
+from airflow.providers.amazon.aws.exceptions import EcsOperatorError
+from airflow.providers.amazon.aws.hooks.ecs import EcsHook, should_retry
 
 DEFAULT_CONN_ID: str = "aws_default"
 REGION: str = "us-east-1"
@@ -59,22 +59,3 @@ class TestShouldRetry:
 
     def test_return_false_on_invalid_reason(self):
         assert not should_retry(EcsOperatorError([{"reason": "CLUSTER_NOT_FOUND"}], "Foo"))
-
-
-class TestShouldRetryEni:
-    def test_return_true_on_valid_reason(self):
-        assert should_retry_eni(
-            EcsTaskFailToStart(
-                "The task failed to start due to: "
-                "Timeout waiting for network interface provisioning to complete."
-            )
-        )
-
-    def test_return_false_on_invalid_reason(self):
-        assert not should_retry_eni(
-            EcsTaskFailToStart(
-                "The task failed to start due to: "
-                "CannotPullContainerError: "
-                "ref pull has been retried 5 time(s): failed to resolve reference"
-            )
-        )

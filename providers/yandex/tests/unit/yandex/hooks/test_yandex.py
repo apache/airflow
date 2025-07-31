@@ -21,15 +21,25 @@ from unittest import mock
 
 import pytest
 
+pytest.importorskip("yandexcloud")
+
 from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook
 
 from tests_common.test_utils.config import conf_vars
 
-yandexcloud = pytest.importorskip("yandexcloud")
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 
 
 class TestYandexHook:
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     @mock.patch("airflow.providers.yandex.utils.credentials.get_credentials")
     def test_client_created_without_exceptions(self, mock_get_credentials, mock_get_connection):
         """tests `init` method to validate client creation when all parameters are passed"""
@@ -52,7 +62,7 @@ class TestYandexHook:
         )
         assert hook.client is not None
 
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     @mock.patch("airflow.providers.yandex.utils.credentials.get_credentials")
     def test_sdk_user_agent(self, mock_get_credentials, mock_get_connection):
         mock_get_connection.return_value = mock.Mock(yandex_conn_id="yandexcloud_default", extra_dejson="{}")
@@ -63,7 +73,7 @@ class TestYandexHook:
             hook = YandexCloudBaseHook()
             assert hook.sdk._channels._client_user_agent.startswith(sdk_prefix)
 
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     @mock.patch("airflow.providers.yandex.utils.credentials.get_credentials")
     def test_get_endpoint_specified(self, mock_get_credentials, mock_get_connection):
         default_folder_id = "test_id"
@@ -83,7 +93,7 @@ class TestYandexHook:
 
         assert hook._get_endpoint() == {"endpoint": "my_endpoint"}
 
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     @mock.patch("airflow.providers.yandex.utils.credentials.get_credentials")
     def test_get_endpoint_unspecified(self, mock_get_credentials, mock_get_connection):
         default_folder_id = "test_id"
@@ -103,7 +113,7 @@ class TestYandexHook:
 
         assert hook._get_endpoint() == {}
 
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     def test__get_field(self, mock_get_connection):
         field_name = "one"
         field_value = "value_one"
@@ -128,7 +138,7 @@ class TestYandexHook:
 
         assert res == field_value
 
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     def test__get_field_extras_not_found(self, get_connection_mock):
         field_name = "some_field"
         default = "some_default"

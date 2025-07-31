@@ -32,9 +32,9 @@ Definition of the public interface for airflow.providers.common.sql.src.airflow.
 isort:skip_file
 """
 
-from collections.abc import Generator, Iterable, Mapping, MutableMapping, Sequence
+from collections.abc import Callable, Generator, Iterable, Mapping, MutableMapping, Sequence
 from functools import cached_property as cached_property
-from typing import Any, Callable, Literal, Protocol, TypeVar, overload
+from typing import Any, Literal, Protocol, TypeVar, overload
 
 from _typeshed import Incomplete as Incomplete
 from pandas import DataFrame as PandasDataFrame
@@ -204,4 +204,4 @@ class DbApiHook(BaseHook):
         handler: Callable[[Any], T] = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
-    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None: ...
+    ) -> tuple | list | list[tuple] | list[list[tuple] | tuple] | None: ...

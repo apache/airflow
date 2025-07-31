@@ -39,7 +39,9 @@
       "selectConnectionType": "Sélectionner le Type de Connexion",
       "standardFields": "Champs Standards"
     },
-    "noRowMessage": "Aucune connexion trouvée",
+    "nothingFound": {
+      "title": "Aucune connexion trouvée!"
+    },
     "searchPlaceholder": "Rechercher les connexions",
     "test": "Test la connexion",
     "testDisabled": "Le test de connexion est désactivé. Veuillez contacter un administrateur pour l'activer.",

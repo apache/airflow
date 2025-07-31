@@ -38,7 +38,7 @@ from inspect import signature
 from pathlib import Path
 from subprocess import PIPE, Popen
 from tempfile import NamedTemporaryFile, _TemporaryFileWrapper, gettempdir
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import quote_plus
 
 import httpx
@@ -50,7 +50,6 @@ from googleapiclient.errors import HttpError
 # Number of retries - used by googleapiclient method calls to perform retries
 # For requests that are "retriable"
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.google.cloud.hooks.secret_manager import (
     GoogleCloudSecretManagerHook,
@@ -61,6 +60,7 @@ from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseHook,
     get_field,
 )
+from airflow.providers.google.version_compat import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
@@ -847,8 +847,8 @@ class CloudSQLDatabaseHook(BaseHook):
             self.user = self._get_iam_db_login()
             self.password = self._generate_login_token(service_account=self.cloudsql_connection.login)
         else:
-            self.user = self.cloudsql_connection.login
-            self.password = self.cloudsql_connection.password
+            self.user = cast("str", self.cloudsql_connection.login)
+            self.password = cast("str", self.cloudsql_connection.password)
         self.public_ip = self.cloudsql_connection.host
         self.public_port = self.cloudsql_connection.port
         self.ssl_cert = ssl_cert
@@ -1103,6 +1103,8 @@ class CloudSQLDatabaseHook(BaseHook):
         return connection_uri
 
     def _get_instance_socket_name(self) -> str:
+        if self.project_id is None:
+            raise ValueError("The project_id should not be none")
         return self.project_id + ":" + self.location + ":" + self.instance
 
     def _get_sqlproxy_instance_specification(self) -> str:
@@ -1135,6 +1137,8 @@ class CloudSQLDatabaseHook(BaseHook):
             raise ValueError("Proxy runner can only be retrieved in case of use_proxy = True")
         if not self.sql_proxy_unique_path:
             raise ValueError("The sql_proxy_unique_path should be set")
+        if self.project_id is None:
+            raise ValueError("The project_id should not be None")
         return CloudSqlProxyRunner(
             path_prefix=self.sql_proxy_unique_path,
             instance_specification=self._get_sqlproxy_instance_specification(),

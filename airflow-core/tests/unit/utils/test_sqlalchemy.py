@@ -29,7 +29,9 @@ from sqlalchemy import text
 from sqlalchemy.exc import StatementError
 
 from airflow import settings
+from airflow._shared.timezones.timezone import utcnow
 from airflow.models.dag import DAG
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.serialization.enums import DagAttributeTypes, Encoding
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.settings import Session
@@ -41,7 +43,6 @@ from airflow.utils.sqlalchemy import (
     with_row_locks,
 )
 from airflow.utils.state import State
-from airflow.utils.timezone import utcnow
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 pytestmark = pytest.mark.db_test
@@ -73,7 +74,8 @@ class TestSqlAlchemyUtils:
 
         dag = DAG(dag_id=dag_id, schedule=datetime.timedelta(days=1), start_date=start_date)
         dag.clear()
-
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
         run = dag.create_dagrun(
             run_id=iso_date,
             run_type=DagRunType.MANUAL,

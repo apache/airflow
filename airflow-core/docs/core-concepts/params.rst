@@ -32,7 +32,7 @@ If the user-supplied values don't pass validation, Airflow shows a warning inste
 DAG-level Params
 ----------------
 
-To add Params to a :class:`~airflow.models.dag.DAG`, initialize it with the ``params`` kwarg.
+To add Params to a :class:`~airflow.sdk.DAG`, initialize it with the ``params`` kwarg.
 Use a dictionary that maps Param names to either a :class:`~airflow.sdk.definitions.param.Param` or an object indicating the parameter's default value.
 
 .. code-block::
@@ -191,7 +191,7 @@ JSON Schema Validation
 .. note::
     If ``schedule`` is defined for a DAG, params with defaults must be valid. This is validated during DAG parsing.
     If ``schedule=None`` then params are not validated during DAG parsing but before triggering a DAG.
-    This is useful in cases where the DAG author does not want to provide defaults but wants to force users provide valid parameters
+    This is useful in cases where the Dag author does not want to provide defaults but wants to force users provide valid parameters
     at time of trigger.
 
 .. note::

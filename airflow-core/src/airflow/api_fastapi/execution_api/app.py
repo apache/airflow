@@ -100,7 +100,7 @@ class CadwynWithOpenAPICustomization(Cadwyn):
     # Workaround lack of customzation https://github.com/zmievsa/cadwyn/issues/255
     async def openapi_jsons(self, req: Request) -> JSONResponse:
         resp = await super().openapi_jsons(req)
-        open_apischema = json.loads(resp.body)  # type: ignore[arg-type]
+        open_apischema = json.loads(resp.body)
         open_apischema = self.customize_openapi(open_apischema)
 
         resp.body = resp.render(open_apischema)

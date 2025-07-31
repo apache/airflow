@@ -21,7 +21,7 @@ import itertools
 
 import pytest
 
-from airflow.decorators import setup, task, teardown
+from airflow.sdk import setup, task, teardown
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions.dag import DAG
 

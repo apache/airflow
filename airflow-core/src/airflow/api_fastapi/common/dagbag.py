@@ -20,16 +20,15 @@ from typing import Annotated
 
 from fastapi import Depends, Request
 
-from airflow.models.dagbag import DagBag
-from airflow.settings import DAGS_FOLDER
+from airflow.models.dagbag import SchedulerDagBag
 
 
-def create_dag_bag() -> DagBag:
+def create_dag_bag() -> SchedulerDagBag:
     """Create DagBag to retrieve DAGs from the database."""
-    return DagBag(DAGS_FOLDER, read_dags_from_db=True)
+    return SchedulerDagBag()
 
 
-def dag_bag_from_app(request: Request) -> DagBag:
+def dag_bag_from_app(request: Request) -> SchedulerDagBag:
     """
     FastAPI dependency resolver that returns the shared DagBag instance from app.state.
 
@@ -39,4 +38,4 @@ def dag_bag_from_app(request: Request) -> DagBag:
     return request.app.state.dag_bag
 
 
-DagBagDep = Annotated[DagBag, Depends(dag_bag_from_app)]
+DagBagDep = Annotated[SchedulerDagBag, Depends(dag_bag_from_app)]

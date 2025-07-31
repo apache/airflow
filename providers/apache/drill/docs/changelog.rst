@@ -26,6 +26,35 @@
 Changelog
 ---------
 
+3.1.2
+.....
+
+Misc
+~~~~
+
+* ``improve test coverage for apache drill (#53517)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Clean up mypy ignores in drill provider (#53320)``
+* ``Cleanup type ignores (#53304)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.1.1
+.....
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.1.0
 .....
 

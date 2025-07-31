@@ -26,6 +26,107 @@
 Changelog
 ---------
 
+9.11.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add full support for AWS SSM Run Command in Airflow (#52769)``
+* ``Enhancement: AWS Provider sql to s3 operator pd.read_sql kwargs (#53399)``
+* ``Support HA schedulers for the Lambda Executor (#53396)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix variable name in EKS command for token expiration timestamp (#53720)``
+* ``Fix EMR operator parameter documentation and naming (#53446)``
+* ``remove ECS Operator retry mechanism on task failed to start (#53083)``
+* ``Resolve OOM When Reading Large Logs in Webserver (#49470)``
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Fix unreachable code mypy warnings in amazon provider (#53414)``
+* ``Refactoring get con part dbapihook in providers (#53335)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Cleanup type ignores in amazon provider where possible (#53239)``
+* ``Use standard library ''typing'' imports for Python 3.10+ (#53158)``
+* ``Always build xmlsec and lxml packages from sources in our images (#53137)``
+* ``Improve mypy typing for RedshiftHook (#53099)``
+* ``Make amazon provider compatible with mypy 1.16.1 (#53088)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Change import in provider example dag (#53772)``
+   * ``Deprecate decorators from Core (#53629)``
+   * ``Replace 'mock.patch("utcnow")' with time_machine. (#53642)``
+   * ``Fix typos 'aiflow' -> 'airflow' (#53603)``
+   * ``Add support to example_emr_eks for LambdaExecutor environment (#53394)``
+   * ``Cleanup mypy ignore in eks_test_utils (#53325)``
+   * ``Handle ruff PT028 changes (#53235)``
+   * ``Create connection with API instead of directly through Session (#53161)``
+   * ``Make dag_version_id in TI non-nullable (#50825)``
+   * ``Changing import path to 'airflow.sdk' in Amazon provider package (#50659)``
+
+9.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add support for S3 dag bundle (#46621)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix GlueJobOperator deferred waiting (#52314)``
+* ``Handle exceptions when fetching status in GlueJobHook (#52262)``
+* ``Handle 'S3KeySensor' in 'deferrable' mode splits 'bucket_key' into individual chars (#52983)``
+* ``Pass the region_name from the GlueJobOperator / GlueJobSensor to the Trigger (#52904)``
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Replace 'models.BaseOperator' to Task SDK one for Amazon Provider (#52667)``
+* ``Disable UP038 ruff rule and revert mandatory 'X | Y' in insintance checks (#52644)``
+* ``Upgrade ruff to latest version (0.12.1) (#52562)``
+* ``Replace usage of 'set_extra' with 'extra' for athena sql hook (#52340)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Replace 'models.BaseOperator' to Task SDK one for Standard Provider (#52292)``
+* ``Replace occurences of 'get_password' with 'password' to ease migration (#52333)``
+* ``Use BaseSensorOperator from task sdk in providers (#52296)``
+* ``Use base AWS classes in Glue Trigger / Sensor and implement custom waiter (#52243)``
+* ``Add Airflow 3.0+ Task SDK support to AWS Batch Executor (#52121)``
+* ``Refactor operator_extra_links property in BatchOperator (#51385)``
+* ``Remove unused batch methods from auth manager (#52883)``
+* ``Add debug logging for endpoint_url in AWS Connection (#52856)``
+* ``Remove 'MENU' from 'ResourceMethod' in auth manager (#52731)``
+* ``Remove 'MAX_XCOM_SIZE' hardcoded constant from Airflow core  (#52978)``
+* ``More robust handling of 'BaseHook.get_connection''s 'CONNECTION_NOT_FOUND' Task SDK exception (#52838)``
+* ``Move all BaseHook usages to version_compat in Amazon (#52796)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+
+Doc-only
+~~~~~~~~
+
+* ``Clean some leftovers of Python 3.9 removal - All the rest (#52432)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make sure all test version imports come from test_common (#52425)``
+   * ``Added additional steps to QuickSights test prerequisites (#52198)``
+   * ``examples dags: Update redshift node version dc2.large is deprecated (#52120)``
+   * ``Updating AWS systest to do connection setup using ENV (#52073)``
+   * ``Remove pytest.mark.db_test: airbyte and amazon providers where possible (#52017)``
+   * ``Introducing fixture to create 'Connections' without DB in provider tests (#51930)``
+   * ``Switch the Supervisor/task process from line-based to length-prefixed (#51699)``
+   * ``Mocked time.sleep to avoid actual sleep time (#51752)``
+   * ``Prepare release for July 2025 1st provider wave (#52727)``
+
 9.9.0
 .....
 

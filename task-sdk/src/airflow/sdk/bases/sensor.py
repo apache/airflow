@@ -21,9 +21,9 @@ import datetime
 import hashlib
 import time
 import traceback
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.exceptions import (
@@ -36,8 +36,8 @@ from airflow.exceptions import (
     TaskDeferralError,
     TaskDeferralTimeout,
 )
+from airflow.sdk import timezone
 from airflow.sdk.bases.operator import BaseOperator
-from airflow.utils import timezone
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context

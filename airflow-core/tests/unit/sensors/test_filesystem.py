@@ -24,11 +24,11 @@ from datetime import timedelta
 
 import pytest
 
+from airflow._shared.timezones.timezone import datetime
 from airflow.exceptions import AirflowSensorTimeout, TaskDeferred
 from airflow.models.dag import DAG
 from airflow.providers.standard.sensors.filesystem import FileSensor
 from airflow.providers.standard.triggers.file import FileTrigger
-from airflow.utils.timezone import datetime
 
 pytestmark = pytest.mark.db_test
 

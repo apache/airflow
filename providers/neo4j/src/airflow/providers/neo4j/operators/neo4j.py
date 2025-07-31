@@ -17,11 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from airflow.models import BaseOperator
 from airflow.providers.neo4j.hooks.neo4j import Neo4jHook
+from airflow.providers.neo4j.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     try:
@@ -42,16 +42,17 @@ class Neo4jOperator(BaseOperator):
     :param sql: the sql code to be executed. Can receive a str representing a
         sql statement
     :param neo4j_conn_id: Reference to :ref:`Neo4j connection id <howto/connection:neo4j>`.
+    :param parameters: the parameters to send to Neo4j driver session
     """
 
-    template_fields: Sequence[str] = ("sql",)
+    template_fields: Sequence[str] = ("sql", "parameters")
 
     def __init__(
         self,
         *,
         sql: str,
         neo4j_conn_id: str = "neo4j_default",
-        parameters: Iterable | Mapping[str, Any] | None = None,
+        parameters: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -62,4 +63,4 @@ class Neo4jOperator(BaseOperator):
     def execute(self, context: Context) -> None:
         self.log.info("Executing: %s", self.sql)
         hook = Neo4jHook(conn_id=self.neo4j_conn_id)
-        hook.run(self.sql)
+        hook.run(self.sql, self.parameters)

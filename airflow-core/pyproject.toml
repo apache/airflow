@@ -17,12 +17,12 @@
 
 [build-system]
 requires = [
-    "GitPython==3.1.44",
+    "GitPython==3.1.45",
     "gitdb==4.0.12",
     "hatchling==1.27.0",
     "packaging==25.0",
     "pathspec==0.12.1",
-    "pluggy==1.5.0",
+    "pluggy==1.6.0",
     "smmap==5.0.2",
     "tomli==2.2.1; python_version < '3.11'",
     "trove-classifiers==2025.5.9.12",
@@ -35,7 +35,12 @@ name = "apache-airflow-core"
 description = "Core packages for Apache Airflow, schedule and API server"
 readme = { file = "README.md", content-type = "text/markdown" }
 license-files.globs = ["LICENSE", "3rd-party-licenses/*.txt", "NOTICE"]
-requires-python = "~=3.9,<3.13"
+# We know that it will take a while before we can support Python 3.14 because of all our dependencies
+# It takes about 4-7 months after Python release before we can support it, so we limit it to <3.14
+# proactively. This way we also have a chance to test it with Python 3.14 and bump the upper binding
+# and manually mark providers that do not support it yet with !-3.14 - until they support it - which will
+# also exclude resolving uv workspace dependencies for those providers.
+requires-python = ">=3.10,<3.14"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -51,7 +56,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
     "License :: OSI Approved :: Apache Software License",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -78,16 +82,10 @@ dependencies = [
     "cryptography>=41.0.0",
     "deprecated>=1.2.13",
     "dill>=0.2.2",
-    # Required for python 3.9 to work with new annotations styles. Check package
-    # description on PyPI for more details: https://pypi.org/project/eval-type-backport/
-    'eval-type-backport>=0.2.0;python_version<"3.10"',
     # 0.115.10 fastapi was a bad release that broke our API's and static checks.
     # Related fastapi issue here: https://github.com/fastapi/fastapi/discussions/13431
     "fastapi[standard]>=0.115.0,!=0.115.10",
-    # We could get rid of flask and gunicorn if we replace serve_logs with a starlette + unicorn
-    "flask>=2.1.1",
-    # We could get rid of flask and gunicorn if we replace serve_logs with a starlette + unicorn
-    "gunicorn>=20.1.0",
+    "starlette>=0.45.0",
     "httpx>=0.25.0",
     'importlib_metadata>=6.5;python_version<"3.12"',
     'importlib_metadata>=7.0;python_version>="3.12"',
@@ -95,8 +93,7 @@ dependencies = [
     "jinja2>=3.1.5",
     "jsonschema>=4.19.1",
     "lazy-object-proxy>=1.2.0",
-    'libcst >=1.1.0,!=1.8.1;python_version<"3.10"',
-    'libcst >=1.1.0;python_version>="3.10"',
+    'libcst >=1.8.2',
     "linkify-it-py>=2.0.0",
     "lockfile>=0.12.2",
     "methodtools>=0.4.7",
@@ -111,11 +108,10 @@ dependencies = [
     # dependency and should be resolved as early as possible.
     # This may be removed when future versions of pip are able
     # to handle this dependency resolution automatically.
-    "opentelemetry-proto<9999",
-    "packaging>=23.2",
+    "opentelemetry-proto<9999,>=1.27.0",
+    "packaging>=25.0",
     "pathspec>=0.9.0",
-    'pendulum>=2.1.2,<4.0;python_version<"3.12"',
-    'pendulum>=3.0.0,<4.0;python_version>="3.12"',
+    'pendulum>=3.1.0',
     "pluggy>=1.5.0",
     "psutil>=5.8.0",
     "pydantic>=2.11.0",
@@ -142,9 +138,7 @@ dependencies = [
     "tabulate>=0.9.0",
     "tenacity>=8.3.0",
     "termcolor>=3.0.0",
-    # temporarily exclude 4.14.0 due to its broken compat with cadwyn
-    # See https://github.com/zmievsa/cadwyn/issues/283
-    "typing-extensions!=4.14.0",
+    "typing-extensions>=4.14.1",
     # Universal Pathlib 0.2.4 adds extra validation for Paths and our integration with local file paths
     # Does not work with it Tracked in https://github.com/fsspec/universal_pathlib/issues/276
     "universal-pathlib>=0.2.2,!=0.2.4",
@@ -162,14 +156,14 @@ dependencies = [
 [project.optional-dependencies]
 "async" = [
     "eventlet>=0.37.0",
-    "gevent>=24.2.1",
-    "greenlet>=0.4.9",
+    "gevent>=25.4.1",
+    "greenlet>=3.1.0",
 ]
 "graphviz" = [
     # The graphviz package creates friction when installing on MacOS as it needs graphviz system package to
     # be installed, and it's really only used for very obscure features of Airflow, so we can skip it on MacOS
     # Instead, if someone attempts to use it on MacOS, they will get explanatory error on how to install it
-    "graphviz>=0.12; sys_platform != 'darwin'",
+    "graphviz>=0.20; sys_platform != 'darwin'",
 ]
 "kerberos"  = [
     "pykerberos>=1.1.13",
@@ -181,9 +175,8 @@ dependencies = [
 ]
 "sentry" = [
     "blinker>=1.1",
-    # Sentry SDK 1.33 is broken when greenlets are installed and fails to import
-    # See https://github.com/getsentry/sentry-python/issues/2473
-    "sentry-sdk>=1.32.0,!=1.33.0",
+    # Apparently sentry needs flask to be installed to work properly
+    "sentry-sdk[flask]>=2.30.0",
 ]
 "statsd" = [
     "statsd>=3.3.0",
@@ -208,7 +201,6 @@ Mastodon = "https://fosstodon.org/@airflow"
 Bluesky = "https://bsky.app/profile/apache-airflow.bsky.social"
 YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
-
 [tool.hatch.version]
 path = "src/airflow/__init__.py"
 
@@ -220,7 +212,11 @@ include = [
 exclude = [
     "src/airflow/ui/node_modules/",
     "src/airflow/api_fastapi/auth/managers/simple/ui/node_modules",
+    "src/airflow/ui/openapi.merged.json",
 ]
+
+[tool.hatch.build.targets.sdist.force-include]
+"../shared/timezones/src/airflow_shared/timezones" = "src/airflow/_shared/timezones"
 
 [tool.hatch.build.targets.custom]
 path = "./hatch_build.py"
@@ -242,6 +238,7 @@ artifacts = [
 exclude = [
     "src/airflow/ui/node_modules/",
     "src/airflow/api_fastapi/auth/managers/simple/ui/node_modules",
+    "src/airflow/ui/openapi.merged.json",
 ]
 
 [dependency-groups]
@@ -256,7 +253,7 @@ dev = [
     "apache-airflow-providers-amazon",
     "apache-airflow-providers-celery",
     "apache-airflow-providers-cncf-kubernetes",
-    "apache-airflow-providers-fab",
+    "apache-airflow-providers-fab>=2.2.0; python_version < '3.13'",
     "apache-airflow-providers-git",
     "apache-airflow-providers-ftp",
 ]

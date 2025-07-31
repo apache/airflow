@@ -120,7 +120,6 @@ ALLOWED_TOP_LEVEL_FILES = ("exceptions.py",)
 
 PACKAGES_THAT_WE_SHOULD_ADD_TO_API_DOCS = {
     "hooks",
-    "decorators",
     "example_dags",
     "executors",
     "operators",
@@ -140,15 +139,7 @@ UTIL_MODULES_THAT_SHOULD_BE_INCLUDED_IN_API_DOCS: set[str] = {
 
 MODELS_THAT_SHOULD_BE_INCLUDED_IN_API_DOCS: set[str] = {
     "baseoperator.py",
-    "connection.py",
-    "dag.py",
-    "dagrun.py",
-    "dagbag.py",
     "param.py",
-    "taskinstance.py",
-    "taskinstancekey.py",
-    "variable.py",
-    "xcom.py",
 }
 
 
@@ -221,6 +212,7 @@ manual_substitutions_in_generated_html = [
     "installation/installing-from-sources.html",
     "administration-and-deployment/logging-monitoring/advanced-logging-configuration.html",
     "howto/docker-compose/index.html",
+    "security/sbom.html",
 ]
 
 html_css_files = ["custom.css"]

@@ -49,7 +49,7 @@ class AirflowTestOnLoadExceptionPlugin(AirflowPlugin):
 
 
 @pytest.fixture(autouse=True, scope="module")
-def clean_plugins():
+def _clean_listeners():
     get_listener_manager().clear()
     yield
     get_listener_manager().clear()
@@ -148,6 +148,48 @@ class TestPluginsManager:
                 logging.WARNING,
                 "Plugin 'test_menu_links_plugin' may not be compatible with the current Airflow version. "
                 "Please contact the author of the plugin.",
+            ),
+        ]
+
+    def test_should_warning_about_conflicting_url_route(self, caplog):
+        class TestPluginA(AirflowPlugin):
+            name = "test_plugin_a"
+
+            external_views = [{"url_route": "/test_route"}]
+
+        class TestPluginB(AirflowPlugin):
+            name = "test_plugin_b"
+
+            external_views = [{"url_route": "/test_route"}]
+            react_apps = [{"url_route": "/test_route"}]
+
+        with (
+            mock_plugin_manager(plugins=[TestPluginA(), TestPluginB()]),
+            caplog.at_level(logging.WARNING, logger="airflow.plugins_manager"),
+        ):
+            from airflow import plugins_manager
+
+            plugins_manager.initialize_ui_plugins()
+
+            # Verify that the conflicting external view and react app are not loaded
+            plugin_b = next(plugin for plugin in plugins_manager.plugins if plugin.name == "test_plugin_b")
+            assert plugin_b.external_views == []
+            assert plugin_b.react_apps == []
+            assert len(plugins_manager.external_views) == 1
+            assert len(plugins_manager.react_apps) == 0
+
+        assert caplog.record_tuples == [
+            (
+                "airflow.plugins_manager",
+                logging.WARNING,
+                "Plugin 'test_plugin_b' has an external view with an URL route '/test_route' "
+                "that conflicts with another plugin 'test_plugin_a'. The view will not be loaded.",
+            ),
+            (
+                "airflow.plugins_manager",
+                logging.WARNING,
+                "Plugin 'test_plugin_b' has a React App with an URL route '/test_route' "
+                "that conflicts with another plugin 'test_plugin_a'. The React App will not be loaded.",
             ),
         ]
 
@@ -268,22 +310,20 @@ class TestPluginsManager:
     def test_registering_plugin_listeners(self):
         from airflow import plugins_manager
 
-        try:
-            with mock.patch("airflow.plugins_manager.plugins", []):
-                plugins_manager.load_plugins_from_plugin_directory()
-                plugins_manager.integrate_listener_plugins(get_listener_manager())
+        assert not get_listener_manager().has_listeners
+        with mock.patch("airflow.plugins_manager.plugins", []):
+            plugins_manager.load_plugins_from_plugin_directory()
+            plugins_manager.integrate_listener_plugins(get_listener_manager())
 
-                assert get_listener_manager().has_listeners
-                listeners = get_listener_manager().pm.get_plugins()
-                listener_names = [el.__name__ if inspect.ismodule(el) else qualname(el) for el in listeners]
-                # sort names as order of listeners is not guaranteed
-                assert sorted(listener_names) == [
-                    "airflow.example_dags.plugins.event_listener",
-                    "unit.listeners.class_listener.ClassBasedListener",
-                    "unit.listeners.empty_listener",
-                ]
-        finally:
-            get_listener_manager().clear()
+            assert get_listener_manager().has_listeners
+            listeners = get_listener_manager().pm.get_plugins()
+            listener_names = [el.__name__ if inspect.ismodule(el) else qualname(el) for el in listeners]
+            # sort names as order of listeners is not guaranteed
+            assert sorted(listener_names) == [
+                "airflow.example_dags.plugins.event_listener",
+                "unit.listeners.class_listener.ClassBasedListener",
+                "unit.listeners.empty_listener",
+            ]
 
     @skip_if_force_lowest_dependencies_marker
     def test_should_import_plugin_from_providers(self):

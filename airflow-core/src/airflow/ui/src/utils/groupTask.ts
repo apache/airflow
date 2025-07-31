@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { NodeResponse } from "openapi/requests/types.gen";
+import type { GridNodeResponse } from "openapi/requests/types.gen";
 
 /**
  * Finds a task node by its ID in a tree of nodes
@@ -24,12 +24,15 @@ import type { NodeResponse } from "openapi/requests/types.gen";
  * @param targetId - ID of the node to find
  * @returns The found node or undefined if not found
  */
-export const getGroupTask = (nodes: Array<NodeResponse>, targetId: string): NodeResponse | undefined => {
-  if (!nodes.length || !targetId) {
+export const getGroupTask = (
+  nodes: Array<GridNodeResponse> | undefined,
+  targetId: string | undefined,
+): GridNodeResponse | undefined => {
+  if (nodes === undefined || targetId === undefined || !nodes.length || !targetId) {
     return undefined;
   }
 
-  const queue: Array<NodeResponse> = [...nodes];
+  const queue: Array<GridNodeResponse> = [...nodes];
   const [root] = targetId.split(".");
 
   while (queue.length > 0) {

@@ -63,7 +63,9 @@ apache-airflow-providers-imap package
 `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__
 
 
-Release: 3.9.0
+Release: 3.9.2
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------

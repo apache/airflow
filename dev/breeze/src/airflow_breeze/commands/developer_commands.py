@@ -41,6 +41,8 @@ from airflow_breeze.commands.common_options import (
     option_builder,
     option_clean_airflow_installation,
     option_db_reset,
+    option_debug_components,
+    option_debugger,
     option_docker_host,
     option_downgrade_pendulum,
     option_downgrade_sqlalchemy,
@@ -51,6 +53,7 @@ from airflow_breeze.commands.common_options import (
     option_github_repository,
     option_include_not_ready_providers,
     option_include_removed_providers,
+    option_install_airflow_with_constraints_default_true,
     option_installation_distribution_format,
     option_keep_env_variables,
     option_max_time,
@@ -64,7 +67,9 @@ from airflow_breeze.commands.common_options import (
     option_run_db_tests_only,
     option_skip_db_tests,
     option_standalone_dag_processor,
+    option_tty,
     option_upgrade_boto,
+    option_upgrade_sqlalchemy,
     option_use_airflow_version,
     option_use_uv,
     option_uv_http_timeout,
@@ -74,7 +79,6 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_airflow_constraints_location,
     option_airflow_constraints_mode_ci,
     option_airflow_constraints_reference,
-    option_airflow_skip_constraints,
     option_install_selected_providers,
     option_providers_constraints_location,
     option_providers_constraints_mode_ci,
@@ -89,7 +93,6 @@ from airflow_breeze.global_constants import (
     ALLOWED_CELERY_BROKERS,
     ALLOWED_CELERY_EXECUTORS,
     ALLOWED_EXECUTORS,
-    ALLOWED_TTY,
     DEFAULT_ALLOWED_EXECUTOR,
     DEFAULT_CELERY_BROKER,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -220,16 +223,6 @@ option_warn_image_upgrade_needed = click.option(
     is_flag=True,
     envvar="WARN_IMAGE_UPGRADE_NEEDED",
 )
-
-option_install_airflow_with_constraints_default_true = click.option(
-    "--install-airflow-with-constraints/--no-install-airflow-with-constraints",
-    is_flag=True,
-    default=True,
-    show_default=True,
-    envvar="INSTALL_AIRFLOW_WITH_CONSTRAINTS",
-    help="Install airflow in a separate step, with constraints determined from package or airflow version.",
-)
-
 option_install_airflow_python_client = click.option(
     "--install-airflow-python-client",
     is_flag=True,
@@ -265,15 +258,7 @@ option_load_default_connections = click.option(
 @main.command()
 @click.argument("extra-args", nargs=-1, type=click.UNPROCESSED)
 @click.option("--quiet", is_flag=True, envvar="QUIET", help="Suppress initialization output when starting.")
-@click.option(
-    "--tty",
-    envvar="TTY",
-    type=BetterChoice(ALLOWED_TTY),
-    default=ALLOWED_TTY[0],
-    show_default=True,
-    help="Whether to allocate pseudo-tty when running docker command"
-    " (useful for pre-commit and CI to force-enable it).",
-)
+@option_tty
 @click.option(
     "--verbose-commands",
     help="Show details of commands executed.",
@@ -286,7 +271,6 @@ option_load_default_connections = click.option(
 @option_airflow_constraints_mode_ci
 @option_airflow_constraints_reference
 @option_airflow_extras
-@option_airflow_skip_constraints
 @option_answer
 @option_backend
 @option_builder
@@ -333,6 +317,7 @@ option_load_default_connections = click.option(
 @option_warn_image_upgrade_needed
 @option_standalone_dag_processor
 @option_upgrade_boto
+@option_upgrade_sqlalchemy
 @option_use_airflow_version
 @option_allow_pre_releases
 @option_use_distributions_from_dist
@@ -344,7 +329,6 @@ def shell(
     airflow_constraints_mode: str,
     airflow_constraints_reference: str,
     airflow_extras: str,
-    airflow_skip_constraints: bool,
     backend: str,
     builder: str,
     celery_broker: str,
@@ -393,6 +377,7 @@ def shell(
     test_type: str | None,
     tty: str,
     upgrade_boto: bool,
+    upgrade_sqlalchemy: bool,
     use_airflow_version: str | None,
     allow_pre_releases: bool,
     use_distributions_from_dist: bool,
@@ -417,7 +402,6 @@ def shell(
         airflow_constraints_mode=airflow_constraints_mode,
         airflow_constraints_reference=airflow_constraints_reference,
         airflow_extras=airflow_extras,
-        airflow_skip_constraints=airflow_skip_constraints,
         allow_pre_releases=allow_pre_releases,
         backend=backend,
         builder=builder,
@@ -466,6 +450,7 @@ def shell(
         test_type=test_type,
         tty=tty,
         upgrade_boto=upgrade_boto,
+        upgrade_sqlalchemy=upgrade_sqlalchemy,
         use_airflow_version=use_airflow_version,
         use_distributions_from_dist=use_distributions_from_dist,
         use_uv=use_uv,
@@ -513,7 +498,6 @@ option_auth_manager_start_airflow = click.option(
 @option_airflow_constraints_mode_ci
 @option_airflow_constraints_reference
 @option_airflow_extras
-@option_airflow_skip_constraints
 @option_auth_manager_start_airflow
 @option_answer
 @option_backend
@@ -522,6 +506,8 @@ option_auth_manager_start_airflow = click.option(
 @option_celery_broker
 @option_celery_flower
 @option_db_reset
+@option_debug_components
+@option_debugger
 @option_docker_host
 @option_dry_run
 @option_executor_start_airflow
@@ -530,6 +516,7 @@ option_auth_manager_start_airflow = click.option(
 @option_github_repository
 @option_installation_distribution_format
 @option_install_selected_providers
+@option_install_airflow_with_constraints_default_true
 @option_all_integration
 @option_load_default_connections
 @option_load_example_dags
@@ -556,7 +543,7 @@ def start_airflow(
     airflow_constraints_location: str,
     airflow_constraints_reference: str,
     airflow_extras: str,
-    airflow_skip_constraints: bool,
+    install_airflow_with_constraints: bool,
     allow_pre_releases: bool,
     auth_manager: str,
     backend: str,
@@ -565,6 +552,8 @@ def start_airflow(
     celery_flower: bool,
     clean_airflow_installation: bool,
     db_reset: bool,
+    debug_components: tuple[str, ...],
+    debugger: str,
     dev_mode: bool,
     docker_host: str | None,
     executor: str | None,
@@ -627,7 +616,6 @@ def start_airflow(
         airflow_constraints_mode=airflow_constraints_mode,
         airflow_constraints_reference=airflow_constraints_reference,
         airflow_extras=airflow_extras,
-        airflow_skip_constraints=airflow_skip_constraints,
         allow_pre_releases=allow_pre_releases,
         auth_manager=auth_manager,
         backend=backend,
@@ -635,6 +623,8 @@ def start_airflow(
         celery_broker=celery_broker,
         celery_flower=celery_flower,
         clean_airflow_installation=clean_airflow_installation,
+        debug_components=debug_components,
+        debugger=debugger,
         db_reset=db_reset,
         dev_mode=dev_mode,
         docker_host=docker_host,
@@ -645,7 +635,7 @@ def start_airflow(
         github_repository=github_repository,
         integration=integration,
         install_selected_providers=install_selected_providers,
-        install_airflow_with_constraints=True,
+        install_airflow_with_constraints=install_airflow_with_constraints,
         load_default_connections=load_default_connections,
         load_example_dags=load_example_dags,
         mount_sources=mount_sources,
@@ -1089,6 +1079,9 @@ def exec(exec_args: tuple):
         if not process:
             sys.exit(1)
         sys.exit(process.returncode)
+    else:
+        get_console().print("[error]No airflow containers are running[/]")
+        sys.exit(1)
 
 
 def stop_exec_on_error(returncode: int):
@@ -1211,3 +1204,139 @@ def doctor(ctx):
         ctx.forward(cleanup)
     elif given_answer == Answer.QUIT:
         sys.exit(0)
+
+
+@main.command(
+    name="run",
+    help="Run a command in the Breeze environment without entering the interactive shell.",
+    context_settings={"ignore_unknown_options": True, "allow_extra_args": True},
+)
+@click.argument("command", required=True)
+@click.argument("command_args", nargs=-1, type=click.UNPROCESSED)
+@option_backend
+@option_builder
+@option_docker_host
+@option_dry_run
+@option_force_build
+@option_forward_credentials
+@option_github_repository
+@option_mysql_version
+@option_platform_single
+@option_postgres_version
+@option_project_name
+@option_python
+@option_skip_image_upgrade_check
+@option_tty
+@option_use_uv
+@option_uv_http_timeout
+@option_verbose
+def run(
+    command: str,
+    command_args: tuple,
+    backend: str,
+    builder: str,
+    docker_host: str | None,
+    force_build: bool,
+    forward_credentials: bool,
+    github_repository: str,
+    mysql_version: str,
+    platform: str | None,
+    postgres_version: str,
+    project_name: str,
+    python: str,
+    skip_image_upgrade_check: bool,
+    tty: str,
+    use_uv: bool,
+    uv_http_timeout: int,
+):
+    """
+    Run a command in the Breeze environment without entering the interactive shell.
+
+    This is useful for automated testing, CI workflows, and one-off command execution.
+    The command will be executed in a fresh container that is automatically cleaned up.
+    Each run uses a unique project name to avoid conflicts with other instances.
+
+    Examples:
+        # Run a specific test
+        breeze run pytest providers/google/tests/unit/google/cloud/operators/test_dataflow.py -v
+
+        # Check version compatibility
+        breeze run python -c "from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS; print(AIRFLOW_V_3_0_PLUS)"
+
+        # Run bash commands
+        breeze run bash -c "cd /opt/airflow && python -m pytest providers/google/tests/"
+
+        # Run with different Python version
+        breeze run --python 3.11 pytest providers/standard/tests/unit/operators/test_bash.py
+
+        # Run with PostgreSQL backend
+        breeze run --backend postgres pytest providers/postgres/tests/
+    """
+    import uuid
+
+    from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
+    from airflow_breeze.params.shell_params import ShellParams
+    from airflow_breeze.utils.ci_group import ci_group
+    from airflow_breeze.utils.docker_command_utils import execute_command_in_shell
+    from airflow_breeze.utils.platforms import get_normalized_platform
+
+    # Generate a unique project name to avoid conflicts with other running instances
+    unique_project_name = f"{project_name}-run-{uuid.uuid4().hex[:8]}"
+
+    # Build the full command string with proper escaping
+    import shlex
+
+    if command_args:
+        # Use shlex.join to properly escape arguments
+        full_command = f"{command} {shlex.join(command_args)}"
+    else:
+        full_command = command
+
+    platform = get_normalized_platform(platform)
+
+    # Create shell parameters optimized for non-interactive command execution
+    shell_params = ShellParams(
+        backend=backend,
+        builder=builder,
+        docker_host=docker_host,
+        force_build=force_build,
+        forward_credentials=forward_credentials,
+        github_repository=github_repository,
+        mysql_version=mysql_version,
+        platform=platform,
+        postgres_version=postgres_version,
+        project_name=unique_project_name,
+        python=python,
+        skip_image_upgrade_check=skip_image_upgrade_check,
+        use_uv=use_uv,
+        uv_http_timeout=uv_http_timeout,
+        # Optimizations for non-interactive execution
+        quiet=True,
+        skip_environment_initialization=True,
+        tty=tty,
+        # Set extra_args to empty tuple since we'll pass the command directly
+        extra_args=(),
+    )
+
+    if get_verbose():
+        get_console().print(f"[info]Running command in Breeze: {full_command}[/]")
+        get_console().print(f"[info]Using project name: {unique_project_name}[/]")
+
+    # Build or pull the CI image if needed
+    rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
+
+    # Execute the command in the shell
+    with ci_group(f"Running command: {command}"):
+        result = execute_command_in_shell(
+            shell_params=shell_params,
+            project_name=unique_project_name,
+            command=full_command,
+        )
+
+    # Clean up ownership
+    from airflow_breeze.utils.docker_command_utils import fix_ownership_using_docker
+
+    fix_ownership_using_docker()
+
+    # Exit with the same code as the command
+    sys.exit(result.returncode)

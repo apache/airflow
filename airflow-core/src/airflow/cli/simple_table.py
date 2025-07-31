@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import inspect
 import json
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any
 
 from rich.box import ASCII_DOUBLE_HEAD
 from rich.console import Console
@@ -32,7 +32,7 @@ from airflow.utils import yaml
 from airflow.utils.platform import is_tty
 
 if TYPE_CHECKING:
-    from airflow.typing_compat import TypeGuard
+    from typing import TypeGuard
 
 
 def is_data_sequence(data: Sequence[dict | Any]) -> TypeGuard[Sequence[dict]]:

@@ -83,7 +83,7 @@ describe your problem.
     stated in `This comment <https://github.com/moby/moby/issues/43361#issuecomment-1227617516>`_ and allows to
     run Breeze with no problems.
 
-Cannot import name 'cache' or Python >=3.9 required
+Cannot import name 'cache' or Python >=3.10 required
 ---------------------------------------------------
 
 When you see this error:
@@ -96,7 +96,7 @@ or
 
 .. code-block::
 
-    ERROR: Package 'blacken-docs' requires a different Python: 3.8.18 not in '>=3.9'
+    ERROR: Package 'blacken-docs' requires a different Python: 3.8.18 not in '>=3.10'
 
 
 It means that your pre-commit hook is installed with (already End-Of-Life) Python 3.8 and you should reinstall
@@ -107,7 +107,7 @@ This can be done with ``uv tool`` to install ``pre-commit``)
 .. code-block:: bash
 
     uv tool uninstall pre-commit
-    uv tool install pre-commit --python 3.9 --force --with pre-commit-uv
+    uv tool install pre-commit --python 3.10 --force --with pre-commit-uv
     pre-commit clean
     pre-commit install
 
@@ -116,7 +116,7 @@ You can also use ``pipx``
 .. code-block:: bash
 
     pipx uninstall pre-commit
-    pipx install pre-commit --python $(which python3.9) --force
+    pipx install pre-commit --python $(which python3.10) --force
     # This one allows pre-commit to use uv for venvs installed by pre-commit
     pipx inject pre-commit pre-commit-uv  # optionally if you want to use uv to install virtualenvs
     pre-commit clean

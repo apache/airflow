@@ -19,11 +19,11 @@ from __future__ import annotations
 
 import functools
 import time
-from typing import Callable, TypeVar
+from collections.abc import Callable
+from typing import ParamSpec, TypeVar
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.typing_compat import ParamSpec
 
 PS = ParamSpec("PS")
 RT = TypeVar("RT")

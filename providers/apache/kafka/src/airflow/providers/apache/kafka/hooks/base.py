@@ -21,7 +21,7 @@ from typing import Any
 
 from confluent_kafka.admin import AdminClient
 
-from airflow.hooks.base import BaseHook
+from airflow.providers.apache.kafka.version_compat import BaseHook
 
 
 class KafkaBaseHook(BaseHook):

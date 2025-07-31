@@ -27,6 +27,34 @@
 Changelog
 ---------
 
+5.9.2
+.....
+
+Misc
+~~~~
+
+* ``Add sql extras to pandas in the providers where sqlalchemy is needed (#53535)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup type ignores in presto provider where possible (#53274)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+5.9.1
+.....
+
+Misc
+~~~~
+
+* ``Provider Migration: Update presto for Airflow 3.0 compatibility (#52608)``
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 5.9.0
 .....
 

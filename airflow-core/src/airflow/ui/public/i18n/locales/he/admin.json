@@ -39,7 +39,12 @@
       "selectConnectionType": "בחר סוג חיבור",
       "standardFields": "שדות סטנדרטיים"
     },
-    "noRowMessage": "לא נמצאו חיבורים",
+    "nothingFound": {
+      "description": "חיבורים המוגדרים באמצעות משתני סביבה או מנהלי סודות אינם מוצגים כאן.",
+      "documentationLink": "למד עוד בתיעוד של Airflow.",
+      "learnMore": "אלה נפתרים בזמן ריצה ואינם גלויים בממשק המשתמש.",
+      "title": "לא נמצאו חיבורים"
+    },
     "searchPlaceholder": "חפש חיבורים",
     "test": "בדוק חיבור",
     "testDisabled": "אפשרות זו אינה זמינה. פנו למנהל המערכת להפעלתה",
@@ -55,9 +60,9 @@
       }
     }
   },
-  "deleteActions":{
+  "deleteActions": {
     "button": "מחק",
-    "modal":{
+    "modal": {
       "confirmButton": "אשר מחיקה",
       "secondConfirmMessage": "פעולה זו איננה הפיכה",
       "thirdConfirmMessage": " האם אתה בטוח שברצונך להמשיך?"
@@ -65,7 +70,7 @@
     "selected": "נבחר",
     "tooltip": "מחק חיבורים נבחרים"
   },
-  "formActions":{
+  "formActions": {
     "reset": "אתחל",
     "save": "שמור"
   },
@@ -80,7 +85,7 @@
   "pools": {
     "add": "הוסף מאגר משאבים",
     "deferredSlotsIncluded": "כולל מקומות שמורים למשימות מושהות",
-    "delete":{
+    "delete": {
       "title": "מחק מאגר משאבים",
       "warning": "זה יימחק את כל המטא-נתונים המקושרים עם המאגר ועלולים להשפיע על משימות המקושרות עם המאגר"
     },
@@ -122,14 +127,14 @@
       "title": "מחק מאגר משאבים",
       "tooltip": "מחר משתנים נבחרים"
     },
-    "edit":  "Edit Variable",
-    "export": "Export",
-    "exportTooltip": "Export selected variables",
+    "edit": "ערוך משתנה",
+    "export": "ייצא",
+    "exportTooltip": "ייצא משתנים נבחרים",
     "form": {
-      "invalidJson": "Invalid JSON",
-      "keyMaxLength": "Key can contain a maximum of 250 characters",
-      "keyRequired": "Key is required",
-      "valueRequired": "Value is required"
+      "invalidJson": "JSON לא תקין",
+      "keyMaxLength": "מפתח יכול להכיל מקסימום 250 תווים",
+      "keyRequired": "נדרש מפתח",
+      "valueRequired": "נדרש ערך"
     },
     "import": {
       "button": "ייבא",

@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import inspect
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import attrs
 
@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Iterator, Mapping
 
     from airflow.sdk import DAG, AssetAlias, ObjectStoragePath
+    from airflow.sdk.bases.decorator import _TaskDecorator
     from airflow.sdk.definitions.asset import AssetUniqueKey
     from airflow.sdk.definitions.dag import DagStateChangeCallback, ScheduleArg
     from airflow.sdk.definitions.param import ParamsDict
@@ -96,6 +97,18 @@ class _AssetMainOperator(PythonOperator):
         return dict(self._iter_kwargs(context))
 
 
+def _instantiate_task(definition: AssetDefinition | MultiAssetDefinition) -> None:
+    decorated_operator = cast("_TaskDecorator", definition._function)
+    if getattr(decorated_operator, "_airflow_is_task_decorator", False):
+        if "outlets" in decorated_operator.kwargs:
+            raise TypeError("@task decorator with 'outlets' argument is not supported in @asset")
+
+        decorated_operator.kwargs["outlets"] = [v for _, v in definition.iter_assets()]
+        decorated_operator()
+    else:
+        _AssetMainOperator.from_definition(definition)
+
+
 @attrs.define(kw_only=True)
 class AssetDefinition(Asset):
     """
@@ -109,7 +122,7 @@ class AssetDefinition(Asset):
 
     def __attrs_post_init__(self) -> None:
         with self._source.create_dag(default_dag_id=self.name):
-            _AssetMainOperator.from_definition(self)
+            _instantiate_task(self)
 
 
 @attrs.define(kw_only=True)
@@ -129,7 +142,7 @@ class MultiAssetDefinition(BaseAsset):
 
     def __attrs_post_init__(self) -> None:
         with self._source.create_dag(default_dag_id=self._function.__name__):
-            _AssetMainOperator.from_definition(self)
+            _instantiate_task(self)
 
     def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
         for o in self._source.outlets:

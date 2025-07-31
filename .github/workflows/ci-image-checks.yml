@@ -127,14 +127,12 @@ jobs:
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
         if: inputs.canary-run == 'true'
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
         if: inputs.canary-run == 'true'
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        with:
-          use-uv: ${{ inputs.use-uv }}
         id: breeze
         if: inputs.canary-run == 'true'
       - name: "Install pre-commit"
@@ -173,14 +171,14 @@ jobs:
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
           platform: ${{ inputs.platform }}
-          python: ${{ inputs.default-python-version }}
+          python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
         id: breeze
       - name: "Install pre-commit"
@@ -193,7 +191,7 @@ jobs:
         env:
           VERBOSE: "false"
           SKIP: ${{ inputs.skip-pre-commits }}
-          COLUMNS: "250"
+          COLUMNS: "202"
           SKIP_GROUP_OUTPUT: "true"
           DEFAULT_BRANCH: ${{ inputs.branch }}
           RUFF_FORMAT: "github"
@@ -216,14 +214,14 @@ jobs:
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
           platform: ${{ inputs.platform }}
-          python: ${{ inputs.default-python-version }}
+          python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
         id: breeze
       - name: "Install pre-commit"
@@ -235,7 +233,7 @@ jobs:
         run: pre-commit run --color always --verbose --hook-stage manual "$MYPY_CHECK" --all-files
         env:
           VERBOSE: "false"
-          COLUMNS: "250"
+          COLUMNS: "202"
           SKIP_GROUP_OUTPUT: "true"
           DEFAULT_BRANCH: ${{ inputs.branch }}
           RUFF_FORMAT: "github"
@@ -264,14 +262,14 @@ jobs:
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
           platform: ${{ inputs.platform }}
-          python: ${{ inputs.default-python-version }}
+          python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
       - name: "Restore docs inventory cache"
         uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
@@ -295,7 +293,7 @@ jobs:
         # to be responsible for updating it. https://github.com/actions/upload-artifact/issues/506
         if: steps.restore-docs-inventory-cache != 'true' && matrix.flag == '--docs-only'
       - name: "Upload build docs"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: airflow-docs
           path: './generated/_build'
@@ -327,17 +325,17 @@ jobs:
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
           platform: ${{ inputs.platform }}
-          python: ${{ inputs.default-python-version }}
+          python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
       - name: "Download docs prepared as artifacts"
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
         with:
           name: airflow-docs
           path: './generated/_build'
@@ -402,12 +400,12 @@ jobs:
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           fetch-depth: 2
           persist-credentials: false
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           repository: "apache/airflow-client-python"
           fetch-depth: 1
@@ -417,7 +415,7 @@ jobs:
         uses: ./.github/actions/prepare_breeze_and_image
         with:
           platform: ${{ inputs.platform }}
-          python: ${{ inputs.default-python-version }}
+          python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
       - name: "Generate airflow python client"
         run: >

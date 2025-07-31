@@ -24,10 +24,9 @@ import pytest
 from airflow.models import Connection
 from airflow.providers.redis.hooks.redis import RedisHook
 
-pytestmark = pytest.mark.db_test
-
 
 class TestRedisHook:
+    @pytest.mark.db_test
     def test_get_conn(self):
         hook = RedisHook(redis_conn_id="redis_default")
         assert hook.redis is None
@@ -78,6 +77,7 @@ class TestRedisHook:
             ssl_check_hostname=connection.extra_dejson["ssl_check_hostname"],
         )
 
+    @pytest.mark.db_test
     def test_get_conn_password_stays_none(self):
         hook = RedisHook(redis_conn_id="redis_default")
         hook.get_conn()

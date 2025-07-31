@@ -20,9 +20,8 @@ from typing import Any
 
 import pytest
 
-from airflow.hooks.base import BaseHook
 from airflow.models import Connection
-from airflow.utils import db
+from airflow.providers.opensearch.version_compat import BaseHook
 
 try:
     from opensearchpy import OpenSearch
@@ -64,100 +63,29 @@ class MockClient:
                 "hits": [
                     {
                         "_id": "jdeZT4kBjAZqZnexVUxk",
-                        "_index": ".ds-filebeat-8.8.2-2023.07.09-000001",
-                        "_score": 2.482621,
                         "_source": {
-                            "@timestamp": "2023-07-13T14:13:15.140Z",
-                            "asctime": "2023-07-09T07:47:43.907+0000",
-                            "container": {"id": "airflow"},
                             "dag_id": "example_bash_operator",
-                            "ecs": {"version": "8.0.0"},
                             "execution_date": "2023_07_09T07_47_32_000000",
-                            "filename": "taskinstance.py",
-                            "input": {"type": "log"},
                             "levelname": "INFO",
-                            "lineno": 1144,
-                            "log": {
-                                "file": {
-                                    "path": "/opt/airflow/Documents/GitHub/airflow/logs/"
-                                    "dag_id=example_bash_operator'"
-                                    "/run_id=owen_run_run/task_id=run_after_loop/attempt=1.log"
-                                },
-                                "offset": 0,
-                            },
-                            "offset": 1688888863907337472,
-                            "log_id": "example_bash_operator-run_after_loop-owen_run_run--1-1",
-                            "message": "Dependencies all met for "
-                            "dep_context=non-requeueable deps "
-                            "ti=<TaskInstance: "
-                            "example_bash_operator.run_after_loop "
-                            "owen_run_run [queued]>",
+                            "message": "Some Message 1",
+                            "event": "Some Message 1",
                             "task_id": "run_after_loop",
                             "try_number": "1",
+                            "offset": 0,
                         },
                         "_type": "_doc",
                     },
                     {
                         "_id": "qteZT4kBjAZqZnexVUxl",
-                        "_index": ".ds-filebeat-8.8.2-2023.07.09-000001",
-                        "_score": 2.482621,
                         "_source": {
-                            "@timestamp": "2023-07-13T14:13:15.141Z",
-                            "asctime": "2023-07-09T07:47:43.917+0000",
-                            "container": {"id": "airflow"},
                             "dag_id": "example_bash_operator",
-                            "ecs": {"version": "8.0.0"},
                             "execution_date": "2023_07_09T07_47_32_000000",
-                            "filename": "taskinstance.py",
-                            "input": {"type": "log"},
                             "levelname": "INFO",
-                            "lineno": 1347,
-                            "log": {
-                                "file": {
-                                    "path": "/opt/airflow/Documents/GitHub/airflow/logs/"
-                                    "dag_id=example_bash_operator"
-                                    "/run_id=owen_run_run/task_id=run_after_loop/attempt=1.log"
-                                },
-                                "offset": 988,
-                            },
-                            "offset": 1688888863917961216,
-                            "log_id": "example_bash_operator-run_after_loop-owen_run_run--1-1",
-                            "message": "Starting attempt 1 of 1",
+                            "message": "Another Some Message 2",
+                            "event": "Another Some Message 2",
                             "task_id": "run_after_loop",
                             "try_number": "1",
-                        },
-                        "_type": "_doc",
-                    },
-                    {
-                        "_id": "v9eZT4kBjAZqZnexVUx2",
-                        "_index": ".ds-filebeat-8.8.2-2023.07.09-000001",
-                        "_score": 2.482621,
-                        "_source": {
-                            "@timestamp": "2023-07-13T14:13:15.143Z",
-                            "asctime": "2023-07-09T07:47:43.928+0000",
-                            "container": {"id": "airflow"},
-                            "dag_id": "example_bash_operator",
-                            "ecs": {"version": "8.0.0"},
-                            "execution_date": "2023_07_09T07_47_32_000000",
-                            "filename": "taskinstance.py",
-                            "input": {"type": "log"},
-                            "levelname": "INFO",
-                            "lineno": 1368,
-                            "log": {
-                                "file": {
-                                    "path": "/opt/airflow/Documents/GitHub/airflow/logs/"
-                                    "dag_id=example_bash_operator"
-                                    "/run_id=owen_run_run/task_id=run_after_loop/attempt=1.log"
-                                },
-                                "offset": 1372,
-                            },
-                            "offset": 1688888863928218880,
-                            "log_id": "example_bash_operator-run_after_loop-owen_run_run--1-1",
-                            "message": "Executing <Task(BashOperator): "
-                            "run_after_loop> on 2023-07-09 "
-                            "07:47:32+00:00",
-                            "task_id": "run_after_loop",
-                            "try_number": "1",
+                            "offset": 1,
                         },
                         "_type": "_doc",
                     },
@@ -178,9 +106,8 @@ def mock_hook(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def setup_connection():
-    # We need to set up a Connection into the database for all tests.
-    db.merge_conn(
+def setup_connection(create_connection_without_db):
+    create_connection_without_db(
         Connection(
             conn_id="opensearch_default",
             conn_type="opensearch",

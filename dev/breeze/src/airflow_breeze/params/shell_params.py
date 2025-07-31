@@ -37,6 +37,13 @@ from airflow_breeze.global_constants import (
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
+    BREEZE_DEBUG_APISERVER_PORT,
+    BREEZE_DEBUG_CELERY_WORKER_PORT,
+    BREEZE_DEBUG_DAG_PROCESSOR_PORT,
+    BREEZE_DEBUG_EDGE_PORT,
+    BREEZE_DEBUG_SCHEDULER_PORT,
+    BREEZE_DEBUG_TRIGGERER_PORT,
+    BREEZE_DEBUG_WEBSERVER_PORT,
     CELERY_BROKER_URLS_MAP,
     CELERY_EXECUTOR,
     DEFAULT_CELERY_BROKER,
@@ -140,7 +147,6 @@ class ShellParams:
     airflow_constraints_mode: str = ALLOWED_CONSTRAINTS_MODES_CI[0]
     airflow_constraints_reference: str = ""
     airflow_extras: str = ""
-    airflow_skip_constraints: bool = False
     allow_pre_releases: bool = False
     auth_manager: str = ALLOWED_AUTH_MANAGERS[0]
     backend: str = ALLOWED_BACKENDS[0]
@@ -150,6 +156,8 @@ class ShellParams:
     celery_flower: bool = False
     clean_airflow_installation: bool = False
     collect_only: bool = False
+    debug_components: tuple[str, ...] = ()
+    debugger: str = "debugpy"
     db_reset: bool = False
     default_constraints_branch: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     dev_mode: bool = False
@@ -212,6 +220,7 @@ class ShellParams:
     test_group: GroupOfTests | None = None
     tty: str = "auto"
     upgrade_boto: bool = False
+    upgrade_sqlalchemy: bool = False
     use_airflow_version: str | None = None
     use_distributions_from_dist: bool = False
     use_uv: bool = False
@@ -346,6 +355,16 @@ class ShellParams:
                     )
                     self.airflow_extras = (
                         ",".join(current_extras.split(",") + ["celery"]) if current_extras else "celery"
+                    )
+        if self.auth_manager == FAB_AUTH_MANAGER:
+            if self.use_airflow_version:
+                current_extras = self.airflow_extras
+                if "fab" not in current_extras.split(","):
+                    get_console().print(
+                        "[warning]Adding `fab` extras as it is implicitly needed by FAB auth manager"
+                    )
+                    self.airflow_extras = (
+                        ",".join(current_extras.split(",") + ["fab"]) if current_extras else "fab"
                     )
 
         compose_file_list.append(DOCKER_COMPOSE_DIR / "base.yml")
@@ -515,7 +534,6 @@ class ShellParams:
         _set_var(_env, "AIRFLOW_CONSTRAINTS_REFERENCE", self.airflow_constraints_reference)
         _set_var(_env, "AIRFLOW_ENV", "development")
         _set_var(_env, "AIRFLOW_EXTRAS", self.airflow_extras)
-        _set_var(_env, "AIRFLOW_SKIP_CONSTRAINTS", self.airflow_skip_constraints)
         _set_var(_env, "AIRFLOW_IMAGE_KUBERNETES", self.airflow_image_kubernetes)
         _set_var(_env, "AIRFLOW_VERSION", self.airflow_version)
         _set_var(_env, "AIRFLOW__API_AUTH__JWT_SECRET", b64encode(os.urandom(16)).decode("utf-8"))
@@ -634,6 +652,7 @@ class ShellParams:
         _set_var(_env, "TEST_TYPE", self.test_type, "")
         _set_var(_env, "TEST_GROUP", str(self.test_group.value) if self.test_group else "")
         _set_var(_env, "UPGRADE_BOTO", self.upgrade_boto)
+        _set_var(_env, "UPGRADE_SQLALCHEMY", self.upgrade_sqlalchemy)
         _set_var(_env, "USE_AIRFLOW_VERSION", self.use_airflow_version, "")
         _set_var(_env, "USE_DISTRIBUTIONS_FROM_DIST", self.use_distributions_from_dist)
         _set_var(_env, "USE_UV", self.use_uv)
@@ -644,11 +663,44 @@ class ShellParams:
         _set_var(_env, "WEB_HOST_PORT", None, WEB_HOST_PORT)
         _set_var(_env, "_AIRFLOW_RUN_DB_TESTS_ONLY", self.run_db_tests_only)
         _set_var(_env, "_AIRFLOW_SKIP_DB_TESTS", self.skip_db_tests)
+
+        self._set_debug_variables(_env)
         self._generate_env_for_docker_compose_file_if_needed(_env)
 
         _target_env: dict[str, str] = os.environ.copy()
         _target_env.update(_env)
         return _target_env
+
+    def _set_debug_variables(self, env) -> None:
+        """Set debug environment variables based on selected debug components."""
+        if self.debugger == "pydevd-pycharm":
+            print("Pycharm-pydevd debugger is under development and not yet supported in Breeze.")
+            return
+        if not self.debug_components:
+            return
+
+        _set_var(env, "BREEZE_DEBUG_SCHEDULER_PORT", None, BREEZE_DEBUG_SCHEDULER_PORT)
+        _set_var(env, "BREEZE_DEBUG_DAG_PROCESSOR_PORT", None, BREEZE_DEBUG_DAG_PROCESSOR_PORT)
+        _set_var(env, "BREEZE_DEBUG_TRIGGERER_PORT", None, BREEZE_DEBUG_TRIGGERER_PORT)
+        _set_var(env, "BREEZE_DEBUG_APISERVER_PORT", None, BREEZE_DEBUG_APISERVER_PORT)
+        _set_var(env, "BREEZE_DEBUG_CELERY_WORKER_PORT", None, BREEZE_DEBUG_CELERY_WORKER_PORT)
+        _set_var(env, "BREEZE_DEBUG_EDGE_PORT", None, BREEZE_DEBUG_EDGE_PORT)
+        _set_var(env, "BREEZE_DEBUG_WEBSERVER_PORT", None, BREEZE_DEBUG_WEBSERVER_PORT)
+
+        _set_var(env, "BREEZE_DEBUGGER", None, self.debugger)
+
+        component_mappings = {
+            "scheduler": "BREEZE_DEBUG_SCHEDULER",
+            "triggerer": "BREEZE_DEBUG_TRIGGERER",
+            "api-server": "BREEZE_DEBUG_APISERVER",
+            "dag-processor": "BREEZE_DEBUG_DAG_PROCESSOR",
+            "edge-worker": "BREEZE_DEBUG_EDGE",
+            "celery-worker": "BREEZE_DEBUG_CELERY_WORKER",
+        }
+
+        for component in self.debug_components:
+            env_var = component_mappings[component]
+            _set_var(env, env_var, None, "true")
 
     @staticmethod
     def _generate_env_for_docker_compose_file_if_needed(env: dict[str, str]):

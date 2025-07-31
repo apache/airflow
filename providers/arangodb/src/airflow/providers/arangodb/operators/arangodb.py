@@ -17,12 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.arangodb.hooks.arangodb import ArangoDBHook
+from airflow.providers.arangodb.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     try:

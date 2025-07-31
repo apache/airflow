@@ -7,18 +7,29 @@
     "Providers": "Providery",
     "Variables": "Zmienne"
   },
+  "asset_few": "Zasoby",
+  "asset_many": "Zasobów",
   "asset_one": "Zasób",
   "asset_other": "Zasoby",
+  "assetEvent_few": "Zdarzenia zasobów",
+  "assetEvent_many": "Zdarzeń zasobów",
   "assetEvent_one": "Zdarzenie Zasobu",
   "assetEvent_other": "Zdarzenia Zasobów",
+  "backfill_few": "Wypełnienia wsteczne",
+  "backfill_many": "Wypełnień wstecznych",
   "backfill_one": "Wypełnienie wsteczne",
   "backfill_other": "Wypełnienia wsteczne",
   "browse": {
     "auditLog": "Log audytu",
     "xcoms": "XComy"
   },
+  "collapseDetailsPanel": "Zwiń panel szczegółów",
+  "createdAssetEvent_few": "Utworzone zdarzenia zasobów",
+  "createdAssetEvent_many": "Utworzonych zdarzeń zasobów",
   "createdAssetEvent_one": "Utworzone zdarzenie zasobu",
   "createdAssetEvent_other": "Utworzone zdarzenia zasobów",
+  "dag_few": "Dagi",
+  "dag_many": "Dagów",
   "dag_one": "Dag",
   "dag_other": "Dagi",
   "dagDetails": {
@@ -54,8 +65,11 @@
     "runAfter": "Wykonaj po",
     "runType": "Typ wykonania",
     "sourceAssetEvent": "Zdarzenie źródłowego zasobu",
-    "triggeredBy": "Uruchomiony przez"
+    "triggeredBy": "Uruchomiony jako",
+    "triggeringUser": "Użytkownik który uruchomił"
   },
+  "dagRun_few": "Wykonania Dagów",
+  "dagRun_many": "Wykonań Dagów",
   "dagRun_one": "Wykonanie Daga",
   "dagRun_other": "Wykonania Dagów",
   "dagWarnings": "Ostrzeżenia/Błędy Daga",
@@ -63,7 +77,7 @@
   "defaultToGridView": "Domyślnie widok siatki",
   "direction": "Kierunek",
   "docs": {
-    "documentation": "Documentacja",
+    "documentation": "Dokumentacja",
     "githubRepo": "Repozytorium GitHub",
     "restApiReference": "Dokuentacja REST API"
   },
@@ -75,6 +89,11 @@
     "home": "Strona główna",
     "notFound": "Nie znaleziono strony",
     "title": "Błąd"
+  },
+  "expand": {
+    "collapse": "Zwiń",
+    "expand": "Rozwiń",
+    "tooltip": "Wybierz {{hotkey}} aby przełączyć rozwijanie"
   },
   "expression": {
     "all": "Wszystkie",
@@ -101,6 +120,7 @@
     "dags": "Dagi",
     "docs": "Pomoc",
     "home": "Pulpit",
+    "legacyFabViews": "Widoki Fab z Airflow 2",
     "plugins": "Wtyczki",
     "security": "Dostęp"
   },
@@ -115,6 +135,8 @@
   "pools": {
     "deferred": "Odłożone",
     "open": "Otwarte",
+    "pools_few": "Pule",
+    "pools_many": "Puli",
     "pools_one": "Pula",
     "pools_other": "Pule",
     "queued": "W kolejce",
@@ -128,6 +150,13 @@
     "manual": "Ręcznie",
     "scheduled": "Według harmonogramu"
   },
+  "scroll": {
+    "direction": {
+      "bottom": "dół",
+      "top": "góra"
+    },
+    "tooltip": "Naciśnij {{hotkey}}, aby przewinąć do {{direction}}"
+  },
   "seconds": "{{count}}s",
   "security": {
     "actions": "Akcje",
@@ -137,6 +166,9 @@
     "users": "Użytkownicy"
   },
   "selectLanguage": "Wybierz język",
+  "showDetailsPanel": "Pokaż panel szczegółów",
+  "sourceAssetEvent_few": "Zdarzenia źródłowych zasobów",
+  "sourceAssetEvent_many": "Zdarzeń źródłowych zasobów",
   "sourceAssetEvent_one": "Zdarzenie źródłowego zasobu",
   "sourceAssetEvent_other": "Zdarzenia źródłowych zasobów",
   "startDate": "Data rozpoczęcia",
@@ -164,6 +196,8 @@
     "createdAt": "Utworzono o",
     "filterByTag": "Filtruj Dagi według tagu",
     "filterColumns": "Filtruj kolumny tabeli",
+    "filterReset_few": "Resetuj filtry",
+    "filterReset_many": "Resetuj filtry",
     "filterReset_one": "Resetuj filtr",
     "filterReset_other": "Resetuj filtry",
     "from": "Od",
@@ -182,6 +216,8 @@
     "operator": "Operator",
     "triggerRule": "Reguła zależności"
   },
+  "task_few": "Zadania",
+  "task_many": "Zadań",
   "task_one": "Zadanie",
   "task_other": "Zadania",
   "taskId": "Identifikator Zadania",
@@ -208,6 +244,8 @@
     },
     "unixname": "Nazwa użytkownika systemu Unix"
   },
+  "taskInstance_few": "Instancje Zadań",
+  "taskInstance_many": "Instancji Zadań",
   "taskInstance_one": "Instancja Zadania",
   "taskInstance_other": "Instancje Zadań",
   "timeRange": {
@@ -260,6 +298,7 @@
       }
     }
   },
+  "total": "Wszystkie {{state}}",
   "triggered": "Uruchomiony",
   "tryNumber": "Numer próby",
   "user": "Profil",

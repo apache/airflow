@@ -19,12 +19,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from airflow._shared.timezones.timezone import parse_timezone
 from airflow.serialization.serializers.timezone import (
     deserialize as deserialize_timezone,
     serialize as serialize_timezone,
 )
 from airflow.utils.module_loading import qualname
-from airflow.utils.timezone import parse_timezone
 
 if TYPE_CHECKING:
     import datetime
@@ -59,7 +59,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     return "", "", 0, False
 
 
-def deserialize(classname: str, version: int, data: dict | str) -> datetime.date | datetime.timedelta:
+def deserialize(cls: type, version: int, data: dict | str) -> datetime.date | datetime.timedelta:
     import datetime
 
     from pendulum import DateTime
@@ -86,16 +86,16 @@ def deserialize(classname: str, version: int, data: dict | str) -> datetime.date
                 else None
             )
 
-    if classname == qualname(datetime.datetime) and isinstance(data, dict):
+    if cls is datetime.datetime and isinstance(data, dict):
         return datetime.datetime.fromtimestamp(float(data[TIMESTAMP]), tz=tz)
 
-    if classname == qualname(DateTime) and isinstance(data, dict):
+    if cls is DateTime and isinstance(data, dict):
         return DateTime.fromtimestamp(float(data[TIMESTAMP]), tz=tz)
 
-    if classname == qualname(datetime.timedelta) and isinstance(data, (str, float)):
+    if cls is datetime.timedelta and isinstance(data, str | float):
         return datetime.timedelta(seconds=float(data))
 
-    if classname == qualname(datetime.date) and isinstance(data, str):
+    if cls is datetime.date and isinstance(data, str):
         return datetime.date.fromisoformat(data)
 
-    raise TypeError(f"unknown date/time format {classname}")
+    raise TypeError(f"unknown date/time format {qualname(cls)}")

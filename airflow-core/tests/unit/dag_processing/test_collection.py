@@ -31,6 +31,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import OperationalError, SAWarning
 
 import airflow.dag_processing.collection
+from airflow._shared.timezones import timezone as tz
 from airflow.configuration import conf
 from airflow.dag_processing.collection import (
     AssetModelOperation,
@@ -54,7 +55,6 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.temporal import TimeDeltaTrigger
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetWatcher
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
-from airflow.utils import timezone as tz
 
 from tests_common.test_utils.db import (
     clear_db_assets,
@@ -455,6 +455,7 @@ class TestUpdateDagParsingResults:
 
     @patch.object(ParseImportError, "full_file_path")
     @patch.object(SerializedDagModel, "write_dag")
+    @pytest.mark.usefixtures("clean_db")
     def test_serialized_dag_errors_are_import_errors(
         self, mock_serialize, mock_full_path, caplog, session, dag_import_error_listener, testing_dag_bundle
     ):
@@ -492,6 +493,7 @@ class TestUpdateDagParsingResults:
         assert dag_import_error_listener.new["abc.py"] == import_error.stacktrace
 
     @patch.object(ParseImportError, "full_file_path")
+    @pytest.mark.usefixtures("clean_db")
     def test_new_import_error_replaces_old(
         self, mock_full_file_path, session, dag_import_error_listener, testing_dag_bundle
     ):
@@ -536,6 +538,7 @@ class TestUpdateDagParsingResults:
         assert len(dag_import_error_listener.existing) == 1
         assert dag_import_error_listener.existing["abc.py"] == prev_error.stacktrace
 
+    @pytest.mark.usefixtures("clean_db")
     def test_remove_error_clears_import_error(self, testing_dag_bundle, session):
         # Pre-condition: there is an import error for the dag file
         bundle_name = "testing"
@@ -577,6 +580,7 @@ class TestUpdateDagParsingResults:
 
         assert import_errors == {("def.py", bundle_name)}
 
+    @pytest.mark.usefixtures("clean_db")
     def test_remove_error_updates_loaded_dag_model(self, testing_dag_bundle, session):
         bundle_name = "testing"
         filename = "abc.py"

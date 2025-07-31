@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import os
 import shutil
-import sys
 from pathlib import Path
 
 import jinja2
@@ -56,9 +55,7 @@ def _use_uv() -> bool:
 
 def _generate_uv_cmd(tmp_dir: str, python_bin: str, system_site_packages: bool) -> list[str]:
     """Build the command to install the venv via UV."""
-    cmd = ["uv", "venv", "--allow-existing", "--seed"]
-    if python_bin is not None:
-        cmd += ["--python", python_bin]
+    cmd = ["uv", "venv", "--allow-existing", "--seed", "--python", python_bin]
     if system_site_packages:
         cmd.append("--system-site-packages")
     cmd.append(tmp_dir)
@@ -67,8 +64,6 @@ def _generate_uv_cmd(tmp_dir: str, python_bin: str, system_site_packages: bool) 
 
 def _generate_venv_cmd(tmp_dir: str, python_bin: str, system_site_packages: bool) -> list[str]:
     """We are using venv command instead of venv module to allow creation of venv for different python versions."""
-    if python_bin is None:
-        python_bin = sys.executable
     cmd = [python_bin, "-m", "venv", tmp_dir]
     if system_site_packages:
         cmd.append("--system-site-packages")
@@ -116,6 +111,15 @@ def _generate_pip_conf(conf_file: Path, index_urls: list[str]) -> None:
     else:
         pip_conf_options = "no-index = true"
     conf_file.write_text(f"[global]\n{pip_conf_options}")
+
+
+def _index_urls_to_uv_env_vars(index_urls: list[str] | None = None) -> dict[str, str]:
+    uv_index_env_vars = {}
+    if index_urls:
+        uv_index_env_vars = {"UV_DEFAULT_INDEX": index_urls[0]}
+        if len(index_urls) > 1:
+            uv_index_env_vars["UV_INDEX"] = " ".join(x for x in index_urls[1:])
+    return uv_index_env_vars
 
 
 def prepare_virtualenv(
@@ -174,7 +178,7 @@ def prepare_virtualenv(
             )
 
     if pip_cmd:
-        execute_in_subprocess(pip_cmd)
+        execute_in_subprocess(pip_cmd, env={**os.environ, **_index_urls_to_uv_env_vars(index_urls)})
 
     return f"{venv_directory}/bin/python"
 

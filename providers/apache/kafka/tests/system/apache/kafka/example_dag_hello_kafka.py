@@ -19,6 +19,7 @@ from __future__ import annotations
 import functools
 import json
 import logging
+import os
 from datetime import datetime, timedelta
 
 from airflow import DAG
@@ -41,17 +42,13 @@ default_args = {
 def load_connections():
     # Connections needed for this example dag to finish
     from airflow.models import Connection
-    from airflow.utils import db
 
-    db.merge_conn(
+    conns = [
         Connection(
             conn_id="t1-3",
             conn_type="kafka",
             extra=json.dumps({"socket.timeout.ms": 10, "bootstrap.servers": "broker:29092"}),
-        )
-    )
-
-    db.merge_conn(
+        ),
         Connection(
             conn_id="t2",
             conn_type="kafka",
@@ -63,10 +60,7 @@ def load_connections():
                     "auto.offset.reset": "beginning",
                 }
             ),
-        )
-    )
-
-    db.merge_conn(
+        ),
         Connection(
             conn_id="t4",
             conn_type="kafka",
@@ -78,10 +72,7 @@ def load_connections():
                     "auto.offset.reset": "beginning",
                 }
             ),
-        )
-    )
-
-    db.merge_conn(
+        ),
         Connection(
             conn_id="t4b",
             conn_type="kafka",
@@ -93,10 +84,7 @@ def load_connections():
                     "auto.offset.reset": "beginning",
                 }
             ),
-        )
-    )
-
-    db.merge_conn(
+        ),
         Connection(
             conn_id="t5",
             conn_type="kafka",
@@ -108,8 +96,12 @@ def load_connections():
                     "auto.offset.reset": "beginning",
                 }
             ),
-        )
-    )
+        ),
+    ]
+
+    for c in conns:
+        envvar = f"AIRFLOW_CONN_{c.conn_id.upper()}"
+        os.environ[envvar] = c.get_uri()
 
 
 def producer_function():

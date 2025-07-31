@@ -24,10 +24,10 @@ import os
 import re
 import tempfile
 from collections import OrderedDict
+from collections.abc import Callable
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from shutil import copyfile
-from typing import Callable
 
 import airflow
 

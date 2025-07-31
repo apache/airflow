@@ -18,9 +18,8 @@
  */
 import { AiOutlineGroup } from "react-icons/ai";
 
-import type { NodeResponse } from "openapi/requests/types.gen";
 import { HeaderCard } from "src/components/HeaderCard";
 
-export const GroupTaskHeader = ({ groupTask }: { readonly groupTask: NodeResponse }) => (
-  <HeaderCard icon={<AiOutlineGroup />} stats={[]} title={groupTask.label} />
+export const GroupTaskHeader = ({ title }: { readonly title: string }) => (
+  <HeaderCard icon={<AiOutlineGroup />} stats={[]} title={title} />
 );

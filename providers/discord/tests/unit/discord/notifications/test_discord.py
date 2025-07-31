@@ -23,14 +23,11 @@ import pytest
 
 from airflow.models import Connection
 from airflow.providers.discord.notifications.discord import DiscordNotifier
-from airflow.utils import db
-
-pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(autouse=True)
-def setup():
-    db.merge_conn(
+def setup_connections(create_connection_without_db):
+    create_connection_without_db(
         Connection(
             conn_id="my_discord_conn_id",
             conn_type="discord",

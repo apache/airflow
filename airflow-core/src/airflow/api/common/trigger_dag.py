@@ -22,9 +22,9 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
+from airflow._shared.timezones import timezone
 from airflow.exceptions import DagNotFound, DagRunAlreadyExists
 from airflow.models import DagBag, DagModel, DagRun
-from airflow.utils import timezone
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -41,6 +41,7 @@ def _trigger_dag(
     dag_bag: DagBag,
     *,
     triggered_by: DagRunTriggeredByType,
+    triggering_user_name: str | None = None,
     run_after: datetime | None = None,
     run_id: str | None = None,
     conf: dict | str | None = None,
@@ -54,7 +55,8 @@ def _trigger_dag(
     :param dag_id: DAG ID
     :param dag_bag: DAG Bag model
     :param triggered_by: the entity which triggers the dag_run
-    :param run_after: the datetime before which dag cannot run.
+    :param triggering_user_name: the user name who triggers the dag_run
+    :param run_after: the datetime before which dag cannot run
     :param run_id: ID of the run
     :param conf: configuration
     :param logical_date: logical date of the run
@@ -67,6 +69,7 @@ def _trigger_dag(
         raise DagNotFound(f"Dag id {dag_id} not found")
 
     run_after = run_after or timezone.coerce_datetime(timezone.utcnow())
+    coerced_logical_date: datetime | None = None
     if logical_date:
         if not timezone.is_localized(logical_date):
             raise ValueError("The logical date should be localized")
@@ -84,7 +87,6 @@ def _trigger_dag(
         coerced_logical_date = timezone.coerce_datetime(logical_date)
         data_interval = dag.timetable.infer_manual_data_interval(run_after=run_after)
     else:
-        coerced_logical_date = None
         data_interval = None
 
     run_id = run_id or DagRun.generate_run_id(
@@ -111,6 +113,7 @@ def _trigger_dag(
         conf=run_conf,
         run_type=DagRunType.MANUAL,
         triggered_by=triggered_by,
+        triggering_user_name=triggering_user_name,
         state=DagRunState.QUEUED,
         session=session,
     )
@@ -123,6 +126,7 @@ def trigger_dag(
     dag_id: str,
     *,
     triggered_by: DagRunTriggeredByType,
+    triggering_user_name: str | None = None,
     run_after: datetime | None = None,
     run_id: str | None = None,
     conf: dict | str | None = None,
@@ -135,7 +139,8 @@ def trigger_dag(
 
     :param dag_id: DAG ID
     :param triggered_by: the entity which triggers the dag_run
-    :param run_after: the datetime before which dag won't run.
+    :param triggering_user_name: the user name who triggers the dag_run
+    :param run_after: the datetime before which dag won't run
     :param run_id: ID of the dag_run
     :param conf: configuration
     :param logical_date: date of execution
@@ -157,6 +162,7 @@ def trigger_dag(
         logical_date=logical_date,
         replace_microseconds=replace_microseconds,
         triggered_by=triggered_by,
+        triggering_user_name=triggering_user_name,
         session=session,
     )
 

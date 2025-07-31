@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import random
+from contextlib import AbstractContextManager
 from typing import TYPE_CHECKING
 
 from opentelemetry import trace
@@ -32,12 +33,12 @@ from opentelemetry.trace import Link, NonRecordingSpan, SpanContext, TraceFlags,
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from opentelemetry.trace.span import INVALID_SPAN_ID, INVALID_TRACE_ID
 
+from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.traces.utils import (
     parse_traceparent,
     parse_tracestate,
 )
-from airflow.utils import timezone
 from airflow.utils.dates import datetime_to_nano
 from airflow.utils.net import get_hostname
 
@@ -247,7 +248,7 @@ class OtelTrace:
         links=None,
         start_time=None,
         start_as_current: bool = True,
-    ):
+    ) -> AbstractContextManager[trace.span.Span] | trace.span.Span:
         if component is None:
             component = self.otel_service
 
@@ -260,24 +261,24 @@ class OtelTrace:
             links = []
 
         if start_as_current:
-            span = tracer.start_as_current_span(
+            return tracer.start_as_current_span(
                 name=span_name,
                 context=parent_context,
                 links=links,
                 start_time=datetime_to_nano(start_time),
             )
-        else:
-            span = tracer.start_span(
-                name=span_name,
-                context=parent_context,
-                links=links,
-                start_time=datetime_to_nano(start_time),
-            )
-            current_span_ctx = trace.set_span_in_context(NonRecordingSpan(span.get_span_context()))
-            # We have to manually make the span context as the active context.
-            # If the span needs to be injected into the carrier, then this is needed to make sure
-            # that the injected context will point to the span context that was just created.
-            attach(current_span_ctx)
+
+        span = tracer.start_span(  # type: ignore[assignment]
+            name=span_name,
+            context=parent_context,
+            links=links,
+            start_time=datetime_to_nano(start_time),
+        )
+        current_span_ctx = trace.set_span_in_context(NonRecordingSpan(span.get_span_context()))  # type: ignore[attr-defined]
+        # We have to manually make the span context as the active context.
+        # If the span needs to be injected into the carrier, then this is needed to make sure
+        # that the injected context will point to the span context that was just created.
+        attach(current_span_ctx)
         return span
 
     def inject(self) -> dict:

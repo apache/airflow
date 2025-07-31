@@ -57,6 +57,9 @@ class KubernetesEngineClusterLink(BaseGoogleLink):
         if isinstance(cluster, dict):
             cluster = Cluster.from_json(json.dumps(cluster))
 
+        if not cluster:
+            raise ValueError("Cluster must be provided for KubernetesEngineClusterLink.")
+
         super().persist(
             context=context,
             cluster_name=cluster.name,

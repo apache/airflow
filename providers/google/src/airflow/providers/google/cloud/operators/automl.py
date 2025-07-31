@@ -163,7 +163,7 @@ class AutoMLTrainModelOperator(GoogleCloudBaseOperator):
         model_id = hook.extract_object_id(result)
         self.log.info("Model is created, model_id: %s", model_id)
 
-        self.xcom_push(context, key="model_id", value=model_id)
+        context["task_instance"].xcom_push(key="model_id", value=model_id)
         if project_id:
             TranslationLegacyModelLink.persist(
                 context=context,
@@ -244,7 +244,7 @@ class AutoMLPredictOperator(GoogleCloudBaseOperator):
 
         self.model_id = model_id
         self.endpoint_id = endpoint_id
-        self.operation_params = operation_params  # type: ignore
+        self.operation_params = operation_params
         self.instances = instances
         self.location = location
         self.project_id = project_id
@@ -415,7 +415,7 @@ class AutoMLCreateDatasetOperator(GoogleCloudBaseOperator):
         dataset_id = hook.extract_object_id(result)
         self.log.info("Creating completed. Dataset id: %s", dataset_id)
 
-        self.xcom_push(context, key="dataset_id", value=dataset_id)
+        context["task_instance"].xcom_push(key="dataset_id", value=dataset_id)
         project_id = self.project_id or hook.project_id
         if project_id:
             TranslationLegacyDatasetLink.persist(
@@ -1248,8 +1248,7 @@ class AutoMLListDatasetOperator(GoogleCloudBaseOperator):
             result.append(Dataset.to_dict(dataset))
         self.log.info("Datasets obtained.")
 
-        self.xcom_push(
-            context,
+        context["task_instance"].xcom_push(
             key="dataset_id_list",
             value=[hook.extract_object_id(d) for d in result],
         )

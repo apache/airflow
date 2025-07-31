@@ -20,12 +20,23 @@ from datetime import datetime, timedelta
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
-import ydb
+
+ydb = pytest.importorskip("ydb")
 
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, fetch_one_handler
 from airflow.providers.ydb.operators.ydb import YDBExecuteQueryOperator
+
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 
 
 @pytest.mark.db_test
@@ -98,7 +109,7 @@ class TestYDBExecuteQueryOperator:
             schedule="@once",
         )
 
-    @patch("airflow.hooks.base.BaseHook.get_connection")
+    @patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     @patch("ydb.Driver")
     @patch("ydb.QuerySessionPool")
     @patch("ydb_dbapi.Connection._cursor_cls", new_callable=PropertyMock)

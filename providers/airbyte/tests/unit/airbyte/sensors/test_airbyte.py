@@ -25,10 +25,8 @@ from airbyte_api.models import JobResponse, JobStatusEnum, JobTypeEnum
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.airbyte.sensors.airbyte import AirbyteJobSensor
-from airflow.utils import db
 
 
-@pytest.mark.db_test
 class TestAirbyteJobSensor:
     task_id = "task-id"
     airbyte_conn_id = "airbyte-conn-test"
@@ -46,8 +44,9 @@ class TestAirbyteJobSensor:
         )
         return response
 
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(conn_id=self.airbyte_conn_id, conn_type="airbyte", host="http://test-airbyte")
         )
 

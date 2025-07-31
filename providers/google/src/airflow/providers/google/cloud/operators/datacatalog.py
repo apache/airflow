@@ -163,7 +163,7 @@ class CloudDataCatalogCreateEntryOperator(GoogleCloudBaseOperator):
             )
         _, _, entry_id = result.name.rpartition("/")
         self.log.info("Current entry_id ID: %s", entry_id)
-        self.xcom_push(context, key="entry_id", value=entry_id)
+        context["ti"].xcom_push(key="entry_id", value=entry_id)
         DataCatalogEntryLink.persist(
             context=context,
             entry_id=self.entry_id,
@@ -283,7 +283,7 @@ class CloudDataCatalogCreateEntryGroupOperator(GoogleCloudBaseOperator):
 
         _, _, entry_group_id = result.name.rpartition("/")
         self.log.info("Current entry group ID: %s", entry_group_id)
-        self.xcom_push(context, key="entry_group_id", value=entry_group_id)
+        context["ti"].xcom_push(key="entry_group_id", value=entry_group_id)
         DataCatalogEntryGroupLink.persist(
             context=context,
             entry_group_id=self.entry_group_id,
@@ -425,7 +425,7 @@ class CloudDataCatalogCreateTagOperator(GoogleCloudBaseOperator):
 
         _, _, tag_id = tag.name.rpartition("/")
         self.log.info("Current Tag ID: %s", tag_id)
-        self.xcom_push(context, key="tag_id", value=tag_id)
+        context["ti"].xcom_push(key="tag_id", value=tag_id)
         DataCatalogEntryLink.persist(
             context=context,
             entry_id=self.entry,
@@ -542,7 +542,7 @@ class CloudDataCatalogCreateTagTemplateOperator(GoogleCloudBaseOperator):
             )
         _, _, tag_template = result.name.rpartition("/")
         self.log.info("Current Tag ID: %s", tag_template)
-        self.xcom_push(context, key="tag_template_id", value=tag_template)
+        context["ti"].xcom_push(key="tag_template_id", value=tag_template)
         DataCatalogTagTemplateLink.persist(
             context=context,
             tag_template_id=self.tag_template_id,
@@ -668,7 +668,7 @@ class CloudDataCatalogCreateTagTemplateFieldOperator(GoogleCloudBaseOperator):
             result = tag_template.fields[self.tag_template_field_id]
 
         self.log.info("Current Tag ID: %s", self.tag_template_field_id)
-        self.xcom_push(context, key="tag_template_field_id", value=self.tag_template_field_id)
+        context["ti"].xcom_push(key="tag_template_field_id", value=self.tag_template_field_id)
         DataCatalogTagTemplateLink.persist(
             context=context,
             tag_template_id=self.tag_template,

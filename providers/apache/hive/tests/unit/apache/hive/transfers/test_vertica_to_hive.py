@@ -25,8 +25,6 @@ import pytest
 from airflow.models.dag import DAG
 from airflow.providers.apache.hive.transfers.vertica_to_hive import VerticaToHiveOperator
 
-pytestmark = pytest.mark.db_test
-
 
 def mock_get_conn():
     commit_mock = mock.MagicMock()
@@ -48,6 +46,7 @@ class TestVerticaToHiveTransfer:
         args = {"owner": "airflow", "start_date": datetime.datetime(2017, 1, 1)}
         self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
+    @pytest.mark.db_test
     @mock.patch(
         "airflow.providers.apache.hive.transfers.vertica_to_hive.VerticaHook.get_conn",
         side_effect=mock_get_conn,

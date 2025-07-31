@@ -58,6 +58,7 @@ ALLOWED_THICK_HOOKS_PARAMETERS: dict[str, set[str]] = {
         "retry_limit",
         "num_of_dpus",
         "script_location",
+        "api_retry_args",
     },
     "S3Hook": {"transfer_config_args", "aws_conn_id", "extra_args"},
 }

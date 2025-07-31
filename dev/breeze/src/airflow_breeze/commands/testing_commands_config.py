@@ -65,6 +65,7 @@ TEST_UPGRADING_PACKAGES: dict[str, str | list[str]] = {
     "name": "Upgrading/downgrading/removing selected packages",
     "options": [
         "--upgrade-boto",
+        "--upgrade-sqlalchemy",
         "--downgrade-sqlalchemy",
         "--downgrade-pendulum",
     ],
@@ -147,7 +148,7 @@ TESTING_COMMANDS: list[dict[str, str | list[str]]] = [
     },
     {
         "name": "Task SDK Tests",
-        "commands": ["task-sdk-tests"],
+        "commands": ["task-sdk-tests", "task-sdk-integration-tests"],
     },
     {
         "name": "Airflow CTL Tests",
@@ -182,6 +183,19 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
         TEST_ADVANCED_FLAGS,
+    ],
+    "breeze testing task-sdk-integration-tests": [
+        {
+            "name": "Docker-compose tests flag",
+            "options": [
+                "--image-name",
+                "--python",
+                "--skip-docker-compose-deletion",
+                "--include-success-outputs",
+                "--github-repository",
+                "--task-sdk-version",
+            ],
+        }
     ],
     "breeze testing airflow-ctl-tests": [
         {

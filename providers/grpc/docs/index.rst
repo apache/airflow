@@ -68,7 +68,9 @@ apache-airflow-providers-grpc package
 `gRPC <https://grpc.io/>`__
 
 
-Release: 3.8.0
+Release: 3.8.2
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------
