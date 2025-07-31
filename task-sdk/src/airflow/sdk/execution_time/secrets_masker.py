@@ -34,6 +34,7 @@ from typing import (
     TextIO,
     TypeVar,
     Union,
+    overload,
 )
 
 from airflow import settings
@@ -125,6 +126,27 @@ def mask_secret(secret: str | dict | Iterable, name: str | None = None) -> None:
 def redact(value: Redactable, name: str | None = None, max_depth: int | None = None) -> Redacted:
     """Redact any secrets found in ``value``."""
     return _secrets_masker().redact(value, name, max_depth)
+
+
+@overload
+def merge(new_value: str, old_value: str, name: str | None = None, max_depth: int | None = None) -> str: ...
+
+
+@overload
+def merge(new_value: dict, old_value: dict, name: str | None = None, max_depth: int | None = None) -> str: ...
+
+
+def merge(
+    new_value: Redacted, old_value: Redactable, name: str | None = None, max_depth: int | None = None
+) -> Redacted:
+    """
+    Merge a redacted value with its original unredacted counterpart.
+
+    Takes a user-modified redacted value and merges it with the original unredacted value.
+    For sensitive fields that still contain "***" (unchanged), the original value is restored.
+    For fields that have been updated by the user, the new value is preserved.
+    """
+    return _secrets_masker().merge(new_value, old_value, name, max_depth)
 
 
 @cache
@@ -302,6 +324,83 @@ class SecretsMasker(logging.Filter):
             )
             return item
 
+    def _merge(
+        self,
+        new_item: Redacted,
+        old_item: Redactable,
+        name: str | None,
+        depth: int,
+        max_depth: int,
+        force_sensitive: bool = False,
+    ) -> Redacted:
+        """Merge a redacted item with its original unredacted counterpart."""
+        if depth > max_depth:
+            if isinstance(new_item, str) and new_item == "***":
+                return old_item
+            return new_item
+
+        try:
+            # Determine if we should treat this as sensitive
+            is_sensitive = force_sensitive or (name is not None and should_hide_value_for_key(name))
+
+            if isinstance(new_item, dict) and isinstance(old_item, dict):
+                merged = {}
+                for key in new_item.keys():
+                    if key in old_item:
+                        # For dicts, pass the key as name unless we're in sensitive mode
+                        child_name = None if is_sensitive else key
+                        merged[key] = self._merge(
+                            new_item[key],
+                            old_item[key],
+                            name=child_name,
+                            depth=depth + 1,
+                            max_depth=max_depth,
+                            force_sensitive=is_sensitive,
+                        )
+                    else:
+                        merged[key] = new_item[key]
+                return merged
+
+            if isinstance(new_item, (list, tuple)) and type(old_item) is type(new_item):
+                merged_list = []
+                for i in range(len(new_item)):
+                    if i < len(old_item):
+                        # In sensitive mode, check if individual item is redacted
+                        if is_sensitive and isinstance(new_item[i], str) and new_item[i] == "***":
+                            merged_list.append(old_item[i])
+                        else:
+                            merged_list.append(
+                                self._merge(
+                                    new_item[i],
+                                    old_item[i],
+                                    name=None,
+                                    depth=depth + 1,
+                                    max_depth=max_depth,
+                                    force_sensitive=is_sensitive,
+                                )
+                            )
+                    else:
+                        merged_list.append(new_item[i])
+
+                if isinstance(new_item, list):
+                    return list(merged_list)
+                return tuple(merged_list)
+
+            if isinstance(new_item, set) and isinstance(old_item, set):
+                # Sets are unordered, we cannot restore original items.
+                return new_item
+
+            if _is_v1_env_var(new_item) and _is_v1_env_var(old_item):
+                # TODO: Handle Kubernetes V1EnvVar objects if needed
+                return new_item
+
+            if is_sensitive and isinstance(new_item, str) and new_item == "***":
+                return old_item
+            return new_item
+
+        except (TypeError, AttributeError, ValueError):
+            return new_item
+
     def redact(self, item: Redactable, name: str | None = None, max_depth: int | None = None) -> Redacted:
         """
         Redact an any secrets found in ``item``, if it is a string.
@@ -311,6 +410,25 @@ class SecretsMasker(logging.Filter):
         is redacted.
         """
         return self._redact(item, name, depth=0, max_depth=max_depth or self.MAX_RECURSION_DEPTH)
+
+    def merge(
+        self, new_item: Redacted, old_item: Redactable, name: str | None = None, max_depth: int | None = None
+    ) -> Redacted:
+        """
+        Merge a redacted item with its original unredacted counterpart.
+
+        Takes a user-modified redacted item and merges it with the original unredacted item.
+        For sensitive fields that still contain "***" (unchanged), the original value is restored.
+        For fields that have been updated, the new value is preserved.
+        """
+        return self._merge(
+            new_item,
+            old_item,
+            name=name,
+            depth=0,
+            max_depth=max_depth or self.MAX_RECURSION_DEPTH,
+            force_sensitive=False,
+        )
 
     @cached_property
     def _mask_adapter(self) -> None | Callable:

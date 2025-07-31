@@ -468,6 +468,27 @@ class TestPatchConnection(TestConnectionEndpoint):
                 },
             ),
             (
+                # Sensitive "***" should be ignored.
+                {
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "port": 80,
+                    "login": "test_login_patch",
+                    "password": "***",
+                },
+                {
+                    "conn_type": TEST_CONN_TYPE,
+                    "connection_id": TEST_CONN_ID,
+                    "description": TEST_CONN_DESCRIPTION,
+                    "extra": None,
+                    "host": TEST_CONN_HOST,
+                    "login": "test_login_patch",
+                    "password": None,
+                    "port": 80,
+                    "schema": None,
+                },
+            ),
+            (
                 {
                     "connection_id": TEST_CONN_ID,
                     "conn_type": TEST_CONN_TYPE,
