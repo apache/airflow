@@ -32,12 +32,14 @@ export type FlexibleFormProps = {
   initialParamsDict: { paramsDict: ParamsSpec };
   key?: string;
   setError: (error: boolean) => void;
+  subHeader?: string;
 };
 
 export const FlexibleForm = ({
   flexibleFormDefaultSection,
   initialParamsDict,
   setError,
+  subHeader,
 }: FlexibleFormProps) => {
   const { paramsDict: params, setInitialParamDict, setParamsDict } = useParamStore();
   const processedSections = new Map();
@@ -126,6 +128,11 @@ export const FlexibleForm = ({
 
               <Accordion.ItemContent pt={0}>
                 <Accordion.ItemBody>
+                  {Boolean(subHeader) ? (
+                    <Text color="fg.muted" fontSize="xs" mb={2}>
+                      {subHeader}
+                    </Text>
+                  ) : undefined}
                   <Stack separator={<StackSeparator />}>
                     {Object.entries(params)
                       .filter(

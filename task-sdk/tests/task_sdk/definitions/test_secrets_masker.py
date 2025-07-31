@@ -34,6 +34,7 @@ from airflow.sdk.execution_time.secrets_masker import (
     RedactedIO,
     SecretsMasker,
     mask_secret,
+    merge,
     redact,
     reset_secrets_masker,
     should_hide_value_for_key,
@@ -53,6 +54,7 @@ def lineno():
 
 class MyEnum(str, Enum):
     testname = "testvalue"
+    testname2 = "testvalue2"
 
 
 @pytest.fixture
@@ -729,3 +731,305 @@ class TestMixedDataScenarios:
             assert "***" in redacted_data["description"]
             assert redacted_data["nested"]["token"] == "***"
             assert redacted_data["nested"]["info"] == "No secrets here"
+
+
+class TestSecretsMaskerMerge:
+    """Test the merge functionality for restoring original values from redacted data."""
+
+    @pytest.mark.parametrize(
+        ("new_value", "old_value", "name", "expected"),
+        [
+            ("***", "original_secret", "password", "original_secret"),
+            ("new_secret", "original_secret", "password", "new_secret"),
+            ("***", "original_value", "normal_field", "***"),
+            ("new_value", "original_value", "normal_field", "new_value"),
+            ("***", "original_value", None, "***"),
+            ("new_value", "original_value", None, "new_value"),
+        ],
+    )
+    @pytest.mark.usefixtures("patched_secrets_masker")
+    def test_merge_simple_strings(self, new_value, old_value, name, expected):
+        result = merge(new_value, old_value, name)
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("old_data", "new_data", "expected"),
+        [
+            (
+                {
+                    "password": "original_password",
+                    "api_key": "original_api_key",
+                    "normal_field": "original_normal",
+                },
+                {
+                    "password": "***",
+                    "api_key": "new_api_key",
+                    "normal_field": "new_normal",
+                },
+                {
+                    "password": "original_password",
+                    "api_key": "new_api_key",
+                    "normal_field": "new_normal",
+                },
+            ),
+            (
+                {
+                    "config": {"password": "original_password", "host": "original_host"},
+                    "credentials": {"api_key": "original_api_key", "username": "original_user"},
+                },
+                {
+                    "config": {
+                        "password": "***",
+                        "host": "new_host",
+                    },
+                    "credentials": {
+                        "api_key": "new_api_key",
+                        "username": "new_user",
+                    },
+                },
+                {
+                    "config": {
+                        "password": "original_password",
+                        "host": "new_host",
+                    },
+                    "credentials": {
+                        "api_key": "new_api_key",
+                        "username": "new_user",
+                    },
+                },
+            ),
+        ],
+    )
+    @pytest.mark.usefixtures("patched_secrets_masker")
+    def test_merge_dictionaries(self, old_data, new_data, expected):
+        result = merge(new_data, old_data)
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("old_data", "new_data", "name", "expected"),
+        [
+            # Lists
+            (
+                ["original_item1", "original_item2", "original_item3"],
+                ["new_item1", "new_item2"],
+                None,
+                ["new_item1", "new_item2"],
+            ),
+            (
+                ["original_item1", "original_item2"],
+                ["new_item1", "new_item2", "new_item3", "new_item4"],
+                None,
+                ["new_item1", "new_item2", "new_item3", "new_item4"],
+            ),
+            (
+                ["secret1", "secret2", "secret3"],
+                ["***", "new_secret2", "***"],
+                "password",
+                ["secret1", "new_secret2", "secret3"],
+            ),
+            (
+                ["value1", "value2", "value3"],
+                ["***", "new_value2", "***"],
+                "normal_list",
+                ["***", "new_value2", "***"],
+            ),
+            # Tuples
+            (
+                ("original_item1", "original_item2", "original_item3"),
+                ("new_item1", "new_item2"),
+                None,
+                ("new_item1", "new_item2"),
+            ),
+            (
+                ("original_item1", "original_item2"),
+                ("new_item1", "new_item2", "new_item3", "new_item4"),
+                None,
+                ("new_item1", "new_item2", "new_item3", "new_item4"),
+            ),
+            (
+                ("secret1", "secret2", "secret3"),
+                ("***", "new_secret2", "***"),
+                "password",
+                ("secret1", "new_secret2", "secret3"),
+            ),
+            (
+                ("value1", "value2", "value3"),
+                ("***", "new_value2", "***"),
+                "normal_tuple",
+                ("***", "new_value2", "***"),
+            ),
+            # Sets
+            (
+                {"original_item1", "original_item2", "original_item3"},
+                {"new_item1", "new_item2"},
+                None,
+                {"new_item1", "new_item2"},
+            ),
+            (
+                {"original_item1", "original_item2"},
+                {"new_item1", "new_item2", "new_item3", "new_item4"},
+                None,
+                {"new_item1", "new_item2", "new_item3", "new_item4"},
+            ),
+            (
+                {"secret1", "secret2", "secret3"},
+                {"***", "new_secret2", "***"},
+                "password",
+                {"***", "new_secret2", "***"},
+            ),
+            (
+                {"value1", "value2", "value3"},
+                {"***", "new_value2", "***"},
+                "normal_tuple",
+                {"***", "new_value2", "***"},
+            ),
+        ],
+    )
+    @pytest.mark.usefixtures("patched_secrets_masker")
+    def test_merge_collections(self, old_data, new_data, name, expected):
+        result = merge(new_data, old_data, name)
+        assert result == expected
+
+    @pytest.mark.usefixtures("patched_secrets_masker")
+    def test_merge_mismatched_types(self):
+        old_data = {"key": "value"}
+        new_data = "some_string"  # Different type
+
+        # When types don't match, prefer the new item
+        expected = "some_string"
+
+        result = merge(new_data, old_data)
+        assert result == expected
+
+    @pytest.mark.usefixtures("patched_secrets_masker")
+    def test_merge_with_missing_keys(self):
+        old_data = {"password": "original_password", "old_only_key": "old_value", "common_key": "old_common"}
+
+        new_data = {
+            "password": "***",
+            "new_only_key": "new_value",
+            "common_key": "new_common",
+        }
+
+        expected = {
+            "password": "original_password",
+            "new_only_key": "new_value",
+            "common_key": "new_common",
+        }
+
+        result = merge(new_data, old_data)
+        assert result == expected
+
+    @pytest.mark.usefixtures("patched_secrets_masker")
+    def test_merge_complex_redacted_structures(self):
+        old_data = {
+            "some_config": {
+                "nested_password": "original_nested_password",
+                "passwords": ["item1", "item2"],
+            },
+            "normal_field": "normal_value",
+        }
+
+        new_data = {
+            "some_config": {"nested_password": "***", "passwords": ["***", "new_item2"]},
+            "normal_field": "new_normal_value",
+        }
+
+        result = merge(new_data, old_data)
+        expected = {
+            "some_config": {
+                "nested_password": "original_nested_password",
+                "passwords": ["item1", "new_item2"],
+            },
+            "normal_field": "new_normal_value",
+        }
+        assert result == expected
+
+    @pytest.mark.usefixtures("patched_secrets_masker")
+    def test_merge_partially_redacted_structures(self):
+        old_data = {
+            "config": {
+                "password": "original_password",
+                "host": "original_host",
+                "nested": {"api_key": "original_api_key", "timeout": 30},
+            }
+        }
+
+        new_data = {
+            "config": {
+                "password": "***",
+                "host": "new_host",
+                "nested": {
+                    "api_key": "***",
+                    "timeout": 60,
+                },
+            }
+        }
+
+        expected = {
+            "config": {
+                "password": "original_password",
+                "host": "new_host",
+                "nested": {
+                    "api_key": "original_api_key",
+                    "timeout": 60,
+                },
+            }
+        }
+
+        result = merge(new_data, old_data)
+        assert result == expected
+
+    @pytest.mark.usefixtures("patched_secrets_masker")
+    def test_merge_max_depth(self):
+        old_data = {"level1": {"level2": {"level3": {"password": "original_password"}}}}
+        new_data = {"level1": {"level2": {"level3": {"password": "***"}}}}
+
+        result = merge(new_data, old_data, max_depth=1)
+        assert result == new_data
+
+        result = merge(new_data, old_data, max_depth=10)
+        assert result["level1"]["level2"]["level3"]["password"] == "original_password"
+
+    @pytest.mark.usefixtures("patched_secrets_masker")
+    def test_merge_enum_values(self):
+        old_enum = MyEnum.testname
+        new_enum = MyEnum.testname2
+
+        result = merge(new_enum, old_enum)
+        assert result == new_enum
+        assert isinstance(result, MyEnum)
+
+    @pytest.mark.usefixtures("patched_secrets_masker")
+    def test_merge_round_trip(self):
+        # Original data with sensitive information
+        original_config = {
+            "database": {"host": "db.example.com", "password": "super_secret_password", "username": "admin"},
+            "api": {"api_key": "secret_api_key_12345", "endpoint": "https://api.example.com", "timeout": 30},
+            "app_name": "my_application",
+        }
+
+        # Step 1: Redact the original data
+        redacted_dict = redact(original_config)
+
+        # Verify sensitive fields are redacted
+        assert redacted_dict["database"]["password"] == "***"
+        assert redacted_dict["api"]["api_key"] == "***"
+        assert redacted_dict["database"]["host"] == "db.example.com"
+
+        # Step 2: User modifies some fields
+        updated_dict = redacted_dict.copy()
+        updated_dict["database"]["host"] = "new-db.example.com"
+        updated_dict["api"]["timeout"] = 60
+        updated_dict["api"]["api_key"] = "new_api_key_67890"
+        # User left password as "***" (unchanged)
+
+        # Step 3: Merge to restore unchanged sensitive values
+        final_dict = merge(updated_dict, original_config)
+
+        # Verify the results
+        assert final_dict["database"]["password"] == "super_secret_password"  # Restored
+        assert final_dict["database"]["host"] == "new-db.example.com"  # User modification kept
+        assert final_dict["api"]["api_key"] == "new_api_key_67890"  # User modification kept
+        assert final_dict["api"]["timeout"] == 60  # User modification kept
+        assert final_dict["app_name"] == "my_application"  # Unchanged
