@@ -230,6 +230,7 @@ class ShellParams:
     verbose_commands: bool = False
     version_suffix: str = ""
     warn_image_upgrade_needed: bool = False
+    expose_config: bool = False
 
     def clone_with_test(self, test_type: str) -> ShellParams:
         new_params = deepcopy(self)
@@ -542,6 +543,7 @@ class ShellParams:
         _set_var(_env, "AIRFLOW__CELERY__BROKER_URL", self.airflow_celery_broker_url)
         _set_var(_env, "AIRFLOW__CORE__AUTH_MANAGER", self.auth_manager_path)
         _set_var(_env, "AIRFLOW__CORE__EXECUTOR", self.executor)
+        _set_var(_env, "AIRFLOW__WEBSERVER__EXPOSE_CONFIG", self.expose_config)
         if self.auth_manager == SIMPLE_AUTH_MANAGER:
             _set_var(_env, "AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS", "admin:admin,viewer:viewer")
         _set_var(

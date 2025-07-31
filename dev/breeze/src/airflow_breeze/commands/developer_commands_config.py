@@ -294,6 +294,10 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Debugging options",
             "options": ["--debug", "--debugger"],
         },
+        {
+            "name": "config",
+            "options": ["--expose-config"],
+        },
     ],
     "breeze exec": [
         {"name": "Drops in the interactive shell of active airflow container"},
