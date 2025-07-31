@@ -16,12 +16,15 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from airflow.models.dagbag import DBDagBag
+
+if TYPE_CHECKING:
+    from airflow.models.dag import DAG
 
 
 def create_dag_bag() -> DBDagBag:
@@ -39,24 +42,27 @@ def dag_bag_from_app(request: Request) -> DBDagBag:
     return request.app.state.dag_bag
 
 
-def get_latest_version_of_dag(dag_bag, dag_id: str, session: Session):
+def get_latest_version_of_dag(dag_bag: DBDagBag, dag_id: str, session: Session) -> DAG:
     dag = dag_bag.get_latest_version_of_dag(dag_id, session=session)
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Dag with ID: `{dag_id}` was not found")
     return dag
 
 
-def get_dag_for_run(dag_bag, dag_run, session: Session):
+def get_dag_for_run(dag_bag: DBDagBag, dag_run, session: Session) -> DAG:
     dag = dag_bag.get_dag_for_run(dag_run, session=session)
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Dag with ID: `{dag_run.dag_id}` was not found")
     return dag
 
 
-def get_dag_for_run_or_latest_version(dag_bag, dag_run: Any | None, dag_id: str | None, session: Session):
+def get_dag_for_run_or_latest_version(
+    dag_bag: DBDagBag, dag_run: Any | None, dag_id: str | None, session: Session
+) -> DAG:
+    dag: DAG | None = None
     if dag_run:
         dag = dag_bag.get_dag_for_run(dag_run, session=session)
-    else:
+    elif dag_id:
         dag = dag_bag.get_latest_version_of_dag(dag_id, session=session)
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Dag with ID: `{dag_id}` was not found")
