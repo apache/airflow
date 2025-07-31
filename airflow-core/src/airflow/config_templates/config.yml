@@ -1391,14 +1391,13 @@ api:
       type: integer
       example: ~
       default: "120"
-    log_config:
+    access_logfile:
       description: |
-        Path to the logging configuration file for the uvicorn server.
-        If not set, the default uvicorn logging configuration will be used.
+        Log files for the api server. '-' means log to stderr.
       version_added: ~
       type: string
-      example: path/to/logging_config.yaml
-      default: ~
+      example: ~
+      default: "-"
     ssl_cert:
       description: |
         Paths to the SSL certificate and key for the api server. When both are
