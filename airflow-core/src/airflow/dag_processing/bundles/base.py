@@ -435,8 +435,8 @@ class BundleVersionLock:
         # https://docs.python.org/3/library/fcntl.html#fcntl.flock
         try:
             flock(self.lock_file, LOCK_SH)
-            self._log_exc("Error acquiring lock")
         except (BlockingIOError, OSError) as e:
+            self._log_exc("Error acquiring lock")
             raise AirflowFileLockAcquireException(self.lock_file_path, e) from e
 
     def release(self):
