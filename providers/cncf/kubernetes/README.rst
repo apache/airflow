@@ -23,8 +23,9 @@
 
 Package ``apache-airflow-providers-cncf-kubernetes``
 
-Release: ``10.6.1``
+Release: ``10.6.2``
 
+Release Date: ``|PypiReleaseDate|``
 
 `Kubernetes <https://kubernetes.io/>`__
 
@@ -36,7 +37,7 @@ This is a provider package for ``cncf.kubernetes`` provider. All classes for thi
 are in ``airflow.providers.cncf.kubernetes`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.6.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.6.2/>`_.
 
 Installation
 ------------
@@ -62,4 +63,4 @@ PIP package             Version required
 ======================  ====================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.6.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.6.2/changelog.html>`_.

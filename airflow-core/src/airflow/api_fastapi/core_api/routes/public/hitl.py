@@ -32,6 +32,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryHITLDetailDagRunIdFilter,
     QueryHITLDetailResponseReceivedFilter,
     QueryHITLDetailSubjectSearch,
+    QueryHITLDetailTaskIdPatternSearch,
     QueryHITLDetailUserIdFilter,
     QueryLimit,
     QueryOffset,
@@ -50,7 +51,7 @@ from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDe
 from airflow.models.hitl import HITLDetail as HITLDetailModel
 from airflow.models.taskinstance import TaskInstance as TI
 
-hitl_router = AirflowRouter(tags=["HumanInTheLoop"], prefix="/hitl-details")
+hitl_router = AirflowRouter(tags=["HumanInTheLoop"], prefix="/hitlDetails")
 
 log = structlog.get_logger(__name__)
 
@@ -302,6 +303,7 @@ def get_hitl_details(
     readable_ti_filter: ReadableTIFilterDep,
     dag_id_pattern: QueryHITLDetailDagIdPatternSearch,
     dag_run_id: QueryHITLDetailDagRunIdFilter,
+    task_id: QueryHITLDetailTaskIdPatternSearch,
     ti_state: QueryTIStateFilter,
     # hitl detail related filter
     response_received: QueryHITLDetailResponseReceivedFilter,
@@ -322,6 +324,7 @@ def get_hitl_details(
             readable_ti_filter,
             dag_id_pattern,
             dag_run_id,
+            task_id,
             ti_state,
             # hitl detail related filter
             response_received,

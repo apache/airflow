@@ -978,7 +978,7 @@ repos:
         name: Compile FAB provider assets
         language: node
         files: ^providers/fab/.*/www/
-        entry: ./scripts/ci/pre_commit/compile_fab_assets.py
+        entry: ./scripts/ci/pre_commit/compile_provider_assets.py fab
         pass_filenames: false
         additional_dependencies: ['yarn@1.22.21']
       - id: compile-ui-assets-dev
@@ -1635,6 +1635,7 @@ repos:
           ^airflow-core/src/airflow/models/__init__\.py$|
           ^airflow-core/src/airflow/api/common/mark_tasks\.py$|
           ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/assets\.py$|
+          ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/connections\.py$|
           ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/hitl\.py$|
           ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/variables\.py$|
           ^airflow-core/src/airflow/api_fastapi/core_api/routes/ui/grid\.py$|
