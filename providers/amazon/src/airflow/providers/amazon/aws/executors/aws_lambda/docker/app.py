@@ -48,6 +48,7 @@ def lambda_handler(event, context):
 
     command = event.get(COMMAND_KEY)
     task_key = event.get(TASK_KEY_KEY)
+    executor_config = event.get(EXECUTOR_CONFIG_KEY, {})  # noqa: F841
 
     # Any pre-processing or validation of the command or use of the executor_config can be done here or above.
 
