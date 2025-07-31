@@ -78,7 +78,6 @@ export const VersionIndicator = ({ orientation, styleOverrides, versionNumber }:
               borderRadius="2px"
               color="orange.700"
               fontSize="6px"
-              fontWeight="bold"
               px="1px"
               title={`DAG version ${versionNumber}`}
               whiteSpace="nowrap"
