@@ -74,11 +74,7 @@ if TYPE_CHECKING:
 
     from airflow.sdk.execution_time.callback_runner import ExecutionCallableRunner
     from airflow.sdk.execution_time.context import OutletEventAccessorsProtocol
-
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:  # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context  # type: ignore[attr-defined, no-redef]
+    from airflow.utils.context import Context
 
     _SerializerTypeDef = Literal["pickle", "cloudpickle", "dill"]
 
@@ -496,7 +492,8 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
 
     def execute(self, context: Context) -> Any:
         serializable_keys = set(self._iter_serializable_context_keys())
-        serializable_context = _BasePythonVirtualenvOperator.context_copy_partial(context, serializable_keys)
+        new = {k: v for k, v in context.items() if k in serializable_keys}
+        serializable_context = cast("Context", new)
         return super().execute(context=serializable_context)
 
     def get_python_source(self):

@@ -30,7 +30,7 @@ from airflow.providers.cncf.kubernetes.version_compat import (
 from airflow.utils.operator_helpers import determine_kwargs
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context  # type: ignore[attr-defined, no-redef]
+    from airflow.utils.context import Context
 
 
 class _KubernetesCmdDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
