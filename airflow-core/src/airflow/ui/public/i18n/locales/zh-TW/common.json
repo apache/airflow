@@ -55,10 +55,12 @@
     "runAfter": "最早可執行時間",
     "runType": "執行類型",
     "sourceAssetEvent": "來源資源事件",
-    "triggeredBy": "觸發者"
+    "triggeredBy": "觸發者",
+    "triggeringUser": "觸發使用者名稱"
   },
   "dagRun_one": "Dag 執行",
   "dagRun_other": "Dag 執行",
+  "dagRunId": "Dag 執行 ID",
   "dagWarnings": "Dag 警告 / 錯誤",
   "defaultToGraphView": "預設使用圖形視圖",
   "defaultToGridView": "預設使用網格視圖",
@@ -76,6 +78,12 @@
     "home": "首頁",
     "notFound": "找不到頁面",
     "title": "錯誤"
+  },
+  "expand": {
+    "collapse": "收合",
+    "expand": "展開",
+    "hotkey": "e",
+    "tooltip": "按下 {{hotkey}} 切換展開"
   },
   "expression": {
     "all": "全部",
@@ -102,6 +110,7 @@
     "dags": "Dags",
     "docs": "文件",
     "home": "首頁",
+    "legacyFabViews": "舊版檢視",
     "plugins": "插件",
     "security": "安全"
   },
@@ -146,6 +155,11 @@
   },
   "selectLanguage": "選擇語言",
   "showDetailsPanel": "顯示詳細資訊",
+  "source": {
+    "hide": "隱藏原始碼",
+    "hotkey": "s",
+    "show": "顯示原始碼"
+  },
   "sourceAssetEvent_one": "來源資源事件",
   "sourceAssetEvent_other": "來源資源事件",
   "startDate": "開始日期",
@@ -225,6 +239,11 @@
     "lastHour": "最近 1 小時",
     "pastWeek": "過去一週"
   },
+  "timestamp": {
+    "hide": "隱藏時間戳記",
+    "hotkey": "t",
+    "show": "顯示時間戳記"
+  },
   "timezone": "時區",
   "timezoneModal": {
     "current-timezone": "目前時區",
@@ -269,10 +288,12 @@
       }
     }
   },
+  "total": "總計 {{state}}",
   "triggered": "已觸發",
   "tryNumber": "嘗試次數",
   "user": "使用者",
   "wrap": {
+    "hotkey": "w",
     "tooltip": "按 {{hotkey}} 切換換行",
     "unwrap": "不換行",
     "wrap": "換行"
