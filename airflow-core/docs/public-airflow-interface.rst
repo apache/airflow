@@ -15,12 +15,12 @@
     specific language governing permissions and limitations
     under the License.
 
-**PUBLIC INTERFACE FOR AIRFLOW 3.0+**
+Public Interface for Airflow 3.0+
 =====================================
 
 .. warning::
 
-   **This documentation covers the Public Interface for Airflow 3.0+**
+   This documentation covers the Public Interface for Airflow 3.0+
 
    If you are using Airflow 2.x, please refer to the
    `Airflow 2.11 Public Interface Documentation <https://airflow.apache.org/docs/apache-airflow/2.11.0/public-airflow-interface.html>`_
