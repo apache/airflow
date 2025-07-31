@@ -555,7 +555,7 @@ class DagBag(LoggingMixin):
         :raises: AirflowDagCycleException if a cycle is detected.
         :raises: AirflowDagDuplicatedIdException if this dag already exists in the bag.
         """
-        dag.check_cycle()  # throws exception if a task cycle is found
+        dag._check_cycle()  # throws exception if a task cycle is found
 
         dag.resolve_template_files()
         dag.last_loaded = timezone.utcnow()

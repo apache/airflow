@@ -976,7 +976,7 @@ class DAG:
         if tg:
             tg._remove(task)
 
-    def check_cycle(self) -> None:
+    def _check_cycle(self) -> None:
         """
         Check to see if there are any cycles in the DAG.
 
@@ -1019,7 +1019,7 @@ class DAG:
 
     def cli(self):
         """Exposes a CLI specific to this DAG."""
-        self.check_cycle()
+        self._check_cycle()
 
         from airflow.cli import cli_parser
 
