@@ -33,6 +33,11 @@
     "noTryNumber": "沒有嘗試次數",
     "viewInExternal": "在 {{name}} 中檢視日誌(嘗試 {{attempt}})"
   },
+  "navigation": {
+    "jump": "跳躍: Shift+{{arrow}}",
+    "navigation": "導航: {{arrow}}",
+    "toggleGroup": "展開/收合群組: Space"
+  },
   "overview": {
     "buttons": {
       "failedRun_one": "失敗的執行",
