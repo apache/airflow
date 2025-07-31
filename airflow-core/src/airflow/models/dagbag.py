@@ -160,8 +160,6 @@ class DagBag(LoggingMixin):
     :param safe_mode: when ``False``, scans all python modules for dags.
         When ``True`` uses heuristics (files containing ``DAG`` and ``airflow`` strings)
         to filter python modules to scan for dags.
-    :param read_dags_from_db: Read DAGs from DB if ``True`` is passed.
-        If ``False`` DAGs are read from python files.
     :param load_op_links: Should the extra operator link be loaded via plugins when
         de-serializing the DAG? This flag is set to False in Scheduler so that Extra Operator links
         are not loaded to not run User code in Scheduler.
@@ -174,7 +172,6 @@ class DagBag(LoggingMixin):
         dag_folder: str | Path | None = None,  # todo AIP-66: rename this to path
         include_examples: bool | ArgNotSet = NOTSET,
         safe_mode: bool | ArgNotSet = NOTSET,
-        read_dags_from_db: bool = False,
         load_op_links: bool = True,
         collect_dags: bool = True,
         known_pools: set[str] | None = None,
@@ -200,9 +197,6 @@ class DagBag(LoggingMixin):
         self.import_errors: dict[str, str] = {}
         self.captured_warnings: dict[str, tuple[str, ...]] = {}
         self.has_logged = False
-        self.read_dags_from_db = read_dags_from_db
-        # Only used by read_dags_from_db=True
-        self.dags_last_fetched: dict[str, datetime] = {}
         # Only used by SchedulerJob to compare the dag_hash to identify change in DAGs
         self.dags_hash: dict[str, str] = {}
 
@@ -243,67 +237,19 @@ class DagBag(LoggingMixin):
         # Avoid circular import
         from airflow.models.dag import DagModel
 
-        if self.read_dags_from_db:
-            # Import here so that serialized dag is only imported when serialization is enabled
-            from airflow.models.serialized_dag import SerializedDagModel
-
-            if dag_id not in self.dags:
-                # Load from DB if not (yet) in the bag
-                self._add_dag_from_db(dag_id=dag_id, session=session)
-                return self.dags.get(dag_id)
-
-            # If DAG is in the DagBag, check the following
-            # 1. if time has come to check if DAG is updated (controlled by min_serialized_dag_fetch_secs)
-            # 2. check the last_updated and hash columns in SerializedDag table to see if
-            # Serialized DAG is updated
-            # 3. if (2) is yes, fetch the Serialized DAG.
-            # 4. if (2) returns None (i.e. Serialized DAG is deleted), remove dag from dagbag
-            # if it exists and return None.
-            min_serialized_dag_fetch_secs = timedelta(seconds=settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL)
-            if (
-                dag_id in self.dags_last_fetched
-                and timezone.utcnow() > self.dags_last_fetched[dag_id] + min_serialized_dag_fetch_secs
-            ):
-                sd_latest_version_and_updated_datetime = (
-                    SerializedDagModel.get_latest_version_hash_and_updated_datetime(
-                        dag_id=dag_id, session=session
-                    )
-                )
-                if not sd_latest_version_and_updated_datetime:
-                    self.log.warning("Serialized DAG %s no longer exists", dag_id)
-                    del self.dags[dag_id]
-                    del self.dags_last_fetched[dag_id]
-                    del self.dags_hash[dag_id]
-                    return None
-
-                sd_latest_version, sd_last_updated_datetime = sd_latest_version_and_updated_datetime
-
-                if (
-                    sd_last_updated_datetime > self.dags_last_fetched[dag_id]
-                    or sd_latest_version != self.dags_hash[dag_id]
-                ):
-                    self._add_dag_from_db(dag_id=dag_id, session=session)
-
-            return self.dags.get(dag_id)
-
-        # If asking for a known subdag, we want to refresh the parent
-        dag = None
-        if dag_id in self.dags:
-            dag = self.dags[dag_id]
+        dag = self.dags.get(dag_id)
 
         # If DAG Model is absent, we can't check last_expired property. Is the DAG not yet synchronized?
-        orm_dag = DagModel.get_current(dag_id, session=session)
-        if not orm_dag:
-            return self.dags.get(dag_id)
+        if (orm_dag := DagModel.get_current(dag_id, session=session)) is None:
+            return dag
 
-        is_missing = dag_id not in self.dags
         is_expired = (
             orm_dag.last_expired and dag and dag.last_loaded and dag.last_loaded < orm_dag.last_expired
         )
         if is_expired:
             # Remove associated dags so we can re-add them.
             self.dags.pop(dag_id, None)
-        if is_missing or is_expired:
+        if dag is None or is_expired:
             # Reprocess source file.
             found_dags = self.process_file(
                 filepath=correct_maybe_zipped(orm_dag.fileloc), only_if_updated=False
@@ -312,23 +258,8 @@ class DagBag(LoggingMixin):
             # If the source file no longer exports `dag_id`, delete it from self.dags
             if found_dags and dag_id in [found_dag.dag_id for found_dag in found_dags]:
                 return self.dags[dag_id]
-            if dag_id in self.dags:
-                del self.dags[dag_id]
+            self.dags.pop(dag_id, None)
         return self.dags.get(dag_id)
-
-    def _add_dag_from_db(self, dag_id: str, session: Session):
-        """Add DAG to DagBag from DB."""
-        from airflow.models.serialized_dag import SerializedDagModel
-
-        row: SerializedDagModel | None = SerializedDagModel.get(dag_id, session)
-        if not row:
-            return None
-
-        row.load_op_links = self.load_op_links
-        dag = row.dag
-        self.dags[dag.dag_id] = dag
-        self.dags_last_fetched[dag.dag_id] = timezone.utcnow()
-        self.dags_hash[dag.dag_id] = row.dag_hash
 
     def process_file(self, filepath, only_if_updated=True, safe_mode=True):
         """Given a path to a python module or zip file, import the module and look for dag objects within."""
@@ -643,9 +574,6 @@ class DagBag(LoggingMixin):
         un-anchored regexes or gitignore-like glob expressions, depending on
         the ``DAG_IGNORE_FILE_SYNTAX`` configuration parameter.
         """
-        if self.read_dags_from_db:
-            return
-
         self.log.info("Filling up the DagBag from %s", dag_folder)
         dag_folder = dag_folder or self.dag_folder
         # Used to store stats around DagBag processing

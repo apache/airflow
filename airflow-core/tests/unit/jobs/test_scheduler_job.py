@@ -6197,7 +6197,7 @@ class TestSchedulerJob:
         dag_file = Path(__file__).parents[1] / "dags/test_only_empty_tasks.py"
 
         # Write DAGs to dag and serialized_dag table
-        dagbag = DagBag(dag_folder=dag_file, include_examples=False, read_dags_from_db=False)
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
         dagbag.sync_to_db("testing", None)
 
         scheduler_job = Job()
@@ -6864,7 +6864,7 @@ class TestSchedulerJobQueriesCount:
             ),
         ):
             dagruns = []
-            dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False, read_dags_from_db=False)
+            dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False)
             dagbag.sync_to_db("testing", None)
 
             for i, dag in enumerate(dagbag.dags.values()):

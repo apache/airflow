@@ -444,7 +444,6 @@ class TestUpdateDagParsingResults:
     def test_serialized_dags_are_written_to_db_on_sync(self, testing_dag_bundle, session):
         """
         Test that when dagbag.sync_to_db is called the DAGs are Serialized and written to DB
-        even when dagbag.read_dags_from_db is False
         """
         serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
         assert serialized_dags_count == 0

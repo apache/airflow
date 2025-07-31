@@ -129,7 +129,7 @@ else:
     from airflow.models.dagbag import DagBag
 
     def _iter_dags() -> Iterable[DAG]:
-        dagbag = DagBag(read_dags_from_db=True)
+        dagbag = DagBag(read_dags_from_db=True)  # type: ignore[call-arg]
         dagbag.collect_dags_from_db()
         return dagbag.dags.values()
 

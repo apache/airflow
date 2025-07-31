@@ -887,7 +887,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             from airflow.models import DagBag
 
             # Keep all the serialized dags we've created in this test
-            self.dagbag = DagBag(os.devnull, include_examples=False, read_dags_from_db=False)
+            self.dagbag = DagBag(os.devnull, include_examples=False)
 
         def __enter__(self):
             self.serialized_model = None
