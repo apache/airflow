@@ -480,16 +480,6 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
     def _iter_serializable_context_keys(self):
         pass
 
-    @staticmethod
-    def context_copy_partial(source: Context, keys: Container[str]) -> Context:
-        """
-        Create a context by copying items under selected keys in ``source``.
-
-        :meta private:
-        """
-        new = {k: v for k, v in source.items() if k in keys}
-        return cast("Context", new)
-
     def execute(self, context: Context) -> Any:
         serializable_keys = set(self._iter_serializable_context_keys())
         new = {k: v for k, v in context.items() if k in serializable_keys}
