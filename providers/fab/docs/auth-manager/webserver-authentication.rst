@@ -18,6 +18,15 @@
 FAB auth manager authentication
 ===============================
 
+.. note::
+
+   While this documentation refers to authentication using the ``apache-airflow-providers-fab`` package, please note:
+
+   - The **FAB auth provider** is actively maintained and compatible with the latest versions of Airflow.
+   - The legacy ``webserver_config.py`` file referenced in older docs is **no longer used** in recent versions of Airflow. Instead, authentication is handled via the new ``auth_manager`` framework configured in ``airflow.cfg``.
+
+   For more, see the :doc:`token`.
+
 By default, FAB auth manager requires users to specify a password prior to login. You can use the
 following CLI commands to create an account:
 
@@ -213,7 +222,7 @@ webserver_config.py itself if you wish.
         # If you ever want to support other providers, see how it is done here:
         # https://github.com/dpgaspar/Flask-AppBuilder/blob/master/flask_appbuilder/security/manager.py#L550
         def get_oauth_user_info(self, provider: str, resp: Any) -> dict[str, Union[str, list[str]]]:
-            # Creates the user info payload from Github.
+            # Creates the user info payload from GitHub.
             # The user previously allowed your app to act on their behalf,
             #   so now we can query the user and teams endpoints for their data.
             # Username and team membership are added to the payload and returned to FAB.
@@ -224,7 +233,7 @@ webserver_config.py itself if you wish.
             team_data = remote_app.get("user/teams")
             teams = team_parser(team_data.json())
             roles = map_roles(teams)
-            log.debug(f"User info from Github: {user_data}\nTeam info from Github: {teams}")
+            log.debug(f"User info from GitHub: {user_data}\nTeam info from GitHub: {teams}")
             return {"username": "github_" + user_data.get("login"), "role_keys": roles}
 
 Example using team based Authorization with KeyCloak

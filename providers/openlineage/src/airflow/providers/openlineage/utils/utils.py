@@ -52,7 +52,7 @@ from airflow.providers.openlineage.utils.selective_enable import (
     is_dag_lineage_enabled,
     is_task_lineage_enabled,
 )
-from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS, get_base_airflow_version_tuple
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.module_loading import import_string
 
@@ -780,6 +780,7 @@ def _emits_ol_events(task: BaseOperator | MappedOperator) -> bool:
             not getattr(task, "on_execute_callback", None),
             not getattr(task, "on_success_callback", None),
             not task.outlets,
+            not (task.inlets and get_base_airflow_version_tuple() >= (3, 0, 2)),  # Added in 3.0.2 #50773
         )
     )
 

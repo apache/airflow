@@ -1,10 +1,10 @@
 {
-  "auditLog":{
+  "auditLog": {
     "actions": {
       "collapseAllExtra": "收合所有額外 JSON",
       "expandAllExtra": "展開所有額外 JSON"
     },
-    "columns":{
+    "columns": {
       "event": "事件",
       "extra": "額外資訊",
       "user": "使用者",
@@ -12,8 +12,8 @@
     },
     "title": "審計日誌事件"
   },
-  "xcom":{
-    "columns":{
+  "xcom": {
+    "columns": {
       "dag": "Dag",
       "key": "鍵",
       "value": "值"

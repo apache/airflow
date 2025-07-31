@@ -34,6 +34,8 @@ import time_machine
 from sqlalchemy import inspect, select
 
 from airflow import settings
+from airflow._shared.timezones import timezone
+from airflow._shared.timezones.timezone import datetime as datetime_tz
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
@@ -70,18 +72,15 @@ from airflow.sdk.definitions._internal.templater import NativeEnvironment, Sandb
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 from airflow.sdk.definitions.param import Param
-from airflow.security import permissions
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.simple import (
     AssetTriggeredTimetable,
     NullTimetable,
     OnceTimetable,
 )
-from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.timezone import datetime as datetime_tz
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -1481,8 +1480,7 @@ class TestDag:
 
     def test_dag_test_basic(self):
         dag = DAG(dag_id="test_local_testing_conn_file", schedule=None, start_date=DEFAULT_DATE)
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+
         mock_object = mock.MagicMock()
 
         @task_decorator
@@ -1492,14 +1490,14 @@ class TestDag:
 
         with dag:
             check_task()
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
 
         dag.test()
         mock_object.assert_called_once()
 
     def test_dag_test_with_dependencies(self):
         dag = DAG(dag_id="test_local_testing_conn_file", schedule=None, start_date=DEFAULT_DATE)
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
         mock_object = mock.MagicMock()
 
         @task_decorator
@@ -1513,6 +1511,9 @@ class TestDag:
 
         with dag:
             check_task_2(check_task())
+
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
 
         dag.test()
         mock_object.assert_called_with("output of first task")
@@ -1539,8 +1540,6 @@ class TestDag:
 
         mock_task_object_1 = mock.MagicMock()
         mock_task_object_2 = mock.MagicMock()
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
 
         @task_decorator
         def check_task():
@@ -1554,7 +1553,8 @@ class TestDag:
 
         with dag:
             check_task_2(check_task())
-
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
         dr = dag.test()
 
         ti1 = dr.get_task_instance("check_task")
@@ -1906,63 +1906,6 @@ my_postgres_conn:
         assert next_info.logical_date == timezone.datetime(2028, 2, 29)
         assert next_info.data_interval.start == timezone.datetime(2028, 2, 29)
         assert next_info.data_interval.end == timezone.datetime(2032, 2, 29)
-
-    @pytest.mark.parametrize(
-        "fab_version, perms, expected_exception, expected_perms",
-        [
-            pytest.param(
-                "1.2.0",
-                {
-                    "role1": {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT},
-                    "role3": {permissions.RESOURCE_DAG_RUN: {permissions.ACTION_CAN_CREATE}},
-                    # will raise error in old FAB with new access control format
-                },
-                AirflowException,
-                None,
-                id="old_fab_new_access_control_format",
-            ),
-            pytest.param(
-                "1.2.0",
-                {
-                    "role1": [
-                        permissions.ACTION_CAN_READ,
-                        permissions.ACTION_CAN_EDIT,
-                        permissions.ACTION_CAN_READ,
-                    ],
-                },
-                None,
-                {"role1": {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}},
-                id="old_fab_old_access_control_format",
-            ),
-            pytest.param(
-                "1.3.0",
-                {
-                    "role1": {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT},  # old format
-                    "role3": {permissions.RESOURCE_DAG_RUN: {permissions.ACTION_CAN_CREATE}},  # new format
-                },
-                None,
-                {
-                    "role1": {
-                        permissions.RESOURCE_DAG: {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}
-                    },
-                    "role3": {permissions.RESOURCE_DAG_RUN: {permissions.ACTION_CAN_CREATE}},
-                },
-                id="new_fab_mixed_access_control_format",
-            ),
-        ],
-    )
-    def test_access_control_format(self, fab_version, perms, expected_exception, expected_perms):
-        if expected_exception:
-            with patch("airflow.providers.fab.__version__", fab_version):
-                with pytest.raises(
-                    expected_exception,
-                    match="Please upgrade the FAB provider to a version >= 1.3.0 to allow use the Dag Level Access Control new format.",
-                ):
-                    DAG(dag_id="dag_test", schedule=None, access_control=perms)
-        else:
-            with patch("airflow.providers.fab.__version__", fab_version):
-                dag = DAG(dag_id="dag_test", schedule=None, access_control=perms)
-            assert dag.access_control == expected_perms
 
     def test_validate_executor_field_executor_not_configured(self):
         dag = DAG("test-dag", schedule=None)

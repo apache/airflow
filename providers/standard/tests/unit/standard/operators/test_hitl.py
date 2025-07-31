@@ -21,7 +21,7 @@ import pytest
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 if not AIRFLOW_V_3_1_PLUS:
-    pytest.skip("Human in the loop public API compatible with Airflow >= 3.0.1", allow_module_level=True)
+    pytest.skip("Human in the loop public API compatible with Airflow >= 3.1.0", allow_module_level=True)
 
 from typing import TYPE_CHECKING, Any
 
@@ -145,7 +145,7 @@ class TestHITLOperator:
             options=["1", "2", "3", "4", "5"],
             params=input_params,
         )
-        assert hitl_op.serialzed_params == expected_params
+        assert hitl_op.serialized_params == expected_params
 
     def test_execute_complete(self) -> None:
         hitl_op = HITLOperator(
@@ -257,7 +257,7 @@ class TestApprovalOperator:
 
 
 class TestHITLEntryOperator:
-    def test_init(self) -> None:
+    def test_init_without_options_and_default(self) -> None:
         op = HITLEntryOperator(
             task_id="hitl_test",
             subject="This is subject",
@@ -267,3 +267,27 @@ class TestHITLEntryOperator:
 
         assert op.options == ["OK"]
         assert op.defaults == ["OK"]
+
+    def test_init_without_options(self) -> None:
+        op = HITLEntryOperator(
+            task_id="hitl_test",
+            subject="This is subject",
+            body="This is body",
+            params={"input": 1},
+            defaults=None,
+        )
+
+        assert op.options == ["OK"]
+        assert op.defaults is None
+
+    def test_init_without_default(self) -> None:
+        op = HITLEntryOperator(
+            task_id="hitl_test",
+            subject="This is subject",
+            body="This is body",
+            params={"input": 1},
+            options=["OK", "NOT OK"],
+        )
+
+        assert op.options == ["OK", "NOT OK"]
+        assert op.defaults is None

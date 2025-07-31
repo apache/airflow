@@ -22,6 +22,7 @@ from unittest import mock
 import pytest
 
 from airflow import DAG
+from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.datamodels.xcom import XComCreateBody
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
@@ -31,7 +32,6 @@ from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.execution_time.xcom import resolve_xcom_backend
-from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 
@@ -533,7 +533,7 @@ class TestCreateXComEntry(TestXComEndpoint):
                 run_id,
                 XComCreateBody(key=TEST_XCOM_KEY, value=TEST_XCOM_VALUE),
                 404,
-                f"Task with ID: `invalid-task-id` not found in DAG: `{TEST_DAG_ID}`",
+                f"Task with ID: `invalid-task-id` not found in dag: `{TEST_DAG_ID}`",
                 id="task-not-found",
             ),
             # Test case: DAG Run not found
@@ -543,7 +543,7 @@ class TestCreateXComEntry(TestXComEndpoint):
                 "invalid-dag-run-id",
                 XComCreateBody(key=TEST_XCOM_KEY, value=TEST_XCOM_VALUE),
                 404,
-                f"DAG Run with ID: `invalid-dag-run-id` not found for DAG: `{TEST_DAG_ID}`",
+                f"Dag Run with ID: `invalid-dag-run-id` not found for dag: `{TEST_DAG_ID}`",
                 id="dag-run-not-found",
             ),
             # Test case: XCom entry already exists

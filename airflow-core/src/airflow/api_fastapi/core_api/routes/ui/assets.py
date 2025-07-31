@@ -39,7 +39,7 @@ def next_run_assets(
     dag_bag: DagBagDep,
     session: SessionDep,
 ) -> dict:
-    dag = dag_bag.get_dag(dag_id)
+    dag = dag_bag.get_latest_version_of_dag(dag_id, session)
 
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"can't find dag {dag_id}")

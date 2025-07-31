@@ -19,6 +19,7 @@
 import { useToken } from "@chakra-ui/react";
 import { ReactFlow, Controls, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
@@ -30,6 +31,7 @@ import { type Direction, useGraphLayout } from "src/components/Graph/useGraphLay
 import { useColorMode } from "src/context/colorMode";
 import { useOpenGroups } from "src/context/openGroups";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
+import { flattenGraphNodes } from "src/layouts/Details/Grid/utils.ts";
 import { useDependencyGraph } from "src/queries/useDependencyGraph";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 
@@ -71,18 +73,32 @@ export const Graph = () => {
     "gray.800",
   ]);
 
-  const { openGroupIds } = useOpenGroups();
+  const { allGroupIds, openGroupIds, setAllGroupIds } = useOpenGroups();
 
   const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(`dependencies-${dagId}`, "tasks");
   const [direction] = useLocalStorage<Direction>(`direction-${dagId}`, "RIGHT");
 
   const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
+  const { data: graphData = { edges: [], nodes: [] } } = useStructureServiceStructureData(
+    {
+      dagId,
+      externalDependencies: dependencies === "immediate",
+      versionNumber: selectedVersion,
+    },
+    undefined,
+    { enabled: selectedVersion !== undefined },
+  );
 
-  const { data: graphData = { edges: [], nodes: [] } } = useStructureServiceStructureData({
-    dagId,
-    externalDependencies: dependencies === "immediate",
-    versionNumber: selectedVersion,
-  });
+  useEffect(() => {
+    const observedGroupIds = flattenGraphNodes(graphData.nodes).allGroupIds;
+
+    if (
+      observedGroupIds.length !== allGroupIds.length ||
+      observedGroupIds.some((element, index) => allGroupIds[index] !== element)
+    ) {
+      setAllGroupIds(observedGroupIds);
+    }
+  }, [allGroupIds, graphData.nodes, setAllGroupIds]);
 
   const { data: dagDependencies = { edges: [], nodes: [] } } = useDependencyGraph(`dag:${dagId}`, {
     enabled: dependencies === "all",

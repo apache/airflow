@@ -37,15 +37,20 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.bases.decorator import DecoratedMappedOperator
     from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput
     from airflow.sdk.definitions.mappedoperator import MappedOperator
+
 else:
-    from airflow.decorators import setup, task as task_decorator, teardown
+    from airflow.decorators import (  # type: ignore[attr-defined,no-redef]
+        setup,
+        task as task_decorator,
+        teardown,
+    )
     from airflow.decorators.base import DecoratedMappedOperator  # type: ignore[no-redef]
     from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
     from airflow.models.dag import DAG  # type: ignore[assignment]
     from airflow.models.expandinput import DictOfListsExpandInput
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.xcom_arg import XComArg
-    from airflow.utils.task_group import TaskGroup
+    from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
 
 pytestmark = pytest.mark.db_test
 

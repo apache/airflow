@@ -179,6 +179,11 @@ class ClearTaskInstancesBody(StrictBaseModel):
     include_downstream: bool = False
     include_future: bool = False
     include_past: bool = False
+    run_on_latest_version: bool = Field(
+        default=False,
+        description="(Experimental) Run on the latest bundle version of the dag after "
+        "clearing the task instances.",
+    )
 
     @model_validator(mode="before")
     @classmethod

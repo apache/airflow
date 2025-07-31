@@ -37,6 +37,7 @@ import attrs
 
 from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.sdk.bases.trigger import StartTriggerArgs
+from airflow.sdk import timezone
 from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
@@ -66,7 +67,6 @@ from airflow.task.priority_strategy import (
     airflow_priority_weight_strategies,
     validate_and_load_priority_weight_strategy,
 )
-from airflow.utils import timezone
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import db_safe_priority
 
@@ -407,7 +407,7 @@ class ExecutorSafeguard:
 
 
 if "airflow.configuration" in sys.modules:
-    # Don't try and import it if its not already loaded
+    # Don't try and import it if it's not already loaded
     from airflow.configuration import conf
 
     ExecutorSafeguard.test_mode = conf.getboolean("core", "unit_test_mode")
@@ -515,7 +515,7 @@ class BaseOperatorMeta(abc.ABCMeta):
             # BUT: only do this _ONCE_, not once for each class in the hierarchy
             if not instantiated_from_mapped and func == self.__init__.__wrapped__:  # type: ignore[misc]
                 self._set_xcomargs_dependencies()
-                # Mark instance as instantiated so that futre attr setting updates xcomarg-based deps.
+                # Mark instance as instantiated so that future attr setting updates xcomarg-based deps.
                 object.__setattr__(self, "_BaseOperator__instantiated", True)
 
             return result
@@ -592,7 +592,7 @@ BASEOPERATOR_ARGS_EXPECTED_TYPES = {
 # here (metaclass, custom `__setattr__` behaviour) and this fights with attrs too much to make it worth it.
 #
 # To future reader: if you want to try and make this a "normal" attrs class, go ahead and attempt it. If you
-# get no where leave your record here for the next poor soul and what problems you ran in to.
+# get nowhere leave your record here for the next poor soul and what problems you ran in to.
 #
 # @ashb, 2024/10/14
 # - "Can't combine custom __setattr__ with on_setattr hooks"
@@ -789,8 +789,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param task_display_name: The display name of the task which appears on the UI.
     :param logger_name: Name of the logger used by the Operator to emit logs.
         If set to `None` (default), the logger name will fall back to
-        `airflow.task.operators.{class.__module__}.{class.__name__}` (e.g. SimpleHttpOperator will have
-        *airflow.task.operators.airflow.providers.http.operators.http.SimpleHttpOperator* as logger).
+        `airflow.task.operators.{class.__module__}.{class.__name__}` (e.g. HttpOperator will have
+        *airflow.task.operators.airflow.providers.http.operators.http.HttpOperator* as logger).
     :param allow_nested_operators: if True, when an operator is executed within another one a warning message
         will be logged. If False, then an exception will be raised if the operator is badly used (e.g. nested
         within another one). In future releases of Airflow this parameter will be removed and an exception
@@ -1020,9 +1020,13 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     ):
         # Note: Metaclass handles passing in the DAG/TaskGroup from active context manager, if any
 
-        self.task_id = task_group.child_id(task_id) if task_group else task_id
-        if not self.__from_mapped and task_group:
+        # Only apply task_group prefix if this operator was not created from a mapped operator
+        # Mapped operators already have the prefix applied during their creation
+        if task_group and not self.__from_mapped:
+            self.task_id = task_group.child_id(task_id)
             task_group.add(self)
+        else:
+            self.task_id = task_id
 
         super().__init__()
         self.task_group = task_group
@@ -1075,13 +1079,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         self.start_date = timezone.convert_to_utc(start_date)
         self.end_date = timezone.convert_to_utc(end_date)
-
-        if executor:
-            warnings.warn(
-                "Specifying executors for operators is not yet supported, the value {executor!r} will have no effect",
-                category=UserWarning,
-                stacklevel=2,
-            )
         self.executor = executor
         self.executor_config = executor_config or {}
         self.run_as_user = run_as_user

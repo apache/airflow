@@ -25,6 +25,7 @@ import pendulum
 import pytest
 from sqlalchemy import select
 
+from airflow._shared.timezones import timezone
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.backfill import (
     AlreadyRunningBackfill,
@@ -38,7 +39,6 @@ from airflow.models.backfill import (
 )
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.ti_deps.dep_context import DepContext
-from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -154,7 +154,8 @@ def test_create_backfill_simple(reverse, existing, dag_maker, session):
     assert all(x.conf == expected_run_conf for x in dag_runs)
 
 
-def test_create_backfill_clear_existing_bundle_version(dag_maker, session):
+@pytest.mark.parametrize("run_on_latest_version", [True, False])
+def test_create_backfill_clear_existing_bundle_version(dag_maker, session, run_on_latest_version):
     """
     Verify that when backfill clears an existing dag run, bundle version is cleared.
     """
@@ -193,11 +194,13 @@ def test_create_backfill_clear_existing_bundle_version(dag_maker, session):
         dag_run_conf=None,
         triggering_user_name="pytest",
         reprocess_behavior=ReprocessBehavior.FAILED,
+        run_on_latest_version=run_on_latest_version,
     )
     session.commit()
 
     # verify that the old dag run (not included in backfill) still has first bundle version
-    # but the latter 5, which are included in the backfill, have the latest bundle version
+    # but the latter 5, which are included in the backfill, have the latest bundle version if run_on_latest_version
+    # is True, otherwise they have the first bundle version
     dag_runs = sorted(
         session.scalars(
             select(DagRun).where(
@@ -206,7 +209,15 @@ def test_create_backfill_clear_existing_bundle_version(dag_maker, session):
         ),
         key=lambda x: x.logical_date,
     )
-    expected = [first_bundle_version] + 5 * [new_bundle_version]
+    if run_on_latest_version:
+        expected = [first_bundle_version] + 5 * [new_bundle_version]
+    else:
+        expected = (
+            [first_bundle_version]
+            + [new_bundle_version]
+            + 2 * [first_bundle_version]
+            + 2 * [new_bundle_version]
+        )
     assert [x.bundle_version for x in dag_runs] == expected
 
 

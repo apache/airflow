@@ -18,7 +18,7 @@
 default_stages: [pre-commit, pre-push]
 default_language_version:
   python: python3
-  node: 22.17.0
+  node: 22.17.1
   golang: 1.24.0
 minimum_pre_commit_version: '3.2.0'
 exclude: ^.*/.*_vendor/
@@ -388,6 +388,20 @@ repos:
         always_run: true
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4', 'pyyaml>=6.0.2', 'tomli>=2.0.1']
+      - id: check-shared-distributions-structure
+        name: Check shared distributions structure
+        entry: ./scripts/ci/pre_commit/check_shared_distributions_structure.py
+        language: python
+        additional_dependencies: ['rich>=12.4.4', 'tomli>=2.0.1']
+        pass_filenames: false
+        files: ^shared/.*$
+      - id: check-shared-distributions-usage
+        name: Check shared distributions usage
+        entry: ./scripts/ci/pre_commit/check_shared_distributions_usage.py
+        language: python
+        additional_dependencies: ['rich>=12.4.4', 'tomli>=2.0.1']
+        pass_filenames: false
+        files: ^shared/.*$|^.*/pyproject.toml$|^.*/_shared/.*$
       - id: validate-operators-init
         name: No templated field logic checks in operator __init__
         description: Prevent templated field logic checks in operators' __init__
@@ -513,7 +527,7 @@ repos:
         entry: ./scripts/ci/pre_commit/check_common_sql_dependency.py
         language: python
         files: ^providers/.*/src/airflow/providers/.*/hooks/.*\.py$
-        additional_dependencies: ['rich>=12.4.4', 'pyyaml>=6.0.2', 'packaging>=23.2']
+        additional_dependencies: ['rich>=12.4.4', 'pyyaml>=6.0.2', 'packaging>=25']
       - id: check-extra-packages-references
         name: Checks setup extra packages
         description: Checks if all the extras defined in hatch_build.py are listed in extra-packages-ref.rst file
@@ -576,7 +590,7 @@ repos:
           ^providers/fab/src/airflow/providers/fab/migrations/versions/.*$|^providers/fab/src/airflow/providers/fab/migrations/versions|
           ^airflow-core/src/airflow/utils/db\.py$|
           ^providers/fab/src/airflow/providers/fab/auth_manager/models/db\.py$
-        additional_dependencies: ['packaging>=23.2', 'rich>=12.4.4']
+        additional_dependencies: ['packaging>=25', 'rich>=12.4.4']
       - id: update-version
         name: Update versions in docs
         entry: ./scripts/ci/pre_commit/update_versions.py
@@ -835,7 +849,7 @@ repos:
         files: >
           (?x)
           ^providers/.*/src/airflow/providers/.*\.py$
-        exclude: providers/standard/.*/.*\.py$
+        exclude: ^providers/standard/.*/.*\.py$
       - id: check-get-lineage-collector-providers
         language: python
         name: Check providers import hook lineage code from compat
@@ -859,7 +873,7 @@ repos:
         name: Verify usage of Airflow deprecation classes in core
         entry: category=DeprecationWarning|category=PendingDeprecationWarning
         files: \.py$
-        exclude: ^airflow-core/src/airflow/configuration\.py$|airflow-core/tests/.*$|^providers/.*/src/airflow/providers/|^scripts/in_container/verify_providers\.py$|providers/.*/tests/.*$|^devel-common/
+        exclude: ^airflow-core/src/airflow/configuration\.py$|^airflow-core/tests/.*$|^providers/.*/src/airflow/providers/|^scripts/in_container/verify_providers\.py$|^providers/.*/tests/.*$|^devel-common/
         pass_filenames: true
       - id: check-provide-create-sessions-imports
         language: pygrep
@@ -964,7 +978,7 @@ repos:
         name: Compile FAB provider assets
         language: node
         files: ^providers/fab/.*/www/
-        entry: ./scripts/ci/pre_commit/compile_fab_assets.py
+        entry: ./scripts/ci/pre_commit/compile_provider_assets.py fab
         pass_filenames: false
         additional_dependencies: ['yarn@1.22.21']
       - id: compile-ui-assets-dev
@@ -1014,10 +1028,15 @@ repos:
         name: Update Airflow's meta-package pyproject.toml
         language: python
         entry: ./scripts/ci/pre_commit/update_airflow_pyproject_toml.py
-        files: ^.*/pyproject\.toml$|^scripts/ci/pre_commit/update_airflow_pyproject_toml\.py$
+        files: >
+          (?x)
+          ^.*/pyproject\.toml$|
+          ^scripts/ci/pre_commit/update_airflow_pyproject_toml\.py$|
+          ^providers/.*/pyproject\.toml$|
+          ^providers/.*/provider\.yaml$
         pass_filenames: false
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'tomli>=2.0.1', 'packaging>=23.2' ]
+        additional_dependencies: ['rich>=12.4.4', 'tomli>=2.0.1', 'packaging>=25' ]
       - id: update-reproducible-source-date-epoch
         name: Update Source Date Epoch for reproducible builds
         language: python
@@ -1213,7 +1232,7 @@ repos:
         name: Check significant newsfragments are valid
         # Significant newsfragments follows a special format so that we can group information easily.
         language: python
-        files: airflow-core/newsfragments/.*\.rst$
+        files: ^airflow-core/newsfragments/.*\.rst$
         entry: ./scripts/ci/pre_commit/significant_newsfragments_checker.py
         pass_filenames: false
         additional_dependencies: ['docutils>=0.21.2', 'pygments>=2.19.1', 'jinja2>=3.1.5']
@@ -1336,7 +1355,7 @@ repos:
         pass_filenames: true
         files: ^airflow-core/src/airflow/migrations/versions/.*\.py$
         exclude:
-          airflow-core/src/airflow/migrations/versions/0028_3_0_0_drop_ab_user_id_foreign_key.py
+          ^airflow-core/src/airflow/migrations/versions/0028_3_0_0_drop_ab_user_id_foreign_key.py$
       - id: go-mockery
         name: Generate mocks for go
         entry: -w /src/go-sdk vektra/mockery:3
@@ -1373,7 +1392,7 @@ repos:
         language: node
         files: |
           (?x)
-          ^airflow-core/src/airflow/ui/.*\.(js|ts|tsx|yaml|css|json)|
+          ^airflow-core/src/airflow/ui/.*\.(js|ts|tsx|yaml|css|json)$|
           ^airflow-core/src/airflow/api_fastapi/core_api/openapi/.*\.yaml$|
           ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/v1.*\.yaml$
         exclude: |
@@ -1390,9 +1409,9 @@ repos:
         language: node
         files: |
           (?x)
-          ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/.*\.(js|ts|tsx|yaml|css|json)|
+          ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/.*\.(js|ts|tsx|yaml|css|json)$|
           ^airflow-core/src/airflow/api_fastapi/core_api/openapi/.*\.yaml$|
-          ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/v1.*\.yaml$
+          ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/.*\.yaml$
         exclude: |
           (?x)
           ^airflow-core/src/airflow/api_fastapi/node-modules/.*|
@@ -1423,7 +1442,7 @@ repos:
         name: Run mypy for airflow-core
         language: python
         entry: ./scripts/ci/pre_commit/mypy.py
-        files: airflow-core/.*\.py$
+        files: ^airflow-core/.*\.py$
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
       - id: mypy-airflow-core
@@ -1432,7 +1451,7 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/mypy_folder.py airflow-core
         pass_filenames: false
-        files: airflow-core/.*\.py$
+        files: ^airflow-core/.*\.py$
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
       - id: mypy-providers
@@ -1518,9 +1537,9 @@ repos:
         additional_dependencies: ['rich>=12.4.4', 'openapi-spec-validator>=0.7.1']
       - id: check-i18n-json
         name: Check i18n files validity
-        description: Check i18n files are valid json and have no TODOs
+        description: Check i18n files are valid json, have no TODOs, and auto-format them
         language: python
-        files: ^airflow-core/src/airflow/ui/public/i18n/locales/.*\.json
+        files: ^airflow-core/src/airflow/ui/public/i18n/locales/.*\.json$
         entry: ./scripts/ci/pre_commit/check_i18n_json.py
         additional_dependencies: ['rich>=12.4.4']
         pass_filenames: false
@@ -1561,7 +1580,7 @@ repos:
           uv run -p 3.12 --no-dev --no-progress --active --group codegen --project apache-airflow-ctl --directory airflow-ctl/ datamodel-codegen &&
            uv run -p 3.12 --no-dev --no-progress --active --group codegen --project apache-airflow-ctl --directory airflow-ctl/ datamodel-codegen --input="../airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/v2-simple-auth-manager-generated.yaml" --output="src/airflowctl/api/datamodels/auth_generated.py"'
         pass_filenames: false
-        files: ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/.*\.py$|^airflow-core/src/airflow/api_fastapi/auth/managers/simple/datamodels/.*\.py$
+        files: ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/.*\.py$|^airflow-core/src/airflow/api_fastapi/auth/managers/simple/(datamodels|routes|services|openapi)/.*\.py$
         require_serial: true
       - id: update-er-diagram
         name: Update ER diagram
@@ -1600,4 +1619,115 @@ repos:
         types: [python]
         files: ^providers/.*/src/airflow/providers/.*\.py$
         require_serial: true
+      - id: check-airflow-version-checks-in-core
+        language: pygrep
+        name: No AIRFLOW_V_* imports in airflow-core
+        entry: "import AIRFLOW_V_"
+        files: ^airflow-core/.*\.py$
+        pass_filenames: true
+         # TODO (@amoghrajesh): revisit last few in this list as they all rely on versioned secrets masker imports
+        exclude: >
+          (?x)
+          ^airflow-core/tests/integration/otel/dags/otel_test_dag_with_pause_between_tasks\.py$|
+          ^airflow-core/tests/integration/otel/dags/otel_test_dag_with_pause_in_task\.py$|
+          ^airflow-core/tests/integration/otel/test_otel\.py$|
+          ^airflow-core/tests/unit/core/test_configuration\.py$|
+          ^airflow-core/tests/unit/models/test_renderedtifields\.py$|
+          ^airflow-core/tests/unit/models/test_variable\.py$
+      - id: check-sdk-imports
+        name: Check for SDK imports in core files
+        entry: ./scripts/ci/pre_commit/check_sdk_imports.py
+        language: python
+        types: [python]
+        files: ^airflow-core/src/airflow/
+        exclude: |
+          (?x)
+          # Allow SDK imports in these legitimate locations
+          ^airflow-core/src/airflow/example_dags/.*\.py$|
+
+          # TODO: These files need to be refactored to remove SDK coupling
+          ^airflow-core/src/airflow/__init__\.py$|
+          ^airflow-core/src/airflow/models/__init__\.py$|
+          ^airflow-core/src/airflow/api/common/mark_tasks\.py$|
+          ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/assets\.py$|
+          ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/connections\.py$|
+          ^airflow-core/src/airflow/api_fastapi/core_api/services/public/connections\.py$|
+          ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/hitl\.py$|
+          ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/variables\.py$|
+          ^airflow-core/src/airflow/api_fastapi/core_api/routes/ui/grid\.py$|
+          ^airflow-core/src/airflow/api_fastapi/core_api/routes/ui/structure\.py$|
+          ^airflow-core/src/airflow/api_fastapi/core_api/services/ui/connections\.py$|
+          ^airflow-core/src/airflow/api_fastapi/core_api/services/ui/grid\.py$|
+          ^airflow-core/src/airflow/api_fastapi/execution_api/routes/hitl\.py$|
+          ^airflow-core/src/airflow/api_fastapi/execution_api/routes/task_instances\.py$|
+          ^airflow-core/src/airflow/api_fastapi/logging/decorators\.py$|
+          ^airflow-core/src/airflow/assets/evaluation\.py$|
+          ^airflow-core/src/airflow/assets/manager\.py$|
+          ^airflow-core/src/airflow/cli/commands/connection_command\.py$|
+          ^airflow-core/src/airflow/cli/commands/task_command\.py$|
+          ^airflow-core/src/airflow/configuration\.py$|
+          ^airflow-core/src/airflow/dag_processing/collection\.py$|
+          ^airflow-core/src/airflow/dag_processing/manager\.py$|
+          ^airflow-core/src/airflow/dag_processing/processor\.py$|
+          ^airflow-core/src/airflow/datasets/metadata\.py$|
+          ^airflow-core/src/airflow/exceptions\.py$|
+          ^airflow-core/src/airflow/executors/local_executor\.py$|
+          ^airflow-core/src/airflow/jobs/triggerer_job_runner\.py$|
+          ^airflow-core/src/airflow/lineage/hook\.py$|
+          ^airflow-core/src/airflow/listeners/spec/asset\.py$|
+          ^airflow-core/src/airflow/listeners/spec/taskinstance\.py$|
+          ^airflow-core/src/airflow/logging/remote\.py$|
+          ^airflow-core/src/airflow/models/asset\.py$|
+          ^airflow-core/src/airflow/models/baseoperator\.py$|
+          ^airflow-core/src/airflow/models/connection\.py$|
+          ^airflow-core/src/airflow/models/dag\.py$|
+          ^airflow-core/src/airflow/models/dagbag\.py$|
+          ^airflow-core/src/airflow/models/dagrun\.py$|
+          ^airflow-core/src/airflow/models/mappedoperator\.py$|
+          ^airflow-core/src/airflow/models/operator\.py$|
+          ^airflow-core/src/airflow/models/param\.py$|
+          ^airflow-core/src/airflow/models/serialized_dag\.py$|
+          ^airflow-core/src/airflow/models/taskinstance\.py$|
+          ^airflow-core/src/airflow/models/taskinstancekey\.py$|
+          ^airflow-core/src/airflow/models/taskmap\.py$|
+          ^airflow-core/src/airflow/models/taskreschedule\.py$|
+          ^airflow-core/src/airflow/models/variable\.py$|
+          ^airflow-core/src/airflow/operators/subdag\.py$|
+          ^airflow-core/src/airflow/serialization/dag\.py$|
+          ^airflow-core/src/airflow/serialization/enums\.py$|
+          ^airflow-core/src/airflow/serialization/serialized_objects\.py$|
+          ^airflow-core/src/airflow/task/task_runner/bash_task_runner\.py$|
+          ^airflow-core/src/airflow/task/task_runner/standard_task_runner\.py$|
+          ^airflow-core/src/airflow/utils/dag_cycle_tester\.py$|
+          ^airflow-core/src/airflow/utils/dag_parsing_context\.py$|
+          ^airflow-core/src/airflow/utils/decorators\.py$|
+          ^airflow-core/src/airflow/utils/operator_helpers\.py$|
+          ^airflow-core/src/airflow/utils/session\.py$|
+          ^airflow-core/src/airflow/utils/task_group\.py$|
+          ^airflow-core/src/airflow/utils/trigger_rule\.py$|
+          ^airflow-core/src/airflow/utils/xcom\.py$|
+          ^airflow-core/src/airflow/providers_manager\.py$|
+          ^airflow-core/src/airflow/timetables/assets\.py$|
+          ^airflow-core/src/airflow/ti_deps/deps/prev_dagrun_dep\.py$|
+          ^airflow-core/src/airflow/utils/context\.py$|
+          ^airflow-core/src/airflow/models/taskmixin\.py$|
+          ^airflow-core/src/airflow/utils/edgemodifier\.py$|
+          ^airflow-core/src/airflow/utils/email\.py$|
+          ^airflow-core/src/airflow/ti_deps/deps/trigger_rule_dep\.py$|
+          ^airflow-core/src/airflow/utils/helpers\.py$|
+          ^airflow-core/src/airflow/ti_deps/deps/mapped_task_upstream_dep\.py$|
+          ^airflow-core/src/airflow/utils/types\.py$|
+          ^airflow-core/src/airflow/utils/dag_edges\.py$|
+          ^airflow-core/src/airflow/utils/cli\.py$|
+          ^airflow-core/src/airflow/timetables/base\.py$|
+          ^airflow-core/src/airflow/utils/dot_renderer\.py$|
+          ^airflow-core/src/airflow/models/xcom_arg\.py$|
+          ^airflow-core/src/airflow/plugins_manager\.py$|
+          ^airflow-core/src/airflow/models/xcom\.py$|
+          ^airflow-core/src/airflow/timetables/simple\.py$|
+          ^airflow-core/src/airflow/settings\.py$|
+          ^airflow-core/src/airflow/models/renderedtifields\.py$|
+          ^airflow-core/src/airflow/serialization/helpers\.py$|
+          ^airflow-core/src/airflow/models/expandinput\.py$
+        additional_dependencies: ['rich>=12.4.4']
         ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE
