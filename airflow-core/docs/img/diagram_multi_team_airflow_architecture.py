@@ -79,7 +79,7 @@ def generate_dag_processor_airflow_diagram():
                 metadata_db = Custom("Metadata DB", DATABASE_IMAGE.as_posix())
 
             with Cluster("UI"):
-                webservers = Custom("Webserver(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
+                webservers = Custom("API Server(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
                 auth_manager = Custom("Auth\nManager", PYTHON_MULTIPROCESS_LOGO.as_posix())
 
             organization_plugins_and_packages = Custom(
