@@ -2957,6 +2957,10 @@ export type GetHitlDetailsData = {
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
     subjectSearch?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    taskIdPattern?: string | null;
     userId?: Array<(string)>;
 };
 
