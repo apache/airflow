@@ -16,12 +16,16 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
 import logging
+from abc import ABC
 from collections.abc import Callable
 from datetime import datetime, timedelta
+from typing import Any, cast
 
 from airflow.models.deadline import DeadlineReferenceType, ReferenceModels
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
+from airflow.serialization.serde import deserialize, serialize
 from airflow.utils.module_loading import import_string, is_valid_dotpath
 
 logger = logging.getLogger(__name__)
@@ -38,7 +42,6 @@ class DeadlineAlertFields:
     REFERENCE = "reference"
     INTERVAL = "interval"
     CALLBACK = "callback"
-    CALLBACK_KWARGS = "callback_kwargs"
 
 
 class DeadlineAlert:
@@ -48,13 +51,11 @@ class DeadlineAlert:
         self,
         reference: DeadlineReferenceType,
         interval: timedelta,
-        callback: Callable | str,
-        callback_kwargs: dict | None = None,
+        callback: Callback,
     ):
         self.reference = reference
         self.interval = interval
-        self.callback_kwargs = callback_kwargs or {}
-        self.callback = self.get_callback_path(callback)
+        self.callback = callback
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, DeadlineAlert):
@@ -63,7 +64,6 @@ class DeadlineAlert:
             isinstance(self.reference, type(other.reference))
             and self.interval == other.interval
             and self.callback == other.callback
-            and self.callback_kwargs == other.callback_kwargs
         )
 
     def __hash__(self) -> int:
@@ -72,7 +72,6 @@ class DeadlineAlert:
                 type(self.reference).__name__,
                 self.interval,
                 self.callback,
-                tuple(sorted(self.callback_kwargs.items())) if self.callback_kwargs else None,
             )
         )
 
@@ -115,8 +114,7 @@ class DeadlineAlert:
             Encoding.VAR: {
                 DeadlineAlertFields.REFERENCE: self.reference.serialize_reference(),
                 DeadlineAlertFields.INTERVAL: self.interval.total_seconds(),
-                DeadlineAlertFields.CALLBACK: self.callback,  # Already stored as a string path
-                DeadlineAlertFields.CALLBACK_KWARGS: self.callback_kwargs,
+                DeadlineAlertFields.CALLBACK: serialize(self.callback),
             },
         }
 
@@ -134,9 +132,107 @@ class DeadlineAlert:
         return cls(
             reference=reference,
             interval=timedelta(seconds=data[DeadlineAlertFields.INTERVAL]),
-            callback=data[DeadlineAlertFields.CALLBACK],  # Keep as string path
-            callback_kwargs=data[DeadlineAlertFields.CALLBACK_KWARGS],
+            callback=cast("Callback", deserialize(data[DeadlineAlertFields.CALLBACK])),
         )
+
+
+class Callback(ABC):
+    """
+    Base class for deadline alert callbacks.
+
+    Callbacks are used to execute custom logic when a deadline is missed.
+
+    The `callback_callable` can be a Python callable type or a string containing the path to the callable that
+    can be used to import the callable. It must be a top-level callable in a module present on the host where
+    it will run.
+
+    It will be called with Airflow context and specified kwargs when a deadline is missed.
+    """
+
+    path: str
+    kwargs: dict | None
+
+    def __init__(self, callback_callable: Callable | str, kwargs: dict | None = None):
+        self.path = DeadlineAlert.get_callback_path(callback_callable)
+        self.kwargs = kwargs
+
+    def serialize(self) -> dict[str, Any]:
+        return {f: getattr(self, f) for f in self.serialized_fields()}
+
+    @classmethod
+    def deserialize(cls, data: dict, version):
+        path = data.pop("path")
+        return cls(callback_callable=path, **data)
+
+    @classmethod
+    def serialized_fields(cls) -> tuple:
+        return ("path", "kwargs")
+
+    def __eq__(self, other):
+        if type(self) is not type(other):
+            return NotImplemented
+        return self.serialize() == other.serialize()
+
+    def __hash__(self):
+        serialized = self.serialize()
+        hashable_items = []
+        for k, v in serialized.items():
+            if isinstance(v, dict) and v:
+                hashable_items.append((k, tuple(sorted(v.items()))))
+            else:
+                hashable_items.append((k, v))
+        return hash(tuple(sorted(hashable_items)))
+
+
+class AsyncCallback(Callback):
+    """
+    Asynchronous callback that runs in the triggerer.
+
+    The `callback_callable` can be a Python callable type or a string containing the path to the callable that
+    can be used to import the callable. It must be a top-level awaitable callable in a module present on the
+    triggerer.
+
+    It will be called with Airflow context and specified kwargs when a deadline is missed.
+    """
+
+    def __init__(self, callback_callable: Callable | str, kwargs: dict | None = None):
+        super().__init__(callback_callable=callback_callable, kwargs=kwargs)
+
+        if isinstance(callback_callable, str):
+            try:
+                callback_callable = import_string(callback_callable)
+            except ImportError as e:
+                logger.info(
+                    "Failed to import callback_callable\nAssuming it exists on the triggerer and is awaitable\n%s",
+                    e,
+                )
+                return
+
+        if not (inspect.iscoroutinefunction(callback_callable) or hasattr(callback_callable, "__await__")):
+            raise TypeError(f"Callback {callback_callable} must be awaitable")
+
+
+class SyncCallback(Callback):
+    """
+    Synchronous callback that runs in the specified or default executor.
+
+    The `callback_callable` can be a Python callable type or a string containing the path to the callable that
+    can be used to import the callable. It must be a top-level callable in a module present on the executor.
+
+    It will be called with Airflow context and specified kwargs when a deadline is missed.
+    """
+
+    executor: str | None
+
+    def __init__(
+        self, callback_callable: Callable | str, kwargs: dict | None = None, executor: str | None = None
+    ):
+        super().__init__(callback_callable=callback_callable, kwargs=kwargs)
+        self.executor = executor
+
+    @classmethod
+    def serialized_fields(cls) -> tuple:
+        return super().serialized_fields() + ("executor",)
 
 
 class DeadlineReference:

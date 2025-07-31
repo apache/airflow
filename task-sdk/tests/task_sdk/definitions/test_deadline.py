@@ -17,19 +17,25 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from typing import cast
 
 import pytest
 
-from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
+from airflow.sdk.definitions.deadline import (
+    AsyncCallback,
+    Callback,
+    DeadlineAlert,
+    DeadlineReference,
+    SyncCallback,
+)
+from airflow.serialization.serde import deserialize, serialize
+from airflow.utils.module_loading import qualname
 
 UNIMPORTABLE_DOT_PATH = "valid.but.nonexistent.path"
 
 DAG_ID = "dag_id_1"
 RUN_ID = 1
 DEFAULT_DATE = datetime(2025, 6, 26)
-
-TEST_CALLBACK_PATH = f"{__name__}.test_callback_for_deadline"
-TEST_CALLBACK_KWARGS = {"arg1": "value1"}
 
 REFERENCE_TYPES = [
     pytest.param(DeadlineReference.DAGRUN_LOGICAL_DATE, id="logical_date"),
@@ -38,38 +44,48 @@ REFERENCE_TYPES = [
 ]
 
 
-def test_callback_for_deadline():
+async def empty_async_callback_for_deadline_tests():
     """Used in a number of tests to confirm that Deadlines and DeadlineAlerts function correctly."""
     pass
 
 
+def empty_sync_callback_for_deadline_tests():
+    """Used in a number of tests to confirm that Deadlines and DeadlineAlerts function correctly."""
+    pass
+
+
+TEST_CALLBACK_PATH = qualname(empty_async_callback_for_deadline_tests)
+TEST_CALLBACK_KWARGS = {"arg1": "value1"}
+TEST_DEADLINE_CALLBACK = AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS)
+
+
 class TestDeadlineAlert:
     @pytest.mark.parametrize(
-        "callback_value, expected_path",
+        "callback_callable, expected_path",
         [
-            pytest.param(test_callback_for_deadline, TEST_CALLBACK_PATH, id="valid_callable"),
+            pytest.param(empty_async_callback_for_deadline_tests, TEST_CALLBACK_PATH, id="valid_callable"),
             pytest.param(TEST_CALLBACK_PATH, TEST_CALLBACK_PATH, id="valid_path_string"),
             pytest.param(lambda x: x, None, id="lambda_function"),
             pytest.param(TEST_CALLBACK_PATH + "  ", TEST_CALLBACK_PATH, id="path_with_whitespace"),
             pytest.param(UNIMPORTABLE_DOT_PATH, UNIMPORTABLE_DOT_PATH, id="valid_format_not_importable"),
         ],
     )
-    def test_get_callback_path_happy_cases(self, callback_value, expected_path):
-        path = DeadlineAlert.get_callback_path(callback_value)
+    def test_get_callback_path_happy_cases(self, callback_callable, expected_path):
+        path = DeadlineAlert.get_callback_path(callback_callable)
         if expected_path is None:
             assert path.endswith("<lambda>")
         else:
             assert path == expected_path
 
     @pytest.mark.parametrize(
-        "callback_value, error_type",
+        "callback_callable, error_type",
         [
             pytest.param(42, ImportError, id="not_a_string"),
             pytest.param("", ImportError, id="empty_string"),
             pytest.param("os.path", AttributeError, id="non_callable_module"),
         ],
     )
-    def test_get_callback_path_error_cases(self, callback_value, error_type):
+    def test_get_callback_path_error_cases(self, callback_callable, error_type):
         expected_message = ""
         if error_type is ImportError:
             expected_message = "doesn't look like a valid dot path."
@@ -77,7 +93,7 @@ class TestDeadlineAlert:
             expected_message = "is not callable."
 
         with pytest.raises(error_type, match=expected_message):
-            DeadlineAlert.get_callback_path(callback_value)
+            DeadlineAlert.get_callback_path(callback_callable)
 
     @pytest.mark.parametrize(
         "test_alert, should_equal",
@@ -86,8 +102,7 @@ class TestDeadlineAlert:
                 DeadlineAlert(
                     reference=DeadlineReference.DAGRUN_QUEUED_AT,
                     interval=timedelta(hours=1),
-                    callback=TEST_CALLBACK_PATH,
-                    callback_kwargs=TEST_CALLBACK_KWARGS,
+                    callback=TEST_DEADLINE_CALLBACK,
                 ),
                 True,
                 id="same_alert",
@@ -96,8 +111,7 @@ class TestDeadlineAlert:
                 DeadlineAlert(
                     reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
                     interval=timedelta(hours=1),
-                    callback=TEST_CALLBACK_PATH,
-                    callback_kwargs=TEST_CALLBACK_KWARGS,
+                    callback=TEST_DEADLINE_CALLBACK,
                 ),
                 False,
                 id="different_reference",
@@ -106,8 +120,7 @@ class TestDeadlineAlert:
                 DeadlineAlert(
                     reference=DeadlineReference.DAGRUN_QUEUED_AT,
                     interval=timedelta(hours=2),
-                    callback=TEST_CALLBACK_PATH,
-                    callback_kwargs=TEST_CALLBACK_KWARGS,
+                    callback=TEST_DEADLINE_CALLBACK,
                 ),
                 False,
                 id="different_interval",
@@ -116,8 +129,7 @@ class TestDeadlineAlert:
                 DeadlineAlert(
                     reference=DeadlineReference.DAGRUN_QUEUED_AT,
                     interval=timedelta(hours=1),
-                    callback="other.callback",
-                    callback_kwargs=TEST_CALLBACK_KWARGS,
+                    callback=AsyncCallback(UNIMPORTABLE_DOT_PATH, kwargs=TEST_CALLBACK_KWARGS),
                 ),
                 False,
                 id="different_callback",
@@ -126,8 +138,7 @@ class TestDeadlineAlert:
                 DeadlineAlert(
                     reference=DeadlineReference.DAGRUN_QUEUED_AT,
                     interval=timedelta(hours=1),
-                    callback=TEST_CALLBACK_PATH,
-                    callback_kwargs={"arg2": "value2"},
+                    callback=AsyncCallback(TEST_CALLBACK_PATH, kwargs={"arg2": "value2"}),
                 ),
                 False,
                 id="different_kwargs",
@@ -139,8 +150,7 @@ class TestDeadlineAlert:
         base_alert = DeadlineAlert(
             reference=DeadlineReference.DAGRUN_QUEUED_AT,
             interval=timedelta(hours=1),
-            callback=TEST_CALLBACK_PATH,
-            callback_kwargs=TEST_CALLBACK_KWARGS,
+            callback=TEST_DEADLINE_CALLBACK,
         )
 
         assert (base_alert == test_alert) == should_equal
@@ -153,14 +163,12 @@ class TestDeadlineAlert:
         alert1 = DeadlineAlert(
             reference=DeadlineReference.DAGRUN_QUEUED_AT,
             interval=std_interval,
-            callback=std_callback,
-            callback_kwargs=std_kwargs,
+            callback=AsyncCallback(std_callback, kwargs=std_kwargs),
         )
         alert2 = DeadlineAlert(
             reference=DeadlineReference.DAGRUN_QUEUED_AT,
             interval=std_interval,
-            callback=std_callback,
-            callback_kwargs=std_kwargs,
+            callback=AsyncCallback(std_callback, kwargs=std_kwargs),
         )
 
         assert hash(alert1) == hash(alert1)
@@ -174,18 +182,155 @@ class TestDeadlineAlert:
         alert1 = DeadlineAlert(
             reference=DeadlineReference.DAGRUN_QUEUED_AT,
             interval=std_interval,
-            callback=std_callback,
-            callback_kwargs=std_kwargs,
+            callback=AsyncCallback(std_callback, kwargs=std_kwargs),
         )
         alert2 = DeadlineAlert(
             reference=DeadlineReference.DAGRUN_QUEUED_AT,
             interval=std_interval,
-            callback=std_callback,
-            callback_kwargs=std_kwargs,
+            callback=AsyncCallback(std_callback, kwargs=std_kwargs),
         )
 
         alert_set = {alert1, alert2}
         assert len(alert_set) == 1
+
+
+class TestCallback:
+    @pytest.mark.parametrize(
+        "callback1_args, callback2_args, should_equal",
+        [
+            pytest.param(
+                (TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
+                (TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
+                True,
+                id="identical",
+            ),
+            pytest.param(
+                (TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
+                (UNIMPORTABLE_DOT_PATH, TEST_CALLBACK_KWARGS),
+                False,
+                id="different_path",
+            ),
+            pytest.param(
+                (TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
+                (TEST_CALLBACK_PATH, {"other": "kwargs"}),
+                False,
+                id="different_kwargs",
+            ),
+            pytest.param((TEST_CALLBACK_PATH, None), (TEST_CALLBACK_PATH, None), True, id="both_no_kwargs"),
+        ],
+    )
+    def test_callback_equality(self, callback1_args, callback2_args, should_equal):
+        callback1 = AsyncCallback(*callback1_args)
+        callback2 = AsyncCallback(*callback2_args)
+        assert (callback1 == callback2) == should_equal
+
+    @pytest.mark.parametrize(
+        "callback_class, args1, args2, should_be_same_hash",
+        [
+            pytest.param(
+                AsyncCallback,
+                (TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
+                (TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
+                True,
+                id="async_identical",
+            ),
+            pytest.param(
+                SyncCallback,
+                (TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
+                (TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
+                True,
+                id="sync_identical",
+            ),
+            pytest.param(
+                AsyncCallback,
+                (TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
+                (UNIMPORTABLE_DOT_PATH, TEST_CALLBACK_KWARGS),
+                False,
+                id="async_different_path",
+            ),
+            pytest.param(
+                SyncCallback,
+                (TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
+                (TEST_CALLBACK_PATH, {"other": "kwargs"}),
+                False,
+                id="sync_different_kwargs",
+            ),
+            pytest.param(
+                AsyncCallback,
+                (TEST_CALLBACK_PATH, None),
+                (TEST_CALLBACK_PATH, None),
+                True,
+                id="async_no_kwargs",
+            ),
+        ],
+    )
+    def test_callback_hash_and_set_behavior(self, callback_class, args1, args2, should_be_same_hash):
+        callback1 = callback_class(*args1)
+        callback2 = callback_class(*args2)
+        assert (hash(callback1) == hash(callback2)) == should_be_same_hash
+
+
+class TestAsyncCallback:
+    @pytest.mark.parametrize(
+        "callback_callable, kwargs, expected_path",
+        [
+            pytest.param(
+                empty_async_callback_for_deadline_tests,
+                TEST_CALLBACK_KWARGS,
+                TEST_CALLBACK_PATH,
+                id="awaitable_callable",
+            ),
+            pytest.param(TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS, TEST_CALLBACK_PATH, id="string_path"),
+            pytest.param(
+                UNIMPORTABLE_DOT_PATH, TEST_CALLBACK_KWARGS, UNIMPORTABLE_DOT_PATH, id="unimportable_path"
+            ),
+        ],
+    )
+    def test__init_valid(self, callback_callable, kwargs, expected_path):
+        callback = AsyncCallback(callback_callable, kwargs=kwargs)
+        assert callback.path == expected_path
+        assert callback.kwargs == kwargs
+        assert isinstance(callback, Callback)
+
+    @pytest.mark.parametrize(
+        "callback_callable",
+        [
+            pytest.param(empty_sync_callback_for_deadline_tests, id="sync_callable"),
+            pytest.param(qualname(empty_sync_callback_for_deadline_tests), id="string_path"),
+        ],
+    )
+    def test_init_non_awaitable(self, callback_callable):
+        with pytest.raises(TypeError, match="awaitable"):
+            AsyncCallback(callback_callable)
+
+    def test_serialize_deserialize(self):
+        callback = AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS)
+        serialized = serialize(callback)
+        deserialized = cast("Callback", deserialize(serialized.copy()))
+        assert callback == deserialized
+
+
+class TestSyncCallback:
+    @pytest.mark.parametrize(
+        "executor",
+        [
+            pytest.param("remote", id="with_executor"),
+            pytest.param(None, id="without_executor"),
+        ],
+    )
+    def test_init(self, executor):
+        callback = SyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS, executor=executor)
+
+        assert callback.path == TEST_CALLBACK_PATH
+        assert callback.kwargs == TEST_CALLBACK_KWARGS
+        assert callback.executor == executor
+        assert isinstance(callback, Callback)
+
+    def test_serialize_deserialize(self):
+        callback = SyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS, executor="local")
+        serialized = serialize(callback)
+        deserialized = cast("Callback", deserialize(serialized.copy()))
+        assert callback == deserialized
 
 
 # While DeadlineReference lives in the SDK package, the unit tests to confirm it
