@@ -33,7 +33,7 @@ export const HomePage = () => {
         <Text fontSize="lg" color="fg.muted">
           This project was bootstrapped with the Airflow React Plugin tool.
         </Text>
-        <Button onClick={toggleColorMode} colorPalette="blue">
+        <Button onClick={toggleColorMode} colorPalette="button">
           Toggle Theme
         </Button>
       </VStack>
