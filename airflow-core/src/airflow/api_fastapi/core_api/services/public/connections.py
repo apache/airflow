@@ -61,10 +61,9 @@ def update_orm_from_pydantic(
     ):
         if pydantic_conn.password is None:
             orm_conn.set_password(pydantic_conn.password)
-            return
-
-        merged_password = merge(pydantic_conn.password, orm_conn.password, "password")
-        orm_conn.set_password(merged_password)
+        else:
+            merged_password = merge(pydantic_conn.password, orm_conn.password, "password")
+            orm_conn.set_password(merged_password)
     if (not update_mask and "extra" in pydantic_conn.model_fields_set) or (
         update_mask and "extra" in update_mask
     ):

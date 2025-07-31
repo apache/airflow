@@ -350,7 +350,7 @@ class SecretsMasker(logging.Filter):
                         merged[key] = new_item[key]
                 return merged
 
-            if isinstance(new_item, (list, tuple)) and isinstance(old_item, (list, tuple)):
+            if isinstance(new_item, (list, tuple)) and type(old_item) is type(new_item):
                 merged_list = []
                 for i in range(len(new_item)):
                     if i < len(old_item):

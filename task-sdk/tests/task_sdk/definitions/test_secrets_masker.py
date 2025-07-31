@@ -747,73 +747,63 @@ class TestSecretsMaskerMerge:
             ("new_value", "original_value", None, "new_value"),
         ],
     )
+    @pytest.mark.usefixtures("patched_secrets_masker")
     def test_merge_simple_strings(self, new_value, old_value, name, expected):
-        secrets_masker = SecretsMasker()
-        with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
-            result = merge(new_value, old_value, name)
-            assert result == expected
+        result = merge(new_value, old_value, name)
+        assert result == expected
 
-    def test_merge_dictionaries(self):
-        secrets_masker = SecretsMasker()
-
-        old_data = {
-            "password": "original_password",
-            "api_key": "original_api_key",
-            "normal_field": "original_normal",
-            "token": "original_token",
-        }
-
-        new_data = {
-            "password": "***",
-            "api_key": "new_api_key",
-            "normal_field": "new_normal",
-            "token": "***",
-        }
-
-        expected = {
-            "password": "original_password",
-            "api_key": "new_api_key",
-            "normal_field": "new_normal",
-            "token": "original_token",
-        }
-
-        with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
-            result = merge(new_data, old_data)
-            assert result == expected
-
-    def test_merge_nested_dictionaries(self):
-        secrets_masker = SecretsMasker()
-
-        old_data = {
-            "config": {"password": "original_password", "host": "original_host"},
-            "credentials": {"api_key": "original_api_key", "username": "original_user"},
-        }
-
-        new_data = {
-            "config": {
-                "password": "***",
-                "host": "new_host",
-            },
-            "credentials": {
-                "api_key": "new_api_key",
-                "username": "new_user",
-            },
-        }
-
-        expected = {
-            "config": {
-                "password": "original_password",
-                "host": "new_host",
-            },
-            "credentials": {
-                "api_key": "new_api_key",
-                "username": "new_user",
-            },
-        }
-
-        with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
-            result = merge(new_data, old_data)
-            assert result == expected
+    @pytest.mark.parametrize(
+        ("old_data", "new_data", "expected"),
+        [
+            (
+                {
+                    "password": "original_password",
+                    "api_key": "original_api_key",
+                    "normal_field": "original_normal",
+                },
+                {
+                    "password": "***",
+                    "api_key": "new_api_key",
+                    "normal_field": "new_normal",
+                },
+                {
+                    "password": "original_password",
+                    "api_key": "new_api_key",
+                    "normal_field": "new_normal",
+                },
+            ),
+            (
+                {
+                    "config": {"password": "original_password", "host": "original_host"},
+                    "credentials": {"api_key": "original_api_key", "username": "original_user"},
+                },
+                {
+                    "config": {
+                        "password": "***",
+                        "host": "new_host",
+                    },
+                    "credentials": {
+                        "api_key": "new_api_key",
+                        "username": "new_user",
+                    },
+                },
+                {
+                    "config": {
+                        "password": "original_password",
+                        "host": "new_host",
+                    },
+                    "credentials": {
+                        "api_key": "new_api_key",
+                        "username": "new_user",
+                    },
+                },
+            ),
+        ],
+    )
+    @pytest.mark.usefixtures("patched_secrets_masker")
+    def test_merge_dictionaries(self, old_data, new_data, expected):
+        result = merge(new_data, old_data)
+        assert result == expected
 
     @pytest.mark.parametrize(
         ("old_data", "new_data", "name", "expected"),
@@ -893,56 +883,26 @@ class TestSecretsMaskerMerge:
                 "normal_tuple",
                 {"***", "new_value2", "***"},
             ),
-            # Mixed collections
-            (
-                ["original_item1", "original_item2", "original_item3"],
-                ("new_item1", "new_item2"),
-                None,
-                ("new_item1", "new_item2"),
-            ),
-            (
-                ("original_item1", "original_item2"),
-                ["new_item1", "new_item2", "new_item3", "new_item4"],
-                None,
-                ["new_item1", "new_item2", "new_item3", "new_item4"],
-            ),
-            (
-                ["secret1", "secret2", "secret3"],
-                ("***", "new_secret2", "***"),
-                "password",
-                ("secret1", "new_secret2", "secret3"),
-            ),
-            (
-                ("value1", "value2", "value3"),
-                ["***", "new_value2", "***"],
-                "normal_tuple",
-                ["***", "new_value2", "***"],
-            ),
         ],
     )
+    @pytest.mark.usefixtures("patched_secrets_masker")
     def test_merge_collections(self, old_data, new_data, name, expected):
-        secrets_masker = SecretsMasker()
+        result = merge(new_data, old_data, name)
+        assert result == expected
 
-        with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
-            result = secrets_masker.merge(new_data, old_data, name)
-            assert result == expected
-
+    @pytest.mark.usefixtures("patched_secrets_masker")
     def test_merge_mismatched_types(self):
-        secrets_masker = SecretsMasker()
-
         old_data = {"key": "value"}
         new_data = "some_string"  # Different type
 
         # When types don't match, prefer the new item
         expected = "some_string"
 
-        with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
-            result = merge(new_data, old_data)
-            assert result == expected
+        result = merge(new_data, old_data)
+        assert result == expected
 
+    @pytest.mark.usefixtures("patched_secrets_masker")
     def test_merge_with_missing_keys(self):
-        secrets_masker = SecretsMasker()
-
         old_data = {"password": "original_password", "old_only_key": "old_value", "common_key": "old_common"}
 
         new_data = {
@@ -957,40 +917,36 @@ class TestSecretsMaskerMerge:
             "common_key": "new_common",
         }
 
-        with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
-            result = merge(new_data, old_data)
-            assert result == expected
+        result = merge(new_data, old_data)
+        assert result == expected
 
+    @pytest.mark.usefixtures("patched_secrets_masker")
     def test_merge_complex_redacted_structures(self):
-        secrets_masker = SecretsMasker()
-
         old_data = {
             "some_config": {
                 "nested_password": "original_nested_password",
-                "nested_list": ["item1", "item2"],
+                "passwords": ["item1", "item2"],
             },
             "normal_field": "normal_value",
         }
 
         new_data = {
-            "some_config": {"nested_password": "***", "nested_list": ["***", "***"]},
+            "some_config": {"nested_password": "***", "passwords": ["***", "new_item2"]},
             "normal_field": "new_normal_value",
         }
 
-        with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
-            result = merge(new_data, old_data)
-            expected = {
-                "some_config": {
-                    "nested_password": "original_nested_password",
-                    "nested_list": ["***", "***"],
-                },
-                "normal_field": "new_normal_value",
-            }
-            assert result == expected
+        result = merge(new_data, old_data)
+        expected = {
+            "some_config": {
+                "nested_password": "original_nested_password",
+                "passwords": ["item1", "new_item2"],
+            },
+            "normal_field": "new_normal_value",
+        }
+        assert result == expected
 
+    @pytest.mark.usefixtures("patched_secrets_masker")
     def test_merge_partially_redacted_structures(self):
-        secrets_masker = SecretsMasker()
-
         old_data = {
             "config": {
                 "password": "original_password",
@@ -1021,37 +977,31 @@ class TestSecretsMaskerMerge:
             }
         }
 
-        with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
-            result = merge(new_data, old_data)
-            assert result == expected
+        result = merge(new_data, old_data)
+        assert result == expected
 
+    @pytest.mark.usefixtures("patched_secrets_masker")
     def test_merge_max_depth(self):
-        secrets_masker = SecretsMasker()
-
         old_data = {"level1": {"level2": {"level3": {"password": "original_password"}}}}
         new_data = {"level1": {"level2": {"level3": {"password": "***"}}}}
 
-        with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
-            result = merge(new_data, old_data, max_depth=1)
-            assert result == new_data
+        result = merge(new_data, old_data, max_depth=1)
+        assert result == new_data
 
-            result = merge(new_data, old_data, max_depth=10)
-            assert result["level1"]["level2"]["level3"]["password"] == "original_password"
+        result = merge(new_data, old_data, max_depth=10)
+        assert result["level1"]["level2"]["level3"]["password"] == "original_password"
 
+    @pytest.mark.usefixtures("patched_secrets_masker")
     def test_merge_enum_values(self):
-        secrets_masker = SecretsMasker()
-
         old_enum = MyEnum.testname
         new_enum = MyEnum.testname2
 
-        with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
-            result = merge(new_enum, old_enum)
-            assert result == new_enum
-            assert isinstance(result, MyEnum)
+        result = merge(new_enum, old_enum)
+        assert result == new_enum
+        assert isinstance(result, MyEnum)
 
+    @pytest.mark.usefixtures("patched_secrets_masker")
     def test_merge_round_trip(self):
-        secrets_masker = SecretsMasker()
-
         # Original data with sensitive information
         original_config = {
             "database": {"host": "db.example.com", "password": "super_secret_password", "username": "admin"},
@@ -1059,28 +1009,27 @@ class TestSecretsMaskerMerge:
             "app_name": "my_application",
         }
 
-        with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
-            # Step 1: Redact the original data
-            redacted_dict = redact(original_config)
+        # Step 1: Redact the original data
+        redacted_dict = redact(original_config)
 
-            # Verify sensitive fields are redacted
-            assert redacted_dict["database"]["password"] == "***"
-            assert redacted_dict["api"]["api_key"] == "***"
-            assert redacted_dict["database"]["host"] == "db.example.com"
+        # Verify sensitive fields are redacted
+        assert redacted_dict["database"]["password"] == "***"
+        assert redacted_dict["api"]["api_key"] == "***"
+        assert redacted_dict["database"]["host"] == "db.example.com"
 
-            # Step 2: User modifies some fields
-            updated_dict = redacted_dict.copy()
-            updated_dict["database"]["host"] = "new-db.example.com"
-            updated_dict["api"]["timeout"] = 60
-            updated_dict["api"]["api_key"] = "new_api_key_67890"
-            # User left password as "***" (unchanged)
+        # Step 2: User modifies some fields
+        updated_dict = redacted_dict.copy()
+        updated_dict["database"]["host"] = "new-db.example.com"
+        updated_dict["api"]["timeout"] = 60
+        updated_dict["api"]["api_key"] = "new_api_key_67890"
+        # User left password as "***" (unchanged)
 
-            # Step 3: Merge to restore unchanged sensitive values
-            final_dict = merge(updated_dict, original_config)
+        # Step 3: Merge to restore unchanged sensitive values
+        final_dict = merge(updated_dict, original_config)
 
-            # Verify the results
-            assert final_dict["database"]["password"] == "super_secret_password"  # Restored
-            assert final_dict["database"]["host"] == "new-db.example.com"  # User modification kept
-            assert final_dict["api"]["api_key"] == "new_api_key_67890"  # User modification kept
-            assert final_dict["api"]["timeout"] == 60  # User modification kept
-            assert final_dict["app_name"] == "my_application"  # Unchanged
+        # Verify the results
+        assert final_dict["database"]["password"] == "super_secret_password"  # Restored
+        assert final_dict["database"]["host"] == "new-db.example.com"  # User modification kept
+        assert final_dict["api"]["api_key"] == "new_api_key_67890"  # User modification kept
+        assert final_dict["api"]["timeout"] == 60  # User modification kept
+        assert final_dict["app_name"] == "my_application"  # Unchanged
