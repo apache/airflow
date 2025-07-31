@@ -36,7 +36,6 @@ from pendulum.parsing import ParserError
 from sqlalchemy_utils.types.enriched_datetime.pendulum_datetime import pendulum
 
 from airflow.configuration import conf
-from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowFileLockAcquireException, AirflowFileLockReleaseException
 
 if TYPE_CHECKING:
