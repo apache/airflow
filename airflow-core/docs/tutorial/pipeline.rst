@@ -34,7 +34,7 @@ By the end of this tutorial, you'll have a working pipeline that:
 - Loads the data into a staging table
 - Cleans the data and upserts it into a target table
 
-Along the way, you'll gain hands-on experience with Airflow's UI, connection system, SQL execution, and DAG authoring
+Along the way, you'll gain hands-on experience with Airflow's UI, connection system, SQL execution, and Dag authoring
 patterns.
 
 Want to go deeper as you go? Here are two helpful references:
