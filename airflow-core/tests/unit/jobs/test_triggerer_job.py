@@ -648,44 +648,64 @@ class CustomTrigger(BaseTrigger):
         conn = await sync_to_async(BaseHook.get_connection)("test_connection")
         self.log.info("Loaded conn %s", conn.conn_id)
 
-        variable = await sync_to_async(Variable.get)("test_get_variable")
-        self.log.info("Loaded variable %s", variable)
+        get_variable_value = await sync_to_async(Variable.get)("test_get_variable")
+        self.log.info("Loaded variable %s", get_variable_value)
 
-        await sync_to_async(Variable.set)(key="test_set_variable", value="set_value")
-        self.log.info("Set variable with key test_set_variable")
-
-        await sync_to_async(Variable.delete)("test_delete_variable")
-        self.log.info("Deleted variable with key test_delete_variable")
-
-        xcom = await sync_to_async(XCom.get_one)(
-            key="test_xcom",
+        get_xcom_value = await sync_to_async(XCom.get_one)(
+            key="test_get_xcom",
             dag_id=self.dag_id,
             run_id=self.run_id,
             task_id=self.task_id,
             map_index=self.map_index,
         )
-        self.log.info("Loaded XCom %s", xcom)
+        self.log.info("Loaded XCom %s", get_xcom_value)
 
+        set_variable_key = "test_set_variable"
+        set_variable_value = "set_value"
+        await sync_to_async(Variable.set)(key=set_variable_key, value=set_variable_value)
+        self.log.info("Set variable with key %s and value %s" % (set_variable_key, set_variable_value))
+
+        set_xcom_key = "test_set_xcom"
+        set_xcom_value = "set_xcom"
         await sync_to_async(XCom.set)(
-            key="test_set_xcom",
+            key=set_xcom_key,
             dag_id=self.dag_id,
             run_id=self.run_id,
             task_id=self.task_id,
             map_index=self.map_index,
-            value="set_xcom",
+            value=set_xcom_value,
         )
-        self.log.info("Set xcom with key test_set_xcom")
+        self.log.info("Set xcom with key %s and value %s" % (set_xcom_key, set_xcom_value))
 
+        delete_variable_key = "test_delete_variable"
+        await sync_to_async(Variable.delete)(delete_variable_key)
+        self.log.info("Deleted variable with key %s" % delete_variable_key)
+
+        delete_xcom_key = "test_delete_xcom"
         await sync_to_async(XCom.delete)(
-            key="test_delete_xcom",
+            key=delete_xcom_key,
             dag_id=self.dag_id,
             run_id=self.run_id,
             task_id=self.task_id,
             map_index=self.map_index,
         )
-        self.log.info("Delete xcom with key test_delete_xcom")
+        self.log.info("Delete xcom with key %s" % delete_xcom_key)
 
-        yield TriggerEvent({"connection": attrs.asdict(conn), "variable": variable, "xcom": xcom})
+        yield TriggerEvent(
+            {
+                "connection": attrs.asdict(conn),
+                "variable": {
+                    "get_variable": get_variable_value,
+                    "set_variable": set_variable_value,
+                    "delete_variable": delete_variable_key,
+                },
+                "xcom": {
+                    "get_xcom": get_xcom_value,
+                    "set_xcom": set_xcom_value,
+                    "delete_xcom": delete_xcom_key,
+                },
+            }
+        )
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
@@ -746,8 +766,12 @@ async def test_trigger_can_call_variables_connections_and_xcoms_methods(session,
     get_variable = Variable(key="test_get_variable", val="some_variable_value")
     delete_variable = Variable(key="test_delete_variable", val="delete_value")
 
+    session.add(connection)
+    session.add(get_variable)
+    session.add(delete_variable)
+
     XComModel.set(
-        key="test_xcom",
+        key="test_get_xcom",
         value="some_xcom_value",
         task_id=task_instance.task_id,
         dag_id=dr.dag_id,
@@ -766,10 +790,6 @@ async def test_trigger_can_call_variables_connections_and_xcoms_methods(session,
         session=session,
     )
 
-    session.add(connection)
-    session.add(get_variable)
-    session.add(delete_variable)
-
     job = Job()
     session.add(job)
     session.commit()
@@ -780,7 +800,7 @@ async def test_trigger_can_call_variables_connections_and_xcoms_methods(session,
     task_instance.refresh_from_db()
     assert task_instance.state == TaskInstanceState.SCHEDULED
     assert task_instance.next_method != "__fail__"
-    assert task_instance.next_kwargs == {
+    expected_event = {
         "event": {
             "connection": {
                 "conn_id": "test_connection",
@@ -793,37 +813,19 @@ async def test_trigger_can_call_variables_connections_and_xcoms_methods(session,
                 "port": 443,
                 "extra": '{"key": "value"}',
             },
-            "variable": "some_variable_value",
-            "xcom": '"some_xcom_value"',
+            "variable": {
+                "get_variable": "some_variable_value",
+                "set_variable": "set_value",
+                "delete_variable": "test_delete_variable",
+            },
+            "xcom": {
+                "get_xcom": '"some_xcom_value"',
+                "set_xcom": "set_xcom",
+                "delete_xcom": "test_delete_xcom",
+            },
         }
     }
-    variable_set_val = await sync_to_async(Variable.get)("test_set_variable")
-    assert variable_set_val == "set_value"
-
-    variable_delete_val = await sync_to_async(Variable.get)(key="test_delete_variable", default_var=None)
-    assert variable_delete_val is None
-
-    xcom_set_query = await sync_to_async(XComModel.get_many)(
-        key="test_set_xcom",
-        dag_ids=dr.dag_id,
-        run_id=dr.run_id,
-        task_ids=task_instance.task_id,
-        map_indexes=-1,
-        session=session,
-    )
-    xcom_set_model = xcom_set_query.first()
-    assert xcom_set_model.value == "set_xcom"
-
-    xcom_delete_query = await sync_to_async(XComModel.get_many)(
-        key="test_delete_xcom",
-        dag_ids=dr.dag_id,
-        run_id=dr.run_id,
-        task_ids=task_instance.task_id,
-        map_indexes=-1,
-        session=session,
-    )
-    xcom_delete_model = xcom_delete_query.first()
-    assert xcom_delete_model is None
+    assert task_instance.next_kwargs == expected_event
 
 
 class CustomTriggerDagRun(BaseTrigger):
