@@ -224,7 +224,7 @@ class TestXComObjectStorageBackend:
                 run_id=task_instance.run_id,
             )
 
-            res = session.scalars(
+            res = session.execute(
                 XComModel.get_many(
                     key=XCOM_RETURN_KEY,
                     dag_ids=task_instance.dag_id,
@@ -232,7 +232,7 @@ class TestXComObjectStorageBackend:
                     run_id=task_instance.run_id,
                     session=session,
                 ).with_only_columns(XComModel.value)
-            ).first()
+            ).mappings().first()
             data = XComModel.deserialize_value(res)
         else:
             res = (
@@ -275,7 +275,7 @@ class TestXComObjectStorageBackend:
                 run_id=task_instance.run_id,
                 map_index=task_instance.map_index,
             )
-            value = session.scalars(
+            value = session.execute(
                 XComModel.get_many(
                     key=XCOM_RETURN_KEY,
                     dag_ids=task_instance.dag_id,
@@ -283,7 +283,7 @@ class TestXComObjectStorageBackend:
                     run_id=task_instance.run_id,
                     session=session,
                 ).with_only_columns(XComModel.value)
-            ).first()
+            ).mappings().first()
         else:
             XCom.clear(
                 dag_id=task_instance.dag_id,
@@ -325,7 +325,7 @@ class TestXComObjectStorageBackend:
                 run_id=task_instance.run_id,
             )
 
-            res = session.scalars(
+            res = session.execute(
                 XComModel.get_many(
                     key=XCOM_RETURN_KEY,
                     dag_ids=task_instance.dag_id,
@@ -333,7 +333,7 @@ class TestXComObjectStorageBackend:
                     run_id=task_instance.run_id,
                     session=session,
                 ).with_only_columns(XComModel.value)
-            ).first()
+            ).mappings().first()
             data = XComModel.deserialize_value(res)
         else:
             res = (
