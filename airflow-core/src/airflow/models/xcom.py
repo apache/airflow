@@ -381,14 +381,14 @@ class XComModel(TaskInstanceDependencies):
         :param result: The XCom database row or object containing a ``value`` attribute.
         :return: The deserialized Python object.
         """
-        if result.value is None:
+        if result[value] is None:
             return None
 
         try:
-            return json.loads(result.value, cls=XComDecoder)
+            return json.loads(result[value], cls=XComDecoder)
         except (ValueError, TypeError):
             # Already deserialized (e.g., set via Task Execution API)
-            return result.value
+            return result[value]
 
 
 class LazyXComSelectSequence(LazySelectSequence[Any]):
