@@ -91,7 +91,13 @@ const buildPath = (params: {
   }
 };
 
-export const useNavigation = ({ enabled = true, runs, tasks }: UseNavigationProps): UseNavigationReturn => {
+export const useNavigation = ({
+  enabled = true,
+  onEscapePress,
+  onToggleGroup,
+  runs,
+  tasks,
+}: UseNavigationProps): UseNavigationReturn => {
   const { dagId = "", groupId = "", runId = "", taskId = "" } = useParams();
   const navigate = useNavigate();
   const [mode, setMode] = useState<NavigationMode>("TI");
@@ -115,50 +121,51 @@ export const useNavigation = ({ enabled = true, runs, tasks }: UseNavigationProp
     return { runIndex, taskIndex };
   }, [groupId, runId, runs, taskId, tasks]);
 
+  const currentTask = useMemo(() => tasks[currentIndices.taskIndex], [tasks, currentIndices.taskIndex]);
+
   const handleNavigation = useCallback(
     (direction: NavigationDirection, isJump: boolean = false) => {
       if (!enabled || !dagId || !isValidDirection(direction, mode)) {
         return;
       }
 
-      const isAtBoundary = () => {
-        switch (direction) {
-          case "down":
-            return currentIndices.taskIndex >= tasks.length - 1;
-          case "left":
-            return currentIndices.runIndex >= runs.length - 1;
-          case "right":
-            return currentIndices.runIndex <= 0;
-          case "up":
-            return currentIndices.taskIndex <= 0;
-          default:
-            return false;
-        }
+      const boundaries = {
+        down: currentIndices.taskIndex >= tasks.length - 1,
+        left: currentIndices.runIndex >= runs.length - 1,
+        right: currentIndices.runIndex <= 0,
+        up: currentIndices.taskIndex <= 0,
       };
 
-      if (!isJump && isAtBoundary()) {
+      const isAtBoundary = boundaries[direction];
+
+      if (!isJump && isAtBoundary) {
         return;
       }
 
-      let newRunIndex = currentIndices.runIndex;
-      let newTaskIndex = currentIndices.taskIndex;
+      const navigationMap: Record<
+        NavigationDirection,
+        { direction: number; index: "runIndex" | "taskIndex"; max: number }
+      > = {
+        down: { direction: 1, index: "taskIndex", max: tasks.length },
+        left: { direction: 1, index: "runIndex", max: runs.length },
+        right: { direction: -1, index: "runIndex", max: runs.length },
+        up: { direction: -1, index: "taskIndex", max: tasks.length },
+      };
 
-      switch (direction) {
-        case "down":
-          newTaskIndex = getNextIndex(currentIndices.taskIndex, 1, { isJump, max: tasks.length });
-          break;
-        case "left":
-          newRunIndex = getNextIndex(currentIndices.runIndex, 1, { isJump, max: runs.length });
-          break;
-        case "right":
-          newRunIndex = getNextIndex(currentIndices.runIndex, -1, { isJump, max: runs.length });
-          break;
-        case "up":
-          newTaskIndex = getNextIndex(currentIndices.taskIndex, -1, { isJump, max: tasks.length });
-          break;
-        default:
-          break;
+      const nav = navigationMap[direction];
+
+      const newIndices = { ...currentIndices };
+
+      if (nav.index === "taskIndex") {
+        newIndices.taskIndex = getNextIndex(currentIndices.taskIndex, nav.direction, {
+          isJump,
+          max: nav.max,
+        });
+      } else {
+        newIndices.runIndex = getNextIndex(currentIndices.runIndex, nav.direction, { isJump, max: nav.max });
       }
+
+      const { runIndex: newRunIndex, taskIndex: newTaskIndex } = newIndices;
 
       if (newRunIndex === currentIndices.runIndex && newTaskIndex === currentIndices.taskIndex) {
         return;
@@ -178,11 +185,14 @@ export const useNavigation = ({ enabled = true, runs, tasks }: UseNavigationProp
 
   useKeyboardNavigation({
     enabled: enabled && Boolean(dagId),
+    onEscapePress,
     onNavigate: handleNavigation,
+    onToggleGroup: currentTask?.isGroup && onToggleGroup ? () => onToggleGroup(currentTask.id) : undefined,
   });
 
   return {
     currentIndices,
+    currentTask,
     enabled: enabled && Boolean(dagId),
     handleNavigation,
     mode,

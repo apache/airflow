@@ -26,7 +26,9 @@ const JUMP_KEYS = ["shift+ArrowDown", "shift+ArrowUp", "shift+ArrowLeft", "shift
 
 type Props = {
   enabled?: boolean;
+  onEscapePress?: () => void;
   onNavigate: (direction: NavigationDirection, isJump?: boolean) => void;
+  onToggleGroup?: () => void;
 };
 
 const mapKeyToDirection = (key: ArrowKey): NavigationDirection => {
@@ -44,7 +46,12 @@ const mapKeyToDirection = (key: ArrowKey): NavigationDirection => {
   }
 };
 
-export const useKeyboardNavigation = ({ enabled = true, onNavigate }: Props) => {
+export const useKeyboardNavigation = ({
+  enabled = true,
+  onEscapePress,
+  onNavigate,
+  onToggleGroup,
+}: Props) => {
   const createKeyHandler = useCallback(
     (isJump: boolean) => (event: KeyboardEvent) => {
       const direction = mapKeyToDirection(event.key as ArrowKey);
@@ -60,11 +67,11 @@ export const useKeyboardNavigation = ({ enabled = true, onNavigate }: Props) => 
   const handleNormalKeyPress = createKeyHandler(false);
   const handleJumpKeyPress = createKeyHandler(true);
 
-  useHotkeys(ARROW_KEYS.join(","), handleNormalKeyPress, { enabled, preventDefault: true }, [onNavigate]);
+  const hotkeyOptions = { enabled, preventDefault: true };
 
-  useHotkeys(JUMP_KEYS.join(","), handleJumpKeyPress, { enabled, preventDefault: true }, [onNavigate]);
+  useHotkeys(ARROW_KEYS.join(","), handleNormalKeyPress, hotkeyOptions, [onNavigate]);
+  useHotkeys(JUMP_KEYS.join(","), handleJumpKeyPress, hotkeyOptions, [onNavigate]);
 
-  return {
-    handleKeyPress: handleNormalKeyPress,
-  };
+  useHotkeys("space", () => onToggleGroup?.(), hotkeyOptions, [onToggleGroup]);
+  useHotkeys("escape", () => onEscapePress?.(), hotkeyOptions, [onEscapePress]);
 };

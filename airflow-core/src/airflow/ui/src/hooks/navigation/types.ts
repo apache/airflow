@@ -32,12 +32,15 @@ export type NavigationIndices = {
 
 export type UseNavigationProps = {
   enabled?: boolean;
+  onEscapePress?: () => void;
+  onToggleGroup?: (taskId: string) => void;
   runs: Array<GridRunsResponse>;
   tasks: Array<GridTask>;
 };
 
 export type UseNavigationReturn = {
   currentIndices: NavigationIndices;
+  currentTask: GridTask | undefined;
   enabled: boolean;
   handleNavigation: (direction: NavigationDirection, isJump?: boolean) => void;
   mode: NavigationMode;

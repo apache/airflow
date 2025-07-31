@@ -19,7 +19,7 @@
 import { Box, Flex, IconButton, Text } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import dayjsDuration from "dayjs/plugin/duration";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronsRight } from "react-icons/fi";
 import { Link, useParams } from "react-router-dom";
@@ -63,7 +63,7 @@ export const Grid = ({ limit }: Props) => {
 
   const [selectedIsVisible, setSelectedIsVisible] = useState<boolean | undefined>();
   const [hasActiveRun, setHasActiveRun] = useState<boolean | undefined>();
-  const { openGroupIds } = useOpenGroups();
+  const { openGroupIds, toggleGroupId } = useOpenGroups();
   const { dagId = "", runId = "" } = useParams();
 
   const { data: gridRuns, isLoading } = useGridRuns({ limit });
@@ -104,36 +104,28 @@ export const Grid = ({ limit }: Props) => {
 
   const { flatNodes } = useMemo(() => flattenNodes(dagStructure, openGroupIds), [dagStructure, openGroupIds]);
 
+  const setGridFocus = useCallback((focused: boolean) => {
+    setIsGridFocused(focused);
+    if (focused) {
+      gridRef.current?.focus();
+    } else {
+      gridRef.current?.blur();
+    }
+  }, []);
+
   const { mode, setMode } = useNavigation({
     enabled: isGridFocused,
+    onEscapePress: () => setGridFocus(false),
+    onToggleGroup: toggleGroupId,
     runs: gridRuns ?? [],
     tasks: flatNodes,
   });
 
   useEffect(() => {
     if (gridRef.current && gridRuns && flatNodes.length > 0) {
-      gridRef.current.focus();
-      setIsGridFocused(true);
+      setGridFocus(true);
     }
-  }, [gridRuns, flatNodes.length]);
-
-  const handleFocus = () => {
-    setIsGridFocused(true);
-  };
-
-  const handleBlur = (event: React.FocusEvent) => {
-    if (!gridRef.current?.contains(event.relatedTarget as Node)) {
-      setIsGridFocused(false);
-    }
-  };
-
-  const handleMouseDown = (event: React.MouseEvent) => {
-    event.preventDefault();
-    if (gridRef.current) {
-      gridRef.current.focus();
-      setIsGridFocused(true);
-    }
-  };
+  }, [gridRuns, flatNodes.length, setGridFocus]);
 
   return (
     <Flex
@@ -143,9 +135,9 @@ export const Grid = ({ limit }: Props) => {
       }}
       cursor="pointer"
       justifyContent="flex-start"
-      onBlur={handleBlur}
-      onFocus={handleFocus}
-      onMouseDown={handleMouseDown}
+      onBlur={() => setGridFocus(false)}
+      onFocus={() => setGridFocus(true)}
+      onMouseDown={() => setGridFocus(true)}
       outline="none"
       position="relative"
       pt={50}
@@ -157,6 +149,7 @@ export const Grid = ({ limit }: Props) => {
         <Box borderRadius="md" color="gray.400" fontSize="xs" position="absolute" px={0} py={12} top={0}>
           <Text>{translate("navigation.navigation", { arrow: getArrowsForMode(mode) })}</Text>
           <Text>{translate("navigation.jump", { arrow: getArrowsForMode(mode) })}</Text>
+          <Text>{translate("navigation.toggleGroup")}</Text>
         </Box>
       )}
 
