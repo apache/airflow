@@ -243,8 +243,8 @@ class VersionedFile(NamedTuple):
     file_name: str
 
 
-AIRFLOW_PIP_VERSION = "25.1.1"
-AIRFLOW_UV_VERSION = "0.8.3"
+AIRFLOW_PIP_VERSION = "25.2"
+AIRFLOW_UV_VERSION = "0.8.4"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.45"
 RICH_VERSION = "14.1.0"
@@ -2370,12 +2370,20 @@ def create_github_issue_url(title: str, body: str, labels: Iterable[str]) -> str
     is_flag=True,
     help="Only consider package ids with packages prepared in the dist folder",
 )
+@click.option(
+    "--no-include-browser-link",
+    "include_browser_link",
+    flag_value=False,
+    default=True,
+    help="Do not include browser link to prefill GitHub issue",
+)
 @argument_provider_distributions
 def generate_issue_content_providers(
     disable_progress: bool,
     excluded_pr_list: str,
     github_token: str,
     only_available_in_dist: bool,
+    include_browser_link: bool,
     provider_distributions: list[str],
 ):
     import jinja2
@@ -2518,12 +2526,13 @@ def generate_issue_content_providers(
             body=issue_content,
             labels=["testing status", "kind:meta"],
         )
-        get_console().print()
-        get_console().print(
-            "[info]You can prefill the issue by copy&pasting this link to browser "
-            "(or Cmd+Click if your terminal supports it):\n"
-        )
-        print(url_to_create_the_issue)
+        if include_browser_link:
+            get_console().print()
+            get_console().print(
+                "[info]You can prefill the issue by copy&pasting this link to browser "
+                "(or Cmd+Click if your terminal supports it):\n"
+            )
+            print(url_to_create_the_issue)
 
 
 def get_git_log_command(

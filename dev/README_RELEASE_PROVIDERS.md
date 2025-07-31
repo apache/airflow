@@ -647,6 +647,14 @@ issue. There is a comment generated with NOTE TO RELEASE MANAGER about this in t
 Hit Preview button on "create issue" screen before creating it to verify how it will look like
 for the contributors.
 
+By default, the command will output a clickable link to create the issue from terminal if you don't want this option use --no-include-browser-link flag
+
+```shell script
+cd "${AIRFLOW_REPO_ROOT}"
+
+breeze release-management generate-issue-content-providers --only-available-in-dist --no-include-browser-link --github-token TOKEN \
+    --excluded-pr-list PR_NUMBER1,PR_NUMBER2
+```
 
 
 ## Prepare voting email for Providers release candidate
