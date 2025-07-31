@@ -28,59 +28,12 @@ import { oneLight, oneDark } from "react-syntax-highlighter/dist/esm/styles/pris
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
 import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
 import { useColorMode } from "src/context/colorMode";
+import { detectLanguage } from "src/utils/detectLanguage";
 
 SyntaxHighlighter.registerLanguage("json", json);
 SyntaxHighlighter.registerLanguage("yaml", yaml);
 SyntaxHighlighter.registerLanguage("sql", sql);
 SyntaxHighlighter.registerLanguage("bash", bash);
-
-const detectLanguage = (value: string): string => {
-  const trimmed = value.trim();
-
-  // Try to detect JSON
-  if (
-    (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
-    (trimmed.startsWith("[") && trimmed.endsWith("]"))
-  ) {
-    try {
-      JSON.parse(trimmed);
-
-      return "json";
-    } catch {
-      // Not valid JSON, continue
-    }
-  }
-
-  // Try to detect YAML (basic heuristics)
-  if (trimmed.includes(":") && (trimmed.includes("\n") || trimmed.includes("- "))) {
-    return "yaml";
-  }
-
-  // Try to detect SQL (basic heuristics)
-  const sqlKeywords = /\b(?:select|insert|update|delete|create|alter|drop|from|where|join)\b/iu;
-
-  if (sqlKeywords.test(trimmed)) {
-    return "sql";
-  }
-
-  // Try to detect Bash (basic heuristics)
-  const bashKeywords =
-    /\b(?:echo|ls|cd|mkdir|rm|cp|mv|grep|awk|sed|cat|chmod|chown|ps|kill|sudo|export|source|if|then|else|fi|for|while|do|done)\b/u;
-  const bashCommands = /\$\{|\$\(|&&|\|\||>>|<<|;/u;
-  const bashPipe = /(?:^|[^|])\|(?:[^|]|$)/u;
-
-  if (
-    trimmed.startsWith("#!") ||
-    bashKeywords.test(trimmed) ||
-    bashCommands.test(trimmed) ||
-    bashPipe.test(trimmed)
-  ) {
-    return "bash";
-  }
-
-  // Default to text (no highlighting)
-  return "text";
-};
 
 export const RenderedTemplates = () => {
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
