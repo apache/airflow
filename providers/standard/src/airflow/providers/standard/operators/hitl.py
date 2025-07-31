@@ -170,6 +170,9 @@ class ApprovalOperator(HITLOperator, SkipMixin):
 
     FIXED_ARGS = ["options", "multiple"]
 
+    APPROVE = "Approve"
+    REJECT = "Reject"
+
     def __init__(self, ignore_downstream_trigger_rules: bool = False, **kwargs) -> None:
         for arg in self.FIXED_ARGS:
             if arg in kwargs:
@@ -177,13 +180,17 @@ class ApprovalOperator(HITLOperator, SkipMixin):
 
         self.ignore_downstream_trigger_rules = ignore_downstream_trigger_rules
 
-        super().__init__(options=["Approve", "Reject"], multiple=False, **kwargs)
+        super().__init__(
+            options=[self.APPROVE, self.REJECT],
+            multiple=False,
+            **kwargs,
+        )
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
         ret = super().execute_complete(context=context, event=event)
 
         chosen_option = ret["chosen_options"][0]
-        if chosen_option == "Approve":
+        if chosen_option == self.APPROVE:
             self.log.info("Approved. Proceeding with downstream tasks...")
             return ret
 
@@ -224,11 +231,13 @@ class HITLBranchOperator(HITLOperator):
 class HITLEntryOperator(HITLOperator):
     """Human-in-the-loop Operator that is used to accept user input through TriggerForm."""
 
+    OK = "OK"
+
     def __init__(self, **kwargs) -> None:
         if "options" not in kwargs:
-            kwargs["options"] = ["OK"]
+            kwargs["options"] = [self.OK]
 
             if "defaults" not in kwargs:
-                kwargs["defaults"] = ["OK"]
+                kwargs["defaults"] = [self.OK]
 
         super().__init__(**kwargs)
