@@ -2465,3 +2465,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # ourselves here and the user should get some feedback about that.
         self.log.warning("Executor, %s, was not found but a Task was configured to use it", executor_name)
         return None
+
+
+# Backcompat for older versions of task sdk import SchedulerDagBag from here
+SchedulerDagBag = DBDagBag
