@@ -67,6 +67,7 @@ from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.trigger import TRIGGER_FAIL_REPR, TriggerFailureReason
+from airflow.models.base import Base
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import AssetTriggeredTimetable
@@ -394,20 +395,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .where(~DM.is_paused)
             .where(TI.state == TaskInstanceState.SCHEDULED)
             .where(DM.bundle_name.is_not(None))
-            .options(selectinload(TI.dag_model))
         )
 
         @dataclass
         class LimitWindowDescriptor:
             running_now_join: CTE
-            join_predicates: Collection[str]
-            max_units: Column
+            running_now_join_predicates: Collection[str]
+            limit_column: Column
             window: expression.ColumnElement
+            limit_join_model: Base | None = None
 
-        def running_tasks_group(*group_fields: Column) -> CTE:
+        def running_tasks_group(group_fields: Collection[Column], states: Collection[TaskInstanceState]=EXECUTION_STATES) -> CTE:
             return (
-                select(TI, func.count("*").label("now_running"))
-                .where(TI.state.in_(EXECUTION_STATES))
+                select(*group_fields, func.count("*").label("now_running"))
+                .where(TI.state.in_(states))
                 .group_by(*group_fields)
                 .cte()
             )
@@ -415,24 +416,32 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         def add_window_limit(query: Select, limit: LimitWindowDescriptor) -> Select:
             inner_query = (
                 query.add_columns(limit.window)
-                .order_by(*priority_order)
                 .subquery()
             )
-            return (
+            query = (
                 select(TI)
                 .join(inner_query, TI.id == inner_query.c.id)
-                .join(DR, TI.run_id == DR.id)
-                .join(limit.running_now_join, *(getattr(TI, predicate) == getattr(limit.running_now_join.c, predicate) for predicate in limit.join_predicates))
-                .where(
-                    getattr(inner_query.c, limit.window.name) + limit.running_now_join.c.now_running
-                    < limit.max_units
+                .outerjoin(limit.running_now_join,
+                    and_(*(getattr(TI, predicate) == getattr(limit.running_now_join.c, predicate) for predicate in limit.running_now_join_predicates))
+                )
+                .join(DR, TI.run_id == DR.run_id)
+            )
+            if limit.limit_join_model is not None:
+                query = query.join(limit.limit_join_model)
+
+            return (
+                query.where(
+                    and_(
+                        func.coalesce(getattr(inner_query.c, limit.window.name), text("0")) +
+                        func.coalesce(limit.running_now_join.c.now_running, text("0")) < func.coalesce(limit.limit_column, max_tis)
+                    )
                 )
             )
 
-        running_total_tis_per_dagrun = running_tasks_group(TI.dag_id, TI.run_id)
-        running_tis_per_dag = running_tasks_group(TI.dag_id, TI.task_id)
-        running_total_tis_per_task_run = running_tasks_group(TI.dag_id, TI.run_id, TI.task_id)
-        running_tis_per_pool = running_tasks_group(TI.pool)
+        running_total_tis_per_dagrun = running_tasks_group([TI.dag_id, TI.run_id])
+        running_tis_per_dag = running_tasks_group([TI.dag_id, TI.task_id])
+        running_total_tis_per_task_run = running_tasks_group([TI.dag_id, TI.run_id, TI.task_id])
+        running_tis_per_pool = running_tasks_group([TI.pool], [*EXECUTION_STATES, TaskInstanceState.DEFERRED])
 
         total_tis_per_dagrun_count = (
             func.row_number()
@@ -456,25 +465,24 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
         limits = [
-            LimitWindowDescriptor(running_total_tis_per_dagrun, ['dag_id', 'run_id'], DagModel.max_active_tasks, total_tis_per_dagrun_count),
+            LimitWindowDescriptor(running_total_tis_per_dagrun, ['dag_id', 'run_id'], DagModel.max_active_tasks, total_tis_per_dagrun_count, TI.dag_model),
             LimitWindowDescriptor(running_tis_per_dag, ['dag_id', 'task_id'], TI.max_active_tis_per_dag, tis_per_dag_count),
             LimitWindowDescriptor(running_total_tis_per_task_run, ['dag_id', 'run_id', 'task_id'], TI.max_active_tis_per_dagrun, mapped_tis_per_task_run_count),
-            LimitWindowDescriptor(running_tis_per_pool, ['pool'], Pool.slots, pool_slots_taken),
+            LimitWindowDescriptor(running_tis_per_pool, ['pool'], Pool.slots, pool_slots_taken, TI.pool_model),
         ]
 
         for limit in limits:
             query = add_window_limit(query, limit)
 
+        query = query.options(selectinload(TI.dag_model))
         query = query.limit(max_tis)
 
         timer = Stats.timer("scheduler.critical_section_query_duration")
         timer.start()
 
         try:
-            print(str(query))
             query = with_row_locks(query, of=TI, session=session, skip_locked=True)
             task_instances_to_examine: list[TI] = session.scalars(query).all()
-
             timer.stop(send=True)
         except OperationalError as e:
             timer.stop(send=False)
