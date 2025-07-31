@@ -1261,7 +1261,7 @@ class TestDagRun:
         assert dag_run.version_number == dag_v.version_number
 
     def test_dag_run_dag_versions_with_null_created_dag_version(self, dag_maker, session):
-        """Test that dag_versions returns empty list when created_dag_version is None (pre-3.0 behavior)."""
+        """Test that dag_versions returns empty list when created_dag_version is None and bundle_version is populated."""
         with dag_maker(
             "test_dag_run_null_created_dag_version",
             schedule=datetime.timedelta(days=1),
@@ -1270,7 +1270,6 @@ class TestDagRun:
             EmptyOperator(task_id="empty")
         dag_run = dag_maker.create_dagrun()
 
-        # Simulate pre-3.0 behavior by setting bundle_version but making created_dag_version None
         dag_run.bundle_version = "some_bundle_version"
         dag_run.created_dag_version_id = None
         dag_run.created_dag_version = None
