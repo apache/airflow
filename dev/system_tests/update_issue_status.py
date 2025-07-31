@@ -154,7 +154,9 @@ def update_issue_status(
     not_completed_opened_issues: list[Issue.Issue] = []
     per_issue_num_done: dict[int, int] = {}
     per_issue_num_all: dict[int, int] = {}
-    for issue in issues[start_from : start_from + max_issues]:
+
+    issue_list: list[Issue.Issue] = list(issues[start_from : start_from + max_issues])
+    for issue in issue_list:
         console.print(f"[blue] {issue.id}: {issue.title}")
         new_body, count_re_added, count_completed, count_done, count_all = process_paths_from_body(
             issue.body, dry_run=dry_run, verbose=verbose
