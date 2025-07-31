@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { parse as parseYaml } from "yaml";
 
 export const detectLanguage = (value: string): string => {
   const trimmed = value.trim();
@@ -34,9 +35,17 @@ export const detectLanguage = (value: string): string => {
     }
   }
 
-  // Try to detect YAML (basic heuristics)
-  if (trimmed.includes(":") && (trimmed.includes("\n") || trimmed.includes("- "))) {
-    return "yaml";
+  // Try to detect YAML by parsing
+  try {
+    // Basic heuristics first - must contain colons or dashes for key-value pairs or lists
+    if (trimmed.includes(":") || trimmed.includes("- ")) {
+      parseYaml(trimmed);
+
+      // If parsing succeeds and it's not just a simple string, it's likely YAML
+      return "yaml";
+    }
+  } catch {
+    // Not valid YAML, continue to other checks
   }
 
   // Try to detect SQL (basic heuristics)
