@@ -210,7 +210,20 @@ const generateElkGraph = ({
 
   const children = nodes.map(formatChildNode);
 
-  const edges = filteredEdges.map((fe) => formatElkEdge(fe, font));
+  // Deduplicate edges that point to the same source/target
+  const edgeMap = new Map<string, EdgeResponse>();
+
+  filteredEdges.forEach((edge) => {
+    const edgeKey = `${edge.source_id}-${edge.target_id}`;
+
+    if (!edgeMap.has(edgeKey)) {
+      edgeMap.set(edgeKey, edge);
+    }
+  });
+
+  // Convert back to array and create formatted edges
+  const deduplicatedEdges = [...edgeMap.values()];
+  const edges = deduplicatedEdges.map((fe) => formatElkEdge(fe, font));
 
   return {
     children: children as Array<ElkNode>,
