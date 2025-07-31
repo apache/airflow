@@ -398,8 +398,8 @@ class AwsLambdaExecutor(BaseExecutor):
                 self.log.warning("Deleting the message to avoid processing it again.")
                 self.sqs_client.delete_message(QueueUrl=queue_url, ReceiptHandle=receipt_handle)
                 continue
-            ser_task_key = body.get("task_key")
             return_code = body.get("return_code")
+            ser_task_key = body.get("task_key")
             # Fetch the real task key from the running_tasks dict, using the serialized task key.
             try:
                 task_key = self.running_tasks[ser_task_key]
