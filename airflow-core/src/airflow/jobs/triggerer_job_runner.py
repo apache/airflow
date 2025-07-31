@@ -430,7 +430,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             else:
                 resp = conn
         elif isinstance(msg, DeleteVariable):
-            resp = self.client.variables.delete(msg.key)
+            self.client.variables.delete(msg.key)
         elif isinstance(msg, GetVariable):
             var = self.client.variables.get(msg.key)
             if isinstance(var, VariableResponse):
@@ -440,9 +440,9 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             else:
                 resp = var
         elif isinstance(msg, PutVariable):
-            resp = self.client.variables.set(msg.key, msg.value, msg.description)
+            self.client.variables.set(msg.key, msg.value, msg.description)
         elif isinstance(msg, DeleteXCom):
-            resp = self.client.xcoms.delete(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
+            self.client.xcoms.delete(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
         elif isinstance(msg, GetXCom):
             xcom = self.client.xcoms.get(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
             if isinstance(xcom, XComResponse):
@@ -452,7 +452,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             else:
                 resp = xcom
         elif isinstance(msg, SetXCom):
-            resp = self.client.xcoms.set(
+            self.client.xcoms.set(
                 msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.value, msg.map_index, msg.mapped_length
             )
         elif isinstance(msg, GetDRCount):
