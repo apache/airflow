@@ -399,8 +399,8 @@ class AwsLambdaExecutor(BaseExecutor):
                 self.sqs_client.delete_message(QueueUrl=queue_url, ReceiptHandle=receipt_handle)
                 continue
             ser_task_key = body.get("task_key")
-            return_code = body.get("return_code") 
-            command = body.get("command") 
+            return_code = body.get("return_code")
+            command = body.get("command")
             # Fetch the real task key from the running_tasks dict, using the serialized task key.
             try:
                 task_key = self.running_tasks[ser_task_key]
@@ -429,7 +429,7 @@ class AwsLambdaExecutor(BaseExecutor):
                     self.fail(task_key)
                     if queue_url == self.dlq_url and return_code == None:
                         # DLQ failure: AWS Lambda service could not complete the invocation after retries.
-                        # This indicates a Lambda-level failure (timeout, memory limit, crash, etc.) 
+                        # This indicates a Lambda-level failure (timeout, memory limit, crash, etc.)
                         # where the function was unable to successfully execute to return a result.
                         self.log.error(
                             "Lambda invocation for task: %s failed at the service level (from DLQ). Command: %s",
