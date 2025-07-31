@@ -18,26 +18,36 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Mapping
 from contextlib import closing
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING, Any, Literal, TypeAlias, cast, overload
 
 import psycopg2
 import psycopg2.extensions
 import psycopg2.extras
-from psycopg2.extras import DictCursor, Json, NamedTupleCursor, RealDictCursor
+from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor
 from sqlalchemy.engine import URL
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import (
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+)
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.postgres.dialects.postgres import PostgresDialect
 
 if TYPE_CHECKING:
+    from pandas import DataFrame as PandasDataFrame
+    from polars import DataFrame as PolarsDataFrame
     from psycopg2.extensions import connection
 
-    from airflow.models.connection import Connection
     from airflow.providers.common.sql.dialects.dialect import Dialect
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+    try:
+        from airflow.sdk import Connection
+    except ImportError:
+        from airflow.models.connection import Connection  # type: ignore[assignment]
 
 CursorType: TypeAlias = DictCursor | RealDictCursor | NamedTupleCursor
 
@@ -173,6 +183,62 @@ class PostgresHook(DbApiHook):
         self.conn = psycopg2.connect(**conn_args)
         return self.conn
 
+    @overload
+    def get_df(
+        self,
+        sql: str | list[str],
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        *,
+        df_type: Literal["pandas"] = "pandas",
+        **kwargs: Any,
+    ) -> PandasDataFrame: ...
+
+    @overload
+    def get_df(
+        self,
+        sql: str | list[str],
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        *,
+        df_type: Literal["polars"] = ...,
+        **kwargs: Any,
+    ) -> PolarsDataFrame: ...
+
+    def get_df(
+        self,
+        sql: str | list[str],
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        *,
+        df_type: Literal["pandas", "polars"] = "pandas",
+        **kwargs: Any,
+    ) -> PandasDataFrame | PolarsDataFrame:
+        """
+        Execute the sql and returns a dataframe.
+
+        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
+        :param parameters: The parameters to render the SQL query with.
+        :param df_type: Type of dataframe to return, either "pandas" or "polars"
+        :param kwargs: (optional) passed into `pandas.io.sql.read_sql` or `polars.read_database` method
+        :return: A pandas or polars DataFrame containing the query results.
+        """
+        if df_type == "pandas":
+            try:
+                from pandas.io import sql as psql
+            except ImportError:
+                raise AirflowOptionalProviderFeatureException(
+                    "pandas library not installed, run: pip install "
+                    "'apache-airflow-providers-common-sql[pandas]'."
+                )
+
+            engine = self.get_sqlalchemy_engine()
+            with engine.connect() as conn:
+                return psql.read_sql(sql, con=conn, params=parameters, **kwargs)
+
+        elif df_type == "polars":
+            return self._get_polars_df(sql, parameters, **kwargs)
+
+        else:
+            raise ValueError(f"Unsupported df_type: {df_type}")
+
     def copy_expert(self, sql: str, filename: str) -> None:
         """
         Execute SQL using psycopg2's ``copy_expert`` method.
@@ -216,20 +282,19 @@ class PostgresHook(DbApiHook):
         """
         Serialize a cell.
 
-        In order to pass a Python object to the database as query argument you can use the
-         Json (class psycopg2.extras.Json) adapter.
+        Psycopg2 adapts all arguments to the ``execute()`` method internally,
+        hence we return the cell without any conversion.
 
-        Reading from the database, json and jsonb values will be automatically converted to Python objects.
+        See https://www.psycopg.org/docs/extensions.html#sql-adaptation-protocol-objects
+        for more information.
 
-        See https://www.psycopg.org/docs/extras.html#json-adaptation for
-        more information.
+        To perform custom type adaptation please use register_adapter function
+        https://www.psycopg.org/docs/extensions.html#psycopg2.extensions.register_adapter.
 
         :param cell: The cell to insert into the table
         :param conn: The database connection
         :return: The cell
         """
-        if isinstance(cell, dict | list):
-            cell = Json(cell)
         return cell
 
     def get_iam_token(self, conn: Connection) -> tuple[str, str, int]:
@@ -256,7 +321,9 @@ class PostgresHook(DbApiHook):
             port = conn.port or 5439
             # Pull the custer-identifier from the beginning of the Redshift URL
             # ex. my-cluster.ccdre4hpd39h.us-east-1.redshift.amazonaws.com returns my-cluster
-            cluster_identifier = conn.extra_dejson.get("cluster-identifier", conn.host.split(".")[0])
+            cluster_identifier = conn.extra_dejson.get(
+                "cluster-identifier", cast("str", conn.host).split(".")[0]
+            )
             redshift_client = AwsBaseHook(aws_conn_id=aws_conn_id, client_type="redshift").conn
             # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift/client/get_cluster_credentials.html#Redshift.Client.get_cluster_credentials
             cluster_creds = redshift_client.get_cluster_credentials(
@@ -272,7 +339,7 @@ class PostgresHook(DbApiHook):
             # Pull the workgroup-name from the query params/extras, if not there then pull it from the
             # beginning of the Redshift URL
             # ex. workgroup-name.ccdre4hpd39h.us-east-1.redshift.amazonaws.com returns workgroup-name
-            workgroup_name = conn.extra_dejson.get("workgroup-name", conn.host.split(".")[0])
+            workgroup_name = conn.extra_dejson.get("workgroup-name", cast("str", conn.host).split(".")[0])
             redshift_serverless_client = AwsBaseHook(
                 aws_conn_id=aws_conn_id, client_type="redshift-serverless"
             ).conn
@@ -288,7 +355,7 @@ class PostgresHook(DbApiHook):
             rds_client = AwsBaseHook(aws_conn_id=aws_conn_id, client_type="rds").conn
             # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds/client/generate_db_auth_token.html#RDS.Client.generate_db_auth_token
             token = rds_client.generate_db_auth_token(conn.host, port, conn.login)
-        return login, token, port
+        return cast("str", login), cast("str", token), port
 
     def get_table_primary_key(self, table: str, schema: str | None = "public") -> list[str] | None:
         """
@@ -309,9 +376,7 @@ class PostgresHook(DbApiHook):
         if is_redshift:
             authority = self._get_openlineage_redshift_authority_part(connection)
         else:
-            authority = DbApiHook.get_openlineage_authority_part(  # type: ignore[attr-defined]
-                connection, default_port=5432
-            )
+            authority = DbApiHook.get_openlineage_authority_part(connection, default_port=5432)
 
         return DatabaseInfo(
             scheme="postgres" if not is_redshift else "redshift",

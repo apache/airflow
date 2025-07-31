@@ -27,3 +27,4 @@ Once you have Airflow up and running with the :doc:`/start`, these tutorials are
     taskflow
     pipeline
     objectstorage
+    hitl

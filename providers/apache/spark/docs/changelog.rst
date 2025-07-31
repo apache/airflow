@@ -29,6 +29,47 @@
 Changelog
 ---------
 
+5.3.2
+.....
+
+Misc
+~~~~
+
+* ``Deprecate decorators from Core (#53629)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup type ignores (#53301)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Replace BaseHook to Task SDK for apache/pyspark (#52842)``
+* ``Replace 'BaseHook' to Task SDK for 'apache/spark' (#52683)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make dag_version_id in TI non-nullable (#50825)``
+
+5.3.1
+.....
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``add: version_compat (#52448)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Replace 'models.BaseOperator' to Task SDK one for Standard Provider (#52292)``
+
+Doc-only
+~~~~~~~~
+
+* ``Cleanup unused args example_pyspark.py (#52492)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Separate out creation of default Connections for tests and non-tests (#52129)``
+   * ``Removed pytestmark db_test from the spark provider (#52081)``
+   * ``Introducing fixture to create 'Connections' without DB in provider tests (#51930)``
+
 5.3.0
 .....
 

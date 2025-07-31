@@ -143,10 +143,10 @@ class TestDayOfWeekSensor:
                 use_task_logical_date=True,
                 dag=dag,
             )
-            dr = dag_maker.create_dagrun(
-                run_id="manual_run",
-                start_date=DEFAULT_DATE,
-                logical_date=None,
-                **{"run_after": timezone.utcnow()},
-            )
-            assert op.poke(context={"logical_date": None, "dag_run": dr}) is True
+        dr = dag_maker.create_dagrun(
+            run_id="manual_run",
+            start_date=DEFAULT_DATE,
+            logical_date=None,
+            **{"run_after": timezone.utcnow()},
+        )
+        assert op.poke(context={"logical_date": None, "dag_run": dr}) is True

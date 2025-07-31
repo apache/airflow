@@ -57,6 +57,7 @@ from airflow_breeze.commands.common_options import (
     option_skip_cleanup,
     option_skip_db_tests,
     option_upgrade_boto,
+    option_upgrade_sqlalchemy,
     option_use_airflow_version,
     option_verbose,
 )
@@ -575,6 +576,12 @@ option_total_test_timeout = click.option(
     type=int,
     envvar="TOTAL_TEST_TIMEOUT",
 )
+option_skip_docker_compose_deletion = click.option(
+    "--skip-docker-compose-deletion",
+    help="Skip deletion of docker-compose instance after the test",
+    envvar="SKIP_DOCKER_COMPOSE_DELETION",
+    is_flag=True,
+)
 
 
 @group_for_testing.command(
@@ -620,6 +627,7 @@ option_total_test_timeout = click.option(
 @option_test_type_core_group
 @option_total_test_timeout
 @option_upgrade_boto
+@option_upgrade_sqlalchemy
 @option_use_airflow_version
 @option_allow_pre_releases
 @option_use_distributions_from_dist
@@ -685,6 +693,7 @@ def core_tests(**kwargs):
 @option_test_type_providers_group
 @option_total_test_timeout
 @option_upgrade_boto
+@option_upgrade_sqlalchemy
 @option_use_airflow_version
 @option_allow_pre_releases
 @option_use_distributions_from_dist
@@ -717,6 +726,7 @@ def providers_tests(**kwargs):
 @option_verbose
 @click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
 def task_sdk_tests(**kwargs):
+    """Run task SDK tests."""
     _run_test_command(
         test_group=GroupOfTests.TASK_SDK,
         allow_pre_releases=False,
@@ -748,10 +758,65 @@ def task_sdk_tests(**kwargs):
         test_type=ALL_TEST_TYPE,
         total_test_timeout=DEFAULT_TOTAL_TEST_TIMEOUT,
         upgrade_boto=False,
+        upgrade_sqlalchemy=False,
         use_airflow_version=None,
         use_distributions_from_dist=False,
         **kwargs,
     )
+
+
+@group_for_testing.command(
+    name="task-sdk-integration-tests",
+    context_settings=dict(
+        ignore_unknown_options=True,
+        allow_extra_args=True,
+    ),
+)
+@option_python
+@option_image_name
+@option_skip_docker_compose_deletion
+@option_github_repository
+@option_include_success_outputs
+@option_verbose
+@option_dry_run
+@click.option(
+    "--task-sdk-version",
+    help="Version of Task SDK to test",
+    default="1.1.0",
+    show_default=True,
+    envvar="TASK_SDK_VERSION",
+)
+@click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
+def task_sdk_integration_tests(
+    python: str,
+    image_name: str,
+    skip_docker_compose_deletion: bool,
+    github_repository: str,
+    include_success_outputs: bool,
+    task_sdk_version: str,
+    extra_pytest_args: tuple,
+):
+    """Run task SDK integration tests."""
+    perform_environment_checks()
+    if image_name is None:
+        build_params = BuildProdParams(python=python, github_repository=github_repository)
+        image_name = build_params.airflow_image_name
+
+    # Export the TASK_SDK_VERSION environment variable for the test
+    import os
+
+    os.environ["TASK_SDK_VERSION"] = task_sdk_version
+
+    get_console().print(f"[info]Running task SDK integration tests with PROD image: {image_name}[/]")
+    get_console().print(f"[info]Using Task SDK version: {task_sdk_version}[/]")
+    return_code, info = run_docker_compose_tests(
+        image_name=image_name,
+        include_success_outputs=include_success_outputs,
+        extra_pytest_args=extra_pytest_args,
+        skip_docker_compose_deletion=skip_docker_compose_deletion,
+        test_type="task-sdk-integration",
+    )
+    sys.exit(return_code)
 
 
 @group_for_testing.command(
@@ -1291,6 +1356,7 @@ def _run_test_command(
     test_type: str,
     total_test_timeout: int,
     upgrade_boto: bool,
+    upgrade_sqlalchemy: bool,
     use_airflow_version: str | None,
     use_distributions_from_dist: bool,
     use_xdist: bool,
@@ -1337,6 +1403,7 @@ def _run_test_command(
         test_type=test_type,
         test_group=test_group,
         upgrade_boto=upgrade_boto,
+        upgrade_sqlalchemy=upgrade_sqlalchemy,
         use_airflow_version=use_airflow_version,
         use_distributions_from_dist=use_distributions_from_dist,
         use_xdist=use_xdist,

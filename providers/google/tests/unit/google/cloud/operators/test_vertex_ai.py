@@ -21,11 +21,13 @@ from unittest.mock import MagicMock, call
 
 import pytest
 
+ray = pytest.importorskip("ray")
 # For no Pydantic environment, we need to skip the tests
 pytest.importorskip("google.cloud.aiplatform_v1")
 
 from google.api_core.gapic_v1.method import DEFAULT
 from google.api_core.retry import Retry
+from google.cloud.aiplatform_v1.types.dataset import Dataset
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred
 from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
@@ -1362,9 +1364,8 @@ class TestVertexAIExportDataOperator:
 
 
 class TestVertexAIImportDataOperator:
-    @mock.patch(VERTEX_AI_PATH.format("dataset.Dataset.to_dict"))
     @mock.patch(VERTEX_AI_PATH.format("dataset.DatasetHook"))
-    def test_execute(self, mock_hook, to_dict_mock):
+    def test_execute(self, mock_hook):
         op = ImportDataOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -1377,7 +1378,20 @@ class TestVertexAIImportDataOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        op.execute(context={})
+        SAMPLE_DATASET = {
+            "name": "sample_translation_dataset",
+            "display_name": "VertexAI dataset",
+            "data_item_count": None,
+        }
+        INITIAL_DS_SIZE = 1
+        FINAL_DS_SIZE = 101
+        INITIAL_DS = {**SAMPLE_DATASET, "data_item_count": INITIAL_DS_SIZE}
+        FINAL_DS = {**SAMPLE_DATASET, "data_item_count": FINAL_DS_SIZE}
+
+        mock_hook.return_value.get_dataset.side_effect = [Dataset(INITIAL_DS), Dataset(FINAL_DS)]
+
+        res = op.execute(context={})
+
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.import_data.assert_called_once_with(
             region=GCP_LOCATION,
@@ -1388,6 +1402,7 @@ class TestVertexAIImportDataOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
+        assert res["total_data_items_imported"] == FINAL_DS_SIZE - INITIAL_DS_SIZE
 
 
 class TestVertexAIListDatasetsOperator:

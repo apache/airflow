@@ -36,8 +36,8 @@ from airflow.exceptions import (
     TaskDeferralError,
     TaskDeferralTimeout,
 )
+from airflow.sdk import timezone
 from airflow.sdk.bases.operator import BaseOperator
-from airflow.utils import timezone
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
@@ -143,7 +143,7 @@ class BaseSensorOperator(BaseOperator):
     def _coerce_poke_interval(poke_interval: float | timedelta) -> timedelta:
         if isinstance(poke_interval, timedelta):
             return poke_interval
-        if isinstance(poke_interval, int | float) and poke_interval >= 0:
+        if isinstance(poke_interval, (int, float)) and poke_interval >= 0:
             return timedelta(seconds=poke_interval)
         raise AirflowException(
             "Operator arg `poke_interval` must be timedelta object or a non-negative number"
@@ -153,7 +153,7 @@ class BaseSensorOperator(BaseOperator):
     def _coerce_timeout(timeout: float | timedelta) -> timedelta:
         if isinstance(timeout, timedelta):
             return timeout
-        if isinstance(timeout, int | float) and timeout >= 0:
+        if isinstance(timeout, (int, float)) and timeout >= 0:
             return timedelta(seconds=timeout)
         raise AirflowException("Operator arg `timeout` must be timedelta object or a non-negative number")
 
@@ -161,14 +161,14 @@ class BaseSensorOperator(BaseOperator):
     def _coerce_max_wait(max_wait: float | timedelta | None) -> timedelta | None:
         if max_wait is None or isinstance(max_wait, timedelta):
             return max_wait
-        if isinstance(max_wait, int | float) and max_wait >= 0:
+        if isinstance(max_wait, (int, float)) and max_wait >= 0:
             return timedelta(seconds=max_wait)
         raise AirflowException("Operator arg `max_wait` must be timedelta object or a non-negative number")
 
     def _validate_input_values(self) -> None:
-        if not isinstance(self.poke_interval, int | float) or self.poke_interval < 0:
+        if not isinstance(self.poke_interval, (int, float)) or self.poke_interval < 0:
             raise AirflowException("The poke_interval must be a non-negative number")
-        if not isinstance(self.timeout, int | float) or self.timeout < 0:
+        if not isinstance(self.timeout, (int, float)) or self.timeout < 0:
             raise AirflowException("The timeout must be a non-negative number")
         if self.mode not in self.valid_modes:
             raise AirflowException(

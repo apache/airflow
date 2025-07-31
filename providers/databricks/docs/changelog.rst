@@ -26,6 +26,75 @@
 Changelog
 ---------
 
+7.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Refactor Databricks error handling with utility functions (#52704)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix URI Construction in Databricks Hook (#53217)``
+* ``fix: Improve logging and timeouts in OL helpers (#53139)``
+* ``fix: Task Group Deprecation error from plugin (#53813)``
+* ``Remove 'api' prefix from update_job_permission in databricks hook (#53039)``
+
+Misc
+~~~~
+
+* ``Refactor: Consolidate API endpoints for improved security and maintainability (#53214)``
+* ``Exclude deltalake 1.1.1 (#53729)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup mypy ignores in databricks provider where possible (#53265)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Replace 'mock.patch("utcnow")' with time_machine. (#53642)``
+   * ``Added non-Azure DatabricksBaseHook tests (#53286)``
+   * ``Fix pandas FutureWarning (#53236)``
+   * ``Handle ruff PT028 changes (#53235)``
+
+7.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Refactor Databricks hook to use HTTP method constants and auto-prepend api/ to endpoint paths (#52385)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix: Unclosed aiohttp ClientSession and TCPConnector in DatabricksRunNowOperator (deferrable=True) (#52119)``
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Disable UP038 ruff rule and revert mandatory 'X | Y' in insintance checks (#52644)``
+* ``Bump pyarrow to 16.1.0 minimum version for several providers (#52635)``
+* ``Upgrade ruff to latest version (0.12.1) (#52562)``
+* ``feat: Add explicit support for DatabricksHook to Openlineage helper (#52253)``
+* ``Replace 'models.BaseOperator' to Task SDK one for DBT & Databricks (#52377)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Use BaseSensorOperator from task sdk in providers (#52296)``
+* ``Enable DatabricksJobRunLink for Databricks plugin, skip provide_session usage in Airflow3 (#52228)``
+* ``Add deprecation to 'airflow/sensors/base.py' (#52249)``
+* ``Bump upper binding on pandas in all providers (#52060)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make sure all test version imports come from test_common (#52425)``
+   * ``Clean up messy default connection overrides in provider tests (#52137)``
+   * ``Remove pytest.mark.db_test where possible from databricks provider. (#52033)``
+   * ``Relax databricks test a bit to support compatibility with older version of it (#51787)``
+
 7.5.0
 .....
 

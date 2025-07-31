@@ -32,7 +32,7 @@ from airflow.utils import yaml
 from airflow.utils.platform import is_tty
 
 if TYPE_CHECKING:
-    from airflow.typing_compat import TypeGuard
+    from typing import TypeGuard
 
 
 def is_data_sequence(data: Sequence[dict | Any]) -> TypeGuard[Sequence[dict]]:
@@ -84,7 +84,7 @@ class AirflowConsole(Console):
         print(output)
 
     def _normalize_data(self, value: Any, output: str) -> list | str | dict | None:
-        if isinstance(value, tuple | list):
+        if isinstance(value, (tuple, list)):
             if output == "table":
                 return ",".join(str(self._normalize_data(x, output)) for x in value)
             return [self._normalize_data(x, output) for x in value]

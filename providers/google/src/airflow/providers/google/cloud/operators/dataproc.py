@@ -907,7 +907,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         cluster_state = event["cluster_state"]
         cluster_name = event["cluster_name"]
 
-        if cluster_state == ClusterStatus.State.ERROR:
+        if cluster_state == ClusterStatus.State(ClusterStatus.State.DELETING).name:
             raise AirflowException(f"Cluster is in ERROR state:\n{cluster_name}")
 
         self.log.info("%s completed successfully.", self.task_id)
@@ -2488,13 +2488,13 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         link = DATAPROC_BATCH_LINK.format(region=self.region, project_id=self.project_id, batch_id=batch_id)
         if state == Batch.State.FAILED:
             raise AirflowException(
-                f"Batch job {batch_id} failed with error: {state_message}\nDriver Logs: {link}"
+                f"Batch job {batch_id} failed with error: {state_message}.\nDriver logs: {link}"
             )
         if state in (Batch.State.CANCELLED, Batch.State.CANCELLING):
-            raise AirflowException(f"Batch job {batch_id} was cancelled. Driver logs: {link}")
+            raise AirflowException(f"Batch job {batch_id} was cancelled.\nDriver logs: {link}")
         if state == Batch.State.STATE_UNSPECIFIED:
-            raise AirflowException(f"Batch job {batch_id} unspecified. Driver logs: {link}")
-        self.log.info("Batch job %s completed. Driver logs: %s", batch_id, link)
+            raise AirflowException(f"Batch job {batch_id} unspecified.\nDriver logs: {link}")
+        self.log.info("Batch job %s completed.\nDriver logs: %s", batch_id, link)
 
     def retry_batch_creation(
         self,

@@ -169,6 +169,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Upgrading/downgrading/removing selected packages",
             "options": [
                 "--upgrade-boto",
+                "--upgrade-sqlalchemy",
                 "--downgrade-sqlalchemy",
                 "--downgrade-pendulum",
             ],
@@ -291,6 +292,10 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--forward-credentials",
             ],
+        },
+        {
+            "name": "Debugging options",
+            "options": ["--debug", "--debugger"],
         },
     ],
     "breeze exec": [

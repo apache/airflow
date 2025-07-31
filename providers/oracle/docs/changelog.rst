@@ -27,6 +27,38 @@
 Changelog
 ---------
 
+4.1.3
+.....
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup type ignores in oracle provider where possible (#53280)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.1.2
+.....
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Disable UP038 ruff rule and revert mandatory 'X | Y' in insintance checks (#52644)``
+* ``Provider Migration: Update Oracle for Airflow 3.0 compatibility (#52382)``
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix failing static check for Oracle provider (#52436)``
+   * ``Fixes part of #52020 (#52038)``
+   * ``Replacing older 'np.NaN' with 'np.nan' in tests (#52100)``
+
 4.1.1
 .....
 

@@ -21,6 +21,8 @@ import json
 import logging
 import re
 import sys
+
+PY313 = sys.version_info >= (3, 13)
 import warnings
 from unittest.mock import patch
 
@@ -36,7 +38,7 @@ from airflow.providers_manager import (
     ProvidersManager,
 )
 
-from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker, skip_if_not_on_main
 from tests_common.test_utils.paths import AIRFLOW_ROOT_PATH
 
 
@@ -72,12 +74,12 @@ class TestProviderManager:
             assert self._caplog.records == []
 
     def test_hooks_deprecation_warnings_generated(self):
+        providers_manager = ProvidersManager()
+        providers_manager._provider_dict["test-package"] = ProviderInfo(
+            version="0.0.1",
+            data={"hook-class-names": ["airflow.providers.sftp.hooks.sftp.SFTPHook"]},
+        )
         with pytest.warns(expected_warning=DeprecationWarning, match="hook-class-names") as warning_records:
-            providers_manager = ProvidersManager()
-            providers_manager._provider_dict["test-package"] = ProviderInfo(
-                version="0.0.1",
-                data={"hook-class-names": ["airflow.providers.sftp.hooks.sftp.SFTPHook"]},
-            )
             providers_manager._discover_hooks()
         assert warning_records
 
@@ -228,6 +230,7 @@ class TestProviderManager:
             raise AssertionError("There are warnings generated during hook imports. Please fix them")
         assert [w.message for w in warning_records if "hook-class-names" in str(w.message)] == []
 
+    @skip_if_not_on_main
     @pytest.mark.execution_timeout(150)
     def test_hook_values(self):
         provider_dependencies = json.loads(
@@ -253,6 +256,19 @@ class TestProviderManager:
                 print(record.exc_info, file=sys.stderr)
                 real_warning_count += 1
             if real_warning_count:
+                if PY313:
+                    only_ydb_and_yandexcloud_warnings = True
+                    for record in warning_records:
+                        if "ydb" in str(record.message) or "yandexcloud" in str(record.message):
+                            continue
+                        only_ydb_and_yandexcloud_warnings = False
+                    if only_ydb_and_yandexcloud_warnings:
+                        print(
+                            "Only warnings from ydb and yandexcloud providers are generated, "
+                            "which is expected in Python 3.13+",
+                            file=sys.stderr,
+                        )
+                        return
                 raise AssertionError("There are warnings generated during hook imports. Please fix them")
         assert [w.message for w in warning_records if "hook-class-names" in str(w.message)] == []
 

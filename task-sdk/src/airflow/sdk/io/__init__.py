@@ -17,7 +17,9 @@
 
 from __future__ import annotations
 
+from airflow.sdk.io.fs import get_fs, has_fs
 from airflow.sdk.io.path import ObjectStoragePath
 from airflow.sdk.io.store import attach
+from airflow.sdk.io.typedef import Properties
 
-__all__ = ["ObjectStoragePath", "attach"]
+__all__ = ["ObjectStoragePath", "attach", "get_fs", "has_fs", "Properties"]

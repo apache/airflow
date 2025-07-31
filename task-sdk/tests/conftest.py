@@ -20,6 +20,7 @@ import logging
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NoReturn, Protocol
+from unittest.mock import patch
 
 import pytest
 
@@ -119,7 +120,7 @@ def captured_logs(request):
         # We need to replace remove the last processor (the one that turns JSON into text, as we want the
         # event dict for tests)
         proc = processors.pop()
-        assert isinstance(proc, structlog.dev.ConsoleRenderer | structlog.processors.JSONRenderer), (
+        assert isinstance(proc, (structlog.dev.ConsoleRenderer, structlog.processors.JSONRenderer)), (
             "Pre-condition"
         )
     try:
@@ -197,6 +198,7 @@ class MakeTIContextDictCallable(Protocol):
 def make_ti_context() -> MakeTIContextCallable:
     """Factory for creating TIRunContext objects."""
     from airflow.sdk.api.datamodels._generated import DagRun, TIRunContext
+    from airflow.utils.state import DagRunState
 
     def _make_context(
         dag_id: str = "test_dag",
@@ -225,6 +227,7 @@ def make_ti_context() -> MakeTIContextCallable:
                 start_date=start_date,  # type: ignore
                 run_type=run_type,  # type: ignore
                 run_after=run_after,  # type: ignore
+                state=DagRunState.RUNNING,
                 conf=conf,  # type: ignore
                 consumed_asset_events=list(consumed_asset_events),
             ),
@@ -271,3 +274,12 @@ def make_ti_context_dict(make_ti_context: MakeTIContextCallable) -> MakeTIContex
         return context.model_dump(exclude_unset=True, mode="json")
 
     return _make_context_dict
+
+
+@pytest.fixture
+def patched_secrets_masker():
+    from airflow.sdk.execution_time.secrets_masker import SecretsMasker
+
+    secrets_masker = SecretsMasker()
+    with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
+        yield secrets_masker

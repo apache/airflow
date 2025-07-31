@@ -27,12 +27,9 @@ from collections.abc import Callable, Generator, Iterable, Iterator
 from enum import Enum
 from functools import cache, cached_property
 from re import Pattern
-from typing import TYPE_CHECKING, Any, TextIO, TypeAlias, TypeVar
+from typing import Any, TextIO, TypeAlias, TypeVar
 
 from airflow import settings
-
-if TYPE_CHECKING:
-    from airflow.typing_compat import TypeGuard
 
 V1EnvVar = TypeVar("V1EnvVar")
 Redactable: TypeAlias = str | V1EnvVar | dict[Any, Any] | tuple[Any, ...] | list[Any]
@@ -154,7 +151,8 @@ def _get_v1_env_var_type() -> type:
     return V1EnvVar
 
 
-def _is_v1_env_var(v: Any) -> TypeGuard[V1EnvVar]:
+# TODO update return type to TypeGuard[V1EnvVar] once mypy 1.17.0 is available
+def _is_v1_env_var(v: Any) -> bool:
     return isinstance(v, _get_v1_env_var_type())
 
 
@@ -232,7 +230,7 @@ class SecretsMasker(logging.Filter):
             return {
                 dict_key: self._redact_all(subval, depth + 1, max_depth) for dict_key, subval in item.items()
             }
-        if isinstance(item, tuple | set):
+        if isinstance(item, (tuple, set)):
             # Turn set in to tuple!
             return tuple(self._redact_all(subval, depth + 1, max_depth) for subval in item)
         if isinstance(item, list):
@@ -256,8 +254,8 @@ class SecretsMasker(logging.Filter):
                 return to_return
             if isinstance(item, Enum):
                 return self._redact(item=item.value, name=name, depth=depth, max_depth=max_depth)
-            if _is_v1_env_var(item):
-                tmp: dict = item.to_dict()  # type: ignore[attr-defined] # V1EnvVar has a to_dict method
+            if _is_v1_env_var(item) and hasattr(item, "to_dict"):
+                tmp: dict = item.to_dict()
                 if should_hide_value_for_key(tmp.get("name", "")) and "value" in tmp:
                     tmp["value"] = "***"
                 else:
@@ -270,7 +268,7 @@ class SecretsMasker(logging.Filter):
                     # the structure.
                     return self.replacer.sub("***", str(item))
                 return item
-            if isinstance(item, tuple | set):
+            if isinstance(item, (tuple, set)):
                 # Turn set in to tuple!
                 return tuple(
                     self._redact(subval, name=None, depth=(depth + 1), max_depth=max_depth) for subval in item
@@ -375,7 +373,6 @@ class SecretsMasker(logging.Filter):
                     if pattern not in self.patterns and (not name or should_hide_value_for_key(name)):
                         self.patterns.add(pattern)
                         new_mask = True
-
             if new_mask:
                 self.replacer = re.compile("|".join(self.patterns))
 

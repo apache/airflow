@@ -34,7 +34,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
-from airflow.utils import timezone
+from airflow._shared.timezones import timezone
 
 if TYPE_CHECKING:
     from jwt.algorithms import AllowedKeys, AllowedPrivateKeys
@@ -68,7 +68,7 @@ def key_to_jwk_dict(key: AllowedKeys, kid: str | None = None):
     from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey, RSAPublicKey
     from jwt.algorithms import OKPAlgorithm, RSAAlgorithm
 
-    if isinstance(key, RSAPrivateKey | Ed25519PrivateKey):
+    if isinstance(key, (RSAPrivateKey, Ed25519PrivateKey)):
         key = key.public_key()
 
     if isinstance(key, RSAPublicKey):
@@ -226,7 +226,7 @@ def _conf_factory(section, key, **kwargs):
     def factory() -> str:
         from airflow.configuration import conf
 
-        return conf.get(section, key, **kwargs, suppress_warnings=True)  # type: ignore[return-value]
+        return conf.get(section, key, **kwargs, suppress_warnings=True)
 
     return factory
 
@@ -538,7 +538,7 @@ def get_signing_key(section: str, key: str, make_secret_key_if_needed: bool = Tr
             raise ValueError(f"The value {section}/{key} must be set!")
 
     # Mypy can't grock the `if not secret_key`
-    return secret_key  # type: ignore[return-value]
+    return secret_key
 
 
 def get_signing_args(make_secret_key_if_needed: bool = True) -> dict[str, Any]:

@@ -130,20 +130,21 @@ class TaskMap(TaskInstanceDependencies):
         :return: The newly created mapped task instances (if any) in ascending
             order by map index, and the maximum map index value.
         """
-        from airflow.models.baseoperator import BaseOperator as DBBaseOperator
         from airflow.models.expandinput import NotFullyPopulated
+        from airflow.models.mappedoperator import get_mapped_ti_count
         from airflow.models.taskinstance import TaskInstance
         from airflow.sdk.bases.operator import BaseOperator
         from airflow.sdk.definitions.mappedoperator import MappedOperator
+        from airflow.serialization.serialized_objects import SerializedBaseOperator
         from airflow.settings import task_instance_mutation_hook
 
-        if not isinstance(task, BaseOperator | MappedOperator):
+        if not isinstance(task, (BaseOperator, MappedOperator, SerializedBaseOperator)):
             raise RuntimeError(
                 f"cannot expand unrecognized operator type {type(task).__module__}.{type(task).__name__}"
             )
 
         try:
-            total_length: int | None = DBBaseOperator.get_mapped_ti_count(task, run_id, session=session)
+            total_length: int | None = get_mapped_ti_count(task, run_id, session=session)
         except NotFullyPopulated as e:
             if not task.dag or not task.dag.partial:
                 task.log.error(

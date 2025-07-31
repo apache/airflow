@@ -222,6 +222,7 @@ buildType
 burstable
 bytestring
 cacert
+Cadwyn
 callables
 camelCase
 Cancelled
@@ -771,6 +772,7 @@ golang
 googleads
 GoogleAdsRow
 googleapiclient
+googleapis
 GoogleDisplayVideo
 gpu
 gpus
@@ -786,6 +788,7 @@ grpc
 GSoD
 gsuite
 Gunicorn
+gunicorn
 gz
 Gzip
 gzipped
@@ -1156,6 +1159,7 @@ mssql
 mTLS
 mtls
 muldelete
+multi-cloud
 multimodal
 Multinamespace
 mutex
@@ -1550,6 +1554,7 @@ sagemaker
 salesforce
 samesite
 saml
+sandboxed
 sanitization
 sas
 Sasl
@@ -1704,6 +1709,7 @@ StrictUndefined
 Stringified
 stringified
 Struct
+StructuredLogMessage
 STS
 subchart
 subclassed
@@ -1977,6 +1983,7 @@ views
 virtualenv
 virtualenvs
 virtualized
+Vite
 vm
 VolumeKmsKeyId
 VolumeMount

@@ -28,7 +28,7 @@ from pymongo import MongoClient, ReplaceOne
 from pymongo.errors import CollectionInvalid
 
 from airflow.exceptions import AirflowConfigException
-from airflow.hooks.base import BaseHook
+from airflow.providers.mongo.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from types import TracebackType
@@ -121,7 +121,7 @@ class MongoHook(BaseHook):
         self.mongo_conn_id = mongo_conn_id
 
         conn = self.get_connection(self.mongo_conn_id)
-        self._validate_connection(conn)
+        self._validate_connection(conn)  # type: ignore[arg-type]
         self.connection = conn
 
         self.extras = self.connection.extra_dejson.copy()
@@ -212,7 +212,11 @@ class MongoHook(BaseHook):
             netloc = f"{quote_plus(login)}:{quote_plus(password)}@{netloc}"
         if self.connection.port:
             netloc = f"{netloc}:{self.connection.port}"
-        path = f"/{self.connection.schema}"
+
+        if self.connection.schema:
+            path = f"/{self.connection.schema}"
+        else:
+            path = ""
         return urlunsplit((scheme, netloc, path, "", ""))
 
     def get_collection(self, mongo_collection: str, mongo_db: str | None = None) -> MongoCollection:

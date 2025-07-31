@@ -69,7 +69,9 @@ apache-airflow-providers-singularity package
 `Singularity <https://sylabs.io/guides/latest/user-guide/>`__
 
 
-Release: 3.8.0
+Release: 3.8.2
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------

@@ -26,6 +26,7 @@ from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform_v1.types import Dataset, ExportDataConfig, ImportDataConfig
 
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.vertex_ai.dataset import DatasetHook
 from airflow.providers.google.cloud.links.vertex_ai import VertexAIDatasetLink, VertexAIDatasetListLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
@@ -335,7 +336,21 @@ class ExportDataOperator(GoogleCloudBaseOperator):
         self.log.info("Export was done successfully")
 
 
-class ImportDataOperator(GoogleCloudBaseOperator):
+class DatasetImportDataResultsCheckHelper:
+    """Helper utils to verify import dataset data results."""
+
+    @staticmethod
+    def _get_number_of_ds_items(dataset, total_key_name):
+        number_of_items = type(dataset).to_dict(dataset).get(total_key_name, 0)
+        return number_of_items
+
+    @staticmethod
+    def _raise_for_empty_import_result(dataset_id, initial_size, size_after_import):
+        if int(size_after_import) - int(initial_size) <= 0:
+            raise AirflowException(f"Empty results of data import for the dataset_id {dataset_id}.")
+
+
+class ImportDataOperator(GoogleCloudBaseOperator, DatasetImportDataResultsCheckHelper):
     """
     Imports data into a Dataset.
 
@@ -356,6 +371,7 @@ class ImportDataOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param raise_for_empty_result: Raise an error if no additional data has been populated after the import.
     """
 
     template_fields = ("region", "dataset_id", "project_id", "impersonation_chain")
@@ -372,6 +388,7 @@ class ImportDataOperator(GoogleCloudBaseOperator):
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        raise_for_empty_result: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -384,13 +401,24 @@ class ImportDataOperator(GoogleCloudBaseOperator):
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.raise_for_empty_result = raise_for_empty_result
 
     def execute(self, context: Context):
         hook = DatasetHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-
+        initial_dataset_size = self._get_number_of_ds_items(
+            dataset=hook.get_dataset(
+                dataset_id=self.dataset_id,
+                project_id=self.project_id,
+                region=self.region,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            ),
+            total_key_name="data_item_count",
+        )
         self.log.info("Importing data: %s", self.dataset_id)
         operation = hook.import_data(
             project_id=self.project_id,
@@ -402,7 +430,21 @@ class ImportDataOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
         )
         hook.wait_for_operation(timeout=self.timeout, operation=operation)
+        result_dataset_size = self._get_number_of_ds_items(
+            dataset=hook.get_dataset(
+                dataset_id=self.dataset_id,
+                project_id=self.project_id,
+                region=self.region,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            ),
+            total_key_name="data_item_count",
+        )
+        if self.raise_for_empty_result:
+            self._raise_for_empty_import_result(self.dataset_id, initial_dataset_size, result_dataset_size)
         self.log.info("Import was done successfully")
+        return {"total_data_items_imported": int(result_dataset_size) - int(initial_dataset_size)}
 
 
 class ListDatasetsOperator(GoogleCloudBaseOperator):

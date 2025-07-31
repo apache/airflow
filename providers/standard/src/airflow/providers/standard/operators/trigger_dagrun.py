@@ -34,12 +34,11 @@ from airflow.exceptions import (
     DagNotFound,
     DagRunAlreadyExists,
 )
-from airflow.models import BaseOperator
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator, BaseOperatorLink
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType
@@ -60,11 +59,9 @@ if TYPE_CHECKING:
         from airflow.utils.context import Context
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperatorLink
     from airflow.sdk.execution_time.xcom import XCom
 else:
-    from airflow.models import XCom  # type: ignore[no-redef]
-    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
+    from airflow.models import XCom
 
 
 class DagIsPaused(AirflowException):
@@ -195,7 +192,7 @@ class TriggerDagRunOperator(BaseOperator):
         self.logical_date = logical_date
         if logical_date is NOTSET:
             self.logical_date = NOTSET
-        elif logical_date is None or isinstance(logical_date, str | datetime.datetime):
+        elif logical_date is None or isinstance(logical_date, (str, datetime.datetime)):
             self.logical_date = logical_date
         else:
             raise TypeError(

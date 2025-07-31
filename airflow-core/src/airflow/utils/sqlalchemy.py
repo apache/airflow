@@ -31,9 +31,9 @@ from sqlalchemy.dialects import mysql
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.types import JSON, Text, TypeDecorator
 
+from airflow._shared.timezones.timezone import make_naive, utc
 from airflow.configuration import conf
 from airflow.serialization.enums import Encoding
-from airflow.utils.timezone import make_naive, utc
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -165,13 +165,13 @@ def sanitize_for_serialization(obj: V1Pod):
     """
     if obj is None:
         return None
-    if isinstance(obj, float | bool | bytes | str | int):
+    if isinstance(obj, (float, bool, bytes, str, int)):
         return obj
     if isinstance(obj, list):
         return [sanitize_for_serialization(sub_obj) for sub_obj in obj]
     if isinstance(obj, tuple):
         return tuple(sanitize_for_serialization(sub_obj) for sub_obj in obj)
-    if isinstance(obj, datetime.datetime | datetime.date):
+    if isinstance(obj, (datetime.datetime, datetime.date)):
         return obj.isoformat()
 
     if isinstance(obj, dict):

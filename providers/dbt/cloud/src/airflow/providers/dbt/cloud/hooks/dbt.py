@@ -117,7 +117,7 @@ class DbtCloudJobRunStatus(Enum):
     @classmethod
     def check_is_valid(cls, statuses: int | Sequence[int] | set[int]):
         """Validate input statuses are a known value."""
-        if isinstance(statuses, Sequence | set):
+        if isinstance(statuses, (Sequence, set)):
             for status in statuses:
                 cls(status)
         else:
@@ -283,7 +283,7 @@ class DbtCloudHook(HttpHook):
         if not _connection.password:
             raise AirflowException("An API token is required to connect to dbt Cloud.")
 
-        return _connection
+        return _connection  # type: ignore[return-value]
 
     def get_conn(self, *args, **kwargs) -> Session:
         tenant = self._get_tenant_domain(self.connection)

@@ -19,13 +19,17 @@ from __future__ import annotations
 
 import json
 import pickle
+from datetime import datetime
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import httpx
 import pytest
 import uuid6
 from task_sdk import make_client, make_client_w_dry_run, make_client_w_responses
+from uuid6 import uuid7
 
+from airflow.sdk import timezone
 from airflow.sdk.api.client import RemoteValidationError, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,
@@ -33,6 +37,7 @@ from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
     DagRunState,
     DagRunStateResponse,
+    HITLDetailResponse,
     VariableResponse,
     XComResponse,
 )
@@ -40,12 +45,16 @@ from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     DeferTask,
     ErrorResponse,
+    HITLDetailRequestResult,
     OKResponse,
+    PreviousDagRunResult,
     RescheduleTask,
     TaskRescheduleStartDate,
 )
-from airflow.utils import timezone
 from airflow.utils.state import TerminalTIState
+
+if TYPE_CHECKING:
+    from time_machine import TimeMachineFixture
 
 
 class TestClient:
@@ -78,6 +87,16 @@ class TestClient:
 
         assert resp.status_code == 200
         assert resp.json() == json_response
+
+    @mock.patch("airflow.sdk.api.client.API_SSL_CERT_PATH", "/capath/does/not/exist/")
+    def test_add_capath(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(status_code=200)
+
+        with pytest.raises(FileNotFoundError) as err:
+            make_client(httpx.MockTransport(handle_request))
+
+        assert isinstance(err.value, FileNotFoundError)
 
     def test_error_parsing(self):
         responses = [
@@ -1129,6 +1148,86 @@ class TestDagRunOperations:
         result = client.dag_runs.get_count(dag_id="test_dag", run_ids=["run1", "run2"])
         assert result.count == 2
 
+    def test_get_previous_basic(self):
+        """Test basic get_previous functionality with dag_id and logical_date."""
+        logical_date = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dag-runs/test_dag/previous":
+                assert request.url.params["logical_date"] == logical_date.isoformat()
+                # Return complete DagRun data
+                return httpx.Response(
+                    status_code=200,
+                    json={
+                        "dag_id": "test_dag",
+                        "run_id": "prev_run",
+                        "logical_date": "2024-01-14T12:00:00+00:00",
+                        "start_date": "2024-01-14T12:05:00+00:00",
+                        "run_after": "2024-01-14T12:00:00+00:00",
+                        "run_type": "scheduled",
+                        "state": "success",
+                        "consumed_asset_events": [],
+                    },
+                )
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dag_runs.get_previous(dag_id="test_dag", logical_date=logical_date)
+
+        assert isinstance(result, PreviousDagRunResult)
+        assert result.dag_run.dag_id == "test_dag"
+        assert result.dag_run.run_id == "prev_run"
+        assert result.dag_run.state == "success"
+
+    def test_get_previous_with_state_filter(self):
+        """Test get_previous functionality with state filtering."""
+        logical_date = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dag-runs/test_dag/previous":
+                assert request.url.params["logical_date"] == logical_date.isoformat()
+                assert request.url.params["state"] == "success"
+                # Return complete DagRun data
+                return httpx.Response(
+                    status_code=200,
+                    json={
+                        "dag_id": "test_dag",
+                        "run_id": "prev_success_run",
+                        "logical_date": "2024-01-14T12:00:00+00:00",
+                        "start_date": "2024-01-14T12:05:00+00:00",
+                        "run_after": "2024-01-14T12:00:00+00:00",
+                        "run_type": "scheduled",
+                        "state": "success",
+                        "consumed_asset_events": [],
+                    },
+                )
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dag_runs.get_previous(dag_id="test_dag", logical_date=logical_date, state="success")
+
+        assert isinstance(result, PreviousDagRunResult)
+        assert result.dag_run.dag_id == "test_dag"
+        assert result.dag_run.run_id == "prev_success_run"
+        assert result.dag_run.state == "success"
+
+    def test_get_previous_not_found(self):
+        """Test get_previous when no previous DAG run exists returns None."""
+        logical_date = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dag-runs/test_dag/previous":
+                assert request.url.params["logical_date"] == logical_date.isoformat()
+                # Return None (null) when no previous DAG run found
+                return httpx.Response(status_code=200, content="null")
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dag_runs.get_previous(dag_id="test_dag", logical_date=logical_date)
+
+        assert isinstance(result, PreviousDagRunResult)
+        assert result.dag_run is None
+
 
 class TestTaskRescheduleOperations:
     def test_get_start_date(self):
@@ -1150,3 +1249,101 @@ class TestTaskRescheduleOperations:
 
         assert isinstance(result, TaskRescheduleStartDate)
         assert result.start_date == "2024-01-01T00:00:00Z"
+
+
+class TestHITLOperations:
+    def test_add_response(self) -> None:
+        ti_id = uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path in (f"/hitlDetails/{ti_id}"):
+                return httpx.Response(
+                    status_code=201,
+                    json={
+                        "ti_id": str(ti_id),
+                        "options": ["Approval", "Reject"],
+                        "subject": "This is subject",
+                        "body": "This is body",
+                        "defaults": ["Approval"],
+                        "params": None,
+                        "multiple": False,
+                    },
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.hitl.add_response(
+            ti_id=ti_id,
+            options=["Approval", "Reject"],
+            subject="This is subject",
+            body="This is body",
+            defaults=["Approval"],
+            params=None,
+            multiple=False,
+        )
+        assert isinstance(result, HITLDetailRequestResult)
+        assert result.ti_id == ti_id
+        assert result.options == ["Approval", "Reject"]
+        assert result.subject == "This is subject"
+        assert result.body == "This is body"
+        assert result.defaults == ["Approval"]
+        assert result.params is None
+        assert result.multiple is False
+
+    def test_update_response(self, time_machine: TimeMachineFixture) -> None:
+        time_machine.move_to(datetime(2025, 7, 3, 0, 0, 0))
+        ti_id = uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path in (f"/hitlDetails/{ti_id}"):
+                return httpx.Response(
+                    status_code=200,
+                    json={
+                        "chosen_options": ["Approval"],
+                        "params_input": {},
+                        "user_id": "admin",
+                        "response_received": True,
+                        "response_at": "2025-07-03T00:00:00Z",
+                    },
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.hitl.update_response(
+            ti_id=ti_id,
+            chosen_options=["Approve"],
+            params_input={},
+        )
+        assert isinstance(result, HITLDetailResponse)
+        assert result.response_received is True
+        assert result.chosen_options == ["Approval"]
+        assert result.params_input == {}
+        assert result.user_id == "admin"
+        assert result.response_at == timezone.datetime(2025, 7, 3, 0, 0, 0)
+
+    def test_get_detail_response(self, time_machine: TimeMachineFixture) -> None:
+        time_machine.move_to(datetime(2025, 7, 3, 0, 0, 0))
+        ti_id = uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path in (f"/hitlDetails/{ti_id}"):
+                return httpx.Response(
+                    status_code=200,
+                    json={
+                        "chosen_options": ["Approval"],
+                        "params_input": {},
+                        "user_id": "admin",
+                        "response_received": True,
+                        "response_at": "2025-07-03T00:00:00Z",
+                    },
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.hitl.get_detail_response(ti_id=ti_id)
+        assert isinstance(result, HITLDetailResponse)
+        assert result.response_received is True
+        assert result.chosen_options == ["Approval"]
+        assert result.params_input == {}
+        assert result.user_id == "admin"
+        assert result.response_at == timezone.datetime(2025, 7, 3, 0, 0, 0)

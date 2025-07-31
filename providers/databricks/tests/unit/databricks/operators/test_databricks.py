@@ -25,6 +25,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
+# Do not run the tests when FAB / Flask is not installed
+pytest.importorskip("flask_session")
+
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG
 from airflow.providers.common.compat.openlineage.facet import (
@@ -2364,7 +2367,7 @@ class TestDatabricksNotebookOperator:
 
         with pytest.raises(AirflowException) as exec_info:
             operator.monitor_databricks_job()
-        exception_message = "Task failed. Final state FAILED. Reason: FAILURE"
+        exception_message = "Task failed. Final state FAILED. Reason: FAILURE. Errors: []"
         assert exception_message == str(exec_info.value)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
@@ -2410,7 +2413,7 @@ class TestDatabricksNotebookOperator:
 
         with pytest.raises(AirflowException) as exc_info:
             operator.monitor_databricks_job()
-        exception_message = "Task failed. Final state FAILED. Reason: FAILURE"
+        exception_message = "Task failed. Final state FAILED. Reason: FAILURE. Errors: []"
         assert exception_message == str(exc_info.value)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")

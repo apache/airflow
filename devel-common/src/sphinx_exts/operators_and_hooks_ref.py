@@ -27,9 +27,7 @@ import jinja2
 import rich_click as click
 import yaml
 from docutils import nodes
-
-# No stub exists for docutils.parsers.rst.directives. See https://github.com/python/typeshed/issues/5755.
-from docutils.parsers.rst import Directive, directives  # type: ignore[attr-defined]
+from docutils.parsers.rst import Directive, directives
 from docutils.statemachine import StringList
 from provider_yaml_utils import get_all_provider_yaml_paths, load_package_data
 from sphinx.util import nested_parse_with_titles
@@ -287,7 +285,7 @@ def _iter_module_for_deprecations(ast_node, file_path, class_name=None) -> list[
         if isinstance(child, ast.ClassDef):
             analyze_decorators(child, file_path, object_type="class")
             deprecations.extend(_iter_module_for_deprecations(child, file_path, class_name=child.name))
-        elif isinstance(child, ast.FunctionDef | ast.AsyncFunctionDef):
+        elif isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
             analyze_decorators(
                 child, file_path, _class_name=class_name, object_type="method" if class_name else "function"
             )

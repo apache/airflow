@@ -19,10 +19,17 @@
   },
   "header": {
     "buttons": {
+      "advanced": "進階功能",
       "dagDocs": "Dag 文件"
     }
   },
   "logs": {
+    "allLevels": "所有日誌等級",
+    "allSources": "所有來源",
+    "fullscreen": {
+      "button": "全螢幕",
+      "tooltip": "按下 {{hotkey}} 進入全螢幕"
+    },
     "noTryNumber": "沒有嘗試次數",
     "viewInExternal": "在 {{name}} 中檢視日誌(嘗試 {{attempt}})"
   },
@@ -98,13 +105,5 @@
   "taskGroups": {
     "collapseAll": "收合所有任務群組",
     "expandAll": "展開所有任務群組"
-  },
-  "taskLogs": {
-    "allLogLevels": "所有日誌等級",
-    "allSources": "所有來源",
-    "fullscreen": {
-      "button": "全螢幕",
-      "tooltip": "按下 {{hotkey}} 進入全螢幕"
-    }
   }
 }

@@ -55,7 +55,8 @@
     "runAfter": "Gelaufen ab",
     "runType": "Typ des Laufs",
     "sourceAssetEvent": "Ursprung des Datenset (Asset) Ereignisses",
-    "triggeredBy": "Angestoßen von"
+    "triggeredBy": "Angestoßen von",
+    "triggeringUser": "Benutzer der ausgelöst hat"
   },
   "dagRun_one": "Dag Lauf",
   "dagRun_other": "Dag Läufe",
@@ -76,6 +77,12 @@
     "home": "Start",
     "notFound": "Seite nicht gefunden",
     "title": "Fehler"
+  },
+  "expand": {
+    "collapse": "Einklappen",
+    "expand": "Ausklappen",
+    "hotkey": "e",
+    "tooltip": "Tastenkombination {{hotkey}} zum Ein-/Ausklappen drücken"
   },
   "expression": {
     "all": "Alle",
@@ -102,6 +109,7 @@
     "dags": "Dags",
     "docs": "Doku",
     "home": "Start",
+    "legacyFabViews": "Alte Ansichten",
     "plugins": "Plug-ins",
     "security": "Sicherheit"
   },
@@ -146,6 +154,11 @@
   },
   "selectLanguage": "Sprache wählen",
   "showDetailsPanel": "Detailansicht einblenden",
+  "source": {
+    "hide": "Log-Quelle ausblenden",
+    "hotkey": "s",
+    "show": "Log-Quelle einblenden"
+  },
   "sourceAssetEvent_one": "Urspung des Datenset (Asset) Ereignisses",
   "sourceAssetEvent_other": "Urspung der Datenset (Asset) Ereignisse",
   "startDate": "Startdatum",
@@ -225,6 +238,11 @@
     "lastHour": "Letzte Stunde",
     "pastWeek": "Letzte Woche"
   },
+  "timestamp": {
+    "hide": "Zeitstempel ausblenden",
+    "hotkey": "t",
+    "show": "Zeitstempel einblenden"
+  },
   "timezone": "Zeitzone",
   "timezoneModal": {
     "current-timezone": "Aktuelle Zeit in",
@@ -269,10 +287,12 @@
       }
     }
   },
+  "total": "Gesamt {{state}}",
   "triggered": "Angestoßen",
   "tryNumber": "Versuch Nummer",
   "user": "Benutzer",
   "wrap": {
+    "hotkey": "w",
     "tooltip": "Buchstabe {{hotkey}} drücken um den Zeilenumbruch umzuschalten",
     "unwrap": "Kein Zeilenumbruch",
     "wrap": "Zeilenumbruch"

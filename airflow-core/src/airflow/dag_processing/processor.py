@@ -16,10 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
+import importlib
 import os
 import sys
 import traceback
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, BinaryIO, ClassVar, Literal
 
@@ -38,14 +40,21 @@ from airflow.sdk.execution_time.comms import (
     DeleteVariable,
     ErrorResponse,
     GetConnection,
+    GetPreviousDagRun,
+    GetPrevSuccessfulDagRun,
     GetVariable,
     OKResponse,
+    PreviousDagRunResult,
+    PrevSuccessfulDagRunResult,
     PutVariable,
     VariableResult,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
+from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.stats import Stats
+from airflow.utils.file import iter_airflow_imports
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
@@ -89,14 +98,47 @@ class DagFileParsingResult(BaseModel):
 
 
 ToManager = Annotated[
-    DagFileParsingResult | GetConnection | GetVariable | PutVariable | DeleteVariable,
+    DagFileParsingResult
+    | GetConnection
+    | GetVariable
+    | PutVariable
+    | DeleteVariable
+    | GetPrevSuccessfulDagRun
+    | GetPreviousDagRun,
     Field(discriminator="type"),
 ]
 
 ToDagProcessor = Annotated[
-    DagFileParseRequest | ConnectionResult | VariableResult | ErrorResponse | OKResponse,
+    DagFileParseRequest
+    | ConnectionResult
+    | VariableResult
+    | PreviousDagRunResult
+    | PrevSuccessfulDagRunResult
+    | ErrorResponse
+    | OKResponse,
     Field(discriminator="type"),
 ]
+
+
+def _pre_import_airflow_modules(file_path: str, log: FilteringBoundLogger) -> None:
+    """
+    Pre-import Airflow modules found in the given file.
+
+    This prevents modules from being re-imported in each processing process,
+    saving CPU time and memory.
+    (The default value of "parsing_pre_import_modules" is set to True)
+
+    :param file_path: Path to the file to scan for imports
+    :param log: Logger instance to use for warnings
+    """
+    if not conf.getboolean("dag_processor", "parsing_pre_import_modules", fallback=True):
+        return
+
+    for module in iter_airflow_imports(file_path):
+        try:
+            importlib.import_module(module)
+        except ModuleNotFoundError as e:
+            log.warning("Error when trying to pre-import module '%s' found in %s: %s", module, file_path, e)
 
 
 def _parse_file_entrypoint():
@@ -128,11 +170,11 @@ def _parse_file_entrypoint():
 
 def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileParsingResult | None:
     # TODO: Set known_pool names on DagBag!
+
     bag = DagBag(
         dag_folder=msg.file,
         bundle_path=msg.bundle_path,
         include_examples=False,
-        safe_mode=True,
         load_op_links=False,
     )
     if msg.callback_requests:
@@ -177,15 +219,14 @@ def _execute_callbacks(
     for request in callback_requests:
         log.debug("Processing Callback Request", request=request.to_json())
         if isinstance(request, TaskCallbackRequest):
-            raise NotImplementedError(
-                "Haven't coded Task callback yet - https://github.com/apache/airflow/issues/44354!"
-            )
-            # _execute_task_callbacks(dagbag, request)
+            _execute_task_callbacks(dagbag, request, log)
         if isinstance(request, DagCallbackRequest):
             _execute_dag_callbacks(dagbag, request, log)
 
 
 def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: FilteringBoundLogger) -> None:
+    from airflow.sdk.api.datamodels._generated import TIRunContext
+
     dag = dagbag.dags[request.dag_id]
 
     callbacks = dag.on_failure_callback if request.is_failure_callback else dag.on_success_callback
@@ -194,12 +235,27 @@ def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: Fil
         return
 
     callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
-    # TODO:We need a proper context object!
-    context: Context = {  # type: ignore[assignment]
-        "dag": dag,
-        "run_id": request.run_id,
-        "reason": request.msg,
-    }
+    ctx_from_server = request.context_from_server
+
+    if ctx_from_server is not None and ctx_from_server.last_ti is not None:
+        task = dag.get_task(ctx_from_server.last_ti.task_id)
+
+        runtime_ti = RuntimeTaskInstance.model_construct(
+            **ctx_from_server.last_ti.model_dump(exclude_unset=True),
+            task=task,
+            _ti_context_from_server=TIRunContext.model_construct(
+                dag_run=ctx_from_server.dag_run,
+                max_tries=task.retries,
+            ),
+        )
+        context = runtime_ti.get_template_context()
+        context["reason"] = request.msg
+    else:
+        context: Context = {  # type: ignore[no-redef]
+            "dag": dag,
+            "run_id": request.run_id,
+            "reason": request.msg,
+        }
 
     for callback in callbacks:
         log.info(
@@ -212,6 +268,67 @@ def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: Fil
         except Exception:
             log.exception("Callback failed", dag_id=request.dag_id)
             Stats.incr("dag.callback_exceptions", tags={"dag_id": request.dag_id})
+
+
+def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: FilteringBoundLogger) -> None:
+    if not request.is_failure_callback:
+        log.warning(
+            "Task callback requested but is not a failure callback",
+            dag_id=request.ti.dag_id,
+            task_id=request.ti.task_id,
+            run_id=request.ti.run_id,
+        )
+        return
+
+    dag = dagbag.dags[request.ti.dag_id]
+    task = dag.get_task(request.ti.task_id)
+
+    if request.task_callback_type is TaskInstanceState.UP_FOR_RETRY:
+        callbacks = task.on_retry_callback
+    else:
+        callbacks = task.on_failure_callback
+
+    if not callbacks:
+        log.warning(
+            "Callback requested but no callback found",
+            dag_id=request.ti.dag_id,
+            task_id=request.ti.task_id,
+            run_id=request.ti.run_id,
+            ti_id=request.ti.id,
+        )
+        return
+
+    callbacks = callbacks if isinstance(callbacks, Sequence) else [callbacks]
+    ctx_from_server = request.context_from_server
+
+    if ctx_from_server is not None:
+        runtime_ti = RuntimeTaskInstance.model_construct(
+            **request.ti.model_dump(exclude_unset=True),
+            task=task,
+            _ti_context_from_server=ctx_from_server,
+            max_tries=ctx_from_server.max_tries,
+        )
+    else:
+        runtime_ti = RuntimeTaskInstance.model_construct(
+            **request.ti.model_dump(exclude_unset=True),
+            task=task,
+        )
+    context = runtime_ti.get_template_context()
+
+    def get_callback_representation(callback):
+        with contextlib.suppress(AttributeError):
+            return callback.__name__
+        with contextlib.suppress(AttributeError):
+            return callback.__class__.__name__
+        return callback
+
+    for idx, callback in enumerate(callbacks):
+        callback_repr = get_callback_representation(callback)
+        log.info("Executing Task callback at index %d: %s", idx, callback_repr)
+        try:
+            callback(context)
+        except Exception:
+            log.exception("Error in callback at index %d: %s", idx, callback_repr)
 
 
 def in_process_api_server() -> InProcessExecutionAPI:
@@ -251,6 +368,10 @@ class DagFileProcessorProcess(WatchedSubprocess):
         client: Client,
         **kwargs,
     ) -> Self:
+        logger = kwargs["logger"]
+
+        _pre_import_airflow_modules(os.fspath(path), logger)
+
         proc: Self = super().start(target=target, client=client, **kwargs)
         proc._on_child_started(callbacks, path, bundle_path)
         return proc
@@ -268,7 +389,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
         )
         self.send_msg(msg, request_id=0)
 
-    def _handle_request(self, msg: ToManager, log: FilteringBoundLogger, req_id: int) -> None:  # type: ignore[override]
+    def _handle_request(self, msg: ToManager, log: FilteringBoundLogger, req_id: int) -> None:
         from airflow.sdk.api.datamodels._generated import ConnectionResponse, VariableResponse
 
         resp: BaseModel | None = None
@@ -295,6 +416,17 @@ class DagFileProcessorProcess(WatchedSubprocess):
             self.client.variables.set(msg.key, msg.value, msg.description)
         elif isinstance(msg, DeleteVariable):
             resp = self.client.variables.delete(msg.key)
+        elif isinstance(msg, GetPreviousDagRun):
+            resp = self.client.dag_runs.get_previous(
+                dag_id=msg.dag_id,
+                logical_date=msg.logical_date,
+                state=msg.state,
+            )
+        elif isinstance(msg, GetPrevSuccessfulDagRun):
+            dagrun_resp = self.client.task_instances.get_previous_successful_dagrun(self.id)
+            dagrun_result = PrevSuccessfulDagRunResult.from_dagrun_response(dagrun_resp)
+            resp = dagrun_result
+            dump_opts = {"exclude_unset": True}
         else:
             log.error("Unhandled request", msg=msg)
             self.send_msg(

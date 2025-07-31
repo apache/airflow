@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import collections
 from typing import Any, Protocol
 
 import structlog
@@ -30,6 +31,9 @@ from airflow.sdk.execution_time.comms import (
     XComSequenceSliceResult,
 )
 
+# Lightweight wrapper for XCom values
+_XComValueWrapper = collections.namedtuple("_XComValueWrapper", "value")
+
 log = structlog.get_logger(logger_name="task")
 
 
@@ -42,6 +46,8 @@ class TIKeyProtocol(Protocol):
 
 class BaseXCom:
     """BaseXcom is an interface now to interact with XCom backends."""
+
+    XCOM_RETURN_KEY = "return_value"
 
     @classmethod
     def set(
@@ -273,6 +279,7 @@ class BaseXCom:
         dag_id: str,
         task_id: str,
         run_id: str,
+        include_prior_dates: bool = False,
     ) -> Any:
         """
         Retrieve all XCom values for a task, typically from all map indexes.
@@ -287,6 +294,9 @@ class BaseXCom:
         :param run_id: DAG run ID for the task.
         :param dag_id: DAG ID to pull XComs from.
         :param task_id: Task ID to pull XComs from.
+        :param include_prior_dates: If *False* (default), only XComs from the
+            specified DAG run are returned. If *True*, the latest matching XComs are
+            returned regardless of the run they belong to.
         :return: List of all XCom values if found.
         """
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
@@ -300,13 +310,17 @@ class BaseXCom:
                 start=None,
                 stop=None,
                 step=None,
+                include_prior_dates=include_prior_dates,
             ),
         )
 
         if not isinstance(msg, XComSequenceSliceResult):
             raise TypeError(f"Expected XComSequenceSliceResult, received: {type(msg)} {msg}")
 
-        return msg.root
+        if not msg.root:
+            return None
+
+        return [cls.deserialize_value(_XComValueWrapper(value)) for value in msg.root]
 
     @staticmethod
     def serialize_value(
@@ -355,7 +369,7 @@ class BaseXCom:
             run_id=run_id,
             map_index=map_index,
         )
-        cls.purge(xcom_result)  # type: ignore[call-arg]
+        cls.purge(xcom_result)
         SUPERVISOR_COMMS.send(
             DeleteXCom(
                 key=key,

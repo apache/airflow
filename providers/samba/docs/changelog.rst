@@ -27,6 +27,38 @@
 Changelog
 ---------
 
+4.10.2
+......
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup type ignores in samba provider where possible (#53269)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Bugfix/fix mypy samba (#53113)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Moving BaseHook usages to version_compat for samba (#52913)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Removed unnecessary shebangs from test files (#52992)``
+
+4.10.1
+......
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Provider Migration: Replace 'BaseOperator' to Task SDK for 'samba' (#52588)``
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove pytest.mark.db_test from samba provider (#52045)``
+
 4.10.0
 ......
 

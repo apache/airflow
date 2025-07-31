@@ -217,7 +217,7 @@ def bytes2human(n):
 def get_printable_value(key: str, value: Any) -> str:
     if key == "percent":
         return f"{value} %"
-    if isinstance(value, int | float):
+    if isinstance(value, (int, float)):
         return bytes2human(value)
     return str(value)
 

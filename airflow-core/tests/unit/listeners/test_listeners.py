@@ -22,11 +22,11 @@ import os
 
 import pytest
 
+from airflow._shared.timezones import timezone
 from airflow.exceptions import AirflowException
 from airflow.jobs.job import Job, run_job
 from airflow.listeners.listener import get_listener_manager
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 
@@ -69,7 +69,7 @@ def clean_listener_manager():
 
 
 @provide_session
-def test_listener_gets_calls(create_task_instance, session=None):
+def test_listener_gets_calls(create_task_instance, session):
     lm = get_listener_manager()
     lm.add_listener(full_listener)
 
@@ -84,7 +84,7 @@ def test_listener_gets_calls(create_task_instance, session=None):
 
 
 @provide_session
-def test_multiple_listeners(create_task_instance, session=None):
+def test_multiple_listeners(create_task_instance, session):
     lm = get_listener_manager()
     lm.add_listener(full_listener)
     lm.add_listener(lifecycle_listener)
@@ -105,7 +105,7 @@ def test_multiple_listeners(create_task_instance, session=None):
 
 
 @provide_session
-def test_listener_gets_only_subscribed_calls(create_task_instance, session=None):
+def test_listener_gets_only_subscribed_calls(create_task_instance, session):
     lm = get_listener_manager()
     lm.add_listener(partial_listener)
 
@@ -130,7 +130,7 @@ def test_listener_suppresses_exceptions(create_task_instance, session, cap_struc
 
 
 @provide_session
-def test_listener_captures_failed_taskinstances(create_task_instance_of_operator, session=None):
+def test_listener_captures_failed_taskinstances(create_task_instance_of_operator, session):
     lm = get_listener_manager()
     lm.add_listener(full_listener)
 
@@ -145,7 +145,7 @@ def test_listener_captures_failed_taskinstances(create_task_instance_of_operator
 
 
 @provide_session
-def test_listener_captures_longrunning_taskinstances(create_task_instance_of_operator, session=None):
+def test_listener_captures_longrunning_taskinstances(create_task_instance_of_operator, session):
     lm = get_listener_manager()
     lm.add_listener(full_listener)
 
@@ -159,7 +159,7 @@ def test_listener_captures_longrunning_taskinstances(create_task_instance_of_ope
 
 
 @provide_session
-def test_class_based_listener(create_task_instance, session=None):
+def test_class_based_listener(create_task_instance, session):
     lm = get_listener_manager()
     listener = class_listener.ClassBasedListener()
     lm.add_listener(listener)

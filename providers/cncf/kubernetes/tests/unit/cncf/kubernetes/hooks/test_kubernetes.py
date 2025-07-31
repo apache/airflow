@@ -882,7 +882,29 @@ class TestAsyncKubernetesHook:
         await hook._load_config()
         assert not incluster_config.called
         assert hook._is_in_cluster is False
-        kube_config_loader.assert_called_once()
+        kube_config_loader.assert_called_once_with(
+            config_dict={"a": "b"}, config_base_path=None, active_context=None, temp_file_path=None
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch(INCLUSTER_CONFIG_LOADER)
+    @mock.patch(KUBE_CONFIG_MERGER)
+    async def test_load_config_with_config_dict_and_cluster_context(
+        self, kube_config_merger, incluster_config, kube_config_loader
+    ):
+        cluster_context = "some_kubernetes_cluster"
+        hook = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_dict={"a": "b"},
+            cluster_context=cluster_context,
+        )
+        await hook._load_config()
+        assert not incluster_config.called
+        assert hook._is_in_cluster is False
+        kube_config_loader.assert_called_once_with(
+            config_dict={"a": "b"}, config_base_path=None, active_context=cluster_context, temp_file_path=None
+        )
 
     @pytest.mark.asyncio
     @mock.patch(INCLUSTER_CONFIG_LOADER)
