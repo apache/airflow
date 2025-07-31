@@ -20,6 +20,8 @@ from __future__ import annotations
 
 import collections.abc
 import contextlib
+import functools
+import inspect
 import logging
 import re
 import sys
@@ -192,6 +194,29 @@ class SecretsMasker(logging.Filter):
     def __init__(self):
         super().__init__()
         self.patterns = set()
+
+    @classmethod
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+
+        if cls._redact is not SecretsMasker._redact:
+            sig = inspect.signature(cls._redact)
+            # Compat for older versions of the OpenLineage plugin which subclasses this -- call the method
+            # without the replacement character
+            for param in sig.parameters.values():
+                if param.name == "replacement" or param.kind == param.VAR_KEYWORD:
+                    break
+            else:
+                # Block only runs if no break above.
+
+                f = cls._redact
+
+                @functools.wraps(f)
+                def _redact(*args, replacement: str = "***", **kwargs):
+                    return f(*args, **kwargs)
+
+                cls._redact = _redact
+                ...
 
     @cached_property
     def _record_attrs_to_ignore(self) -> Iterable[str]:
