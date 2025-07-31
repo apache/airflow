@@ -36,13 +36,17 @@ import type { ConnectionBody } from "./Connections";
 type AddConnectionFormProps = {
   readonly error: unknown;
   readonly initialConnection: ConnectionBody;
+  readonly isEditMode?: boolean;
   readonly isPending: boolean;
   readonly mutateConnection: (requestBody: ConnectionBody) => void;
 };
 
+const redactedFieldDisclaimer = "Redacted fields ('***') will remain unchanged if not modified.";
+
 const ConnectionForm = ({
   error,
   initialConnection,
+  isEditMode = false,
   isPending,
   mutateConnection,
 }: AddConnectionFormProps) => {
@@ -202,6 +206,7 @@ const ConnectionForm = ({
               initialParamsDict={paramsDic}
               key={selectedConnType}
               setError={setFormErrors}
+              subHeader={isEditMode ? redactedFieldDisclaimer : undefined}
             />
             <Accordion.Item key="extraJson" value="extraJson">
               <Accordion.ItemTrigger cursor="button">Extra Fields JSON</Accordion.ItemTrigger>
@@ -218,6 +223,9 @@ const ConnectionForm = ({
                         }}
                       />
                       {Boolean(errors.conf) ? <Field.ErrorText>{errors.conf}</Field.ErrorText> : undefined}
+                      {isEditMode ? (
+                        <Field.HelperText>{redactedFieldDisclaimer}</Field.HelperText>
+                      ) : undefined}
                     </Field.Root>
                   )}
                 />
