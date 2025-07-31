@@ -34,8 +34,8 @@ from airflow.sdk.execution_time.hitl import (
     get_hitl_detail_content_detail,
     update_htil_detail_response,
 )
+from airflow.sdk.timezone import utcnow
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from airflow.utils import timezone
 
 
 class HITLTriggerEventSuccessPayload(TypedDict, total=False):
@@ -97,7 +97,7 @@ class HITLTrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Loop until the Human-in-the-loop response received or timeout reached."""
         while True:
-            if self.timeout_datetime and self.timeout_datetime < timezone.utcnow():
+            if self.timeout_datetime and self.timeout_datetime < utcnow():
                 if self.defaults is None:
                     yield TriggerEvent(
                         HITLTriggerEventFailurePayload(
