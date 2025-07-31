@@ -32,7 +32,6 @@ export const VersionIndicator = ({ orientation, styleOverrides, versionNumber }:
     <Box
       aria-label={ariaLabel}
       as="output"
-      bg="orange.400"
       height={isVertical ? "100px" : "2px"}
       left={isVertical ? "-1px" : "0"}
       position="absolute"
@@ -41,21 +40,55 @@ export const VersionIndicator = ({ orientation, styleOverrides, versionNumber }:
       zIndex={3}
       {...styleOverrides}
     >
-      <Text
-        bg="white"
-        borderRadius="2px"
-        color="orange.700"
-        fontSize={isVertical ? "10px" : "8px"}
-        left={isVertical ? "-5px" : undefined}
-        position="absolute"
-        px="1px"
-        right={isVertical ? undefined : "-8px"}
-        title={`DAG version ${versionNumber}`}
-        top={isVertical ? "-16px" : "-4px"}
-        whiteSpace="nowrap"
-      >
-        {`v${versionNumber ?? ""}`}
-      </Text>
+      {isVertical ? (
+        <>
+          <Box bg="orange.400" height="100px" width="2px" />
+          <Text
+            bg="white"
+            borderRadius="2px"
+            color="orange.700"
+            fontSize="10px"
+            left="-5px"
+            position="absolute"
+            px="1px"
+            title={`DAG version ${versionNumber}`}
+            top="-16px"
+            whiteSpace="nowrap"
+          >
+            {`v${versionNumber ?? ""}`}
+          </Text>
+        </>
+      ) : (
+        <>
+          <Box bg="orange.400" height="2px" left="0" position="absolute" top="0" width="4px" />
+          <Box
+            alignItems="center"
+            bg="transparent"
+            borderRadius="2px"
+            display="flex"
+            height="10px"
+            justifyContent="center"
+            left="4px"
+            position="absolute"
+            top="-4px"
+            width="10px"
+          >
+            <Text
+              bg="white"
+              borderRadius="2px"
+              color="orange.700"
+              fontSize="6px"
+              fontWeight="bold"
+              px="1px"
+              title={`DAG version ${versionNumber}`}
+              whiteSpace="nowrap"
+            >
+              {`v${versionNumber ?? ""}`}
+            </Text>
+          </Box>
+          <Box bg="orange.400" height="2px" left="14px" position="absolute" top="0" width="4px" />
+        </>
+      )}
     </Box>
   );
 };
