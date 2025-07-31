@@ -16,18 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
-from httpx import Client
-
-from tests_common.test_utils.db import AIRFLOW_V_3_1_PLUS
-
-if not AIRFLOW_V_3_1_PLUS:
-    pytest.skip("Human in the loop public API compatible with Airflow >= 3.0.1", allow_module_level=True)
-
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
+import pytest
 import time_machine
+from httpx import Client
 from uuid6 import uuid7
 
 from airflow._shared.timezones.timezone import convert_to_utc
