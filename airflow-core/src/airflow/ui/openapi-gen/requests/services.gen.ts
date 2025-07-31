@@ -3516,6 +3516,7 @@ export class HumanInTheLoopService {
      * @param data.orderBy
      * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.dagRunId
+     * @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.state
      * @param data.responseReceived
      * @param data.userId
@@ -3534,6 +3535,7 @@ export class HumanInTheLoopService {
                 order_by: data.orderBy,
                 dag_id_pattern: data.dagIdPattern,
                 dag_run_id: data.dagRunId,
+                task_id_pattern: data.taskIdPattern,
                 state: data.state,
                 response_received: data.responseReceived,
                 user_id: data.userId,

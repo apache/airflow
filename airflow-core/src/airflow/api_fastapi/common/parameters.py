@@ -786,6 +786,15 @@ QueryHITLDetailDagIdPatternSearch = Annotated[
         )
     ),
 ]
+QueryHITLDetailTaskIdPatternSearch = Annotated[
+    _SearchParam,
+    Depends(
+        search_param_factory(
+            TaskInstance.task_id,
+            "task_id_pattern",
+        )
+    ),
+]
 QueryHITLDetailDagRunIdFilter = Annotated[
     FilterParam[str],
     Depends(

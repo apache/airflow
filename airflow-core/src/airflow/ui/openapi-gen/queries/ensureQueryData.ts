@@ -1223,6 +1223,7 @@ export const ensureUseHumanInTheLoopServiceGetMappedTiHitlDetailData = (queryCli
 * @param data.orderBy
 * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @param data.dagRunId
+* @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @param data.state
 * @param data.responseReceived
 * @param data.userId
@@ -1231,7 +1232,7 @@ export const ensureUseHumanInTheLoopServiceGetMappedTiHitlDetailData = (queryCli
 * @returns HITLDetailCollection Successful Response
 * @throws ApiError
 */
-export const ensureUseHumanInTheLoopServiceGetHitlDetailsData = (queryClient: QueryClient, { bodySearch, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, userId }: {
+export const ensureUseHumanInTheLoopServiceGetHitlDetailsData = (queryClient: QueryClient, { bodySearch, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, taskIdPattern, userId }: {
   bodySearch?: string;
   dagIdPattern?: string;
   dagRunId?: string;
@@ -1241,8 +1242,9 @@ export const ensureUseHumanInTheLoopServiceGetHitlDetailsData = (queryClient: Qu
   responseReceived?: boolean;
   state?: string[];
   subjectSearch?: string;
+  taskIdPattern?: string;
   userId?: string[];
-} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailsKeyFn({ bodySearch, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, userId }), queryFn: () => HumanInTheLoopService.getHitlDetails({ bodySearch, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, userId }) });
+} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailsKeyFn({ bodySearch, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, taskIdPattern, userId }), queryFn: () => HumanInTheLoopService.getHitlDetails({ bodySearch, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, taskIdPattern, userId }) });
 /**
 * Get Health
 * @returns HealthInfoResponse Successful Response
