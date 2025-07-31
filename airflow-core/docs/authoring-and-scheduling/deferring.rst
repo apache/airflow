@@ -31,7 +31,7 @@ An overview of how this process works:
 * The trigger runs until it fires, at which point its source task is re-scheduled by the scheduler.
 * The scheduler queues the task to resume on a worker node.
 
-You can either use pre-written deferrable operators as a DAG author or write your own. Writing them, however, requires that they meet certain design criteria.
+You can either use pre-written deferrable operators as a Dag author or write your own. Writing them, however, requires that they meet certain design criteria.
 
 Using Deferrable Operators
 --------------------------

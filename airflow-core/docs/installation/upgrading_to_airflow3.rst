@@ -83,7 +83,7 @@ Step 2: Clean and back up your existing Airflow Instance
   ensure you deploy your changes to your old instance prior to upgrade, and wait until your dags have all been reprocessed
   (and all errors gone) before you proceed with upgrade.
 
-Step 3: DAG Authors - Check your Airflow DAGs for compatibility
+Step 3: Dag Authors - Check your Airflow Dags for compatibility
 ----------------------------------------------------------------
 
 To minimize friction for users upgrading from prior versions of Airflow, we have created a dag upgrade check utility using `Ruff <https://docs.astral.sh/ruff/>`_.
@@ -115,7 +115,7 @@ Step 4: Install the Standard Providers
 
 - Some of the commonly used Operators which were bundled as part of the ``airflow-core`` package (for example ``BashOperator`` and ``PythonOperator``)
   have now been split out into a separate package: ``apache-airflow-providers-standard``.
-- For convenience, this package can also be installed on Airflow 2.x versions, so that DAGs can be modified to reference these Operators from the standard provider
+- For convenience, this package can also be installed on Airflow 2.x versions, so that Dags can be modified to reference these Operators from the standard provider
   package instead of Airflow Core.
 
 Step 5: Review custom operators for direct db access
