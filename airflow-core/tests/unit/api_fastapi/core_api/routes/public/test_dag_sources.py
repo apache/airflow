@@ -24,7 +24,7 @@ import pytest
 from httpx import Response
 from sqlalchemy import select
 
-from airflow.models.dagbag import SchedulerDagBag
+from airflow.models.dagbag import DBDagBag
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils.state import DagRunState
@@ -48,7 +48,7 @@ TEST_DAG_DISPLAY_NAME = "example_simplest_dag"
 @pytest.fixture
 def test_dag(session):
     parse_and_sync_to_db(EXAMPLE_DAG_FILE, include_examples=False)
-    return SchedulerDagBag().get_latest_version_of_dag(TEST_DAG_ID, session)
+    return DBDagBag().get_latest_version_of_dag(TEST_DAG_ID, session)
 
 
 class TestGetDAGSource:
