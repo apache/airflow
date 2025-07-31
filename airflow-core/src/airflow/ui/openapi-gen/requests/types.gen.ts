@@ -1813,9 +1813,6 @@ export type GridRunsResponse = {
     state: TaskInstanceState | null;
     run_type: DagRunType;
     dag_version_number?: number | null;
-    dag_version_id?: string | null;
-    is_version_changed?: boolean;
-    version_changes?: Array<(number)>;
     readonly duration: number;
 };
 

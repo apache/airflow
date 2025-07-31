@@ -107,17 +107,22 @@ export const Grid = ({ limit }: Props) => {
             )}
           </Flex>
           <Flex flexDirection="row-reverse">
-            {gridRuns?.map((dr: GridRunsResponse) => (
-              <Bar
-                key={dr.run_id}
-                max={max}
-                nodes={flatNodes}
-                run={dr}
-                showVersionIndicator={dr.is_version_changed}
-                versionChanges={dr.version_changes}
-                versionNumber={dr.dag_version_number}
-              />
-            ))}
+            {gridRuns?.map((dr: GridRunsResponse, index: number) => {
+              // Compare with previous run to determine if version changed
+              const prevRun = index < gridRuns.length - 1 ? gridRuns[index + 1] : undefined;
+              const showVersionIndicator = prevRun && prevRun.dag_version_number !== dr.dag_version_number;
+
+              return (
+                <Bar
+                  key={dr.run_id}
+                  max={max}
+                  nodes={flatNodes}
+                  run={dr}
+                  showVersionIndicator={showVersionIndicator}
+                  versionNumber={dr.dag_version_number}
+                />
+              );
+            })}
           </Flex>
           {selectedIsVisible ? (
             <Link to={`/dags/${dagId}`}>

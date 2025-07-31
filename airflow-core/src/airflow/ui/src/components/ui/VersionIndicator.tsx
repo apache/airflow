@@ -20,21 +20,18 @@ import { Box, Text } from "@chakra-ui/react";
 
 type VersionIndicatorProps = {
   readonly orientation: "horizontal" | "vertical";
-  readonly styleOverrides?: object;
-  readonly versionChanges?: Array<number>;
+  readonly styleOverrides?: Record<string, unknown>;
   readonly versionNumber?: number | null;
 };
 
-export const VersionIndicator = ({
-  orientation,
-  styleOverrides,
-  versionChanges,
-  versionNumber,
-}: VersionIndicatorProps) => {
+export const VersionIndicator = ({ orientation, styleOverrides, versionNumber }: VersionIndicatorProps) => {
   const isVertical = orientation === "vertical";
+  const ariaLabel = `DAG version ${versionNumber} indicator`;
 
   return (
     <Box
+      aria-label={ariaLabel}
+      as="output"
       bg="orange.400"
       height={isVertical ? "100px" : "2px"}
       left={isVertical ? "-1px" : "0"}
@@ -53,11 +50,7 @@ export const VersionIndicator = ({
         position="absolute"
         px="1px"
         right={isVertical ? undefined : "-8px"}
-        title={
-          versionChanges && versionChanges.length > 0
-            ? `New versions: ${versionChanges.join(", ")}`
-            : undefined
-        }
+        title={`DAG version ${versionNumber}`}
         top={isVertical ? "-16px" : "-4px"}
         whiteSpace="nowrap"
       >

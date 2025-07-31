@@ -35,18 +35,10 @@ type Props = {
   readonly nodes: Array<GridTask>;
   readonly run: GridRunsResponse;
   readonly showVersionIndicator?: boolean;
-  readonly versionChanges?: Array<number>;
   readonly versionNumber?: number | null;
 };
 
-export const Bar = ({
-  max,
-  nodes,
-  run,
-  showVersionIndicator = false,
-  versionChanges,
-  versionNumber,
-}: Props) => {
+export const Bar = ({ max, nodes, run, showVersionIndicator = false, versionNumber }: Props) => {
   const { dagId = "", runId } = useParams();
   const [searchParams] = useSearchParams();
 
@@ -64,12 +56,7 @@ export const Bar = ({
     >
       {/* Dag version change indicator - shows when version changes between runs */}
       {Boolean(showVersionIndicator) && (
-        <VersionIndicator
-          aria-label="Dag version change indicator"
-          orientation="vertical"
-          versionChanges={versionChanges}
-          versionNumber={versionNumber}
-        />
+        <VersionIndicator orientation="vertical" versionNumber={versionNumber} />
       )}
 
       <Flex

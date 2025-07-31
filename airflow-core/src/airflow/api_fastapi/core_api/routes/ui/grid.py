@@ -44,7 +44,6 @@ from airflow.api_fastapi.core_api.datamodels.ui.grid import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_dag
-from airflow.api_fastapi.core_api.services.ui.dag_version import DagVersionService
 from airflow.api_fastapi.core_api.services.ui.grid import (
     _find_aggregates,
     _merge_node_dicts,
@@ -220,6 +219,7 @@ def get_grid_runs(
     """Get info about a run for the grid."""
     try:
         # Base query to get DagRun information with version details
+        # Only load what's absolutely necessary - created_dag_version for fallback
         base_query = (
             select(DagRun).options(joinedload(DagRun.created_dag_version)).where(DagRun.dag_id == dag_id)
         )
@@ -247,11 +247,17 @@ def get_grid_runs(
         if not dag_runs:
             return []
 
-        version_service = DagVersionService()
-        version_info_list = version_service.get_version_info_for_runs(dag_runs)
-
         response = []
-        for dag_run, version_info in zip(dag_runs, version_info_list):
+        for dag_run in dag_runs:
+            # Simple version number extraction - let client handle comparison logic
+            dag_version_number = None
+            if dag_run.dag_versions:
+                # Get the latest version number from dag_versions
+                dag_version_number = max(dv.version_number for dv in dag_run.dag_versions)
+            elif dag_run.created_dag_version:
+                # Fallback to created_dag_version
+                dag_version_number = dag_run.created_dag_version.version_number
+
             grid_run = GridRunsResponse(
                 dag_id=dag_run.dag_id,
                 run_id=dag_run.run_id,
@@ -261,10 +267,7 @@ def get_grid_runs(
                 run_after=dag_run.run_after,
                 state=dag_run.state,
                 run_type=dag_run.run_type,
-                dag_version_number=version_info["dag_version_number"],
-                dag_version_id=version_info["dag_version_id"],
-                is_version_changed=version_info["is_version_changed"],
-                version_changes=version_info["version_changes"],
+                dag_version_number=dag_version_number,
             )
             response.append(grid_run)
 
@@ -274,13 +277,15 @@ def get_grid_runs(
         # Re-raise HTTPException (like 404 from _get_latest_serdag) without modification
         raise
     except ValueError as e:
-        log.error("Invalid data format while retrieving grid runs", dag_id=dag_id, error=str(e))
+        log.warning("Invalid data format while retrieving grid runs", dag_id=dag_id, error=str(e))
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
             detail={"reason": "invalid_data", "message": f"Invalid data format: {str(e)}"},
         )
     except Exception as e:
-        log.error("Unexpected error retrieving grid runs", dag_id=dag_id, error=str(e))
+        log.error(
+            "Unexpected error retrieving grid runs", dag_id=dag_id, error=str(e), error_type=type(e).__name__
+        )
         raise HTTPException(
             status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={"reason": "internal_error", "message": "An unexpected error occurred"},

@@ -58,10 +58,7 @@ INNER_TASK_GROUP_SUB_TASK = "inner_task_group_sub_task"
 
 GRID_RUN_1 = {
     "dag_id": "test_dag",
-    "dag_version_id": ANY,
     "dag_version_number": ANY,
-    "is_version_changed": ANY,
-    "version_changes": ANY,
     "duration": 0,
     "end_date": "2024-12-31T00:00:00Z",
     "run_after": "2024-11-30T00:00:00Z",
@@ -73,10 +70,7 @@ GRID_RUN_1 = {
 
 GRID_RUN_2 = {
     "dag_id": "test_dag",
-    "dag_version_id": ANY,
     "dag_version_number": ANY,
-    "is_version_changed": ANY,
-    "version_changes": ANY,
     "duration": 0,
     "end_date": "2024-12-31T00:00:00Z",
     "run_after": "2024-11-30T00:00:00Z",

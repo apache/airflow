@@ -7046,30 +7046,6 @@ export const $GridRunsResponse = {
             ],
             title: 'Dag Version Number'
         },
-        dag_version_id: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Dag Version Id'
-        },
-        is_version_changed: {
-            type: 'boolean',
-            title: 'Is Version Changed',
-            default: false
-        },
-        version_changes: {
-            items: {
-                type: 'integer'
-            },
-            type: 'array',
-            title: 'Version Changes',
-            default: []
-        },
         duration: {
             type: 'integer',
             title: 'Duration',
