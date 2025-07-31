@@ -38,19 +38,22 @@ export const HeaderCard = ({ actions, icon, isRefreshing, state, stats, subTitle
   const { t: translate } = useTranslation();
 
   return (
-    <Box borderColor="border" borderRadius={8} borderWidth={1} ml={2} p={2}>
+    <Box borderColor="border.emphasized" borderRadius={8} borderWidth={1} ml={2} p={2}>
       <Flex alignItems="center" flexWrap="wrap" justifyContent="space-between" mb={2}>
         <Flex alignItems="center" flexWrap="wrap" gap={2}>
           <Heading size="xl">{icon}</Heading>
           <Heading size="lg">{title}</Heading>
           <Heading size="lg">{subTitle}</Heading>
           {state === undefined ? undefined : (
-            <StateBadge state={state}>{state ? translate(`common:states.${state}`) : undefined}</StateBadge>
+            <StateBadge state={state}>
+              {state ? translate(`common:states.${state}`) : undefined}
+            </StateBadge>
           )}
           {isRefreshing ? <Spinner /> : <div />}
         </Flex>
         <HStack gap={1}>{actions}</HStack>
       </Flex>
+
       <HStack alignItems="flex-start" flexWrap="wrap" gap={5} justifyContent="space-between" my={2}>
         {stats.map(({ label, value }) => (
           <GridItem key={label}>

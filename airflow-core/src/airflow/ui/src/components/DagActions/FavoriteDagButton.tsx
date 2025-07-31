@@ -54,7 +54,7 @@ export const FavoriteDagButton = ({ dagId, withText = true }: FavoriteDagButtonP
     <Box>
       <ActionButton
         actionName={isFavorite ? translate("unfavoriteDag") : translate("favoriteDag")}
-        icon={<FiStar style={{ fill: isFavorite ? "button" : "none" }} />}
+        icon={<FiStar style={{ fill: isFavorite ? "var(--chakra-colors-button-solid)" : "none" }} />}
         onClick={onToggle}
         text={isFavorite ? translate("unfavoriteDag") : translate("favoriteDag")}
         withText={withText}

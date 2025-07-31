@@ -46,7 +46,15 @@ export const TrendCountButton = ({
     <Skeleton borderRadius={4} height="45px" width="350px" />
   ) : (
     <Link to={route}>
-      <HStack borderRadius={4} borderWidth={1} p={3} width="350px">
+      <HStack
+        _hover={{ bg: "bg.subtle" }}
+        borderColor="border.emphasized"
+        borderRadius={4}
+        borderWidth={1}
+        p={3}
+        transition="background-color 0.2s"
+        width="350px"
+      >
         <Badge borderRadius="md" colorPalette={colorPalette} variant="solid">
           {count}
         </Badge>
