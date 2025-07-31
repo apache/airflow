@@ -513,8 +513,8 @@ class UnknownExecutorException(ValueError):
     """Raised when an attempt is made to load an executor which is not configured."""
 
 
-class AirflowFileLockException(AirflowException):
-    """Raised when a file lock cannot be acquired (e.g., via `fcntl.flock`)."""
+class AirflowFileLockAcquireException(AirflowException):
+    """Raised when a file lock cannot be acquired (e.g., via `fcntl.flock` with LOCK_SH or LOCK_EX)."""
 
     def __init__(self, file_path: str | None, original_exception: Exception | None = None):
         super().__init__()
@@ -523,7 +523,23 @@ class AirflowFileLockException(AirflowException):
 
     def __repr__(self) -> str:
         return (
-            f"<AirflowFileLockException("
+            f"<AirflowFileLockAcquireException("
+            f"file_path={self.file_path!r}, "
+            f"original_exception={self.original_exception!r})>"
+        )
+
+
+class AirflowFileLockReleaseException(AirflowException):
+    """Raised when a file lock cannot be released (e.g., via `fcntl.flock` with LOCK_UN)."""
+
+    def __init__(self, file_path: str | None, original_exception: Exception | None = None):
+        super().__init__()
+        self.file_path = file_path
+        self.original_exception = original_exception
+
+    def __repr__(self) -> str:
+        return (
+            f"<AirflowFileLockReleaseException("
             f"file_path={self.file_path!r}, "
             f"original_exception={self.original_exception!r})>"
         )
