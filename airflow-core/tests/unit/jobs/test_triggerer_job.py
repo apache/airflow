@@ -663,7 +663,7 @@ class CustomTrigger(BaseTrigger):
         set_variable_key = "test_set_variable"
         set_variable_value = "set_value"
         await sync_to_async(Variable.set)(key=set_variable_key, value=set_variable_value)
-        self.log.info("Set variable with key %s and value %s" % (set_variable_key, set_variable_value))
+        self.log.info("Set variable with key %s and value %s", set_variable_key, set_variable_value)
 
         set_xcom_key = "test_set_xcom"
         set_xcom_value = "set_xcom"
@@ -675,11 +675,11 @@ class CustomTrigger(BaseTrigger):
             map_index=self.map_index,
             value=set_xcom_value,
         )
-        self.log.info("Set xcom with key %s and value %s" % (set_xcom_key, set_xcom_value))
+        self.log.info("Set xcom with key %s and value %s", set_xcom_key, set_xcom_value)
 
         delete_variable_key = "test_delete_variable"
         await sync_to_async(Variable.delete)(delete_variable_key)
-        self.log.info("Deleted variable with key %s" % delete_variable_key)
+        self.log.info("Deleted variable with key %s", delete_variable_key)
 
         delete_xcom_key = "test_delete_xcom"
         await sync_to_async(XCom.delete)(
@@ -689,7 +689,7 @@ class CustomTrigger(BaseTrigger):
             task_id=self.task_id,
             map_index=self.map_index,
         )
-        self.log.info("Delete xcom with key %s" % delete_xcom_key)
+        self.log.info("Delete xcom with key %s", delete_xcom_key)
 
         yield TriggerEvent(
             {
