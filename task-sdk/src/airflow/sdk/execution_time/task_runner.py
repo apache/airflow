@@ -40,7 +40,12 @@ from pydantic import AwareDatetime, ConfigDict, Field, JsonValue, TypeAdapter
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException
+from airflow.exceptions import (
+    AirflowException,
+    AirflowFileLockAcquireException,
+    AirflowFileLockReleaseException,
+    AirflowInactiveAssetInInletOrOutletException,
+)
 from airflow.listeners.listener import get_listener_manager
 from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
@@ -1325,7 +1330,6 @@ def finalize(
 
 
 def main():
-    # TODO: add an exception here, it causes an oof of a stack trace if it happens to early!
     log = structlog.get_logger(logger_name="task")
 
     global SUPERVISOR_COMMS
@@ -1343,8 +1347,20 @@ def main():
     except KeyboardInterrupt:
         log.exception("Ctrl-c hit")
         exit(2)
-    except Exception:
-        log.exception("Top level error")
+    except AirflowFileLockAcquireException:
+        log.exception("error when attempting to acquire lock")
+        exit(1)
+    except AirflowFileLockReleaseException:
+        log.exception("error when attempting to release lock")
+        exit(1)
+    except PermissionError:
+        log.exception("Permission denied when opening/closing lock file")
+        exit(1)
+    except FileNotFoundError:
+        log.exception("Lock file does not exist")
+        exit(1)
+    except AirflowException:
+        log.exception("Unhandled Airflow exception")
         exit(1)
     finally:
         # Ensure the request socket is closed on the child side in all circumstances
