@@ -36,6 +36,7 @@ from sqlalchemy_utils.types.enriched_datetime.pendulum_datetime import pendulum
 
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.exceptions import AirflowFileLockAcquireException, AirflowFileLockReleaseException
 
 if TYPE_CHECKING:
     from pendulum import DateTime
@@ -398,12 +399,23 @@ class BundleVersionLock:
         self._update_version_file()
         if TYPE_CHECKING:
             assert self.lock_file_path
+        # Raises FileNotFoundError if the path doesn't exist,
+        # or PermissionError if access is denied
         self.lock_file = open(self.lock_file_path)
-        flock(self.lock_file, LOCK_SH)
+        # https://docs.python.org/3/library/fcntl.html#fcntl.flock
+        try:
+            flock(self.lock_file, LOCK_SH)
+            self._log_exc("Error acquiring lock")
+        except (BlockingIOError, OSError) as e:
+            raise AirflowFileLockAcquireException(self.lock_file_path, e) from e
 
     def release(self):
         if self.lock_file:
-            flock(self.lock_file, LOCK_UN)
+            try:
+                flock(self.lock_file, LOCK_UN)
+            except OSError as e:
+                self._log_exc("Error unlocking file")
+                raise AirflowFileLockReleaseException(self.lock_file_path, e) from e
             self.lock_file.close()
             self.lock_file = None
 
