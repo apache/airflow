@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated, Any
+from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
@@ -25,6 +25,7 @@ from airflow.models.dagbag import DBDagBag
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
+    from airflow.models.dagrun import DagRun
 
 
 def create_dag_bag() -> DBDagBag:
@@ -49,7 +50,7 @@ def get_latest_version_of_dag(dag_bag: DBDagBag, dag_id: str, session: Session) 
     return dag
 
 
-def get_dag_for_run(dag_bag: DBDagBag, dag_run, session: Session) -> DAG:
+def get_dag_for_run(dag_bag: DBDagBag, dag_run: DagRun, session: Session) -> DAG:
     dag = dag_bag.get_dag_for_run(dag_run, session=session)
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Dag with ID: `{dag_run.dag_id}` was not found")
@@ -57,7 +58,7 @@ def get_dag_for_run(dag_bag: DBDagBag, dag_run, session: Session) -> DAG:
 
 
 def get_dag_for_run_or_latest_version(
-    dag_bag: DBDagBag, dag_run: Any | None, dag_id: str | None, session: Session
+    dag_bag: DBDagBag, dag_run: DagRun | None, dag_id: str | None, session: Session
 ) -> DAG:
     dag: DAG | None = None
     if dag_run:
