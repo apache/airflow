@@ -462,7 +462,6 @@ class TestDagFileProcessorManager:
         )
         dagbag = DagBag(
             test_dag_path.absolute_path,
-            read_dags_from_db=False,
             include_examples=False,
             bundle_path=test_dag_path.bundle_path,
         )
