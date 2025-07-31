@@ -156,9 +156,9 @@
   "selectLanguage": "選擇語言",
   "showDetailsPanel": "顯示詳細資訊",
   "source": {
-    "hide": "隱藏原始碼",
+    "hide": "隱藏來源",
     "hotkey": "s",
-    "show": "顯示原始碼"
+    "show": "顯示來源"
   },
   "sourceAssetEvent_one": "來源資源事件",
   "sourceAssetEvent_other": "來源資源事件",
