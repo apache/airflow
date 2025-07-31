@@ -400,7 +400,6 @@ class AwsLambdaExecutor(BaseExecutor):
                 continue
             ser_task_key = body.get("task_key")
             return_code = body.get("return_code")
-            command = body.get("command")
             # Fetch the real task key from the running_tasks dict, using the serialized task key.
             try:
                 task_key = self.running_tasks[ser_task_key]
@@ -427,14 +426,13 @@ class AwsLambdaExecutor(BaseExecutor):
                     )
                 else:
                     self.fail(task_key)
-                    if queue_url == self.dlq_url and return_code == None:
+                    if queue_url == self.dlq_url and return_code is None:
                         # DLQ failure: AWS Lambda service could not complete the invocation after retries.
                         # This indicates a Lambda-level failure (timeout, memory limit, crash, etc.)
                         # where the function was unable to successfully execute to return a result.
                         self.log.error(
-                            "Lambda invocation for task: %s failed at the service level (from DLQ). Command: %s",
+                            "DLQ message received: Lambda invocation for task: %s was unable to successfully execute. This likely indicates a Lambda-level failure (timeout, memory limit, crash, etc.).",
                             task_key,
-                            command,
                         )
                     else:
                         # In this case the Lambda likely started but failed at run time since we got a non-zero
@@ -442,8 +440,8 @@ class AwsLambdaExecutor(BaseExecutor):
                         # means the Airflow task did not run to completion, however we can't be sure (maybe the
                         # lambda runtime code has a bug and is returning a non-zero when it actually passed?). So
                         # perhaps not retrying is the safest option.
-                        self.log.error(
-                            "Lambda invocation for task: %s has failed to run with return code %s",
+                        self.log.debug(
+                            "Lambda invocation for task: %s completed but the underlying Airflow task has returned a non-zero exit code %s",
                             task_key,
                             return_code,
                         )
