@@ -108,7 +108,7 @@ export const FlexibleForm = ({
             <Accordion.Item
               // We need to make the item content overflow visible for dropdowns to work, but directly applying the style does not work
               css={{
-                "& > :nth-child(2)": {
+                "& > div:nth-of-type(1)": {
                   overflow: "visible",
                 },
               }}
