@@ -60,6 +60,7 @@
   },
   "dagRun_one": "Dag 실행",
   "dagRun_other": "Dag 실행들",
+  "dagRunId": "Dag Run ID",
   "dagWarnings": "Dag 경고/오류",
   "defaultToGraphView": "그래프 뷰 기본 보기",
   "defaultToGridView": "그리드 뷰 기본 보기",
