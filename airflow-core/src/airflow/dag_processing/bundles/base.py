@@ -22,6 +22,7 @@ import logging
 import os
 import shutil
 import tempfile
+import warnings
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -35,7 +36,6 @@ from pendulum.parsing import ParserError
 from sqlalchemy_utils.types.enriched_datetime.pendulum_datetime import pendulum
 
 from airflow.configuration import conf
-from airflow.dag_processing.bundles.manager import DagBundlesManager
 
 if TYPE_CHECKING:
     from pendulum import DateTime
@@ -217,7 +217,10 @@ class BundleUsageTrackingManager:
         This isn't really necessary on worker types that don't share storage
         with other processes.
         """
+        from airflow.dag_processing.bundles.manager import DagBundlesManager
+
         log.info("checking for stale bundle versions locally")
+
         bundles = list(DagBundlesManager().get_all_dag_bundles())
         for bundle in bundles:
             if not bundle.supports_versioning:
@@ -256,6 +259,7 @@ class BaseDagBundle(ABC):
         name: str,
         refresh_interval: int = conf.getint("dag_processor", "refresh_interval"),
         version: str | None = None,
+        view_url_template: str | None = None,
     ) -> None:
         self.name = name
         self.version = version
@@ -267,6 +271,8 @@ class BaseDagBundle(ABC):
 
         self.versions_dir = get_bundle_versions_base_folder(bundle_name=self.name)
         """Where bundle versions are stored locally for this bundle."""
+
+        self._view_url_template = view_url_template
 
     def initialize(self) -> None:
         """
@@ -316,10 +322,34 @@ class BaseDagBundle(ABC):
         URL to view the bundle on an external website. This is shown to users in the Airflow UI, allowing them to navigate to this url for more details about that version of the bundle.
 
         This needs to function without `initialize` being called.
-
         :param version: Version to view
         :return: URL to view the bundle
         """
+        warnings.warn(
+            "The 'view_url' method is deprecated and will be removed in a future version. "
+            "Use 'view_url_template' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return None
+
+    def view_url_template(self) -> str | None:
+        """
+        URL template to view the bundle on an external website.
+
+        This is shown to users in the Airflow UI, allowing them to navigate to
+        this url for more details about that version of the bundle.
+
+        The template should use format string placeholders like {version}, {subdir}, etc.
+        Common placeholders:
+        - {version}: The version identifier
+        - {subdir}: The subdirectory within the bundle (if applicable)
+
+        This needs to function without `initialize` being called.
+
+        :return: URL template string or None if not applicable
+        """
+        return self._view_url_template
 
     @contextmanager
     def lock(self):
