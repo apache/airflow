@@ -89,6 +89,7 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComSelectSequence, XComModel
+from airflow.models.pool import Pool
 from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
@@ -554,6 +555,14 @@ class TaskInstance(Base, LoggingMixin):
         "DagModel",
         primaryjoin="TaskInstance.dag_id == DagModel.dag_id",
         foreign_keys=dag_id,
+        uselist=False,
+        innerjoin=True,
+        viewonly=True,
+    )
+    pool_model: Pool = relationship(
+        "Pool",
+        primaryjoin="TaskInstance.pool == Pool.pool",
+        foreign_keys=pool,
         uselist=False,
         innerjoin=True,
         viewonly=True,
