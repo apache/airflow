@@ -341,8 +341,8 @@ class OracleHook(DbApiHook):
     def bulk_insert_rows(
         self,
         table: str,
-        rows: List[Tuple],
-        target_fields: List[str] | None = None,
+        rows: list[tuple],
+        target_fields: list[str] | None = None,
         commit_every: int = 5000,
         sequence_column: str | None = None,
         sequence_name: str | None = None,
