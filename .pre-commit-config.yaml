@@ -328,7 +328,7 @@ repos:
           ^.*reproducible_build\.yaml$|
           ^.*pnpm-lock\.yaml$
   - repo: https://github.com/ikamensh/flynt
-    rev: '1.0.1'
+    rev: '1.0.6'
     hooks:
       - id: flynt
         name: Run flynt string format converter for Python
