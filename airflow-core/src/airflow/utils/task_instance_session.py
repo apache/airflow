@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import atexit
 import contextlib
 import logging
 import traceback
@@ -28,12 +29,34 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 __current_task_instance_session: Session | None = None
+__cleanup_registered: bool = False
+__fallback_sessions: set[Session] = set()
 
 log = logging.getLogger(__name__)
 
 
+def _cleanup_fallback_sessions() -> None:
+    """Clean up all fallback sessions on process exit."""
+    global __fallback_sessions
+
+    if not __fallback_sessions:
+        return
+
+    sessions_to_cleanup = list(__fallback_sessions)
+    for session in sessions_to_cleanup:
+        try:
+            if session.is_active:
+                session.close()
+                log.info("Cleaned up fallback session on process exit")
+        except Exception as e:
+            log.warning("Error closing fallback session during exit: %s", e)
+
+    __fallback_sessions.clear()
+
+
 def get_current_task_instance_session() -> Session:
-    global __current_task_instance_session
+    global __current_task_instance_session, __cleanup_registered, __fallback_sessions
+
     if not __current_task_instance_session:
         log.warning("No task session set for this task. Continuing but this likely causes a resource leak.")
         log.warning("Please report this and stacktrace below to https://github.com/apache/airflow/issues")
@@ -41,7 +64,16 @@ def get_current_task_instance_session() -> Session:
             log.warning('File: "%s", %s , in %s', filename, line_number, name)
             if line:
                 log.warning("  %s", line.strip())
+
+        # Create fallback session
         __current_task_instance_session = settings.Session()
+        __fallback_sessions.add(__current_task_instance_session)
+
+        # Register cleanup only once per process
+        if not __cleanup_registered:
+            atexit.register(_cleanup_fallback_sessions)
+            __cleanup_registered = True
+
     return __current_task_instance_session
 
 
