@@ -19,6 +19,9 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
+resources = pytest.importorskip("google.cloud.aiplatform.vertex_ray.util.resources")
 from google.cloud.aiplatform.vertex_ray.util.resources import Cluster, Resources
 
 from airflow.providers.google.cloud.hooks.vertex_ai.ray import RayHook
