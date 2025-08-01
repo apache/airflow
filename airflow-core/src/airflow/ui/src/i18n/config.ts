@@ -46,13 +46,16 @@ export const namespaces = [
   "hitl",
 ] as const;
 
+const baseUrl = document.querySelector("base")?.href ?? "http://localhost:8080/";
+const basePath = new URL(baseUrl).pathname.replace(/\/$/u, "");
+
 void i18n
   .use(Backend)
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
     backend: {
-      loadPath: "/static/i18n/locales/{{lng}}/{{ns}}.json",
+      loadPath: `${basePath}/static/i18n/locales/{{lng}}/{{ns}}.json`,
     },
     defaultNS: "common",
     detection: {
