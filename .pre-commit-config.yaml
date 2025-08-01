@@ -18,7 +18,7 @@
 default_stages: [pre-commit, pre-push]
 default_language_version:
   python: python3
-  node: 22.17.1
+  node: 22.18.0
   golang: 1.24.0
 minimum_pre_commit_version: '3.2.0'
 exclude: ^.*/.*_vendor/
