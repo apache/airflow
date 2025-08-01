@@ -1997,7 +1997,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
             try:
-                dag = self.scheduler_dag_bag.get_dag(dag_run=ti.dag_run, session=session)
+                dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=ti.dag_run, session=session)
                 task = dag.get_task(ti.task_id)
             except Exception:
                 self.log.warning(
