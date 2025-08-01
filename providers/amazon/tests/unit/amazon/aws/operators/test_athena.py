@@ -235,14 +235,21 @@ class TestAthenaOperator:
     @mock.patch.object(AthenaHook, "run_query", return_value=ATHENA_QUERY_ID)
     @mock.patch.object(AthenaHook, "get_conn")
     def test_return_value(
-        self, mock_conn, mock_run_query, mock_check_query_status, session, clean_dags_and_dagruns
+        self,
+        mock_conn,
+        mock_run_query,
+        mock_check_query_status,
+        session,
+        clean_dags_dagruns_and_dagbundles,
+        testing_dag_bundle,
     ):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
 
-            self.dag.sync_to_db()
-            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
+            bundle_name = "testing"
+            DAG.bulk_write_to_db(bundle_name, None, [self.dag])
+            SerializedDagModel.write_dag(self.dag, bundle_name=bundle_name)
             dag_version = DagVersion.get_latest_version(self.dag.dag_id)
             ti = TaskInstance(task=self.athena, dag_version_id=dag_version.id)
             dag_run = DagRun(

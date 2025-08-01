@@ -317,14 +317,22 @@ class TestDmsDescribeTasksOperator:
     @pytest.mark.db_test
     @mock.patch.object(DmsHook, "describe_replication_tasks", return_value=(None, MOCK_RESPONSE))
     @mock.patch.object(DmsHook, "get_conn")
-    def test_describe_tasks_return_value(self, mock_conn, mock_describe_replication_tasks, session):
+    def test_describe_tasks_return_value(
+        self,
+        mock_conn,
+        mock_describe_replication_tasks,
+        session,
+        clean_dags_dagruns_and_dagbundles,
+        testing_dag_bundle,
+    ):
         describe_task = DmsDescribeTasksOperator(
             task_id="describe_tasks", dag=self.dag, describe_tasks_kwargs={"Filters": [self.FILTER]}
         )
 
         if AIRFLOW_V_3_0_PLUS:
-            self.dag.sync_to_db()
-            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
+            bundle_name = "testing"
+            DAG.bulk_write_to_db(bundle_name, None, [self.dag])
+            SerializedDagModel.write_dag(self.dag, bundle_name=bundle_name)
             dag_version = DagVersion.get_latest_version(self.dag.dag_id)
             ti = TaskInstance(task=describe_task, dag_version_id=dag_version.id)
             dag_run = DagRun(
@@ -509,7 +517,9 @@ class TestDmsDescribeReplicationConfigsOperator:
 
     @pytest.mark.db_test
     @mock.patch.object(DmsHook, "conn")
-    def test_template_fields_native(self, mock_conn, session):
+    def test_template_fields_native(
+        self, mock_conn, session, clean_dags_dagruns_and_dagbundles, testing_dag_bundle
+    ):
         logical_date = timezone.datetime(2020, 1, 1)
         Variable.set("test_filter", self.filter, session=session)
 
@@ -524,8 +534,20 @@ class TestDmsDescribeReplicationConfigsOperator:
         )
 
         if AIRFLOW_V_3_0_PLUS:
-            dag.sync_to_db()
-            SerializedDagModel.write_dag(dag, bundle_name="testing")
+            bundle_name = "testing"
+            DAG.bulk_write_to_db(bundle_name, None, [dag])
+            SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+            ti = TaskInstance(task=op, dag_version_id=dag_version.id)
+            dag_run = DagRun(
+                dag_id=dag.dag_id,
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
+                logical_date=logical_date,
+            )
+            DAG.bulk_write_to_db(bundle_name, None, [dag])
+            SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
             dag_version = DagVersion.get_latest_version(dag.dag_id)
             ti = TaskInstance(task=op, dag_version_id=dag_version.id)
             dag_run = DagRun(
