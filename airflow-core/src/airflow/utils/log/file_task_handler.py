@@ -30,7 +30,7 @@ from enum import Enum
 from itertools import chain, islice
 from pathlib import Path
 from types import GeneratorType
-from typing import IO, TYPE_CHECKING, TypedDict, cast
+from typing import IO, TYPE_CHECKING, Any, TypedDict, cast
 from urllib.parse import urljoin
 
 import pendulum
@@ -71,7 +71,7 @@ LogMessages: TypeAlias = list[str]
 """The legacy format of log messages before 3.0.4"""
 LogSourceInfo: TypeAlias = list[str]
 """Information _about_ the log fetching process for display to a user"""
-RawLogStream: TypeAlias = Generator[str, None, None]
+RawLogStream: TypeAlias = Generator[str | dict[str, Any], None, None]
 """Raw log stream, containing unparsed log lines."""
 LogResponse: TypeAlias = tuple[LogSourceInfo, LogMessages | None]
 """Legacy log response, containing source information and log messages."""
@@ -196,7 +196,8 @@ _parse_timestamp = conf.getimport("logging", "interleave_timestamp_parser", fall
 if not _parse_timestamp:
 
     def _parse_timestamp(line: str):
-        timestamp_str, _ = line.split(" ", 1)
+        # Make this resilient to all input types, ensure it's always a string.
+        timestamp_str, _ = str(line).split(" ", 1)
         return pendulum.parse(timestamp_str.strip("[]"))
 
 
@@ -261,7 +262,10 @@ def _log_stream_to_parsed_log_stream(
     for line in log_stream:
         if line:
             try:
-                log = StructuredLogMessage.model_validate_json(line)
+                if isinstance(line, dict):
+                    log = StructuredLogMessage.model_validate(line)
+                else:
+                    log = StructuredLogMessage.model_validate_json(line)
             except ValidationError:
                 with suppress(Exception):
                     # If we can't parse the timestamp, don't attach one to the row
