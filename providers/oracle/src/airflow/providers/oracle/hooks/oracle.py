@@ -252,8 +252,8 @@ class OracleHook(DbApiHook):
     def insert_rows(
         self,
         table: str,
-        rows: List[Tuple],
-        target_fields: List[str] | None = None,
+        rows: list[tuple],
+        target_fields: list[str] | None = None,
         commit_every: int = 1000,
         replace: bool | None = False,
         **kwargs,
