@@ -33,9 +33,6 @@ from airflow.utils.file import (
 )
 
 from tests_common.test_utils.config import conf_vars
-from unit.models import TEST_DAGS_FOLDER
-
-TEST_DAG_FOLDER = os.environ["AIRFLOW__CORE__DAGS_FOLDER"]
 
 
 def might_contain_dag(file_path: str, zip_file: zipfile.ZipFile | None = None):
@@ -76,7 +73,7 @@ class TestCorrectMaybeZipped:
 
 
 class TestOpenMaybeZipped:
-    def test_open_maybe_zipped_normal_file(self):
+    def test_open_maybe_zipped_normal_file(self, TEST_DAGS_FOLDER):
         test_file_path = os.path.join(TEST_DAGS_FOLDER, "no_dags.py")
         with open_maybe_zipped(test_file_path, "r") as test_file:
             content = test_file.read()
@@ -113,7 +110,7 @@ class TestListPyFilesPath:
             f.write("print('hello world')")
         return tmp_path
 
-    def test_find_path_from_directory_regex_ignore(self):
+    def test_find_path_from_directory_regex_ignore(self, TEST_DAGS_FOLDER):
         should_ignore = [
             "test_invalid_cron.py",
             "test_invalid_param.py",
@@ -124,7 +121,7 @@ class TestListPyFilesPath:
         assert files
         assert all(os.path.basename(file) not in should_ignore for file in files)
 
-    def test_find_path_from_directory_glob_ignore(self):
+    def test_find_path_from_directory_glob_ignore(self, TEST_DAGS_FOLDER):
         should_ignore = [
             "test_invalid_cron.py",
             "test_invalid_param.py",
@@ -173,13 +170,13 @@ class TestListPyFilesPath:
         with pytest.raises(RuntimeError, match=error_message):
             list(find_path_from_directory(test_dir, ignore_list_file, ignore_file_syntax="glob"))
 
-    def test_might_contain_dag_with_default_callable(self):
+    def test_might_contain_dag_with_default_callable(self, TEST_DAGS_FOLDER):
         file_path_with_dag = os.path.join(TEST_DAGS_FOLDER, "test_scheduler_dags.py")
 
         assert file_utils.might_contain_dag(file_path=file_path_with_dag, safe_mode=True)
 
     @conf_vars({("core", "might_contain_dag_callable"): "unit.utils.test_file.might_contain_dag"})
-    def test_might_contain_dag(self):
+    def test_might_contain_dag(self, TEST_DAGS_FOLDER):
         """Test might_contain_dag_callable"""
         file_path_with_dag = os.path.join(TEST_DAGS_FOLDER, "test_scheduler_dags.py")
 
@@ -191,7 +188,7 @@ class TestListPyFilesPath:
         # With safe_mode is False, the user defined callable won't be invoked
         assert file_utils.might_contain_dag(file_path=file_path_with_dag, safe_mode=False)
 
-    def test_get_modules(self):
+    def test_get_modules(self, TEST_DAGS_FOLDER):
         file_path = os.path.join(TEST_DAGS_FOLDER, "test_imports.py")
 
         modules = list(file_utils.iter_airflow_imports(file_path))
@@ -209,7 +206,7 @@ class TestListPyFilesPath:
         assert "airflow.if_branch" not in modules
         assert "airflow.else_branch" not in modules
 
-    def test_get_modules_from_invalid_file(self):
+    def test_get_modules_from_invalid_file(self, TEST_DAGS_FOLDER):
         file_path = os.path.join(TEST_DAGS_FOLDER, "README.md")  # just getting a non-python file
 
         # should not error
@@ -217,7 +214,7 @@ class TestListPyFilesPath:
 
         assert len(modules) == 0
 
-    def test_list_py_file_paths(self, test_zip_path):
+    def test_list_py_file_paths(self, test_zip_path, TEST_DAGS_FOLDER):
         detected_files = set()
         expected_files = set()
         # No_dags is empty, _invalid_ is ignored by .airflowignore
@@ -237,12 +234,12 @@ class TestListPyFilesPath:
             "test.py",  # no_dag test case in test_zip_module folder
             "__init__.py",
         }
-        for root, _, files in os.walk(TEST_DAG_FOLDER):
+        for root, _, files in os.walk(TEST_DAGS_FOLDER):
             for file_name in files:
                 if file_name.endswith((".py", ".zip")):
                     if file_name not in ignored_files:
                         expected_files.add(f"{root}/{file_name}")
-        detected_files = set(list_py_file_paths(TEST_DAG_FOLDER))
+        detected_files = set(list_py_file_paths(TEST_DAGS_FOLDER))
         assert detected_files == expected_files
 
 

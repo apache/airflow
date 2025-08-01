@@ -44,11 +44,9 @@ from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.session import create_session
 
 from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
-from tests_common.test_utils import db
+from tests_common.test_utils import cluster_policies, db
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
-from unit import cluster_policies
-from unit.models import TEST_DAGS_FOLDER
 
 pytestmark = pytest.mark.db_test
 
@@ -223,7 +221,7 @@ class TestDagBag:
     @patch("airflow.models.dagbag.timeout")
     @patch("airflow.models.dagbag.settings.get_dagbag_import_timeout")
     def test_process_dag_file_without_timeout(
-        self, mocked_get_dagbag_import_timeout, mocked_timeout, tmp_path
+        self, mocked_get_dagbag_import_timeout, mocked_timeout, tmp_path, TEST_DAGS_FOLDER
     ):
         """
         Test dag file parsing without timeout
@@ -242,7 +240,7 @@ class TestDagBag:
     @patch("airflow.models.dagbag.timeout")
     @patch("airflow.models.dagbag.settings.get_dagbag_import_timeout")
     def test_process_dag_file_with_non_default_timeout(
-        self, mocked_get_dagbag_import_timeout, mocked_timeout, tmp_path
+        self, mocked_get_dagbag_import_timeout, mocked_timeout, tmp_path, TEST_DAGS_FOLDER
     ):
         """
         Test customized dag file parsing timeout
@@ -260,7 +258,7 @@ class TestDagBag:
 
     @patch("airflow.models.dagbag.settings.get_dagbag_import_timeout")
     def test_check_value_type_from_get_dagbag_import_timeout(
-        self, mocked_get_dagbag_import_timeout, tmp_path
+        self, mocked_get_dagbag_import_timeout, tmp_path, TEST_DAGS_FOLDER
     ):
         """
         Test correctness of value from get_dagbag_import_timeout
@@ -274,7 +272,7 @@ class TestDagBag:
             dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_sensor.py"))
 
     @pytest.fixture
-    def invalid_cron_dag(self) -> str:
+    def invalid_cron_dag(self, TEST_DAGS_FOLDER) -> str:
         return os.path.join(TEST_DAGS_FOLDER, "test_invalid_cron.py")
 
     @pytest.fixture
@@ -295,7 +293,7 @@ class TestDagBag:
         assert len(dagbag.import_errors) == 1
         assert len(dagbag.dags) == 0
 
-    def test_process_file_invalid_param_check(self, tmp_path):
+    def test_process_file_invalid_param_check(self, tmp_path, TEST_DAGS_FOLDER):
         """
         test if an invalid param in the dags can be identified
         """
@@ -313,7 +311,7 @@ class TestDagBag:
         assert len(dagbag.import_errors) == len(invalid_dag_files)
         assert len(dagbag.dags) == 0
 
-    def test_process_file_valid_param_check(self, tmp_path):
+    def test_process_file_valid_param_check(self, tmp_path, TEST_DAGS_FOLDER):
         """
         test if valid params in the dags param can be validated (positive test)
         """
@@ -398,13 +396,13 @@ class TestDagBag:
             assert dag, f"{dag_id} was bagged"
             assert dag.fileloc.endswith(f"{pathlib.Path(test_zip_path).parent}/{path}")
 
-    def test_dag_registration_with_failure(self):
+    def test_dag_registration_with_failure(self, TEST_DAGS_FOLDER):
         dagbag = DagBag(dag_folder=os.devnull, include_examples=False)
         found = dagbag.process_file(str(TEST_DAGS_FOLDER / "test_invalid_dup_task.py"))
         assert found == []
 
     @pytest.fixture
-    def zip_with_valid_dag_and_dup_tasks(self, tmp_path: pathlib.Path) -> str:
+    def zip_with_valid_dag_and_dup_tasks(self, tmp_path: pathlib.Path, TEST_DAGS_FOLDER) -> str:
         failing_dag_file = TEST_DAGS_FOLDER / "test_invalid_dup_task.py"
         working_dag_file = TEST_DAGS_FOLDER / "test_example_bash_operator.py"
         zipped = tmp_path / "test_zip_invalid_dup_task.zip"
@@ -808,7 +806,7 @@ with airflow.DAG(
             assert set(serialized_dag.task_dict) == set(dag.task_dict)
 
     @patch("airflow.settings.task_policy", cluster_policies.example_task_policy)
-    def test_task_cluster_policy_violation(self):
+    def test_task_cluster_policy_violation(self, TEST_DAGS_FOLDER):
         """
         test that file processing results in import error when task does not
         obey cluster policy.
@@ -851,7 +849,7 @@ with airflow.DAG(
         assert expected_import_errors == dagbag.import_errors
 
     @patch("airflow.settings.task_policy", cluster_policies.example_task_policy)
-    def test_task_cluster_policy_obeyed(self):
+    def test_task_cluster_policy_obeyed(self, TEST_DAGS_FOLDER):
         """
         test that dag successfully imported without import errors when tasks
         obey cluster policy.
@@ -864,14 +862,14 @@ with airflow.DAG(
         assert dagbag.import_errors == {}
 
     @patch("airflow.settings.dag_policy", cluster_policies.dag_policy)
-    def test_dag_cluster_policy_obeyed(self):
+    def test_dag_cluster_policy_obeyed(self, TEST_DAGS_FOLDER):
         dag_file = os.path.join(TEST_DAGS_FOLDER, "test_dag_with_no_tags.py")
 
         dagbag = DagBag(dag_folder=dag_file, include_examples=False)
         assert len(dagbag.dag_ids) == 0
         assert "has no tags" in dagbag.import_errors[dag_file]
 
-    def test_dagbag_dag_collection(self):
+    def test_dagbag_dag_collection(self, TEST_DAGS_FOLDER):
         dagbag = DagBag(dag_folder=TEST_DAGS_FOLDER, include_examples=False, collect_dags=False)
         # since collect_dags is False, dagbag.dags should be empty
         assert not dagbag.dags
@@ -883,7 +881,7 @@ with airflow.DAG(
         dagbag = DagBag(dag_folder=TEST_DAGS_FOLDER, include_examples=False)
         assert dagbag.dags
 
-    def test_dabgag_captured_warnings(self):
+    def test_dabgag_captured_warnings(self, TEST_DAGS_FOLDER):
         dag_file = os.path.join(TEST_DAGS_FOLDER, "test_dag_warnings.py")
         dagbag = DagBag(dag_folder=dag_file, include_examples=False, collect_dags=False)
         assert dag_file not in dagbag.captured_warnings
@@ -912,7 +910,7 @@ with airflow.DAG(
             assert dagbag.dagbag_stats[0].warning_num == 0
 
     @pytest.fixture
-    def warning_zipped_dag_path(self, tmp_path: pathlib.Path) -> str:
+    def warning_zipped_dag_path(self, tmp_path: pathlib.Path, TEST_DAGS_FOLDER) -> str:
         warnings_dag_file = TEST_DAGS_FOLDER / "test_dag_warnings.py"
         zipped = tmp_path / "test_dag_warnings.zip"
         with zipfile.ZipFile(zipped, "w") as zf:

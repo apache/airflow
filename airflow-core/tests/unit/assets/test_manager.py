@@ -37,7 +37,7 @@ from airflow.models.asset import (
 from airflow.models.dag import DAG, DagModel
 from airflow.sdk.definitions.asset import Asset
 
-from unit.listeners import asset_listener
+from tests_common.test_utils.listeners import asset_listener
 
 pytestmark = pytest.mark.db_test
 

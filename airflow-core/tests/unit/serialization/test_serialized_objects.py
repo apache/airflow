@@ -72,7 +72,7 @@ from airflow.utils.operator_resources import Resources
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
 
-from unit.models import DEFAULT_DATE
+DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 DAG_ID = "dag_id_1"
 

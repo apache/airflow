@@ -57,7 +57,8 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_operators import MockOperator
-from unit.models import DEFAULT_DATE as _DEFAULT_DATE
+
+_DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 

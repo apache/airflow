@@ -125,6 +125,29 @@ def test_zip_path(tmp_path: Path):
     return os.fspath(zipped)
 
 
+@pytest.fixture(scope="session")
+def TEST_DAGS_FOLDER() -> Path:
+    """Path to the test dags folder."""
+    return Path(__file__).parent / "unit" / "dags"
+
+
+@pytest.fixture(scope="session")
+def DEFAULT_DATE() -> str:
+    """Default date for tests."""
+    from airflow._shared.timezones import timezone
+
+    return timezone.datetime(2016, 1, 1)
+
+
+@pytest.fixture(scope="session")
+def test_bundles_config(TEST_DAGS_FOLDER) -> dict[str, Path | str]:
+    return {
+        "bundle1": TEST_DAGS_FOLDER / "test_example_bash_operator.py",
+        "bundle2": TEST_DAGS_FOLDER / "test_sensor.py",
+        "bundle3": TEST_DAGS_FOLDER / "test_dag_with_no_tags.py",
+    }
+
+
 if TYPE_CHECKING:
     # Static checkers do not know about pytest fixtures' types and return,
     # In case if them distributed through third party packages.

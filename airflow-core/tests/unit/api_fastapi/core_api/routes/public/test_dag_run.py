@@ -1065,7 +1065,7 @@ class TestPatchDagRun:
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_patch_dag_run_notifies_listeners(self, test_client, state, listener_state):
-        from unit.listeners.class_listener import ClassBasedListener
+        from tests_common.test_utils.listeners.class_listener import ClassBasedListener
 
         listener = ClassBasedListener()
         get_listener_manager().add_listener(listener)

@@ -95,12 +95,11 @@ from tests_common.test_utils.db import (
     clear_db_serialized_dags,
     set_default_pool_slots,
 )
+from tests_common.test_utils.listeners import dag_listener
+from tests_common.test_utils.listeners.test_listeners import get_listener_manager
 from tests_common.test_utils.mock_executor import MockExecutor
 from tests_common.test_utils.mock_operators import CustomOperator
 from tests_common.test_utils.version_compat import SQLALCHEMY_V_1_4, SQLALCHEMY_V_2_0
-from unit.listeners import dag_listener
-from unit.listeners.test_listeners import get_listener_manager
-from unit.models import TEST_DAGS_FOLDER
 
 pytestmark = pytest.mark.db_test
 
@@ -6143,7 +6142,7 @@ class TestSchedulerJob:
 
     @pytest.mark.long_running
     @pytest.mark.parametrize("dag_id", ["test_mapped_classic", "test_mapped_taskflow"])
-    def test_mapped_dag(self, dag_id, session, testing_dag_bundle):
+    def test_mapped_dag(self, dag_id, session, testing_dag_bundle, TEST_DAGS_FOLDER):
         """End-to-end test of a simple mapped dag"""
         from airflow.executors.local_executor import LocalExecutor
 

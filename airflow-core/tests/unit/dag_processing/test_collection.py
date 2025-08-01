@@ -329,7 +329,7 @@ class TestUpdateDagParsingResults:
 
     @pytest.fixture(name="dag_import_error_listener")
     def _dag_import_error_listener(self):
-        from unit.listeners import dag_import_error_listener
+        from tests_common.test_utils.listeners import dag_import_error_listener
 
         get_listener_manager().add_listener(dag_import_error_listener)
         yield dag_import_error_listener

@@ -18,12 +18,14 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pendulum
 import pytest
 from httpx import Response
 from sqlalchemy import select
 
+import airflow
 from airflow.models.dagbag import SchedulerDagBag
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
@@ -31,7 +33,9 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, parse_and_sync_to_db
-from unit.serialization.test_dag_serialization import AIRFLOW_REPO_ROOT_PATH
+
+AIRFLOW_REPO_ROOT_PATH = Path(airflow.__file__).parents[3]
+
 
 pytestmark = pytest.mark.db_test
 

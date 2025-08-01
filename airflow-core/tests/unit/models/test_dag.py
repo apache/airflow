@@ -94,13 +94,14 @@ from tests_common.test_utils.db import (
 )
 from tests_common.test_utils.mapping import expand_mapped_task
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
-from tests_common.test_utils.timetables import cron_timetable, delta_timetable
-from unit.models import DEFAULT_DATE
-from unit.plugins.priority_weight_strategy import (
+from tests_common.test_utils.plugins.priority_weight_strategy import (
     FactorPriorityWeightStrategy,
     StaticTestPriorityWeightStrategy,
     TestPriorityWeightStrategyPlugin,
 )
+from tests_common.test_utils.timetables import cron_timetable, delta_timetable
+
+DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -130,11 +131,8 @@ def clear_assets():
     clear_db_assets()
 
 
-TEST_DAGS_FOLDER = Path(__file__).parents[1] / "dags"
-
-
 @pytest.fixture
-def test_dags_bundle(configure_testing_dag_bundle):
+def test_dags_bundle(configure_testing_dag_bundle, TEST_DAGS_FOLDER):
     with configure_testing_dag_bundle(TEST_DAGS_FOLDER):
         yield
 
@@ -2282,7 +2280,7 @@ class TestDagModel:
         needed = query.all()
         assert needed == []
 
-    def test_relative_fileloc(self, session):
+    def test_relative_fileloc(self, session, TEST_DAGS_FOLDER):
         rel_path = "test_assets.py"
         bundle_path = TEST_DAGS_FOLDER
         file_path = bundle_path / rel_path

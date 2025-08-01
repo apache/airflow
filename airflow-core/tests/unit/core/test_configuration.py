@@ -48,7 +48,7 @@ from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.reset_warning_registry import reset_warning_registry
-from unit.utils.test_config import (
+from tests_common.test_utils.test_config import (
     remove_all_configurations,
     set_deprecated_options,
     set_sensitive_config_values,

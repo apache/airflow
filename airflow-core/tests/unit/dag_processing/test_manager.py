@@ -70,17 +70,11 @@ from tests_common.test_utils.db import (
     clear_db_runs,
     clear_db_serialized_dags,
 )
-from unit.models import TEST_DAGS_FOLDER
 
 pytestmark = pytest.mark.db_test
 
 logger = logging.getLogger(__name__)
-TEST_DAG_FOLDER = Path(__file__).parents[1].resolve() / "dags"
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
-
-
-def _get_file_infos(files: list[str | Path]) -> list[DagFileInfo]:
-    return [DagFileInfo(bundle_name="testing", bundle_path=TEST_DAGS_FOLDER, rel_path=Path(f)) for f in files]
 
 
 def mock_get_mtime(file: Path):
@@ -106,6 +100,16 @@ def encode_mtime_in_filename(val):
         addition = f"ss={str(mtime)}"
         out.append(f"{f.stem}-{addition}{f.suffix}")
     return out
+
+
+@pytest.fixture
+def get_file_infos(TEST_DAGS_FOLDER):
+    def _get_file_infos(files: list[str | Path]) -> list[DagFileInfo]:
+        return [
+            DagFileInfo(bundle_name="testing", bundle_path=TEST_DAGS_FOLDER, rel_path=Path(f)) for f in files
+        ]
+
+    return _get_file_infos
 
 
 class TestDagFileProcessorManager:
@@ -196,7 +200,7 @@ class TestDagFileProcessorManager:
 
         # TODO: AIP-66 no asserts?
 
-    def test_start_new_processes_with_same_filepath(self, configure_testing_dag_bundle):
+    def test_start_new_processes_with_same_filepath(self, configure_testing_dag_bundle, TEST_DAGS_FOLDER):
         """
         Test that when a processor already exist with a filepath, a new processor won't be created
         with that filepath. The filepath will just be removed from the list.
@@ -226,7 +230,7 @@ class TestDagFileProcessorManager:
         assert file_2 in manager._processors.keys()
         assert deque([file_3]) == manager._file_queue
 
-    def test_handle_removed_files_when_processor_file_path_not_in_new_file_paths(self):
+    def test_handle_removed_files_when_processor_file_path_not_in_new_file_paths(self, TEST_DAGS_FOLDER):
         """Ensure processors and file stats are removed when the file path is not in the new file paths"""
         manager = DagFileProcessorManager(max_runs=1)
         bundle_name = "testing"
@@ -241,7 +245,7 @@ class TestDagFileProcessorManager:
         assert manager._processors == {}
         assert file not in manager._file_stats
 
-    def test_handle_removed_files_when_processor_file_path_is_present(self):
+    def test_handle_removed_files_when_processor_file_path_is_present(self, TEST_DAGS_FOLDER):
         """handle_removed_files should not purge files that are still present."""
         manager = DagFileProcessorManager(max_runs=1)
         bundle_name = "testing"
@@ -254,11 +258,11 @@ class TestDagFileProcessorManager:
         assert manager._processors == {file: mock_processor}
 
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "alphabetical"})
-    def test_files_in_queue_sorted_alphabetically(self):
+    def test_files_in_queue_sorted_alphabetically(self, get_file_infos):
         """Test dag files are sorted alphabetically"""
         file_names = ["file_3.py", "file_2.py", "file_4.py", "file_1.py"]
-        dag_files = _get_file_infos(file_names)
-        ordered_dag_files = _get_file_infos(sorted(file_names))
+        dag_files = get_file_infos(file_names)
+        ordered_dag_files = get_file_infos(sorted(file_names))
 
         manager = DagFileProcessorManager(max_runs=1)
         known_files = {"some-bundle": set(dag_files)}
@@ -267,9 +271,9 @@ class TestDagFileProcessorManager:
         assert manager._file_queue == deque(ordered_dag_files)
 
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "random_seeded_by_host"})
-    def test_files_sorted_random_seeded_by_host(self):
+    def test_files_sorted_random_seeded_by_host(self, get_file_infos):
         """Test files are randomly sorted and seeded by host name"""
-        f_infos = _get_file_infos(["file_3.py", "file_2.py", "file_4.py", "file_1.py"])
+        f_infos = get_file_infos(["file_3.py", "file_2.py", "file_4.py", "file_1.py"])
         known_files = {"anything": f_infos}
         manager = DagFileProcessorManager(max_runs=1)
 
@@ -286,7 +290,7 @@ class TestDagFileProcessorManager:
 
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
     @mock.patch("airflow.utils.file.os.path.getmtime", new=mock_get_mtime)
-    def test_files_sorted_by_modified_time(self):
+    def test_files_sorted_by_modified_time(self, get_file_infos):
         """Test files are sorted by modified time"""
         paths_with_mtime = [
             ("file_3.py", 3.0),
@@ -295,13 +299,13 @@ class TestDagFileProcessorManager:
             ("file_1.py", 4.0),
         ]
         filenames = encode_mtime_in_filename(paths_with_mtime)
-        dag_files = _get_file_infos(filenames)
+        dag_files = get_file_infos(filenames)
 
         manager = DagFileProcessorManager(max_runs=1)
 
         assert manager._file_queue == deque()
         manager.prepare_file_queue(known_files={"any": set(dag_files)})
-        ordered_files = _get_file_infos(
+        ordered_files = get_file_infos(
             [
                 "file_4-ss=5.0.py",
                 "file_1-ss=4.0.py",
@@ -313,21 +317,21 @@ class TestDagFileProcessorManager:
 
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
     @mock.patch("airflow.utils.file.os.path.getmtime", new=mock_get_mtime)
-    def test_queued_files_exclude_missing_file(self):
+    def test_queued_files_exclude_missing_file(self, get_file_infos):
         """Check that a file is not enqueued for processing if it has been deleted"""
         file_and_mtime = [("file_3.py", 2.0), ("file_2.py", 3.0), ("file_4.py", FileNotFoundError)]
         filenames = encode_mtime_in_filename(file_and_mtime)
-        file_infos = _get_file_infos(filenames)
+        file_infos = get_file_infos(filenames)
         manager = DagFileProcessorManager(max_runs=1)
         manager.prepare_file_queue(known_files={"any": set(file_infos)})
-        ordered_files = _get_file_infos(["file_2-ss=3.0.py", "file_3-ss=2.0.py"])
+        ordered_files = get_file_infos(["file_2-ss=3.0.py", "file_3-ss=2.0.py"])
         assert manager._file_queue == deque(ordered_files)
 
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
     @mock.patch("airflow.utils.file.os.path.getmtime", new=mock_get_mtime)
-    def test_add_new_file_to_parsing_queue(self):
+    def test_add_new_file_to_parsing_queue(self, get_file_infos):
         """Check that new file is added to parsing queue"""
-        dag_files = _get_file_infos(["file_1-ss=2.0.py", "file_2-ss=3.0.py", "file_3-ss=4.0.py"])
+        dag_files = get_file_infos(["file_1-ss=2.0.py", "file_2-ss=3.0.py", "file_3-ss=4.0.py"])
         from random import Random
 
         Random("file_2.py").random()
@@ -337,10 +341,10 @@ class TestDagFileProcessorManager:
         assert set(manager._file_queue) == set(dag_files)
 
         manager.prepare_file_queue(
-            known_files={"any": set((*dag_files, *_get_file_infos(["file_4-ss=1.0.py"])))}
+            known_files={"any": set((*dag_files, *get_file_infos(["file_4-ss=1.0.py"])))}
         )
         # manager.add_files_to_queue()
-        ordered_files = _get_file_infos(
+        ordered_files = get_file_infos(
             [
                 "file_3-ss=4.0.py",
                 "file_2-ss=3.0.py",
@@ -352,7 +356,7 @@ class TestDagFileProcessorManager:
 
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
     @mock.patch("airflow.utils.file.os.path.getmtime")
-    def test_recently_modified_file_is_parsed_with_mtime_mode(self, mock_getmtime):
+    def test_recently_modified_file_is_parsed_with_mtime_mode(self, mock_getmtime, TEST_DAGS_FOLDER):
         """
         Test recently updated files are processed even if min_file_process_interval is not reached
         """
@@ -394,7 +398,7 @@ class TestDagFileProcessorManager:
                 > (freezed_base_time - manager._file_stats[dag_file].last_finish_time).total_seconds()
             )
 
-    def test_file_paths_in_queue_sorted_by_priority(self):
+    def test_file_paths_in_queue_sorted_by_priority(self, TEST_DAGS_FOLDER):
         from airflow.models.dagbag import DagPriorityParsingRequest
 
         parsing_request = DagPriorityParsingRequest(relative_fileloc="file_1.py", bundle_name="dags-folder")
@@ -419,7 +423,7 @@ class TestDagFileProcessorManager:
             parsing_request_after = session2.get(DagPriorityParsingRequest, parsing_request.id)
         assert parsing_request_after is None
 
-    def test_parsing_requests_only_bundles_being_parsed(self, testing_dag_bundle):
+    def test_parsing_requests_only_bundles_being_parsed(self, testing_dag_bundle, TEST_DAGS_FOLDER):
         """Ensure the manager only handles parsing requests for bundles being parsed in this manager"""
         from airflow.models.dagbag import DagPriorityParsingRequest
 
@@ -441,7 +445,7 @@ class TestDagFileProcessorManager:
         assert len(parsing_request_after) == 1
         assert parsing_request_after[0].relative_fileloc == "file_x.py"
 
-    def test_scan_stale_dags(self, testing_dag_bundle):
+    def test_scan_stale_dags(self, testing_dag_bundle, TEST_DAGS_FOLDER):
         """
         Ensure that DAGs are marked inactive when the file is parsed but the
         DagModel.last_parsed_time is not updated.
@@ -518,7 +522,7 @@ class TestDagFileProcessorManager:
             # SerializedDagModel gives history about Dags
             assert serialized_dag_count == 1
 
-    def test_kill_timed_out_processors_kill(self):
+    def test_kill_timed_out_processors_kill(self, TEST_DAGS_FOLDER):
         manager = DagFileProcessorManager(max_runs=1, processor_timeout=5)
         processor, _ = self.mock_processor(start_time=16000)
         manager._processors = {
@@ -532,7 +536,7 @@ class TestDagFileProcessorManager:
         assert len(manager._processors) == 0
         processor.logger_filehandle.close.assert_called()
 
-    def test_kill_timed_out_processors_no_kill(self):
+    def test_kill_timed_out_processors_no_kill(self, TEST_DAGS_FOLDER):
         manager = DagFileProcessorManager(
             max_runs=1,
             processor_timeout=5,
@@ -613,12 +617,12 @@ class TestDagFileProcessorManager:
 
     @conf_vars({("core", "load_examples"): "False"})
     @pytest.mark.execution_timeout(10)
-    def test_dag_with_system_exit(self, configure_testing_dag_bundle):
+    def test_dag_with_system_exit(self, configure_testing_dag_bundle, TEST_DAGS_FOLDER):
         """
         Test to check that a DAG with a system.exit() doesn't break the scheduler.
         """
         dag_id = "exit_test_dag"
-        dag_directory = TEST_DAG_FOLDER.parent / "dags_with_system_exit"
+        dag_directory = TEST_DAGS_FOLDER.parent / "dags_with_system_exit"
 
         # Delete the one valid DAG/SerializedDAG, and check that it gets re-created
         clear_db_dags()
@@ -717,7 +721,7 @@ class TestDagFileProcessorManager:
             dag = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))
             assert dag.is_stale is True
 
-    def test_deactivate_deleted_dags(self, dag_maker):
+    def test_deactivate_deleted_dags(self, dag_maker, TEST_DAGS_FOLDER):
         with dag_maker("test_dag1") as dag1:
             dag1.relative_fileloc = "test_dag1.py"
         with dag_maker("test_dag2") as dag2:
@@ -743,8 +747,8 @@ class TestDagFileProcessorManager:
         assert dagbag.get_dag("test_dag2").get_is_active() is False
 
     @conf_vars({("core", "load_examples"): "False"})
-    def test_fetch_callbacks_from_database(self, configure_testing_dag_bundle):
-        dag_filepath = TEST_DAG_FOLDER / "test_on_failure_callback_dag.py"
+    def test_fetch_callbacks_from_database(self, configure_testing_dag_bundle, TEST_DAGS_FOLDER):
+        dag_filepath = TEST_DAGS_FOLDER / "test_on_failure_callback_dag.py"
 
         callback1 = DagCallbackRequest(
             dag_id="test_start_date_scheduling",
@@ -780,9 +784,11 @@ class TestDagFileProcessorManager:
             ("core", "load_examples"): "False",
         }
     )
-    def test_fetch_callbacks_from_database_max_per_loop(self, tmp_path, configure_testing_dag_bundle):
+    def test_fetch_callbacks_from_database_max_per_loop(
+        self, tmp_path, configure_testing_dag_bundle, TEST_DAGS_FOLDER
+    ):
         """Test DagFileProcessorManager._fetch_callbacks method"""
-        dag_filepath = TEST_DAG_FOLDER / "test_on_failure_callback_dag.py"
+        dag_filepath = TEST_DAGS_FOLDER / "test_on_failure_callback_dag.py"
 
         with create_session() as session:
             for i in range(5):
@@ -912,9 +918,9 @@ class TestDagFileProcessorManager:
             assert dag1_path not in manager._callback_to_execute
             assert dag2_path not in manager._callback_to_execute
 
-    def test_dag_with_assets(self, session, configure_testing_dag_bundle):
+    def test_dag_with_assets(self, session, configure_testing_dag_bundle, TEST_DAGS_FOLDER):
         """'Integration' test to ensure that the assets get parsed and stored correctly for parsed dags."""
-        test_dag_path = str(TEST_DAG_FOLDER / "test_assets.py")
+        test_dag_path = str(TEST_DAGS_FOLDER / "test_assets.py")
 
         with configure_testing_dag_bundle(test_dag_path):
             manager = DagFileProcessorManager(

@@ -25,6 +25,7 @@ import time_machine
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
+from airflow._shared.timezones import timezone
 from airflow.models import DagRun, Trigger
 from airflow.models.deadline import Deadline, DeadlineCallbackState, ReferenceModels, _fetch_from_db
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -34,7 +35,8 @@ from airflow.triggers.deadline import PAYLOAD_BODY_KEY, PAYLOAD_STATUS_KEY
 from airflow.utils.state import DagRunState
 
 from tests_common.test_utils import db
-from unit.models import DEFAULT_DATE
+
+DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 DAG_ID = "dag_id_1"
 RUN_ID = 1

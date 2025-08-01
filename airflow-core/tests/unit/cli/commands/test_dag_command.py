@@ -55,7 +55,6 @@ from tests_common.test_utils.db import (
     clear_db_runs,
     parse_and_sync_to_db,
 )
-from unit.models import TEST_DAGS_FOLDER
 
 DEFAULT_DATE = timezone.make_aware(datetime(2015, 1, 1), timezone=timezone.utc)
 if pendulum.__version__.startswith("3"):
@@ -272,7 +271,7 @@ class TestCliDags:
         parse_and_sync_to_db(os.devnull, include_examples=True)
 
     @conf_vars({("core", "load_examples"): "false"})
-    def test_cli_list_local_dags_with_bundle_name(self, configure_testing_dag_bundle):
+    def test_cli_list_local_dags_with_bundle_name(self, configure_testing_dag_bundle, TEST_DAGS_FOLDER):
         # Clear the database
         clear_db_dags()
         path_to_parse = TEST_DAGS_FOLDER / "test_example_bash_operator.py"
@@ -315,7 +314,9 @@ class TestCliDags:
         assert "Ignoring the following invalid columns: ['invalid_col']" in out
 
     @conf_vars({("core", "load_examples"): "false"})
-    def test_cli_list_dags_prints_import_errors(self, configure_testing_dag_bundle, get_test_dag):
+    def test_cli_list_dags_prints_import_errors(
+        self, configure_testing_dag_bundle, get_test_dag, TEST_DAGS_FOLDER
+    ):
         path_to_parse = TEST_DAGS_FOLDER / "test_invalid_cron.py"
         get_test_dag("test_invalid_cron")
 
@@ -329,7 +330,9 @@ class TestCliDags:
         assert "Failed to load all files." in out
 
     @conf_vars({("core", "load_examples"): "false"})
-    def test_cli_list_dags_prints_local_import_errors(self, configure_testing_dag_bundle, get_test_dag):
+    def test_cli_list_dags_prints_local_import_errors(
+        self, configure_testing_dag_bundle, get_test_dag, TEST_DAGS_FOLDER
+    ):
         # Clear the database
         clear_db_dags()
         path_to_parse = TEST_DAGS_FOLDER / "test_invalid_cron.py"
@@ -368,7 +371,9 @@ class TestCliDags:
         assert sorted(dag_details) == sorted(dag_command.DAG_DETAIL_FIELDS)
 
     @conf_vars({("core", "load_examples"): "false"})
-    def test_cli_list_import_errors(self, get_test_dag, configure_testing_dag_bundle, caplog):
+    def test_cli_list_import_errors(
+        self, get_test_dag, configure_testing_dag_bundle, caplog, TEST_DAGS_FOLDER
+    ):
         path_to_parse = TEST_DAGS_FOLDER / "test_invalid_cron.py"
         get_test_dag("test_invalid_cron")
 
@@ -754,7 +759,7 @@ class TestCliDags:
         assert "SOURCE" in output
 
     @mock.patch("airflow.models.dagbag.DagBag")
-    def test_dag_test_with_bundle_name(self, mock_dagbag, configure_dag_bundles):
+    def test_dag_test_with_bundle_name(self, mock_dagbag, configure_dag_bundles, TEST_DAGS_FOLDER):
         """Test that DAG can be tested using bundle name."""
         mock_dagbag.return_value.get_dag.return_value.test.return_value = DagRun(
             dag_id="test_example_bash_operator", logical_date=DEFAULT_DATE, state=DagRunState.SUCCESS
@@ -781,7 +786,7 @@ class TestCliDags:
         )
 
     @mock.patch("airflow.models.dagbag.DagBag")
-    def test_dag_test_with_dagfile_path(self, mock_dagbag, configure_dag_bundles):
+    def test_dag_test_with_dagfile_path(self, mock_dagbag, configure_dag_bundles, TEST_DAGS_FOLDER):
         """Test that DAG can be tested using dagfile path."""
         mock_dagbag.return_value.get_dag.return_value.test.return_value = DagRun(
             dag_id="test_example_bash_operator", logical_date=DEFAULT_DATE, state=DagRunState.SUCCESS
@@ -802,7 +807,9 @@ class TestCliDags:
         )
 
     @mock.patch("airflow.models.dagbag.DagBag")
-    def test_dag_test_with_both_bundle_and_dagfile_path(self, mock_dagbag, configure_dag_bundles):
+    def test_dag_test_with_both_bundle_and_dagfile_path(
+        self, mock_dagbag, configure_dag_bundles, TEST_DAGS_FOLDER
+    ):
         """Test that DAG can be tested using both bundle name and dagfile path."""
         mock_dagbag.return_value.get_dag.return_value.test.return_value = DagRun(
             dag_id="test_example_bash_operator", logical_date=DEFAULT_DATE, state=DagRunState.SUCCESS
@@ -849,7 +856,7 @@ class TestCliDags:
 
     @mock.patch("airflow.models.dag._get_or_create_dagrun")
     def test_dag_with_parsing_context(
-        self, mock__get_or_create_dagrun, testing_dag_bundle, configure_testing_dag_bundle
+        self, mock__get_or_create_dagrun, testing_dag_bundle, configure_testing_dag_bundle, TEST_DAGS_FOLDER
     ):
         """
         airflow parsing context should be set when calling `dags test`.
@@ -919,7 +926,7 @@ class TestCliDags:
             assert next(x for x in tis if x.task_id == "abc").state == "success"
 
     @mock.patch("airflow.sdk.execution_time.task_runner._execute_task")
-    def test_dag_test_with_mark_success(self, mock__execute_task):
+    def test_dag_test_with_mark_success(self, mock__execute_task, TEST_DAGS_FOLDER):
         """
         option `--mark-success-pattern` should mark matching tasks as success without executing them.
         """
@@ -940,7 +947,7 @@ class TestCliDags:
         assert mock__execute_task.call_args_list[0].kwargs["ti"].task_id == "dummy_operator"
 
     @conf_vars({("core", "load_examples"): "false"})
-    def test_get_dag_excludes_examples_with_bundle(self, configure_testing_dag_bundle):
+    def test_get_dag_excludes_examples_with_bundle(self, configure_testing_dag_bundle, TEST_DAGS_FOLDER):
         """Test that example DAGs are excluded when bundle names are passed."""
         from airflow.utils.cli import get_dag
 
@@ -957,12 +964,6 @@ class TestCliDags:
 class TestCliDagsReserialize:
     parser = cli_parser.get_parser()
 
-    test_bundles_config = {
-        "bundle1": TEST_DAGS_FOLDER / "test_example_bash_operator.py",
-        "bundle2": TEST_DAGS_FOLDER / "test_sensor.py",
-        "bundle3": TEST_DAGS_FOLDER / "test_dag_with_no_tags.py",
-    }
-
     @classmethod
     def setup_class(cls):
         clear_db_dags()
@@ -971,8 +972,8 @@ class TestCliDagsReserialize:
         clear_db_dags()
 
     @conf_vars({("core", "load_examples"): "false"})
-    def test_reserialize(self, configure_dag_bundles, session):
-        with configure_dag_bundles(self.test_bundles_config):
+    def test_reserialize(self, configure_dag_bundles, session, test_bundles_config, TEST_DAGS_FOLDER):
+        with configure_dag_bundles(test_bundles_config):
             dag_command.dag_reserialize(self.parser.parse_args(["dags", "reserialize"]))
 
         serialized_dag_ids = set(session.execute(select(SerializedDagModel.dag_id)).scalars())
@@ -985,8 +986,10 @@ class TestCliDagsReserialize:
         assert example_bash_op.fileloc == str(TEST_DAGS_FOLDER / "test_example_bash_operator.py")
 
     @conf_vars({("core", "load_examples"): "false"})
-    def test_reserialize_should_support_bundle_name_argument(self, configure_dag_bundles, session):
-        with configure_dag_bundles(self.test_bundles_config):
+    def test_reserialize_should_support_bundle_name_argument(
+        self, configure_dag_bundles, session, test_bundles_config
+    ):
+        with configure_dag_bundles(test_bundles_config):
             dag_command.dag_reserialize(
                 self.parser.parse_args(["dags", "reserialize", "--bundle-name", "bundle1"])
             )
@@ -995,8 +998,10 @@ class TestCliDagsReserialize:
         assert serialized_dag_ids == {"test_example_bash_operator"}
 
     @conf_vars({("core", "load_examples"): "false"})
-    def test_reserialize_should_support_multiple_bundle_name_arguments(self, configure_dag_bundles, session):
-        with configure_dag_bundles(self.test_bundles_config):
+    def test_reserialize_should_support_multiple_bundle_name_arguments(
+        self, configure_dag_bundles, session, test_bundles_config
+    ):
+        with configure_dag_bundles(test_bundles_config):
             dag_command.dag_reserialize(
                 self.parser.parse_args(
                     ["dags", "reserialize", "--bundle-name", "bundle1", "--bundle-name", "bundle2"]

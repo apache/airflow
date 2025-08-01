@@ -24,7 +24,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 from airflow.utils.session import provide_session
 
-from unit.listeners import asset_listener
+from tests_common.test_utils.listeners import asset_listener
 
 
 @pytest.fixture(autouse=True)

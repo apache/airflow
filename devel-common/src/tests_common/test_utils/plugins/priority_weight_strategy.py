@@ -49,7 +49,7 @@ class DecreasingPriorityStrategy(PriorityWeightStrategy):
 
 class TestPriorityWeightStrategyPlugin(AirflowPlugin):
     # Without this import, the qualname method will not use the correct classes names
-    from unit.plugins.priority_weight_strategy import (
+    from tests_common.test_utils.plugins.priority_weight_strategy import (
         DecreasingPriorityStrategy,
         FactorPriorityWeightStrategy,
         StaticTestPriorityWeightStrategy,

@@ -17,11 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+from airflow._shared.timezones import timezone
 from airflow.models.dag import DAG
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 
-from unit.models import DEFAULT_DATE
+DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 with DAG(
     dag_id="test_external_task_sensor_check_existence_ext",
