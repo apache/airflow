@@ -2313,6 +2313,15 @@
                         "type": "string"
                     }
                 },
+                "schedulerName": {
+                    "description": "Specify kube scheduler name for Airflow Celery workers objects and pods created with pod-template-file.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null,
+                    "x-docsSection": "Common"
+                },
                 "labels": {
                     "description": "Labels to add to the Airflow Celery workers objects and pods created with pod-template-file.",
                     "type": "object",
