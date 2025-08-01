@@ -47,6 +47,7 @@ POLL_INTERVAL = 100
 JOB_NAME = "test-job"
 JOB_NAMESPACE = "test-namespace"
 JOB_POLL_INTERVAL = 20.0
+JOB_TEMPLATE_FILE = "job_template.yaml"
 KUBERNETES_CONN_ID = "test-conn_id"
 POD_NAME = "test-pod"
 POD_NAMESPACE = "test-namespace"
@@ -106,6 +107,16 @@ def create_context(task, persist_to_db=False, map_index=None):
 @pytest.mark.db_test
 @pytest.mark.execution_timeout(300)
 class TestKubernetesJobOperator:
+    def test_template_fields_order(self):
+        """Test that template_fields includes deterministic order."""
+        job = KubernetesJobOperator(job_template_file=JOB_TEMPLATE_FILE, task_id="task")
+
+        # Verify that job_template_file is in template_fields
+        assert "job_template_file" in job.template_fields
+
+        # Verify that all fields are ordered
+        assert list(job.template_fields) == sorted(job.template_fields)
+
     @pytest.fixture(autouse=True)
     def setup_tests(self):
         self._default_client_patch = patch(f"{HOOK_CLASS}._get_default_client")

@@ -61,9 +61,9 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
     custom_operator_name = "@task.kubernetes"
 
     # `cmds` and `arguments` are used internally by the operator
-    template_fields: Sequence[str] = tuple(sorted(
-        {"op_args", "op_kwargs", *KubernetesPodOperator.template_fields} - {"cmds", "arguments"}
-    ))
+    template_fields: Sequence[str] = tuple(
+        sorted({"op_args", "op_kwargs", *KubernetesPodOperator.template_fields} - {"cmds", "arguments"})
+    )
 
     # Since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects (e.g protobuf).

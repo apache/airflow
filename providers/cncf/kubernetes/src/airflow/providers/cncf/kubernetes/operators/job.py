@@ -95,7 +95,9 @@ class KubernetesJobOperator(KubernetesPodOperator):
         compatibility.
     """
 
-    template_fields: Sequence[str] = tuple(sorted({"job_template_file"} | set(KubernetesPodOperator.template_fields)))
+    template_fields: Sequence[str] = tuple(
+        sorted({"job_template_file"} | set(KubernetesPodOperator.template_fields))
+    )
 
     def __init__(
         self,
