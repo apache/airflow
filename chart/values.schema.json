@@ -9126,6 +9126,16 @@
                                 }
                             ]
                         },
+                        "livenessProbe": {
+                            "description": "Liveness probe configuration for git sync container.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.Probe"
+                        },
+                        "readinessProbe": {
+                            "description": "Readiness probe configuration for git sync container.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.Probe"
+                        },
                         "emptyDirConfig": {
                             "description": "Configuration for dags empty dir volume.",
                             "type": "object",
