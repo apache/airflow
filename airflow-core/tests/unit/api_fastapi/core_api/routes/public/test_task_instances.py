@@ -731,7 +731,7 @@ class TestGetMappedTaskInstances:
             "/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
         )
         assert response.status_code == 404
-        assert response.json() == {"detail": "DAG mapped_tis not found"}
+        assert response.json() == {"detail": "The Dag with ID: `mapped_tis` was not found"}
 
     def test_should_respond_200(self, one_task_with_many_mapped_tis, test_client):
         response = test_client.get(
@@ -1168,7 +1168,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
     def test_not_found(self, test_client):
         response = test_client.get("/dags/invalid/dagRuns/~/taskInstances")
         assert response.status_code == 404
-        assert response.json() == {"detail": "Dag with dag_id: `invalid` was not found"}
+        assert response.json() == {"detail": "The Dag with ID: `invalid` was not found"}
 
         response = test_client.get("/dags/~/dagRuns/invalid/taskInstances")
         assert response.status_code == 404
@@ -2874,7 +2874,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             },
         )
         assert response.status_code == 404
-        assert "DAG non-existent-dag not found" in response.text
+        assert "The Dag with ID: `non-existent-dag` was not found" in response.text
 
 
 class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
@@ -3466,7 +3466,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             },
         )
         assert response.status_code == 404
-        assert response.json() == {"detail": "DAG non-existent-dag not found"}
+        assert response.json() == {"detail": "The Dag with ID: `non-existent-dag` was not found"}
 
     def test_should_raise_404_for_non_existent_task_in_dag(self, test_client):
         response = test_client.patch(
@@ -4156,7 +4156,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
             },
         )
         assert response.status_code == 404
-        assert response.json() == {"detail": "DAG non-existent-dag not found"}
+        assert response.json() == {"detail": "The Dag with ID: `non-existent-dag` was not found"}
 
     def test_should_raise_404_for_non_existent_task_in_dag(self, test_client):
         response = test_client.patch(

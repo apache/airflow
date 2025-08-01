@@ -281,7 +281,7 @@ class TestGetDagRuns:
         response = test_client.get("/dags/invalid/dagRuns")
         assert response.status_code == 404
         body = response.json()
-        assert body["detail"] == "The DAG with dag_id: `invalid` was not found"
+        assert body["detail"] == "The Dag with ID: `invalid` was not found"
 
     def test_invalid_order_by_raises_400(self, test_client):
         response = test_client.get("/dags/test_dag1/dagRuns?order_by=invalid")

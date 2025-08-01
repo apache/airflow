@@ -496,7 +496,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
         response = test_client.get("/dags/MISSING_ID/dagVersions")
         assert response.status_code == 404
         assert response.json() == {
-            "detail": "The DAG with dag_id: `MISSING_ID` was not found",
+            "detail": "The Dag with ID: `MISSING_ID` was not found",
         }
 
     def test_should_respond_401(self, unauthenticated_test_client):

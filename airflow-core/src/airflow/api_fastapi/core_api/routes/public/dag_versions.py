@@ -23,7 +23,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
-from airflow.api_fastapi.common.dagbag import DagBagDep
+from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     FilterParam,
@@ -111,10 +111,7 @@ def get_dag_versions(
     query = select(DagVersion).options(joinedload(DagVersion.dag_model))
 
     if dag_id != "~":
-        dag = dag_bag.get_latest_version_of_dag(dag_id, session)
-        if not dag:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, f"The DAG with dag_id: `{dag_id}` was not found")
-
+        get_latest_version_of_dag(dag_bag, dag_id, session)
         query = query.filter(DagVersion.dag_id == dag_id)
 
     dag_versions_select, total_entries = paginated_select(

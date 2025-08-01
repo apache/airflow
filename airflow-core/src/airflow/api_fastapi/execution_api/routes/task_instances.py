@@ -38,7 +38,7 @@ from sqlalchemy.sql import select
 from structlog.contextvars import bind_contextvars
 
 from airflow._shared.timezones import timezone
-from airflow.api_fastapi.common.dagbag import DagBagDep
+from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
@@ -59,7 +59,6 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
 from airflow.api_fastapi.execution_api.deps import JWTBearerTIPathDep
 from airflow.exceptions import TaskNotFound
 from airflow.models.asset import AssetActive
-from airflow.models.dagbag import SchedulerDagBag
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_tasks
 from airflow.models.taskreschedule import TaskReschedule
@@ -736,6 +735,7 @@ def get_previous_successful_dagrun(
 def get_task_instance_count(
     dag_id: str,
     session: SessionDep,
+    dag_bag: DagBagDep,
     map_index: Annotated[int | None, Query()] = None,
     task_ids: Annotated[list[str] | None, Query()] = None,
     task_group_id: Annotated[str | None, Query()] = None,
@@ -759,7 +759,7 @@ def get_task_instance_count(
         query = query.where(TI.run_id.in_(run_ids))
 
     if task_group_id:
-        group_tasks = _get_group_tasks(dag_id, task_group_id, session, logical_dates, run_ids)
+        group_tasks = _get_group_tasks(dag_id, task_group_id, session, dag_bag, logical_dates, run_ids)
 
         # Get unique (task_id, map_index) pairs
 
@@ -787,7 +787,6 @@ def get_task_instance_count(
             query = query.where(TI.state.in_(states))
 
     count = session.scalar(query)
-
     return count or 0
 
 
@@ -795,6 +794,7 @@ def get_task_instance_count(
 def get_task_instance_states(
     dag_id: str,
     session: SessionDep,
+    dag_bag: DagBagDep,
     map_index: Annotated[int | None, Query()] = None,
     task_ids: Annotated[list[str] | None, Query()] = None,
     task_group_id: Annotated[str | None, Query()] = None,
@@ -818,7 +818,7 @@ def get_task_instance_states(
     results = session.scalars(query).all()
 
     if task_group_id:
-        group_tasks = _get_group_tasks(dag_id, task_group_id, session, logical_dates, run_ids)
+        group_tasks = _get_group_tasks(dag_id, task_group_id, session, dag_bag, logical_dates, run_ids)
 
         results = results + group_tasks if task_ids else group_tasks
 
@@ -848,18 +848,11 @@ def _is_eligible_to_retry(state: str, try_number: int, max_tries: int) -> bool:
     return max_tries != 0 and try_number <= max_tries
 
 
-def _get_group_tasks(dag_id: str, task_group_id: str, session: SessionDep, logical_dates=None, run_ids=None):
+def _get_group_tasks(
+    dag_id: str, task_group_id: str, session: SessionDep, dag_bag: DagBagDep, logical_dates=None, run_ids=None
+):
     # Get all tasks in the task group
-    dag = SchedulerDagBag().get_latest_version_of_dag(dag_id, session)
-    if not dag:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": f"DAG {dag_id} not found",
-            },
-        )
-
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session, include_reason=True)
     task_group = dag.task_group_dict.get(task_group_id)
     if not task_group:
         raise HTTPException(

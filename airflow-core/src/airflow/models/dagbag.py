@@ -715,7 +715,7 @@ class DagBag(LoggingMixin):
         )
 
 
-class SchedulerDagBag:
+class DBDagBag:
     """
     Internal class for retrieving and caching dags in the scheduler.
 
