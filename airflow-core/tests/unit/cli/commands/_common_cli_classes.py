@@ -33,7 +33,7 @@ from airflow.utils.cli import setup_locations
 console = Console(width=400, color_system="standard")
 
 
-class _CommonCLIUvicornTestClass:
+class _CommonCLIGunicornTestClass:
     main_process_regexp: str = "process_to_look_for"
 
     @pytest.fixture(autouse=True)
@@ -49,12 +49,12 @@ class _CommonCLIUvicornTestClass:
         # Confirm that nmain procss hasn't been launched.
         # pgrep returns exit status 1 if no process matched.
         # Use more specific regexps (^) to avoid matching pytest run when running specific method.
-        # For instance, we want to be able to do: pytest -k 'uvicorn'
+        # For instance, we want to be able to do: pytest -k 'gunicorn'
         airflow_internal_api_pids = self._find_all_processes(self.main_process_regexp)
-        uvicorn_pids = self._find_all_processes(r"uvicorn: ")
-        if airflow_internal_api_pids or uvicorn_pids:
+        gunicorn_pids = self._find_all_processes(r"gunicorn: ")
+        if airflow_internal_api_pids or gunicorn_pids:
             console.print("[blue]Some processes are still running")
-            for pid in uvicorn_pids + airflow_internal_api_pids:
+            for pid in gunicorn_pids + airflow_internal_api_pids:
                 with suppress(NoSuchProcess):
                     console.print(psutil.Process(pid).as_dict(attrs=["pid", "name", "cmdline"]))
             console.print("[blue]Here list of processes ends")
@@ -63,9 +63,9 @@ class _CommonCLIUvicornTestClass:
                 for pid in airflow_internal_api_pids:
                     with suppress(NoSuchProcess):
                         psutil.Process(pid).kill()
-            if uvicorn_pids:
-                console.print("[yellow]Forcefully killing all uvicorn processes")
-                for pid in uvicorn_pids:
+            if gunicorn_pids:
+                console.print("[yellow]Forcefully killing all gunicorn processes")
+                for pid in gunicorn_pids:
                     with suppress(NoSuchProcess):
                         psutil.Process(pid).kill()
             if not ignore_running:
