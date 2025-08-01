@@ -345,6 +345,8 @@ CONFIGS_CHANGES = [
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "cookie_samesite"),
+        renamed_to=ConfigParameter("fab", "cookie_samesite"),
+        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "audit_view_included_events"),
@@ -570,6 +572,8 @@ CONFIGS_CHANGES = [
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "cookie_secure"),
+        renamed_to=ConfigParameter("fab", "cookie_secure"),
+        breaking=True,
         was_deprecated=False,
     ),
     ConfigChange(

@@ -1200,7 +1200,7 @@ def run_generate_constraints_in_parallel(
             ]
     check_async_run_results(
         results=results,
-        success="All constraints are generated.",
+        success_message="All constraints are generated.",
         outputs=outputs,
         include_success_outputs=include_success_outputs,
         skip_cleanup=skip_cleanup,
@@ -1578,7 +1578,7 @@ def install_provider_distributions(
                 ]
         check_async_run_results(
             results=results,
-            success="All packages installed successfully",
+            success_message="All packages installed successfully",
             outputs=outputs,
             include_success_outputs=include_success_outputs,
             skip_cleanup=skip_cleanup,

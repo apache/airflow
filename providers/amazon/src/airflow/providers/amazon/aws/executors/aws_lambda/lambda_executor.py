@@ -274,6 +274,7 @@ class AwsLambdaExecutor(BaseExecutor):
             payload = {
                 "task_key": ser_task_key,
                 "command": cmd,
+                "executor_config": task_to_run.executor_config,
             }
             if timezone.utcnow() < task_to_run.next_attempt_time:
                 self.pending_tasks.append(task_to_run)

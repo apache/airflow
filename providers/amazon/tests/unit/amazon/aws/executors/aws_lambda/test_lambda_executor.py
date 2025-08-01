@@ -119,6 +119,8 @@ class TestAwsLambdaExecutor:
 
         mock_executor.attempt_task_runs()
         mock_executor.lambda_client.invoke.assert_called_once()
+        payload = json.loads(mock_executor.lambda_client.invoke.call_args.kwargs["Payload"])
+        assert payload["executor_config"] == {}
 
         # Task is stored in active worker.
         assert len(mock_executor.running_tasks) == 1
@@ -137,10 +139,12 @@ class TestAwsLambdaExecutor:
 
         airflow_key = mock_airflow_key()
         ser_airflow_key = json.dumps(airflow_key._asdict())
+        executor_config = {"config_key": "config_value"}
 
         workload = mock.Mock(spec=ExecuteTask)
         workload.ti = mock.Mock(spec=TaskInstance)
         workload.ti.key = airflow_key
+        workload.ti.executor_config = executor_config
         ser_workload = json.dumps({"test_key": "test_value"})
         workload.model_dump_json.return_value = ser_workload
 
@@ -164,6 +168,8 @@ class TestAwsLambdaExecutor:
 
         mock_executor.attempt_task_runs()
         mock_executor.lambda_client.invoke.assert_called_once()
+        payload = json.loads(mock_executor.lambda_client.invoke.call_args.kwargs["Payload"])
+        assert payload["executor_config"] == executor_config
         assert len(mock_executor.pending_tasks) == 0
 
         # Task is stored in active worker.

@@ -96,6 +96,21 @@ class TestSFTPOperator:
         if os.path.exists(self.test_remote_dir):
             os.rmdir(self.test_remote_dir)
 
+    def test_default_args(self):
+        operator = SFTPOperator(
+            task_id="test_default_args",
+            remote_filepath="/tmp/remote_file",
+        )
+        assert operator.operation == SFTPOperation.PUT
+        assert operator.confirm is True
+        assert operator.create_intermediate_dirs is False
+        assert operator.concurrency == 1
+        assert operator.prefetch is True
+        assert operator.local_filepath is None
+        assert operator.sftp_hook is None
+        assert operator.ssh_conn_id is None
+        assert operator.remote_host is None
+
     @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Pickle support is removed in Airflow 3")
     @conf_vars({("core", "enable_xcom_pickling"): "True"})
     def test_pickle_file_transfer_put(self, dag_maker):
@@ -442,8 +457,7 @@ class TestSFTPOperator:
             concurrency=2,
         ).execute(None)
         assert mock_get.call_count == 1
-        args, _ = mock_get.call_args_list[0]
-        assert args == (remote_dirpath, local_dirpath)
+        assert mock_get.call_args == mock.call(remote_dirpath, local_dirpath, workers=2, prefetch=True)
 
     @mock.patch("airflow.providers.sftp.operators.sftp.SFTPHook.store_file")
     def test_str_filepaths_put(self, mock_get):

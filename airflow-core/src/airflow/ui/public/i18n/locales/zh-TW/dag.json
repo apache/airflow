@@ -26,12 +26,18 @@
   "logs": {
     "allLevels": "所有日誌等級",
     "allSources": "所有來源",
+    "critical": "CRITICAL",
+    "debug": "DEBUG",
+    "error": "ERROR",
     "fullscreen": {
       "button": "全螢幕",
       "tooltip": "按下 {{hotkey}} 進入全螢幕"
     },
+    "info": "INFO",
     "noTryNumber": "沒有嘗試次數",
-    "viewInExternal": "在 {{name}} 中檢視日誌(嘗試 {{attempt}})"
+    "settings": "日誌設定",
+    "viewInExternal": "在 {{name}} 中檢視日誌(嘗試 {{attempt}})",
+    "warning": "WARNING"
   },
   "overview": {
     "buttons": {
