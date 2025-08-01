@@ -18,6 +18,12 @@
       "key": "Key",
       "value": "Value"
     },
+    "filters": {
+      "dagFilter": "Filter by Dag ID",
+      "keyFilter": "Filter by XCom key",
+      "runIdFilter": "Filter by Run ID",
+      "taskIdFilter": "Filter by Task ID"
+    },
     "title": "XCom"
   }
 }

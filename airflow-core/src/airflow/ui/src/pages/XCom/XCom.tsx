@@ -16,16 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, Link } from "@chakra-ui/react";
+import { Box, Heading, Link, HStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { Link as RouterLink, useParams } from "react-router-dom";
+import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
 import { useXcomServiceGetXcomEntries } from "openapi/queries";
 import type { XComResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { SearchBar } from "src/components/SearchBar";
 import { TruncatedText } from "src/components/TruncatedText";
 import { getTaskInstanceLinkFromObj } from "src/utils/links";
 
@@ -102,19 +104,90 @@ export const XCom = () => {
   const { dagId = "~", mapIndex = "-1", runId = "~", taskId = "~" } = useParams();
   const { t: translate } = useTranslation(["browse", "common"]);
   const { setTableURLState, tableURLState } = useTableURLState();
-  const { pagination } = tableURLState;
+  const { pagination, sorting } = tableURLState;
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const filteredKey = searchParams.get("key");
+  const filteredDagId = searchParams.get("dag_id");
+  const filteredRunId = searchParams.get("run_id");
+  const filteredTaskId = searchParams.get("task_id");
 
   const { data, error, isFetching, isLoading } = useXcomServiceGetXcomEntries(
     {
-      dagId,
-      dagRunId: runId,
+      dagId: filteredDagId ?? dagId,
+      dagRunId: filteredRunId ?? runId,
       limit: pagination.pageSize,
       mapIndex: mapIndex === "-1" ? undefined : parseInt(mapIndex, 10),
       offset: pagination.pageIndex * pagination.pageSize,
-      taskId,
+      taskId: filteredTaskId ?? taskId,
+      xcomKey: filteredKey ?? undefined,
     },
     undefined,
     { enabled: !isNaN(pagination.pageSize) },
+  );
+
+  const handleKeyFilterChange = useCallback(
+    (value: string) => {
+      if (value === "") {
+        searchParams.delete("key");
+      } else {
+        searchParams.set("key", value);
+      }
+      setTableURLState({
+        pagination: { ...pagination, pageIndex: 0 },
+        sorting,
+      });
+      setSearchParams(searchParams);
+    },
+    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
+  );
+
+  const handleDagIdFilterChange = useCallback(
+    (value: string) => {
+      if (value === "") {
+        searchParams.delete("dag_id");
+      } else {
+        searchParams.set("dag_id", value);
+      }
+      setTableURLState({
+        pagination: { ...pagination, pageIndex: 0 },
+        sorting,
+      });
+      setSearchParams(searchParams);
+    },
+    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
+  );
+
+  const handleRunIdFilterChange = useCallback(
+    (value: string) => {
+      if (value === "") {
+        searchParams.delete("run_id");
+      } else {
+        searchParams.set("run_id", value);
+      }
+      setTableURLState({
+        pagination: { ...pagination, pageIndex: 0 },
+        sorting,
+      });
+      setSearchParams(searchParams);
+    },
+    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
+  );
+
+  const handleTaskIdFilterChange = useCallback(
+    (value: string) => {
+      if (value === "") {
+        searchParams.delete("task_id");
+      } else {
+        searchParams.set("task_id", value);
+      }
+      setTableURLState({
+        pagination: { ...pagination, pageIndex: 0 },
+        sorting,
+      });
+      setSearchParams(searchParams);
+    },
+    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
 
   return (
@@ -122,6 +195,46 @@ export const XCom = () => {
       {dagId === "~" && runId === "~" && taskId === "~" ? (
         <Heading size="md">{translate("xcom.title")}</Heading>
       ) : undefined}
+
+      <HStack flexWrap="wrap" gap={4} paddingY="4px">
+        <Box minW="200px">
+          <SearchBar
+            defaultValue={filteredKey ?? ""}
+            hideAdvanced
+            hotkeyDisabled={false}
+            onChange={handleKeyFilterChange}
+            placeHolder={translate("xcom.filters.keyFilter")}
+          />
+        </Box>
+        <Box minW="200px">
+          <SearchBar
+            defaultValue={filteredDagId ?? ""}
+            hideAdvanced
+            hotkeyDisabled={true}
+            onChange={handleDagIdFilterChange}
+            placeHolder={translate("xcom.filters.dagFilter")}
+          />
+        </Box>
+        <Box minW="200px">
+          <SearchBar
+            defaultValue={filteredRunId ?? ""}
+            hideAdvanced
+            hotkeyDisabled={true}
+            onChange={handleRunIdFilterChange}
+            placeHolder={translate("xcom.filters.runIdFilter")}
+          />
+        </Box>
+        <Box minW="200px">
+          <SearchBar
+            defaultValue={filteredTaskId ?? ""}
+            hideAdvanced
+            hotkeyDisabled={true}
+            onChange={handleTaskIdFilterChange}
+            placeHolder={translate("xcom.filters.taskIdFilter")}
+          />
+        </Box>
+      </HStack>
+
       <ErrorAlert error={error} />
       <DataTable
         columns={columns(translate)}
