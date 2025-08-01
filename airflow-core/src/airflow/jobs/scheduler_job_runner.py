@@ -433,7 +433,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 query.where(
                     and_(
                         func.coalesce(getattr(inner_query.c, limit.window.name), text("0")) +
-                        func.coalesce(limit.running_now_join.c.now_running, text("0")) < func.coalesce(limit.limit_column, max_tis)
+                        func.coalesce(limit.running_now_join.c.now_running, text("0")) <= func.coalesce(limit.limit_column, max_tis)
                     )
                 )
             )
