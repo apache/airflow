@@ -1244,6 +1244,27 @@ class TestDagRun:
         # the latest task instance dag_version
         assert dag_run.version_number == dag_v.version_number
 
+    def test_dag_run_dag_versions_with_null_created_dag_version(self, dag_maker, session):
+        """Test that dag_versions returns empty list when created_dag_version is None and bundle_version is populated."""
+        with dag_maker(
+            "test_dag_run_null_created_dag_version",
+            schedule=datetime.timedelta(days=1),
+            start_date=DEFAULT_DATE,
+        ):
+            EmptyOperator(task_id="empty")
+        dag_run = dag_maker.create_dagrun()
+
+        dag_run.bundle_version = "some_bundle_version"
+        dag_run.created_dag_version_id = None
+        dag_run.created_dag_version = None
+        session.merge(dag_run)
+        session.flush()
+
+        # This should return empty list, not [None]
+        assert dag_run.dag_versions == []
+        assert isinstance(dag_run.dag_versions, list)
+        assert len(dag_run.dag_versions) == 0
+
 
 @pytest.mark.parametrize(
     ("run_type", "expected_tis"),
