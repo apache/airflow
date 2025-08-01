@@ -140,7 +140,7 @@ def api_server(args: Namespace):
             timeout_graceful_shutdown=worker_timeout,
             ssl_keyfile=ssl_key,
             ssl_certfile=ssl_cert,
-            access_log=access_logfile,
+            access_log=access_logfile,  # type: ignore
             proxy_headers=proxy_headers,
         )
 
