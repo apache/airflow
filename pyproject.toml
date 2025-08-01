@@ -59,11 +59,11 @@ classifiers = [
 ]
 
 # Version is defined in src/airflow/__init__.py and it is automatically synchronized by pre-commit
-version = "3.0.3"
+version = "3.0.4"
 
 dependencies = [
     "apache-airflow-task-sdk<1.1.0,>=1.0.0",
-    "apache-airflow-core==3.0.3",
+    "apache-airflow-core==3.0.4",
 ]
 
 packages = []
