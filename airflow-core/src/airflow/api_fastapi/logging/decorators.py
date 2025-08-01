@@ -38,11 +38,14 @@ def _mask_connection_fields(extra_fields):
     for k, v in extra_fields.items():
         if k == "extra" and v:
             try:
-                extra = json.loads(v)
-                extra = {k: secrets_masker.redact(v, k) for k, v in extra.items()}
-                result[k] = dict(extra)
+                parsed_extra = json.loads(v)
+                if isinstance(parsed_extra, dict):
+                    masked_extra = {ek: secrets_masker.redact(ev, ek) for ek, ev in parsed_extra.items()}
+                    result[k] = masked_extra
+                else:
+                    result[k] = "Expected JSON object in extra field, got non-dict JSON"
             except json.JSONDecodeError:
-                result[k] = "Encountered non-JSON in `extra` field"
+                result[k] = "Encountered non-JSON in extra field"
         else:
             result[k] = secrets_masker.redact(v, k)
     return result
