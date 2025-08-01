@@ -666,6 +666,8 @@ class TaskInstance(Base, LoggingMixin):
             "max_tries": task.retries,
             "executor": task.executor,
             "executor_config": task.executor_config,
+            "max_active_tis_per_dag": task.max_active_tis_per_dag,
+            "max_active_tis_per_dagrun": task.max_active_tis_per_dagrun,
             "operator": task.task_type,
             "custom_operator_name": getattr(task, "custom_operator_name", None),
             "map_index": map_index,
