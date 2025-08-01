@@ -19,8 +19,9 @@ from __future__ import annotations
 
 import math
 import warnings
+import re
 from datetime import datetime
-from typing import Any
+from typing import Any, List, Tuple
 
 import oracledb
 
@@ -57,6 +58,10 @@ def _get_first_bool(*vals):
         if isinstance(converted, bool):
             return converted
     return None
+
+
+def _is_valid_identifier(name: str) -> bool:
+    return bool(re.match(r'^[a-zA-Z0-9@.]+$', name))
 
 
 class OracleHook(DbApiHook):
@@ -174,7 +179,7 @@ class OracleHook(DbApiHook):
             )
 
         # Set oracledb Defaults Attributes if provided
-        # (https://python-oracledb.readthedocs.io/en/latest/api_manual/defaults.html)
+        #[](https://python-oracledb.readthedocs.io/en/latest/api_manual/defaults.html)
         fetch_decimals = _get_first_bool(self.fetch_decimals, conn.extra_dejson.get("fetch_decimals"))
         if isinstance(fetch_decimals, bool):
             oracledb.defaults.fetch_decimals = fetch_decimals
@@ -247,8 +252,8 @@ class OracleHook(DbApiHook):
     def insert_rows(
         self,
         table: str,
-        rows: list[tuple],
-        target_fields=None,
+        rows: List[Tuple],
+        target_fields: List[str] | None = None,
         commit_every: int = 1000,
         replace: bool | None = False,
         **kwargs,
@@ -279,41 +284,55 @@ class OracleHook(DbApiHook):
                 category=UserWarning,
                 stacklevel=2,
             )
+
+        if not _is_valid_identifier(table):
+            self.log.error("Invalid table name detected: %s", table)
+            raise ValueError(f"Invalid table name: {table}")
+
+        if target_fields:
+            for field in target_fields:
+                if not _is_valid_identifier(field):
+                    self.log.error("Invalid column name detected: %s", field)
+                    raise ValueError(f"Invalid column name: {field}")
+            target_fields_str = ", ".join(target_fields)
+            target_fields_str = f"({target_fields_str})"
+        else:
+            target_fields_str = ""
+
         try:
             import numpy as np
         except ImportError:
-            np = None  # type: ignore
+            np = None
 
-        if target_fields:
-            target_fields = ", ".join(target_fields)
-            target_fields = f"({target_fields})"
-        else:
-            target_fields = ""
         conn = self.get_conn()
         if self.supports_autocommit:
             self.set_autocommit(conn, False)
         cur = conn.cursor()
+
+        if rows:
+            num_columns = len(rows[0])
+            placeholders = ", ".join([f":{_i}" for _i in range(1, num_columns + 1)])
+            sql = f"INSERT /*+ APPEND */ INTO {table} {target_fields_str} VALUES ({placeholders})"
+
         i = 0
         for row in rows:
             i += 1
-            lst = []
+            bind_vars = []
             for cell in row:
-                if isinstance(cell, str):
-                    lst.append("'" + str(cell).replace("'", "''") + "'")
-                elif cell is None or isinstance(cell, float) and math.isnan(cell):  # coerce numpy NaN to NULL
-                    lst.append("NULL")
+                if cell is None or (np and isinstance(cell, float) and np.isnan(cell)):
+                    bind_vars.append(None)
                 elif np and isinstance(cell, np.datetime64):
-                    lst.append(f"'{cell}'")
+                    bind_vars.append(str(cell))
                 elif isinstance(cell, datetime):
-                    lst.append(f"to_date('{cell:%Y-%m-%d %H:%M:%S}','YYYY-MM-DD HH24:MI:SS')")
+                    bind_vars.append(cell)
                 else:
-                    lst.append(str(cell))
-            values = tuple(lst)
-            sql = f"INSERT /*+ APPEND */ INTO {table} {target_fields} VALUES ({','.join(values)})"
-            cur.execute(sql)
+                    bind_vars.append(cell)
+
+            cur.execute(sql, bind_vars)
             if i % commit_every == 0:
                 conn.commit()
                 self.log.info("Loaded %s into %s rows so far", i, table)
+
         conn.commit()
         cur.close()
         conn.close()
@@ -322,8 +341,8 @@ class OracleHook(DbApiHook):
     def bulk_insert_rows(
         self,
         table: str,
-        rows: list[tuple],
-        target_fields: list[str] | None = None,
+        rows: List[Tuple],
+        target_fields: List[str] | None = None,
         commit_every: int = 5000,
         sequence_column: str | None = None,
         sequence_name: str | None = None,
@@ -346,6 +365,22 @@ class OracleHook(DbApiHook):
         """
         if not rows:
             raise ValueError("parameter rows could not be None or empty iterable")
+
+        if not _is_valid_identifier(table):
+            self.log.error("Invalid table name detected: %s", table)
+            raise ValueError(f"Invalid table name: {table}")
+        if target_fields:
+            for field in target_fields:
+                if not _is_valid_identifier(field):
+                    self.log.error("Invalid column name detected: %s", field)
+                    raise ValueError(f"Invalid column name: {field}")
+        if sequence_column and not _is_valid_identifier(sequence_column):
+            self.log.error("Invalid sequence column name detected: %s", sequence_column)
+            raise ValueError(f"Invalid sequence column name: {sequence_column}")
+        if sequence_name and not _is_valid_identifier(sequence_name):
+            self.log.error("Invalid sequence name detected: %s", sequence_name)
+            raise ValueError(f"Invalid sequence name: {sequence_name}")
+
         conn = self.get_conn()
         if self.supports_autocommit:
             self.set_autocommit(conn, False)
@@ -374,7 +409,6 @@ class OracleHook(DbApiHook):
                 values=", ".join(f":{i}" for i in range(1, len(values_base) + 1)),
             )
         row_count = 0
-        # Chunk the rows
         row_chunk = []
         for row in rows:
             row_chunk.append(row)
@@ -384,9 +418,7 @@ class OracleHook(DbApiHook):
                 cursor.executemany(None, row_chunk)
                 conn.commit()
                 self.log.info("[%s] inserted %s rows", table, row_count)
-                # Empty chunk
                 row_chunk = []
-        # Commit the leftover chunk
         if row_chunk:
             cursor.prepare(prepared_stm)
             cursor.executemany(None, row_chunk)
@@ -415,6 +447,10 @@ class OracleHook(DbApiHook):
         https://python-oracledb.readthedocs.io/en/latest/api_manual/cursor.html#Cursor.var
         for further reference.
         """
+        if not _is_valid_identifier(identifier):
+            self.log.error("Invalid stored procedure name detected: %s", identifier)
+            raise ValueError(f"Invalid stored procedure name: {identifier}")
+
         if parameters is None:
             parameters = []
 
