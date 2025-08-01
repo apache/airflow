@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-01T07:53:32.614318
+# This constraints file was automatically generated on 2025-08-01T19:46:55.016002
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -584,7 +584,7 @@ rpds-py==0.26.0
 rsa==4.9.1
 ruamel.yaml.clib==0.2.12
 ruamel.yaml==0.18.14
-ruff==0.12.3
+ruff==0.12.7
 s3fs==2025.7.0
 s3transfer==0.13.1
 sagemaker_studio==1.0.20
@@ -710,7 +710,7 @@ virtualenv==20.32.0
 watchfiles==1.1.0
 watchtower==3.4.0
 wcwidth==0.2.13
-weaviate-client==4.16.4
+weaviate-client==4.16.5
 webencodings==0.5.1
 websocket-client==1.8.0
 websockets==15.0.1
