@@ -1631,7 +1631,7 @@ class TestGetCount:
         assert response.status_code == 404
         assert response.json()["detail"] == {
             "reason": "not_found",
-            "message": "DAG non_existent_dag not found",
+            "message": "The Dag with ID: `non_existent_dag` was not found",
         }
 
     def test_get_count_with_none_state(self, client, session, create_task_instance):
