@@ -139,7 +139,10 @@ class EdgeExecutor(BaseExecutor):
         task_instance = self.edge_queued_tasks[key][3]  # type: ignore[index]
         del self.edge_queued_tasks[key]
 
-        self.validate_airflow_tasks_run_command(command)  # type: ignore[attr-defined]
+        # Run validation only if supported (available in Airflow 2.12+)
+        # This makes it compatible with older versions like 2.10 and 2.11
+        if hasattr(self, "validate_airflow_tasks_run_command"):
+            self.validate_airflow_tasks_run_command(command)  # type: ignore[attr-defined]
 
         # Check if job already exists with same dag_id, task_id, run_id, map_index, try_number
         existing_job = (
