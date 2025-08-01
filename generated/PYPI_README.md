@@ -56,7 +56,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 
 Apache Airflow is tested with:
 
-|            | Main version (dev)     | Stable version (3.0.1) |
+|            | Main version (dev)     | Stable version (3.0.4) |
 |------------|------------------------|------------------------|
 | Python     | 3.9, 3.10, 3.11, 3.12  | 3.9, 3.10, 3.11, 3.12  |
 | Platform   | AMD64/ARM64(\*)        | AMD64/ARM64(\*)        |
