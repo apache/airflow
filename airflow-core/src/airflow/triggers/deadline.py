@@ -62,7 +62,7 @@ class DeadlineCallbackTrigger(BaseTrigger):
                 result = await callback_instance
 
             else:
-                result = await callback(context, **self.callback_kwargs)
+                result = await callback(**self.callback_kwargs, context=context)
 
             log.info("Deadline callback completed with return value: %s", result)
             yield TriggerEvent({PAYLOAD_STATUS_KEY: DeadlineCallbackState.SUCCESS, PAYLOAD_BODY_KEY: result})
