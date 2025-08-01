@@ -20,14 +20,10 @@ from __future__ import annotations
 import os
 from unittest import mock
 
-import pytest
-
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_processor_command
 
 from tests_common.test_utils.config import conf_vars
-
-pytestmark = pytest.mark.db_test
 
 
 class TestDagProcessorCommand:
