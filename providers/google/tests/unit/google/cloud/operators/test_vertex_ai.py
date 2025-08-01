@@ -1387,8 +1387,9 @@ class TestVertexAIImportDataOperator:
         FINAL_DS_SIZE = 101
         INITIAL_DS = {**SAMPLE_DATASET, "data_item_count": INITIAL_DS_SIZE}
         FINAL_DS = {**SAMPLE_DATASET, "data_item_count": FINAL_DS_SIZE}
+        get_ds_mock = mock_hook.return_value.get_dataset
 
-        mock_hook.return_value.get_dataset.side_effect = [Dataset(INITIAL_DS), Dataset(FINAL_DS)]
+        get_ds_mock.side_effect = [Dataset(INITIAL_DS), Dataset(FINAL_DS)]
 
         res = op.execute(context={})
 
@@ -1403,6 +1404,22 @@ class TestVertexAIImportDataOperator:
             metadata=METADATA,
         )
         assert res["total_data_items_imported"] == FINAL_DS_SIZE - INITIAL_DS_SIZE
+
+        assert get_ds_mock.call_count == 2
+        sample_get_ds_kwargs = dict(
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            dataset=TEST_DATASET_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        get_ds_mock.assert_has_calls(
+            [
+                call(**sample_get_ds_kwargs),
+                call(**sample_get_ds_kwargs),
+            ]
+        )
 
 
 class TestVertexAIListDatasetsOperator:
