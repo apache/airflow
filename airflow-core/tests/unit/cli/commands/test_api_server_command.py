@@ -147,15 +147,13 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
 
             # Verify the AIRFLOW_API_APPS was set correctly
             if "--apps" in args:
-                expected_setitem_calls.append(
-                    mock.call(api_server_command.AIRFLOW_API_APPS, parsed_args.apps)
-                )
+                expected_setitem_calls.append(mock.call("AIRFLOW_API_APPS", parsed_args.apps))
 
             # Verify AIRFLOW_API_APPS was cleaned up
             if original_env is not None:
-                expected_setitem_calls.append(mock.call(api_server_command.AIRFLOW_API_APPS, original_env))
+                expected_setitem_calls.append(mock.call("AIRFLOW_API_APPS", original_env))
             else:
-                mock_environ.pop.assert_called_with(api_server_command.AIRFLOW_API_APPS, None)
+                mock_environ.pop.assert_called_with("AIRFLOW_API_APPS", None)
 
             # Verify that the environment variable was set and cleaned up correctly
             mock_environ.__setitem__.assert_has_calls(expected_setitem_calls)
