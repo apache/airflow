@@ -46,7 +46,8 @@ export const namespaces = [
   "hitl",
 ] as const;
 
-const baseUrl = document.querySelector("base")?.href ?? "http://localhost:8080/";
+const baseHref = document.querySelector("head > base")?.getAttribute("href") ?? "";
+const baseUrl = new URL(baseHref, globalThis.location.origin);
 const basePath = new URL(baseUrl).pathname.replace(/\/$/u, "");
 
 void i18n
