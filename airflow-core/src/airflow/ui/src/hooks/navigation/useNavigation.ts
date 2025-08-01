@@ -21,6 +21,7 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import type { GridRunsResponse } from "openapi/requests";
 import type { GridTask } from "src/layouts/Details/Grid/utils";
+import { getTaskInstanceLinkFromObj } from "src/utils/links";
 
 import type {
   NavigationDirection,
@@ -72,11 +73,12 @@ const getNextIndex = (
 
 const buildPath = (params: {
   dagId: string;
+  mapIndex?: string;
   mode: NavigationMode;
   run: GridRunsResponse;
   task: GridTask;
 }): string => {
-  const { dagId, mode, run, task } = params;
+  const { dagId, mapIndex = "-1", mode, run, task } = params;
   const groupPath = task.isGroup ? "group/" : "";
 
   switch (mode) {
@@ -85,6 +87,19 @@ const buildPath = (params: {
     case "task":
       return `/dags/${dagId}/tasks/${groupPath}${task.id}`;
     case "TI":
+      if (task.is_mapped ?? false) {
+        if (mapIndex !== "-1") {
+          return getTaskInstanceLinkFromObj({
+            dagId,
+            dagRunId: run.run_id,
+            mapIndex: parseInt(mapIndex, 10),
+            taskId: `${groupPath}${task.id}`,
+          });
+        }
+
+        return `/dags/${dagId}/runs/${run.run_id}/tasks/${groupPath}${task.id}/mapped`;
+      }
+
       return `/dags/${dagId}/runs/${run.run_id}/tasks/${groupPath}${task.id}`;
     default:
       return `/dags/${dagId}`;
@@ -98,7 +113,7 @@ export const useNavigation = ({
   runs,
   tasks,
 }: UseNavigationProps): UseNavigationReturn => {
-  const { dagId = "", groupId = "", runId = "", taskId = "" } = useParams();
+  const { dagId = "", groupId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   const navigate = useNavigate();
   const [mode, setMode] = useState<NavigationMode>("TI");
 
@@ -175,12 +190,12 @@ export const useNavigation = ({
       const task = tasks[newTaskIndex];
 
       if (run && task) {
-        const path = buildPath({ dagId, mode, run, task });
+        const path = buildPath({ dagId, mapIndex, mode, run, task });
 
         navigate(path, { replace: true });
       }
     },
-    [currentIndices, dagId, enabled, mode, runs, tasks, navigate],
+    [currentIndices, dagId, enabled, mapIndex, mode, runs, tasks, navigate],
   );
 
   useKeyboardNavigation({

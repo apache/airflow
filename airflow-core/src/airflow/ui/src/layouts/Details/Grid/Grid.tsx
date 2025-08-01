@@ -145,13 +145,11 @@ export const Grid = ({ limit }: Props) => {
       tabIndex={0}
       width="100%"
     >
-      {Boolean(isGridFocused) && (
-        <Box borderRadius="md" color="gray.400" fontSize="xs" position="absolute" px={0} py={12} top={0}>
-          <Text>{translate("navigation.navigation", { arrow: getArrowsForMode(mode) })}</Text>
-          <Text>{translate("navigation.jump", { arrow: getArrowsForMode(mode) })}</Text>
-          <Text>{translate("navigation.toggleGroup")}</Text>
-        </Box>
-      )}
+      <Box borderRadius="md" color="gray.400" fontSize="xs" position="absolute" px={0} py={12} top={0}>
+        <Text>{translate("navigation.navigation", { arrow: getArrowsForMode(mode) })}</Text>
+        <Text>{translate("navigation.jump", { arrow: getArrowsForMode(mode) })}</Text>
+        {mode !== "run" && <Text>{translate("navigation.toggleGroup")}</Text>}
+      </Box>
 
       <Box flexGrow={1} minWidth={7} position="relative" top="100px">
         <TaskNames nodes={flatNodes} onRowClick={() => setMode("task")} />
