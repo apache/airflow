@@ -2001,7 +2001,7 @@ class TestGetTaskStates:
         assert response.status_code == 404
         assert response.json()["detail"] == {
             "reason": "not_found",
-            "message": "DAG non_existent_dag not found",
+            "message": "The Dag with ID: `non_existent_dag` was not found",
         }
 
     @pytest.mark.parametrize(
