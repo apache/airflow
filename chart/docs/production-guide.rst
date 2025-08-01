@@ -625,6 +625,7 @@ Here is the full list of secrets that can be disabled and replaced by ``_CMD`` a
 +=======================================================+==========================================+==================================================+
 | ``<RELEASE_NAME>-airflow-metadata``                   | ``.Values.data.metadataSecretName``      | | ``AIRFLOW_CONN_AIRFLOW_DB``                    |
 |                                                       |                                          | | ``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN``        |
+|                                                       |                                          | | ``AIRFLOW__CORE__SQL_ALCHEMY_CONN``            |
 +-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
 | ``<RELEASE_NAME>-fernet-key``                         | ``.Values.fernetKeySecretName``          | ``AIRFLOW__CORE__FERNET_KEY``                    |
 +-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
@@ -638,6 +639,12 @@ Here is the full list of secrets that can be disabled and replaced by ``_CMD`` a
 | ``<RELEASE_NAME>-elasticsearch``                      | ``.Values.elasticsearch.secretName``     | | ``AIRFLOW__ELASTICSEARCH__HOST``               |
 |                                                       |                                          | | ``AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST`` |
 +-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
+
+.. note::
+  For metadata and result backend secrets, you can also configure the key name used in the secret:
+
+  - Use ``.Values.data.metadataSecretKey`` to specify the key name in the metadata secret (defaults to "connection")
+  - Use ``.Values.data.resultBackendSecretKey`` to specify the key name in the result backend secret (defaults to "connection")
 
 There are also a number of secrets, which names are also determined from the release name, that do not need to
 be disabled. This is because either they do not follow the ``_CMD`` or ``_SECRET`` pattern, are variables

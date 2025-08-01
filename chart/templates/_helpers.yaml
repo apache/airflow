@@ -68,21 +68,21 @@ If release name contains chart name it will be used as a full name.
     valueFrom:
       secretKeyRef:
         name: {{ template "airflow_metadata_secret" . }}
-        key: connection
+        key: {{ .Values.data.metadataSecretKey | default "connection" }}
   {{- end }}
   {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__DATABASE__SQL_ALCHEMY_CONN }}
   - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
     valueFrom:
       secretKeyRef:
         name: {{ template "airflow_metadata_secret" . }}
-        key: connection
+        key: {{ .Values.data.metadataSecretKey | default "connection" }}
   {{- end }}
   {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW_CONN_AIRFLOW_DB }}
   - name: AIRFLOW_CONN_AIRFLOW_DB
     valueFrom:
       secretKeyRef:
         name: {{ template "airflow_metadata_secret" . }}
-        key: connection
+        key: {{ .Values.data.metadataSecretKey | default "connection" }}
   {{- end }}
   {{- if and .Values.workers.keda.enabled (or (eq .Values.data.metadataConnection.protocol "mysql") (and .Values.pgbouncer.enabled (not .Values.workers.keda.usePgbouncer))) }}
   - name: KEDA_DB_CONN
@@ -120,14 +120,14 @@ If release name contains chart name it will be used as a full name.
     valueFrom:
       secretKeyRef:
         name: {{ template "airflow_result_backend_secret" . }}
-        key: connection
+        key: {{ .Values.data.resultBackendSecretKey | default "connection" }}
     {{- end }}
     {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CELERY__RESULT_BACKEND }}
   - name: AIRFLOW__CELERY__RESULT_BACKEND
     valueFrom:
       secretKeyRef:
         name: {{ template "airflow_result_backend_secret" . }}
-        key: connection
+        key: {{ .Values.data.resultBackendSecretKey | default "connection" }}
     {{- end }}
     {{- end }}
     {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CELERY__BROKER_URL }}
