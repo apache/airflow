@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import os
 from datetime import datetime
 
 import pytest
@@ -24,7 +23,7 @@ import pytest
 from airflow import settings
 from airflow.api_fastapi.common.dagbag import dag_bag_from_app
 from airflow.models.dag import DAG, DagModel
-from airflow.models.dagbag import DagBag
+from airflow.models.dagbag import SchedulerDagBag
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
@@ -70,12 +69,14 @@ class TestTaskEndpoint:
 
         task1 >> task2
         task4 >> task5
-        dag_bag = DagBag(os.devnull, include_examples=False)
-        dag_bag.dags = {
-            dag.dag_id: dag,
-            mapped_dag.dag_id: mapped_dag,
-            unscheduled_dag.dag_id: unscheduled_dag,
-        }
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        mapped_dag.sync_to_db()
+        SerializedDagModel.write_dag(mapped_dag, bundle_name="testing")
+        unscheduled_dag.sync_to_db()
+        SerializedDagModel.write_dag(unscheduled_dag, bundle_name="testing")
+        dag_bag = SchedulerDagBag()
+
         test_client.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag
 
     @staticmethod
@@ -250,7 +251,7 @@ class TestGetTask(TestTaskEndpoint):
         dag.sync_to_db()
         SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
 
-        dag_bag = DagBag(os.devnull, include_examples=False, read_dags_from_db=True)
+        dag_bag = SchedulerDagBag()
         test_client.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag
 
         expected = {

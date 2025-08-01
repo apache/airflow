@@ -28,16 +28,19 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.amazon.aws.hooks.datasync import DataSyncHook
 from airflow.providers.amazon.aws.links.datasync import DataSyncTaskLink
 from airflow.providers.amazon.aws.operators.datasync import DataSyncOperator
-from airflow.utils import timezone
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 from airflow.utils.state import DagRunState
-from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 TEST_DAG_ID = "unit_tests"
-DEFAULT_DATE = datetime(2018, 1, 1)
+DEFAULT_DATE = timezone.datetime(2018, 1, 1)
 
 SOURCE_HOST_NAME = "airflow.host"
 SOURCE_SUBDIR = "airflow_subdir"

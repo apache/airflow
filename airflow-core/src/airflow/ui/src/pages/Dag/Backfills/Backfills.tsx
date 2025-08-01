@@ -55,14 +55,14 @@ const getColumns = (translate: (key: string) => string): Array<ColumnDef<Backfil
     cell: ({ row }) => (
       <Text>
         {row.original.reprocess_behavior === "none"
-          ? translate("backfill.missingRuns")
+          ? translate("components:backfill.missingRuns")
           : row.original.reprocess_behavior === "failed"
-            ? translate("backfill.missingAndErroredRuns")
-            : translate("backfill.allRuns")}
+            ? translate("components:backfill.missingAndErroredRuns")
+            : translate("components:backfill.allRuns")}
       </Text>
     ),
     enableSorting: false,
-    header: translate("table.reprocessBehavior"),
+    header: translate("components:backfill.reprocessBehavior"),
   },
   {
     accessorKey: "created_at",
@@ -94,7 +94,7 @@ const getColumns = (translate: (key: string) => string): Array<ColumnDef<Backfil
       </Text>
     ),
     enableSorting: false,
-    header: translate("table.duration"),
+    header: translate("duration"),
   },
   {
     accessorKey: "max_active_runs",

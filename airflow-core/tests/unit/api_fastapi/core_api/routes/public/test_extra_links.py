@@ -16,27 +16,20 @@
 # under the License.
 from __future__ import annotations
 
-import os
-
 import pytest
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.common.dagbag import dag_bag_from_app
 from airflow.api_fastapi.core_api.datamodels.extra_links import ExtraLinkCollectionResponse
-from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.models.dagbag import DagBag
+from airflow.models.dagbag import SchedulerDagBag
 from airflow.models.xcom import XComModel as XCom
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.compat import BaseOperatorLink
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_xcom
 from tests_common.test_utils.mock_operators import CustomOperator
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -92,14 +85,10 @@ class TestGetExtraLinks:
 
         self.dag = self._create_dag(dag_maker)
 
-        DagBundlesManager().sync_bundles_to_db()
-        dag_bag = DagBag(os.devnull, include_examples=False)
-        dag_bag.dags = {self.dag.dag_id: self.dag}
-
+        dag_bag = SchedulerDagBag()
         test_client.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag
-        dag_bag.sync_to_db("dags-folder", None)
 
-        self.dag.create_dagrun(
+        dag_maker.create_dagrun(
             run_id=self.dag_run_id,
             logical_date=self.default_time,
             run_type=DagRunType.MANUAL,
@@ -148,7 +137,7 @@ class TestGetExtraLinks:
         assert response.status_code == expected_status_code
         assert response.json() == expected_response
 
-    def test_should_respond_200(self, dag_maker, test_client):
+    def test_should_respond_200(self, test_client, session):
         XCom.set(
             key="search_query",
             value="TEST_LINK_VALUE",
@@ -163,7 +152,6 @@ class TestGetExtraLinks:
             dag_id=self.dag_id,
             run_id=self.dag_run_id,
         )
-
         response = test_client.get(
             f"/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_single_link}/links",
         )

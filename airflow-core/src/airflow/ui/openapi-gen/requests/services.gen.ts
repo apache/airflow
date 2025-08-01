@@ -3397,7 +3397,7 @@ export class HumanInTheLoopService {
     public static updateHitlDetail(data: UpdateHitlDetailData): CancelablePromise<UpdateHitlDetailResponse> {
         return __request(OpenAPI, {
             method: 'PATCH',
-            url: '/api/v2/hitl-details/{dag_id}/{dag_run_id}/{task_id}',
+            url: '/api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}',
             path: {
                 dag_id: data.dagId,
                 dag_run_id: data.dagRunId,
@@ -3428,7 +3428,7 @@ export class HumanInTheLoopService {
     public static getHitlDetail(data: GetHitlDetailData): CancelablePromise<GetHitlDetailResponse> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/api/v2/hitl-details/{dag_id}/{dag_run_id}/{task_id}',
+            url: '/api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}',
             path: {
                 dag_id: data.dagId,
                 dag_run_id: data.dagRunId,
@@ -3458,7 +3458,7 @@ export class HumanInTheLoopService {
     public static updateMappedTiHitlDetail(data: UpdateMappedTiHitlDetailData): CancelablePromise<UpdateMappedTiHitlDetailResponse> {
         return __request(OpenAPI, {
             method: 'PATCH',
-            url: '/api/v2/hitl-details/{dag_id}/{dag_run_id}/{task_id}/{map_index}',
+            url: '/api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}/{map_index}',
             path: {
                 dag_id: data.dagId,
                 dag_run_id: data.dagRunId,
@@ -3491,7 +3491,7 @@ export class HumanInTheLoopService {
     public static getMappedTiHitlDetail(data: GetMappedTiHitlDetailData): CancelablePromise<GetMappedTiHitlDetailResponse> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/api/v2/hitl-details/{dag_id}/{dag_run_id}/{task_id}/{map_index}',
+            url: '/api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}/{map_index}',
             path: {
                 dag_id: data.dagId,
                 dag_run_id: data.dagRunId,
@@ -3516,6 +3516,7 @@ export class HumanInTheLoopService {
      * @param data.orderBy
      * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.dagRunId
+     * @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.state
      * @param data.responseReceived
      * @param data.userId
@@ -3527,13 +3528,14 @@ export class HumanInTheLoopService {
     public static getHitlDetails(data: GetHitlDetailsData = {}): CancelablePromise<GetHitlDetailsResponse> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/api/v2/hitl-details/',
+            url: '/api/v2/hitlDetails/',
             query: {
                 limit: data.limit,
                 offset: data.offset,
                 order_by: data.orderBy,
                 dag_id_pattern: data.dagIdPattern,
                 dag_run_id: data.dagRunId,
+                task_id_pattern: data.taskIdPattern,
                 state: data.state,
                 response_received: data.responseReceived,
                 user_id: data.userId,
