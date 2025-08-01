@@ -36,7 +36,7 @@ from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel, DagRun
-from airflow.models.dagbag import DBDagBag
+from airflow.models.dagbag import DBDagBag, sync_bag_to_db
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.sdk import BaseOperator, task
@@ -867,7 +867,7 @@ class TestCliDags:
 
         with configure_testing_dag_bundle(path_to_parse):
             bag = DagBag(dag_folder=path_to_parse, include_examples=False)
-            bag.sync_to_db("testing", None)
+            sync_bag_to_db(bag, "testing", None)
             cli_args = self.parser.parse_args(
                 ["dags", "test", "test_dag_parsing_context", DEFAULT_DATE.isoformat()]
             )
