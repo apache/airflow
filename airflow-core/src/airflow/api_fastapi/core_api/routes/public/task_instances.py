@@ -462,7 +462,7 @@ def get_task_instances(
         if dag_run:
             dag = dag_bag.get_dag_for_run(dag_run, session)
         else:
-            dag = dag_bag.get_latest_version_of_dag(dag_id, session)
+            dag = dag_bag.get_latest_version_of_dag(dag_id, session=session)
         if not dag:
             raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with dag_id: `{dag_id}` was not found")
         query = query.where(TI.dag_id == dag_id)
@@ -661,7 +661,7 @@ def post_clear_task_instances(
     session: SessionDep,
 ) -> TaskInstanceCollectionResponse:
     """Clear task instances."""
-    dag = dag_bag.get_latest_version_of_dag(dag_id, session)
+    dag = dag_bag.get_latest_version_of_dag(dag_id, session=session)
     if not dag:
         error_message = f"DAG {dag_id} not found"
         raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)

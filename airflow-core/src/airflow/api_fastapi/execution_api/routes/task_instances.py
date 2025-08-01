@@ -850,7 +850,7 @@ def _is_eligible_to_retry(state: str, try_number: int, max_tries: int) -> bool:
 
 def _get_group_tasks(dag_id: str, task_group_id: str, session: SessionDep, logical_dates=None, run_ids=None):
     # Get all tasks in the task group
-    dag = SchedulerDagBag().get_latest_version_of_dag(dag_id, session)
+    dag = SchedulerDagBag().get_latest_version_of_dag(dag_id, session=session)
     if not dag:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,

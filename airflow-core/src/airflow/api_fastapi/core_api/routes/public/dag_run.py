@@ -356,7 +356,7 @@ def get_dag_runs(
     query = select(DagRun)
 
     if dag_id != "~":
-        dag = dag_bag.get_latest_version_of_dag(dag_id, session)
+        dag = dag_bag.get_latest_version_of_dag(dag_id, session=session)
         if not dag:
             raise HTTPException(status.HTTP_404_NOT_FOUND, f"The DAG with dag_id: `{dag_id}` was not found")
 
@@ -421,7 +421,7 @@ def trigger_dag_run(
         )
 
     try:
-        dag = dag_bag.get_latest_version_of_dag(dag_id, session)
+        dag = dag_bag.get_latest_version_of_dag(dag_id, session=session)
         if not dag:
             raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with dag_id: '{dag_id}' not found")
         params = body.validate_context(dag)

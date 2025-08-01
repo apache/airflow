@@ -51,7 +51,7 @@ def get_tasks(
     order_by: str = "task_id",
 ) -> TaskCollectionResponse:
     """Get tasks for DAG."""
-    dag = dag_bag.get_latest_version_of_dag(dag_id, session)
+    dag = dag_bag.get_latest_version_of_dag(dag_id, session=session)
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
     try:
@@ -76,7 +76,7 @@ def get_tasks(
 )
 def get_task(dag_id: str, task_id, session: SessionDep, dag_bag: DagBagDep) -> TaskResponse:
     """Get simplified representation of a task."""
-    dag = dag_bag.get_latest_version_of_dag(dag_id, session)
+    dag = dag_bag.get_latest_version_of_dag(dag_id, session=session)
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
     try:
