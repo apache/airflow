@@ -72,6 +72,7 @@
   "dagRun_many": "Wykonań",
   "dagRun_one": "Wykonanie",
   "dagRun_other": "Wykonania",
+  "dagRunId": "Identyfikator wykonania",
   "dagWarnings": "Ostrzeżenia/Błędy Daga",
   "defaultToGraphView": "Domyślnie widok grafu",
   "defaultToGridView": "Domyślnie widok siatki",
