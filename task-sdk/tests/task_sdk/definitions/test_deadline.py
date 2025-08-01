@@ -63,7 +63,16 @@ class TestDeadlineAlert:
     @pytest.mark.parametrize(
         "callback_callable, expected_path",
         [
-            pytest.param(empty_async_callback_for_deadline_tests, TEST_CALLBACK_PATH, id="valid_callable"),
+            pytest.param(
+                empty_sync_callback_for_deadline_tests,
+                qualname(empty_sync_callback_for_deadline_tests),
+                id="valid_sync_callable",
+            ),
+            pytest.param(
+                empty_async_callback_for_deadline_tests,
+                qualname(empty_async_callback_for_deadline_tests),
+                id="valid_async_callable",
+            ),
             pytest.param(TEST_CALLBACK_PATH, TEST_CALLBACK_PATH, id="valid_path_string"),
             pytest.param(lambda x: x, None, id="lambda_function"),
             pytest.param(TEST_CALLBACK_PATH + "  ", TEST_CALLBACK_PATH, id="path_with_whitespace"),
@@ -78,22 +87,27 @@ class TestDeadlineAlert:
             assert path == expected_path
 
     @pytest.mark.parametrize(
-        "callback_callable, error_type",
+        "callback_callable, req_awaitable, error_type",
         [
-            pytest.param(42, ImportError, id="not_a_string"),
-            pytest.param("", ImportError, id="empty_string"),
-            pytest.param("os.path", AttributeError, id="non_callable_module"),
+            pytest.param(42, False, ImportError, id="not_a_string"),
+            pytest.param("", False, ImportError, id="empty_string"),
+            pytest.param("os.path", False, AttributeError, id="non_callable_module"),
+            pytest.param(
+                qualname(empty_sync_callback_for_deadline_tests), True, AttributeError, id="non_awaitable"
+            ),
         ],
     )
-    def test_get_callback_path_error_cases(self, callback_callable, error_type):
+    def test_get_callback_path_error_cases(self, callback_callable, req_awaitable, error_type):
         expected_message = ""
         if error_type is ImportError:
             expected_message = "doesn't look like a valid dot path."
+        elif req_awaitable:
+            expected_message = "is not awaitable."
         elif error_type is AttributeError:
             expected_message = "is not callable."
 
         with pytest.raises(error_type, match=expected_message):
-            DeadlineAlert.get_callback_path(callback_callable)
+            DeadlineAlert.get_callback_path(callback_callable, require_awaitable=req_awaitable)
 
     @pytest.mark.parametrize(
         "test_alert, should_equal",
@@ -278,7 +292,7 @@ class TestAsyncCallback:
                 empty_async_callback_for_deadline_tests,
                 TEST_CALLBACK_KWARGS,
                 TEST_CALLBACK_PATH,
-                id="awaitable_callable",
+                id="callable",
             ),
             pytest.param(TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS, TEST_CALLBACK_PATH, id="string_path"),
             pytest.param(
@@ -286,22 +300,11 @@ class TestAsyncCallback:
             ),
         ],
     )
-    def test__init_valid(self, callback_callable, kwargs, expected_path):
+    def test_init(self, callback_callable, kwargs, expected_path):
         callback = AsyncCallback(callback_callable, kwargs=kwargs)
         assert callback.path == expected_path
         assert callback.kwargs == kwargs
         assert isinstance(callback, Callback)
-
-    @pytest.mark.parametrize(
-        "callback_callable",
-        [
-            pytest.param(empty_sync_callback_for_deadline_tests, id="sync_callable"),
-            pytest.param(qualname(empty_sync_callback_for_deadline_tests), id="string_path"),
-        ],
-    )
-    def test_init_non_awaitable(self, callback_callable):
-        with pytest.raises(TypeError, match="awaitable"):
-            AsyncCallback(callback_callable)
 
     def test_serialize_deserialize(self):
         callback = AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS)
@@ -312,13 +315,15 @@ class TestAsyncCallback:
 
 class TestSyncCallback:
     @pytest.mark.parametrize(
-        "executor",
+        "callback_callable, executor",
         [
-            pytest.param("remote", id="with_executor"),
-            pytest.param(None, id="without_executor"),
+            pytest.param(empty_sync_callback_for_deadline_tests, "remote", id="with_executor"),
+            pytest.param(empty_sync_callback_for_deadline_tests, None, id="without_executor"),
+            pytest.param(qualname(empty_sync_callback_for_deadline_tests), None, id="importable_path"),
+            pytest.param(UNIMPORTABLE_DOT_PATH, None, id="unimportable_path"),
         ],
     )
-    def test_init(self, executor):
+    def test_init(self, callback_callable, executor):
         callback = SyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS, executor=executor)
 
         assert callback.path == TEST_CALLBACK_PATH

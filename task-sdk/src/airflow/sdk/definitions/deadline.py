@@ -76,7 +76,7 @@ class DeadlineAlert:
         )
 
     @staticmethod
-    def get_callback_path(_callback: str | Callable) -> str:
+    def get_callback_path(_callback: str | Callable, require_awaitable=False) -> str:
         """Convert callback to a string path that can be used to import it later."""
         if callable(_callback):
             # TODO:  This implementation doesn't support using a lambda function as a callback.
@@ -95,6 +95,10 @@ class DeadlineAlert:
             if not callable(callback):
                 # The input is a string which can be imported, but is not callable.
                 raise AttributeError(f"Provided callback {callback} is not callable.")
+            if require_awaitable and not (
+                inspect.iscoroutinefunction(callback) or hasattr(callback, "__await__")
+            ):
+                raise AttributeError(f"fProvided callback {callback} is not awaitable.")
         except ImportError as e:
             # Logging here instead of failing because it is possible that the code for the callable
             # exists somewhere other than on the DAG processor. We are making a best effort to validate,
@@ -197,19 +201,6 @@ class AsyncCallback(Callback):
 
     def __init__(self, callback_callable: Callable | str, kwargs: dict | None = None):
         super().__init__(callback_callable=callback_callable, kwargs=kwargs)
-
-        if isinstance(callback_callable, str):
-            try:
-                callback_callable = import_string(callback_callable)
-            except ImportError as e:
-                logger.info(
-                    "Failed to import callback_callable\nAssuming it exists on the triggerer and is awaitable\n%s",
-                    e,
-                )
-                return
-
-        if not (inspect.iscoroutinefunction(callback_callable) or hasattr(callback_callable, "__await__")):
-            raise TypeError(f"Callback {callback_callable} must be awaitable")
 
 
 class SyncCallback(Callback):
