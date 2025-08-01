@@ -218,7 +218,7 @@ class S3DocsPublish:
 
         check_async_run_results(
             results=results,
-            success="All docs published successfully",
+            success_message="All docs published successfully",
             outputs=outputs,
             include_success_outputs=False,
         )

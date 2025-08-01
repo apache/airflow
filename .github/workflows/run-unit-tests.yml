@@ -169,6 +169,7 @@ jobs:
       AIRFLOW_MONITOR_DELAY_TIME_IN_SECONDS: "${{inputs.monitor-delay-time-in-seconds}}"
       VERBOSE: "true"
       DEFAULT_BRANCH: "${{ inputs.default-branch }}"
+      TOTAL_TEST_TIMEOUT: "3600"  # 60 minutes in seconds
     if: inputs.test-group == 'core' || inputs.skip-providers-tests != 'true'
     steps:
       - name: "Cleanup repo"
