@@ -787,7 +787,6 @@ def get_task_instance_count(
             query = query.where(TI.state.in_(states))
 
     count = session.scalar(query)
-
     return count or 0
 
 
@@ -853,7 +852,7 @@ def _get_group_tasks(
     dag_id: str, task_group_id: str, session: SessionDep, dag_bag: DagBagDep, logical_dates=None, run_ids=None
 ):
     # Get all tasks in the task group
-    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session, include_reason=True)
     task_group = dag.task_group_dict.get(task_group_id)
     if not task_group:
         raise HTTPException(

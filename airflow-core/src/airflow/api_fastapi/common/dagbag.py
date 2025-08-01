@@ -43,9 +43,19 @@ def dag_bag_from_app(request: Request) -> DBDagBag:
     return request.app.state.dag_bag
 
 
-def get_latest_version_of_dag(dag_bag: DBDagBag, dag_id: str, session: Session) -> DAG:
+def get_latest_version_of_dag(
+    dag_bag: DBDagBag, dag_id: str, session: Session, include_reason: bool = False
+) -> DAG:
     dag = dag_bag.get_latest_version_of_dag(dag_id, session=session)
     if not dag:
+        if include_reason:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND,
+                detail={
+                    "reason": "not_found",
+                    "message": f"The Dag with ID: `{dag_id}` was not found",
+                },
+            )
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Dag with ID: `{dag_id}` was not found")
     return dag
 
