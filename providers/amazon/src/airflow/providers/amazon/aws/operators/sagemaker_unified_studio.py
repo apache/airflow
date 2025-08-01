@@ -112,10 +112,6 @@ class SageMakerNotebookOperator(BaseOperator):
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
         self.input_kwargs = kwargs
-        from airflow.utils.log.logging_mixin import LoggingMixin
-        logger = LoggingMixin().log
-        logger.debug("Starting SMUS notebook operator debug")  # This should appear
-        logger.info("Starting SMUS notebook operator info")
 
     @cached_property
     def notebook_execution_hook(self):

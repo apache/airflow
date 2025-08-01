@@ -407,7 +407,7 @@ class AwsEcsExecutor(BaseExecutor):
                 # wrong.  For any possible failure we want to add the exception reasons to the
                 # failure list so that it is logged to the user and most importantly the task is
                 # added back to the pending list to be retried later.
-                self.log.info("ECS task %s has ran into an exception. No response from Boto3 or something else. Reason: %s", task_key, str(e))
+                self.log.info("ECS task %s has ran into an exception. Reason: %s", task_key, str(e))
                 failure_reasons.append(str(e))
             else:
                 # We got a response back, check if there were failures. If so, add them to the
@@ -433,7 +433,6 @@ class AwsEcsExecutor(BaseExecutor):
                         attempt_number,
                         reasons_str,
                     )
-                    self.log.info("ECS task debug message I should be able to see on console to know it's actually updated")
                     self.log_task_event(
                         event="ecs task submit failure",
                         ti_key=task_key,
