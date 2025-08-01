@@ -33,8 +33,8 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 
 from tests_common.test_utils.config import conf_vars
-from unit.listeners import lifecycle_listener
-from unit.utils.test_helpers import MockJobRunner, SchedulerJobRunner, TriggererJobRunner
+from tests_common.test_utils.listeners import lifecycle_listener
+from tests_common.test_utils.test_helpers import MockJobRunner, SchedulerJobRunner, TriggererJobRunner
 
 pytestmark = pytest.mark.db_test
 

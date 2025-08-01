@@ -3251,7 +3251,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         ],
     )
     def test_patch_task_instance_notifies_listeners(self, test_client, session, state, listener_state):
-        from unit.listeners.class_listener import ClassBasedListener
+        from tests_common.test_utils.listeners.class_listener import ClassBasedListener
 
         self.create_task_instances(session)
 

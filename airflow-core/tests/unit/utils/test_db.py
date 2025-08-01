@@ -21,6 +21,7 @@ import inspect
 import logging
 import os
 import re
+import sys
 from contextlib import redirect_stdout
 from io import StringIO
 from unittest import mock
@@ -51,9 +52,10 @@ from airflow.utils.db import (
 from airflow.utils.db_manager import RunDBManager
 
 from tests_common.test_utils.config import conf_vars
-from unit.cli.commands.test_kerberos_command import PY313
 
 pytestmark = pytest.mark.db_test
+
+PY313 = sys.version_info >= (3, 13)
 
 
 class TestDb:

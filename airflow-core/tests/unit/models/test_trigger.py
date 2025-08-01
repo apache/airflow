@@ -46,7 +46,8 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 
 from tests_common.test_utils.config import conf_vars
-from unit.models import DEFAULT_DATE
+
+DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 pytestmark = pytest.mark.db_test
 

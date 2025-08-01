@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import pytest
 
+from airflow._shared.timezones import timezone
 from airflow.exceptions import AirflowDagCycleException
 from airflow.models.dag import DAG
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -25,7 +26,7 @@ from airflow.sdk import Label
 from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.utils.dag_cycle_tester import check_cycle
 
-from unit.models import DEFAULT_DATE
+DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
 class TestCycleTester:

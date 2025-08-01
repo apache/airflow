@@ -22,6 +22,7 @@ from datetime import timedelta
 import pendulum
 import pytest
 
+from airflow._shared.timezones import timezone
 from airflow.exceptions import TaskAlreadyInTaskGroup
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
@@ -38,7 +39,8 @@ from airflow.sdk.definitions.taskgroup import TaskGroup, task_group_to_dict
 from airflow.utils.dag_edges import dag_edges
 
 from tests_common.test_utils.compat import BashOperator, PythonOperator
-from unit.models import DEFAULT_DATE
+
+DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
 def make_task(name, type_="classic"):

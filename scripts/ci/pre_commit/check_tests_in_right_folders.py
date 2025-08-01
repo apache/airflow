@@ -53,6 +53,7 @@ POSSIBLE_TEST_FOLDERS = [
     "jobs",
     "lineage",
     "listeners",
+    "log",
     "logging",
     "macros",
     "models",

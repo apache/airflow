@@ -72,6 +72,8 @@ from airflow.plugins_manager import AirflowPlugin
 from airflow.task.priority_strategy import PriorityWeightStrategy
 from airflow.timetables.interval import CronDataIntervalTimetable
 
+from tests_common.test_utils.listeners import empty_listener
+from tests_common.test_utils.listeners.class_listener import ClassBasedListener
 from tests_common.test_utils.mock_operators import (
     AirflowLink,
     AirflowLink2,
@@ -80,8 +82,6 @@ from tests_common.test_utils.mock_operators import (
     GithubLink,
     GoogleLink,
 )
-from unit.listeners import empty_listener
-from unit.listeners.class_listener import ClassBasedListener
 
 
 # Will show up under airflow.macros.test_plugin.plugin_macro

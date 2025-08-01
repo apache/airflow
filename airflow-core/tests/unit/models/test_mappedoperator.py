@@ -25,6 +25,7 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy import select
 
+from airflow._shared.timezones import timezone
 from airflow.exceptions import AirflowSkipException
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
@@ -40,7 +41,8 @@ from airflow.utils.trigger_rule import TriggerRule
 
 from tests_common.test_utils.mapping import expand_mapped_task
 from tests_common.test_utils.mock_operators import MockOperator
-from unit.models import DEFAULT_DATE
+
+DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 pytestmark = pytest.mark.db_test
 

@@ -23,6 +23,7 @@ import random
 import pytest
 from sqlalchemy import select
 
+from airflow._shared.timezones import timezone
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstance as TI, clear_task_instances
@@ -35,7 +36,8 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
-from unit.models import DEFAULT_DATE
+
+DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 

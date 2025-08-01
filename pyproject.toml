@@ -867,7 +867,7 @@ banned-module-level-imports = ["numpy", "pandas", "polars"]
 "sqlalchemy.ext.declarative.as_declarative".msg = "Use `sqlalchemy.orm.as_declarative`. Moved in SQLAlchemy 2.0"
 "sqlalchemy.ext.declarative.has_inherited_table".msg = "Use `sqlalchemy.orm.has_inherited_table`. Moved in SQLAlchemy 2.0"
 "sqlalchemy.ext.declarative.synonym_for".msg = "Use `sqlalchemy.orm.synonym_for`. Moved in SQLAlchemy 2.0"
-"providers".msg = "You should not import 'providers' as a Python module. Imports in providers should be done starting from 'src' or `tests' folders, for example 'from airflow.providers.airbyte'  or 'from unit.airbyte' or 'from system.airbyte'"
+"providers".msg = "You should not import 'providers' as a Python module. Imports in providers should be done starting from 'src' folders, for example 'from airflow.providers.airbyte'"
 
 [tool.ruff.lint.flake8-type-checking]
 exempt-modules = ["typing", "typing_extensions"]
@@ -893,6 +893,7 @@ addopts = [
     "--asyncio-mode=strict",
     "--ignore-glob=**/tests/system/*",
     "--ignore-glob=tests/system/*",
+    "--import-mode=importlib",
 ]
 
 norecursedirs = [

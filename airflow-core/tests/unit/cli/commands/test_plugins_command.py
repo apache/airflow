@@ -34,7 +34,7 @@ from tests_common.test_utils.mock_plugins import mock_plugin_manager
 
 if importlib.util.find_spec("flask_appbuilder"):
     flask_appbuilder_installed = True
-    from unit.plugins.test_plugin import AirflowTestPlugin as ComplexAirflowPlugin
+    from tests_common.test_utils.plugins.test_plugin import AirflowTestPlugin as ComplexAirflowPlugin
 else:
     ComplexAirflowPlugin = None  # type: ignore [misc, assignment]
     flask_appbuilder_installed = False

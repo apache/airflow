@@ -412,9 +412,8 @@ labelPRBasedOnFilePath:
   area:Logging:
     - airflow-core/src/airflow/config_templates/airflow_local_settings.py
     - airflow-core/tests/unit/core/test_logging_config.py
-    - airflow-core/src/airflow/utils/log/**/*
+    - airflow-core/tests/unit/log/**/*
     - airflow-core/docs/administration-and-deployment/logging-monitoring/logging-*.rst
-    - airflow-core/tests/unit/utils/log/**/*
     - providers/**/log/*
 
   area:ConfigTemplates:
@@ -424,7 +423,7 @@ labelPRBasedOnFilePath:
     - airflow-core/src/airflow/cli/commands/plugins_command.py
     - airflow-core/src/airflow/plugins_manager.py
     - airflow-core/tests/unit/cli/commands/test_plugins_command.py
-    - airflow-core/tests/unit/plugins/**/*
+    - devel-common/src/tests_common/test_utils/plugins/**/*
     - airflow-core/docs/administration-and-deployment/plugins.rst
 
   area:Scheduler:

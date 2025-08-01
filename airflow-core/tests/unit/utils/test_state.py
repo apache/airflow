@@ -20,6 +20,7 @@ from datetime import timedelta
 
 import pytest
 
+from airflow._shared.timezones import timezone
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
@@ -27,9 +28,10 @@ from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, IntermediateTIState, State, TaskInstanceState, TerminalTIState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
-from unit.models import DEFAULT_DATE
-
 pytestmark = pytest.mark.db_test
+
+
+DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
 def test_dagrun_state_enum_escape():
