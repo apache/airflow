@@ -632,29 +632,36 @@ class DagBag(LoggingMixin):
         )
         return report
 
-    @provide_session
-    def sync_to_db(self, bundle_name: str, bundle_version: str | None, session: Session = NEW_SESSION):
-        """Save attributes about list of DAG to the DB."""
-        import airflow.models.dag
-        from airflow.dag_processing.collection import update_dag_parsing_results_in_db
-        from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 
-        dags = [
-            dag
-            if isinstance(dag, airflow.models.dag.DAG)
-            else LazyDeserializedDAG(data=SerializedDAG.to_dict(dag))
-            for dag in self.dags.values()
-        ]
-        import_errors = {(bundle_name, rel_path): error for rel_path, error in self.import_errors.items()}
+@provide_session
+def sync_bag_to_db(
+    dagbag: DagBag,
+    bundle_name: str,
+    bundle_version: str | None,
+    *,
+    session: Session = NEW_SESSION,
+) -> None:
+    """Save attributes about list of DAG to the DB."""
+    import airflow.models.dag
+    from airflow.dag_processing.collection import update_dag_parsing_results_in_db
+    from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 
-        update_dag_parsing_results_in_db(
-            bundle_name,
-            bundle_version,
-            dags,
-            import_errors,
-            self.dag_warnings,
-            session=session,
-        )
+    dags = [
+        dag
+        if isinstance(dag, airflow.models.dag.DAG)
+        else LazyDeserializedDAG(data=SerializedDAG.to_dict(dag))
+        for dag in dagbag.dags.values()
+    ]
+    import_errors = {(bundle_name, rel_path): error for rel_path, error in dagbag.import_errors.items()}
+
+    update_dag_parsing_results_in_db(
+        bundle_name,
+        bundle_version,
+        dags,
+        import_errors,
+        dagbag.dag_warnings,
+        session=session,
+    )
 
 
 class DBDagBag:
