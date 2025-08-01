@@ -22,8 +22,9 @@ import pytest
 
 from airflow import settings
 from airflow.api_fastapi.common.dagbag import dag_bag_from_app
-from airflow.models.dag import DAG, DagModel
+from airflow.models.dag import DAG
 from airflow.models.dagbag import SchedulerDagBag
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
@@ -69,12 +70,15 @@ class TestTaskEndpoint:
 
         task1 >> task2
         task4 >> task5
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
-        mapped_dag.sync_to_db()
-        SerializedDagModel.write_dag(mapped_dag, bundle_name="testing")
-        unscheduled_dag.sync_to_db()
-        SerializedDagModel.write_dag(unscheduled_dag, bundle_name="testing")
+        session = settings.Session()
+        bundle_name = "testing"
+        dag_bundle = DagBundleModel(name=bundle_name)
+        session.merge(dag_bundle)
+        session.commit()
+        DAG.bulk_write_to_db(bundle_name, None, [dag, mapped_dag, unscheduled_dag])
+        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
+        SerializedDagModel.write_dag(mapped_dag, bundle_name=bundle_name)
+        SerializedDagModel.write_dag(unscheduled_dag, bundle_name=bundle_name)
         dag_bag = SchedulerDagBag()
 
         test_client.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag
@@ -243,12 +247,8 @@ class TestGetTask(TestTaskEndpoint):
             task2 = EmptyOperator(task_id=self.task_id2, start_date=self.task2_start_date)
 
             task1 >> task2
-        session = settings.Session()
         bundle_name = "testing"
-        dag_model = DagModel(dag_id=dag.dag_id, bundle_name=bundle_name)
-        session.add(dag_model)
-        session.flush()
-        dag.sync_to_db()
+        DAG.bulk_write_to_db(bundle_name, None, [dag])
         SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
 
         dag_bag = SchedulerDagBag()
