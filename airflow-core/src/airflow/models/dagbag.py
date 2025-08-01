@@ -51,7 +51,6 @@ from airflow.exceptions import (
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base, StringID
 from airflow.models.dag_version import DagVersion
-from airflow.stats import Stats
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.docs import get_docs_url
 from airflow.utils.file import (
@@ -583,17 +582,6 @@ class DagBag(LoggingMixin):
                 self.log.exception(e)
 
         self.dagbag_stats = sorted(stats, key=lambda x: x.duration, reverse=True)
-
-    def collect_dags_from_db(self):
-        """Collect DAGs from database."""
-        from airflow.models.serialized_dag import SerializedDagModel
-
-        with Stats.timer("collect_db_dags"):
-            self.log.info("Filling up the DagBag from database")
-
-            # The dagbag contains all rows in serialized_dag table. Deleted DAGs are deleted
-            # from the table by the scheduler job.
-            self.dags = SerializedDagModel.read_all_dags()
 
     def dagbag_report(self):
         """Print a report around DagBag loading stats."""

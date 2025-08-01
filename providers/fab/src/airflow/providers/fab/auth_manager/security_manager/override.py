@@ -130,7 +130,7 @@ else:
 
     def _iter_dags() -> Iterable[DAG]:
         dagbag = DagBag(read_dags_from_db=True)  # type: ignore[call-arg]
-        dagbag.collect_dags_from_db()
+        dagbag.collect_dags_from_db()  # type: ignore[attr-defined]
         return dagbag.dags.values()
 
 
