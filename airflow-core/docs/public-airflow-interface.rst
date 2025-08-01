@@ -66,7 +66,7 @@ The following are some examples of the public interface of Airflow:
 
 * When you are writing your own operators or hooks. This is commonly done when no hook or operator exists for your use case, or when perhaps when one exists but you need to customize the behavior.
 * When writing new :doc:`Plugins <administration-and-deployment/plugins>` that extend Airflow's functionality beyond
-  DAG building blocks. Secrets, Timetables, Triggers, Listeners are all examples of such functionality. This
+  Dag building blocks. Secrets, Timetables, Triggers, Listeners are all examples of such functionality. This
   is usually done by users who manage Airflow instances.
 * Bundling custom Operators, Hooks, Plugins and releasing them together via
   :doc:`providers <apache-airflow-providers:index>` - this is usually done by those who intend to
@@ -87,7 +87,7 @@ in details (such as output format and available flags) so if you want to rely on
 way, the Stable REST API is recommended.
 
 
-Using the Public Interface for DAG Authors
+Using the Public Interface for Dag authors
 ==========================================
 
 The primary interface for DAG Authors is the :doc:`airflow.sdk namespace <core-concepts/taskflow>`.
@@ -143,8 +143,8 @@ removed in a future Airflow version.
 Dags
 ====
 
-The DAG is Airflow's core entity that represents a recurring workflow. You can create a DAG by
-instantiating the :class:`~airflow.sdk.DAG` class in your DAG file. Dags can also have parameters
+The Dag is Airflow's core entity that represents a recurring workflow. You can create a Dag by
+instantiating the :class:`~airflow.sdk.DAG` class in your Dag file. Dags can also have parameters
 specified via :class:`~airflow.sdk.Param` class.
 
 The recommended way to create DAGs is using the :func:`~airflow.sdk.dag` decorator
@@ -364,7 +364,7 @@ Timetables
 ==========
 
 Custom timetable implementations provide Airflow's scheduler additional logic to
-schedule DAG runs in ways not possible with built-in schedule expressions.
+schedule Dag runs in ways not possible with built-in schedule expressions.
 All Timetables derive from :class:`~airflow.timetables.base.Timetable`.
 
 Airflow has a set of Timetables that are considered public. You are free to extend their functionality
@@ -381,10 +381,10 @@ You can read more about Timetables in :doc:`howto/timetable`.
 Listeners
 =========
 
-Listeners enable you to respond to DAG/Task lifecycle events.
+Listeners enable you to respond to Dag/Task lifecycle events.
 
 This is implemented via :class:`~airflow.listeners.listener.ListenerManager` class that provides hooks that
-can be implemented to respond to DAG/Task lifecycle events.
+can be implemented to respond to Dag/Task lifecycle events.
 
 .. versionadded:: 2.5
 
@@ -484,15 +484,6 @@ The :doc:`apache-airflow-providers:core-extensions/logging` that also shows avai
 implemented in the community providers.
 
 Decorators
-==========
-DAG Authors can use decorators to author dags using the :doc:`TaskFlow <core-concepts/taskflow>` concept.
-All Decorators derive from :class:`~airflow.sdk.bases.decorator.TaskDecorator`.
-
-The primary decorators for DAG Authors are now in the airflow.sdk namespace:
-:func:`~airflow.sdk.dag`, :func:`~airflow.sdk.task`, :func:`~airflow.sdk.asset`,
-:func:`~airflow.sdk.setup`, :func:`~airflow.sdk.task_group`, :func:`~airflow.sdk.teardown`,
-:func:`~airflow.sdk.chain`, :func:`~airflow.sdk.chain_linear`, :func:`~airflow.sdk.cross_downstream`,
-:func:`~airflow.sdk.get_current_context` and :func:`~airflow.sdk.get_parsing_context`.
 
 Airflow has a set of Decorators that are considered public. You are free to extend their functionality
 by extending them:
