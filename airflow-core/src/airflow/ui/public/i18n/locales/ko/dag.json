@@ -19,6 +19,7 @@
   },
   "header": {
     "buttons": {
+      "advanced": "고급",
       "dagDocs": "Dag 문서"
     }
   },
@@ -34,6 +35,7 @@
     },
     "info": "정보",
     "noTryNumber": "시도 횟수 없음",
+    "settings": "로그 설정",
     "viewInExternal": "{{name}}에서 로그 보기 (시도 {{attempt}})",
     "warning": "경고"
   },

@@ -21,10 +21,12 @@ import pytest
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 if not AIRFLOW_V_3_1_PLUS:
-    pytest.skip("Human in the loop public API compatible with Airflow >= 3.0.1", allow_module_level=True)
+    pytest.skip("Human in the loop is only compatible with Airflow >= 3.1.0", allow_module_level=True)
 
+import datetime
 from typing import TYPE_CHECKING, Any
 
+import pytest
 from sqlalchemy import select
 
 from airflow.exceptions import DownstreamTasksSkipped
@@ -33,10 +35,11 @@ from airflow.models.hitl import HITLDetail
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.hitl import (
     ApprovalOperator,
+    HITLBranchOperator,
     HITLEntryOperator,
     HITLOperator,
 )
-from airflow.sdk import Param
+from airflow.sdk import Param, timezone
 from airflow.sdk.definitions.param import ParamsDict
 
 if TYPE_CHECKING:
@@ -45,6 +48,9 @@ if TYPE_CHECKING:
     from tests_common.pytest_plugin import DagMaker
 
 pytestmark = pytest.mark.db_test
+
+DEFAULT_DATE = timezone.datetime(2016, 1, 1)
+INTERVAL = datetime.timedelta(hours=12)
 
 
 class TestHITLOperator:
@@ -145,7 +151,7 @@ class TestHITLOperator:
             options=["1", "2", "3", "4", "5"],
             params=input_params,
         )
-        assert hitl_op.serialzed_params == expected_params
+        assert hitl_op.serialized_params == expected_params
 
     def test_execute_complete(self) -> None:
         hitl_op = HITLOperator(
@@ -257,7 +263,7 @@ class TestApprovalOperator:
 
 
 class TestHITLEntryOperator:
-    def test_init(self) -> None:
+    def test_init_without_options_and_default(self) -> None:
         op = HITLEntryOperator(
             task_id="hitl_test",
             subject="This is subject",
@@ -267,3 +273,74 @@ class TestHITLEntryOperator:
 
         assert op.options == ["OK"]
         assert op.defaults == ["OK"]
+
+    def test_init_without_options(self) -> None:
+        op = HITLEntryOperator(
+            task_id="hitl_test",
+            subject="This is subject",
+            body="This is body",
+            params={"input": 1},
+            defaults=None,
+        )
+
+        assert op.options == ["OK"]
+        assert op.defaults is None
+
+    def test_init_without_default(self) -> None:
+        op = HITLEntryOperator(
+            task_id="hitl_test",
+            subject="This is subject",
+            body="This is body",
+            params={"input": 1},
+            options=["OK", "NOT OK"],
+        )
+
+        assert op.options == ["OK", "NOT OK"]
+        assert op.defaults is None
+
+
+class TestHITLBranchOperator:
+    def test_execute_complete(self, dag_maker) -> None:
+        with dag_maker("hitl_test_dag", serialized=True):
+            branch_op = HITLBranchOperator(
+                task_id="make_choice",
+                subject="This is subject",
+                options=[f"branch_{i}" for i in range(1, 6)],
+            )
+
+            branch_op >> [EmptyOperator(task_id=f"branch_{i}") for i in range(1, 6)]
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("make_choice")
+        with pytest.raises(DownstreamTasksSkipped) as exc_info:
+            branch_op.execute_complete(
+                context={"ti": ti, "task": ti.task},
+                event={
+                    "chosen_options": ["branch_1"],
+                    "params_input": {},
+                },
+            )
+        assert set(exc_info.value.tasks) == set((f"branch_{i}", -1) for i in range(2, 6))
+
+    def test_execute_complete_with_multiple_branches(self, dag_maker) -> None:
+        with dag_maker("hitl_test_dag", serialized=True):
+            branch_op = HITLBranchOperator(
+                task_id="make_choice",
+                subject="This is subject",
+                multiple=True,
+                options=[f"branch_{i}" for i in range(1, 6)],
+            )
+
+            branch_op >> [EmptyOperator(task_id=f"branch_{i}") for i in range(1, 6)]
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("make_choice")
+        with pytest.raises(DownstreamTasksSkipped) as exc_info:
+            branch_op.execute_complete(
+                context={"ti": ti, "task": ti.task},
+                event={
+                    "chosen_options": [f"branch_{i}" for i in range(1, 4)],
+                    "params_input": {},
+                },
+            )
+        assert set(exc_info.value.tasks) == set((f"branch_{i}", -1) for i in range(4, 6))

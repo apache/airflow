@@ -147,7 +147,7 @@ def render_chart(
             raise HelmFailedError(result.returncode, result.args, result.stdout, result.stderr)
         templates = result.stdout
         k8s_objects = yaml.full_load_all(templates)
-        k8s_objects = [k8s_object for k8s_object in k8s_objects if k8s_object]  # type: ignore
+        k8s_objects = [k8s_object for k8s_object in k8s_objects if k8s_object]
         for k8s_object in k8s_objects:
             validate_k8s_object(k8s_object, kubernetes_version)
         return k8s_objects

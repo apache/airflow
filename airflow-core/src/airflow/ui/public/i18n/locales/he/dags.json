@@ -19,7 +19,8 @@
       "active": "פעיל",
       "all": "הכל",
       "paused": "מושהה"
-    }
+    },
+    "runIdPatternFilter": "חפש הרצת Dag"
   },
   "ownerLink": "קישור בעלים ל-{{owner}}",
   "runAndTaskActions": {
@@ -61,6 +62,7 @@
       "onlyFailed": "נקה משימות שנכשלו בלבד",
       "past": "בעבר",
       "queueNew": "תזמן משימות חדשות",
+      "runOnLatestVersion": "הרץ על גרסת החבילה האחרונה",
       "upstream": "במעלה הזרם"
     }
   },

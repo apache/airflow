@@ -24,6 +24,7 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy import and_, delete, func, select
 from sqlalchemy.orm import joinedload, subqueryload
 
+from airflow._shared.timezones import timezone
 from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
@@ -72,7 +73,6 @@ from airflow.models.asset import (
     TaskOutletAssetReference,
 )
 from airflow.models.dag import DAG
-from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -371,7 +371,7 @@ def materialize_asset(
         )
 
     dag: DAG | None
-    if not (dag := dag_bag.get_dag(dag_id)):
+    if not (dag := dag_bag.get_latest_version_of_dag(dag_id, session)):
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with ID `{dag_id}` was not found")
 
     return dag.create_dagrun(

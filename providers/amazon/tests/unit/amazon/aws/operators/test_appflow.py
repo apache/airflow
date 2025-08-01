@@ -31,7 +31,11 @@ from airflow.providers.amazon.aws.operators.appflow import (
     AppflowRunFullOperator,
     AppflowRunOperator,
 )
-from airflow.utils import timezone
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 CONN_ID = "aws_default"
 DAG_ID = "dag_id"
@@ -119,7 +123,7 @@ def test_run(appflow_conn, ctx, waiter_mock):
     args = DUMP_COMMON_ARGS.copy()
     args.pop("source")
     operator = AppflowRunOperator(**args)
-    operator.execute(ctx)  # type: ignore
+    operator.execute(ctx)
     appflow_conn.start_flow.assert_called_once_with(flowName=FLOW_NAME)
     appflow_conn.describe_flow_execution_records.assert_called_once()
 
@@ -127,7 +131,7 @@ def test_run(appflow_conn, ctx, waiter_mock):
 @pytest.mark.db_test
 def test_run_full(appflow_conn, ctx, waiter_mock):
     operator = AppflowRunFullOperator(**DUMP_COMMON_ARGS)
-    operator.execute(ctx)  # type: ignore
+    operator.execute(ctx)
     run_assertions_base(appflow_conn, [])
 
 
@@ -136,7 +140,7 @@ def test_run_after(appflow_conn, ctx, waiter_mock):
     operator = AppflowRunAfterOperator(
         source_field="col0", filter_date="2022-05-26T00:00+00:00", **DUMP_COMMON_ARGS
     )
-    operator.execute(ctx)  # type: ignore
+    operator.execute(ctx)
     run_assertions_base(
         appflow_conn,
         [
@@ -155,7 +159,7 @@ def test_run_before(appflow_conn, ctx, waiter_mock):
     operator = AppflowRunBeforeOperator(
         source_field="col0", filter_date="2022-05-26T00:00+00:00", **DUMP_COMMON_ARGS
     )
-    operator.execute(ctx)  # type: ignore
+    operator.execute(ctx)
     run_assertions_base(
         appflow_conn,
         [
@@ -174,7 +178,7 @@ def test_run_daily(appflow_conn, ctx, waiter_mock):
     operator = AppflowRunDailyOperator(
         source_field="col0", filter_date="2022-05-26T00:00+00:00", **DUMP_COMMON_ARGS
     )
-    operator.execute(ctx)  # type: ignore
+    operator.execute(ctx)
     run_assertions_base(
         appflow_conn,
         [
@@ -202,7 +206,7 @@ def test_short_circuit(appflow_conn, ctx):
                 flow_name=FLOW_NAME,
                 appflow_run_task_id=TASK_ID,
             )
-            operator.execute(ctx)  # type: ignore
+            operator.execute(ctx)
             appflow_conn.describe_flow_execution_records.assert_called_once_with(
                 flowName=FLOW_NAME, maxResults=100
             )

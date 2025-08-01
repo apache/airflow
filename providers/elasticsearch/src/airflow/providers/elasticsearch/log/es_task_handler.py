@@ -67,6 +67,7 @@ LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
 # not exist, the task handler should use the log_id_template attribute instead.
 USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
 
+TASK_LOG_FIELDS = ["timestamp", "event", "level", "chan", "logger"]
 
 VALID_ES_CONFIG_KEYS = set(inspect.signature(elasticsearch.Elasticsearch.__init__).parameters.keys())
 # Remove `self` from the valid set of kwargs
@@ -160,11 +161,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         es_kwargs = es_kwargs or {}
         if es_kwargs == "default_es_kwargs":
             es_kwargs = get_es_kwargs_from_config()
-        host = self.format_url(host)
+        self.host = self.format_url(host)
         super().__init__(base_log_folder)
         self.closed = False
 
-        self.client = elasticsearch.Elasticsearch(host, **es_kwargs)
+        self.client = elasticsearch.Elasticsearch(self.host, **es_kwargs)
         # in airflow.cfg, host of elasticsearch has to be http://dockerhostXxxx:9200
 
         self.frontend = frontend
@@ -185,7 +186,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         )
 
         self.formatter: logging.Formatter
-        self.handler: logging.FileHandler | logging.StreamHandler  # type: ignore[assignment]
+        self.handler: logging.FileHandler | logging.StreamHandler | None = None
         self._doc_type_map: dict[Any, Any] = {}
         self._doc_type: list[Any] = []
 
@@ -287,7 +288,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     def _group_logs_by_host(self, response: ElasticSearchResponse) -> dict[str, list[Hit]]:
         grouped_logs = defaultdict(list)
         for hit in response:
-            key = getattr_nested(hit, self.host_field, None) or "default_host"
+            key = getattr_nested(hit, self.host_field, None) or self.host
             grouped_logs[key].append(hit)
         return grouped_logs
 
@@ -380,11 +381,16 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                         sources=[host for host in logs_by_host.keys()],
                     ),  # type: ignore[call-arg]
                     StructuredLogMessage(event="::endgroup::"),
-                ]  # type: ignore[misc]
+                ]
 
+                # Flatten all hits, filter to only desired fields, and construct StructuredLogMessage objects
                 message = header + [
-                    StructuredLogMessage(event=concat_logs(hits)) for hits in logs_by_host.values()
-                ]  # type: ignore[misc]
+                    StructuredLogMessage(
+                        **{k: v for k, v in hit.to_dict().items() if k.lower() in TASK_LOG_FIELDS}
+                    )
+                    for hits in logs_by_host.values()
+                    for hit in hits
+                ]
             else:
                 message = [
                     (host, concat_logs(hits))  # type: ignore[misc]
@@ -426,7 +432,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         index_patterns = self._get_index_patterns(ti)
         try:
-            max_log_line = self.client.count(index=index_patterns, query=query)["count"]  # type: ignore
+            max_log_line = self.client.count(index=index_patterns, query=query)["count"]
         except NotFoundError as e:
             self.log.exception("The target index pattern %s does not exist", index_patterns)
             raise e
@@ -513,7 +519,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         # Reopen the file stream, because FileHandler.close() would be called
         # first in logging.shutdown() and the stream in it would be set to None.
-        if self.handler.stream is None or self.handler.stream.closed:  # type: ignore[attr-defined]
+        if self.handler.stream is None or self.handler.stream.closed:
             self.handler.stream = self.handler._open()  # type: ignore[union-attr]
 
         # Mark the end of file using end of log mark,

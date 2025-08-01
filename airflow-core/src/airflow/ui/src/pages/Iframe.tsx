@@ -16,43 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
-import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
-import { usePluginServiceGetPlugins } from "openapi/queries";
-import { ProgressBar } from "src/components/ui";
+import type { ExternalViewResponse } from "openapi/requests/types.gen";
 
-import { ErrorPage } from "./Error";
-
-export const Iframe = ({ sandbox = "allow-same-origin allow-forms" }: { readonly sandbox: string }) => {
-  const { t: translate } = useTranslation();
-  const { dagId, mapIndex, page, runId, taskId } = useParams();
-  const { data: pluginData, isLoading } = usePluginServiceGetPlugins();
-
-  const iframeView =
-    page === "legacy-fab-views"
-      ? { href: "/pluginsv2/", name: translate("nav.legacyFabViews") }
-      : pluginData?.plugins
-          .flatMap((plugin) => plugin.external_views)
-          .find((view) => (view.url_route ?? view.name.toLowerCase().replace(" ", "-")) === page);
-
-  if (!iframeView) {
-    if (isLoading) {
-      return (
-        <Box flexGrow={1}>
-          <ProgressBar />
-        </Box>
-      );
-    }
-
-    return <ErrorPage />;
-  }
+export const Iframe = ({
+  externalView,
+  sandbox = "allow-forms",
+}: {
+  readonly externalView: ExternalViewResponse;
+  readonly sandbox?: string;
+}) => {
+  const { dagId, mapIndex, runId, taskId } = useParams();
 
   // Build the href URL with context parameters if the view has a destination
-  let src = iframeView.href;
+  let src = externalView.href;
 
-  if (iframeView.destination !== undefined && iframeView.destination !== "nav") {
+  if (externalView.destination !== undefined && externalView.destination !== "nav") {
     // Check if the href contains placeholders that need to be replaced
     if (dagId !== undefined) {
       src = src.replaceAll("{DAG_ID}", dagId);
@@ -68,24 +48,22 @@ export const Iframe = ({ sandbox = "allow-same-origin allow-forms" }: { readonly
     }
   }
 
+  if (src.startsWith("http://") || src.startsWith("https://")) {
+    // URL is absolute
+    src = new URL(src).toString();
+  }
+
   return (
-    <Box
-      flexGrow={1}
-      height="100%"
-      m={-2} // Compensate for parent padding
-      minHeight={0}
-    >
-      <iframe
-        sandbox={sandbox}
-        src={src}
-        style={{
-          border: "none",
-          display: "block",
-          height: "100%",
-          width: "100%",
-        }}
-        title={iframeView.name}
-      />
-    </Box>
+    <iframe
+      sandbox={sandbox}
+      src={src}
+      style={{
+        border: "none",
+        display: "block",
+        height: "100%",
+        width: "100%",
+      }}
+      title={externalView.name}
+    />
   );
 };

@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-openlineage"
-version = "2.5.0"
+version = "2.6.0"
 description = "Provider package apache-airflow-providers-openlineage for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -47,6 +47,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.10"
@@ -60,8 +61,8 @@ dependencies = [
     "apache-airflow-providers-common-sql>=1.20.0",
     "apache-airflow-providers-common-compat>=1.4.0",
     "attrs>=22.2",
-    "openlineage-integration-common>=1.34.0",
-    "openlineage-python>=1.34.0",
+    "openlineage-integration-common>=1.36.0",
+    "openlineage-python>=1.36.0",
 ]
 
 [dependency-groups]
@@ -104,8 +105,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.5.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.5.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.6.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.6.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

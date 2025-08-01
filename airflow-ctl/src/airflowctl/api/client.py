@@ -156,7 +156,9 @@ class Credentials:
                 # Saving the URL set from the Auth Commands if Kind is AUTH
                 self.save()
             elif self.client_kind == ClientKind.CLI:
-                raise AirflowCtlCredentialNotFoundException(f"No credentials found in {default_config_dir}")
+                raise AirflowCtlCredentialNotFoundException(
+                    f"No credentials found in {default_config_dir} for environment {self.api_environment}."
+                )
             else:
                 raise AirflowCtlException(f"Unknown client kind: {self.client_kind}")
 
@@ -209,73 +211,73 @@ class Client(httpx.Client):
             return f"{base_url}/auth"
         return f"{base_url}/api/v2"
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def login(self):
         """Operations related to authentication."""
         return LoginOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def assets(self):
         """Operations related to assets."""
         return AssetsOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def backfills(self):
         """Operations related to backfills."""
         return BackfillsOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def configs(self):
         """Operations related to configs."""
         return ConfigOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def connections(self):
         """Operations related to connections."""
         return ConnectionsOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def dags(self):
         """Operations related to DAGs."""
         return DagOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def dag_runs(self):
         """Operations related to DAG runs."""
         return DagRunOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def jobs(self):
         """Operations related to jobs."""
         return JobsOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def pools(self):
         """Operations related to pools."""
         return PoolsOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def providers(self):
         """Operations related to providers."""
         return ProvidersOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def variables(self):
         """Operations related to variables."""
         return VariablesOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def version(self):
         """Get the version of the server."""

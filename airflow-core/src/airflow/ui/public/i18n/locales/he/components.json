@@ -14,7 +14,7 @@
     "missingRuns": "הרצות חסרות",
     "reprocessBehavior": "התנהגות עיבוד מחדש",
     "run": "הרץ Backfill",
-    "selectDescription": "הרץ DAG זה עבור טווח תאריכים",
+    "selectDescription": "הרץ Dag זה עבור טווח תאריכים",
     "selectLabel": "Backfill",
     "title": "הרץ Backfill",
     "toaster": {
@@ -54,8 +54,8 @@
   },
   "durationChart": {
     "duration": "משך זמן (שניות)",
-    "lastDagRun_one": "ריצת DAG אחרונה",
-    "lastDagRun_other": "{{count}} ריצות DAG אחרונות",
+    "lastDagRun_one": "ריצת Dag אחרונה",
+    "lastDagRun_other": "{{count}} ריצות Dag אחרונות",
     "lastTaskInstance_one": "משימה אחרונה",
     "lastTaskInstance_other": "{{count}} משימות אחרונות",
     "queuedDuration": "זמן המתנה בתור",
@@ -84,7 +84,7 @@
     "downloadImage": "הורד תמונת גרף",
     "downloadImageError": "הורדת תמונת הגרף נכשלה.",
     "downloadImageErrorTitle": "ההורדה נכשלה",
-    "otherDagRuns": "+ ריצות DAG נוספות",
+    "otherDagRuns": "+ ריצות Dag נוספות",
     "taskCount_one": "משימה אחת",
     "taskCount_other": "{{count}} משימות",
     "taskGroup": "קבוצת משימות"
@@ -94,7 +94,7 @@
     "file": "קובץ",
     "location": "שורה {{line}} ב{{name}}"
   },
-  "reparseDag": "נתח DAG מחדש",
+  "reparseDag": "נתח Dag מחדש",
   "sortedAscending": "ממוין בסדר עולה",
   "sortedDescending": "ממוין בסדר יורד",
   "sortedUnsorted": "לא ממוין",
@@ -103,16 +103,16 @@
   "toggleTableView": "הצג תצוגת טבלה",
   "triggerDag": {
     "button": "הפעל",
-    "loading": "טוען מידע DAG...",
-    "loadingFailed": "טעינת מידע ה-DAG נכשלה. אנא נסו שוב.",
+    "loading": "טוען מידע Dag...",
+    "loadingFailed": "טעינת מידע ה-Dag נכשלה. אנא נסו שוב.",
     "runIdHelp": "אופציונלי - ייווצר אוטומטית אם לא יסופק",
-    "selectDescription": "הפעל ריצה בודדת של DAG זה",
+    "selectDescription": "הפעל ריצה בודדת של Dag זה",
     "selectLabel": "ריצה בודדת",
-    "title": "הפעל DAG",
+    "title": "הפעל Dag",
     "toaster": {
       "success": {
-        "description": "ריצת ה-DAG הופעלה בהצלחה.",
-        "title": "ריצת DAG הופעלה"
+        "description": "ריצת ה-Dag הופעלה בהצלחה.",
+        "title": "ריצת Dag הופעלה"
       }
     },
     "unpause": "הפעל את {{dagDisplayName}} בעת ההרצה"
@@ -130,7 +130,7 @@
     "versionId": "מזהה גרסה"
   },
   "versionSelect": {
-    "dagVersion": "גרסת DAG",
+    "dagVersion": "גרסת Dag",
     "versionCode": "גרסה {{versionCode}}"
   }
 }

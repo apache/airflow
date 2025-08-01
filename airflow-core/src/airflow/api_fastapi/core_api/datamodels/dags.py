@@ -35,7 +35,6 @@ from pydantic import (
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_tags import DagTagResponse
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
-from airflow.api_fastapi.core_api.datamodels.deadline import DeadlineAlertResponse
 from airflow.configuration import conf
 from airflow.models.dag_version import DagVersion
 
@@ -68,7 +67,6 @@ class DAGResponse(BaseModel):
     relative_fileloc: str | None
     fileloc: str
     description: str | None
-    deadline: list[DeadlineAlertResponse] | None
     timetable_summary: str | None
     timetable_description: str | None
     tags: list[DagTagResponse]
@@ -105,7 +103,7 @@ class DAGResponse(BaseModel):
         return str(tts)
 
     # Mypy issue https://github.com/python/mypy/issues/1362
-    @computed_field  # type: ignore[misc]
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def file_token(self) -> str:
         """Return file token."""
@@ -185,14 +183,14 @@ class DAGDetailsResponse(DAGResponse):
         return {k: v.dump() for k, v in params.items()}
 
     # Mypy issue https://github.com/python/mypy/issues/1362
-    @computed_field  # type: ignore[misc]
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def concurrency(self) -> int:
         """Return max_active_tasks as concurrency."""
         return self.max_active_tasks
 
     # Mypy issue https://github.com/python/mypy/issues/1362
-    @computed_field  # type: ignore[misc]
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def latest_dag_version(self) -> DagVersionResponse | None:
         """Return the latest DagVersion."""

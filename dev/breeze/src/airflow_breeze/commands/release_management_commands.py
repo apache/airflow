@@ -92,14 +92,13 @@ from airflow_breeze.global_constants import (
     ALLOWED_DEBIAN_VERSIONS,
     ALLOWED_DISTRIBUTION_FORMATS,
     ALLOWED_PLATFORMS,
-    ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
-    CONSTRAINTS_SOURCE_PROVIDERS,
+    CONSTRAINTS,
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES,
     DESTINATION_LOCATIONS,
     MULTI_PLATFORM,
-    PYTHON_TO_MIN_AIRFLOW_MAPPING,
     UV_VERSION,
 )
 from airflow_breeze.params.build_ci_params import BuildCiParams
@@ -132,7 +131,6 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
-from airflow_breeze.utils.github import download_constraints_file, get_active_airflow_versions
 from airflow_breeze.utils.packages import (
     PackageSuspendedException,
     apply_version_suffix_to_non_provider_pyproject_tomls,
@@ -158,7 +156,6 @@ from airflow_breeze.utils.path_utils import (
     AIRFLOW_CTL_SOURCES_PATH,
     AIRFLOW_DIST_PATH,
     AIRFLOW_ROOT_PATH,
-    CONSTRAINTS_CACHE_PATH,
     OUT_PATH,
     PROVIDER_METADATA_JSON_PATH,
     TASK_SDK_DIST_PATH,
@@ -168,8 +165,10 @@ from airflow_breeze.utils.path_utils import (
 )
 from airflow_breeze.utils.provider_dependencies import (
     DEPENDENCIES,
-    generate_providers_metadata_for_package,
+    generate_providers_metadata_for_provider,
+    get_all_constraint_files_and_airflow_releases,
     get_related_providers,
+    load_constraints,
 )
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.reproducible import get_source_date_epoch, repack_deterministically
@@ -244,11 +243,11 @@ class VersionedFile(NamedTuple):
     file_name: str
 
 
-AIRFLOW_PIP_VERSION = "25.1.1"
-AIRFLOW_UV_VERSION = "0.7.19"
+AIRFLOW_PIP_VERSION = "25.2"
+AIRFLOW_UV_VERSION = "0.8.4"
 AIRFLOW_USE_UV = False
-GITPYTHON_VERSION = "3.1.44"
-RICH_VERSION = "14.0.0"
+GITPYTHON_VERSION = "3.1.45"
+RICH_VERSION = "14.1.0"
 PRE_COMMIT_VERSION = "4.2.0"
 PRE_COMMIT_UV_VERSION = "4.1.4"
 HATCH_VERSION = "1.14.1"
@@ -1272,7 +1271,7 @@ def tag_providers(
             if push_result.returncode == 0:
                 get_console().print("\n[success]Tags pushed successfully.[/]")
         except subprocess.CalledProcessError:
-            get_console().print("\n[error]Failed to push tags, probably a connectivity issue to Github.[/]")
+            get_console().print("\n[error]Failed to push tags, probably a connectivity issue to GitHub.[/]")
             if clean_local_tags:
                 for tag in tags:
                     with contextlib.suppress(subprocess.CalledProcessError):
@@ -1977,7 +1976,7 @@ def alias_images(
     get_console().print("[info]Aliasing images with links to the newly created images.[/]")
     for python in python_versions:
         # Always alias the last python version to point to the non-python version
-        if python == ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[-1]:
+        if python == DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES:
             get_console().print(
                 f"[info]Aliasing the {image_prefix}{airflow_version}-python{python} "
                 f"version with {image_prefix}{airflow_version}[/]"
@@ -2001,7 +2000,7 @@ def alias_images(
                     f"{dockerhub_repo}:{airflow_version}-python{python}",
                     f"{dockerhub_repo}:latest-python{python}",
                 )
-            if python == ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[-1]:
+            if python == DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES:
                 alias_image(
                     f"{dockerhub_repo}:{image_prefix}{airflow_version}",
                     f"{dockerhub_repo}:{image_prefix}latest",
@@ -2170,7 +2169,7 @@ def release_prod_images(
         run_command(docker_buildx_command)
         if metadata_file:
             get_console().print(f"[green]Metadata file stored in {metadata_file}")
-        if python == ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[-1] and not metadata_file:
+        if python == DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES and not metadata_file:
             get_console().print(
                 f"[info]Aliasing the latest {python} version to {image_prefix}{airflow_version}[/]"
             )
@@ -2371,12 +2370,20 @@ def create_github_issue_url(title: str, body: str, labels: Iterable[str]) -> str
     is_flag=True,
     help="Only consider package ids with packages prepared in the dist folder",
 )
+@click.option(
+    "--no-include-browser-link",
+    "include_browser_link",
+    flag_value=False,
+    default=True,
+    help="Do not include browser link to prefill GitHub issue",
+)
 @argument_provider_distributions
 def generate_issue_content_providers(
     disable_progress: bool,
     excluded_pr_list: str,
     github_token: str,
     only_available_in_dist: bool,
+    include_browser_link: bool,
     provider_distributions: list[str],
 ):
     import jinja2
@@ -2519,12 +2526,13 @@ def generate_issue_content_providers(
             body=issue_content,
             labels=["testing status", "kind:meta"],
         )
-        get_console().print()
-        get_console().print(
-            "[info]You can prefill the issue by copy&pasting this link to browser "
-            "(or Cmd+Click if your terminal supports it):\n"
-        )
-        print(url_to_create_the_issue)
+        if include_browser_link:
+            get_console().print()
+            get_console().print(
+                "[info]You can prefill the issue by copy&pasting this link to browser "
+                "(or Cmd+Click if your terminal supports it):\n"
+            )
+            print(url_to_create_the_issue)
 
 
 def get_git_log_command(
@@ -2761,98 +2769,72 @@ def generate_issue_content_core(
     )
 
 
-def is_airflow_version_supported_for_python(airflow_version: str, python_version: str) -> bool:
-    from packaging.version import Version
-
-    min_airflow_version = PYTHON_TO_MIN_AIRFLOW_MAPPING.get(python_version)
-    if not min_airflow_version:
-        return False
-    return Version(airflow_version) >= Version(min_airflow_version)
-
-
-def get_airflow_versions_supported_by_python(
-    all_airflow_versions: list[str], python_version: str
-) -> list[str]:
-    return [v for v in all_airflow_versions if is_airflow_version_supported_for_python(v, python_version)]
-
-
-def get_all_constraint_files(
-    refresh_constraints: bool,
-    python_version: str,
-    airflow_constraints_mode: str,
-    github_token: str | None = None,
-) -> tuple[list[str], dict[str, str]]:
-    if refresh_constraints:
-        shutil.rmtree(CONSTRAINTS_CACHE_PATH, ignore_errors=True)
-    all_airflow_versions, airflow_release_dates = get_active_airflow_versions(confirm=False)
-
-    get_console().print(
-        f"[info]Filtering to only use airflow versions supported by current python version: {python_version}[/]"
-    )
-
-    all_airflow_versions = get_airflow_versions_supported_by_python(all_airflow_versions, python_version)
-
-    if not CONSTRAINTS_CACHE_PATH.exists():
-        with ci_group(f"Downloading constraints for all Airflow versions for Python {python_version}"):
-            CONSTRAINTS_CACHE_PATH.mkdir(parents=True, exist_ok=True)
-            for airflow_version in all_airflow_versions:
-                if not download_constraints_file(
-                    constraints_reference=f"constraints-{airflow_version}",
-                    python_version=python_version,
-                    github_token=github_token,
-                    airflow_constraints_mode=airflow_constraints_mode,
-                    output_file=CONSTRAINTS_CACHE_PATH
-                    / f"constraints-{airflow_version}-python-{python_version}.txt",
-                ):
-                    get_console().print(
-                        "[warning]Could not download constraints for "
-                        f"Airflow {airflow_version} and Python {python_version}[/]"
-                    )
-    return all_airflow_versions, airflow_release_dates
-
-
-MATCH_CONSTRAINTS_FILE_REGEX = re.compile(r"constraints-(.*)-python-(.*).txt")
-
-
-def load_constraints(python_version: str) -> dict[str, dict[str, str]]:
-    constraints: dict[str, dict[str, str]] = {}
-    for filename in sorted(CONSTRAINTS_CACHE_PATH.glob(f"constraints-*-python-{python_version}.txt")):
-        filename_match = MATCH_CONSTRAINTS_FILE_REGEX.match(filename.name)
-        if filename_match:
-            airflow_version = filename_match.group(1)
-            constraints[airflow_version] = {}
-            for line in filename.read_text().splitlines():
-                if line and not line.startswith("#"):
-                    package, version = line.split("==")
-                    constraints[airflow_version][package] = version
-    return constraints
-
-
 @release_management.command(name="generate-providers-metadata", help="Generates metadata for providers.")
 @click.option(
-    "--refresh-constraints",
+    "--refresh-constraints-and-airflow-releases",
     is_flag=True,
-    help="Refresh constraints before generating metadata",
+    envvar="REFRESH_CONSTRAINTS_AND_AIRFLOW_RELEASES",
+    help="Refresh constraints and airflow_releases before generating metadata",
+)
+@click.option(
+    "--provider-id",
+    type=BetterChoice(get_available_distributions(include_removed=True, include_suspended=True)),
+    envvar="PROVIDER_ID",
+    help="Provider_id to generate metadata for. If not specified, metadata for all packages will be generated. "
+    "This is debug-only option. When this option is specified, the metadata produced for "
+    "the distribution will not be written to the file, but printed via console.",
+)
+@click.option(
+    "--provider-version",
+    type=str,
+    envvar="PROVIDER_VERSION",
+    help="Provider version to generate metadata for. Only used when --provider-id is specified. Limits running "
+    "metadata generation to only this version of the provider.",
 )
 @option_github_token
 @option_dry_run
 @option_verbose
-def generate_providers_metadata(refresh_constraints: bool, github_token: str | None):
+def generate_providers_metadata(
+    refresh_constraints_and_airflow_releases: bool,
+    provider_id: str | None,
+    provider_version: str | None,
+    github_token: str | None,
+):
+    import json
+
+    if PROVIDER_METADATA_JSON_PATH.exists():
+        current_metadata = json.loads(PROVIDER_METADATA_JSON_PATH.read_text())
+    else:
+        current_metadata = {}
     metadata_dict: dict[str, dict[str, dict[str, str]]] = {}
-    python = DEFAULT_PYTHON_MAJOR_MINOR_VERSION
-    all_airflow_releases, airflow_release_dates = get_all_constraint_files(
-        refresh_constraints=refresh_constraints,
-        python_version=python,
-        airflow_constraints_mode=CONSTRAINTS_SOURCE_PROVIDERS,
+    all_airflow_releases, airflow_release_dates = get_all_constraint_files_and_airflow_releases(
+        refresh_constraints_and_airflow_releases=refresh_constraints_and_airflow_releases,
+        airflow_constraints_mode=CONSTRAINTS,
         github_token=github_token,
     )
-    constraints = load_constraints(python_version=python)
+    constraints = load_constraints()
+    if provider_id:
+        get_console().print(f"[info]Generating metadata for provider {provider_id} only (for debugging)[/]")
+        result = generate_providers_metadata_for_provider(
+            provider_id,
+            provider_version=provider_version,
+            constraints=constraints,
+            all_airflow_releases=all_airflow_releases,
+            airflow_release_dates=airflow_release_dates,
+            current_metadata=current_metadata,
+        )
+        if result:
+            metadata_dict[provider_id] = result
+        get_console().print(metadata_dict)
+        return
 
     partial_generate_providers_metadata = partial(
-        generate_providers_metadata_for_package,
+        generate_providers_metadata_for_provider,
+        provider_version=None,
         constraints=constraints,
         all_airflow_releases=all_airflow_releases,
         airflow_release_dates=airflow_release_dates,
+        current_metadata=current_metadata,
     )
     package_ids = DEPENDENCIES.keys()
     with Pool() as pool:
@@ -2863,7 +2845,6 @@ def generate_providers_metadata(refresh_constraints: bool, github_token: str | N
     for package_id, result in zip(package_ids, results):
         if result:
             metadata_dict[package_id] = result
-    import json
 
     PROVIDER_METADATA_JSON_PATH.write_text(json.dumps(metadata_dict, indent=4) + "\n")
 
@@ -3131,8 +3112,8 @@ def _get_python_client_version(version_suffix):
     version = Version(python_client_version)
     if version_suffix:
         if version.pre:
-            currrent_suffix = version.pre[0] + str(version.pre[1])
-            if currrent_suffix != version_suffix:
+            current_suffix = version.pre[0] + str(version.pre[1])
+            if current_suffix != version_suffix:
                 get_console().print(
                     f"[error]The version suffix for PyPI ({version_suffix}) does not match the "
                     f"suffix in the version ({version})[/]"

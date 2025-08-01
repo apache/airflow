@@ -80,8 +80,6 @@ jobs:
         run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        with:
-          use-uv: ${{ inputs.use-uv }}
       - run: uv tool run --from apache-airflow-breeze pytest -n auto --color=yes
         working-directory: ./dev/breeze/
   tests-ui:
@@ -169,8 +167,6 @@ jobs:
           persist-credentials: false
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        with:
-          use-uv: ${{ inputs.use-uv }}
         id: breeze
       - name: "Install pre-commit"
         uses: ./.github/actions/install-pre-commit
@@ -200,8 +196,6 @@ jobs:
         run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        with:
-          use-uv: ${{ inputs.use-uv }}
         id: breeze
       - name: "Install pre-commit"
         uses: ./.github/actions/install-pre-commit
@@ -256,8 +250,6 @@ jobs:
         run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        with:
-          use-uv: ${{ inputs.use-uv }}
         id: breeze
       - name: "Install pre-commit"
         uses: ./.github/actions/install-pre-commit
@@ -299,6 +291,7 @@ jobs:
           UPGRADE_PIP: "false"
           UPGRADE_PRE_COMMIT: "false"
           UPGRADE_NODE_LTS: "false"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: "Run automated upgrade for pip, pre-commit and node (failing if needed)"
         run: >
           pre-commit run
@@ -312,6 +305,7 @@ jobs:
           UPGRADE_PIP: "true"
           UPGRADE_PRE_COMMIT: "true"
           UPGRADE_NODE_LTS: "true"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   test-airflow-release-commands:
     timeout-minutes: 80
@@ -336,14 +330,12 @@ jobs:
         run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        with:
-          use-uv: ${{ inputs.use-uv }}
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
       - name: Setup git for tagging
         run: |
-          git config --global user.email "name@example.com"
-          git config --global user.name "Your Name"
+          git config --global user.email "bot@airflow.apache.org"
+          git config --global user.name "Your friendly bot"
       - name: Install twine
         run: pip install twine
       - name: "Check Airflow create minor branch command"
@@ -362,7 +354,7 @@ jobs:
         run: |
           git remote add apache https://github.com/apache/airflow.git
           git fetch apache --tags
-          breeze release-management generate-providers-metadata --refresh-constraints
+          breeze release-management generate-providers-metadata --refresh-constraints-and-airflow-releases
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: "Fetch all git tags for origin"

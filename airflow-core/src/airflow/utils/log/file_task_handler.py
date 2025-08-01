@@ -251,7 +251,7 @@ def _log_stream_to_parsed_log_stream(
     :param log_stream: The stream to parse.
     :return: A generator of parsed log lines.
     """
-    from airflow.utils.timezone import coerce_datetime
+    from airflow._shared.timezones.timezone import coerce_datetime
 
     timestamp = None
     next_timestamp = None
@@ -318,8 +318,6 @@ def _add_log_from_parsed_log_streams_to_heap(
                 log_stream_to_remove = []
             log_stream_to_remove.append(idx)
             continue
-        # add type hint to avoid mypy error
-        record = cast("ParsedLog", record)
         timestamp, line_num, line = record
         # take int as sort key to avoid overhead of memory usage
         heapq.heappush(heap, (_create_sort_key(timestamp, line_num), line))
@@ -741,11 +739,7 @@ class FileTaskHandler(logging.Handler):
             try_number = task_instance.try_number
 
         if try_number == 0 and task_instance.state == TaskInstanceState.SKIPPED:
-            logs = [
-                StructuredLogMessage(  # type: ignore[call-arg]
-                    event="Task was skipped, no logs available."
-                )
-            ]
+            logs = [StructuredLogMessage(event="Task was skipped, no logs available.")]
             return chain(logs), {"end_of_log": True}
 
         if try_number is None or try_number < 1:

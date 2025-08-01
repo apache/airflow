@@ -243,7 +243,7 @@ def test_is_name_redactable():
 
 @pytest.mark.enable_redact
 def test_redact_with_exclusions(monkeypatch):
-    redactor = OpenLineageRedactor.from_masker(_secrets_masker())  # type: ignore[assignment]
+    redactor = OpenLineageRedactor.from_masker(_secrets_masker())
 
     class NotMixin:
         def __init__(self):
