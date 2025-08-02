@@ -78,6 +78,15 @@ def json_serialize(value: Any) -> str | None:
     return watchtower._json_serialize_default(value)
 
 
+class DateTimeEncoder(json.JSONEncoder):
+    """Custom JSON encoder to handle datetime serialization."""
+
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        return super().default(obj)
+
+
 @attrs.define(kw_only=True)
 class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
     base_log_folder: Path = attrs.field(converter=Path)
@@ -173,7 +182,14 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         messages, logs = self.stream(relative_path, ti)
 
         return messages, [
-            json.dumps(msg) if isinstance(msg, dict) else msg for group in logs for msg in group
+            json.dumps(
+                msg,
+                cls=DateTimeEncoder,
+            )
+            if isinstance(msg, dict)
+            else msg
+            for group in logs
+            for msg in group
         ]
 
     def stream(self, relative_path, ti: RuntimeTI) -> LogResponse:
