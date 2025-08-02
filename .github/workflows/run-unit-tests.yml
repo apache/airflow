@@ -92,6 +92,11 @@ on:  # yamllint disable-line rule:truthy
         required: false
         default: "false"
         type: string
+      upgrade-sqlalchemy:
+        description: "Whether to upgrade SQLAlchemy or not (true/false)"
+        required: false
+        default: "false"
+        type: string
       upgrade-boto:
         description: "Whether to upgrade boto or not (true/false)"
         required: false
@@ -166,6 +171,7 @@ jobs:
       PARALLEL_TEST_TYPES: ${{ matrix.test-types.test_types }}
       PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python-version }}"
       UPGRADE_BOTO: "${{ inputs.upgrade-boto }}"
+      UPGRADE_SQLALCHEMY: "${{ inputs.upgrade-sqlalchemy }}"
       AIRFLOW_MONITOR_DELAY_TIME_IN_SECONDS: "${{inputs.monitor-delay-time-in-seconds}}"
       VERBOSE: "true"
       DEFAULT_BRANCH: "${{ inputs.default-branch }}"
