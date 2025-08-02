@@ -32,6 +32,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
     AssetAliasDetails,
     AssetDetails,
+    HITLDetails,
     BackfillDetails,
     ConfigurationDetails,
     ConnectionDetails,
@@ -288,6 +289,24 @@ def requires_access_asset(method: ResourceMethod) -> Callable[[Request, BaseUser
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_asset(
                 method=method, details=AssetDetails(id=asset_id), user=user
+            ),
+        )
+
+    return inner
+
+
+def requires_access_hitl_detail(
+    method: ResourceMethod, access_entity: DagAccessEntity | None = None
+) -> Callable[[Request, BaseUser], None]:
+    def inner(
+        request: Request,
+        user: GetUserDep,
+    ) -> None:
+        ti_id_str: str = str(request.path_params.get("task_id"))
+
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().is_authorized_hitl_detail(
+                method=method, access_entity=access_entity, details=HITLDetails(ti_id=ti_id_str), user=user
             ),
         )
 

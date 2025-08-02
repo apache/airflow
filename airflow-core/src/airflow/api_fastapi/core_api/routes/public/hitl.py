@@ -47,7 +47,7 @@ from airflow.api_fastapi.core_api.datamodels.hitl import (
     UpdateHITLDetailPayload,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
+from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_hitl_detail
 from airflow.models.hitl import HITLDetail as HITLDetailModel
 from airflow.models.taskinstance import TaskInstance as TI
 
@@ -173,7 +173,7 @@ def _get_hitl_detail(
             status.HTTP_409_CONFLICT,
         ]
     ),
-    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    dependencies=[Depends(requires_access_hitl_detail(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
 )
 def update_hitl_detail(
     dag_id: str,
@@ -203,7 +203,7 @@ def update_hitl_detail(
             status.HTTP_409_CONFLICT,
         ]
     ),
-    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    dependencies=[Depends(requires_access_hitl_detail(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
 )
 def update_mapped_ti_hitl_detail(
     dag_id: str,
@@ -230,7 +230,7 @@ def update_mapped_ti_hitl_detail(
     "/{dag_id}/{dag_run_id}/{task_id}",
     status_code=status.HTTP_200_OK,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
-    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    dependencies=[Depends(requires_access_hitl_detail(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
 )
 def get_hitl_detail(
     dag_id: str,
@@ -252,7 +252,7 @@ def get_hitl_detail(
     "/{dag_id}/{dag_run_id}/{task_id}/{map_index}",
     status_code=status.HTTP_200_OK,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
-    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    dependencies=[Depends(requires_access_hitl_detail(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
 )
 def get_mapped_ti_hitl_detail(
     dag_id: str,
@@ -274,7 +274,7 @@ def get_mapped_ti_hitl_detail(
 @hitl_router.get(
     "/",
     status_code=status.HTTP_200_OK,
-    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    dependencies=[Depends(requires_access_hitl_detail(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
 )
 def get_hitl_details(
     limit: QueryLimit,
