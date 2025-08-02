@@ -305,6 +305,30 @@ class PoolNotFound(AirflowNotFoundException):
     """Raise when a Pool is not available in the system."""
 
 
+class AirflowSecretException(AirflowException):
+    """Base exception for all secret-related exceptions (variables and connections)."""
+
+
+class SecretFileNotFoundError(AirflowSecretException):
+    """Raise when a secret file (variables or connections) is not found."""
+
+    def __init__(self, file_path: str) -> None:
+        super().__init__(f"Secret file not found: {file_path}")
+        self.file_path = file_path
+
+
+class UnsupportedSecretFileFormatError(AirflowSecretException):
+    """Raise when a secret file (variables or connections) is in an unsupported format."""
+
+    def __init__(self, file_path: str, supported_formats: list[str]) -> None:
+        super().__init__(
+            f"Unsupported secret file format for file: \"{file_path}\". "
+            f"Supported formats are: {supported_formats}."
+        )
+        self.file_path = file_path
+        self.supported_formats = supported_formats
+
+
 class FileSyntaxError(NamedTuple):
     """Information about a single error in a file."""
 
@@ -347,7 +371,28 @@ class AirflowFileParseException(AirflowException):
         return result
 
 
-class ConnectionNotUnique(AirflowException):
+class AirflowDuplicateVariableKeyException(AirflowException):
+    """
+    Raise when multiple values are found for the same key in an ENV file.
+
+    This exception is specific to .env file format parsing. Unlike JSON/YAML files
+    which can have list values, .env files do not support lists, so duplicate keys
+    are considered an error.
+
+    :param msg: The human-readable description of the exception
+    :param file_path: A processed file that contains errors
+    """
+
+    def __init__(self, msg: str, file_path: str) -> None:
+        super().__init__(msg)
+        self.msg = msg
+        self.file_path = file_path
+
+    def __str__(self):
+        return f"{self.msg}\nFilename: {self.file_path}"
+
+
+class ConnectionNotUnique(AirflowSecretException):
     """Raise when multiple values are found for the same connection ID."""
 
 

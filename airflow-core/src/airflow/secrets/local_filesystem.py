@@ -25,13 +25,17 @@ import os
 from collections import defaultdict
 from inspect import signature
 from json import JSONDecodeError
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import (
+    AirflowDuplicateVariableKeyException,
     AirflowException,
     AirflowFileParseException,
     ConnectionNotUnique,
     FileSyntaxError,
+    SecretFileNotFoundError,
+    UnsupportedSecretFileFormatError,
 )
 from airflow.secrets.base_secrets import BaseSecretsBackend
 from airflow.utils import yaml
@@ -86,13 +90,14 @@ def _parse_env_file(file_path: str) -> tuple[dict[str, list[str]], list[FileSynt
             )
             continue
 
-        if not value:
+        if not key:
             errors.append(
                 FileSyntaxError(
                     line_no=line_no,
                     message="Invalid line format. Key is empty.",
                 )
             )
+            continue
         secrets[key].append(value)
     return secrets, errors
 
@@ -158,18 +163,16 @@ def _parse_secret_file(file_path: str) -> dict[str, Any]:
     :return: Map of secret key (e.g. connection ID) and value.
     """
     if not os.path.exists(file_path):
-        raise AirflowException(
-            f"File {file_path} was not found. Check the configuration of your Secrets backend."
-        )
+        raise SecretFileNotFoundError(file_path)
 
     log.debug("Parsing file: %s", file_path)
 
     ext = file_path.rsplit(".", 2)[-1].lower()
 
     if ext not in FILE_PARSERS:
-        raise AirflowException(
-            "Unsupported file format. The file must have one of the following extensions: "
-            ".env .json .yaml .yml"
+        raise UnsupportedSecretFileFormatError(
+            file_path=file_path,
+            supported_formats=list(FILE_PARSERS.keys())
         )
 
     secrets, parse_errors = FILE_PARSERS[ext](file_path)
@@ -233,10 +236,23 @@ def load_variables(file_path: str) -> dict[str, str]:
     log.debug("Loading variables from a text file")
 
     secrets = _parse_secret_file(file_path)
-    invalid_keys = [key for key, values in secrets.items() if isinstance(values, list) and len(values) != 1]
-    if invalid_keys:
-        raise AirflowException(f'The "{file_path}" file contains multiple values for keys: {invalid_keys}')
-    variables = {key: values[0] if isinstance(values, list) else values for key, values in secrets.items()}
+
+    # Determine a file format to handle lists correctly
+    ext = Path(file_path).suffix.lower().lstrip(".")
+    is_env_file = ext == "env"
+
+    variables = {}
+    for key, secret_values in secrets.items():
+        if is_env_file and isinstance(secret_values, list):
+            # Only ENV files: Check for duplicate keys
+            if len(secret_values) > 1:
+                raise AirflowDuplicateVariableKeyException(
+                    msg=f"Multiple values found for key '{key}' in '{file_path}' file", file_path=file_path
+                )
+            variables[key] = secret_values[0]  # Extract single value
+        else:
+            # JSON/YAML: Use value directly (could be list, dict, string, etc.)
+            variables[key] = secret_values
     log.debug("Loaded %d variables: ", len(variables))
     return variables
 

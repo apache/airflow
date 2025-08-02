@@ -30,7 +30,7 @@ import pytest
 
 from airflow.cli import cli_config, cli_parser
 from airflow.cli.commands import connection_command
-from airflow.exceptions import AirflowException
+from airflow.exceptions import UnsupportedSecretFileFormatError
 from airflow.models import Connection
 from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session
@@ -763,10 +763,9 @@ class TestCliImportConnections:
     ):
         mock_exists.return_value = True
         with pytest.raises(
-            AirflowException,
-            match=(
-                "Unsupported file format. The file must have one of the following extensions: "
-                ".env .json .yaml .yml"
+            UnsupportedSecretFileFormatError,
+            match=re.escape(
+                f"Unsupported secret file format for file: \"{filepath}\". Supported formats are: ['env', 'json', 'yaml', 'yml']."
             ),
         ):
             connection_command.connections_import(self.parser.parse_args(["connections", "import", filepath]))
