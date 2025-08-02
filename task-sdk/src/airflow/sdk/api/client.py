@@ -21,6 +21,7 @@ import logging
 import ssl
 import sys
 import uuid
+from functools import cache
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, TypeVar
 
@@ -79,8 +80,6 @@ from airflow.sdk.execution_time.comms import (
     TICount,
     UpdateHITLDetail,
 )
-from airflow.utils.net import get_hostname
-from airflow.utils.platform import getuser
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -100,6 +99,58 @@ if TYPE_CHECKING:
 else:
     from methodtools import lru_cache
 
+
+@cache
+def _get_fqdn(name=""):
+    """
+    Get fully qualified domain name from name.
+
+    An empty argument is interpreted as meaning the local host.
+    This is a patched version of socket.getfqdn() - see https://github.com/python/cpython/issues/49254
+    """
+    import socket
+
+    name = name.strip()
+    if not name or name == "0.0.0.0":
+        name = socket.gethostname()
+    try:
+        addrs = socket.getaddrinfo(name, None, 0, socket.SOCK_DGRAM, 0, socket.AI_CANONNAME)
+    except OSError:
+        pass
+    else:
+        for addr in addrs:
+            if addr[3]:
+                name = addr[3]
+                break
+    return name
+
+
+def get_hostname():
+    """Fetch the hostname using the callable from config or use built-in FQDN as a fallback."""
+    return conf.getimport("core", "hostname_callable", fallback=_get_fqdn)()
+
+
+@cache
+def getuser() -> str:
+    """
+    Get the username of the current user, or error with a nice error message if there's no current user.
+
+    We don't want to fall back to os.getuid() because not having a username
+    probably means the rest of the user environment is wrong (e.g. no $HOME).
+    Explicit failure is better than silently trying to work badly.
+    """
+    import getpass
+
+    try:
+        return getpass.getuser()
+    except KeyError:
+        raise ValueError(
+            "The user that Airflow is running as has no username; you must run "
+            "Airflow as a full user, with a username and home directory, "
+            "in order for it to function properly."
+        )
+
+
 log = structlog.get_logger(logger_name=__name__)
 
 __all__ = [
@@ -107,6 +158,8 @@ __all__ = [
     "ConnectionOperations",
     "ServerResponseError",
     "TaskInstanceOperations",
+    "get_hostname",
+    "getuser",
 ]
 
 
@@ -497,6 +550,7 @@ class XComOperations:
         start: int | None,
         stop: int | None,
         step: int | None,
+        include_prior_dates: bool = False,
     ) -> XComSequenceSliceResponse:
         params = {}
         if start is not None:
@@ -505,6 +559,8 @@ class XComOperations:
             params["stop"] = stop
         if step is not None:
             params["step"] = step
+        if include_prior_dates:
+            params["include_prior_dates"] = include_prior_dates
         resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}/slice", params=params)
         return XComSequenceSliceResponse.model_validate_json(resp.read())
 
@@ -684,7 +740,7 @@ class HITLOperations:
             params=params,
         )
         resp = self.client.post(
-            f"/hitl-details/{ti_id}",
+            f"/hitlDetails/{ti_id}",
             content=payload.model_dump_json(),
         )
         return HITLDetailRequestResult.model_validate_json(resp.read())
@@ -703,14 +759,14 @@ class HITLOperations:
             params_input=params_input,
         )
         resp = self.client.patch(
-            f"/hitl-details/{ti_id}",
+            f"/hitlDetails/{ti_id}",
             content=payload.model_dump_json(),
         )
         return HITLDetailResponse.model_validate_json(resp.read())
 
     def get_detail_response(self, ti_id: uuid.UUID) -> HITLDetailResponse:
         """Get content part of a Human-in-the-loop response for a specific Task Instance."""
-        resp = self.client.get(f"/hitl-details/{ti_id}")
+        resp = self.client.get(f"/hitlDetails/{ti_id}")
         return HITLDetailResponse.model_validate_json(resp.read())
 
 

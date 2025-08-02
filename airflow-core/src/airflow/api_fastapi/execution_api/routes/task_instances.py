@@ -29,7 +29,7 @@ from uuid import UUID
 import attrs
 import structlog
 from cadwyn import VersionedAPIRouter
-from fastapi import Body, Depends, HTTPException, Query, status
+from fastapi import Body, HTTPException, Query, status
 from pydantic import JsonValue
 from sqlalchemy import func, or_, tuple_, update
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
@@ -38,7 +38,7 @@ from sqlalchemy.sql import select
 from structlog.contextvars import bind_contextvars
 
 from airflow._shared.timezones import timezone
-from airflow.api_fastapi.common.dagbag import dag_bag_from_app
+from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
@@ -59,7 +59,6 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
 from airflow.api_fastapi.execution_api.deps import JWTBearerTIPathDep
 from airflow.exceptions import TaskNotFound
 from airflow.models.asset import AssetActive
-from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_tasks
 from airflow.models.taskreschedule import TaskReschedule
@@ -75,10 +74,6 @@ if TYPE_CHECKING:
 
     from airflow.models.expandinput import SchedulerExpandInput
     from airflow.sdk.types import Operator
-
-from airflow.jobs.scheduler_job_runner import SchedulerDagBag
-
-SchedulerDagBagDep = Annotated[SchedulerDagBag, Depends(dag_bag_from_app)]
 
 router = VersionedAPIRouter()
 
@@ -107,7 +102,7 @@ def ti_run(
     task_instance_id: UUID,
     ti_run_payload: Annotated[TIEnterRunningPayload, Body()],
     session: SessionDep,
-    dag_bag: SchedulerDagBagDep,
+    dag_bag: DagBagDep,
 ) -> TIRunContext:
     """
     Run a TaskInstance.
@@ -258,7 +253,7 @@ def ti_run(
             or 0
         )
 
-        if dag := dag_bag.get_dag(dag_run=dr, session=session):
+        if dag := dag_bag.get_dag_for_run(dag_run=dr, session=session):
             upstream_map_indexes = dict(
                 _get_upstream_map_indexes(dag.get_task(ti.task_id), ti.map_index, ti.run_id, session)
             )
@@ -333,7 +328,7 @@ def ti_update_state(
     task_instance_id: UUID,
     ti_patch_payload: Annotated[TIStateUpdate, Body()],
     session: SessionDep,
-    dag_bag: SchedulerDagBagDep,
+    dag_bag: DagBagDep,
 ):
     """
     Update the state of a TaskInstance.
@@ -420,9 +415,9 @@ def ti_update_state(
         )
 
 
-def _handle_fail_fast_for_dag(ti: TI, dag_id: str, session: SessionDep, dag_bag: SchedulerDagBagDep) -> None:
+def _handle_fail_fast_for_dag(ti: TI, dag_id: str, session: SessionDep, dag_bag: DagBagDep) -> None:
     dr = ti.dag_run
-    ser_dag = dag_bag.get_dag(dag_run=dr, session=session)
+    ser_dag = dag_bag.get_dag_for_run(dag_run=dr, session=session)
     if ser_dag and getattr(ser_dag, "fail_fast", False):
         task_dict = getattr(ser_dag, "task_dict")
         task_teardown_map = {k: v.is_teardown for k, v in task_dict.items()}
@@ -436,7 +431,7 @@ def _create_ti_state_update_query_and_update_state(
     query: Update,
     updated_state,
     session: SessionDep,
-    dag_bag: SchedulerDagBagDep,
+    dag_bag: DagBagDep,
     dag_id: str,
 ) -> tuple[Update, TaskInstanceState]:
     if isinstance(ti_patch_payload, (TITerminalStatePayload, TIRetryStatePayload, TISuccessStatePayload)):
@@ -740,6 +735,7 @@ def get_previous_successful_dagrun(
 def get_task_instance_count(
     dag_id: str,
     session: SessionDep,
+    dag_bag: DagBagDep,
     map_index: Annotated[int | None, Query()] = None,
     task_ids: Annotated[list[str] | None, Query()] = None,
     task_group_id: Annotated[str | None, Query()] = None,
@@ -763,7 +759,7 @@ def get_task_instance_count(
         query = query.where(TI.run_id.in_(run_ids))
 
     if task_group_id:
-        group_tasks = _get_group_tasks(dag_id, task_group_id, session, logical_dates, run_ids)
+        group_tasks = _get_group_tasks(dag_id, task_group_id, session, dag_bag, logical_dates, run_ids)
 
         # Get unique (task_id, map_index) pairs
 
@@ -791,7 +787,6 @@ def get_task_instance_count(
             query = query.where(TI.state.in_(states))
 
     count = session.scalar(query)
-
     return count or 0
 
 
@@ -799,6 +794,7 @@ def get_task_instance_count(
 def get_task_instance_states(
     dag_id: str,
     session: SessionDep,
+    dag_bag: DagBagDep,
     map_index: Annotated[int | None, Query()] = None,
     task_ids: Annotated[list[str] | None, Query()] = None,
     task_group_id: Annotated[str | None, Query()] = None,
@@ -822,7 +818,7 @@ def get_task_instance_states(
     results = session.scalars(query).all()
 
     if task_group_id:
-        group_tasks = _get_group_tasks(dag_id, task_group_id, session, logical_dates, run_ids)
+        group_tasks = _get_group_tasks(dag_id, task_group_id, session, dag_bag, logical_dates, run_ids)
 
         results = results + group_tasks if task_ids else group_tasks
 
@@ -852,18 +848,11 @@ def _is_eligible_to_retry(state: str, try_number: int, max_tries: int) -> bool:
     return max_tries != 0 and try_number <= max_tries
 
 
-def _get_group_tasks(dag_id: str, task_group_id: str, session: SessionDep, logical_dates=None, run_ids=None):
+def _get_group_tasks(
+    dag_id: str, task_group_id: str, session: SessionDep, dag_bag: DagBagDep, logical_dates=None, run_ids=None
+):
     # Get all tasks in the task group
-    dag = DagBag(read_dags_from_db=True).get_dag(dag_id, session)
-    if not dag:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": f"DAG {dag_id} not found",
-            },
-        )
-
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session, include_reason=True)
     task_group = dag.task_group_dict.get(task_group_id)
     if not task_group:
         raise HTTPException(
@@ -897,7 +886,7 @@ def _get_group_tasks(dag_id: str, task_group_id: str, session: SessionDep, logic
 def validate_inlets_and_outlets(
     task_instance_id: UUID,
     session: SessionDep,
-    dag_bag: SchedulerDagBagDep,
+    dag_bag: DagBagDep,
 ) -> InactiveAssetsResponse:
     """Validate whether there're inactive assets in inlets and outlets of a given task instance."""
     ti_id_str = str(task_instance_id)
@@ -916,7 +905,7 @@ def validate_inlets_and_outlets(
 
     if not ti.task:
         dr = ti.dag_run
-        dag = dag_bag.get_dag(dag_run=dr, session=session)
+        dag = dag_bag.get_dag_for_run(dag_run=dr, session=session)
         if dag:
             with contextlib.suppress(TaskNotFound):
                 ti.task = dag.get_task(ti.task_id)

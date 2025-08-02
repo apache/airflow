@@ -80,6 +80,8 @@ apache-airflow-providers-snowflake package
 
 Release: 6.5.1
 
+Release Date: ``|PypiReleaseDate|``
+
 Provider package
 ----------------
 
