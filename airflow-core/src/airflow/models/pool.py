@@ -19,7 +19,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, TypedDict
 
-from sqlalchemy import Boolean, Column, Integer, String, Text, func, select
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, func, select
+from sqlalchemy_utils import UUIDType
 
 from airflow.exceptions import AirflowException, PoolNotFound
 from airflow.models.base import Base
@@ -55,6 +56,7 @@ class Pool(Base):
     slots = Column(Integer, default=0)
     description = Column(Text)
     include_deferred = Column(Boolean, nullable=False)
+    team_id = Column(UUIDType(binary=False), ForeignKey("team.id"), nullable=True)
 
     DEFAULT_POOL_NAME = "default_pool"
 
