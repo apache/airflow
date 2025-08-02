@@ -26,7 +26,6 @@ if not AIRFLOW_V_3_1_PLUS:
 
 
 from collections.abc import Collection, Mapping
-from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.standard.exceptions import HITLTimeoutError, HITLTriggerEventError
@@ -36,6 +35,7 @@ from airflow.providers.standard.utils.skipmixin import SkipMixin
 from airflow.providers.standard.version_compat import BaseOperator
 from airflow.sdk.definitions.param import ParamsDict
 from airflow.sdk.execution_time.hitl import upsert_hitl_detail
+from airflow.sdk.timezone import utcnow
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
@@ -109,7 +109,7 @@ class HITLOperator(BaseOperator):
             params=self.serialized_params,
         )
         if self.execution_timeout:
-            timeout_datetime = datetime.now(timezone.utc) + self.execution_timeout
+            timeout_datetime = utcnow() + self.execution_timeout
         else:
             timeout_datetime = None
         self.log.info("Waiting for response")
