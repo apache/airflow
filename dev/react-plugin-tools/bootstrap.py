@@ -24,18 +24,13 @@ directories based on the airflow-core/ui project structure. It sets up all the
 necessary configuration files, dependencies, and basic structure for development
 with the same tooling as used in Airflow's core UI.
 """
-
-from __future__ import annotations
-
 import argparse
 import re
 import shutil
 import sys
 from pathlib import Path
 
-
 def get_template_dir() -> Path:
-    """Get the template directory path."""
     script_dir = Path(__file__).parent
     template_dir = script_dir / "react_plugin_template"
 
@@ -45,55 +40,77 @@ def get_template_dir() -> Path:
 
     return template_dir
 
-
 def replace_template_variables(content: str, project_name: str) -> str:
-    """Replace template variables in file content."""
     return content.replace("{{PROJECT_NAME}}", project_name)
 
-
 def remove_apache_license_header(content: str, file_extension: str) -> str:
-    """Remove Apache license header from file content based on file type."""
     if file_extension in [".ts", ".tsx", ".js", ".jsx"]:
         license_pattern = r"/\*!\s*\*\s*Licensed to the Apache Software Foundation.*?\*/\s*"
         content = re.sub(license_pattern, "", content, flags=re.DOTALL)
-    elif file_extension in [".md"]:
+    elif file_extension in [".md", ".html"]:
         license_pattern = r"<!--\s*Licensed to the Apache Software Foundation.*?-->\s*"
         content = re.sub(license_pattern, "", content, flags=re.DOTALL)
-    elif file_extension in [".html"]:
-        license_pattern = r"<!--\s*Licensed to the Apache Software Foundation.*?-->\s*"
-        content = re.sub(license_pattern, "", content, flags=re.DOTALL)
-
     return content
 
+def copy_and_process_file(src: Path, dest: Path, project_name: str) -> None:
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    
+    with open(src, encoding="utf-8") as f:
+        content = f.read()
+    
+    content = replace_template_variables(content, project_name)
+    content = remove_apache_license_header(content, src.suffix.lower())
+    
+    with open(dest, "w", encoding="utf-8") as f:
+        f.write(content)
 
-def copy_template_files(template_dir: Path, project_path: Path, project_name: str) -> None:
-    for item in template_dir.rglob("*"):
-        if item.is_file():
-            # Calculate relative path from template root
-            rel_path = item.relative_to(template_dir)
-            target_path = project_path / rel_path
+def copy_directory_recursive(src_dir: Path, dest_dir: Path, project_name: str, skip_dirs: set = None) -> None:
+    """Recursively copy directory while processing files and skipping specified directories."""
+    if skip_dirs is None:
+        skip_dirs = set()
+    
+    for item in src_dir.iterdir():
+        # Skip directories that should be excluded
+        if item.is_dir() and item.name in skip_dirs:
+            print(f"✗ Skipping directory: {item.name}")
+            continue
+            
+        dest_item = dest_dir / item.name
+        
+        if item.is_dir():
+            dest_item.mkdir(parents=True, exist_ok=True)
+            copy_directory_recursive(item, dest_item, project_name, skip_dirs)
+        else:
+            # Process text files, copy binary files as-is
+            try:
+                copy_and_process_file(item, dest_item, project_name)
+            except UnicodeDecodeError:
+                # Binary file, copy as-is
+                shutil.copy2(item, dest_item)
 
-            target_path.parent.mkdir(parents=True, exist_ok=True)
-
-            with open(item, encoding="utf-8") as f:
-                content = f.read()
-
-            content = replace_template_variables(content, project_name)
-
-            file_extension = item.suffix.lower()
-            content = remove_apache_license_header(content, file_extension)
-
-            with open(target_path, "w", encoding="utf-8") as f:
-                f.write(content)
-
-            print(f"  Created: {rel_path}")
-
+def copy_template_files(template_dir: Path, project_path: Path, project_name: str, include_ai_rules: bool) -> None:
+    
+    # Determine which directories to skip
+    skip_dirs = set()
+    if not include_ai_rules:
+        skip_dirs.add("ai_agents_rules")
+    
+    # Copy all files and directories, skipping excluded ones
+    copy_directory_recursive(template_dir, project_path, project_name, skip_dirs)
+    
+    # Provide feedback
+    if include_ai_rules:
+        ai_src = template_dir / "ai_agents_rules"
+        if ai_src.exists():
+            print("✓ Copied AI rules folder")
+        else:
+            print("⚠ Warning: ai_agents_rules folder not found in template")
+    else:
+        print("✗ Skipped AI rules folder")
 
 def bootstrap_react_plugin(args) -> None:
-    """Bootstrap a new React plugin project."""
     project_name = args.name
     target_dir = args.dir if args.dir else project_name
-
     project_path = Path(target_dir).resolve()
     template_dir = get_template_dir()
 
@@ -105,75 +122,61 @@ def bootstrap_react_plugin(args) -> None:
         print("Error: Project name should only contain letters, numbers, hyphens, and underscores")
         sys.exit(1)
 
-    print(f"Creating React plugin project: {project_name}")
-    print(f"Target directory: {project_path}")
-    print(f"Template directory: {template_dir}")
+    # AI rules prompt
+    ai_rules_answer = input("Include AI coding rules? [y/N]: ").strip().lower()
+    include_ai_rules = ai_rules_answer in ("y", "yes")
+
+    print(f"\nCreating React plugin: {project_name}")
+    print(f"Location: {project_path}")
+    print(f"Include AI rules: {'YES' if include_ai_rules else 'NO'}")
 
     project_path.mkdir(parents=True, exist_ok=True)
 
     try:
-        # Copy template files
-        print("Copying template files...")
-        copy_template_files(template_dir, project_path, project_name)
+        print("\nCopying files...")
+        copy_template_files(template_dir, project_path, project_name, include_ai_rules)
 
-        print(f"\n✅ Successfully created {project_name}!")
+        print(f"\n✅ SUCCESS: Created {project_name}")
         print("\nNext steps:")
         print(f"  cd {target_dir}")
         print("  pnpm install")
         print("  pnpm dev")
-        print("\nHappy coding! 🚀")
+        
+        if include_ai_rules:
+            print("\n🤖 AI rules location: ai_agents_rules/")
+            print("For Cursor: Move to .cursor/rules/")
+            print("For VSCode: Move to .github/copilot/")
 
     except Exception as e:
-        print(f"Error creating project: {e}")
+        print(f"\n❌ ERROR: {e}")
         if project_path.exists():
             shutil.rmtree(project_path)
         sys.exit(1)
 
-
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
-        description="Bootstrap a new React UI plugin project",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  python bootstrap.py my-plugin
-  python bootstrap.py my-plugin --dir /path/to/projects/my-plugin
-
-This will create a new React project with all the necessary configuration
-files, dependencies, and structure needed for Airflow plugin development.
-        """,
+        description="Create a new React plugin project",
+        epilog="Example: python bootstrap.py my-plugin --dir ./projects"
     )
-
     parser.add_argument(
         "name",
-        help="Name of the React plugin project (letters, numbers, hyphens, and underscores only)",
+        help="Project name (letters, numbers, hyphens, underscores only)"
     )
-
     parser.add_argument(
-        "--dir",
-        "-d",
-        help="Target directory for the project (defaults to project name)",
+        "--dir", "-d",
+        help="Target directory (defaults to project name)"
     )
-
-    parser.add_argument(
-        "--verbose",
-        "-v",
-        action="store_true",
-        help="Enable verbose output",
-    )
-
     args = parser.parse_args()
 
     try:
         bootstrap_react_plugin(args)
     except KeyboardInterrupt:
-        print("\n\nOperation cancelled by user.")
+        print("\nOperation cancelled")
         sys.exit(1)
     except Exception as e:
         print(f"Error: {e}")
         sys.exit(1)
-
 
 if __name__ == "__main__":
     main()
