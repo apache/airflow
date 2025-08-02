@@ -34,6 +34,8 @@ from airflow.exceptions import (
     AirflowFileParseException,
     ConnectionNotUnique,
     FileSyntaxError,
+    SecretFileNotFoundError,
+    UnsupportedSecretFileFormatError,
 )
 from airflow.secrets.base_secrets import BaseSecretsBackend
 from airflow.utils import yaml
@@ -161,18 +163,16 @@ def _parse_secret_file(file_path: str) -> dict[str, Any]:
     :return: Map of secret key (e.g. connection ID) and value.
     """
     if not os.path.exists(file_path):
-        raise AirflowException(
-            f"File {file_path} was not found. Check the configuration of your Secrets backend."
-        )
+        raise SecretFileNotFoundError(file_path)
 
     log.debug("Parsing file: %s", file_path)
 
     ext = file_path.rsplit(".", 2)[-1].lower()
 
     if ext not in FILE_PARSERS:
-        raise AirflowException(
-            "Unsupported file format. The file must have one of the following extensions: "
-            ".env .json .yaml .yml"
+        raise UnsupportedSecretFileFormatError(
+            file_path=file_path,
+            supported_formats=list(FILE_PARSERS.keys())
         )
 
     secrets, parse_errors = FILE_PARSERS[ext](file_path)

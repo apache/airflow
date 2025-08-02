@@ -30,6 +30,7 @@ from airflow.exceptions import (
     AirflowException,
     AirflowFileParseException,
     ConnectionNotUnique,
+    SecretFileNotFoundError,
 )
 from airflow.models import Variable
 from airflow.secrets import local_filesystem
@@ -121,8 +122,8 @@ class TestLoadVariables:
     @mock.patch("airflow.secrets.local_filesystem.os.path.exists", return_value=False)
     def test_missing_file(self, mock_exists):
         with pytest.raises(
-            AirflowException,
-            match=re.escape("File a.json was not found. Check the configuration of your Secrets backend."),
+            SecretFileNotFoundError,
+            match=re.escape("Secret file not found: a.json"),
         ):
             local_filesystem.load_variables("a.json")
 
@@ -237,8 +238,8 @@ class TestLoadConnection:
     @mock.patch("airflow.secrets.local_filesystem.os.path.exists", return_value=False)
     def test_missing_file(self, mock_exists):
         with pytest.raises(
-            AirflowException,
-            match=re.escape("File a.json was not found. Check the configuration of your Secrets backend."),
+            SecretFileNotFoundError,
+            match=re.escape("Secret file not found: a.json"),
         ):
             local_filesystem.load_connections_dict("a.json")
 

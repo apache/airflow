@@ -305,6 +305,30 @@ class PoolNotFound(AirflowNotFoundException):
     """Raise when a Pool is not available in the system."""
 
 
+class AirflowSecretException(AirflowException):
+    """Base exception for all secret-related exceptions (variables and connections)."""
+
+
+class SecretFileNotFoundError(AirflowSecretException):
+    """Raise when a secret file (variables or connections) is not found."""
+
+    def __init__(self, file_path: str) -> None:
+        super().__init__(f"Secret file not found: {file_path}")
+        self.file_path = file_path
+
+
+class UnsupportedSecretFileFormatError(AirflowSecretException):
+    """Raise when a secret file (variables or connections) is in an unsupported format."""
+
+    def __init__(self, file_path: str, supported_formats: list[str]) -> None:
+        super().__init__(
+            f"Unsupported secret file format for file: \"{file_path}\". "
+            f"Supported formats are: {supported_formats}."
+        )
+        self.file_path = file_path
+        self.supported_formats = supported_formats
+
+
 class FileSyntaxError(NamedTuple):
     """Information about a single error in a file."""
 
@@ -368,7 +392,7 @@ class AirflowDuplicateVariableKeyException(AirflowException):
         return f"{self.msg}\nFilename: {self.file_path}"
 
 
-class ConnectionNotUnique(AirflowException):
+class ConnectionNotUnique(AirflowSecretException):
     """Raise when multiple values are found for the same connection ID."""
 
 
