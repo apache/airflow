@@ -28,7 +28,7 @@ import sys
 import time
 from collections import defaultdict
 from operator import attrgetter
-from typing import TYPE_CHECKING, Any, Callable, Literal
+from typing import TYPE_CHECKING, Any, Callable, Literal, cast
 from urllib.parse import quote, urlparse
 
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
@@ -55,6 +55,7 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+    from airflow.utils.log.file_task_handler import LogMetadata
 
 if AIRFLOW_V_3_0_PLUS:
     from typing import Union
@@ -302,8 +303,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         return True
 
     def _read(
-        self, ti: TaskInstance, try_number: int, metadata: dict | None = None
-    ) -> tuple[EsLogMsgType, dict]:
+        self, ti: TaskInstance, try_number: int, metadata: LogMetadata | None = None
+    ) -> tuple[EsLogMsgType, LogMetadata]:
         """
         Endpoint for streaming log.
 
@@ -314,7 +315,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         :return: a list of tuple with host and log documents, metadata.
         """
         if not metadata:
-            metadata = {"offset": 0}
+            # LogMetadata(TypedDict) is used as type annotation for log_reader; added ignore to suppress mypy error
+            metadata = {"offset": 0}  # type: ignore[assignment]
+        metadata = cast("LogMetadata", metadata)
         if "offset" not in metadata:
             metadata["offset"] = 0
 
@@ -354,7 +357,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                     "Otherwise, the logs for this task instance may have been removed."
                 )
                 if AIRFLOW_V_3_0_PLUS:
-                    return missing_log_message, metadata
+                    from airflow.utils.log.file_task_handler import StructuredLogMessage
+
+                    return [StructuredLogMessage(event=missing_log_message)], metadata
                 return [("", missing_log_message)], metadata  # type: ignore[list-item]
             if (
                 # Assume end of log after not receiving new log for N min,

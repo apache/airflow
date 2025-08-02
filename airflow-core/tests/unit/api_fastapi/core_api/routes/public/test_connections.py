@@ -158,6 +158,35 @@ class TestGetConnection(TestConnectionEndpoint):
         assert body["conn_type"] == TEST_CONN_TYPE
         assert body["extra"] == '{"extra_key": "extra_value"}'
 
+    @pytest.mark.enable_redact
+    def test_get_should_respond_200_with_extra_redacted(self, test_client, session):
+        self.create_connection()
+        connection = session.query(Connection).first()
+        connection.extra = '{"password": "test-password"}'
+        session.commit()
+        response = test_client.get(f"/connections/{TEST_CONN_ID}")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["connection_id"] == TEST_CONN_ID
+        assert body["conn_type"] == TEST_CONN_TYPE
+        assert body["extra"] == '{"password": "***"}'
+
+    @pytest.mark.enable_redact
+    def test_get_should_not_overmask_short_password_value_in_extra(self, test_client, session):
+        connection = Connection(
+            conn_id=TEST_CONN_ID, conn_type="generic", login="a", password="a", extra='{"key": "value"}'
+        )
+        session.add(connection)
+        session.commit()
+
+        response = test_client.get(f"/connections/{TEST_CONN_ID}")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["connection_id"] == TEST_CONN_ID
+        assert body["conn_type"] == "generic"
+        assert body["login"] == "a"
+        assert body["extra"] == '{"key": "value"}'
+
 
 class TestGetConnections(TestConnectionEndpoint):
     @pytest.mark.parametrize(
@@ -279,6 +308,7 @@ class TestPostConnection(TestConnectionEndpoint):
         assert "detail" in response_json
         assert list(response_json["detail"].keys()) == ["reason", "statement", "orig_error", "message"]
 
+    @pytest.mark.enable_redact
     @pytest.mark.parametrize(
         "body, expected_response",
         [
@@ -291,7 +321,21 @@ class TestPostConnection(TestConnectionEndpoint):
                     "extra": None,
                     "host": None,
                     "login": None,
-                    "password": "test-password",
+                    "password": "***",
+                    "port": None,
+                    "schema": None,
+                },
+            ),
+            (
+                {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "password": "?>@#+!_%()#"},
+                {
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "description": None,
+                    "extra": None,
+                    "host": None,
+                    "login": None,
+                    "password": "***",
                     "port": None,
                     "schema": None,
                 },
@@ -307,23 +351,21 @@ class TestPostConnection(TestConnectionEndpoint):
                     "connection_id": TEST_CONN_ID,
                     "conn_type": TEST_CONN_TYPE,
                     "description": None,
-                    "extra": '{"password": "test-password"}',
+                    "extra": '{"password": "***"}',
                     "host": None,
                     "login": None,
-                    "password": "A!rF|0wi$aw3s0m3",
+                    "password": "***",
                     "port": None,
                     "schema": None,
                 },
             ),
         ],
     )
-    def test_post_should_response_201_password_not_masked(
-        self, test_client, body, expected_response, session
-    ):
+    def test_post_should_response_201_redacted_password(self, test_client, body, expected_response, session):
         response = test_client.post("/connections", json=body)
         assert response.status_code == 201
         assert response.json() == expected_response
-        _check_last_log(session, dag_id=None, event="post_connection", logical_date=None)
+        _check_last_log(session, dag_id=None, event="post_connection", logical_date=None, check_masked=True)
 
 
 class TestPatchConnection(TestConnectionEndpoint):
@@ -421,6 +463,27 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "host": TEST_CONN_HOST,
                     "login": "test_login_patch",
                     "password": "test_password_patch",
+                    "port": 80,
+                    "schema": None,
+                },
+            ),
+            (
+                # Sensitive "***" should be ignored.
+                {
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "port": 80,
+                    "login": "test_login_patch",
+                    "password": "***",
+                },
+                {
+                    "conn_type": TEST_CONN_TYPE,
+                    "connection_id": TEST_CONN_ID,
+                    "description": TEST_CONN_DESCRIPTION,
+                    "extra": None,
+                    "host": TEST_CONN_HOST,
+                    "login": "test_login_patch",
+                    "password": None,
                     "port": 80,
                     "schema": None,
                 },
@@ -733,7 +796,22 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "extra": None,
                     "host": "some_host_a",
                     "login": "some_login",
-                    "password": "test-password",
+                    "password": "***",
+                    "port": 8080,
+                    "schema": None,
+                },
+                {"update_mask": ["password"]},
+            ),
+            (
+                {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "password": "?>@#+!_%()#"},
+                {
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "description": "some_description_a",
+                    "extra": None,
+                    "host": "some_host_a",
+                    "login": "some_login",
+                    "password": "***",
                     "port": 8080,
                     "schema": None,
                 },
@@ -750,10 +828,10 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "connection_id": TEST_CONN_ID,
                     "conn_type": TEST_CONN_TYPE,
                     "description": "some_description_a",
-                    "extra": '{"password": "test-password"}',
+                    "extra": '{"password": "***"}',
                     "host": "some_host_a",
                     "login": "some_login",
-                    "password": "A!rF|0wi$aw3s0m3",
+                    "password": "***",
                     "port": 8080,
                     "schema": None,
                 },
@@ -761,14 +839,14 @@ class TestPatchConnection(TestConnectionEndpoint):
             ),
         ],
     )
-    def test_patch_should_response_200_password_not_masked(
+    def test_patch_should_response_200_redacted_password(
         self, test_client, session, body, expected_response, update_mask
     ):
         self.create_connections()
         response = test_client.patch(f"/connections/{TEST_CONN_ID}", json=body, params=update_mask)
         assert response.status_code == 200
         assert response.json() == expected_response
-        _check_last_log(session, dag_id=None, event="patch_connection", logical_date=None)
+        _check_last_log(session, dag_id=None, event="patch_connection", logical_date=None, check_masked=True)
 
 
 class TestConnection(TestConnectionEndpoint):

@@ -79,6 +79,7 @@ const EditConnectionButton = ({ connection, disabled }: Props) => {
             <ConnectionForm
               error={error}
               initialConnection={initialConnectionValue}
+              isEditMode
               isPending={isPending}
               mutateConnection={editConnection}
             />

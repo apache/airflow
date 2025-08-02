@@ -36,7 +36,7 @@ from airflow.providers_manager import (
     ProvidersManager,
 )
 
-from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker, skip_if_not_on_main
 from tests_common.test_utils.paths import AIRFLOW_ROOT_PATH
 
 
@@ -228,6 +228,7 @@ class TestProviderManager:
             raise AssertionError("There are warnings generated during hook imports. Please fix them")
         assert [w.message for w in warning_records if "hook-class-names" in str(w.message)] == []
 
+    @skip_if_not_on_main
     @pytest.mark.execution_timeout(150)
     def test_hook_values(self):
         provider_dependencies = json.loads(

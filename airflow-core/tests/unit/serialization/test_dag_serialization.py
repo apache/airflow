@@ -89,7 +89,7 @@ from airflow.utils.task_group import TaskGroup
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker, skip_if_not_on_main
 from tests_common.test_utils.mock_operators import (
     AirflowLink,
     AirflowLink2,
@@ -472,12 +472,14 @@ class TestStringifiedDAGs:
 
     # Skip that test if latest botocore is used - it reads all example dags and in case latest botocore
     # is upgraded to latest, usually aiobotocore can't be installed and some of the system tests will fail with
-    # import errors.
+    # import errors. Also skip if not running on main branch - some of the example dags might fail due to
+    # outdated imports in past branches
     @pytest.mark.skipif(
         os.environ.get("UPGRADE_BOTO", "") == "true",
         reason="This test is skipped when latest botocore is installed",
     )
     @skip_if_force_lowest_dependencies_marker
+    @skip_if_not_on_main
     @pytest.mark.db_test
     def test_serialization(self):
         """Serialization and deserialization should work for every DAG and Operator."""

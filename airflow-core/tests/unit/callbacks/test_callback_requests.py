@@ -28,7 +28,7 @@ from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils import timezone
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 
 pytestmark = pytest.mark.db_test
 
@@ -85,3 +85,30 @@ class TestCallbackRequest:
         json_str = input.to_json()
         result = TaskCallbackRequest.from_json(json_str)
         assert input == result
+
+    @pytest.mark.parametrize(
+        "task_callback_type,expected_is_failure",
+        [
+            (None, True),
+            (TaskInstanceState.FAILED, True),
+            (TaskInstanceState.UP_FOR_RETRY, True),
+            (TaskInstanceState.UPSTREAM_FAILED, True),
+            (TaskInstanceState.SUCCESS, False),
+            (TaskInstanceState.RUNNING, False),
+        ],
+    )
+    def test_is_failure_callback_property(
+        self, task_callback_type, expected_is_failure, create_task_instance
+    ):
+        """Test is_failure_callback property with different task callback types"""
+        ti = create_task_instance()
+
+        request = TaskCallbackRequest(
+            filepath="filepath",
+            ti=ti,
+            bundle_name="testing",
+            bundle_version=None,
+            task_callback_type=task_callback_type,
+        )
+
+        assert request.is_failure_callback == expected_is_failure

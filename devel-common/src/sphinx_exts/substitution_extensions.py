@@ -63,7 +63,8 @@ class SubstitutionCodeBlockTransform(SphinxTransform):
             return isinstance(node, (nodes.literal_block, nodes.literal))
 
         for node in self.document.traverse(condition):
-            if _SUBSTITUTION_OPTION_NAME not in node:
+            # Guard: Only process Element nodes with a truthy substitution option
+            if not (isinstance(node, nodes.Element) and node.attributes.get(_SUBSTITUTION_OPTION_NAME)):
                 continue
 
             # Some nodes don't have a direct document property, so walk up until we find it
@@ -76,10 +77,17 @@ class SubstitutionCodeBlockTransform(SphinxTransform):
             substitution_defs = document.substitution_defs
             for child in node.children:
                 old_child = child
-                for name, value in substitution_defs.items():
-                    replacement = value.astext()
-                    child = nodes.Text(child.replace(f"|{name}|", replacement))
-                node.replace(old_child, child)
+                # Only substitute for Text nodes
+                if isinstance(child, nodes.Text):
+                    new_text = str(child)
+                    for name, value in substitution_defs.items():
+                        replacement = value.astext()
+                        new_text = new_text.replace(f"|{name}|", replacement)
+                    # Only replace if the text actually changed
+                    if new_text != str(child):
+                        child = nodes.Text(new_text)
+                        node.replace(old_child, child)
+                # For non-Text nodes, do not replace
 
             # The highlighter checks this -- without this, it will refuse to apply highlighting
             node.rawsource = node.astext()

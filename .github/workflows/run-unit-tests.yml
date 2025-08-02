@@ -120,6 +120,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to use uv"
         required: true
         type: string
+      default-branch:
+        description: "The default branch of the repository"
+        required: true
+        type: string
 permissions:
   contents: read
 jobs:
@@ -161,6 +165,7 @@ jobs:
       UPGRADE_BOTO: "${{ inputs.upgrade-boto }}"
       AIRFLOW_MONITOR_DELAY_TIME_IN_SECONDS: "${{inputs.monitor-delay-time-in-seconds}}"
       VERBOSE: "true"
+      DEFAULT_BRANCH: "${{ inputs.default-branch }}"
     if: inputs.test-group == 'core' || inputs.skip-providers-tests != 'true'
     steps:
       - name: "Cleanup repo"

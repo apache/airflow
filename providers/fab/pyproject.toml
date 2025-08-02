@@ -50,7 +50,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: System :: Monitoring",
 ]
-requires-python = "~=3.9"
+requires-python = ">=3.9"
 license-files = ["NOTICE", "*/LICENSE*"]
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated

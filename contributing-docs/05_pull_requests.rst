@@ -177,7 +177,7 @@ To make this easier, there is the ``create_session`` helper:
 .. warning::
   **DO NOT** add a default to the ``session`` argument **unless** ``@provide_session`` is used.
 
-If this function is designed to be called by "end-users" (i.e. DAG authors) then using the ``@provide_session`` wrapper is okay:
+If this function is designed to be called by "end-users" (i.e. Dag authors) then using the ``@provide_session`` wrapper is okay:
 
 .. code-block:: python
 

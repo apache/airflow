@@ -33,7 +33,6 @@ import watchtower
 from airflow.configuration import conf
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.utils import datetime_to_epoch_utc_ms
-from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -163,15 +162,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
             f"Reading remote log from Cloudwatch log_group: {self.log_group} log_stream: {relative_path}"
         ]
         try:
-            if AIRFLOW_V_3_0_PLUS:
-                from airflow.utils.log.file_task_handler import StructuredLogMessage
-
-                logs = [
-                    StructuredLogMessage.model_validate(log)
-                    for log in self.get_cloudwatch_logs(relative_path, ti)
-                ]
-            else:
-                logs = [self.get_cloudwatch_logs(relative_path, ti)]  # type: ignore[arg-value]
+            logs = [self.get_cloudwatch_logs(relative_path, ti)]  # type: ignore[arg-value]
         except Exception as e:
             logs = None
             messages.append(str(e))
@@ -199,8 +190,6 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
             log_stream_name=stream_name,
             end_time=end_time,
         )
-        if AIRFLOW_V_3_0_PLUS:
-            return list(self._event_to_dict(e) for e in events)
         return "\n".join(self._event_to_str(event) for event in events)
 
     def _event_to_dict(self, event: dict) -> dict:
@@ -215,7 +204,8 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
 
     def _event_to_str(self, event: dict) -> str:
         event_dt = datetime.fromtimestamp(event["timestamp"] / 1000.0, tz=timezone.utc)
-        formatted_event_dt = event_dt.strftime("%Y-%m-%d %H:%M:%S,%f")[:-3]
+        # Format a datetime object to a string in Zulu time without milliseconds.
+        formatted_event_dt = event_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
         message = event["message"]
         return f"[{formatted_event_dt}] {message}"
 

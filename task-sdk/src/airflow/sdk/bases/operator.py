@@ -782,8 +782,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param task_display_name: The display name of the task which appears on the UI.
     :param logger_name: Name of the logger used by the Operator to emit logs.
         If set to `None` (default), the logger name will fall back to
-        `airflow.task.operators.{class.__module__}.{class.__name__}` (e.g. SimpleHttpOperator will have
-        *airflow.task.operators.airflow.providers.http.operators.http.SimpleHttpOperator* as logger).
+        `airflow.task.operators.{class.__module__}.{class.__name__}` (e.g. HttpOperator will have
+        *airflow.task.operators.airflow.providers.http.operators.http.HttpOperator* as logger).
     :param allow_nested_operators: if True, when an operator is executed within another one a warning message
         will be logged. If False, then an exception will be raised if the operator is badly used (e.g. nested
         within another one). In future releases of Airflow this parameter will be removed and an exception
@@ -1072,13 +1072,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         if end_date:
             self.end_date = timezone.convert_to_utc(end_date)
-
-        if executor:
-            warnings.warn(
-                "Specifying executors for operators is not yet supported, the value {executor!r} will have no effect",
-                category=UserWarning,
-                stacklevel=2,
-            )
         self.executor = executor
         self.executor_config = executor_config or {}
         self.run_as_user = run_as_user

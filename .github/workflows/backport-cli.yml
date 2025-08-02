@@ -70,8 +70,8 @@ jobs:
           TARGET_BRANCH: ${{ inputs.target-branch }}
           COMMIT_SHA: ${{ inputs.commit-sha }}
         run: |
-          git config --global user.email "name@example.com"
-          git config --global user.name "Your Name"
+          git config --global user.email "bot@airflow.apache.org"
+          git config --global user.name "Your friendly bot"
           set +e
           {
           echo 'cherry_picker_output<<EOF'

@@ -79,6 +79,16 @@ class TestClient:
         assert resp.status_code == 200
         assert resp.json() == json_response
 
+    @mock.patch("airflow.sdk.api.client.API_SSL_CERT_PATH", "/capath/does/not/exist/")
+    def test_add_capath(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(status_code=200)
+
+        with pytest.raises(FileNotFoundError) as err:
+            make_client(httpx.MockTransport(handle_request))
+
+        assert isinstance(err.value, FileNotFoundError)
+
     def test_error_parsing(self):
         responses = [
             httpx.Response(422, json={"detail": [{"loc": ["#0"], "msg": "err", "type": "required"}]})

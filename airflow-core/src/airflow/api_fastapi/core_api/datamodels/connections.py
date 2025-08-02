@@ -17,12 +17,15 @@
 
 from __future__ import annotations
 
+import json
 from collections import abc
 from typing import Annotated
 
-from pydantic import Field
+from pydantic import Field, field_validator
+from pydantic_core.core_schema import ValidationInfo
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
+from airflow.sdk.execution_time.secrets_masker import redact
 
 
 # Response Models
@@ -38,6 +41,26 @@ class ConnectionResponse(BaseModel):
     port: int | None
     password: str | None
     extra: str | None
+
+    @field_validator("password", mode="after")
+    @classmethod
+    def redact_password(cls, v: str | None, field_info: ValidationInfo) -> str | None:
+        if v is None:
+            return None
+        return redact(v, field_info.field_name)
+
+    @field_validator("extra", mode="before")
+    @classmethod
+    def redact_extra(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        try:
+            extra_dict = json.loads(v)
+            redacted_dict = redact(extra_dict)
+            return json.dumps(redacted_dict)
+        except json.JSONDecodeError:
+            # we can't redact fields in an unstructured `extra`
+            return v
 
 
 class ConnectionCollectionResponse(BaseModel):

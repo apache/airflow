@@ -516,6 +516,20 @@ The `--ref` parameter should be the tag of the release candidate you are publish
 The `--site-env` parameter should be set to `staging` for pre-release versions or `live` for final releases. the default option is `auto`
 if the tag is rc it publishes to `staging` bucket, otherwise it publishes to `live` bucket.
 
+One of the interesting features of publishing this way is that you can also rebuild historical version of
+the documentation with patches applied to the documentation (if they can be applied cleanly).
+
+Yoy should specify the `--apply-commits` parameter with the list of commits you want to apply
+separated by commas and the workflow will apply those commits to the documentation before
+building it (don't forget to add --skip-write-to-stable-folder if you are publishing
+previous version of the distribution). Example:
+
+```shell script
+breeze workflow-run publish-docs --ref providers-apache-hive/9.0.0 --site-env live \
+  --apply-commits 4ae273cbedec66c87dc40218c7a94863390a380d --skip-write-to-stable-folder \
+  apache.hive
+```
+
 Other available parameters can be found with:
 
 ```shell

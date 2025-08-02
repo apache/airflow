@@ -25,3 +25,9 @@ skip_if_force_lowest_dependencies_marker = pytest.mark.skipif(
     os.environ.get("FORCE_LOWEST_DEPENDENCIES", "") == "true",
     reason="When lowest dependencies are set only some providers are loaded",
 )
+
+
+skip_if_not_on_main = pytest.mark.skipif(
+    os.environ.get("DEFAULT_BRANCH", "main") != "main",
+    reason="This test is only run on main branch in CI",
+)
