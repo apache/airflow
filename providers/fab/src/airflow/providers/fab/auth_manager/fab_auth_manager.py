@@ -85,6 +85,7 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_DAG_VERSION,
     RESOURCE_DAG_WARNING,
     RESOURCE_DOCS,
+    RESOURCE_HITL_DETAIL,
     RESOURCE_IMPORT_ERROR,
     RESOURCE_JOB,
     RESOURCE_PLUGIN,
@@ -130,6 +131,7 @@ _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ..
     DagAccessEntity.AUDIT_LOG: (RESOURCE_AUDIT_LOG,),
     DagAccessEntity.CODE: (RESOURCE_DAG_CODE,),
     DagAccessEntity.DEPENDENCIES: (RESOURCE_DAG_DEPENDENCIES,),
+    DagAccessEntity.HITL_DETAIL: (RESOURCE_HITL_DETAIL,),
     DagAccessEntity.RUN: (RESOURCE_DAG_RUN,),
     # RESOURCE_TASK_INSTANCE has been originally misused. RESOURCE_TASK_INSTANCE referred to task definition
     # AND task instances without making the difference
@@ -340,14 +342,30 @@ class FabAuthManager(BaseAuthManager[User]):
             method=dag_method, details=details, user=user
         ):
             return False
+        
+        # return all(
+        #     (
+        #         self._is_authorized(method=method, resource_type=resource_type, user=user)
+        #         if resource_type != RESOURCE_DAG_RUN or not hasattr(permissions, "resource_name")
+        #         else self._is_authorized_dag_run(method=method, details=details, user=user)
+        #     )
+        #     for resource_type in resource_types
+        # )
 
+        # if Airflow version is less than 3.1.0 and the resource type is RESOURCE_HITL_DETAIL, skip.
         return all(
             (
-                self._is_authorized(method=method, resource_type=resource_type, user=user)
-                if resource_type != RESOURCE_DAG_RUN or not hasattr(permissions, "resource_name")
-                else self._is_authorized_dag_run(method=method, details=details, user=user)
-            )
-            for resource_type in resource_types
+                True
+                if (
+                    resource_type == RESOURCE_HITL_DETAIL
+                    and packaging.version.parse(packaging.version.parse(airflow_version).base_version) < packaging.version.parse("3.1.0")
+                )
+                else (
+                    self._is_authorized(method=method, resource_type=resource_type, user=user)
+                    if resource_type != RESOURCE_DAG_RUN or not hasattr(permissions, "resource_name")
+                    else self._is_authorized_dag_run(method=method, details=details, user=user)
+                )
+            ) for resource_type in resource_types
         )
 
     def is_authorized_backfill(
