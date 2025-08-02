@@ -19,12 +19,11 @@
 import { Icon, Stack, StackSeparator, Text } from "@chakra-ui/react";
 import { useCallback, useEffect, useState } from "react";
 import { MdError } from "react-icons/md";
-import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 
 import type { ParamsSpec } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 
+import ReactMarkdown from "../ReactMarkdown";
 import { Accordion } from "../ui";
 import { Row } from "./Row";
 import { isRequired } from "./isParamRequired";
@@ -145,7 +144,7 @@ export const FlexibleForm = ({
                 ) : undefined}
                 <Stack separator={<StackSeparator py={2} />}>
                   {Boolean(flexFormDescription) ? (
-                    <Markdown remarkPlugins={[remarkGfm]}>{flexFormDescription}</Markdown>
+                    <ReactMarkdown>{flexFormDescription}</ReactMarkdown>
                   ) : undefined}
                   {Object.entries(params)
                     .filter(
