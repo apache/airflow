@@ -88,6 +88,7 @@ class ExtraMenuItem:
 class MenuItem(Enum):
     """Define all menu items defined in the menu."""
 
+    REQUIRED_ACTIONS = "Required Actions"
     ASSETS = "Assets"
     AUDIT_LOG = "Audit Log"
     CONFIG = "Config"
