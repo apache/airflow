@@ -28,7 +28,7 @@ a custom callback function.
 Creating a Deadline Alert
 -------------------------
 
-To create a Deadline Alert, there are three three components you must specify and one optional one:
+Creating a Deadline Alert requires three mandatory and one optional parameter:
 
 * Reference: When to start counting from
 * Interval: How far before or after the reference point to trigger the alert
@@ -61,7 +61,7 @@ Below is an example DAG implementation. If the DAG has not finished 15 minutes a
             interval=timedelta(minutes=15),
             callback=SmtpNotifier(
                 to="team@example.com",
-                subject="[Alert] DAG {{ dag.dag_id }} exceeded time threshold",
+                subject="[Alert] DAG `deadline_alert_example` exceeded time threshold",
                 html_content="The DAG has been running for more than 15 minutes since being queued.",
             ),
         ),
@@ -127,13 +127,13 @@ The timeline for this example would look like this:
 Using Callbacks
 ---------------
 
-When a deadline is exceeded, the callback is executed. You can use any async :doc:`Notifier </howto/notifications>`
+When a deadline is exceeded, the callback is executed. You can use an existing :doc:`Notifier </howto/notifications>`
 or create a custom callback function.
 
 Using Built-in Notifiers
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-Here's an example using the Slack notifier if the DagRun has not finished within 30 minutes of it being queued:
+Here's an example using the Slack Notifier if the DagRun has not finished within 30 minutes of it being queued:
 
 .. code-block:: python
 
@@ -145,7 +145,7 @@ Here's an example using the Slack notifier if the DagRun has not finished within
             callback=SlackNotifier(
                 slack_conn_id="slack_default",
                 channel="#alerts",
-                text="DAG {{ dag.dag_id }} has been running for more than 30 minutes since being queued.",
+                text="DAG 'slack_deadline_alert' still running after 30 minutes.",
                 username="Airflow Alerts",
             ),
         ),
@@ -156,12 +156,53 @@ Creating Custom Callbacks
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 You can create custom callbacks for more complex handling. The ``callback_kwargs`` specified in
-the ``DeadlineAlert`` are passed to the callback function.
+the ``DeadlineAlert`` are passed to the callback function, if any are provided.  **Synchronous callbacks**
+(standard python methods) can be defined in the dag bundle and are run in the Executor.  **Asynchronous
+callbacks** must be defined somewhere in the Triggerer's system path.
+
+.. note::
+    Regarding Async Custom Deadline callbacks:
+
+    * Async callbacks are executed by the Triggerer, so users must ensure they are importable by the Triggerer.
+    * One easy way to do this is to place the callback as a top-level method in a new file in the plugins folder.
+    * The Triggerer will need to be restarted when a callback is added or changed in order to reload the file.
+
+A **custom synchronous callback** might look like this:
+
+.. code-block:: python
+
+    from datetime import timedelta
+
+    from airflow import DAG
+    from airflow.providers.standard.operators.empty import EmptyOperator
+    from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
+
+
+    def custom_synchronous_callback(**kwargs):
+        """Handle deadline violation with custom logic."""
+        print(f"Deadline exceeded for DAG {kwargs.get("dag_id")}!")
+        print(f"Alert type: {kwargs.get("alert_type")}")
+        # Additional custom handling here
+
+
+    with DAG(
+        dag_id="custom_deadline_alert",
+        deadline=DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_QUEUED_AT,
+            interval=timedelta(minutes=15),
+            callback=custom_synchronous_callback,
+            callback_kwargs={"alert_type": "time_exceeded", "dag_id": "custom_deadline_alert"},
+        ),
+    ):
+        EmptyOperator(task_id="example_task")
+
+A **custom asynchronous callback** is only slightly more work.  Note in the following example that
+the custom callback code is placed in a separate file, and must be imported in the DAG file.
 
 .. code-block:: python
 
     # Place this method in `/files/plugins/deadline_callbacks.py`
-    async def custom_callback(**kwargs):
+    async def custom_async_callback(**kwargs):
         """Handle deadline violation with custom logic."""
         print(f"Deadline exceeded for DAG {kwargs.get("dag_id")}!")
         print(f"Alert type: {kwargs.get("alert_type")}")
@@ -171,7 +212,7 @@ the ``DeadlineAlert`` are passed to the callback function.
     # Place this in a dag file
     from datetime import timedelta
 
-    from deadline_callbacks import custom_callback
+    from deadline_callbacks import custom_async_callback
 
     from airflow import DAG
     from airflow.providers.standard.operators.empty import EmptyOperator
@@ -182,19 +223,11 @@ the ``DeadlineAlert`` are passed to the callback function.
         deadline=DeadlineAlert(
             reference=DeadlineReference.DAGRUN_QUEUED_AT,
             interval=timedelta(minutes=15),
-            callback=custom_callback,
+            callback=custom_async_callback,
             callback_kwargs={"alert_type": "time_exceeded", "dag_id": "custom_deadline_alert"},
         ),
     ):
         EmptyOperator(task_id="example_task")
-
-.. note::
-    Regarding Deadline callbacks:
-
-    * Async callbacks are recommended as they will be executed by the Triggerer.
-    * Users must ensure any async callback is importable by the Triggerer.
-    * One easy way to do this is to place the callback as a top-level method in a new file in the plugins folder.
-    * The Triggerer may need to be restarted when a callback is added or changed in order to reload the files.
 
 
 Deadline Calculation
