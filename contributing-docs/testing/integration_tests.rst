@@ -70,6 +70,8 @@ core or provider type of test.
 +--------------+-------------------------------------------------------+
 | keycloak     | Integration for manual testing of multi-team Airflow. |
 +--------------+-------------------------------------------------------+
+| localstack   | Integration that emulates AWS services locally.       |
++--------------+-------------------------------------------------------+
 | mongo        | Integration required for MongoDB hooks.               |
 +--------------+-------------------------------------------------------+
 | mssql        | Integration required for mssql hooks.                 |
