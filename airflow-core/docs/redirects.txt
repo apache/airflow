@@ -183,3 +183,6 @@ howto/operator/file.rst ../../apache-airflow-providers-standard/stable/sensors/f
 howto/operator/python.rst ../../apache-airflow-providers-standard/stable/operators/python.rst
 howto/operator/time.rst ../../apache-airflow-providers-standard/stable/sensors/datetime.rst
 howto/operator/weekday.rst ../../apache-airflow-providers-standard/stable/operators/datetime.rst#branchdayofweekoperator
+
+airflow/operators/datetime/index.html ../../apache-airflow-providers-standard/stable/operators/datetime.html
+airflow/operators/empty/index.html ../../apache-airflow-providers-standard/stable/operators/empty.html
