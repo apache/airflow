@@ -52,7 +52,6 @@ if TYPE_CHECKING:
         AccessView,
         AssetAliasDetails,
         AssetDetails,
-        HITLDetails,
         ConfigurationDetails,
         ConnectionDetails,
         DagAccessEntity,
@@ -241,24 +240,6 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         :param details: optional details about the asset alias
         """
 
-    @abstractmethod
-    def is_authorized_hitl_detail(
-        self,
-        *,
-        method: ResourceMethod,
-        user: T,
-        access_entity: DagAccessEntity | None = None,
-        details: HITLDetails | None = None,
-    ) -> bool:
-        """
-        Return whether the user is authorized to perform a given action on an HITL operator.
-
-        :param method: the method to perform
-        :param user: the user to perform the action
-        :param access_entity: the kind of DAG information the authorization request is about.
-            If not provided, the authorization request is about the DAG itself
-        :param details: optional details about the HITL operator
-        """
 
     @abstractmethod
     def is_authorized_pool(

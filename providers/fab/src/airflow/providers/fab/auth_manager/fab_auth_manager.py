@@ -43,7 +43,6 @@ except ImportError:
 from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
     BackfillDetails,
-    HITLDetails,
     ConfigurationDetails,
     ConnectionDetails,
     DagAccessEntity,
@@ -350,14 +349,30 @@ class FabAuthManager(BaseAuthManager[User]):
             method=dag_method, details=details, user=user
         ):
             return False
+        
+        # return all(
+        #     (
+        #         self._is_authorized(method=method, resource_type=resource_type, user=user)
+        #         if resource_type != RESOURCE_DAG_RUN or not hasattr(permissions, "resource_name")
+        #         else self._is_authorized_dag_run(method=method, details=details, user=user)
+        #     )
+        #     for resource_type in resource_types
+        # )
 
+        # if Airflow version is less than 3.1.0 and the resource type is RESOURCE_HITL_DETAIL, skip.
         return all(
             (
-                self._is_authorized(method=method, resource_type=resource_type, user=user)
-                if resource_type != RESOURCE_DAG_RUN or not hasattr(permissions, "resource_name")
-                else self._is_authorized_dag_run(method=method, details=details, user=user)
-            )
-            for resource_type in resource_types
+                True
+                if (
+                    resource_type == RESOURCE_HITL_DETAIL
+                    and packaging.version.parse(packaging.version.parse(airflow_version).base_version) < packaging.version.parse("3.1.0")
+                )
+                else (
+                    self._is_authorized(method=method, resource_type=resource_type, user=user)
+                    if resource_type != RESOURCE_DAG_RUN or not hasattr(permissions, "resource_name")
+                    else self._is_authorized_dag_run(method=method, details=details, user=user)
+                )
+            ) for resource_type in resource_types
         )
 
     def is_authorized_backfill(
@@ -382,18 +397,6 @@ class FabAuthManager(BaseAuthManager[User]):
         details: AssetAliasDetails | None = None,
     ) -> bool:
         return self._is_authorized(method=method, resource_type=RESOURCE_ASSET_ALIAS, user=user)
-
-    def is_authorized_hitl_detail(
-        self,
-        *,
-        method: ResourceMethod,
-        user: User,
-        details: HITLDetails | None = None,
-    ) -> bool:
-        if packaging.version.parse(
-            packaging.version.parse(airflow_version).base_version
-        ) >= packaging.version.parse("3.1.0"):
-            pass
 
     def is_authorized_pool(
         self, *, method: ResourceMethod, user: User, details: PoolDetails | None = None
