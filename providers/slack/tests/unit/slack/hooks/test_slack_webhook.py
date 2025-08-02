@@ -432,6 +432,7 @@ class TestSlackWebhookHook:
             {"text": "Test Text"},
             {"text": "Fallback Text", "blocks": ["Dummy Block"]},
             {"text": "Fallback Text", "blocks": ["Dummy Block"], "unfurl_media": True, "unfurl_links": True},
+            {"legacy": "value"},
         ],
     )
     @mock.patch("airflow.providers.slack.hooks.slack_webhook.SlackWebhookHook.send_dict")
