@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import functools
 import operator
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
 import attrs
@@ -31,7 +32,6 @@ from airflow.sdk.definitions._internal.abstractoperator import NotMapped
 from airflow.sdk.definitions.mappedoperator import MappedOperator as TaskSDKMappedOperator
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.serialization.serialized_objects import DEFAULT_OPERATOR_DEPS, SerializedBaseOperator
-from airflow.utils.helpers import prevent_duplicates
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -44,6 +44,21 @@ if TYPE_CHECKING:
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 
 log = structlog.get_logger(__name__)
+
+
+def _prevent_duplicates(kwargs1: dict[str, Any], kwargs2: Mapping[str, Any], *, fail_reason: str) -> None:
+    """
+    Ensure *kwargs1* and *kwargs2* do not contain common keys.
+
+    :raises TypeError: If common keys are found.
+    """
+    duplicated_keys = set(kwargs1).intersection(kwargs2)
+    if not duplicated_keys:
+        return
+    if len(duplicated_keys) == 1:
+        raise TypeError(f"{fail_reason} argument: {duplicated_keys.pop()}")
+    duplicated_keys_display = ", ".join(sorted(duplicated_keys))
+    raise TypeError(f"{fail_reason} arguments: {duplicated_keys_display}")
 
 
 @attrs.define(
@@ -90,7 +105,7 @@ class MappedOperator(TaskSDKMappedOperator):
 
         mapped_kwargs, _ = self._expand_mapped_kwargs(context)
         if self._disallow_kwargs_override:
-            prevent_duplicates(
+            _prevent_duplicates(
                 self.partial_kwargs,
                 mapped_kwargs,
                 fail_reason="unmappable or already specified",

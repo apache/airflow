@@ -46,10 +46,13 @@ from airflow.sdk.definitions._internal.expandinput import (
 )
 from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.asset import Asset
-from airflow.sdk.definitions.mappedoperator import MappedOperator, ensure_xcomarg_return_value
+from airflow.sdk.definitions.mappedoperator import (
+    MappedOperator,
+    ensure_xcomarg_return_value,
+    prevent_duplicates,
+)
 from airflow.sdk.definitions.xcom_arg import XComArg
 from airflow.utils.context import KNOWN_CONTEXT_KEYS
-from airflow.utils.helpers import prevent_duplicates
 from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
