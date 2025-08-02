@@ -390,6 +390,8 @@ class ShellParams:
             sys.exit(1)
         if self.forward_ports and not self.project_name == "pre-commit":
             compose_file_list.append(DOCKER_COMPOSE_DIR / "base-ports.yml")
+        if self.debug_components and not self.project_name == "pre-commit":
+            compose_file_list.append(DOCKER_COMPOSE_DIR / "debug-ports.yml")
         if self.mount_sources == MOUNT_SELECTED:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "local.yml")
         elif self.mount_sources == MOUNT_ALL:
