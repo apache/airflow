@@ -43,6 +43,7 @@ except ImportError:
 from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
     BackfillDetails,
+    HITLDetails,
     ConfigurationDetails,
     ConnectionDetails,
     DagAccessEntity,
@@ -86,6 +87,7 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_DAG_VERSION,
     RESOURCE_DAG_WARNING,
     RESOURCE_DOCS,
+    RESOURCE_HITL_DETAIL,
     RESOURCE_IMPORT_ERROR,
     RESOURCE_JOB,
     RESOURCE_PLUGIN,
@@ -131,6 +133,7 @@ _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ..
     DagAccessEntity.AUDIT_LOG: (RESOURCE_AUDIT_LOG,),
     DagAccessEntity.CODE: (RESOURCE_DAG_CODE,),
     DagAccessEntity.DEPENDENCIES: (RESOURCE_DAG_DEPENDENCIES,),
+    DagAccessEntity.HITL_DETAIL: (RESOURCE_HITL_DETAIL,),
     DagAccessEntity.RUN: (RESOURCE_DAG_RUN,),
     # RESOURCE_TASK_INSTANCE has been originally misused. RESOURCE_TASK_INSTANCE referred to task definition
     # AND task instances without making the difference
@@ -379,6 +382,18 @@ class FabAuthManager(BaseAuthManager[User]):
         details: AssetAliasDetails | None = None,
     ) -> bool:
         return self._is_authorized(method=method, resource_type=RESOURCE_ASSET_ALIAS, user=user)
+
+    def is_authorized_hitl_detail(
+        self,
+        *,
+        method: ResourceMethod,
+        user: User,
+        details: HITLDetails | None = None,
+    ) -> bool:
+        if packaging.version.parse(
+            packaging.version.parse(airflow_version).base_version
+        ) >= packaging.version.parse("3.1.0"):
+            pass
 
     def is_authorized_pool(
         self, *, method: ResourceMethod, user: User, details: PoolDetails | None = None
