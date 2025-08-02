@@ -30,6 +30,7 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.standard.exceptions import HITLTimeoutError, HITLTriggerEventError
+from airflow.providers.standard.operators.branch import BranchMixIn
 from airflow.providers.standard.triggers.hitl import HITLTrigger, HITLTriggerEventSuccessPayload
 from airflow.providers.standard.utils.skipmixin import SkipMixin
 from airflow.providers.standard.version_compat import BaseOperator
@@ -218,14 +219,15 @@ class ApprovalOperator(HITLOperator, SkipMixin):
         return ret
 
 
-class HITLBranchOperator(HITLOperator):
+class HITLBranchOperator(HITLOperator, BranchMixIn):
     """BranchOperator based on Human-in-the-loop Response."""
 
-    def __init__(self, **kwargs) -> None:
-        super().__init__(**kwargs)
+    inherits_from_skipmixin = True
 
-    def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
-        raise NotImplementedError
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
+        ret = super().execute_complete(context=context, event=event)
+        chosen_options = ret["chosen_options"]
+        return self.do_branch(context=context, branches_to_execute=chosen_options)
 
 
 class HITLEntryOperator(HITLOperator):

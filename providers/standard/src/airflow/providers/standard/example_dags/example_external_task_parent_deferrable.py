@@ -20,7 +20,11 @@ from airflow import DAG
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
-from airflow.utils.timezone import datetime
+
+try:
+    from airflow.sdk.timezone import datetime
+except ImportError:
+    from airflow.utils.timezone import datetime  # type: ignore[no-redef]
 
 with DAG(
     dag_id="example_external_task",
