@@ -19,8 +19,8 @@ services:
   airflow:
     environment:
       - BACKEND=mysql
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=mysql://root@mysql/airflow?charset=utf8mb4
-      - AIRFLOW__CELERY__RESULT_BACKEND=db+mysql://root@mysql/airflow?charset=utf8mb4
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=mysql+pymysql://root@mysql/airflow?charset=utf8mb4
+      - AIRFLOW__CELERY__RESULT_BACKEND=db+mysql+pymysql://root@mysql/airflow?charset=utf8mb4
     depends_on:
       mysql:
         condition: service_healthy
