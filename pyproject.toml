@@ -754,6 +754,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 "kubernetes-tests/*" = ["D", "TID253", "S101", "TRY002"]
 "helm-tests/*" = ["D", "TID253", "S101", "TRY002"]
 "providers/**/tests/*" = ["D", "TID253", "S101", "TRY002"]
+"performance/tests/*" = ["S101"]
 
 # All of the modules which have an extra license header (i.e. that we copy from another project) need to
 # ignore E402 -- module level import not at top level
