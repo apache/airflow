@@ -24,6 +24,66 @@
 
 .. towncrier release notes start
 
+Airflow 3.0.4 (2025-08-07)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+No significant changes.
+
+Bug Fixes
+"""""""""
+
+- Fix scheduler heartbeat timeout failures with intermittent ``DetachedInstanceError`` crashes (#53838) (#53858)
+- Fix connection editing where sensitive fields like passwords and extras were lost when updating connections (#53943) (#53973)
+- Fix BaseOperator ``on_kill`` functionality not working when tasks are killed externally in TaskSDK (#53718) (#53832)
+- Fix TaskInstance notes not refreshing automatically without manual page refresh (#53307) (#54025)
+- Fix invalid execution API URLs causing failures in task supervisor (#53082) (#53518)
+- Fix task failure callbacks not running on DAG Processor when tasks are externally killed (#53058) (#53143)
+- Fix ``task_success_overtime`` configuration option not being configurable (#53342) (#53351)
+- Fix CSS warning for nth-child selector (#53982) (#54000)
+- Fix DAG filtering where "all" option did not show all DAGs as expected (#53656) (#53672)
+- Fix accordion child contents not being visible when content overflows (#53595) (#53602)
+- Fix navbar positioning for anchor calculations (#52016) (#53581)
+- Fix DagBag safe mode configuration resolution in DAG processor (#52694) (#53507)
+- Fix large log reading causing out-of-memory issues in API server (#49470) (#53167)
+- Fix connection exceptions consistency between Airflow 2.x and 3.x (#52968) (#53093)
+- Remove unnecessary ``group_by`` clause in event logs query for performance (#53733) (#53807)
+- Allow remote logging providers to load connections from API Server (#53719) (#53761)
+- Add certificate support for API server client communication with self-signed certificates (#53574) (#53793)
+- Respect ``apps`` flags for API server command configuration (#52929) (#53775)
+- Skip empty DAG run configuration rows and set statement timeout (#50788) (#53619)
+- Remove incorrect warning for ``BaseOperator.executor`` attribute (#53496) (#53519)
+- Add back DAG parsing pre-import optimization for improved performance (#50371) (#52698)
+- Flexible form use ReactMarkdown instead of default Markdown component (#54032) (#54040)
+- Unconditionally disable ``start_from_trigger`` functionality (#53744) (#53750)
+- Serialize NaN and infinity values to string (#53835) (#53844)
+- Make log redaction safer in edge case when redaction has an error (#54046) (#54048)
+- Flexible form use ReactMarkdown instead of default Markdown component (#54032) (#54040)
+
+Miscellaneous
+"""""""""""""
+
+- Fix AIRFLOW_API_APPS constant in API server command (#54007) (#54012)
+- Add deprecation notice for using Connection from models in favor of SDK approach (#53594) (#53621)
+- Remove remnants of ``~=`` used in requires-python configuration (#52985) (#52987)
+- Remove upper-binding for "python-requires" specification (#52980) (#52984)
+- Update GitPython from 3.1.44 to 3.1.45 (#53725) (#53731)(#53724) (#53732)
+
+Doc Only Changes
+""""""""""""""""
+
+- Update DAG author documentation to use "DAG author" terminology (#53857) (#53950)
+- Update architecture diagrams labels from "Webserver(s)" to "API Server(s)" (#53917) (#54020)
+- Remove bold formatting for Public Interface documentation in Airflow 3.0+ (#53955) (#53964)
+- Add user-facing documentation for running separate Task Execution API server (#53789) (#53794)
+- Add documentation for self-signed certificate configuration (#53788) (#53792)
+- Update systemd unit files and documentation for Airflow 3.0 compatibility (#52294) (#53609)
+- Update public interface documentation to reflect airflow.sdk and AIP-72 changes (#52197) (#53117)
+- Update BaseOperator documentation string for clarity (#53403) (#53404)
+- Remove extra slash from endpoint URL formatting (#53755) (#53764)
+
 Airflow 3.0.3 (2025-07-14)
 --------------------------
 
