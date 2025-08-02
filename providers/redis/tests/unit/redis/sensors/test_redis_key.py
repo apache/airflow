@@ -26,7 +26,7 @@ from airflow.utils import timezone
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
-class TestRedisPublishOperator:
+class TestRedisKeySensor:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
 
@@ -35,7 +35,7 @@ class TestRedisPublishOperator:
         self.mock_context = MagicMock()
 
     @patch("airflow.providers.redis.hooks.redis.RedisHook.get_conn")
-    def test_execute_operator(self, mock_redis_conn):
+    def test_poke(self, mock_redis_conn):
         sensor = RedisKeySensor(
             key="test_key", redis_conn_id="redis_default", task_id="test_task", dag=self.dag
         )
