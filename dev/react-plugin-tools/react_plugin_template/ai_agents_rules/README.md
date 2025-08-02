@@ -20,6 +20,11 @@ These files help AI coding assistants (like Cursor, GitHub Copilot or VS Code) u
 ### For Other IDEs:
 Check your AI plugin's documentation for "custom rules" or "guidelines" support.
 
+## What these rules do**:
+1. Catch common mistakes
+2. Suggest better patterns
+3. Keep your code consistent
+
 ## Kindly Note 
 - These rules are just suggestions, not strict requirements.
 - Edit them to match your personal preference on how you'd like to have the AI work for you in a generic manner.
