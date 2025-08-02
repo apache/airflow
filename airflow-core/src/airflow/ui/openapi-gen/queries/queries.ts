@@ -393,6 +393,16 @@ export const useConfigServiceGetConfigValue = <TData = Common.ConfigServiceGetCo
   section: string;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseConfigServiceGetConfigValueKeyFn({ accept, option, section }, queryKey), queryFn: () => ConfigService.getConfigValue({ accept, option, section }) as TData, ...options });
 /**
+* Get Backends Order Value
+* @param data The data for the request.
+* @param data.accept
+* @returns Config Successful Response
+* @throws ApiError
+*/
+export const useConfigServiceGetBackendsOrderValue = <TData = Common.ConfigServiceGetBackendsOrderValueDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ accept }: {
+  accept?: "application/json" | "text/plain" | "*/*";
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseConfigServiceGetBackendsOrderValueKeyFn({ accept }, queryKey), queryFn: () => ConfigService.getBackendsOrderValue({ accept }) as TData, ...options });
+/**
 * Get Configs
 * Get configs for UI.
 * @returns ConfigResponse Successful Response

@@ -155,3 +155,36 @@ def get_config_value(
 
     config = Config(sections=[ConfigSection(name=section, options=[ConfigOption(key=option, value=value)])])
     return _response_based_on_accept(accept, config)
+
+
+@config_router.get(
+    "/backends_order",
+    responses={
+        **create_openapi_http_exception_doc(
+            [
+                status.HTTP_404_NOT_FOUND,
+                status.HTTP_406_NOT_ACCEPTABLE,
+            ]
+        ),
+        status.HTTP_200_OK: {
+            "description": "Successful Response",
+            "content": text_example_response_for_get_config_value,
+        },
+    },
+    response_model=Config,
+    dependencies=[Depends(requires_access_configuration("GET"))],
+)
+def get_backends_order_value(
+    accept: HeaderAcceptJsonOrText,
+):
+    section, option = "secrets", "backends_order"
+    if not conf.has_option(section, option):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Option [{section}/{option}] not found.",
+        )
+
+    value = conf.get(section, option)
+
+    config = Config(sections=[ConfigSection(name=section, options=[ConfigOption(key=option, value=value)])])
+    return _response_based_on_accept(accept, config)
