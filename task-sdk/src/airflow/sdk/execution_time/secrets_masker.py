@@ -317,12 +317,13 @@ class SecretsMasker(logging.Filter):
             log.warning(
                 "Unable to redact value of type %s, please report this via "
                 "<https://github.com/apache/airflow/issues>. Error was: %s: %s",
-                item,
+                type(item),
                 type(exc).__name__,
                 exc,
                 extra={self.ALREADY_FILTERED_FLAG: True},
             )
-            return item
+            # Rather than expose sensitive info, lets play it safe
+            return "<redaction-failed>"
 
     def _merge(
         self,
