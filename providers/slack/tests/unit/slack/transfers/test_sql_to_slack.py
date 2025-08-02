@@ -22,7 +22,11 @@ import pytest
 
 from airflow.exceptions import AirflowSkipException
 from airflow.providers.slack.transfers.sql_to_slack import SqlToSlackApiFileOperator
-from airflow.utils import timezone
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 TEST_DAG_ID = "sql_to_slack_unit_test"
 TEST_TASK_ID = "sql_to_slack_unit_test_task"
@@ -83,7 +87,6 @@ class TestSqlToSlackApiFileOperator:
     @pytest.mark.parametrize(
         "method_version, method_name",
         [
-            pytest.param("v1", "send_file", id="v1"),
             pytest.param("v2", "send_file_v1_to_v2", id="v2"),
         ],
     )

@@ -122,12 +122,6 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
             retry_handlers=self.slack_retry_handlers,
         )
 
-    @property
-    def _method_resolver(self):
-        if self.slack_method_version == "v1":
-            return self.slack_hook.send_file
-        return self.slack_hook.send_file_v1_to_v2
-
     def execute(self, context: Context) -> None:
         # Parse file format from filename
         output_file_format, _ = parse_filename(
@@ -162,7 +156,7 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
                 # if SUPPORTED_FILE_FORMATS extended and no actual implementation for specific format.
                 raise AirflowException(f"Unexpected output file format: {output_file_format}")
 
-            self._method_resolver(
+            self.slack_hook.send_file_v1_to_v2(
                 channels=self.slack_channels,
                 file=output_file_name,
                 filename=self.slack_filename,
