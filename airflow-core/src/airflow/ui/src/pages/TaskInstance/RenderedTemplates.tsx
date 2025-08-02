@@ -62,25 +62,18 @@ export const RenderedTemplates = () => {
                   <Table.Cell>{key}</Table.Cell>
                   <Table.Cell>
                     <HStack alignItems="flex-start">
-                      <Box
-                        css={{
-                          "& pre": {
-                            borderRadius: "4px",
-                            fontSize: "14px",
-                            margin: 0,
-                            padding: "8px",
-                          },
-                        }}
-                        flex="1"
-                      >
-                        <SyntaxHighlighter
-                          language={language}
-                          showLineNumbers={true}
-                          style={style}
-                          wrapLongLines={true}
-                        >
-                          {renderedValue}
-                        </SyntaxHighlighter>
+                      <Box flex="1">
+                        <Box as="pre" borderRadius="md" fontSize="sm" m={0} overflowX="auto" p={2}>
+                          <SyntaxHighlighter
+                            language={language}
+                            PreTag="div" // Prevents double <pre> nesting
+                            showLineNumbers
+                            style={style}
+                            wrapLongLines
+                          >
+                            {renderedValue}
+                          </SyntaxHighlighter>
+                        </Box>
                       </Box>
                       <ClipboardRoot value={renderedValue}>
                         <ClipboardIconButton />
