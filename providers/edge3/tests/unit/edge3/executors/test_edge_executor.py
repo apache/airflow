@@ -368,7 +368,7 @@ class TestEdgeExecutor:
 
         # Trigger execute_async which should update the existing job
         executor.edge_queued_tasks = deepcopy(executor.queued_tasks)
-        executor.execute_async(key=key, command=["new", "command"])
+        executor.execute_async(key=key, command=["airflow", "tasks", "run", "new", "command"])
 
         with create_session() as session:
             jobs = session.query(EdgeJobModel).all()
