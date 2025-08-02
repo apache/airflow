@@ -44,6 +44,35 @@ router = APIRouter()
 log = logging.getLogger(__name__)
 
 
+@router.get("/{dag_id}/previous", status_code=status.HTTP_200_OK)
+def get_previous_dagrun(
+    dag_id: str,
+    logical_date: UtcDateTime,
+    session: SessionDep,
+    state: Annotated[DagRunState | None, Query()] = None,
+) -> DagRun | None:
+    """Get the previous DAG run before the given logical date, optionally filtered by state."""
+    query = (
+        select(DagRunModel)
+        .where(
+            DagRunModel.dag_id == dag_id,
+            DagRunModel.logical_date < logical_date,
+        )
+        .order_by(DagRunModel.logical_date.desc())
+        .limit(1)
+    )
+
+    if state:
+        query = query.where(DagRunModel.state == state)
+
+    dag_run = session.scalar(query)
+
+    if not dag_run:
+        return None
+
+    return DagRun.model_validate(dag_run)
+
+
 @router.get(
     "/{dag_id}/{run_id}",
     responses={
@@ -237,32 +266,3 @@ def get_dr_count(
 
     count = session.scalar(query)
     return count or 0
-
-
-@router.get("/{dag_id}/previous", status_code=status.HTTP_200_OK)
-def get_previous_dagrun(
-    dag_id: str,
-    logical_date: UtcDateTime,
-    session: SessionDep,
-    state: Annotated[DagRunState | None, Query()] = None,
-) -> DagRun | None:
-    """Get the previous DAG run before the given logical date, optionally filtered by state."""
-    query = (
-        select(DagRunModel)
-        .where(
-            DagRunModel.dag_id == dag_id,
-            DagRunModel.logical_date < logical_date,
-        )
-        .order_by(DagRunModel.logical_date.desc())
-        .limit(1)
-    )
-
-    if state:
-        query = query.where(DagRunModel.state == state)
-
-    dag_run = session.scalar(query)
-
-    if not dag_run:
-        return None
-
-    return DagRun.model_validate(dag_run)
