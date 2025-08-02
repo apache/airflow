@@ -87,7 +87,7 @@ export const Grid = ({ limit }: Props) => {
   const { flatNodes } = useMemo(() => flattenNodes(dagStructure, openGroupIds), [dagStructure, openGroupIds]);
 
   return (
-    <Flex justifyContent="flex-start" position="relative" pt={50} width="100%">
+    <Flex justifyContent="flex-start" position="relative" pt={20} w="100%">
       <Box flexGrow={1} minWidth={7} position="relative" top="100px">
         <TaskNames nodes={flatNodes} />
       </Box>
