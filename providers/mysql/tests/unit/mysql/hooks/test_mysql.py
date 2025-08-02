@@ -131,6 +131,18 @@ class TestMySqlHookConn:
                     "password": "password",
                     "host": "host",
                     "schema": "schema",
+                    "port": None,
+                    "extra": json.dumps({"client": "pymysql"}),
+                },
+                "mysql+pymysql://user%40domain:password@host/schema",
+                id="mysql_connector_pymysql",
+            ),
+            pytest.param(
+                {
+                    "login": "user@domain",
+                    "password": "password",
+                    "host": "host",
+                    "schema": "schema",
                     "port": 3307,
                     "extra": json.dumps({"client": "mysql-connector-python"}),
                 },
