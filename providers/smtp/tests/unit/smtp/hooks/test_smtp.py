@@ -26,8 +26,9 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.providers.smtp.hooks.smtp import SmtpHook
+from airflow.providers.smtp.hooks.smtp import SmtpHook, build_xoauth2_string
 
 smtplib_string = "airflow.providers.smtp.hooks.smtp.smtplib"
 
@@ -70,6 +71,17 @@ class TestSmtpHook:
                 password="smtp_password",
                 port=587,
                 extra=json.dumps(dict(disable_ssl=True, from_email="from")),
+            )
+        )
+        create_connection_without_db(
+            Connection(
+                conn_id="smtp_oauth2",
+                conn_type="smtp",
+                host="smtp_server_address",
+                login="smtp_user",
+                password="smtp_password",
+                port=587,
+                extra=json.dumps(dict(disable_ssl=True, from_email="from", access_token="test-token")),
             )
         )
 
@@ -374,3 +386,47 @@ class TestSmtpHook:
         )
         assert create_default_context.called
         assert mock_smtp_ssl().sendmail.call_count == 10
+
+    @patch(smtplib_string)
+    def test_oauth2_auth_called(self, mock_smtplib):
+        mock_conn = _create_fake_smtp(mock_smtplib, use_ssl=False)
+
+        with SmtpHook(smtp_conn_id="smtp_oauth2", auth_type="oauth2") as smtp_hook:
+            smtp_hook.send_email_smtp(
+                to="to@example.com",
+                subject="subject",
+                html_content="content",
+                from_email="from",
+            )
+
+        assert mock_conn.auth.called
+        args, _ = mock_conn.auth.call_args
+        assert args[0] == "XOAUTH2"
+        assert build_xoauth2_string("smtp_user", "test-token") == args[1]()
+
+    @patch(smtplib_string)
+    def test_oauth2_missing_token_raises(self, mock_smtplib, create_connection_without_db):
+        mock_conn = _create_fake_smtp(mock_smtplib, use_ssl=False)
+
+        create_connection_without_db(
+            Connection(
+                conn_id="smtp_oauth2_empty",
+                conn_type="smtp",
+                host="smtp_server_address",
+                login="smtp_user",
+                password="smtp_password",
+                port=587,
+                extra=json.dumps(dict(disable_ssl=True, from_email="from")),
+            )
+        )
+
+        with pytest.raises(AirflowException):
+            with SmtpHook(smtp_conn_id="smtp_oauth2_empty", auth_type="oauth2") as h:
+                h.send_email_smtp(
+                    to="to@example.com",
+                    subject="subject",
+                    html_content="content",
+                    from_email="from",
+                )
+
+        assert not mock_conn.auth.called
