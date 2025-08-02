@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-01T19:47:30.938628
+# This constraints file was automatically generated on 2025-08-02T02:26:38.098048
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -150,7 +150,7 @@ bleach==6.2.0
 blinker==1.9.0
 boto3==1.39.8
 botocore==1.39.8
-build==1.2.2.post1
+build==1.3.0
 cachetools==5.5.2
 cadwyn==5.4.4
 cassandra-driver==3.29.2
@@ -167,7 +167,7 @@ ciso8601==2.3.2
 click-didyoumean==0.3.1
 click-plugins==1.1.1.2
 click-repl==0.3.0
-click==8.2.1
+click==8.2.2
 cloudpickle==3.1.1
 cohere==5.16.1
 colorama==0.4.6
