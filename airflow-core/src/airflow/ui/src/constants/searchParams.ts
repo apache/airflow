@@ -17,6 +17,7 @@
  * under the License.
  */
 export enum SearchParamsKeys {
+  ADVANCED_TAGS = "advanced_tags",
   DEPENDENCIES = "dependencies",
   END_DATE = "end_date",
   FAVORITE = "favorite",
