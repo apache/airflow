@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-02T02:23:11.028811
+# This constraints file was automatically generated on 2025-08-02T07:45:29.652653
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -349,7 +349,7 @@ lazy-object-proxy==1.11.0
 libcst==1.8.2
 limits==5.4.0
 linkify-it-py==2.0.3
-litellm==1.74.12
+litellm==1.74.14
 lockfile==0.12.2
 looker-sdk==25.10.0
 lxml==6.0.0
