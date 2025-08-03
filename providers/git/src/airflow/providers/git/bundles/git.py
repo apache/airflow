@@ -25,9 +25,7 @@ import structlog
 from git import Repo
 from git.exc import BadName, GitCommandError, NoSuchPathError
 
-from airflow.dag_processing.bundles.base import (
-    BaseDagBundle,
-)
+from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.exceptions import AirflowException
 from airflow.providers.git.hooks.git import GitHook
 
@@ -215,32 +213,58 @@ class GitDagBundle(BaseDagBundle):
         return f"{domain}/{repo_path}"
 
     def view_url(self, version: str | None = None) -> str | None:
+        """
+        Return a URL for viewing the DAGs in the repository.
+
+        This method is deprecated and will be removed when the minimum supported Airflow version is 3.1.
+        Use `view_url_template` instead.
+        """
         if not version:
             return None
-        url = self.repo_url
-        if not url:
+        template = self.view_url_template()
+        if not template:
             return None
+        if not self.subdir:
+            # remove {subdir} from the template if subdir is not set
+            template = template.replace("/{subdir}", "")
+        return template.format(version=version, subdir=self.subdir)
+
+    def view_url_template(self) -> str | None:
+        if hasattr(self, "_view_url_template") and self._view_url_template:
+            # Because we use this method in the view_url method, we need to handle
+            # backward compatibility for Airflow versions that doesn't have the
+            # _view_url_template attribute. Should be removed when we drop support for Airflow 3.0
+            return self._view_url_template
+
+        if not self.repo_url:
+            return None
+
+        url = self.repo_url
         if url.startswith("git@"):
             url = self._convert_git_ssh_url_to_https(url)
         if url.endswith(".git"):
             url = url[:-4]
+
         parsed_url = urlparse(url)
         host = parsed_url.hostname
         if not host:
             return None
+
         if parsed_url.username or parsed_url.password:
             new_netloc = host
             if parsed_url.port:
                 new_netloc += f":{parsed_url.port}"
             url = parsed_url._replace(netloc=new_netloc).geturl()
+
         host_patterns = {
-            "github.com": f"{url}/tree/{version}",
-            "gitlab.com": f"{url}/-/tree/{version}",
-            "bitbucket.org": f"{url}/src/{version}",
+            "github.com": f"{url}/tree/{{version}}",
+            "gitlab.com": f"{url}/-/tree/{{version}}",
+            "bitbucket.org": f"{url}/src/{{version}}",
         }
-        if self.subdir:
-            host_patterns = {k: f"{v}/{self.subdir}" for k, v in host_patterns.items()}
+
         for allowed_host, template in host_patterns.items():
             if host == allowed_host or host.endswith(f".{allowed_host}"):
+                if self.subdir:
+                    return f"{template}/{self.subdir}"
                 return template
         return None

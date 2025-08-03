@@ -103,7 +103,7 @@ class TestTaskInstanceEndpoint:
         with_ti_history=False,
     ):
         """Method to create task instances using kwargs and default arguments"""
-        dag = self.dagbag.get_dag(dag_id)
+        dag = self.dagbag.get_latest_version_of_dag(dag_id, session)
         tasks = dag.tasks
         counter = len(tasks)
         if task_instances is not None:
@@ -237,7 +237,11 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         ],
     )
     @pytest.mark.usefixtures("make_dag_with_multiple_versions")
-    def test_should_respond_200_with_versions(self, test_client, run_id, expected_version_number):
+    @mock.patch("airflow.api_fastapi.core_api.datamodels.dag_versions.hasattr")
+    def test_should_respond_200_with_versions(
+        self, mock_hasattr, test_client, run_id, expected_version_number
+    ):
+        mock_hasattr.return_value = False
         response = test_client.get(f"/dags/dag_with_multiple_versions/dagRuns/{run_id}/taskInstances/task1")
 
         assert response.status_code == 200
@@ -281,7 +285,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "dag_display_name": "dag_with_multiple_versions",
                 "bundle_name": "dag_maker",
                 "bundle_version": f"some_commit_hash{expected_version_number}",
-                "bundle_url": f"fakeprotocol://test_host.github.com/tree/some_commit_hash{expected_version_number}/dags",
+                "bundle_url": f"http://test_host.github.com/tree/some_commit_hash{expected_version_number}/dags",
                 "created_at": mock.ANY,
             },
         }
@@ -727,7 +731,7 @@ class TestGetMappedTaskInstances:
             "/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
         )
         assert response.status_code == 404
-        assert response.json() == {"detail": "DAG mapped_tis not found"}
+        assert response.json() == {"detail": "The Dag with ID: `mapped_tis` was not found"}
 
     def test_should_respond_200(self, one_task_with_many_mapped_tis, test_client):
         response = test_client.get(
@@ -1164,7 +1168,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
     def test_not_found(self, test_client):
         response = test_client.get("/dags/invalid/dagRuns/~/taskInstances")
         assert response.status_code == 404
-        assert response.json() == {"detail": "DAG with dag_id: `invalid` was not found"}
+        assert response.json() == {"detail": "The Dag with ID: `invalid` was not found"}
 
         response = test_client.get("/dags/~/dagRuns/invalid/taskInstances")
         assert response.status_code == 404
@@ -1983,7 +1987,11 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
         ],
     )
     @pytest.mark.usefixtures("make_dag_with_multiple_versions")
-    def test_should_respond_200_with_versions(self, test_client, run_id, expected_version_number):
+    @mock.patch("airflow.api_fastapi.core_api.datamodels.dag_versions.hasattr")
+    def test_should_respond_200_with_versions(
+        self, mock_hasattr, test_client, run_id, expected_version_number, session
+    ):
+        mock_hasattr.return_value = False
         response = test_client.get(
             f"/dags/dag_with_multiple_versions/dagRuns/{run_id}/taskInstances/task1/tries/0"
         )
@@ -2019,7 +2027,60 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "dag_id": "dag_with_multiple_versions",
                 "bundle_name": "dag_maker",
                 "bundle_version": f"some_commit_hash{expected_version_number}",
-                "bundle_url": f"fakeprotocol://test_host.github.com/tree/some_commit_hash{expected_version_number}/dags",
+                "bundle_url": f"http://test_host.github.com/tree/some_commit_hash{expected_version_number}/dags",
+                "created_at": mock.ANY,
+                "dag_display_name": "dag_with_multiple_versions",
+            },
+        }
+
+    @pytest.mark.parametrize(
+        "run_id, expected_version_number",
+        [
+            ("run1", 1),
+            ("run2", 2),
+            ("run3", 3),
+        ],
+    )
+    @pytest.mark.usefixtures("make_dag_with_multiple_versions")
+    def test_should_respond_200_with_versions_using_url_template(
+        self, test_client, run_id, expected_version_number, session
+    ):
+        response = test_client.get(
+            f"/dags/dag_with_multiple_versions/dagRuns/{run_id}/taskInstances/task1/tries/0"
+        )
+        assert response.status_code == 200
+        assert response.json() == {
+            "task_id": "task1",
+            "dag_id": "dag_with_multiple_versions",
+            "dag_display_name": "dag_with_multiple_versions",
+            "dag_run_id": run_id,
+            "map_index": -1,
+            "start_date": None,
+            "end_date": mock.ANY,
+            "duration": None,
+            "state": None,
+            "try_number": 0,
+            "max_tries": 0,
+            "task_display_name": "task1",
+            "hostname": "",
+            "unixname": getuser(),
+            "pool": "default_pool",
+            "pool_slots": 1,
+            "queue": "default",
+            "priority_weight": 1,
+            "operator": "EmptyOperator",
+            "queued_when": None,
+            "scheduled_when": None,
+            "pid": None,
+            "executor": None,
+            "executor_config": "{}",
+            "dag_version": {
+                "id": mock.ANY,
+                "version_number": expected_version_number,
+                "dag_id": "dag_with_multiple_versions",
+                "bundle_name": "dag_maker",
+                "bundle_version": f"some_commit_hash{expected_version_number}",
+                "bundle_url": f"http://test_host.github.com/tree/some_commit_hash{expected_version_number}/dags",
                 "created_at": mock.ANY,
                 "dag_display_name": "dag_with_multiple_versions",
             },
@@ -2223,7 +2284,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             task_instances=task_instances,
             update_extras=False,
         )
-        self.dagbag.sync_to_db("dags-folder", None)
         response = test_client.post(
             f"/dags/{request_dag}/clearTaskInstances",
             json=payload,
@@ -2249,7 +2309,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             update_extras=False,
             dag_run_state=State.FAILED,
         )
-        self.dagbag.sync_to_db("dags-folder", None)
         response = test_client.post(f"/dags/{dag_id}/clearTaskInstances", json=payload)
         assert response.status_code == 400
         assert (
@@ -2317,7 +2376,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             task_instances=task_instances,
             update_extras=False,
         )
-        self.dagbag.sync_to_db("dags-folder", None)
         response = test_client.post(
             f"/dags/{request_dag}/clearTaskInstances",
             json=payload,
@@ -2330,7 +2388,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         self.create_task_instances(session)
         dag_id = "example_python_operator"
         payload = {"reset_dag_runs": True, "dry_run": False}
-        self.dagbag.sync_to_db("dags-folder", None)
         response = test_client.post(
             f"/dags/{dag_id}/clearTaskInstances",
             json=payload,
@@ -2349,7 +2406,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert dagrun.state == "running"
 
         payload = {"dry_run": False, "reset_dag_runs": True, "task_ids": [""]}
-        self.dagbag.sync_to_db("dags-folder", None)
         response = test_client.post(
             f"/dags/{dag_id}/clearTaskInstances",
             json=payload,
@@ -2399,7 +2455,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             update_extras=False,
             dag_run_state=DagRunState.FAILED,
         )
-        self.dagbag.sync_to_db("dags-folder", None)
         response = test_client.post(
             f"/dags/{dag_id}/clearTaskInstances",
             json=payload,
@@ -2484,7 +2539,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             update_extras=False,
             dag_run_state=State.FAILED,
         )
-        self.dagbag.sync_to_db("dags-folder", None)
         response = test_client.post(
             f"/dags/{dag_id}/clearTaskInstances",
             json=payload,
@@ -2570,7 +2624,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             update_extras=False,
             dag_run_state=State.FAILED,
         )
-        self.dagbag.sync_to_db("dags-folder", None)
         response = test_client.post(
             f"/dags/{dag_id}/clearTaskInstances",
             json=payload,
@@ -2654,7 +2707,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             update_extras=False,
             dag_run_state=State.FAILED,
         )
-        self.dagbag.sync_to_db("dags-folder", None)
         response = test_client.post(
             f"/dags/{dag_id}/clearTaskInstances",
             json=payload,
@@ -2804,7 +2856,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             task_instances=task_instances,
             update_extras=False,
         )
-        self.dagbag.sync_to_db("dags-folder", None)
         response = test_client.post(
             "/dags/example_python_operator/clearTaskInstances",
             json=payload,
@@ -2823,7 +2874,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             },
         )
         assert response.status_code == 404
-        assert "DAG non-existent-dag not found" in response.text
+        assert "The Dag with ID: `non-existent-dag` was not found" in response.text
 
 
 class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
@@ -3075,7 +3126,11 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
         ],
     )
     @pytest.mark.usefixtures("make_dag_with_multiple_versions")
-    def test_should_respond_200_with_versions(self, test_client, run_id, expected_version_number):
+    @mock.patch("airflow.api_fastapi.core_api.datamodels.dag_versions.hasattr")
+    def test_should_respond_200_with_versions(
+        self, mock_hasattr, test_client, run_id, expected_version_number
+    ):
+        mock_hasattr.return_value = False
         response = test_client.get(
             f"/dags/dag_with_multiple_versions/dagRuns/{run_id}/taskInstances/task1/tries"
         )
@@ -3112,7 +3167,61 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                 "dag_id": "dag_with_multiple_versions",
                 "bundle_name": "dag_maker",
                 "bundle_version": f"some_commit_hash{expected_version_number}",
-                "bundle_url": f"fakeprotocol://test_host.github.com/tree/some_commit_hash{expected_version_number}/dags",
+                "bundle_url": f"http://test_host.github.com/tree/some_commit_hash{expected_version_number}/dags",
+                "created_at": mock.ANY,
+                "dag_display_name": "dag_with_multiple_versions",
+            },
+        }
+
+    @pytest.mark.parametrize(
+        "run_id, expected_version_number",
+        [
+            ("run1", 1),
+            ("run2", 2),
+            ("run3", 3),
+        ],
+    )
+    @pytest.mark.usefixtures("make_dag_with_multiple_versions")
+    def test_should_respond_200_with_versions_using_url_template(
+        self, test_client, run_id, expected_version_number
+    ):
+        response = test_client.get(
+            f"/dags/dag_with_multiple_versions/dagRuns/{run_id}/taskInstances/task1/tries"
+        )
+        assert response.status_code == 200
+
+        assert response.json()["task_instances"][0] == {
+            "task_id": "task1",
+            "dag_id": "dag_with_multiple_versions",
+            "dag_display_name": "dag_with_multiple_versions",
+            "dag_run_id": run_id,
+            "map_index": -1,
+            "start_date": None,
+            "end_date": mock.ANY,
+            "duration": None,
+            "state": mock.ANY,
+            "try_number": 0,
+            "max_tries": 0,
+            "task_display_name": "task1",
+            "hostname": "",
+            "unixname": getuser(),
+            "pool": "default_pool",
+            "pool_slots": 1,
+            "queue": "default",
+            "priority_weight": 1,
+            "operator": "EmptyOperator",
+            "queued_when": None,
+            "scheduled_when": None,
+            "pid": None,
+            "executor": None,
+            "executor_config": "{}",
+            "dag_version": {
+                "id": mock.ANY,
+                "version_number": expected_version_number,
+                "dag_id": "dag_with_multiple_versions",
+                "bundle_name": "dag_maker",
+                "bundle_version": f"some_commit_hash{expected_version_number}",
+                "bundle_url": f"http://test_host.github.com/tree/some_commit_hash{expected_version_number}/dags",
                 "created_at": mock.ANY,
                 "dag_display_name": "dag_with_multiple_versions",
             },
@@ -3357,7 +3466,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             },
         )
         assert response.status_code == 404
-        assert response.json() == {"detail": "DAG non-existent-dag not found"}
+        assert response.json() == {"detail": "The Dag with ID: `non-existent-dag` was not found"}
 
     def test_should_raise_404_for_non_existent_task_in_dag(self, test_client):
         response = test_client.patch(
@@ -4047,7 +4156,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
             },
         )
         assert response.status_code == 404
-        assert response.json() == {"detail": "DAG non-existent-dag not found"}
+        assert response.json() == {"detail": "The Dag with ID: `non-existent-dag` was not found"}
 
     def test_should_raise_404_for_non_existent_task_in_dag(self, test_client):
         response = test_client.patch(

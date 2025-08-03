@@ -131,6 +131,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-airflow-v-imports-in-tests                          | Check AIRFLOW_V imports in tests                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-airflow-version-checks-in-core                      | No AIRFLOW_V_* imports in airflow-core                 | *       |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-apache-license-rat                                  | Check if licenses are OK for Apache                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-base-operator-partial-arguments                     | Check BaseOperator and partial() arguments             |         |
@@ -229,7 +231,9 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-sdk-imports                                         | Check for SDK imports in core files                    | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| check-shared-projects                                     | Check shared projects structure                        |         |
+| check-shared-distributions-structure                      | Check shared distributions structure                   |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-shared-distributions-usage                          | Check shared distributions usage                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-significant-newsfragments-are-valid                 | Check significant newsfragments are valid              |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
