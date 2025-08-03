@@ -178,7 +178,7 @@ export const FlexibleForm = ({
       <Accordion.ItemContent pt={0}>
         <Accordion.ItemBody>
           <Stack separator={<StackSeparator py={2} />}>
-            {Boolean(flexFormDescription) ? <Text mb={2}>{flexFormDescription}</Text> : undefined}
+            {Boolean(flexFormDescription) ? <ReactMarkdown>{flexFormDescription}</ReactMarkdown> : undefined}
           </Stack>
         </Accordion.ItemBody>
       </Accordion.ItemContent>
