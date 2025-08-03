@@ -37,7 +37,6 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.common import (
     GridNodeResponse,
     GridRunsResponse,
-    LatestRunResponse,
 )
 from airflow.api_fastapi.core_api.datamodels.ui.grid import (
     GridTISummaries,
@@ -348,49 +347,3 @@ def get_grid_ti_summaries(
         "dag_id": dag_id,
         "task_instances": list(get_node_sumaries()),
     }
-
-
-@grid_router.get(
-    "/latest_run/{dag_id}",
-    responses=create_openapi_http_exception_doc(
-        [
-            status.HTTP_400_BAD_REQUEST,
-            status.HTTP_404_NOT_FOUND,
-        ]
-    ),
-    dependencies=[
-        Depends(
-            requires_access_dag(
-                method="GET",
-                access_entity=DagAccessEntity.TASK_INSTANCE,
-            )
-        ),
-        Depends(
-            requires_access_dag(
-                method="GET",
-                access_entity=DagAccessEntity.RUN,
-            )
-        ),
-    ],
-    response_model_exclude_none=True,
-)
-def get_latest_run(
-    dag_id: str,
-    session: SessionDep,
-) -> LatestRunResponse | None:
-    """
-    Get information about the latest dag run by run_after.
-
-    This is used by the UI to figure out if it needs to rerun queries and resume auto refresh.
-    """
-    return session.execute(
-        select(
-            DagRun.id,
-            DagRun.dag_id,
-            DagRun.run_id,
-            DagRun.run_after,
-        )
-        .where(DagRun.dag_id == dag_id)
-        .order_by(DagRun.run_after.desc())
-        .limit(1)
-    ).one_or_none()

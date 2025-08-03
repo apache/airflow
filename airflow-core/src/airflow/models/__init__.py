@@ -161,6 +161,8 @@ __deprecated_classes = {
     "baseoperator": {
         "BaseOperator": "airflow.sdk.bases.operator.BaseOperator",
         "chain": "airflow.sdk.bases.operator.chain",
+        "chain_linear": "airflow.sdk.bases.operator.chain_linear",
+        "cross_downstream": "airflow.sdk.bases.operator.cross_downstream",
     },
     "baseoperatorlink": {
         "BaseOperatorLink": "airflow.sdk.bases.operatorlink.BaseOperatorLink",

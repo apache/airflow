@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+4.8.2
+.....
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Cleanup type ignores in telegram provider where possible (#53255)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Move all BaseHook usages in providers to version_compat in Telegram (#52778)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.8.1
 .....
 
