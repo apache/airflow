@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge, HStack, IconButton, Input } from "@chakra-ui/react";
+import { Box, Button, HStack, IconButton, Input } from "@chakra-ui/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MdClose } from "react-icons/md";
 
@@ -87,26 +87,41 @@ export const FilterPill = ({ label, onRemove, onValueChange, value }: FilterPill
   }
 
   return (
-    <Badge
+    <Button
+      _hover={{ bg: "colorPalette.subtle" }}
+      bg={value ? "blue.muted" : "gray.muted"}
+      borderRadius="full"
+      color="colorPalette.fg"
       colorPalette={value ? "blue" : "gray"}
       cursor="pointer"
       onClick={handlePillClick}
-      variant={value ? "solid" : "outline"}
     >
-      <HStack gap={1}>
-        {label}: {value || ""}
+      <HStack align="center" gap={0}>
+        <Box flex="1" fontSize="sm" fontWeight="medium" px={3} py={2}>
+          {label}: {value || ""}
+        </Box>
+
         <IconButton
+          _hover={{
+            bg: "red.100",
+            color: "red.600",
+          }}
           aria-label={`Remove ${label} filter`}
+          bg="transparent"
+          color="gray.400"
+          mr={1}
           onClick={(event) => {
             event.stopPropagation();
             onRemove();
           }}
+          rounded="full"
           size="xs"
+          transition="all 0.2s"
           variant="ghost"
         >
           <MdClose size={12} />
         </IconButton>
       </HStack>
-    </Badge>
+    </Button>
   );
 };
