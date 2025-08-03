@@ -59,8 +59,13 @@ class AirbyteHook(BaseHook):
     def get_conn_params(self, conn_id: str) -> Any:
         conn = self.get_connection(conn_id)
 
-        # not sure if this will show password, will need to test this.
-        self.log.debug("Connection attributes are: %s", conn.to_dict())
+        # Intentionally left the password out, you can modify the log to print it out if you are doing testing.
+        self.log.debug(
+            "Connection attributes are: host - %s, url - %s, description - %s",
+            conn.host,
+            conn.schema,
+            conn.description,
+        )
         conn_params: dict = {}
         conn_params["host"] = conn.host
         conn_params["client_id"] = conn.login
