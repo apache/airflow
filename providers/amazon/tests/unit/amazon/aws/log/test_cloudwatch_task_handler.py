@@ -159,23 +159,9 @@ class TestCloudRemoteLogIO:
             assert metadata == [
                 f"Reading remote log from Cloudwatch log_group: log_group_name log_stream: {stream_name}"
             ]
-            assert logs == ['[2025-03-27T21:58:01Z] {"foo": "bar", "event": "Hi", "level": "info"}']
-
-    def test_event_to_str(self):
-        handler = self.subject
-        current_time = int(time.time()) * 1000
-        events = [
-            {"timestamp": current_time - 2000, "message": "First"},
-            {"timestamp": current_time - 1000, "message": "Second"},
-            {"timestamp": current_time, "message": "Third"},
-        ]
-        assert [handler._event_to_str(event) for event in events] == (
-            [
-                f"[{get_time_str(current_time - 2000)}] First",
-                f"[{get_time_str(current_time - 1000)}] Second",
-                f"[{get_time_str(current_time)}] Third",
+            assert logs == [
+                '{"foo": "bar", "event": "Hi", "level": "info", "timestamp": "2025-03-27T21:58:01.002000+00:00"}'
             ]
-        )
 
 
 @pytest.mark.db_test
@@ -424,6 +410,22 @@ class TestCloudwatchTaskHandler:
             self.local_log_location,
             f"arn:aws:logs:{self.region_name}:11111111:log-group:{self.remote_log_group}",
             filename_template=None,
+        )
+
+    def test_event_to_str(self):
+        handler = self.cloudwatch_task_handler
+        current_time = int(time.time()) * 1000
+        events = [
+            {"timestamp": current_time - 2000, "message": "First"},
+            {"timestamp": current_time - 1000, "message": "Second"},
+            {"timestamp": current_time, "message": "Third"},
+        ]
+        assert [handler._event_to_str(event) for event in events] == (
+            [
+                f"[{get_time_str(current_time - 2000)}] First",
+                f"[{get_time_str(current_time - 1000)}] Second",
+                f"[{get_time_str(current_time)}] Third",
+            ]
         )
 
 
