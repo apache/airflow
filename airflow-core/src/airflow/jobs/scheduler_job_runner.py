@@ -906,7 +906,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _update_dag_run_state_for_paused_dags(self, session: Session = NEW_SESSION) -> None:
         try:
             paused_runs = session.scalars(
-                select(DR)
+                select(DagRun)
                 .join(DagRun.dag_model)
                 .join(TI)
                 .where(
