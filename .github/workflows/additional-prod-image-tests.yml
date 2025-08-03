@@ -222,4 +222,4 @@ jobs:
           use-uv: ${{ inputs.use-uv }}
         id: breeze
       - name: "Test e2e integration tests"
-        run: uv run pytest ./airflow-e2e-tests/tests/ -s
+        run: cd ./airflow-e2e-tests && uv run pytest ./airflow-e2e-tests/tests/ -s
