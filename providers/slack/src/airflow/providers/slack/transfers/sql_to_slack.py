@@ -16,12 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from collections.abc import Mapping, Sequence
 from functools import cached_property
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Any, Literal
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.slack.hooks.slack import SlackHook
 from airflow.providers.slack.transfers.base_sql_to_slack import BaseSqlToSlackOperator
 from airflow.providers.slack.utils import parse_filename
@@ -91,7 +92,7 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
         slack_initial_comment: str | None = None,
         slack_title: str | None = None,
         slack_base_url: str | None = None,
-        slack_method_version: Literal["v1", "v2"] = "v2",
+        slack_method_version: Literal["v1", "v2"] | None = None,
         df_kwargs: dict | None = None,
         action_on_empty_df: Literal["send", "skip", "error"] = "send",
         **kwargs,
@@ -110,6 +111,13 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
         if not action_on_empty_df or action_on_empty_df not in ("send", "skip", "error"):
             raise ValueError(f"Invalid `action_on_empty_df` value {action_on_empty_df!r}")
         self.action_on_empty_df = action_on_empty_df
+
+        if self.slack_method_version:
+            warnings.warn(
+                "The property `slack_method_version` is no longer required for `SqlToSlackApiFileOperator`, as slack_sdk is using the files_upload_v2 method by default.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
 
     @cached_property
     def slack_hook(self):

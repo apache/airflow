@@ -84,12 +84,6 @@ class TestSqlToSlackApiFileOperator:
             ),
         ],
     )
-    @pytest.mark.parametrize(
-        "method_version, method_name",
-        [
-            pytest.param("v2", "send_file_v1_to_v2", id="v2"),
-        ],
-    )
     def test_send_file(
         self,
         mock_slack_hook_cls,
@@ -102,12 +96,10 @@ class TestSqlToSlackApiFileOperator:
         title,
         slack_op_kwargs: dict,
         hook_extra_kwargs: dict,
-        method_version,
-        method_name: str,
     ):
         # Mock Hook
         mock_send_file = mock.MagicMock()
-        setattr(mock_slack_hook_cls.return_value, method_name, mock_send_file)
+        setattr(mock_slack_hook_cls.return_value, "send_file_v1_to_v2", mock_send_file)
 
         # Mock returns pandas.DataFrame and expected method
         mock_df = mock.MagicMock()
@@ -122,7 +114,6 @@ class TestSqlToSlackApiFileOperator:
             "slack_channels": channels,
             "slack_initial_comment": initial_comment,
             "slack_title": title,
-            "slack_method_version": method_version,
             "df_kwargs": df_kwargs,
             **slack_op_kwargs,
         }
