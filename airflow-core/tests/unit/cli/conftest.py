@@ -27,6 +27,7 @@ from airflow.providers.celery.executors import celery_executor
 from airflow.providers.cncf.kubernetes.executors import kubernetes_executor
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.stream_capture_manager import CombinedCaptureManager, StderrCaptureManager, StdoutCaptureManager, StreamCaptureManager
 
 # Create custom executors here because conftest is imported first
 custom_executor_module = type(sys)("custom_executor")
@@ -58,3 +59,31 @@ def parser():
     from airflow.cli import cli_parser
 
     return cli_parser.get_parser()
+
+
+@pytest.fixture
+def stdout_capture():
+    """Fixture that captures stdout only."""
+    return StdoutCaptureManager()
+
+
+@pytest.fixture
+def stderr_capture():
+    """Fixture that captures stderr only."""
+    return StderrCaptureManager()
+
+
+@pytest.fixture
+def stream_capture():
+    """Fixture that returns a configurable stream capture manager."""
+
+    def _capture(stdout=True, stderr=False):
+        return StreamCaptureManager(capture_stdout=stdout, capture_stderr=stderr)
+
+    return _capture
+
+
+@pytest.fixture
+def combined_capture():
+    """Fixture that captures both stdout and stderr."""
+    return CombinedCaptureManager()

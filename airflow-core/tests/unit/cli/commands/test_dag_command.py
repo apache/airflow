@@ -18,12 +18,10 @@
 from __future__ import annotations
 
 import argparse
-import contextlib
 import json
 import logging
 import os
 from datetime import datetime, timedelta
-from io import StringIO
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -92,16 +90,16 @@ class TestCliDags:
     def teardown_method(self):
         clear_db_import_errors()
 
-    def test_show_dag_dependencies_print(self):
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+    def test_show_dag_dependencies_print(self, stdout_capture):
+        with stdout_capture as temp_stdout:
             dag_command.dag_dependencies_show(self.parser.parse_args(["dags", "show-dependencies"]))
         out = temp_stdout.getvalue()
         assert "digraph" in out
         assert "graph [rankdir=LR]" in out
 
     @mock.patch("airflow.cli.commands.dag_command.render_dag_dependencies")
-    def test_show_dag_dependencies_save(self, mock_render_dag_dependencies):
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+    def test_show_dag_dependencies_save(self, mock_render_dag_dependencies, stdout_capture):
+        with stdout_capture as temp_stdout:
             dag_command.dag_dependencies_show(
                 self.parser.parse_args(["dags", "show-dependencies", "--save", "output.png"])
             )
@@ -111,8 +109,8 @@ class TestCliDags:
         )
         assert "File output.png saved" in out
 
-    def test_show_dag_print(self):
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+    def test_show_dag_print(self, stdout_capture):
+        with stdout_capture as temp_stdout:
             dag_command.dag_show(self.parser.parse_args(["dags", "show", "example_bash_operator"]))
         out = temp_stdout.getvalue()
         assert "label=example_bash_operator" in out
@@ -120,8 +118,8 @@ class TestCliDags:
         assert "runme_2 -> run_after_loop" in out
 
     @mock.patch("airflow.cli.commands.dag_command.render_dag")
-    def test_show_dag_save(self, mock_render_dag):
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+    def test_show_dag_save(self, mock_render_dag, stdout_capture):
+        with stdout_capture as temp_stdout:
             dag_command.dag_show(
                 self.parser.parse_args(["dags", "show", "example_bash_operator", "--save", "awesome.png"])
             )
@@ -133,13 +131,13 @@ class TestCliDags:
 
     @mock.patch("airflow.cli.commands.dag_command.subprocess.Popen")
     @mock.patch("airflow.cli.commands.dag_command.render_dag")
-    def test_show_dag_imgcat(self, mock_render_dag, mock_popen):
+    def test_show_dag_imgcat(self, mock_render_dag, mock_popen, stdout_capture):
         mock_render_dag.return_value.pipe.return_value = b"DOT_DATA"
         mock_proc = mock.MagicMock()
         mock_proc.returncode = 0
         mock_proc.communicate.return_value = (b"OUT", b"ERR")
         mock_popen.return_value.__enter__.return_value = mock_proc
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+        with stdout_capture as temp_stdout:
             dag_command.dag_show(
                 self.parser.parse_args(["dags", "show", "example_bash_operator", "--imgcat"])
             )
@@ -149,7 +147,7 @@ class TestCliDags:
         assert "OUT" in out
         assert "ERR" in out
 
-    def test_next_execution(self, tmp_path):
+    def test_next_execution(self, tmp_path, stdout_capture):
         dag_test_list = [
             ("future_schedule_daily", "timedelta(days=5)", "'0 0 * * *'", "True"),
             ("future_schedule_every_4_hours", "timedelta(days=5)", "timedelta(hours=4)", "True"),
@@ -206,14 +204,14 @@ class TestCliDags:
         for dag_id in expected_output:
             # Test num-executions = 1 (default)
             args = self.parser.parse_args(["dags", "next-execution", dag_id])
-            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            with stdout_capture as temp_stdout:
                 dag_command.dag_next_execution(args)
                 out = temp_stdout.getvalue()
             assert expected_output[dag_id][0] in out
 
             # Test num-executions = 2
             args = self.parser.parse_args(["dags", "next-execution", dag_id, "--num-executions", "2"])
-            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            with stdout_capture as temp_stdout:
                 dag_command.dag_next_execution(args)
                 out = temp_stdout.getvalue()
             assert expected_output[dag_id][1] in out
@@ -223,9 +221,9 @@ class TestCliDags:
         parse_and_sync_to_db(os.devnull, include_examples=True)
 
     @conf_vars({("core", "load_examples"): "true"})
-    def test_cli_report(self):
+    def test_cli_report(self, stdout_capture):
         args = self.parser.parse_args(["dags", "report", "--output", "json"])
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+        with stdout_capture as temp_stdout:
             dag_command.dag_report(args)
             out = temp_stdout.getvalue()
 
@@ -233,9 +231,9 @@ class TestCliDags:
         assert "example_complex" in out
 
     @conf_vars({("core", "load_examples"): "true"})
-    def test_cli_get_dag_details(self):
+    def test_cli_get_dag_details(self, stdout_capture):
         args = self.parser.parse_args(["dags", "details", "example_complex", "--output", "yaml"])
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+        with stdout_capture as temp_stdout:
             dag_command.dag_details(args)
             out = temp_stdout.getvalue()
 
@@ -250,22 +248,22 @@ class TestCliDags:
             assert value in out
 
     @conf_vars({("core", "load_examples"): "true"})
-    def test_cli_list_dags(self):
+    def test_cli_list_dags(self, stdout_capture):
         args = self.parser.parse_args(["dags", "list", "--output", "json"])
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+        with stdout_capture as temp_stdout:
             dag_command.dag_list_dags(args)
             out = temp_stdout.getvalue()
             dag_list = json.loads(out)
-        for key in ["dag_id", "fileloc", "owners", "is_paused"]:
+        for key in ["dag_id", "fileloc", "owners", "is_paused"]:  # "bundle_name", "bundle_version"?
             assert key in dag_list[0]
         assert any("airflow/example_dags/example_complex.py" in d["fileloc"] for d in dag_list)
 
     @conf_vars({("core", "load_examples"): "true"})
-    def test_cli_list_local_dags(self):
+    def test_cli_list_local_dags(self, stdout_capture):
         # Clear the database
         clear_db_dags()
         args = self.parser.parse_args(["dags", "list", "--output", "json", "--local"])
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+        with stdout_capture as temp_stdout:
             dag_command.dag_list_dags(args)
             out = temp_stdout.getvalue()
             dag_list = json.loads(out)
@@ -276,7 +274,7 @@ class TestCliDags:
         parse_and_sync_to_db(os.devnull, include_examples=True)
 
     @conf_vars({("core", "load_examples"): "false"})
-    def test_cli_list_local_dags_with_bundle_name(self, configure_testing_dag_bundle):
+    def test_cli_list_local_dags_with_bundle_name(self, configure_testing_dag_bundle, stdout_capture):
         # Clear the database
         clear_db_dags()
         path_to_parse = TEST_DAGS_FOLDER / "test_example_bash_operator.py"
@@ -284,7 +282,7 @@ class TestCliDags:
             ["dags", "list", "--output", "json", "--local", "--bundle-name", "testing"]
         )
         with configure_testing_dag_bundle(path_to_parse):
-            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            with stdout_capture as temp_stdout:
                 dag_command.dag_list_dags(args)
                 out = temp_stdout.getvalue()
                 dag_list = json.loads(out)
@@ -297,11 +295,11 @@ class TestCliDags:
         parse_and_sync_to_db(os.devnull, include_examples=True)
 
     @conf_vars({("core", "load_examples"): "true"})
-    def test_cli_list_dags_custom_cols(self):
+    def test_cli_list_dags_custom_cols(self, stdout_capture):
         args = self.parser.parse_args(
             ["dags", "list", "--output", "json", "--columns", "dag_id,last_parsed_time"]
         )
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+        with stdout_capture as temp_stdout:
             dag_command.dag_list_dags(args)
             out = temp_stdout.getvalue()
             dag_list = json.loads(out)
@@ -311,29 +309,29 @@ class TestCliDags:
             assert key not in dag_list[0]
 
     @conf_vars({("core", "load_examples"): "true"})
-    def test_cli_list_dags_invalid_cols(self):
+    def test_cli_list_dags_invalid_cols(self, stderr_capture):
         args = self.parser.parse_args(["dags", "list", "--output", "json", "--columns", "dag_id,invalid_col"])
-        with contextlib.redirect_stderr(StringIO()) as temp_stderr:
+        with stderr_capture as temp_stderr:
             dag_command.dag_list_dags(args)
             out = temp_stderr.getvalue()
         assert "Ignoring the following invalid columns: ['invalid_col']" in out
 
     @conf_vars({("core", "load_examples"): "false"})
-    def test_cli_list_dags_prints_import_errors(self, configure_testing_dag_bundle, get_test_dag):
+    def test_cli_list_dags_prints_import_errors(self, configure_testing_dag_bundle, get_test_dag, stderr_capture):
         path_to_parse = TEST_DAGS_FOLDER / "test_invalid_cron.py"
         get_test_dag("test_invalid_cron")
 
         args = self.parser.parse_args(["dags", "list", "--output", "yaml", "--bundle-name", "testing"])
 
         with configure_testing_dag_bundle(path_to_parse):
-            with contextlib.redirect_stderr(StringIO()) as temp_stderr:
+            with stderr_capture as temp_stderr:
                 dag_command.dag_list_dags(args)
                 out = temp_stderr.getvalue()
 
         assert "Failed to load all files." in out
 
     @conf_vars({("core", "load_examples"): "false"})
-    def test_cli_list_dags_prints_local_import_errors(self, configure_testing_dag_bundle, get_test_dag):
+    def test_cli_list_dags_prints_local_import_errors(self, configure_testing_dag_bundle, get_test_dag, stderr_capture):
         # Clear the database
         clear_db_dags()
         path_to_parse = TEST_DAGS_FOLDER / "test_invalid_cron.py"
@@ -344,7 +342,7 @@ class TestCliDags:
         )
 
         with configure_testing_dag_bundle(path_to_parse):
-            with contextlib.redirect_stderr(StringIO()) as temp_stderr:
+            with stderr_capture as temp_stderr:
                 dag_command.dag_list_dags(args)
                 out = temp_stderr.getvalue()
 
@@ -354,10 +352,10 @@ class TestCliDags:
 
     @conf_vars({("core", "load_examples"): "true"})
     @mock.patch("airflow.models.DagModel.get_dagmodel")
-    def test_list_dags_none_get_dagmodel(self, mock_get_dagmodel):
+    def test_list_dags_none_get_dagmodel(self, mock_get_dagmodel, stdout_capture):
         mock_get_dagmodel.return_value = None
         args = self.parser.parse_args(["dags", "list", "--output", "json"])
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+        with stdout_capture as temp_stdout:
             dag_command.dag_list_dags(args)
             out = temp_stdout.getvalue()
             dag_list = json.loads(out)
@@ -468,33 +466,33 @@ class TestCliDags:
         mock_yesno.assert_not_called()
         dag_command.dag_unpause(args)
 
-    def test_pause_non_existing_dag_do_not_error(self):
+    def test_pause_non_existing_dag_do_not_error(self, stdout_capture):
         args = self.parser.parse_args(["dags", "pause", "non_existing_dag"])
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+        with stdout_capture as temp_stdout:
             dag_command.dag_pause(args)
-            out = temp_stdout.getvalue().strip().splitlines()[-1]
+        out = temp_stdout.splitlines()[-1]
         assert out == "No unpaused DAGs were found"
 
-    def test_unpause_non_existing_dag_do_not_error(self):
+    def test_unpause_non_existing_dag_do_not_error(self, stdout_capture):
         args = self.parser.parse_args(["dags", "unpause", "non_existing_dag"])
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+        with stdout_capture as temp_stdout:
             dag_command.dag_unpause(args)
-            out = temp_stdout.getvalue().strip().splitlines()[-1]
+        out = temp_stdout.splitlines()[-1]
         assert out == "No paused DAGs were found"
 
-    def test_unpause_already_unpaused_dag_do_not_error(self):
+    def test_unpause_already_unpaused_dag_do_not_error(self, stdout_capture):
         args = self.parser.parse_args(["dags", "unpause", "example_bash_operator", "--yes"])
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+        with stdout_capture as temp_stdout:
             dag_command.dag_unpause(args)
-            out = temp_stdout.getvalue().strip().splitlines()[-1]
+        out = temp_stdout.splitlines()[-1]
         assert out == "No paused DAGs were found"
 
-    def test_pausing_already_paused_dag_do_not_error(self):
+    def test_pausing_already_paused_dag_do_not_error(self, stdout_capture):
         args = self.parser.parse_args(["dags", "pause", "example_bash_operator", "--yes"])
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+        with stdout_capture as temp_stdout:
             dag_command.dag_pause(args)
             dag_command.dag_pause(args)
-            out = temp_stdout.getvalue().strip().splitlines()[-1]
+        out = temp_stdout.splitlines()[-1]
         assert out == "No unpaused DAGs were found"
 
     def test_trigger_dag(self):
@@ -560,7 +558,7 @@ class TestCliDags:
                 ),
             )
 
-    def test_trigger_dag_output_as_json(self):
+    def test_trigger_dag_output_as_json(self, stdout_capture):
         args = self.parser.parse_args(
             [
                 "dags",
@@ -573,7 +571,7 @@ class TestCliDags:
                 "--output=json",
             ]
         )
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+        with stdout_capture as temp_stdout:
             dag_command.dag_trigger(args)
             # get the last line from the logs ignoring all logging lines
             out = temp_stdout.getvalue().strip().splitlines()[-1]
@@ -731,13 +729,13 @@ class TestCliDags:
 
     @mock.patch("airflow.cli.commands.dag_command.render_dag", return_value=MagicMock(source="SOURCE"))
     @mock.patch("airflow.cli.commands.dag_command.get_dag")
-    def test_dag_test_show_dag(self, mock_get_dag, mock_render_dag):
+    def test_dag_test_show_dag(self, mock_get_dag, mock_render_dag, stdout_capture):
         mock_get_dag.return_value.test.return_value.run_id = "__test_dag_test_show_dag_fake_dag_run_run_id__"
 
         cli_args = self.parser.parse_args(
             ["dags", "test", "example_bash_operator", DEFAULT_DATE.isoformat(), "--show-dagrun"]
         )
-        with contextlib.redirect_stdout(StringIO()) as stdout:
+        with stdout_capture as stdout:
             dag_command.dag_test(cli_args)
 
         output = stdout.getvalue()
