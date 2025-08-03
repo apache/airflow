@@ -320,7 +320,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
             f"Reading remote log from Cloudwatch log_group: {self.io.log_group} log_stream: {stream_name}"
         ]
         try:
-            events = [self.io.get_cloudwatch_logs(stream_name, task_instance)]
+            events = self.io.get_cloudwatch_logs(stream_name, task_instance)
             logs = ["\n".join(self._event_to_str(event) for event in events)]
         except Exception as e:
             logs = []
