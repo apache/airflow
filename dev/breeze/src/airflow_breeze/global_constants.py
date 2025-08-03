@@ -71,6 +71,7 @@ TESTABLE_PROVIDERS_INTEGRATIONS = [
     "drill",
     "tinkerpop",
     "kafka",
+    "localstack",
     "mongo",
     "mssql",
     "pinot",
