@@ -1083,6 +1083,95 @@ class TestSchedulerJob:
         for ti in tis_tuple:
             assert ti.key in res_ti_keys
 
+    def task_helper(self, dag_maker, session, dag_id: str, task_num: int):
+        dag_tasks = {}
+
+        with dag_maker(dag_id=dag_id):
+            for i in range(task_num):
+                # Assign priority weight to certain tasks.
+                if (i % 10) == 0:  # 10, 20, 30, 40, 50, ...
+                    weight = int(i / 2)
+                    dag_tasks[f"op{i}"] = EmptyOperator(task_id=f"dummy{i}", priority_weight=weight)
+                else:
+                    # No executor specified, runs on default executor
+                    dag_tasks[f"op{i}"] = EmptyOperator(task_id=f"dummy{i}")
+
+        dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+
+        task_tis = {}
+
+        tis_list = []
+        for i in range(task_num):
+            task_tis[f"ti{i}"] = dag_run.get_task_instance(dag_tasks[f"op{i}"].task_id, session)
+            # add
+            tis_list.append(task_tis[f"ti{i}"])
+
+        for ti in tis_list:
+            ti.state = State.SCHEDULED
+            ti.dag_model.max_active_tasks = 4
+
+        session.flush()
+
+        return tis_list
+
+    @conf_vars(
+        {
+            ("scheduler", "max_tis_per_query"): "100",
+            ("scheduler", "max_dagruns_to_create_per_loop"): "10",
+            ("scheduler", "max_dagruns_per_loop_to_schedule"): "20",
+            ("core", "parallelism"): "100",
+            ("core", "max_active_tasks_per_dag"): "4",
+            ("core", "max_active_runs_per_dag"): "10",
+            ("core", "default_pool_task_slot_count"): "64",
+        }
+    )
+    @pytest.mark.parametrize(
+        "fts_enabled",
+        [pytest.param(True, id="fts_enabled"), pytest.param(False, id="fts_disabled")],
+    )
+    def test_fair_task_selection(self, dag_maker, mock_executors, fts_enabled: bool):
+        """
+        Test with and without FairTaskSelection.
+        """
+        with conf_vars({("scheduler", "enable_fair_task_selection"): str(fts_enabled)}):
+            scheduler_job = Job()
+            scheduler_job.executor.parallelism = 100
+            scheduler_job.executor.slots_available = 70
+            scheduler_job.max_tis_per_query = 100
+            self.job_runner = SchedulerJobRunner(job=scheduler_job)
+            session = settings.Session()
+
+            self.task_helper(dag_maker, session, "dag_12000_tasks", 12000)
+            self.task_helper(dag_maker, session, "dag_800_tasks", 800)
+            self.task_helper(dag_maker, session, "dag_1100_tasks", 1100)
+
+            import time
+
+            start_time = time.perf_counter()
+
+            count = 0
+            iterations = 0
+
+            while count < 12:
+                # Use `_executable_task_instances_to_queued` because it returns a list of TIs
+                # while `_critical_section_enqueue_task_instances` just returns the number of the TIs.
+                queued_tis = self.job_runner._executable_task_instances_to_queued(
+                    max_tis=scheduler_job.executor.slots_available, session=session
+                )
+                count += len(queued_tis)
+                iterations += 1
+                print(f"test: count: {count}")
+
+            duration_s = time.perf_counter() - start_time
+            print(f"test: needed iterations: {iterations} | total time: {duration_s:.2f}")
+
+            if fts_enabled:
+                assert iterations == 1
+                assert count == 12
+            else:
+                assert iterations >= 2
+                assert count >= 12
+
     def test_find_executable_task_instances_order_priority_with_pools(self, dag_maker):
         """
         The scheduler job should pick tasks with higher priority for execution
