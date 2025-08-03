@@ -23,7 +23,7 @@ import pytest
 from airflow import settings
 from airflow.api_fastapi.common.dagbag import dag_bag_from_app
 from airflow.models.dag import DAG
-from airflow.models.dagbag import SchedulerDagBag
+from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -79,7 +79,7 @@ class TestTaskEndpoint:
         SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
         SerializedDagModel.write_dag(mapped_dag, bundle_name=bundle_name)
         SerializedDagModel.write_dag(unscheduled_dag, bundle_name=bundle_name)
-        dag_bag = SchedulerDagBag()
+        dag_bag = DBDagBag()
 
         test_client.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag
 
@@ -251,7 +251,7 @@ class TestGetTask(TestTaskEndpoint):
         DAG.bulk_write_to_db(bundle_name, None, [dag])
         SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
 
-        dag_bag = SchedulerDagBag()
+        dag_bag = DBDagBag()
         test_client.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag
 
         expected = {
