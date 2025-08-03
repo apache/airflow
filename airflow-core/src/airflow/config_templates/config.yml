@@ -2281,6 +2281,13 @@ scheduler:
       type: boolean
       example: ~
       default: "False"
+    enable_fair_task_selection:
+      description: |
+        Whether to enable task fair selection in the scheduler.
+      version_added: 3.1.0
+      type: boolean
+      example: ~
+      default: "False"
 triggerer:
   description: ~
   options:
