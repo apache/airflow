@@ -240,7 +240,6 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         :param details: optional details about the asset alias
         """
 
-
     @abstractmethod
     def is_authorized_pool(
         self,

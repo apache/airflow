@@ -65,6 +65,7 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_DAG,
     RESOURCE_DAG_RUN,
     RESOURCE_DOCS,
+    RESOURCE_HITL_DETAIL,
     RESOURCE_JOB,
     RESOURCE_PLUGIN,
     RESOURCE_PROVIDER,
@@ -441,6 +442,54 @@ class TestFabAuthManager:
                 DagAccessEntity.RUN,
                 None,
                 [(ACTION_CAN_READ, "DAG:test_dag_id"), (ACTION_CAN_READ, RESOURCE_DAG_RUN)],
+                True,
+            ),
+            # With global permissions on Dags, but no permission on HITL Detail
+            (
+                "GET",
+                DagAccessEntity.HITL_DETAIL,
+                None,
+                [(ACTION_CAN_READ, RESOURCE_DAG)],
+                False,
+            ),
+            # With global permissions on Dags, but no permission on HITL Detail
+            (
+                "PUT",
+                DagAccessEntity.HITL_DETAIL,
+                None,
+                [(ACTION_CAN_READ, RESOURCE_DAG)],
+                False,
+            ),
+            # With global permissions on Dags, with read permission on HITL Detail
+            (
+                "GET",
+                DagAccessEntity.HITL_DETAIL,
+                None,
+                [(ACTION_CAN_READ, RESOURCE_DAG), (ACTION_CAN_READ, RESOURCE_HITL_DETAIL)],
+                True,
+            ),
+            # With global permissions on Dags, with read permission on HITL Detail, but wrong method
+            (
+                "PUT",
+                DagAccessEntity.HITL_DETAIL,
+                None,
+                [(ACTION_CAN_READ, RESOURCE_DAG), (ACTION_CAN_READ, RESOURCE_HITL_DETAIL)],
+                False,
+            ),
+            # With global permissions on Dags, with write permission on HITL Detail, but wrong method
+            (
+                "GET",
+                DagAccessEntity.HITL_DETAIL,
+                None,
+                [(ACTION_CAN_READ, RESOURCE_DAG), (ACTION_CAN_EDIT, RESOURCE_HITL_DETAIL)],
+                False,
+            ),
+            # With global permissions on Dags, with edit permission on HITL Detail
+            (
+                "PUT",
+                DagAccessEntity.HITL_DETAIL,
+                None,
+                [(ACTION_CAN_READ, RESOURCE_DAG), (ACTION_CAN_EDIT, RESOURCE_HITL_DETAIL)],
                 True,
             ),
         ],

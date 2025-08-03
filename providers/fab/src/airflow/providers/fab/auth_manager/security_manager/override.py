@@ -235,6 +235,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_HITL_DETAIL),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_HITL_DETAIL),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_BROWSE_MENU),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_DEPENDENCIES),
@@ -246,6 +247,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_JOB),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_SLA_MISS),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_INSTANCE),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_HITL_DETAIL),
     ]
     # [END security_viewer_perms]
 
@@ -295,6 +297,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_CREATE, RESOURCE_BACKFILL),
         (permissions.ACTION_CAN_EDIT, RESOURCE_BACKFILL),
         (permissions.ACTION_CAN_DELETE, RESOURCE_BACKFILL),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_HITL_DETAIL),
     ]
     # [END security_op_perms]
 

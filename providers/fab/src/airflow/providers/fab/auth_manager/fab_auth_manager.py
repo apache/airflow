@@ -349,30 +349,14 @@ class FabAuthManager(BaseAuthManager[User]):
             method=dag_method, details=details, user=user
         ):
             return False
-        
-        # return all(
-        #     (
-        #         self._is_authorized(method=method, resource_type=resource_type, user=user)
-        #         if resource_type != RESOURCE_DAG_RUN or not hasattr(permissions, "resource_name")
-        #         else self._is_authorized_dag_run(method=method, details=details, user=user)
-        #     )
-        #     for resource_type in resource_types
-        # )
 
-        # if Airflow version is less than 3.1.0 and the resource type is RESOURCE_HITL_DETAIL, skip.
         return all(
             (
-                True
-                if (
-                    resource_type == RESOURCE_HITL_DETAIL
-                    and packaging.version.parse(packaging.version.parse(airflow_version).base_version) < packaging.version.parse("3.1.0")
-                )
-                else (
-                    self._is_authorized(method=method, resource_type=resource_type, user=user)
-                    if resource_type != RESOURCE_DAG_RUN or not hasattr(permissions, "resource_name")
-                    else self._is_authorized_dag_run(method=method, details=details, user=user)
-                )
-            ) for resource_type in resource_types
+                self._is_authorized(method=method, resource_type=resource_type, user=user)
+                if resource_type != RESOURCE_DAG_RUN or not hasattr(permissions, "resource_name")
+                else self._is_authorized_dag_run(method=method, details=details, user=user)
+            )
+            for resource_type in resource_types
         )
 
     def is_authorized_backfill(
