@@ -28,10 +28,10 @@ import {
   Box,
 } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useCallback, useState, useMemo, useEffect } from "react";
+import { useCallback, useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useSearchParams } from "react-router-dom";
-import { useLocalStorage } from "usehooks-ts";
+import { useLocalStorage, useSessionStorage } from "usehooks-ts";
 
 import type { DagRunState, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import DeleteDagButton from "src/components/DagActions/DeleteDagButton";
@@ -203,18 +203,10 @@ export const DagsList = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
 
   const { pagination, sorting } = tableURLState;
-  const [savedSearchPattern, setSavedSearchPattern] = useLocalStorage("dags_search_temp", "");
+  const [savedSearchPattern, setSavedSearchPattern] = useSessionStorage("dags_search_temp", "");
   const [dagDisplayNamePattern, setDagDisplayNamePattern] = useState(
     searchParams.get(NAME_PATTERN) ?? savedSearchPattern,
   );
-
-  useEffect(() => {
-    const handleBeforeUnload = () => setSavedSearchPattern("");
-
-    globalThis.addEventListener("beforeunload", handleBeforeUnload);
-
-    return () => globalThis.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [setSavedSearchPattern]);
 
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "dag_display_name";
