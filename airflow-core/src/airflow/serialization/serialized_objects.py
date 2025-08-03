@@ -104,7 +104,6 @@ from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunTriggeredByType, DagRunType
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import create_session
-from airflow.utils.timezone import from_timestamp, parse_timezone
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
