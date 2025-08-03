@@ -138,15 +138,19 @@ class TestXComObjectStorageBackend:
                 run_id=task_instance.run_id,
             )
 
-            res = session.scalars(
-                XComModel.get_many(
-                    key=XCOM_RETURN_KEY,
-                    dag_ids=task_instance.dag_id,
-                    task_ids=task_instance.task_id,
-                    run_id=task_instance.run_id,
-                    session=session,
-                ).with_only_columns(XComModel.value)
-            ).first()
+            res = (
+                session.execute(
+                    XComModel.get_many(
+                        key=XCOM_RETURN_KEY,
+                        dag_ids=task_instance.dag_id,
+                        task_ids=task_instance.task_id,
+                        run_id=task_instance.run_id,
+                        session=session,
+                    ).with_only_columns(XComModel.value)
+                )
+                .mappings()
+                .first()
+            )
             data = XComModel.deserialize_value(res)
         else:
             res = (
@@ -184,7 +188,9 @@ class TestXComObjectStorageBackend:
                 run_id=task_instance.run_id,
                 session=session,
             )
-            assert str(p) == XComModel.deserialize_value(session.scalars(qry).first())
+            assert str(p) == XComModel.deserialize_value(
+                session.execute(qry.with_only_columns(XComModel.value)).mappings().first()
+            )
         else:
             qry = XCom.get_many(
                 key=XCOM_RETURN_KEY,
