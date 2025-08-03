@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, cast
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.sql import select
 
-from airflow.api_fastapi.common.dagbag import DagBagDep
+from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run_or_latest_version
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.extra_links import ExtraLinkCollectionResponse
@@ -59,12 +59,7 @@ def get_extra_links(
 
     dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
 
-    if dag_run:
-        dag = dag_bag.get_dag_for_run(dag_run, session=session)
-    else:
-        dag = dag_bag.get_latest_version_of_dag(dag_id, session=session)
-    if not dag:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with ID = {dag_id} not found")
+    dag = get_dag_for_run_or_latest_version(dag_bag, dag_run, dag_id, session)
 
     try:
         # TODO (GH-52141): Make dag a db-backed object so it only returns db-backed tasks.
