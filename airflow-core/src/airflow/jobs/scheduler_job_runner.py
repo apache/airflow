@@ -394,40 +394,28 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             num_starved_tasks = len(starved_tasks)
             num_starved_tasks_task_dagrun_concurrency = len(starved_tasks_task_dagrun_concurrency)
 
+            query = (
+                select(TI)
+                .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
+                .join(TI.dag_run)
+                .where(DR.state == DagRunState.RUNNING)
+                .join(TI.dag_model)
+                .where(~DM.is_paused)
+                .where(TI.state == TaskInstanceState.SCHEDULED)
+                .where(DM.bundle_name.is_not(None))
+            )
+
             if fts_enabled:
                 dag_concurrency_subquery = self.__get_current_dag_concurrency(states=EXECUTION_STATES)
+                per_dag_limit = conf.getint("core", "max_active_tasks_per_dag")
 
-                per_dag_limit = conf.getint("core", "max_active_tasks_total_per_dag")
+                query = query.join(
+                    dag_concurrency_subquery, TI.dag_id == dag_concurrency_subquery.c.dag_id, isouter=True
+                ).where(func.coalesce(dag_concurrency_subquery.c.dag_count, 0) < per_dag_limit)
 
-                query = (
-                    select(TI)
-                    .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
-                    .join(TI.dag_run)
-                    .where(DR.state == DagRunState.RUNNING)
-                    .join(TI.dag_model)
-                    .where(~DM.is_paused)
-                    .where(TI.state == TaskInstanceState.SCHEDULED)
-                    .where(DM.bundle_name.is_not(None))
-                    .join(
-                        dag_concurrency_subquery, TI.dag_id == dag_concurrency_subquery.c.dag_id, isouter=True
-                    )
-                    .where(func.coalesce(dag_concurrency_subquery.c.dag_count, 0) < per_dag_limit)
-                    .options(selectinload(TI.dag_model))
-                    .order_by(-TI.priority_weight, DR.logical_date, TI.map_index)
-                )
-            else:
-                query = (
-                    select(TI)
-                    .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
-                    .join(TI.dag_run)
-                    .where(DR.state == DagRunState.RUNNING)
-                    .join(TI.dag_model)
-                    .where(~DM.is_paused)
-                    .where(TI.state == TaskInstanceState.SCHEDULED)
-                    .where(DM.bundle_name.is_not(None))
-                    .options(selectinload(TI.dag_model))
-                    .order_by(-TI.priority_weight, DR.logical_date, TI.map_index)
-                )
+            query = query.options(selectinload(TI.dag_model)).order_by(
+                -TI.priority_weight, DR.logical_date, TI.map_index
+            )
 
             # Fair selection will ensure task instances are selected across multiple running DAGs
             if fts_enabled:
