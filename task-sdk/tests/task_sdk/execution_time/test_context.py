@@ -22,12 +22,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from airflow.sdk import BaseOperator, get_current_context, timezone
 from airflow.sdk.api.datamodels._generated import (
     AssetEventResponse,
     AssetReferenceAssetEventDagRun,
     AssetResponse,
 )
-from airflow.sdk import BaseOperator, get_current_context, timezone
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions.asset import (
     Asset,
@@ -583,11 +583,9 @@ class TestTriggeringAssetEventsAccessor:
             end_date=datetime(2023, 1, 1, 12, 30, 0, tzinfo=timezone.utc),
             clear_number=0,
             run_type="manual",
-            conf=None,
+            conf={},
             state="success",
-            queued_at=None,
-            last_scheduling_decision=None,
-            duration=None,
+            consumed_asset_events=[],
             type="DagRunResult",
         )
 
