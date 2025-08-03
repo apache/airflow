@@ -130,7 +130,7 @@ class TestElasticsearchTaskHandler:
     def test_es_response(self):
         sample_response = self.es.sample_log_response()
         es_response = ElasticSearchResponse(self.es_task_handler, sample_response)
-        logs_by_host = self.es_task_handler._group_logs_by_host(es_response)
+        logs_by_host = self.es_task_handler.io._group_logs_by_host(es_response)
 
         def concat_logs(lines):
             log_range = -1 if lines[-1].message == self.es_task_handler.end_of_log_mark else None
@@ -262,7 +262,7 @@ class TestElasticsearchTaskHandler:
     @pytest.mark.db_test
     def test_read_with_patterns_no_match(self, ti):
         ts = pendulum.now()
-        with mock.patch.object(self.es_task_handler, "index_patterns", new="test_other_*,test_another_*"):
+        with mock.patch.object(self.es_task_handler.io, "index_patterns", new="test_other_*,test_another_*"):
             logs, metadatas = self.es_task_handler.read(
                 ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
             )
@@ -286,7 +286,7 @@ class TestElasticsearchTaskHandler:
     @pytest.mark.db_test
     def test_read_with_missing_index(self, ti):
         ts = pendulum.now()
-        with mock.patch.object(self.es_task_handler, "index_patterns", new="nonexistent,test_*"):
+        with mock.patch.object(self.es_task_handler.io, "index_patterns", new="nonexistent,test_*"):
             with pytest.raises(elasticsearch.exceptions.NotFoundError, match=r"IndexMissingException.*"):
                 self.es_task_handler.read(
                     ti,
@@ -551,27 +551,22 @@ class TestElasticsearchTaskHandler:
 
     @pytest.mark.db_test
     def test_read_raises(self, ti):
-        with mock.patch.object(self.es_task_handler.log, "exception") as mock_exception:
-            with mock.patch.object(self.es_task_handler.client, "search") as mock_execute:
+        with mock.patch.object(self.es_task_handler.io.log, "exception") as mock_exception:
+            with mock.patch.object(self.es_task_handler.io.client, "search") as mock_execute:
                 mock_execute.side_effect = SearchFailedException("Failed to read")
-                logs, metadatas = self.es_task_handler.read(ti, 1)
+                log_sources, log_msgs = self.es_task_handler.io.read("", ti)
             assert mock_exception.call_count == 1
             args, kwargs = mock_exception.call_args
             assert "Could not read log with log_id:" in args[0]
-
+        print(f"log_msgs: {log_msgs}")
         if AIRFLOW_V_3_0_PLUS:
-            assert logs == []
-
-            metadata = metadatas
+            assert log_sources == []
         else:
-            assert len(logs) == 1
-            assert len(logs) == len(metadatas)
-            assert logs == [[]]
+            assert len(log_sources) == 0
+            assert len(log_msgs) == 1
+            assert log_sources == []
 
-            metadata = metadatas[0]
-
-        assert metadata["offset"] == "0"
-        assert not metadata["end_of_log"]
+        assert "not found in Elasticsearch" in log_msgs[0]
 
     @pytest.mark.db_test
     def test_set_context(self, ti):
@@ -866,8 +861,8 @@ class TestElasticsearchTaskHandler:
             mock_callable = Mock(return_value="callable_index_pattern")
             mock_import_string.return_value = mock_callable
 
-            self.es_task_handler.index_patterns_callable = "path.to.index_pattern_callable"
-            result = self.es_task_handler._get_index_patterns({})
+            self.es_task_handler.io.index_patterns_callable = "path.to.index_pattern_callable"
+            result = self.es_task_handler.io._get_index_patterns({})
 
             mock_import_string.assert_called_once_with("path.to.index_pattern_callable")
             mock_callable.assert_called_once_with({})

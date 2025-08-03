@@ -530,6 +530,44 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         """Whether we can support external links."""
         return bool(self.frontend)
 
+    def _get_result(self, hit: dict[Any, Any], parent_class=None) -> Hit:
+        """
+        Process a hit (i.e., a result) from an Elasticsearch response and transform it into a class instance.
+
+        The transformation depends on the contents of the hit. If the document in hit contains a nested field,
+        the 'resolve_nested' method is used to determine the appropriate class (based on the nested path).
+        If the hit has a document type that is present in the '_doc_type_map', the corresponding class is
+        used. If not, the method iterates over the '_doc_type' classes and uses the first one whose '_matches'
+        method returns True for the hit.
+
+        If the hit contains any 'inner_hits', these are also processed into 'ElasticSearchResponse' instances
+        using the determined class.
+
+        Finally, the transformed hit is returned. If the determined class has a 'from_es' method, this is
+        used to transform the hit
+        """
+        doc_class = Hit
+        dt = hit.get("_type")
+
+        if "_nested" in hit:
+            doc_class = resolve_nested(hit, parent_class)
+
+        elif dt in self._doc_type_map:
+            doc_class = self._doc_type_map[dt]
+
+        else:
+            for doc_type in self._doc_type:
+                if hasattr(doc_type, "_matches") and doc_type._matches(hit):
+                    doc_class = doc_type
+                    break
+
+        for t in hit.get("inner_hits", ()):
+            hit["inner_hits"][t] = ElasticSearchResponse(self, hit["inner_hits"][t], doc_class=doc_class)
+
+        # callback should get the Hit class if "from_es" is not defined
+        callback: type[Hit] | Callable[..., Any] = getattr(doc_class, "from_es", doc_class)
+        return callback(hit)
+
 
 @attrs.define(kw_only=True)
 class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
@@ -624,7 +662,7 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
                 "If your task started recently, please wait a moment and reload this page. "
                 "Otherwise, the logs for this task instance may have been removed."
             )
-            return ["::group::Log message source details"], [missing_log_message, "::endgroup::"]
+            return [], [missing_log_message]
 
         else:
             header = []
@@ -637,8 +675,6 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
                 for hit in hits:
                     filtered = {k: v for k, v in hit.to_dict().items() if k.lower() in TASK_LOG_FIELDS}
                     message.append(json.dumps(filtered))
-
-            message.append(json.dumps({"event": "::endgroup::"}))
 
         return header, message
 
