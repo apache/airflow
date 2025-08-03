@@ -88,7 +88,7 @@ def pytest_runtest_makereport(item, call):
     if report.when == "call":
         test_result = {
             "test_name": item.name,
-            "test_class": item.cls.__name__ if item.cls else "No Class",
+            "test_class": item.cls.__name__ if item.cls else "",
             "status": report.outcome,
             "duration": report.duration,
             "error": str(report.longrepr) if report.failed else None,
