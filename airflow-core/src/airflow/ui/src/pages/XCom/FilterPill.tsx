@@ -74,6 +74,7 @@ export const FilterPill = ({ label, onRemove, onValueChange, value }: FilterPill
   if (isEditing) {
     return (
       <Input
+        borderRadius="full"
         onBlur={handleInputBlur}
         onChange={handleInputChange}
         onKeyDown={handleInputKeyDown}
@@ -81,7 +82,7 @@ export const FilterPill = ({ label, onRemove, onValueChange, value }: FilterPill
         ref={inputRef}
         size="sm"
         value={inputValue}
-        width="200px"
+        width="220px"
       />
     );
   }
@@ -95,6 +96,7 @@ export const FilterPill = ({ label, onRemove, onValueChange, value }: FilterPill
       colorPalette={value ? "blue" : "gray"}
       cursor="pointer"
       onClick={handlePillClick}
+      size="sm"
     >
       <HStack align="center" gap={0}>
         <Box flex="1" fontSize="sm" fontWeight="medium" px={3} py={2}>

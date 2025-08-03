@@ -136,7 +136,12 @@ export const FilterManager = ({
       {availableFilterTypes.length > 0 && (
         <Menu.Root>
           <Menu.Trigger asChild>
-            <Button size="sm" variant="outline">
+            <Button
+              _hover={{ bg: "colorPalette.subtle" }}
+              bg="gray.muted"
+              borderRadius="full"
+              variant="outline"
+            >
               <MdAdd />
               {translate("common:filter")}
             </Button>
