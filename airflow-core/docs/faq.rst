@@ -559,7 +559,7 @@ such as the following Airflow 3 example:
   from airflow import DAG
   from airflow.sdk import task
 
-  with DAG(dag_id='canary', schedule="@daily", doc_md="Canary DAG to regularly test connections to systems."):
+  with DAG(dag_id="canary", schedule="@daily", doc_md="Canary DAG to regularly test connections to systems."):
       @task(doc_md="Test a connection by its Connection ID.")
       def test_connection(conn_id):
           from airflow.hooks.base import BaseHook
@@ -570,8 +570,8 @@ such as the following Airflow 3 example:
 
       for conn_id in [
           # Add more connections here to create tasks to test them.
-          'aws_default',
+          "aws_default",
       ]:
-          test_connection.override(task_id=f"test_{conn_id}")(conn_id)
+          test_connection.override(task_id="test_"+conn_id)(conn_id)
 
 
