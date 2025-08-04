@@ -35,6 +35,7 @@ from airflow.providers.git.bundles.git import GitDagBundle
 from airflow.providers.git.hooks.git import GitHook
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 
 @pytest.fixture(autouse=True)
@@ -520,6 +521,100 @@ class TestGitDagBundle:
         bundle.initialize = mock.MagicMock()
         view_url = bundle.view_url("0f0f0f")
         assert view_url == expected_url
+        bundle.initialize.assert_not_called()
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="Airflow 3.0 does not support view_url_template")
+    @pytest.mark.parametrize(
+        "repo_url, extra_conn_kwargs, expected_url",
+        [
+            (
+                "git@github.com:apache/airflow.git",
+                None,
+                "https://github.com/apache/airflow/tree/{version}/subdir",
+            ),
+            (
+                "git@github.com:apache/airflow",
+                None,
+                "https://github.com/apache/airflow/tree/{version}/subdir",
+            ),
+            (
+                "https://github.com/apache/airflow",
+                None,
+                "https://github.com/apache/airflow/tree/{version}/subdir",
+            ),
+            (
+                "https://github.com/apache/airflow.git",
+                None,
+                "https://github.com/apache/airflow/tree/{version}/subdir",
+            ),
+            (
+                "git@gitlab.com:apache/airflow.git",
+                None,
+                "https://gitlab.com/apache/airflow/-/tree/{version}/subdir",
+            ),
+            (
+                "git@bitbucket.org:apache/airflow.git",
+                None,
+                "https://bitbucket.org/apache/airflow/src/{version}/subdir",
+            ),
+            (
+                "git@myorg.github.com:apache/airflow.git",
+                None,
+                "https://myorg.github.com/apache/airflow/tree/{version}/subdir",
+            ),
+            (
+                "https://myorg.github.com/apache/airflow.git",
+                None,
+                "https://myorg.github.com/apache/airflow/tree/{version}/subdir",
+            ),
+            (
+                "https://github.com/apache/airflow",
+                {"password": "abc123"},
+                "https://github.com/apache/airflow/tree/{version}/subdir",
+            ),
+            (
+                "https://github.com/apache/airflow",
+                {"login": "abc123"},
+                "https://github.com/apache/airflow/tree/{version}/subdir",
+            ),
+            (
+                "https://github.com/apache/airflow",
+                {"login": "abc123", "password": "def456"},
+                "https://github.com/apache/airflow/tree/{version}/subdir",
+            ),
+            (
+                "https://github.com:443/apache/airflow",
+                None,
+                "https://github.com:443/apache/airflow/tree/{version}/subdir",
+            ),
+            (
+                "https://github.com:443/apache/airflow",
+                {"password": "abc123"},
+                "https://github.com:443/apache/airflow/tree/{version}/subdir",
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.git.bundles.git.Repo")
+    def test_view_url_template_subdir(
+        self, mock_gitrepo, repo_url, extra_conn_kwargs, expected_url, create_connection_without_db
+    ):
+        create_connection_without_db(
+            Connection(
+                conn_id="git_default",
+                host=repo_url,
+                conn_type="git",
+                **(extra_conn_kwargs or {}),
+            )
+        )
+        bundle = GitDagBundle(
+            name="test",
+            tracking_ref="main",
+            subdir="subdir",
+            git_conn_id="git_default",
+        )
+        bundle.initialize = mock.MagicMock()
+        view_url_template = bundle.view_url_template()
+        assert view_url_template == expected_url
         bundle.initialize.assert_not_called()
 
     @mock.patch("airflow.providers.git.bundles.git.Repo")

@@ -32,12 +32,14 @@ export type FlexibleFormProps = {
   initialParamsDict: { paramsDict: ParamsSpec };
   key?: string;
   setError: (error: boolean) => void;
+  subHeader?: string;
 };
 
 export const FlexibleForm = ({
   flexibleFormDefaultSection,
   initialParamsDict,
   setError,
+  subHeader,
 }: FlexibleFormProps) => {
   const { paramsDict: params, setInitialParamDict, setParamsDict } = useParamStore();
   const processedSections = new Map();
@@ -106,7 +108,7 @@ export const FlexibleForm = ({
             <Accordion.Item
               // We need to make the item content overflow visible for dropdowns to work, but directly applying the style does not work
               css={{
-                "& > :nth-child(2)": {
+                "& > div:nth-of-type(1)": {
                   overflow: "visible",
                 },
               }}
@@ -126,6 +128,11 @@ export const FlexibleForm = ({
 
               <Accordion.ItemContent pt={0}>
                 <Accordion.ItemBody>
+                  {Boolean(subHeader) ? (
+                    <Text color="fg.muted" fontSize="xs" mb={2}>
+                      {subHeader}
+                    </Text>
+                  ) : undefined}
                   <Stack separator={<StackSeparator />}>
                     {Object.entries(params)
                       .filter(

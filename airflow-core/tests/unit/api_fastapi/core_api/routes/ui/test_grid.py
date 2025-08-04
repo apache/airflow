@@ -24,13 +24,13 @@ import pendulum
 import pytest
 from sqlalchemy import select
 
+from airflow._shared.timezones import timezone
 from airflow.models import DagBag
 from airflow.models.dag import DagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import task_group
 from airflow.sdk.definitions.taskgroup import TaskGroup
-from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -387,12 +387,12 @@ class TestGetGridDataEndpoint:
         assert response.status_code == 200
         assert response.json() == expected
 
-    @pytest.mark.parametrize("endpoint", ["runs", "structure", "latest_run"])
+    @pytest.mark.parametrize("endpoint", ["runs", "structure"])
     def test_should_response_401(self, unauthenticated_test_client, endpoint):
         response = unauthenticated_test_client.get(f"/grid/{endpoint}/{DAG_ID_3}")
         assert response.status_code == 401
 
-    @pytest.mark.parametrize("endpoint", ["runs", "structure", "latest_run"])
+    @pytest.mark.parametrize("endpoint", ["runs", "structure"])
     def test_should_response_403(self, unauthorized_test_client, endpoint):
         response = unauthorized_test_client.get(f"/grid/{endpoint}/{DAG_ID_3}")
         assert response.status_code == 403

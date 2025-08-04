@@ -31,7 +31,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 from airflow import settings
-from airflow.callbacks.callback_requests import DagCallbackRequest
+from airflow._shared.timezones import timezone
+from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun, DagRunNote
@@ -47,7 +48,6 @@ from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
 from airflow.triggers.base import StartTriggerArgs
-from airflow.utils import timezone
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.thread_safe_dict import ThreadSafeDict
@@ -676,6 +676,10 @@ class TestDagRun:
             is_failure_callback=False,
             bundle_name="testing",
             bundle_version=None,
+            context_from_server=DagRunContext(
+                dag_run=dag_run,
+                last_ti=dag_run.get_last_ti(dag, session),
+            ),
             msg="success",
         )
 
@@ -727,6 +731,10 @@ class TestDagRun:
             msg="task_failure",
             bundle_name="testing",
             bundle_version=None,
+            context_from_server=DagRunContext(
+                dag_run=dag_run,
+                last_ti=dag_run.get_last_ti(dag, session),
+            ),
         )
 
     def test_dagrun_set_state_end_date(self, dag_maker, session):
@@ -1251,6 +1259,27 @@ class TestDagRun:
         # Check that dag_run.version_number returns the version number of
         # the latest task instance dag_version
         assert dag_run.version_number == dag_v.version_number
+
+    def test_dag_run_dag_versions_with_null_created_dag_version(self, dag_maker, session):
+        """Test that dag_versions returns empty list when created_dag_version is None and bundle_version is populated."""
+        with dag_maker(
+            "test_dag_run_null_created_dag_version",
+            schedule=datetime.timedelta(days=1),
+            start_date=DEFAULT_DATE,
+        ):
+            EmptyOperator(task_id="empty")
+        dag_run = dag_maker.create_dagrun()
+
+        dag_run.bundle_version = "some_bundle_version"
+        dag_run.created_dag_version_id = None
+        dag_run.created_dag_version = None
+        session.merge(dag_run)
+        session.flush()
+
+        # This should return empty list, not [None]
+        assert dag_run.dag_versions == []
+        assert isinstance(dag_run.dag_versions, list)
+        assert len(dag_run.dag_versions) == 0
 
     def test_dagrun_success_deadline(self, dag_maker, session):
         def on_success_callable(context):
@@ -2813,3 +2842,204 @@ def test_teardown_and_fail_fast(dag_maker):
         "tg_2.my_teardown": "skipped",
         "tg_2.my_work": "skipped",
     }
+
+
+class TestDagRunGetLastTi:
+    def test_get_last_ti_with_multiple_tis(self, dag_maker, session):
+        """Test get_last_ti returns the last TI (first created) when multiple TIs exist"""
+        with dag_maker("test_dag", session=session) as dag:
+            BashOperator(task_id="task1", bash_command="echo 1")
+            BashOperator(task_id="task2", bash_command="echo 2")
+            BashOperator(task_id="task3", bash_command="echo 3")
+
+        dr = dag_maker.create_dagrun()
+
+        tis = dr.get_task_instances(session=session)
+        assert len(tis) == 3
+
+        # Mark some TIs with different states
+        tis[0].state = TaskInstanceState.SUCCESS
+        tis[1].state = TaskInstanceState.FAILED
+        tis[2].state = TaskInstanceState.RUNNING
+        session.commit()
+
+        last_ti = dr.get_last_ti(dag, session=session)
+
+        # Should return the last TI in the list (index -1)
+        assert last_ti is not None
+        assert last_ti == tis[-1]
+        assert last_ti.task_id == "task3"
+
+    def test_get_last_ti_filters_none_state_in_partial_dag(self, dag_maker, session):
+        """Test get_last_ti filters out NONE state TIs when dag is partial"""
+        with dag_maker("test_dag", session=session) as dag:
+            BashOperator(task_id="task1", bash_command="echo 1")
+            BashOperator(task_id="task2", bash_command="echo 2")
+
+        dr = dag_maker.create_dagrun()
+
+        dag.partial = True
+
+        # Create task instances with different states
+        tis = dr.get_task_instances(session=session)
+        tis[0].state = State.NONE  # Should be filtered out in partial DAG
+        tis[1].state = TaskInstanceState.RUNNING
+        session.commit()
+
+        last_ti = dr.get_last_ti(dag, session=session)
+
+        assert last_ti is not None
+        assert last_ti.state != State.NONE
+        assert last_ti.task_id == "task2"
+
+    def test_get_last_ti_filters_removed_tasks(self, dag_maker, session):
+        """Test get_last_ti filters out REMOVED task instances"""
+        with dag_maker("test_dag", session=session) as dag:
+            BashOperator(task_id="task1", bash_command="echo 1")
+            BashOperator(task_id="task2", bash_command="echo 2")
+            BashOperator(task_id="task3", bash_command="echo 3")
+
+        dr = dag_maker.create_dagrun()
+
+        tis = dr.get_task_instances(session=session)
+
+        # Mark some TIs as removed
+        tis[0].state = TaskInstanceState.REMOVED
+        tis[1].state = TaskInstanceState.REMOVED
+        tis[2].state = TaskInstanceState.SUCCESS
+        session.commit()
+
+        last_ti = dr.get_last_ti(dag, session=session)
+
+        # Should return the TI that is not REMOVED
+        assert last_ti is not None
+        assert last_ti.state != TaskInstanceState.REMOVED
+        assert last_ti.task_id == "task3"
+
+    def test_get_last_ti_with_single_ti(self, dag_maker, session):
+        """Test get_last_ti works with single task instance"""
+        with dag_maker("test_dag", session=session) as dag:
+            BashOperator(task_id="single_task", bash_command="echo 1")
+
+        dr = dag_maker.create_dagrun()
+
+        tis = dr.get_task_instances(session=session)
+        assert len(tis) == 1
+
+        last_ti = dr.get_last_ti(dag, session=session)
+
+        assert last_ti is not None
+        assert last_ti == tis[0]
+        assert last_ti.task_id == "single_task"
+
+
+class TestDagRunHandleDagCallback:
+    """Test the handle_dag_callback method (only uses in dag.test)."""
+
+    def test_handle_dag_callback_success(self, dag_maker, session):
+        """Test handle_dag_callback executes success callback with RuntimeTaskInstance context"""
+        called = False
+        context_received = None
+
+        def on_success(context):
+            nonlocal called, context_received
+            called = True
+            context_received = context
+
+        with dag_maker("test_dag", session=session, on_success_callback=on_success) as dag:
+            BashOperator(task_id="test_task", bash_command="echo 1")
+
+        dr = dag_maker.create_dagrun()
+
+        dag.on_success_callback = on_success
+        dag.has_on_success_callback = True
+
+        dr.handle_dag_callback(dag, success=True, reason="test_success")
+
+        assert called is True
+        assert context_received is not None
+        # Should have RuntimeTaskInstance context with template variables
+        assert "dag_run" in context_received
+        assert "logical_date" in context_received
+        assert "reason" in context_received
+        assert context_received["reason"] == "test_success"
+        assert "ts" in context_received
+        assert "params" in context_received
+
+    def test_handle_dag_callback_failure(self, dag_maker, session):
+        """Test handle_dag_callback executes failure callback with RuntimeTaskInstance context"""
+        called = False
+        context_received = None
+
+        def on_failure(context):
+            nonlocal called, context_received
+            called = True
+            context_received = context
+
+        with dag_maker("test_dag", session=session, on_failure_callback=on_failure) as dag:
+            BashOperator(task_id="test_task", bash_command="echo 1")
+
+        dr = dag_maker.create_dagrun()
+
+        dag.on_failure_callback = on_failure
+        dag.has_on_failure_callback = True
+
+        dr.handle_dag_callback(dag, success=False, reason="test_failure")
+
+        assert called is True
+        assert context_received is not None
+        # Should have RuntimeTaskInstance context with template variables
+        assert "dag_run" in context_received
+        assert "logical_date" in context_received
+        assert "reason" in context_received
+        assert context_received["reason"] == "test_failure"
+        assert "ts" in context_received
+        assert "params" in context_received
+
+    def test_handle_dag_callback_multiple_callbacks(self, dag_maker, session):
+        """Test handle_dag_callback executes multiple callbacks"""
+        call_count = 0
+
+        def on_failure_1(context):
+            nonlocal call_count
+            call_count += 1
+
+        def on_failure_2(context):
+            nonlocal call_count
+            call_count += 1
+
+        with dag_maker("test_dag", session=session, on_failure_callback=[on_failure_1, on_failure_2]) as dag:
+            BashOperator(task_id="test_task", bash_command="echo 1")
+
+        dr = dag_maker.create_dagrun()
+
+        dag.on_failure_callback = [on_failure_1, on_failure_2]
+        dag.has_on_failure_callback = True
+
+        dr.handle_dag_callback(dag, success=False, reason="test_failure")
+
+        assert call_count == 2
+
+    def test_handle_dag_callback_context_has_correct_ti_info(self, dag_maker, session):
+        """Test handle_dag_callback context contains correct task instance information"""
+        context_received = None
+
+        def on_failure(context):
+            nonlocal context_received
+            context_received = context
+
+        with dag_maker("test_dag", session=session, on_failure_callback=on_failure) as dag:
+            BashOperator(task_id="test_task", bash_command="echo 1", retries=2)
+
+        dr = dag_maker.create_dagrun()
+
+        dag.on_failure_callback = on_failure
+        dag.has_on_failure_callback = True
+
+        dr.handle_dag_callback(dag, success=False, reason="test_failure")
+
+        assert context_received is not None
+        # Check that context contains correct task info
+        assert context_received["ti"].task_id == "test_task"
+        assert context_received["ti"].dag_id == "test_dag"
+        assert context_received["ti"].run_id == dr.run_id

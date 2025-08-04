@@ -23,6 +23,7 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
+from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
@@ -31,6 +32,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryHITLDetailDagRunIdFilter,
     QueryHITLDetailResponseReceivedFilter,
     QueryHITLDetailSubjectSearch,
+    QueryHITLDetailTaskIdPatternSearch,
     QueryHITLDetailUserIdFilter,
     QueryLimit,
     QueryOffset,
@@ -48,9 +50,8 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
 from airflow.models.hitl import HITLDetail as HITLDetailModel
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.utils import timezone
 
-hitl_router = AirflowRouter(tags=["HumanInTheLoop"], prefix="/hitl-details")
+hitl_router = AirflowRouter(tags=["HumanInTheLoop"], prefix="/hitlDetails")
 
 log = structlog.get_logger(__name__)
 
@@ -302,6 +303,7 @@ def get_hitl_details(
     readable_ti_filter: ReadableTIFilterDep,
     dag_id_pattern: QueryHITLDetailDagIdPatternSearch,
     dag_run_id: QueryHITLDetailDagRunIdFilter,
+    task_id: QueryHITLDetailTaskIdPatternSearch,
     ti_state: QueryTIStateFilter,
     # hitl detail related filter
     response_received: QueryHITLDetailResponseReceivedFilter,
@@ -322,6 +324,7 @@ def get_hitl_details(
             readable_ti_filter,
             dag_id_pattern,
             dag_run_id,
+            task_id,
             ti_state,
             # hitl detail related filter
             response_received,

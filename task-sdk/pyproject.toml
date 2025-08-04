@@ -56,7 +56,6 @@ dependencies = [
     "jinja2>=3.1.5",
     "methodtools>=0.4.7",
     "msgspec>=0.19.0",
-    'pendulum>=3.1.0',
     "python-dateutil>=2.7.0",
     "psutil>=6.1.0",
     "structlog>=25.4.0",
@@ -65,6 +64,9 @@ dependencies = [
     "requests>=2.31.0,<3",
     "types-requests>=2.31.0",
     "tenacity>=8.3.0",
+    # Start of shared timezones dependencies
+    "pendulum>=3.1.0",
+    # End of shared timezones dependencies
 ]
 
 [project.urls]
@@ -84,6 +86,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.version]
 path = "src/airflow/sdk/__init__.py"
+
+[tool.hatch.build.targets.sdist.force-include]
+"../shared/timezones/src/airflow_shared/timezones" = "src/airflow/sdk/_shared/timezones"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/airflow"]
@@ -138,10 +143,10 @@ exclude_also = [
 
 [dependency-groups]
 codegen = [
-    "datamodel-code-generator[http]==0.28.2",
+    "datamodel-code-generator[http]==0.32.0",
     "openapi-spec-validator>=0.7.1",
     "svcs>=25.1.0",
-    "ruff==0.12.3",
+    "ruff==0.12.7",
     "rich>=12.4.4",
 ]
 dev = [
@@ -223,3 +228,8 @@ pythonpath = "tests"
 # Keep temporary directories (created by `tmp_path`) for 2 recent runs only failed tests.
 tmp_path_retention_count = "2"
 tmp_path_retention_policy = "failed"
+
+[tool.airflow]
+shared_distributions = [
+    "apache-airflow-shared-timezones",
+]

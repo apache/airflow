@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import math
 from collections.abc import Iterator
 from datetime import datetime, timedelta
 
@@ -28,6 +29,7 @@ from kubernetes.client import models as k8s
 from pendulum.tz.timezone import FixedTimezone, Timezone
 from uuid6 import uuid7
 
+from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.exceptions import (
     AirflowException,
@@ -65,7 +67,6 @@ from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.serialized_objects import BaseSerialization, LazyDeserializedDAG, SerializedDAG
 from airflow.timetables.base import DataInterval
 from airflow.triggers.base import BaseTrigger
-from airflow.utils import timezone
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.operator_resources import Resources
 from airflow.utils.state import DagRunState, State
@@ -254,6 +255,9 @@ class MockLazySelectSequence(LazySelectSequence):
     [
         ("test_str", None, equals),
         (1, None, equals),
+        (math.nan, None, lambda a, b: b == "nan"),
+        (math.inf, None, lambda a, b: b == "inf"),
+        (-math.inf, None, lambda a, b: b == "-inf"),
         (timezone.utcnow(), DAT.DATETIME, equal_time),
         (timedelta(minutes=2), DAT.TIMEDELTA, equals),
         (Timezone("UTC"), DAT.TIMEZONE, lambda a, b: a.name == b.name),

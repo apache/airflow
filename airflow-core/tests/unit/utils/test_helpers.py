@@ -23,9 +23,10 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from airflow._shared.timezones import timezone
 from airflow.exceptions import AirflowException
 from airflow.jobs.base_job_runner import BaseJobRunner
-from airflow.utils import helpers, timezone
+from airflow.utils import helpers
 from airflow.utils.helpers import (
     at_most_one,
     build_airflow_dagrun_url,

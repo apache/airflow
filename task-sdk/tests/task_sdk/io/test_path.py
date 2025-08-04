@@ -74,6 +74,8 @@ def test_lazy_load():
 
     assert o.fs is not None
     assert o._fs_cached
+    # Clear the cache to avoid side effects in other tests below
+    _STORE_CACHE.clear()
 
 
 class _FakeRemoteFileSystem(MemoryFileSystem):
@@ -123,7 +125,7 @@ class TestAttach:
     def test_alias(self):
         store = attach("file", alias="local")
         assert isinstance(store.fs, LocalFileSystem)
-        assert {"local": store, "file": store} == _STORE_CACHE
+        assert {"local": store} == _STORE_CACHE
 
     def test_objectstoragepath_init_conn_id_in_uri(self):
         attach(protocol="fake", conn_id="fake", fs=_FakeRemoteFileSystem(conn_id="fake"))

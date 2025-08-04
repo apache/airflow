@@ -1209,7 +1209,7 @@ export const $ClearTaskInstancesBody = {
         run_on_latest_version: {
             type: 'boolean',
             title: 'Run On Latest Version',
-            description: '(Experimental) Run on the latest bundle version of the DAG after clearing the task instances.',
+            description: '(Experimental) Run on the latest bundle version of the dag after clearing the task instances.',
             default: false
         }
     },
@@ -2187,7 +2187,7 @@ export const $DAGRunClearBody = {
         run_on_latest_version: {
             type: 'boolean',
             title: 'Run On Latest Version',
-            description: '(Experimental) Run on the latest bundle version of the DAG after clearing the DAG Run.',
+            description: '(Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run.',
             default: false
         }
     },
@@ -6458,6 +6458,71 @@ It is used to transfer providers information loaded by providers_manager such th
 the API server/Web UI can use this data to render connection form UI.`
 } as const;
 
+export const $DAGRunLightResponse = {
+    properties: {
+        id: {
+            type: 'integer',
+            title: 'Id'
+        },
+        dag_id: {
+            type: 'string',
+            title: 'Dag Id'
+        },
+        run_id: {
+            type: 'string',
+            title: 'Run Id'
+        },
+        logical_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Logical Date'
+        },
+        run_after: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Run After'
+        },
+        start_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Start Date'
+        },
+        end_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'End Date'
+        },
+        state: {
+            '$ref': '#/components/schemas/DagRunState'
+        }
+    },
+    type: 'object',
+    required: ['id', 'dag_id', 'run_id', 'logical_date', 'run_after', 'start_date', 'end_date', 'state'],
+    title: 'DAGRunLightResponse',
+    description: 'DAG Run serializer for responses.'
+} as const;
+
 export const $DAGRunStates = {
     properties: {
         queued: {
@@ -7022,32 +7087,6 @@ export const $HistoricalMetricDataResponse = {
     required: ['dag_run_types', 'dag_run_states', 'task_instance_states'],
     title: 'HistoricalMetricDataResponse',
     description: 'Historical Metric Data serializer for responses.'
-} as const;
-
-export const $LatestRunResponse = {
-    properties: {
-        id: {
-            type: 'integer',
-            title: 'Id'
-        },
-        dag_id: {
-            type: 'string',
-            title: 'Dag Id'
-        },
-        run_id: {
-            type: 'string',
-            title: 'Run Id'
-        },
-        run_after: {
-            type: 'string',
-            format: 'date-time',
-            title: 'Run After'
-        }
-    },
-    type: 'object',
-    required: ['id', 'dag_id', 'run_id', 'run_after'],
-    title: 'LatestRunResponse',
-    description: 'Base Node serializer for responses.'
 } as const;
 
 export const $LightGridTaskInstanceSummary = {
