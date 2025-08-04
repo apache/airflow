@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-03T13:54:56.061501
+# This constraints file was automatically generated on 2025-08-04T13:57:15.980520
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -92,7 +92,7 @@ aliyun-python-sdk-kms==2.16.5
 amqp==5.3.1
 annotated-types==0.7.0
 ansicolors==1.1.8
-anyio==4.9.0
+anyio==4.10.0
 apache-airflow-providers-airbyte==5.2.2
 apache-airflow-providers-alibaba==3.2.2
 apache-airflow-providers-amazon==9.11.0
@@ -250,7 +250,7 @@ click-plugins==1.1.1.2
 click-repl==0.3.0
 click==8.2.1
 cloudpickle==3.1.1
-cohere==5.16.1
+cohere==5.16.2
 colorama==0.4.6
 colorlog==6.9.0
 comm==0.2.3
@@ -389,6 +389,7 @@ importlib_metadata==8.7.0
 impyla==0.22.0
 inflection==0.5.1
 influxdb-client==1.49.0
+invoke==2.2.0
 ipykernel==6.30.0
 ipython==9.4.0
 ipython_pygments_lexers==1.1.1
@@ -485,7 +486,7 @@ pandas-stubs==2.3.0.250703
 pandas==2.2.3
 pandocfilters==1.5.1
 papermill==2.6.0
-paramiko==3.5.1
+paramiko==4.0.0
 parso==0.8.4
 pathspec==0.12.1
 pbr==6.1.1
