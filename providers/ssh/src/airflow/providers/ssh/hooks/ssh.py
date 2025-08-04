@@ -74,19 +74,24 @@ class SSHHook(BaseHook):
     """
 
     # List of classes to try loading private keys as, ordered (roughly) by most common to least common
-    _pkey_loaders: Sequence[type[paramiko.PKey]] = (
+    _pkey_loader_list = [
         paramiko.RSAKey,
         paramiko.ECDSAKey,
         paramiko.Ed25519Key,
-        paramiko.DSSKey,
-    )
+    ]
 
     _host_key_mappings = {
         "rsa": paramiko.RSAKey,
-        "dss": paramiko.DSSKey,
         "ecdsa": paramiko.ECDSAKey,
         "ed25519": paramiko.Ed25519Key,
     }
+
+    # Add DSSKey if available in paramiko
+    if hasattr(paramiko, "DSSKey"):
+        _pkey_loader_list.append(paramiko.DSSKey)
+        _host_key_mappings["dss"] = paramiko.DSSKey
+
+    _pkey_loaders: Sequence[type[paramiko.PKey]] = tuple(_pkey_loader_list)
 
     conn_name_attr = "ssh_conn_id"
     default_conn_name = "ssh_default"
