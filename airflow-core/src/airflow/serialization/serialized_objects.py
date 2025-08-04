@@ -3596,15 +3596,19 @@ class XComOperatorLink(LoggingMixin):
             "Attempting to retrieve link from XComs with key: %s for task id: %s", self.xcom_key, ti_key
         )
         with create_session() as session:
-            value = session.scalars(
-                XComModel.get_many(
-                    key=self.xcom_key,
-                    run_id=ti_key.run_id,
-                    dag_ids=ti_key.dag_id,
-                    task_ids=ti_key.task_id,
-                    map_indexes=ti_key.map_index,
+            value = (
+                session.execute(
+                    XComModel.get_many(
+                        key=self.xcom_key,
+                        run_id=ti_key.run_id,
+                        dag_ids=ti_key.dag_id,
+                        task_ids=ti_key.task_id,
+                        map_indexes=ti_key.map_index,
+                    ).with_only_columns(XComModel.value)
                 )
-            ).first()
+                .mappings()
+                .first()
+            )
 
         if not value:
             self.log.debug(

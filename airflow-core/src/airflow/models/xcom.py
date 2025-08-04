@@ -388,7 +388,7 @@ class XComModel(TaskInstanceDependencies):
             return json.loads(result["value"], cls=XComDecoder)
         except (ValueError, TypeError):
             # Already deserialized (e.g., set via Task Execution API)
-            return result["value"]
+            return result.value
 
 
 class LazyXComSelectSequence(LazySelectSequence[Any]):
