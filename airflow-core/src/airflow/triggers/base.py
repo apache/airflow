@@ -36,6 +36,22 @@ from airflow.utils.state import TaskInstanceState
 log = structlog.get_logger(logger_name=__name__)
 
 
+def __getattr__(name: str):
+    if name == "StartTriggerArgs":
+        import warnings
+        from airflow.sdk.bases.trigger import StartTriggerArgs as SDKStartTriggerArgs
+
+        warnings.warn(
+            "airflow.triggers.base.StartTriggerArgs is deprecated. "
+            "Use airflow.sdk.triggers.StartTriggerArgs instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        return SDKStartTriggerArgs
+
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
+
+
 class BaseTrigger(abc.ABC, LoggingMixin):
     """
     Base class for all triggers.
