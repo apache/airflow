@@ -224,6 +224,7 @@ class InProcessExecutionAPI:
     @cached_property
     def app(self):
         if not self._app:
+            from airflow.api_fastapi.common.dagbag import create_dag_bag
             from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
             from airflow.api_fastapi.execution_api.deps import (
                 JWTBearerDep,
@@ -235,6 +236,9 @@ class InProcessExecutionAPI:
             from airflow.api_fastapi.execution_api.routes.xcoms import has_xcom_access
 
             self._app = create_task_execution_api_app()
+
+            # Set up dag_bag in app state for dependency injection
+            self._app.state.dag_bag = create_dag_bag()
 
             async def always_allow(): ...
 

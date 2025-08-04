@@ -93,8 +93,10 @@ class AirbyteTriggerSyncOperator(BaseOperator):
             return self.job_id
 
         if not self.deferrable:
+            self.log.debug("Running in non-deferrable mode...")
             hook.wait_for_job(job_id=self.job_id, wait_seconds=self.wait_seconds, timeout=self.timeout)
         else:
+            self.log.debug("Running in defferable mode in job state %s...", state)
             if state in (JobStatusEnum.RUNNING, JobStatusEnum.PENDING, JobStatusEnum.INCOMPLETE):
                 self.defer(
                     timeout=self.execution_timeout,
@@ -126,6 +128,7 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         successful.
         """
         if event["status"] == "error":
+            self.log.debug("Error occurred with context: %s", context)
             raise AirflowException(event["message"])
 
         self.log.info("%s completed successfully.", self.task_id)
@@ -134,6 +137,11 @@ class AirbyteTriggerSyncOperator(BaseOperator):
     def on_kill(self):
         """Cancel the job if task is cancelled."""
         hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
+        self.log.debug(
+            "Job status for job_id %s prior to canceling is: %s",
+            self.job_id,
+            hook.get_job_status(self.job_id),
+        )
         if self.job_id:
             self.log.info("on_kill: cancel the airbyte Job %s", self.job_id)
             hook.cancel_job(self.job_id)

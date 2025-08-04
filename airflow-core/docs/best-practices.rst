@@ -954,12 +954,12 @@ The benefits of the operator are:
   Airflow dependencies) to make use of multiple virtual environments
 * You can run tasks with different sets of dependencies on the same workers - thus Memory resources are
   reused (though see below about the CPU overhead involved in creating the venvs).
-* In bigger installations, DAG Authors do not need to ask anyone to create the venvs for you.
-  As a DAG Author, you only have to have virtualenv dependency installed and you can specify and modify the
+* In bigger installations, Dag authors do not need to ask anyone to create the venvs for you.
+  As a Dag author, you only have to have virtualenv dependency installed and you can specify and modify the
   environments as you see fit.
 * No changes in deployment requirements - whether you use Local virtualenv, or Docker, or Kubernetes,
   the tasks will work without adding anything to your deployment.
-* No need to learn more about containers, Kubernetes as a DAG Author. Only knowledge of Python requirements
+* No need to learn more about containers, Kubernetes as a Dag author. Only knowledge of Python requirements
   is required to author dags this way.
 
 There are certain limitations and overhead introduced by this operator:
@@ -1005,7 +1005,7 @@ and available in all the workers in case your Airflow runs in a distributed envi
 
 This way you avoid the overhead and problems of re-creating the virtual environment but they have to be
 prepared and deployed together with Airflow installation. Usually people who manage Airflow installation
-need to be involved, and in bigger installations those are usually different people than DAG Authors
+need to be involved, and in bigger installations those are usually different people than Dag authors
 (DevOps/System Admins).
 
 Those virtual environments can be prepared in various ways - if you use LocalExecutor they just need to be installed
@@ -1024,7 +1024,7 @@ The benefits of the operator are:
   be added dynamically. This is good for both, security and stability.
 * Limited impact on your deployment - you do not need to switch to Docker containers or Kubernetes to
   make a good use of the operator.
-* No need to learn more about containers, Kubernetes as a DAG Author. Only knowledge of Python, requirements
+* No need to learn more about containers, Kubernetes as a Dag author. Only knowledge of Python, requirements
   is required to author dags this way.
 
 The drawbacks:
@@ -1045,7 +1045,7 @@ The drawbacks:
   same worker might be affected by previous tasks creating/modifying files etc.
 
 You can think about the ``PythonVirtualenvOperator`` and ``ExternalPythonOperator`` as counterparts -
-that make it smoother to move from development phase to production phase. As a DAG author you'd normally
+that make it smoother to move from development phase to production phase. As a Dag author you'd normally
 iterate with dependencies and develop your DAG using ``PythonVirtualenvOperator`` (thus decorating
 your tasks with ``@task.virtualenv`` decorators) while after the iteration and changes you would likely
 want to change it for production to switch to the ``ExternalPythonOperator`` (and ``@task.external_python``)

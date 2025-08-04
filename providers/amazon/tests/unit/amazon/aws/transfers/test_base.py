@@ -23,7 +23,11 @@ from airflow import DAG
 from airflow.models import DagRun, TaskInstance
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.amazon.aws.transfers.base import AwsToAwsBaseOperator
-from airflow.utils import timezone
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 

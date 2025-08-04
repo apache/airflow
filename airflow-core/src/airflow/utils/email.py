@@ -253,9 +253,9 @@ def send_mime_email(
 
     if conn_id is not None:
         try:
-            from airflow.sdk import BaseHook
+            from airflow.models import Connection
 
-            airflow_conn = BaseHook.get_connection(conn_id)
+            airflow_conn = Connection.get_connection_from_secrets(conn_id)
             if airflow_conn.host:
                 smtp_host = airflow_conn.host
             if airflow_conn.port:
@@ -265,7 +265,7 @@ def send_mime_email(
             smtp_starttls = airflow_conn.extra_dejson.get("starttls", smtp_starttls)
             smtp_ssl = airflow_conn.extra_dejson.get("ssl", smtp_ssl)
             smtp_timeout = airflow_conn.extra_dejson.get("timeout", smtp_timeout)
-
+            
         except AirflowException:
             pass
     if smtp_user is None or smtp_password is None:

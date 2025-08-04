@@ -34,7 +34,7 @@ from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_success,
 )
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
-from airflow.api_fastapi.common.dagbag import DagBagDep
+from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
@@ -168,10 +168,7 @@ def patch_dag_run(
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
 
-    dag = dag_bag.get_dag_for_run(dag_run, session=session)
-
-    if not dag:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
+    dag = get_dag_for_run(dag_bag, dag_run, session=session)
 
     fields_to_update = patch_body.model_fields_set
 
@@ -356,10 +353,8 @@ def get_dag_runs(
     query = select(DagRun)
 
     if dag_id != "~":
-        dag = dag_bag.get_latest_version_of_dag(dag_id, session)
-        if not dag:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, f"The DAG with dag_id: `{dag_id}` was not found")
-
+        # Check if the DAG exists
+        get_latest_version_of_dag(dag_bag, dag_id, session)
         query = query.filter(DagRun.dag_id == dag_id).options(joinedload(DagRun.dag_model))
 
     dag_run_select, total_entries = paginated_select(
@@ -421,9 +416,7 @@ def trigger_dag_run(
         )
 
     try:
-        dag = dag_bag.get_latest_version_of_dag(dag_id, session)
-        if not dag:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with dag_id: '{dag_id}' not found")
+        dag = get_latest_version_of_dag(dag_bag, dag_id, session)
         params = body.validate_context(dag)
 
         dag_run = dag.create_dagrun(

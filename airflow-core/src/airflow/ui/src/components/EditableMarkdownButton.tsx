@@ -31,6 +31,7 @@ const EditableMarkdownButton = ({
   isPending,
   mdContent,
   onConfirm,
+  onOpen,
   placeholder,
   setMdContent,
   text,
@@ -41,6 +42,7 @@ const EditableMarkdownButton = ({
   readonly isPending: boolean;
   readonly mdContent?: string | null;
   readonly onConfirm: () => void;
+  readonly onOpen: () => void;
   readonly placeholder: string;
   readonly setMdContent: (value: string) => void;
   readonly text: string;
@@ -54,7 +56,12 @@ const EditableMarkdownButton = ({
       <ActionButton
         actionName={placeholder}
         icon={icon}
-        onClick={() => setIsOpen(true)}
+        onClick={() => {
+          if (!isOpen) {
+            onOpen();
+          }
+          setIsOpen(true);
+        }}
         text={text}
         withText={withText}
       />
@@ -64,6 +71,7 @@ const EditableMarkdownButton = ({
         onOpenChange={() => setIsOpen(false)}
         open={isOpen}
         size="md"
+        unmountOnExit={true}
       >
         <Dialog.Content backdrop>
           <Dialog.Header bg="blue.muted">

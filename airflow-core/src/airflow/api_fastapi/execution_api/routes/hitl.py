@@ -85,6 +85,20 @@ def upsert_hitl_detail(
     return HITLDetailRequest.model_validate(hitl_detail_model)
 
 
+def _check_hitl_detail_exists(hitl_detail_model: HITLDetail) -> None:
+    if not hitl_detail_model:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail={
+                "reason": "not_found",
+                "message": (
+                    "HITLDetail not found. "
+                    "This happens most likely due to clearing task instance before receiving response."
+                ),
+            },
+        )
+
+
 @router.patch("/{task_instance_id}")
 def update_hitl_detail(
     task_instance_id: UUID,
@@ -94,6 +108,7 @@ def update_hitl_detail(
     """Update the response part of a Human-in-the-loop detail for a specific Task Instance."""
     ti_id_str = str(task_instance_id)
     hitl_detail_model = session.execute(select(HITLDetail).where(HITLDetail.ti_id == ti_id_str)).scalar()
+    _check_hitl_detail_exists(hitl_detail_model)
     if hitl_detail_model.response_received:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
@@ -122,4 +137,5 @@ def get_hitl_detail(
     hitl_detail_model = session.execute(
         select(HITLDetail).where(HITLDetail.ti_id == ti_id_str),
     ).scalar()
+    _check_hitl_detail_exists(hitl_detail_model)
     return HITLDetailResponse.from_hitl_detail_orm(hitl_detail_model)
