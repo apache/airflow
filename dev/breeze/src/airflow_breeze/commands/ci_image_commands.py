@@ -176,7 +176,7 @@ def run_build_in_parallel(
             ]
     check_async_run_results(
         results=results,
-        success="All images built correctly",
+        success_message="All images built correctly",
         outputs=outputs,
         include_success_outputs=include_success_outputs,
         skip_cleanup=skip_cleanup,
@@ -505,7 +505,7 @@ def run_verify_in_parallel(
             ]
     check_async_run_results(
         results=results,
-        success="All images verified",
+        success_message="All images verified",
         outputs=outputs,
         include_success_outputs=include_success_outputs,
         skip_cleanup=skip_cleanup,
@@ -567,7 +567,7 @@ def load(
     from_run: str | None,
     from_pr: str | None,
     github_repository: str,
-    github_token: str,
+    github_token: str | None,
     image_file: Path | None,
     image_file_dir: Path,
     platform: str,
@@ -598,6 +598,13 @@ def load(
         get_console().print(
             f"[error]The image file {image_file_to_load} does not start with "
             f"'ci-image-save-v3-{escaped_platform}'. Exiting.[/]"
+        )
+        sys.exit(1)
+
+    if from_run or from_pr and not github_token:
+        get_console().print(
+            "[error]The parameter `--github-token` must be provided if `--from-run` or `--from-pr` is "
+            "provided. Exiting.[/]"
         )
         sys.exit(1)
 

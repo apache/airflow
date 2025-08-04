@@ -29,7 +29,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.xcom import XCom
 else:
-    from airflow.models import XCom  # type: ignore[no-redef]
+    from airflow.models import XCom
 
 yandexcloud = pytest.importorskip("yandexcloud")
 

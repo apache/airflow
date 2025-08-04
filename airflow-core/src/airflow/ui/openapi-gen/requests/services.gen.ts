@@ -3,7 +3,7 @@
 import type { CancelablePromise } from './core/CancelablePromise';
 import { OpenAPI } from './core/OpenAPI';
 import { request as __request } from './core/request';
-import type { GetAssetsData, GetAssetsResponse, GetAssetAliasesData, GetAssetAliasesResponse, GetAssetAliasData, GetAssetAliasResponse, GetAssetEventsData, GetAssetEventsResponse, CreateAssetEventData, CreateAssetEventResponse, MaterializeAssetData, MaterializeAssetResponse, GetAssetQueuedEventsData, GetAssetQueuedEventsResponse, DeleteAssetQueuedEventsData, DeleteAssetQueuedEventsResponse, GetAssetData, GetAssetResponse, GetDagAssetQueuedEventsData, GetDagAssetQueuedEventsResponse, DeleteDagAssetQueuedEventsData, DeleteDagAssetQueuedEventsResponse, GetDagAssetQueuedEventData, GetDagAssetQueuedEventResponse, DeleteDagAssetQueuedEventData, DeleteDagAssetQueuedEventResponse, NextRunAssetsData, NextRunAssetsResponse, ListBackfillsData, ListBackfillsResponse, CreateBackfillData, CreateBackfillResponse, GetBackfillData, GetBackfillResponse, PauseBackfillData, PauseBackfillResponse, UnpauseBackfillData, UnpauseBackfillResponse, CancelBackfillData, CancelBackfillResponse, CreateBackfillDryRunData, CreateBackfillDryRunResponse, ListBackfillsUiData, ListBackfillsUiResponse, DeleteConnectionData, DeleteConnectionResponse, GetConnectionData, GetConnectionResponse, PatchConnectionData, PatchConnectionResponse, GetConnectionsData, GetConnectionsResponse, PostConnectionData, PostConnectionResponse, BulkConnectionsData, BulkConnectionsResponse, TestConnectionData, TestConnectionResponse, CreateDefaultConnectionsResponse, HookMetaDataResponse, GetDagRunData, GetDagRunResponse, DeleteDagRunData, DeleteDagRunResponse, PatchDagRunData, PatchDagRunResponse, GetUpstreamAssetEventsData, GetUpstreamAssetEventsResponse, ClearDagRunData, ClearDagRunResponse, GetDagRunsData, GetDagRunsResponse, TriggerDagRunData, TriggerDagRunResponse, WaitDagRunUntilFinishedData, WaitDagRunUntilFinishedResponse, GetListDagRunsBatchData, GetListDagRunsBatchResponse, GetDagSourceData, GetDagSourceResponse, GetDagStatsData, GetDagStatsResponse, GetDagReportsData, GetDagReportsResponse, GetConfigData, GetConfigResponse, GetConfigValueData, GetConfigValueResponse, GetConfigsResponse, ListDagWarningsData, ListDagWarningsResponse, GetDagsData, GetDagsResponse, PatchDagsData, PatchDagsResponse, GetDagData, GetDagResponse, PatchDagData, PatchDagResponse, DeleteDagData, DeleteDagResponse, GetDagDetailsData, GetDagDetailsResponse, FavoriteDagData, FavoriteDagResponse, UnfavoriteDagData, UnfavoriteDagResponse, GetDagTagsData, GetDagTagsResponse, GetDagsUiData, GetDagsUiResponse, GetEventLogData, GetEventLogResponse, GetEventLogsData, GetEventLogsResponse, GetExtraLinksData, GetExtraLinksResponse, GetTaskInstanceData, GetTaskInstanceResponse, PatchTaskInstanceData, PatchTaskInstanceResponse, DeleteTaskInstanceData, DeleteTaskInstanceResponse, GetMappedTaskInstancesData, GetMappedTaskInstancesResponse, GetTaskInstanceDependenciesByMapIndexData, GetTaskInstanceDependenciesByMapIndexResponse, GetTaskInstanceDependenciesData, GetTaskInstanceDependenciesResponse, GetTaskInstanceTriesData, GetTaskInstanceTriesResponse, GetMappedTaskInstanceTriesData, GetMappedTaskInstanceTriesResponse, GetMappedTaskInstanceData, GetMappedTaskInstanceResponse, PatchTaskInstanceByMapIndexData, PatchTaskInstanceByMapIndexResponse, GetTaskInstancesData, GetTaskInstancesResponse, BulkTaskInstancesData, BulkTaskInstancesResponse, GetTaskInstancesBatchData, GetTaskInstancesBatchResponse, GetTaskInstanceTryDetailsData, GetTaskInstanceTryDetailsResponse, GetMappedTaskInstanceTryDetailsData, GetMappedTaskInstanceTryDetailsResponse, PostClearTaskInstancesData, PostClearTaskInstancesResponse, PatchTaskInstanceDryRunByMapIndexData, PatchTaskInstanceDryRunByMapIndexResponse, PatchTaskInstanceDryRunData, PatchTaskInstanceDryRunResponse, GetLogData, GetLogResponse, GetExternalLogUrlData, GetExternalLogUrlResponse, GetImportErrorData, GetImportErrorResponse, GetImportErrorsData, GetImportErrorsResponse, GetJobsData, GetJobsResponse, GetPluginsData, GetPluginsResponse, ImportErrorsResponse, DeletePoolData, DeletePoolResponse, GetPoolData, GetPoolResponse, PatchPoolData, PatchPoolResponse, GetPoolsData, GetPoolsResponse, PostPoolData, PostPoolResponse, BulkPoolsData, BulkPoolsResponse, GetProvidersData, GetProvidersResponse, GetXcomEntryData, GetXcomEntryResponse, UpdateXcomEntryData, UpdateXcomEntryResponse, GetXcomEntriesData, GetXcomEntriesResponse, CreateXcomEntryData, CreateXcomEntryResponse, GetTasksData, GetTasksResponse, GetTaskData, GetTaskResponse, DeleteVariableData, DeleteVariableResponse, GetVariableData, GetVariableResponse, PatchVariableData, PatchVariableResponse, GetVariablesData, GetVariablesResponse, PostVariableData, PostVariableResponse, BulkVariablesData, BulkVariablesResponse, ReparseDagFileData, ReparseDagFileResponse, GetDagVersionData, GetDagVersionResponse, GetDagVersionsData, GetDagVersionsResponse, GetHealthResponse, GetVersionResponse, LoginData, LoginResponse, LogoutData, LogoutResponse, GetAuthMenusResponse, GetDependenciesData, GetDependenciesResponse, HistoricalMetricsData, HistoricalMetricsResponse, DagStatsResponse2, StructureDataData, StructureDataResponse2, GridDataData, GridDataResponse, GetDagStructureData, GetDagStructureResponse, GetGridRunsData, GetGridRunsResponse, GetGridTiSummariesData, GetGridTiSummariesResponse, GetLatestRunData, GetLatestRunResponse, GetCalendarData, GetCalendarResponse } from './types.gen';
+import type { GetAssetsData, GetAssetsResponse, GetAssetAliasesData, GetAssetAliasesResponse, GetAssetAliasData, GetAssetAliasResponse, GetAssetEventsData, GetAssetEventsResponse, CreateAssetEventData, CreateAssetEventResponse, MaterializeAssetData, MaterializeAssetResponse, GetAssetQueuedEventsData, GetAssetQueuedEventsResponse, DeleteAssetQueuedEventsData, DeleteAssetQueuedEventsResponse, GetAssetData, GetAssetResponse, GetDagAssetQueuedEventsData, GetDagAssetQueuedEventsResponse, DeleteDagAssetQueuedEventsData, DeleteDagAssetQueuedEventsResponse, GetDagAssetQueuedEventData, GetDagAssetQueuedEventResponse, DeleteDagAssetQueuedEventData, DeleteDagAssetQueuedEventResponse, NextRunAssetsData, NextRunAssetsResponse, ListBackfillsData, ListBackfillsResponse, CreateBackfillData, CreateBackfillResponse, GetBackfillData, GetBackfillResponse, PauseBackfillData, PauseBackfillResponse, UnpauseBackfillData, UnpauseBackfillResponse, CancelBackfillData, CancelBackfillResponse, CreateBackfillDryRunData, CreateBackfillDryRunResponse, ListBackfillsUiData, ListBackfillsUiResponse, DeleteConnectionData, DeleteConnectionResponse, GetConnectionData, GetConnectionResponse, PatchConnectionData, PatchConnectionResponse, GetConnectionsData, GetConnectionsResponse, PostConnectionData, PostConnectionResponse, BulkConnectionsData, BulkConnectionsResponse, TestConnectionData, TestConnectionResponse, CreateDefaultConnectionsResponse, HookMetaDataResponse, GetDagRunData, GetDagRunResponse, DeleteDagRunData, DeleteDagRunResponse, PatchDagRunData, PatchDagRunResponse, GetUpstreamAssetEventsData, GetUpstreamAssetEventsResponse, ClearDagRunData, ClearDagRunResponse, GetDagRunsData, GetDagRunsResponse, TriggerDagRunData, TriggerDagRunResponse, WaitDagRunUntilFinishedData, WaitDagRunUntilFinishedResponse, GetListDagRunsBatchData, GetListDagRunsBatchResponse, GetDagSourceData, GetDagSourceResponse, GetDagStatsData, GetDagStatsResponse, GetDagReportsData, GetDagReportsResponse, GetConfigData, GetConfigResponse, GetConfigValueData, GetConfigValueResponse, GetConfigsResponse, ListDagWarningsData, ListDagWarningsResponse, GetDagsData, GetDagsResponse, PatchDagsData, PatchDagsResponse, GetDagData, GetDagResponse, PatchDagData, PatchDagResponse, DeleteDagData, DeleteDagResponse, GetDagDetailsData, GetDagDetailsResponse, FavoriteDagData, FavoriteDagResponse, UnfavoriteDagData, UnfavoriteDagResponse, GetDagTagsData, GetDagTagsResponse, GetDagsUiData, GetDagsUiResponse, GetLatestRunInfoData, GetLatestRunInfoResponse, GetEventLogData, GetEventLogResponse, GetEventLogsData, GetEventLogsResponse, GetExtraLinksData, GetExtraLinksResponse, GetTaskInstanceData, GetTaskInstanceResponse, PatchTaskInstanceData, PatchTaskInstanceResponse, DeleteTaskInstanceData, DeleteTaskInstanceResponse, GetMappedTaskInstancesData, GetMappedTaskInstancesResponse, GetTaskInstanceDependenciesByMapIndexData, GetTaskInstanceDependenciesByMapIndexResponse, GetTaskInstanceDependenciesData, GetTaskInstanceDependenciesResponse, GetTaskInstanceTriesData, GetTaskInstanceTriesResponse, GetMappedTaskInstanceTriesData, GetMappedTaskInstanceTriesResponse, GetMappedTaskInstanceData, GetMappedTaskInstanceResponse, PatchTaskInstanceByMapIndexData, PatchTaskInstanceByMapIndexResponse, GetTaskInstancesData, GetTaskInstancesResponse, BulkTaskInstancesData, BulkTaskInstancesResponse, GetTaskInstancesBatchData, GetTaskInstancesBatchResponse, GetTaskInstanceTryDetailsData, GetTaskInstanceTryDetailsResponse, GetMappedTaskInstanceTryDetailsData, GetMappedTaskInstanceTryDetailsResponse, PostClearTaskInstancesData, PostClearTaskInstancesResponse, PatchTaskInstanceDryRunByMapIndexData, PatchTaskInstanceDryRunByMapIndexResponse, PatchTaskInstanceDryRunData, PatchTaskInstanceDryRunResponse, GetLogData, GetLogResponse, GetExternalLogUrlData, GetExternalLogUrlResponse, GetImportErrorData, GetImportErrorResponse, GetImportErrorsData, GetImportErrorsResponse, GetJobsData, GetJobsResponse, GetPluginsData, GetPluginsResponse, ImportErrorsResponse, DeletePoolData, DeletePoolResponse, GetPoolData, GetPoolResponse, PatchPoolData, PatchPoolResponse, GetPoolsData, GetPoolsResponse, PostPoolData, PostPoolResponse, BulkPoolsData, BulkPoolsResponse, GetProvidersData, GetProvidersResponse, GetXcomEntryData, GetXcomEntryResponse, UpdateXcomEntryData, UpdateXcomEntryResponse, GetXcomEntriesData, GetXcomEntriesResponse, CreateXcomEntryData, CreateXcomEntryResponse, GetTasksData, GetTasksResponse, GetTaskData, GetTaskResponse, DeleteVariableData, DeleteVariableResponse, GetVariableData, GetVariableResponse, PatchVariableData, PatchVariableResponse, GetVariablesData, GetVariablesResponse, PostVariableData, PostVariableResponse, BulkVariablesData, BulkVariablesResponse, ReparseDagFileData, ReparseDagFileResponse, GetDagVersionData, GetDagVersionResponse, GetDagVersionsData, GetDagVersionsResponse, UpdateHitlDetailData, UpdateHitlDetailResponse, GetHitlDetailData, GetHitlDetailResponse, UpdateMappedTiHitlDetailData, UpdateMappedTiHitlDetailResponse, GetMappedTiHitlDetailData, GetMappedTiHitlDetailResponse, GetHitlDetailsData, GetHitlDetailsResponse, GetHealthResponse, GetVersionResponse, LoginData, LoginResponse, LogoutData, LogoutResponse, RefreshData, RefreshResponse, GetAuthMenusResponse, GetDependenciesData, GetDependenciesResponse, HistoricalMetricsData, HistoricalMetricsResponse, DagStatsResponse2, StructureDataData, StructureDataResponse2, GetDagStructureData, GetDagStructureResponse, GetGridRunsData, GetGridRunsResponse, GetGridTiSummariesData, GetGridTiSummariesResponse, GetCalendarData, GetCalendarResponse } from './types.gen';
 
 export class AssetService {
     /**
@@ -1676,6 +1676,28 @@ export class DagService {
                 is_favorite: data.isFavorite
             },
             errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Get Latest Run Info
+     * Get latest run.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @returns unknown Successful Response
+     * @throws ApiError
+     */
+    public static getLatestRunInfo(data: GetLatestRunInfoData): CancelablePromise<GetLatestRunInfoResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/ui/dags/{dag_id}/latest_run',
+            path: {
+                dag_id: data.dagId
+            },
+            errors: {
+                404: 'Not Found',
                 422: 'Validation Error'
             }
         });
@@ -3360,6 +3382,176 @@ export class DagVersionService {
     
 }
 
+export class HumanInTheLoopService {
+    /**
+     * Update Hitl Detail
+     * Update a Human-in-the-loop detail.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @param data.taskId
+     * @param data.requestBody
+     * @returns HITLDetailResponse Successful Response
+     * @throws ApiError
+     */
+    public static updateHitlDetail(data: UpdateHitlDetailData): CancelablePromise<UpdateHitlDetailResponse> {
+        return __request(OpenAPI, {
+            method: 'PATCH',
+            url: '/api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId,
+                task_id: data.taskId
+            },
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                409: 'Conflict',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Get Hitl Detail
+     * Get a Human-in-the-loop detail of a specific task instance.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @param data.taskId
+     * @returns HITLDetail Successful Response
+     * @throws ApiError
+     */
+    public static getHitlDetail(data: GetHitlDetailData): CancelablePromise<GetHitlDetailResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId,
+                task_id: data.taskId
+            },
+            errors: {
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Update Mapped Ti Hitl Detail
+     * Update a Human-in-the-loop detail.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @param data.taskId
+     * @param data.mapIndex
+     * @param data.requestBody
+     * @returns HITLDetailResponse Successful Response
+     * @throws ApiError
+     */
+    public static updateMappedTiHitlDetail(data: UpdateMappedTiHitlDetailData): CancelablePromise<UpdateMappedTiHitlDetailResponse> {
+        return __request(OpenAPI, {
+            method: 'PATCH',
+            url: '/api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}/{map_index}',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId,
+                task_id: data.taskId,
+                map_index: data.mapIndex
+            },
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                409: 'Conflict',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Get Mapped Ti Hitl Detail
+     * Get a Human-in-the-loop detail of a specific task instance.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @param data.taskId
+     * @param data.mapIndex
+     * @returns HITLDetail Successful Response
+     * @throws ApiError
+     */
+    public static getMappedTiHitlDetail(data: GetMappedTiHitlDetailData): CancelablePromise<GetMappedTiHitlDetailResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}/{map_index}',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId,
+                task_id: data.taskId,
+                map_index: data.mapIndex
+            },
+            errors: {
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Get Hitl Details
+     * Get Human-in-the-loop details.
+     * @param data The data for the request.
+     * @param data.limit
+     * @param data.offset
+     * @param data.orderBy
+     * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.dagRunId
+     * @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.state
+     * @param data.responseReceived
+     * @param data.userId
+     * @param data.subjectSearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.bodySearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @returns HITLDetailCollection Successful Response
+     * @throws ApiError
+     */
+    public static getHitlDetails(data: GetHitlDetailsData = {}): CancelablePromise<GetHitlDetailsResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v2/hitlDetails/',
+            query: {
+                limit: data.limit,
+                offset: data.offset,
+                order_by: data.orderBy,
+                dag_id_pattern: data.dagIdPattern,
+                dag_run_id: data.dagRunId,
+                task_id_pattern: data.taskIdPattern,
+                state: data.state,
+                response_received: data.responseReceived,
+                user_id: data.userId,
+                subject_search: data.subjectSearch,
+                body_search: data.bodySearch
+            },
+            errors: {
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+}
+
 export class MonitorService {
     /**
      * Get Health
@@ -3426,6 +3618,28 @@ export class LoginService {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v2/auth/logout',
+            query: {
+                next: data.next
+            },
+            errors: {
+                307: 'Temporary Redirect',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Refresh
+     * Refresh the authentication token.
+     * @param data The data for the request.
+     * @param data.next
+     * @returns unknown Successful Response
+     * @throws ApiError
+     */
+    public static refresh(data: RefreshData = {}): CancelablePromise<RefreshResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v2/auth/refresh',
             query: {
                 next: data.next
             },
@@ -3555,55 +3769,6 @@ export class StructureService {
 
 export class GridService {
     /**
-     * Grid Data
-     * Return grid data.
-     * @param data The data for the request.
-     * @param data.dagId
-     * @param data.includeUpstream
-     * @param data.includeDownstream
-     * @param data.root
-     * @param data.offset
-     * @param data.runType
-     * @param data.state
-     * @param data.limit
-     * @param data.orderBy
-     * @param data.runAfterGte
-     * @param data.runAfterLte
-     * @param data.logicalDateGte
-     * @param data.logicalDateLte
-     * @returns GridResponse Successful Response
-     * @throws ApiError
-     */
-    public static gridData(data: GridDataData): CancelablePromise<GridDataResponse> {
-        return __request(OpenAPI, {
-            method: 'GET',
-            url: '/ui/grid/{dag_id}',
-            path: {
-                dag_id: data.dagId
-            },
-            query: {
-                include_upstream: data.includeUpstream,
-                include_downstream: data.includeDownstream,
-                root: data.root,
-                offset: data.offset,
-                run_type: data.runType,
-                state: data.state,
-                limit: data.limit,
-                order_by: data.orderBy,
-                run_after_gte: data.runAfterGte,
-                run_after_lte: data.runAfterLte,
-                logical_date_gte: data.logicalDateGte,
-                logical_date_lte: data.logicalDateLte
-            },
-            errors: {
-                400: 'Bad Request',
-                404: 'Not Found',
-                422: 'Validation Error'
-            }
-        });
-    }
-    
-    /**
      * Get Dag Structure
      * Return dag structure for grid view.
      * @param data The data for the request.
@@ -3700,31 +3865,6 @@ export class GridService {
             path: {
                 dag_id: data.dagId,
                 run_id: data.runId
-            },
-            errors: {
-                400: 'Bad Request',
-                404: 'Not Found',
-                422: 'Validation Error'
-            }
-        });
-    }
-    
-    /**
-     * Get Latest Run
-     * Get information about the latest dag run by run_after.
-     *
-     * This is used by the UI to figure out if it needs to rerun queries and resume auto refresh.
-     * @param data The data for the request.
-     * @param data.dagId
-     * @returns unknown Successful Response
-     * @throws ApiError
-     */
-    public static getLatestRun(data: GetLatestRunData): CancelablePromise<GetLatestRunResponse> {
-        return __request(OpenAPI, {
-            method: 'GET',
-            url: '/ui/grid/latest_run/{dag_id}',
-            path: {
-                dag_id: data.dagId
             },
             errors: {
                 400: 'Bad Request',

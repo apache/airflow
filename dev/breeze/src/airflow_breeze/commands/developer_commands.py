@@ -41,6 +41,8 @@ from airflow_breeze.commands.common_options import (
     option_builder,
     option_clean_airflow_installation,
     option_db_reset,
+    option_debug_components,
+    option_debugger,
     option_docker_host,
     option_downgrade_pendulum,
     option_downgrade_sqlalchemy,
@@ -94,6 +96,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_ALLOWED_EXECUTOR,
     DEFAULT_CELERY_BROKER,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    GITHUB_REPO_BRANCH_PATTERN,
     MOUNT_ALL,
     START_AIRFLOW_ALLOWED_EXECUTORS,
     START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
@@ -141,15 +144,33 @@ def _determine_constraint_branch_used(airflow_constraints_reference: str, use_ai
     :param use_airflow_version: which airflow version we are installing
     :return: the actual constraints reference to use
     """
-    if (
-        use_airflow_version
-        and airflow_constraints_reference == DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-        and re.match(r"[0-9]+\.[0-9]+\.[0-9]+[0-9a-z.]*|main|v[0-9]_.*", use_airflow_version)
-    ):
-        get_console().print(
-            f"[info]Using constraints for {use_airflow_version} - matching airflow version used."
-        )
-        return f"constraints-{use_airflow_version}"
+    if use_airflow_version and airflow_constraints_reference == DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH:
+        match_exact_version = re.match(r"^[0-9]+\.[0-9]+\.[0-9]+[0-9a-z.]*$", use_airflow_version)
+        if match_exact_version:
+            # If we are using an exact version, we use the constraints for that version
+            get_console().print(
+                f"[info]Using constraints for {use_airflow_version} - exact version specified."
+            )
+            return f"constraints-{use_airflow_version}"
+        match_repo_branch = re.match(GITHUB_REPO_BRANCH_PATTERN, use_airflow_version)
+        if match_repo_branch:
+            branch = match_repo_branch.group(3)
+            match_v_x_y_branch = re.match(r"v([0-9]+-[0-9]+)-(test|stable)", branch)
+            if match_v_x_y_branch:
+                branch_version = match_v_x_y_branch.group(1)
+                get_console().print(f"[info]Using constraints for {branch_version} branch.")
+                return f"constraints-{branch_version}"
+            if branch == "main":
+                get_console().print(
+                    "[info]Using constraints for main branch - no specific version specified."
+                )
+                return DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+            get_console().print(
+                f"[warning]Could not determine branch automatically from {use_airflow_version}. "
+                f"using {DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH} but you can specify constraints by using "
+                "--airflow-constraints-reference flag in breeze command."
+            )
+            return DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     return airflow_constraints_reference
 
 
@@ -504,6 +525,8 @@ option_auth_manager_start_airflow = click.option(
 @option_celery_broker
 @option_celery_flower
 @option_db_reset
+@option_debug_components
+@option_debugger
 @option_docker_host
 @option_dry_run
 @option_executor_start_airflow
@@ -548,6 +571,8 @@ def start_airflow(
     celery_flower: bool,
     clean_airflow_installation: bool,
     db_reset: bool,
+    debug_components: tuple[str, ...],
+    debugger: str,
     dev_mode: bool,
     docker_host: str | None,
     executor: str | None,
@@ -617,6 +642,8 @@ def start_airflow(
         celery_broker=celery_broker,
         celery_flower=celery_flower,
         clean_airflow_installation=clean_airflow_installation,
+        debug_components=debug_components,
+        debugger=debugger,
         db_reset=db_reset,
         dev_mode=dev_mode,
         docker_host=docker_host,

@@ -23,13 +23,16 @@ import os
 import selectors
 import time
 from collections.abc import AsyncIterator
+from socket import socket
 from typing import TYPE_CHECKING, Any
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pendulum
 import pytest
 from asgiref.sync import sync_to_async
+from structlog.typing import FilteringBoundLogger
 
+from airflow._shared.timezones import timezone
 from airflow.executors import workloads
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import (
@@ -53,7 +56,6 @@ from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDe
 from airflow.sdk import BaseHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
-from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
@@ -74,17 +76,17 @@ pytestmark = pytest.mark.db_test
 @pytest.fixture(autouse=True)
 def clean_database():
     """Fixture that cleans the database before and after every test."""
+    clear_db_connections()
     clear_db_runs()
     clear_db_dags()
     clear_db_xcom()
     clear_db_variables()
-    clear_db_connections()
     yield  # Test runs here
+    clear_db_connections()
     clear_db_runs()
     clear_db_dags()
     clear_db_xcom()
     clear_db_variables()
-    clear_db_connections()
 
 
 def create_trigger_in_db(session, trigger, operator=None):
@@ -170,12 +172,17 @@ def supervisor_builder(mocker, session):
             session.flush()
 
         process = mocker.Mock(spec=psutil.Process, pid=10 * job.id + 1)
+        # Create a mock stdin that has both write and sendall methods
+        mock_stdin = mocker.Mock(spec=socket)
+        mock_stdin.write = mocker.Mock()
+        mock_stdin.sendall = mocker.Mock()
+
         proc = TriggerRunnerSupervisor(
-            process_log=mocker.Mock(),
+            process_log=mocker.Mock(spec=FilteringBoundLogger),
             id=job.id,
             job=job,
             pid=process.pid,
-            stdin=mocker.Mock(),
+            stdin=mock_stdin,
             process=process,
             capacity=10,
         )
@@ -252,8 +259,10 @@ class TestTriggerRunner:
     @pytest.mark.asyncio
     async def test_run_inline_trigger_canceled(self, session) -> None:
         trigger_runner = TriggerRunner()
-        trigger_runner.triggers = {1: {"task": MagicMock(), "name": "mock_name", "events": 0}}
-        mock_trigger = MagicMock()
+        trigger_runner.triggers = {
+            1: {"task": MagicMock(spec=asyncio.Task), "name": "mock_name", "events": 0}
+        }
+        mock_trigger = MagicMock(spec=BaseTrigger)
         mock_trigger.timeout_after = None
         mock_trigger.run.side_effect = asyncio.CancelledError()
 
@@ -263,8 +272,10 @@ class TestTriggerRunner:
     @pytest.mark.asyncio
     async def test_run_inline_trigger_timeout(self, session, cap_structlog) -> None:
         trigger_runner = TriggerRunner()
-        trigger_runner.triggers = {1: {"task": MagicMock(), "name": "mock_name", "events": 0}}
-        mock_trigger = MagicMock()
+        trigger_runner.triggers = {
+            1: {"task": MagicMock(spec=asyncio.Task), "name": "mock_name", "events": 0}
+        }
+        mock_trigger = MagicMock(spec=BaseTrigger)
         mock_trigger.timeout_after = timezone.utcnow() - datetime.timedelta(hours=1)
         mock_trigger.run.side_effect = asyncio.CancelledError()
 

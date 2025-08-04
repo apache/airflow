@@ -430,8 +430,9 @@ option_uv_http_timeout = click.option(
 option_use_airflow_version = click.option(
     "--use-airflow-version",
     help="Use (reinstall at entry) Airflow version from PyPI. It can also be version (to install from PyPI), "
-    "`none`, `wheel`, or `sdist` to install from `dist` folder, or VCS URL to install from "
-    "(https://pip.pypa.io/en/stable/topics/vcs-support/). Implies --mount-sources `remove`.",
+    "`none`, `wheel`, or `sdist` to install from `dist` folder or `owner/repo:branch` to "
+    "install from GitHub repo. Uses --mount-sources `remove` if not specified, but `providers-and-tests` "
+    "or `tests` can be specified for `--mount-sources` when `--use-airflow-version` is used.",
     type=UseAirflowVersionType(ALLOWED_USE_AIRFLOW_VERSIONS),
     envvar="USE_AIRFLOW_VERSION",
 )
@@ -476,6 +477,25 @@ option_install_airflow_with_constraints_default_true = click.option(
     show_default=True,
     envvar="INSTALL_AIRFLOW_WITH_CONSTRAINTS",
     help="Install airflow in a separate step, with constraints determined from package or airflow version.",
+)
+option_debug_components = click.option(
+    "--debug",
+    "debug_components",
+    help="Enable debugging for specific Airflow components. Can be one or more of: "
+    "scheduler, triggerer, api-server, dag-processor, edge-worker, celery-worker.",
+    type=BetterChoice(
+        ["scheduler", "triggerer", "api-server", "dag-processor", "edge-worker", "celery-worker"]
+    ),
+    multiple=True,
+    envvar="DEBUG_COMPONENTS",
+)
+option_debugger = click.option(
+    "--debugger",
+    help="Debugger to use for debugging Airflow components.",
+    type=BetterChoice(["debugpy", "pydevd-pycharm"]),
+    default="debugpy",
+    show_default=True,
+    envvar="DEBUGGER",
 )
 
 

@@ -81,7 +81,8 @@
   "expand": {
     "collapse": "כווץ",
     "expand": "הרחב",
-    "tooltip": "לחץ {{hotkey}} להחלפת הרחבה"
+    "hotkey": "e",
+    "tooltip": "לחץ {{hotkey}} לכיווץ או הרחבה"
   },
   "expression": {
     "all": "הכל",
@@ -153,6 +154,11 @@
   },
   "selectLanguage": "בחר שפה",
   "showDetailsPanel": "הצג לוח פרטים",
+  "source": {
+    "hide": "הסתר מקור",
+    "hotkey": "s",
+    "show": "הצג מקור"
+  },
   "sourceAssetEvent_one": "אירוע נכס מקור",
   "sourceAssetEvent_other": "אירועי נכס מקור",
   "startDate": "תאריך התחלה",
@@ -232,6 +238,11 @@
     "lastHour": "השעה האחרונה",
     "pastWeek": "השבוע האחרון"
   },
+  "timestamp": {
+    "hide": "הסתר חותמות זמן",
+    "hotkey": "t",
+    "show": "הצג חותמות זמן"
+  },
   "timezone": "אזור זמן",
   "timezoneModal": {
     "current-timezone": "אזור זמן נוכחי",
@@ -281,6 +292,7 @@
   "tryNumber": "מספר ניסיון",
   "user": "משתמש",
   "wrap": {
+    "hotkey": "w",
     "tooltip": "לחץ {{hotkey}} להפעלת/כיבוי גלישת טקסט",
     "unwrap": "בטל גלישת טקסט",
     "wrap": "הפעל גלישת טקסט"

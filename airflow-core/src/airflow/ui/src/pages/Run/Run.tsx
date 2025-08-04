@@ -22,7 +22,7 @@ import { FiCode, FiDatabase } from "react-icons/fi";
 import { MdDetails, MdOutlineEventNote, MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
-import { useDagRunServiceGetDagRun, useDagServiceGetDagDetails } from "openapi/queries";
+import { useDagRunServiceGetDagRun } from "openapi/queries";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { isStatePending, useAutoRefresh } from "src/utils";
@@ -48,14 +48,6 @@ export const Run = () => {
   const refetchInterval = useAutoRefresh({ dagId });
 
   const {
-    data: dag,
-    error: dagError,
-    isLoading: isLoadinDag,
-  } = useDagServiceGetDagDetails({
-    dagId,
-  });
-
-  const {
     data: dagRun,
     error,
     isLoading,
@@ -72,7 +64,7 @@ export const Run = () => {
 
   return (
     <ReactFlowProvider>
-      <DetailsLayout dag={dag} error={error ?? dagError} isLoading={isLoading || isLoadinDag} tabs={tabs}>
+      <DetailsLayout error={error} isLoading={isLoading} tabs={tabs}>
         {dagRun === undefined ? undefined : (
           <Header
             dagRun={dagRun}

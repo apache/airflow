@@ -109,7 +109,7 @@ class EdgeWorkerModel(Base, LoggingMixin):
         super().__init__()
 
     @property
-    def sysinfo_json(self) -> dict:
+    def sysinfo_json(self) -> dict | None:
         return json.loads(self.sysinfo) if self.sysinfo else None
 
     @property
@@ -283,3 +283,37 @@ def request_shutdown(worker_name: str, session: Session = NEW_SESSION) -> None:
         EdgeWorkerState.UNKNOWN,
     ):
         worker.state = EdgeWorkerState.SHUTDOWN_REQUEST
+
+
+@provide_session
+def add_worker_queues(worker_name: str, queues: list[str], session: Session = NEW_SESSION) -> None:
+    """Add queues to an edge worker."""
+    query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    worker: EdgeWorkerModel = session.scalar(query)
+    if worker.state in (
+        EdgeWorkerState.OFFLINE,
+        EdgeWorkerState.OFFLINE_MAINTENANCE,
+        EdgeWorkerState.UNKNOWN,
+    ):
+        error_message = f"Cannot add queues to edge worker {worker_name} as it is in {worker.state} state!"
+        logger.error(error_message)
+        raise TypeError(error_message)
+    worker.add_queues(queues)
+
+
+@provide_session
+def remove_worker_queues(worker_name: str, queues: list[str], session: Session = NEW_SESSION) -> None:
+    """Remove queues from an edge worker."""
+    query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    worker: EdgeWorkerModel = session.scalar(query)
+    if worker.state in (
+        EdgeWorkerState.OFFLINE,
+        EdgeWorkerState.OFFLINE_MAINTENANCE,
+        EdgeWorkerState.UNKNOWN,
+    ):
+        error_message = (
+            f"Cannot remove queues from edge worker {worker_name} as it is in {worker.state} state!"
+        )
+        logger.error(error_message)
+        raise TypeError(error_message)
+    worker.remove_queues(queues)
