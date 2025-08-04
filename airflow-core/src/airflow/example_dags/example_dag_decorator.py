@@ -22,13 +22,21 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 import pendulum
-
+import ipaddress
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.sdk import BaseOperator, dag, task
 
 if TYPE_CHECKING:
     from airflow.sdk import Context
 
+def is_ip(address: str) -> bool:
+    """Check if the provided address is a valid IP address (supports IPv4 and IPv6)."""
+    try:
+        # Try to convert the address to an IP address (supports both IPv4 and IPv6)
+        ipaddress.ip_address(address)
+        return True
+    except ValueError:
+        return False
 
 class GetRequestOperator(BaseOperator):
     """Custom operator to send GET request to provided url"""
@@ -60,9 +68,12 @@ def example_dag_decorator(url: str = "http://httpbin.org/get"):
     @task(multiple_outputs=True)
     def prepare_command(raw_json: dict[str, Any]) -> dict[str, str]:
         external_ip = raw_json["origin"]
-        return {
-            "command": f"echo 'Seems like today your server executing Airflow is connected from IP {external_ip}'",
-        }
+        if is_ip(external_ip):
+            command = f"echo 'Seems like today your server executing Airflow is connected from IP {external_ip}'"
+        else:
+            command = "echo 'The IP address received is invalid'"
+
+        return {"command": command}
 
     command_info = prepare_command(get_ip.output)
 
