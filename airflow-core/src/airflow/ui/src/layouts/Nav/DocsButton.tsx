@@ -49,7 +49,7 @@ export const DocsButton = ({
   showAPI,
   version,
 }: {
-  readonly externalViews: Array<AppBuilderMenuItemResponse>;
+  readonly externalViews?: ReadonlyArray<AppBuilderMenuItemResponse>;
   readonly showAPI?: boolean;
   readonly version?: string;
 }) => {
@@ -87,7 +87,7 @@ export const DocsButton = ({
             </Link>
           </Menu.Item>
         )}
-        {externalViews.map((view) => (
+        {(externalViews ?? []).map((view) => (
           <PluginMenuItem {...view} key={view.name} />
         ))}
       </Menu.Content>

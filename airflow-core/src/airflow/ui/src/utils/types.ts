@@ -44,8 +44,8 @@ export function isConfigWithPluginErrors(config: unknown): config is ConfigWithP
     config !== null &&
     typeof config === "object" &&
     Object.hasOwn(config, "plugin_import_errors") &&
-    (config as { plugin_import_errors?: unknown }).plugin_import_errors == undefined ||
-    Array.isArray((config as { plugin_import_errors?: unknown }).plugin_import_errors)
+    ((config as { plugin_import_errors?: unknown }).plugin_import_errors === undefined ||
+      Array.isArray((config as { plugin_import_errors?: unknown }).plugin_import_errors))
   );
 }
 
