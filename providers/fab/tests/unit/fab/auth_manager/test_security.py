@@ -454,7 +454,6 @@ def test_get_user_roles_for_anonymous_user(app, security_manager):
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PASSWORD),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PROFILE),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PROFILE),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_HITL_DETAIL),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_BROWSE_MENU),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_DEPENDENCIES),
@@ -466,7 +465,6 @@ def test_get_user_roles_for_anonymous_user(app, security_manager):
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_MENU),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS),
-        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_HITL_DETAIL),
     }
     app.config["AUTH_ROLE_PUBLIC"] = "Viewer"
 

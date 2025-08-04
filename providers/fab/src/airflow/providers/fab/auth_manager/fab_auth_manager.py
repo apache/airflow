@@ -86,7 +86,6 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_DAG_VERSION,
     RESOURCE_DAG_WARNING,
     RESOURCE_DOCS,
-    RESOURCE_HITL_DETAIL,
     RESOURCE_IMPORT_ERROR,
     RESOURCE_JOB,
     RESOURCE_PLUGIN,
