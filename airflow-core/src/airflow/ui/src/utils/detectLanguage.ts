@@ -31,16 +31,6 @@ export const detectLanguage = (value: string): string => {
     // Not valid JSON, continue
   }
 
-  // Try to detect YAML by parsing
-  try {
-    parseYaml(trimmed);
-
-    // If parsing succeeds and it's not just a simple string, it's likely YAML
-    return "yaml";
-  } catch {
-    // Not valid YAML, continue to other checks
-  }
-
   // Try to detect SQL by parsing with node-sql-parser
   try {
     const parser = new Parser();
@@ -75,6 +65,16 @@ export const detectLanguage = (value: string): string => {
     bashPipe.test(trimmed)
   ) {
     return "bash";
+  }
+
+  // Try to detect YAML by parsing - check last since it's very permissive
+  try {
+    parseYaml(trimmed);
+
+    // If parsing succeeds and it's not just a simple string, it's likely YAML
+    return "yaml";
+  } catch {
+    // Not valid YAML, continue to other checks
   }
 
   // Default to text (no highlighting)
