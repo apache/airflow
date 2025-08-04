@@ -115,15 +115,24 @@ Connection configuration users
 ..............................
 
 They configure connections and potentially execute code on workers during DAG execution. Trust is
-required to prevent misuse of these privileges. They have full access
-to sensitive credentials stored in connections and can modify them.
-Access to sensitive information through connection configuration
+required to prevent misuse of these privileges. They have full write-only access
+to sensitive credentials stored in connections and can modify them, but cannot view them.
+Access to write sensitive information through connection configuration
 should be trusted not to be abused. They also have the ability to configure connections wrongly
 that might create a API Server Denial of Service situations and specify insecure connection options
 which might create situations where executing dags will lead to arbitrary Remote Code Execution
 for some providers - either community released or custom ones.
 
 Those users should be highly trusted not to misuse this capability.
+
+.. note::
+
+   Before Airflow 3, the **Connection configuration users** role had also access to view the sensitive information this has
+   been changed in Airflow 3 to improve security of the accidental spilling of credentials of the connection configuration
+   users. Previously - in Airflow 2 - the **Connection configuration users** had deliberately access to view the
+   sensitive information and could either reveal it by using Inspect capabilities of the browser or they were plain visible in
+   case of the sensitive credentials stored in configuration extras. Airflow 3 and later versions include security
+   improvement to mask those sensitive credentials at the API level.
 
 Audit log users
 ...............
