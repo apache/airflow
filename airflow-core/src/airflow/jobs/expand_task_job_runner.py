@@ -24,7 +24,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, run_job_async
-from airflow.models import DagRun, DagBag
+from airflow.models import DagBag, DagRun
 from airflow.policies import task_instance_mutation_hook
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.ti_deps.dep_context import DepContext
@@ -38,8 +38,6 @@ if TYPE_CHECKING:
     from airflow.dag import DAG
     from airflow.jobs.triggerer_job_runner import TriggerRunnerSupervisor
     from airflow.models.taskinstance import TaskInstance
-
-task_expansion_batch_size = conf.getint("scheduler", "task_expansion_batch_size", fallback=10)
 
 
 class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
@@ -60,7 +58,10 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
             self.log.info("dag_run_state: %s", dag_run.state)
 
             if dag_run.state == DagRunState.FAILED:
-                self.log.info("DagRun %s for dag %s has failed, stopping expansion", dag_run.run_id, dag_run.dag_id)
+                self.log.info(
+                    "DagRun %s for dag %s has failed, stopping expansion",
+                    dag_run.run_id, dag_run.dag_id
+                )
 
                 raise AirflowException(
                     f"Stopping expansion of tasks for DagRun {dag_run.run_id} of DAG {dag_run.dag_id} due to failure."
@@ -96,6 +97,7 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
 
         task_instances_batch = []
 
+        task_expansion_batch_size = conf.getint("core", "parallelism")
         context = unmapped_ti.get_template_context(session=session)
         expand_input = unmapped_ti.task.expand_input.resolve(context)
 
@@ -124,7 +126,9 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
             task_instances_batch.append(task_instance)
 
             if len(task_instances_batch) == task_expansion_batch_size:
-                dag_run = DagRun.get_dag_run(dag_id=unmapped_ti.dag_id, run_id=dag_run.run_id, session=session)
+                dag_run = DagRun.get_dag_run(
+                    dag_id = unmapped_ti.dag_id, run_id = dag_run.run_id, session = session
+                )
                 self._check_dag_run_state(dag_run)
                 self._persist_task_instances(dag_run, task_instances_batch, session=session)
 
@@ -137,7 +141,11 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
 
     @staticmethod
     def has_mapped_operator(task_instance: TaskInstance) -> bool:
-        return isinstance(task_instance.task, MappedOperator) and task_instance.map_index == -1 and task_instance.state in State.unfinished
+        return (
+            isinstance(task_instance.task, MappedOperator)
+            and task_instance.map_index == -1
+            and task_instance.state in State.unfinished
+        )
 
     def expand_tasks(self):
         with create_session(scoped=False) as session:
@@ -147,21 +155,34 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
             for dag_run in dag_runs:
                 dag = dag_bag.get_dag(dag_run.dag_id)
                 self.log.info("Checking for unmapped task instances on: %s", dag_run)
-                for unmapped_ti in filter(self.has_mapped_operator, map(lambda task: self.get_task(dag, task), dag_run.task_instances)):
+                for unmapped_ti in filter(
+                    self.has_mapped_operator,
+                    map(lambda task: self.get_task(dag, task), dag_run.task_instances),
+                ):
                     try:
-                        finished_tis = list(map(lambda task: self.get_task(dag, task), filter(lambda ti: ti.state in State.finished, dag_run.task_instances)))
+                        finished_tis = list(
+                            map(
+                                lambda task: self.get_task(dag, task),
+                                filter(lambda ti: ti.state in State.finished, dag_run.task_instances),
+                            )
+                        )
                         dep_context = DepContext(
                             flag_upstream_failed=True,
                             ignore_unmapped_tasks=True,  # Ignore this Dep, as we will expand it if we can.
                             finished_tis=finished_tis,
                         )
                         self.log.info("Unmapped task state on: %s", unmapped_ti.state)
-                        are_dependencies_met = unmapped_ti.are_dependencies_met(dep_context=dep_context, session=session, verbose=True)
+                        are_dependencies_met = unmapped_ti.are_dependencies_met(
+                            dep_context = dep_context, session = session, verbose = True
+                        )
                         self.log.info("Are dependencies met on %s: %s", unmapped_ti, are_dependencies_met)
                         if are_dependencies_met:
                             self.expand_unmapped_task_instance(dag_run, unmapped_ti, session=session)
                     except Exception:
-                        self.log.exception("Unexpected error occurred during task expansion of %s", unmapped_ti)
+                        self.log.exception(
+                            "Unexpected error occurred during task expansion of %s",
+                            unmapped_ti
+                        )
 
     def _execute(self) -> int | None:
         self.log.info("TaskExpansionJobRunner started")
@@ -174,5 +195,7 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
 
 
 def task_expansion_run(triggerer_heartrate: float, trigger_runner: TriggerRunnerSupervisor):
-    task_expansion_job_runner = TaskExpansionJobRunner(job=Job(heartrate=triggerer_heartrate), trigger_runner=trigger_runner)
+    task_expansion_job_runner = TaskExpansionJobRunner(
+        job=Job(heartrate=triggerer_heartrate), trigger_runner=trigger_runner
+    )
     run_job_async(job=task_expansion_job_runner.job, execute_callable=task_expansion_job_runner._execute)
