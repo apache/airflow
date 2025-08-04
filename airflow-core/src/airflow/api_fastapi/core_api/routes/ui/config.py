@@ -68,10 +68,12 @@ def get_configs(user: GetUserDep) -> ConfigResponse:
                 elif not href:
                     continue
                 menu_item = {
-                    "name": external_view["name"],
+                    "name": external_view.get("name"),
                     "href": href,
-                    "category": external_view.get("category")
+                    "category": external_view.get("category"),
                 }
+                if not menu_item["name"]:
+                    continue
                 plugins_extra_menu_items.append(menu_item)
 
     if plugins_manager.react_apps:
@@ -84,17 +86,17 @@ def get_configs(user: GetUserDep) -> ConfigResponse:
 
                 href = f"/plugin/{url_route}"
                 menu_item = {
-                    "name": react_app["name"],
+                    "name": react_app.get("name"),
                     "href": href,
-                    "category": react_app.get("category")
+                    "category": react_app.get("category"),
                 }
+                if not menu_item["name"]:
+                    continue
                 plugins_extra_menu_items.append(menu_item)
-    plugin_import_errors = []
-    if plugins_manager.import_errors:
-        plugin_import_errors = [
-            {"source": source, "error": error}
-            for source, error in plugins_manager.import_errors.items()
-        ]
+
+    plugin_import_errors = [
+        {"source": source, "error": error} for source, error in plugins_manager.import_errors.items()
+    ]
 
     task_log_reader = TaskLogReader()
     additional_config: dict[str, Any] = {

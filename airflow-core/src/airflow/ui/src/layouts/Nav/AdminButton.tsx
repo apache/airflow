@@ -61,35 +61,31 @@ export const AdminButton = ({
 }) => {
   const { t: translate } = useTranslation("common");
 
-  interface CombinedView {
-    external: boolean;
+  type CombinedView = {
     href: string;
     title: string;
-    name?: string;
   }
 
   // Combine static links and external views
-  const allViews: CombinedView[] = [
-    ...links.map((link) => ({ ...link, external: false })),
+  const allViews: Array<CombinedView> = [
+    ...links,
     ...externalViews
       .filter((view) => Boolean(view.href) && Boolean(view.name))
       .map((view) => ({
-        external: true,
         href: view.href,
         title: view.name,
-        name: view.name,
       })),
   ];
 
   const menuItems = allViews
-    .filter(({ title }) => authorizedMenuItems.includes(title as MenuItem))
+    .filter(({ title }) => authorizedMenuItems.includes(title))
     .map((view) => (
       <Menu.Item asChild key={view.title} value={view.title}>
         <RouterLink
-          aria-label={translate(`admin.${view.title}`)}
-          to={view.href as string}
+          aria-label={translate(`admin.${view.title}`, { defaultValue: view.title })}
+          to={view.href}
         >
-          {translate(`admin.${view.title}`)}
+          {translate(`admin.${view.title}`, { defaultValue: view.title })}
         </RouterLink>
       </Menu.Item>
     ));

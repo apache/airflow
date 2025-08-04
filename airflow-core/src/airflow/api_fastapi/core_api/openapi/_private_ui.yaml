@@ -1083,6 +1083,12 @@ components:
           type: array
           title: Plugins Extra Menu Items
           default: []
+        plugin_import_errors:
+          items:
+            $ref: '#/components/schemas/PluginImportErrorResponse'
+          type: array
+          title: Plugin Import Errors
+          default: []
       type: object
       required:
       - page_size
@@ -1996,6 +2002,20 @@ components:
       - type
       title: NodeResponse
       description: Node serializer for responses.
+    PluginImportErrorResponse:
+      properties:
+        source:
+          type: string
+          title: Source
+        error:
+          type: string
+          title: Error
+      type: object
+      required:
+      - source
+      - error
+      title: PluginImportErrorResponse
+      description: Plugin Import Error serializer for responses.
     ReprocessBehavior:
       type: string
       enum:

@@ -33,7 +33,11 @@ import { PluginMenuItem } from "./PluginMenuItem";
 import { TimezoneMenuItem } from "./TimezoneMenuItem";
 import TimezoneModal from "./TimezoneModal";
 
-export const UserSettingsButton = ({ externalViews }: { readonly externalViews: Array<AppBuilderMenuItemResponse> }) => {
+type UserSettingsButtonProps = {
+  readonly externalViews: Array<AppBuilderMenuItemResponse>;
+}
+
+export const UserSettingsButton = ({ externalViews }: UserSettingsButtonProps) => {
   const { t: translate } = useTranslation();
   const { colorMode, toggleColorMode } = useColorMode();
   const { onClose: onCloseTimezone, onOpen: onOpenTimezone, open: isOpenTimezone } = useDisclosure();

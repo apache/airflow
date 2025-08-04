@@ -16,7 +16,48 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { ExternalViewResponse, ReactAppResponse } from "openapi/requests/types.gen";
+import type { ExternalViewResponse, ReactAppResponse, ConfigResponse } from "openapi/requests/types.gen";
 
 // Union type for navigation items that can be either external views or react apps
 export type NavItemResponse = ExternalViewResponse | ReactAppResponse;
+
+/**
+ * Plugin import error structure as returned by the config service
+ */
+export type PluginImportError = {
+  error: string;
+  source: string;
+}
+
+/**
+ * Extended config response that includes plugin import errors
+ */
+export type ConfigWithPluginErrors = {
+  plugin_import_errors?: Array<PluginImportError>;
+} & ConfigResponse
+
+/**
+ * Type guard to check if config contains plugin import errors
+ */
+export function isConfigWithPluginErrors(config: unknown): config is ConfigWithPluginErrors {
+  return (
+    config !== null &&
+    typeof config === "object" &&
+    Object.hasOwn(config, "plugin_import_errors") &&
+    (config as { plugin_import_errors?: unknown }).plugin_import_errors == undefined ||
+    Array.isArray((config as { plugin_import_errors?: unknown }).plugin_import_errors)
+  );
+}
+
+/**
+ * Safely extracts plugin import errors from config
+ * @param config - The config object from the API
+ * @returns Array of plugin import errors, empty array if none found
+ */
+export function getPluginImportErrors(config: unknown): Array<PluginImportError> {
+  if (!isConfigWithPluginErrors(config)) {
+    return [];
+  }
+
+  return config.plugin_import_errors ?? [];
+}

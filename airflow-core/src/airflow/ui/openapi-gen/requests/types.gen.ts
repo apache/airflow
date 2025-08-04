@@ -1647,6 +1647,7 @@ export type ConfigResponse = {
     show_external_log_redirect: boolean;
     external_log_name?: string | null;
     plugins_extra_menu_items?: Array<AppBuilderMenuItemResponse>;
+    plugin_import_errors?: Array<PluginImportErrorResponse>;
 };
 
 /**

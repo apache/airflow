@@ -95,10 +95,10 @@ export const Configs = () => {
     <>
       <Heading mb={4}>{translate("config.title")}</Heading>
       <Separator />
-      {error === null ? (
-        <DataTable columns={columns} data={render} modelName={translate("common:admin.Config")} />
-      ) : (
+      {error ? (
         <ErrorAlert error={error} />
+      ) : (
+        <DataTable columns={columns} data={render} modelName={translate("common:admin.Config")} />
       )}
     </>
   );

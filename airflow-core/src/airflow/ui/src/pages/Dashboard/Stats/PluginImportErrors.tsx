@@ -16,26 +16,33 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Text, Button, useDisclosure } from "@chakra-ui/react";
+import { Box, Text, Button, useDisclosure, Skeleton } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiChevronRight } from "react-icons/fi";
 import { LuPlug } from "react-icons/lu";
 
 import { useConfigServiceGetConfigs } from "openapi/queries";
 import { StateBadge } from "src/components/StateBadge";
+import { ErrorAlert } from "src/components/ErrorAlert";
+import { getPluginImportErrors } from "src/utils/types";
 
 import { PluginImportErrorsModal } from "./PluginImportErrorsModal";
 
 export const PluginImportErrors = ({ iconOnly = false }: { readonly iconOnly?: boolean }) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { t: translate } = useTranslation("admin");
-  const { data: config } = useConfigServiceGetConfigs();
+  const { data: config, error, isLoading } = useConfigServiceGetConfigs();
 
-  // Get plugin import errors from config instead of plugin service
-  interface ConfigWithPluginErrors {
-    plugin_import_errors?: Array<{ source: string; error: string }>;
+  if (isLoading) {
+    return <Skeleton height="20px" width="100px" />;
   }
-  const importErrors = (config as ConfigWithPluginErrors)?.plugin_import_errors ?? [];
+
+  if (error) {
+    return <ErrorAlert error={error} />;
+  }
+
+  // Get plugin import errors from config using proper type guard and validation
+  const importErrors = getPluginImportErrors(config);
   const importErrorsCount = importErrors.length;
 
   if (importErrorsCount === 0) {

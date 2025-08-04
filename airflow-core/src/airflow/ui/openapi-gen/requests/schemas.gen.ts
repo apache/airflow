@@ -6349,6 +6349,14 @@ export const $ConfigResponse = {
             type: 'array',
             title: 'Plugins Extra Menu Items',
             default: []
+        },
+        plugin_import_errors: {
+            items: {
+                '$ref': '#/components/schemas/PluginImportErrorResponse'
+            },
+            type: 'array',
+            title: 'Plugin Import Errors',
+            default: []
         }
     },
     type: 'object',
