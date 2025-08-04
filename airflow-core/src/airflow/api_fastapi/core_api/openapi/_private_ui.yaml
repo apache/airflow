@@ -1888,6 +1888,7 @@ components:
     MenuItem:
       type: string
       enum:
+      - Required Actions
       - Assets
       - Audit Log
       - Config
