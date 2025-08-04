@@ -133,6 +133,7 @@ class ClusterGenerator:
         VMs are not deleted.
     :param storage_bucket: The storage bucket to use, setting to None lets dataproc
         generate a custom one for you
+    :param cluster_tier: The tier of the cluster
     :param init_actions_uris: List of GCS uri's containing
         dataproc initialization scripts
     :param init_action_timeout: Amount of time executable scripts in
@@ -226,6 +227,7 @@ class ClusterGenerator:
         internal_ip_only: bool | None = None,
         tags: list[str] | None = None,
         storage_bucket: str | None = None,
+        cluster_tier: str | None = None,
         init_actions_uris: list[str] | None = None,
         init_action_timeout: str = "10m",
         metadata: dict | None = None,
@@ -270,6 +272,7 @@ class ClusterGenerator:
         self.num_preemptible_workers = num_preemptible_workers
         self.preemptibility = self._set_preemptibility_type(preemptibility)
         self.storage_bucket = storage_bucket
+        self.cluster_tier = cluster_tier
         self.init_actions_uris = init_actions_uris
         self.init_action_timeout = init_action_timeout
         self.metadata = metadata
@@ -512,6 +515,9 @@ class ClusterGenerator:
 
         if self.driver_pool_size > 0:
             cluster_data["auxiliary_node_groups"] = [self._build_driver_pool()]
+        
+        if self.cluster_tier:
+            cluster_data["cluster_tier"] = self.cluster_tier
 
         cluster_data = self._build_gce_cluster_config(cluster_data)
 
