@@ -21,7 +21,7 @@ import pytest
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.common.dagbag import dag_bag_from_app
 from airflow.api_fastapi.core_api.datamodels.extra_links import ExtraLinkCollectionResponse
-from airflow.models.dagbag import SchedulerDagBag
+from airflow.models.dagbag import DBDagBag
 from airflow.models.xcom import XComModel as XCom
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.state import DagRunState
@@ -85,7 +85,7 @@ class TestGetExtraLinks:
 
         self.dag = self._create_dag(dag_maker)
 
-        dag_bag = SchedulerDagBag()
+        dag_bag = DBDagBag()
         test_client.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag
 
         dag_maker.create_dagrun(
@@ -120,7 +120,7 @@ class TestGetExtraLinks:
             pytest.param(
                 "/dags/INVALID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_LINK/links",
                 404,
-                {"detail": "DAG with ID = INVALID not found"},
+                {"detail": "The Dag with ID: `INVALID` was not found"},
                 id="missing_dag",
             ),
             pytest.param(

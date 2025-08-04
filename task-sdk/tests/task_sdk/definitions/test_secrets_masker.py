@@ -629,7 +629,10 @@ class TestContainerTypesRedaction:
         secrets_masker = SecretsMasker()
 
         with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
-            with patch("airflow.sdk.execution_time.secrets_masker._is_v1_env_var", return_value=True):
+            with patch(
+                "airflow.sdk.execution_time.secrets_masker._is_v1_env_var",
+                side_effect=lambda a: isinstance(a, MockV1EnvVar),
+            ):
                 redacted_secret = redact(secret_env_var)
                 redacted_normal = redact(normal_env_var)
 

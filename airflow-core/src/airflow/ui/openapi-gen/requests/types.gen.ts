@@ -1849,7 +1849,7 @@ export type LightGridTaskInstanceSummary = {
 /**
  * Define all menu items defined in the menu.
  */
-export type MenuItem = 'Assets' | 'Audit Log' | 'Config' | 'Connections' | 'Dags' | 'Docs' | 'Plugins' | 'Pools' | 'Providers' | 'Variables' | 'XComs';
+export type MenuItem = 'Required Actions' | 'Assets' | 'Audit Log' | 'Config' | 'Connections' | 'Dags' | 'Docs' | 'Plugins' | 'Pools' | 'Providers' | 'Variables' | 'XComs';
 
 /**
  * Menu Item Collection serializer for responses.
@@ -2210,6 +2210,10 @@ export type GetDagRunsData = {
     startDateGte?: string | null;
     startDateLte?: string | null;
     state?: Array<(string)>;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    triggeringUserNamePattern?: string | null;
     updatedAtGte?: string | null;
     updatedAtLte?: string | null;
 };

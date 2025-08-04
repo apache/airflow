@@ -25,7 +25,7 @@ import type { FlexibleFormElementProps } from ".";
 
 export const FieldStringArray = ({ name, onUpdate }: FlexibleFormElementProps) => {
   const { t: translate } = useTranslation("components");
-  const { paramsDict, setParamsDict } = useParamStore();
+  const { disabled, paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
 
   const handleChange = (newValue: string) => {
@@ -57,6 +57,7 @@ export const FieldStringArray = ({ name, onUpdate }: FlexibleFormElementProps) =
 
   return (
     <Textarea
+      disabled={disabled}
       id={`element_${name}`}
       name={`element_${name}`}
       onBlur={handleBlur}
