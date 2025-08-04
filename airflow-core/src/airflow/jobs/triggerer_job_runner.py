@@ -589,7 +589,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 task.render_template_fields(context=context)
                 with create_session() as session:
                     trigger.kwargs = task.expand_start_trigger_args(
-                        context = context, session = session
+                        context=context, session=session
                     ).trigger_kwargs
             return trigger
 
