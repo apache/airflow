@@ -519,7 +519,7 @@ class MessageHook(BaseAzureServiceBusHook):
         message_creator: Callable[[str], ServiceBusMessage],
     ):
         list_messages = [message_creator(body) for body in messages]
-        sender.send_messages(list_messages)  # type: ignore[arg-type]
+        sender.send_messages(list_messages)
 
     @staticmethod
     def send_batch_message(

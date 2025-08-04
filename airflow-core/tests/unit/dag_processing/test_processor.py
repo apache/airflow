@@ -24,23 +24,32 @@ import textwrap
 import uuid
 from collections.abc import Callable
 from socket import socketpair
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, BinaryIO
 from unittest.mock import MagicMock, patch
 
 import pytest
 import structlog
 from pydantic import TypeAdapter
+from structlog.typing import FilteringBoundLogger
 
+from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+    DagRun as DRDataModel,
     TaskInstance as TIDataModel,
     TIRunContext,
 )
-from airflow.callbacks.callback_requests import CallbackRequest, DagCallbackRequest, TaskCallbackRequest
+from airflow.callbacks.callback_requests import (
+    CallbackRequest,
+    DagCallbackRequest,
+    DagRunContext,
+    TaskCallbackRequest,
+)
 from airflow.dag_processing.processor import (
     DagFileParseRequest,
     DagFileParsingResult,
     DagFileProcessorProcess,
+    _execute_dag_callbacks,
     _execute_task_callbacks,
     _parse_file,
     _pre_import_airflow_modules,
@@ -49,8 +58,8 @@ from airflow.models import DagBag, DagRun
 from airflow.models.baseoperator import BaseOperator
 from airflow.sdk import DAG
 from airflow.sdk.api.client import Client
+from airflow.sdk.api.datamodels._generated import DagRunState
 from airflow.sdk.execution_time import comms
-from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
@@ -80,7 +89,7 @@ def inprocess_client():
     """Provides an in-process Client backed by a single API server."""
     api = InProcessExecutionAPI()
     client = Client(base_url=None, token="", dry_run=True, transport=api.transport)
-    client.base_url = "http://in-process.invalid/"  # type: ignore[assignment]
+    client.base_url = "http://in-process.invalid/"
     return client
 
 
@@ -116,8 +125,8 @@ class TestDagFileProcessor:
         monkeypatch: pytest.MonkeyPatch,
         inprocess_client,
     ):
-        logger = MagicMock()
-        logger_filehandle = MagicMock()
+        logger = MagicMock(spec=FilteringBoundLogger)
+        logger_filehandle = MagicMock(spec=BinaryIO)
 
         def dag_in_a_fn():
             from airflow.sdk import DAG, Variable
@@ -153,8 +162,8 @@ class TestDagFileProcessor:
         monkeypatch: pytest.MonkeyPatch,
         inprocess_client,
     ):
-        logger = MagicMock()
-        logger_filehandle = MagicMock()
+        logger = MagicMock(spec=FilteringBoundLogger)
+        logger_filehandle = MagicMock(spec=BinaryIO)
 
         def dag_in_a_fn():
             from airflow.sdk import DAG, Variable
@@ -185,8 +194,8 @@ class TestDagFileProcessor:
     def test_top_level_variable_set(self, tmp_path: pathlib.Path, inprocess_client):
         from airflow.models.variable import Variable as VariableORM
 
-        logger = MagicMock()
-        logger_filehandle = MagicMock()
+        logger = MagicMock(spec=FilteringBoundLogger)
+        logger_filehandle = MagicMock(spec=BinaryIO)
 
         def dag_in_a_fn():
             from airflow.sdk import DAG, Variable
@@ -222,8 +231,8 @@ class TestDagFileProcessor:
     def test_top_level_variable_delete(self, tmp_path: pathlib.Path, inprocess_client):
         from airflow.models.variable import Variable as VariableORM
 
-        logger = MagicMock()
-        logger_filehandle = MagicMock()
+        logger = MagicMock(spec=FilteringBoundLogger)
+        logger_filehandle = MagicMock(spec=BinaryIO)
 
         def dag_in_a_fn():
             from airflow.sdk import DAG, Variable
@@ -264,8 +273,8 @@ class TestDagFileProcessor:
     def test_top_level_connection_access(
         self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, inprocess_client
     ):
-        logger = MagicMock()
-        logger_filehandle = MagicMock()
+        logger = MagicMock(spec=FilteringBoundLogger)
+        logger_filehandle = MagicMock(spec=BinaryIO)
 
         def dag_in_a_fn():
             from airflow.sdk import DAG, BaseHook
@@ -295,8 +304,8 @@ class TestDagFileProcessor:
         assert result.serialized_dags[0].dag_id == "test_my_conn"
 
     def test_top_level_connection_access_not_found(self, tmp_path: pathlib.Path, inprocess_client):
-        logger = MagicMock()
-        logger_filehandle = MagicMock()
+        logger = MagicMock(spec=FilteringBoundLogger)
+        logger_filehandle = MagicMock(spec=BinaryIO)
 
         def dag_in_a_fn():
             from airflow.sdk import DAG, BaseHook
@@ -322,7 +331,7 @@ class TestDagFileProcessor:
         assert result is not None
         assert result.import_errors != {}
         if result.import_errors:
-            assert "CONNECTION_NOT_FOUND" in next(iter(result.import_errors.values()))
+            assert "The conn_id `my_conn` isn't defined" in next(iter(result.import_errors.values()))
 
     def test_import_module_in_bundle_root(self, tmp_path: pathlib.Path, inprocess_client):
         tmp_path.joinpath("util.py").write_text("NAME = 'dag_name'")
@@ -343,8 +352,8 @@ class TestDagFileProcessor:
             path=dag1_path,
             bundle_path=tmp_path,
             callbacks=[],
-            logger=MagicMock(),
-            logger_filehandle=MagicMock(),
+            logger=MagicMock(spec=FilteringBoundLogger),
+            logger_filehandle=MagicMock(spec=BinaryIO),
             client=inprocess_client,
         )
         while not proc.is_ready:
@@ -356,7 +365,7 @@ class TestDagFileProcessor:
         assert result.serialized_dags[0].dag_id == "dag_name"
 
     def test__pre_import_airflow_modules_when_disabled(self):
-        logger = MagicMock()
+        logger = MagicMock(spec=FilteringBoundLogger)
         with (
             env_vars({"AIRFLOW__DAG_PROCESSOR__PARSING_PRE_IMPORT_MODULES": "false"}),
             patch("airflow.dag_processing.processor.iter_airflow_imports") as mock_iter,
@@ -367,7 +376,7 @@ class TestDagFileProcessor:
         logger.warning.assert_not_called()
 
     def test__pre_import_airflow_modules_when_enabled(self):
-        logger = MagicMock()
+        logger = MagicMock(spec=FilteringBoundLogger)
         with (
             env_vars({"AIRFLOW__DAG_PROCESSOR__PARSING_PRE_IMPORT_MODULES": "true"}),
             patch("airflow.dag_processing.processor.iter_airflow_imports", return_value=["airflow.models"]),
@@ -379,7 +388,7 @@ class TestDagFileProcessor:
         logger.warning.assert_not_called()
 
     def test__pre_import_airflow_modules_warns_on_missing_module(self):
-        logger = MagicMock()
+        logger = MagicMock(spec=FilteringBoundLogger)
         with (
             env_vars({"AIRFLOW__DAG_PROCESSOR__PARSING_PRE_IMPORT_MODULES": "true"}),
             patch(
@@ -398,7 +407,7 @@ class TestDagFileProcessor:
         assert "test.py" in warning_args[2]
 
     def test__pre_import_airflow_modules_partial_success_and_warning(self):
-        logger = MagicMock()
+        logger = MagicMock(spec=FilteringBoundLogger)
         with (
             env_vars({"AIRFLOW__DAG_PROCESSOR__PARSING_PRE_IMPORT_MODULES": "true"}),
             patch(
@@ -564,6 +573,263 @@ def test_parse_file_with_task_callbacks(spy_agency):
     assert called is True
 
 
+class TestExecuteDagCallbacks:
+    """Test the _execute_dag_callbacks function with context_from_server"""
+
+    def test_execute_dag_callbacks_with_context_from_server(self, spy_agency):
+        """Test _execute_dag_callbacks uses RuntimeTaskInstance context when context_from_server is provided"""
+        called = False
+        context_received = None
+
+        def on_failure(context):
+            nonlocal called, context_received
+            called = True
+            context_received = context
+
+        with DAG(dag_id="test_dag", on_failure_callback=on_failure) as dag:
+            BaseOperator(task_id="test_task")
+
+        def fake_collect_dags(self, *args, **kwargs):
+            self.dags[dag.dag_id] = dag
+
+        spy_agency.spy_on(DagBag.collect_dags, call_fake=fake_collect_dags, owner=DagBag)
+
+        dagbag = DagBag()
+        dagbag.collect_dags()
+
+        current_time = timezone.utcnow()
+        dag_run_data = DRDataModel(
+            dag_id="test_dag",
+            run_id="test_run",
+            logical_date=current_time,
+            data_interval_start=current_time,
+            data_interval_end=current_time,
+            run_after=current_time,
+            start_date=current_time,
+            end_date=None,
+            run_type="manual",
+            state="running",
+            consumed_asset_events=[],
+        )
+
+        ti_data = TIDataModel(
+            id=uuid.uuid4(),
+            dag_id="test_dag",
+            task_id="test_task",
+            run_id="test_run",
+            map_index=-1,
+            try_number=1,
+            dag_version_id=uuid.uuid4(),
+        )
+
+        context_from_server = DagRunContext(dag_run=dag_run_data, last_ti=ti_data)
+
+        request = DagCallbackRequest(
+            filepath="test.py",
+            dag_id="test_dag",
+            run_id="test_run",
+            bundle_name="testing",
+            bundle_version=None,
+            context_from_server=context_from_server,
+            is_failure_callback=True,
+            msg="Test failure message",
+        )
+
+        log = structlog.get_logger()
+        _execute_dag_callbacks(dagbag, request, log)
+
+        assert called is True
+        assert context_received is not None
+        # When context_from_server is provided, we get a full RuntimeTaskInstance context
+        assert "dag_run" in context_received
+        assert "logical_date" in context_received
+        assert "reason" in context_received
+        assert context_received["reason"] == "Test failure message"
+        # Check that we have template context variables from RuntimeTaskInstance
+        assert "ts" in context_received
+        assert "params" in context_received
+
+    def test_execute_dag_callbacks_without_context_from_server(self, spy_agency):
+        """Test _execute_dag_callbacks falls back to simple context when context_from_server is None"""
+        called = False
+        context_received = None
+
+        def on_failure(context):
+            nonlocal called, context_received
+            called = True
+            context_received = context
+
+        with DAG(dag_id="test_dag", on_failure_callback=on_failure) as dag:
+            BaseOperator(task_id="test_task")
+
+        def fake_collect_dags(self, *args, **kwargs):
+            self.dags[dag.dag_id] = dag
+
+        spy_agency.spy_on(DagBag.collect_dags, call_fake=fake_collect_dags, owner=DagBag)
+
+        dagbag = DagBag()
+        dagbag.collect_dags()
+
+        request = DagCallbackRequest(
+            filepath="test.py",
+            dag_id="test_dag",
+            run_id="test_run",
+            bundle_name="testing",
+            bundle_version=None,
+            context_from_server=None,  # No context from server
+            is_failure_callback=True,
+            msg="Test failure message",
+        )
+
+        log = structlog.get_logger()
+        _execute_dag_callbacks(dagbag, request, log)
+
+        assert called is True
+        assert context_received is not None
+        # When context_from_server is None, we get simple context
+        assert context_received["dag"] == dag
+        assert context_received["run_id"] == "test_run"
+        assert context_received["reason"] == "Test failure message"
+        # Should not have template context variables
+        assert "ts" not in context_received
+        assert "params" not in context_received
+
+    def test_execute_dag_callbacks_success_callback(self, spy_agency):
+        """Test _execute_dag_callbacks executes success callback with context_from_server"""
+        called = False
+        context_received = None
+
+        def on_success(context):
+            nonlocal called, context_received
+            called = True
+            context_received = context
+
+        with DAG(dag_id="test_dag", on_success_callback=on_success) as dag:
+            BaseOperator(task_id="test_task")
+
+        def fake_collect_dags(self, *args, **kwargs):
+            self.dags[dag.dag_id] = dag
+
+        spy_agency.spy_on(DagBag.collect_dags, call_fake=fake_collect_dags, owner=DagBag)
+
+        dagbag = DagBag()
+        dagbag.collect_dags()
+
+        # Create test data
+        current_time = timezone.utcnow()
+        dag_run_data = DRDataModel(
+            dag_id="test_dag",
+            run_id="test_run",
+            logical_date=current_time,
+            data_interval_start=current_time,
+            data_interval_end=current_time,
+            run_after=current_time,
+            start_date=current_time,
+            end_date=None,
+            run_type="manual",
+            state="success",
+            consumed_asset_events=[],
+        )
+
+        ti_data = TIDataModel(
+            id=uuid.uuid4(),
+            dag_id="test_dag",
+            task_id="test_task",
+            run_id="test_run",
+            map_index=-1,
+            try_number=1,
+            dag_version_id=uuid.uuid4(),
+        )
+
+        context_from_server = DagRunContext(dag_run=dag_run_data, last_ti=ti_data)
+
+        request = DagCallbackRequest(
+            filepath="test.py",
+            dag_id="test_dag",
+            run_id="test_run",
+            bundle_name="testing",
+            bundle_version=None,
+            context_from_server=context_from_server,
+            is_failure_callback=False,  # Success callback
+            msg="Test success message",
+        )
+
+        log = structlog.get_logger()
+        _execute_dag_callbacks(dagbag, request, log)
+
+        assert called is True
+        assert context_received is not None
+        assert "dag_run" in context_received
+        assert context_received["reason"] == "Test success message"
+
+    def test_execute_dag_callbacks_multiple_callbacks(self, spy_agency):
+        """Test _execute_dag_callbacks executes multiple callbacks"""
+        call_count = 0
+
+        def on_failure_1(context):
+            nonlocal call_count
+            call_count += 1
+
+        def on_failure_2(context):
+            nonlocal call_count
+            call_count += 1
+
+        with DAG(dag_id="test_dag", on_failure_callback=[on_failure_1, on_failure_2]) as dag:
+            BaseOperator(task_id="test_task")
+
+        def fake_collect_dags(self, *args, **kwargs):
+            self.dags[dag.dag_id] = dag
+
+        spy_agency.spy_on(DagBag.collect_dags, call_fake=fake_collect_dags, owner=DagBag)
+
+        dagbag = DagBag()
+        dagbag.collect_dags()
+
+        request = DagCallbackRequest(
+            filepath="test.py",
+            dag_id="test_dag",
+            run_id="test_run",
+            bundle_name="testing",
+            bundle_version=None,
+            is_failure_callback=True,
+            msg="Test failure message",
+        )
+
+        log = structlog.get_logger()
+        _execute_dag_callbacks(dagbag, request, log)
+
+        assert call_count == 2
+
+    def test_execute_dag_callbacks_no_callback_defined(self, spy_agency):
+        """Test _execute_dag_callbacks when no callback is defined"""
+        with DAG(dag_id="test_dag") as dag:  # No callbacks defined
+            BaseOperator(task_id="test_task")
+
+        def fake_collect_dags(self, *args, **kwargs):
+            self.dags[dag.dag_id] = dag
+
+        spy_agency.spy_on(DagBag.collect_dags, call_fake=fake_collect_dags, owner=DagBag)
+
+        dagbag = DagBag()
+        dagbag.collect_dags()
+
+        request = DagCallbackRequest(
+            filepath="test.py",
+            dag_id="test_dag",
+            run_id="test_run",
+            bundle_name="testing",
+            bundle_version=None,
+            is_failure_callback=True,
+            msg="Test failure message",
+        )
+
+        log = MagicMock(spec=FilteringBoundLogger)
+        _execute_dag_callbacks(dagbag, request, log)
+
+        # Should log warning about no callback found
+        log.warning.assert_called_once_with("Callback requested, but dag didn't have any", dag_id="test_dag")
+
+
 class TestExecuteTaskCallbacks:
     """Test the _execute_task_callbacks function"""
 
@@ -690,6 +956,7 @@ class TestExecuteTaskCallbacks:
             logical_date=timezone.utcnow(),
             start_date=timezone.utcnow(),
             run_type="manual",
+            state=DagRunState.RUNNING,
         )
         dag_run.run_after = timezone.utcnow()
 

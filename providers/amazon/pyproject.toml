@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-amazon"
-version = "9.10.0"
+version = "9.11.0"
 description = "Provider package apache-airflow-providers-amazon for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -47,6 +47,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.10"
@@ -95,11 +96,12 @@ dependencies = [
     "s3fs>=2023.10.0",
 ]
 "python3-saml" = [
-    "python3-saml>=1.16.0",
+    # Python 3 saml is not compatible with Python 3.13 yet, so we pin it to < 3.13
+    "python3-saml>=1.16.0; python_version < '3.13'",
     # python3-saml is dependent on xmlsec and seems they do not pin it, pinning here would be needed
     # We can remove it after https://github.com/xmlsec/python-xmlsec/issues/344 is fixed
-    "xmlsec!=1.3.15,>=1.3.14",
-    "lxml<5.4.0,>=5.3.2",
+    "xmlsec>=1.3.14; python_version < '3.13'",
+    "lxml>=6.0.0; python_version < '3.13'",
 ]
 "apache.hive" = [
     "apache-airflow-providers-apache-hive"
@@ -108,7 +110,7 @@ dependencies = [
     "apache-airflow-providers-exasol"
 ]
 "fab" = [
-    "apache-airflow-providers-fab"
+    "apache-airflow-providers-fab>=2.2.0; python_version < '3.13'"
 ]
 "ftp" = [
     "apache-airflow-providers-ftp"
@@ -204,8 +206,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.10.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.10.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.11.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.11.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

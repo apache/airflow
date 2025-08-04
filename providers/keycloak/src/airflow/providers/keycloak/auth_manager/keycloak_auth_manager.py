@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
 
 import requests
@@ -95,6 +95,10 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
     def get_url_login(self, **kwargs) -> str:
         base_url = conf.get("api", "base_url", fallback="/")
         return urljoin(base_url, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login")
+
+    def get_url_refresh(self) -> str | None:
+        base_url = conf.get("api", "base_url", fallback="/")
+        return urljoin(base_url, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/refresh")
 
     def is_authorized_configuration(
         self,
@@ -207,9 +211,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         self, menu_items: list[MenuItem], *, user: KeycloakAuthManagerUser
     ) -> list[MenuItem]:
         authorized_menus = self._is_batch_authorized(
-            permissions=[
-                (cast("ExtendedResourceMethod", "MENU"), menu_item.value) for menu_item in menu_items
-            ],
+            permissions=[("MENU", menu_item.value) for menu_item in menu_items],
             user=user,
         )
         return [MenuItem(menu[1]) for menu in authorized_menus]

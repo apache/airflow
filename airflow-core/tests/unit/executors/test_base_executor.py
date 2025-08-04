@@ -20,11 +20,14 @@ from __future__ import annotations
 import logging
 from datetime import timedelta
 from unittest import mock
+from uuid import UUID
 
 import pendulum
 import pytest
 import time_machine
 
+from airflow._shared.timezones import timezone
+from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.cli.cli_config import DefaultHelpParser, GroupCommand
 from airflow.cli.cli_parser import AirflowHelpFormatter
 from airflow.executors import workloads
@@ -32,7 +35,6 @@ from airflow.executors.base_executor import BaseExecutor, RunningRetryAttemptTyp
 from airflow.executors.local_executor import LocalExecutor
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
-from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
 
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
@@ -57,7 +59,7 @@ def test_invalid_slotspool():
 
 def test_get_task_log():
     executor = BaseExecutor()
-    ti = TaskInstance(task=BaseOperator(task_id="dummy"), dag_version_id=mock.MagicMock())
+    ti = TaskInstance(task=BaseOperator(task_id="dummy"), dag_version_id=mock.MagicMock(spec=UUID))
     assert executor.get_task_log(ti=ti, try_number=1) == ([], [])
 
 
@@ -191,7 +193,7 @@ def setup_trigger_tasks(dag_maker, parallelism=None):
     else:
         executor = BaseExecutor()
 
-    executor._process_workloads = mock.Mock()
+    executor._process_workloads = mock.Mock(spec=lambda workloads: None)
 
     for task_instance in dagrun.task_instances:
         workload = workloads.ExecuteTask.make(task_instance)
@@ -253,7 +255,7 @@ def test_debug_dump(caplog):
 def test_base_executor_cannot_send_callback():
     executor = BaseExecutor()
     with pytest.raises(ValueError):
-        executor.send_callback(mock.Mock())
+        executor.send_callback(mock.Mock(spec=CallbackRequest))
 
 
 @skip_if_force_lowest_dependencies_marker

@@ -21,7 +21,11 @@ dynamic = ["version"]
 description = "Python Task SDK for Apache Airflow DAG Authors"
 readme = { file = "README.md", content-type = "text/markdown" }
 license-files.globs = ["LICENSE"]
-requires-python = ">=3.10, !=3.13"
+# We know that it will take a while before we can support Python 3.14 because of all our dependencies
+# in all our providers - and usually it will take a while before we can support it for majority of
+# providers, so we proactively limit it to <3.14.
+# It takes about 4-7 months after Python release before we can support it
+requires-python = ">=3.10, <3.14"
 
 authors = [
     {name="Apache Software Foundation", email="dev@airflow.apache.org"},
@@ -41,9 +45,9 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
 ]
-
 dependencies = [
     "apache-airflow-core<3.2.0,>=3.1.0",
     "attrs>=24.2.0, !=25.2.0",
@@ -52,8 +56,6 @@ dependencies = [
     "jinja2>=3.1.5",
     "methodtools>=0.4.7",
     "msgspec>=0.19.0",
-    'pendulum>=2.1.2,<4.0;python_version<"3.12"',
-    'pendulum>=3.0.0,<4.0;python_version>="3.12"',
     "python-dateutil>=2.7.0",
     "psutil>=6.1.0",
     "structlog>=25.4.0",
@@ -62,6 +64,9 @@ dependencies = [
     "requests>=2.31.0,<3",
     "types-requests>=2.31.0",
     "tenacity>=8.3.0",
+    # Start of shared timezones dependencies
+    "pendulum>=3.1.0",
+    # End of shared timezones dependencies
 ]
 
 [project.urls]
@@ -81,6 +86,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.version]
 path = "src/airflow/sdk/__init__.py"
+
+[tool.hatch.build.targets.sdist.force-include]
+"../shared/timezones/src/airflow_shared/timezones" = "src/airflow/sdk/_shared/timezones"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/airflow"]
@@ -135,10 +143,10 @@ exclude_also = [
 
 [dependency-groups]
 codegen = [
-    "datamodel-code-generator[http]==0.28.2",
+    "datamodel-code-generator[http]==0.32.0",
     "openapi-spec-validator>=0.7.1",
     "svcs>=25.1.0",
-    "ruff==0.12.1",
+    "ruff==0.12.7",
     "rich>=12.4.4",
 ]
 dev = [
@@ -220,3 +228,8 @@ pythonpath = "tests"
 # Keep temporary directories (created by `tmp_path`) for 2 recent runs only failed tests.
 tmp_path_retention_count = "2"
 tmp_path_retention_policy = "failed"
+
+[tool.airflow]
+shared_distributions = [
+    "apache-airflow-shared-timezones",
+]

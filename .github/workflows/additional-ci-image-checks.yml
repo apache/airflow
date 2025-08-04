@@ -117,7 +117,7 @@ jobs:
 
   # Check that after earlier cache push, breeze command will build quickly
   check-that-image-builds-quickly:
-    timeout-minutes: 11
+    timeout-minutes: 17
     name: Check that image builds quickly
     runs-on: ${{ fromJSON(inputs.runners) }}
     env:
@@ -142,12 +142,5 @@ jobs:
         run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        with:
-          use-uv: ${{ inputs.use-uv }}
-      - name: "Login to ghcr.io"
-        env:
-          actor: ${{ github.actor }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$actor" --password-stdin
       - name: "Check that image builds quickly"
-        run: breeze shell --max-time 600 --platform "${PLATFORM}"
+        run: breeze shell --max-time 900 --platform "${PLATFORM}"

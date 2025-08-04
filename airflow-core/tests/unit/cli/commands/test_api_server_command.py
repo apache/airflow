@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import sys
 from unittest import mock
 
 import pytest
@@ -101,49 +102,62 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
                 close_fds=True,
             )
 
-    def test_apps_env_var_set_unset(self):
+    @pytest.mark.parametrize(
+        "args",
+        [
+            (["api-server"]),
+            (["api-server", "--apps", "all"]),
+            (["api-server", "--apps", "core,execution"]),
+            (["api-server", "--apps", "core"]),
+            (["api-server", "--apps", "execution"]),
+        ],
+        ids=[
+            "default_apps",
+            "all_apps_explicit",
+            "multiple_apps_explicit",
+            "single_app_core",
+            "single_app_execution",
+        ],
+    )
+    @pytest.mark.parametrize("dev_mode", [True, False])
+    @pytest.mark.parametrize(
+        "original_env",
+        [None, "some_value"],
+    )
+    def test_api_apps_env(self, args, dev_mode, original_env):
         """
         Test that AIRFLOW_API_APPS is set and unset in the environment when
         calling the airflow api-server command
         """
+        expected_setitem_calls = []
+
+        if dev_mode:
+            args.append("--dev")
+
         with (
-            mock.patch("subprocess.Popen") as Popen,
             mock.patch("os.environ", autospec=True) as mock_environ,
+            mock.patch("uvicorn.run"),
+            mock.patch("subprocess.Popen"),
         ):
-            apps_value = "core,execution"
-            port = "9092"
-            host = "somehost"
+            # Mock the environment variable with initial value or None
+            mock_environ.get.return_value = original_env
 
-            # Parse the command line arguments
-            args = self.parser.parse_args(
-                ["api-server", "--port", port, "--host", host, "--apps", apps_value, "--dev"]
-            )
+            # Parse the command line arguments and call the api_server command
+            parsed_args = self.parser.parse_args(args)
+            api_server_command.api_server(parsed_args)
 
-            # Ensure AIRFLOW_API_APPS is not set initially
-            mock_environ.get.return_value = None
+            # Verify the AIRFLOW_API_APPS was set correctly
+            if "--apps" in args:
+                expected_setitem_calls.append(mock.call("AIRFLOW_API_APPS", parsed_args.apps))
 
-            # Call the fastapi_api command
-            api_server_command.api_server(args)
+            # Verify AIRFLOW_API_APPS was cleaned up
+            if original_env is not None:
+                expected_setitem_calls.append(mock.call("AIRFLOW_API_APPS", original_env))
+            else:
+                mock_environ.pop.assert_called_with("AIRFLOW_API_APPS", None)
 
-            # Assert that AIRFLOW_API_APPS was set in the environment before subprocess
-            mock_environ.__setitem__.assert_called_with("AIRFLOW_API_APPS", apps_value)
-
-            # Simulate subprocess execution
-            Popen.assert_called_with(
-                [
-                    "fastapi",
-                    "dev",
-                    "airflow-core/src/airflow/api_fastapi/main.py",
-                    "--port",
-                    port,
-                    "--host",
-                    host,
-                ],
-                close_fds=True,
-            )
-
-            # Assert that AIRFLOW_API_APPS was unset after subprocess
-            mock_environ.pop.assert_called_with("AIRFLOW_API_APPS")
+            # Verify that the environment variable was set and cleaned up correctly
+            mock_environ.__setitem__.assert_has_calls(expected_setitem_calls)
 
     @pytest.mark.parametrize(
         "cli_args, expected_additional_kwargs",
@@ -281,16 +295,31 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
                 )
             ]
             mock_pid_file.assert_has_calls([mock.call(mock_setup_locations.return_value[0], -1)])
-            assert mock_open.mock_calls == [
-                mock.call(mock_setup_locations.return_value[1], "a"),
-                mock.call().__enter__(),
-                mock.call(mock_setup_locations.return_value[2], "a"),
-                mock.call().__enter__(),
-                mock.call().truncate(0),
-                mock.call().truncate(0),
-                mock.call().__exit__(None, None, None),
-                mock.call().__exit__(None, None, None),
-            ]
+            if sys.version_info >= (3, 13):
+                # extra close is called in Python 3.13+ to close the file descriptors
+                assert mock_open.mock_calls == [
+                    mock.call(mock_setup_locations.return_value[1], "a"),
+                    mock.call().__enter__(),
+                    mock.call(mock_setup_locations.return_value[2], "a"),
+                    mock.call().__enter__(),
+                    mock.call().truncate(0),
+                    mock.call().truncate(0),
+                    mock.call().__exit__(None, None, None),
+                    mock.call().close(),
+                    mock.call().__exit__(None, None, None),
+                    mock.call().close(),
+                ]
+            else:
+                assert mock_open.mock_calls == [
+                    mock.call(mock_setup_locations.return_value[1], "a"),
+                    mock.call().__enter__(),
+                    mock.call(mock_setup_locations.return_value[2], "a"),
+                    mock.call().__enter__(),
+                    mock.call().truncate(0),
+                    mock.call().truncate(0),
+                    mock.call().__exit__(None, None, None),
+                    mock.call().__exit__(None, None, None),
+                ]
         else:
             assert mock_daemon.mock_calls == []
             mock_setup_locations.mock_calls == []

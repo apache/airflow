@@ -25,7 +25,8 @@ import pytest
 from airflow import macros
 from airflow.models.dag import DAG
 from airflow.providers.standard.sensors.date_time import DateTimeSensor
-from airflow.utils import timezone
+
+from tests_common.test_utils.version_compat import timezone
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 

@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -29,7 +31,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { useCallback, useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useSearchParams } from "react-router-dom";
-import { useLocalStorage } from "usehooks-ts";
+import { useLocalStorage, useSessionStorage } from "usehooks-ts";
 
 import type { DagRunState, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import DeleteDagButton from "src/components/DagActions/DeleteDagButton";
@@ -84,7 +86,19 @@ const createColumns = (
   },
   {
     accessorKey: "timetable_description",
-    cell: ({ row: { original } }) => <Schedule dag={original} />,
+    cell: ({ row: { original } }) => {
+      const [latestRun] = original.latest_dag_runs;
+
+      return (
+        <Schedule
+          assetExpression={original.asset_expression}
+          dagId={original.dag_id}
+          latestRunAfter={latestRun?.run_after}
+          timetableDescription={original.timetable_description}
+          timetableSummary={original.timetable_summary}
+        />
+      );
+    },
     enableSorting: false,
     header: () => translate("dagDetails.schedule"),
   },
@@ -129,7 +143,14 @@ const createColumns = (
   },
   {
     accessorKey: "trigger",
-    cell: ({ row: { original } }) => <TriggerDAGButton dag={original} withText={false} />,
+    cell: ({ row: { original } }) => (
+      <TriggerDAGButton
+        dagDisplayName={original.dag_display_name}
+        dagId={original.dag_id}
+        isPaused={original.is_paused}
+        withText={false}
+      />
+    ),
     enableSorting: false,
     header: "",
   },
@@ -150,7 +171,8 @@ const createColumns = (
   },
 ];
 
-const { FAVORITE, LAST_DAG_RUN_STATE, NAME_PATTERN, PAUSED, TAGS, TAGS_MATCH_MODE } = SearchParamsKeys;
+const { FAVORITE, LAST_DAG_RUN_STATE, NAME_PATTERN, OWNERS, PAUSED, TAGS, TAGS_MATCH_MODE } =
+  SearchParamsKeys;
 
 const cardDef: CardDef<DAGWithLatestDagRunsResponse> = {
   card: ({ row }) => <DagCard dag={row} />,
@@ -176,12 +198,14 @@ export const DagsList = () => {
   const lastDagRunState = searchParams.get(LAST_DAG_RUN_STATE) as DagRunState;
   const selectedTags = searchParams.getAll(TAGS);
   const selectedMatchMode = searchParams.get(TAGS_MATCH_MODE) as "all" | "any";
+  const owners = searchParams.getAll(OWNERS);
 
   const { setTableURLState, tableURLState } = useTableURLState();
 
   const { pagination, sorting } = tableURLState;
+  const [savedSearchPattern, setSavedSearchPattern] = useSessionStorage("dags_search_temp", "");
   const [dagDisplayNamePattern, setDagDisplayNamePattern] = useState(
-    searchParams.get(NAME_PATTERN) ?? undefined,
+    searchParams.get(NAME_PATTERN) ?? savedSearchPattern,
   );
 
   const [sort] = sorting;
@@ -190,6 +214,7 @@ export const DagsList = () => {
   const columns = useMemo(() => createColumns(translate), [translate]);
 
   const handleSearchChange = (value: string) => {
+    setSavedSearchPattern(value);
     if (value) {
       searchParams.set(NAME_PATTERN, value);
     } else {
@@ -221,13 +246,14 @@ export const DagsList = () => {
   }
 
   const { data, error, isLoading } = useDags({
-    dagDisplayNamePattern: Boolean(dagDisplayNamePattern) ? `${dagDisplayNamePattern}` : undefined,
+    dagDisplayNamePattern: Boolean(dagDisplayNamePattern) ? dagDisplayNamePattern : undefined,
     dagRunsLimit,
     isFavorite,
     lastDagRunState,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
-    orderBy,
+    orderBy: [orderBy],
+    owners,
     paused,
     tags: selectedTags,
     tagsMatchMode: selectedMatchMode,
@@ -251,7 +277,7 @@ export const DagsList = () => {
       <VStack alignItems="none">
         <SearchBar
           buttonProps={{ disabled: true }}
-          defaultValue={dagDisplayNamePattern ?? ""}
+          defaultValue={dagDisplayNamePattern}
           onChange={handleSearchChange}
           placeHolder={translate("dags:search.dags")}
         />

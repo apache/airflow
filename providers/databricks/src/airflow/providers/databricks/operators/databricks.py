@@ -46,21 +46,32 @@ from airflow.providers.databricks.plugins.databricks_workflow import (
 from airflow.providers.databricks.triggers.databricks import (
     DatabricksExecutionTrigger,
 )
-from airflow.providers.databricks.utils.databricks import normalise_json_content, validate_trigger_event
+from airflow.providers.databricks.utils.databricks import (
+    extract_failed_task_errors,
+    normalise_json_content,
+    validate_trigger_event,
+)
 from airflow.providers.databricks.utils.mixins import DatabricksSQLStatementsMixin
 from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.providers.databricks.operators.databricks_workflow import (
+        DatabricksWorkflowTaskGroup,
+    )
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.utils.context import Context
-    from airflow.utils.task_group import TaskGroup
+
+    try:
+        from airflow.sdk import TaskGroup
+    except ImportError:
+        from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperatorLink
     from airflow.sdk.execution_time.xcom import XCom
 else:
-    from airflow.models import XCom  # type: ignore[no-redef]
+    from airflow.models import XCom
     from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
 
 DEFER_METHOD_NAME = "execute_complete"
@@ -95,17 +106,7 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
                     log.info("View run status, Spark UI, and logs at %s", run_page_url)
                     return
                 if run_state.result_state == "FAILED":
-                    failed_tasks = []
-                    for task in run_info.get("tasks", []):
-                        if task.get("state", {}).get("result_state", "") == "FAILED":
-                            task_run_id = task["run_id"]
-                            task_key = task["task_key"]
-                            run_output = hook.get_run_output(task_run_id)
-                            if "error" in run_output:
-                                error = run_output["error"]
-                            else:
-                                error = run_state.state_message
-                            failed_tasks.append({"task_key": task_key, "run_id": task_run_id, "error": error})
+                    failed_tasks = extract_failed_task_errors(hook, run_info, run_state)
 
                     error_message = (
                         f"{operator.task_id} failed with terminal state: {run_state} "
@@ -1324,15 +1325,15 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
 
         return self.databricks_run_id
 
-    def _handle_terminal_run_state(self, run_state: RunState) -> None:
+    def _handle_terminal_run_state(self, run_state: RunState, errors: list) -> None:
         """Handle the terminal state of the run."""
         if run_state.life_cycle_state != RunLifeCycleState.TERMINATED.value:
             raise AirflowException(
-                f"Databricks job failed with state {run_state.life_cycle_state}. Message: {run_state.state_message}"
+                f"Databricks job failed with state {run_state.life_cycle_state}. Message: {run_state.state_message}. Errors: {errors}"
             )
         if not run_state.is_successful:
             raise AirflowException(
-                f"Task failed. Final state {run_state.result_state}. Reason: {run_state.state_message}"
+                f"Task failed. Final state {run_state.result_state}. Reason: {run_state.state_message}. Errors: {errors}"
             )
         self.log.info("Task succeeded. Final state %s.", run_state.result_state)
 
@@ -1414,12 +1415,17 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
             time.sleep(self.polling_period_seconds)
             run = self._hook.get_run(current_task_run_id)
             run_state = RunState(**run["state"])
+
             self.log.info(
                 "Current state of the databricks task %s is %s",
                 self.databricks_task_key,
                 run_state.life_cycle_state,
             )
-        self._handle_terminal_run_state(run_state)
+
+        # Extract errors from the run response using utility function
+        errors = extract_failed_task_errors(self._hook, run, run_state)
+
+        self._handle_terminal_run_state(run_state, errors)
 
     def execute(self, context: Context) -> None:
         """Execute the operator. Launch the job and monitor it if wait_for_termination is set to True."""
@@ -1428,9 +1434,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
             if not self.workflow_run_metadata:
                 launch_task_id = next(task for task in self.upstream_task_ids if task.endswith(".launch"))
                 self.workflow_run_metadata = context["ti"].xcom_pull(task_ids=launch_task_id)
-            workflow_run_metadata = WorkflowRunMetadata(  # type: ignore[arg-type]
-                **self.workflow_run_metadata
-            )
+            workflow_run_metadata = WorkflowRunMetadata(**self.workflow_run_metadata)
             self.databricks_run_id = workflow_run_metadata.run_id
             self.databricks_conn_id = workflow_run_metadata.conn_id
 
@@ -1449,7 +1453,8 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
 
     def execute_complete(self, context: dict | None, event: dict) -> None:
         run_state = RunState.from_json(event["run_state"])
-        self._handle_terminal_run_state(run_state)
+        errors = event.get("errors", [])
+        self._handle_terminal_run_state(run_state, errors)
 
 
 class DatabricksNotebookOperator(DatabricksTaskBaseOperator):

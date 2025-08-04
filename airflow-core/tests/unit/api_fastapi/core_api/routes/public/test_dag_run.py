@@ -25,6 +25,7 @@ import pytest
 import time_machine
 from sqlalchemy import select
 
+from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun
@@ -32,13 +33,18 @@ from airflow.models.asset import AssetEvent, AssetModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.param import Param
-from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.api_fastapi import _check_dag_run_note, _check_last_log
-from tests_common.test_utils.db import clear_db_dags, clear_db_logs, clear_db_runs, clear_db_serialized_dags
+from tests_common.test_utils.db import (
+    clear_db_connections,
+    clear_db_dags,
+    clear_db_logs,
+    clear_db_runs,
+    clear_db_serialized_dags,
+)
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu, from_datetime_to_zulu_without_ms
 
 if TYPE_CHECKING:
@@ -82,6 +88,7 @@ DAG_RUNS_LIST = [DAG1_RUN1_ID, DAG1_RUN2_ID, DAG2_RUN1_ID, DAG2_RUN2_ID]
 @pytest.fixture(autouse=True)
 @provide_session
 def setup(request, dag_maker, session=None):
+    clear_db_connections()
     clear_db_runs()
     clear_db_dags()
     clear_db_serialized_dags()
@@ -274,7 +281,7 @@ class TestGetDagRuns:
         response = test_client.get("/dags/invalid/dagRuns")
         assert response.status_code == 404
         body = response.json()
-        assert body["detail"] == "The DAG with dag_id: `invalid` was not found"
+        assert body["detail"] == "The Dag with ID: `invalid` was not found"
 
     def test_invalid_order_by_raises_400(self, test_client):
         response = test_client.get("/dags/test_dag1/dagRuns?order_by=invalid")

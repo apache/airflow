@@ -441,7 +441,6 @@ def test_get_user_roles_for_anonymous_user(app, security_manager):
         (permissions.ACTION_CAN_READ, RESOURCE_ASSET_ALIAS),
         (permissions.ACTION_CAN_READ, RESOURCE_BACKFILL),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_CLUSTER_ACTIVITY),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_CONFIG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_JOB),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_POOL),
@@ -524,9 +523,7 @@ def test_get_accessible_dag_ids(mock_is_logged_in, app, security_manager, sessio
             session.add(dag_model)
             session.commit()
 
-            security_manager.sync_perm_for_dag(  # type: ignore
-                dag_id, access_control={role_name: permission_action}
-            )
+            security_manager.sync_perm_for_dag(dag_id, access_control={role_name: permission_action})
 
             assert get_auth_manager().get_authorized_dag_ids(user=user) == {"dag_id"}
 
@@ -558,9 +555,7 @@ def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(
             session.add(dag_model)
             session.commit()
 
-            security_manager.sync_perm_for_dag(  # type: ignore
-                dag_id, access_control={role_name: permission_action}
-            )
+            security_manager.sync_perm_for_dag(dag_id, access_control={role_name: permission_action})
 
             assert get_auth_manager().get_authorized_dag_ids(user=user) == set()
 

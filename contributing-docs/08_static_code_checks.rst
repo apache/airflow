@@ -131,6 +131,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-airflow-v-imports-in-tests                          | Check AIRFLOW_V imports in tests                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-airflow-version-checks-in-core                      | No AIRFLOW_V_* imports in airflow-core                 | *       |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-apache-license-rat                                  | Check if licenses are OK for Apache                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-base-operator-partial-arguments                     | Check BaseOperator and partial() arguments             |         |
@@ -226,6 +228,12 @@ require Breeze Docker image to be built locally.
 | check-revision-heads-map                                  | Check that the REVISION_HEADS_MAP is up-to-date        |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-safe-filter-usage-in-html                           | Don't use safe in templates                            |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-sdk-imports                                         | Check for SDK imports in core files                    | *       |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-shared-distributions-structure                      | Check shared distributions structure                   |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-shared-distributions-usage                          | Check shared distributions usage                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-significant-newsfragments-are-valid                 | Check significant newsfragments are valid              |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -577,6 +585,12 @@ For example:
 
 .. code-block:: bash
 
+  pre-commit run --hook-stage manual mypy-airflow --all-files
+
+To show unused mypy ignores for any providers/airflow etc, eg: run below command:
+
+.. code-block:: bash
+  export SHOW_UNUSED_MYPY_WARNINGS=true
   pre-commit run --hook-stage manual mypy-airflow --all-files
 
 MyPy uses a separate docker-volume (called ``mypy-cache-volume``) that keeps the cache of last MyPy

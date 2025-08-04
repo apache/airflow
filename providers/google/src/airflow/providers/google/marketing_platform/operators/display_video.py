@@ -21,15 +21,18 @@ from __future__ import annotations
 
 import csv
 import json
+import os
 import shutil
 import tempfile
 import urllib.request
+import zipfile
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
 from airflow.providers.google.version_compat import BaseOperator
 
@@ -37,6 +40,12 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
+@deprecated(
+    planned_removal_date="September 01, 2025",
+    use_instead="airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateSDFDownloadTaskOperator",
+    reason="Display & Video 360 API v2 has been deprecated and will be removed.",
+    category=AirflowProviderDeprecationWarning,
+)
 class GoogleDisplayVideo360CreateQueryOperator(BaseOperator):
     """
     Creates a query.
@@ -59,7 +68,7 @@ class GoogleDisplayVideo360CreateQueryOperator(BaseOperator):
         If set as a string, the account must grant the originating account
         the Service Account Token Creator IAM role.
         If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
+        Service Account Token Creator IAM role to the directly preceding identity, with the first
         account from the list granting this role to the originating account (templated).
     """
 
@@ -104,6 +113,12 @@ class GoogleDisplayVideo360CreateQueryOperator(BaseOperator):
         return response
 
 
+@deprecated(
+    planned_removal_date="September 01, 2025",
+    reason="Display & Video 360 API v2 has been deprecated and will be removed. "
+    "Reports were replaced with SDF export task in v4 of API.",
+    category=AirflowProviderDeprecationWarning,
+)
 class GoogleDisplayVideo360DeleteReportOperator(BaseOperator):
     """
     Deletes a stored query as well as the associated stored reports.
@@ -178,6 +193,12 @@ class GoogleDisplayVideo360DeleteReportOperator(BaseOperator):
             self.log.info("Report deleted.")
 
 
+@deprecated(
+    planned_removal_date="September 01, 2025",
+    use_instead="airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360SDFtoGCSOperator",
+    reason="Display & Video 360 API v2 has been deprecated and will be removed.",
+    category=AirflowProviderDeprecationWarning,
+)
 class GoogleDisplayVideo360DownloadReportV2Operator(BaseOperator):
     """
     Retrieves a stored query.
@@ -298,6 +319,12 @@ class GoogleDisplayVideo360DownloadReportV2Operator(BaseOperator):
         context["task_instance"].xcom_push(key="report_name", value=report_name)
 
 
+@deprecated(
+    planned_removal_date="September 01, 2025",
+    use_instead="airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateSDFDownloadTaskOperator",
+    reason="Display & Video 360 API v2 has been deprecated and will be removed.",
+    category=AirflowProviderDeprecationWarning,
+)
 class GoogleDisplayVideo360RunQueryOperator(BaseOperator):
     """
     Runs a stored query to generate a report.
@@ -365,6 +392,12 @@ class GoogleDisplayVideo360RunQueryOperator(BaseOperator):
         return response
 
 
+@deprecated(
+    planned_removal_date="September 01, 2025",
+    use_instead="airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateSDFDownloadTaskOperator",
+    reason="Display & Video 360 API v2 has been deprecated and will be removed.",
+    category=AirflowProviderDeprecationWarning,
+)
 class GoogleDisplayVideo360DownloadLineItemsOperator(BaseOperator):
     """
     Retrieves line items in CSV format.
@@ -438,6 +471,12 @@ class GoogleDisplayVideo360DownloadLineItemsOperator(BaseOperator):
         return f"{self.bucket_name}/{self.object_name}"
 
 
+@deprecated(
+    planned_removal_date="September 01, 2025",
+    use_instead="airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360SDFtoGCSOperator",
+    reason="Display & Video 360 API v2 has been deprecated and will be removed.",
+    category=AirflowProviderDeprecationWarning,
+)
 class GoogleDisplayVideo360UploadLineItemsOperator(BaseOperator):
     """
     Uploads line items in CSV format.
@@ -506,7 +545,7 @@ class GoogleDisplayVideo360UploadLineItemsOperator(BaseOperator):
 
 class GoogleDisplayVideo360CreateSDFDownloadTaskOperator(BaseOperator):
     """
-    Creates SDF operation task.
+    Creates an SDF operation task.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -542,7 +581,7 @@ class GoogleDisplayVideo360CreateSDFDownloadTaskOperator(BaseOperator):
         self,
         *,
         body_request: dict[str, Any],
-        api_version: str = "v1",
+        api_version: str = "v4",
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -613,7 +652,7 @@ class GoogleDisplayVideo360SDFtoGCSOperator(BaseOperator):
         bucket_name: str,
         object_name: str,
         gzip: bool = False,
-        api_version: str = "v1",
+        api_version: str = "v4",
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -645,14 +684,24 @@ class GoogleDisplayVideo360SDFtoGCSOperator(BaseOperator):
         media = hook.download_media(resource_name=operation_state["response"]["resourceName"])
 
         self.log.info("Sending file to the Google Cloud Storage...")
-        with tempfile.NamedTemporaryFile() as temp_file:
-            hook.download_content_from_request(temp_file, media, chunk_size=1024 * 1024)
-            temp_file.flush()
-            gcs_hook.upload(
-                bucket_name=self.bucket_name,
-                object_name=self.object_name,
-                filename=temp_file.name,
-                gzip=self.gzip,
-            )
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            zip_path = os.path.join(tmp_dir, "sdf.zip")
 
+            # Download the ZIP
+            with open(zip_path, "wb") as f:
+                hook.download_content_from_request(f, media, chunk_size=1024 * 1024)
+
+            # Extract CSV
+            with zipfile.ZipFile(zip_path, "r") as zip_ref:
+                zip_ref.extractall(tmp_dir)
+
+            # Upload CSV file
+            for fname in os.listdir(tmp_dir):
+                if fname.endswith(".csv"):
+                    gcs_hook.upload(
+                        bucket_name=self.bucket_name,
+                        object_name=self.object_name,
+                        filename=os.path.join(tmp_dir, fname),
+                        gzip=False,
+                    )
         return f"{self.bucket_name}/{self.object_name}"

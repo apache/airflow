@@ -74,7 +74,7 @@ class RedshiftSQLHook(DbApiHook):
 
     @cached_property
     def conn(self):
-        return self.get_connection(self.redshift_conn_id)  # type: ignore[attr-defined]
+        return self.get_connection(self.get_conn_id())
 
     def _get_conn_params(self) -> dict[str, str | int]:
         """Retrieve connection parameters."""

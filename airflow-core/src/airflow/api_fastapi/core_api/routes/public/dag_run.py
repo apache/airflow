@@ -34,7 +34,7 @@ from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_success,
 )
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
-from airflow.api_fastapi.common.dagbag import DagBagDep
+from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
@@ -79,7 +79,7 @@ from airflow.api_fastapi.core_api.services.public.dag_run import DagRunWaiter
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import ParamValidationError
 from airflow.listeners.listener import get_listener_manager
-from airflow.models import DAG, DagModel, DagRun
+from airflow.models import DagModel, DagRun
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -168,10 +168,7 @@ def patch_dag_run(
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
 
-    dag: DAG = dag_bag.get_dag(dag_id)
-
-    if not dag:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
+    dag = get_dag_for_run(dag_bag, dag_run, session=session)
 
     fields_to_update = patch_body.model_fields_set
 
@@ -274,13 +271,16 @@ def clear_dag_run(
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
 
-    dag: DAG = dag_bag.get_dag(dag_id)
+    dag = dag_bag.get_dag_for_run(dag_run, session=session)
 
     if body.dry_run:
+        if not dag:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
         task_instances = dag.clear(
             run_id=dag_run_id,
             task_ids=None,
             only_failed=body.only_failed,
+            run_on_latest_version=body.run_on_latest_version,
             dry_run=True,
             session=session,
         )
@@ -289,10 +289,13 @@ def clear_dag_run(
             task_instances=cast("list[TaskInstanceResponse]", task_instances),
             total_entries=len(task_instances),
         )
+    if not dag:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
     dag.clear(
         run_id=dag_run_id,
         task_ids=None,
         only_failed=body.only_failed,
+        run_on_latest_version=body.run_on_latest_version,
         session=session,
     )
     dag_run_cleared = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))
@@ -350,10 +353,8 @@ def get_dag_runs(
     query = select(DagRun)
 
     if dag_id != "~":
-        dag: DAG = dag_bag.get_dag(dag_id)
-        if not dag:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, f"The DAG with dag_id: `{dag_id}` was not found")
-
+        # Check if the DAG exists
+        get_latest_version_of_dag(dag_bag, dag_id, session)
         query = query.filter(DagRun.dag_id == dag_id).options(joinedload(DagRun.dag_model))
 
     dag_run_select, total_entries = paginated_select(
@@ -415,7 +416,7 @@ def trigger_dag_run(
         )
 
     try:
-        dag: DAG = dag_bag.get_dag(dag_id)
+        dag = get_latest_version_of_dag(dag_bag, dag_id, session)
         params = body.validate_context(dag)
 
         dag_run = dag.create_dagrun(
@@ -542,7 +543,7 @@ def get_list_dag_runs_batch(
         ],
         DagRun,
         {"dag_run_id": "run_id"},
-    ).set_value(body.order_by)
+    ).set_value([body.order_by] if body.order_by else None)
 
     base_query = select(DagRun).options(joinedload(DagRun.dag_model))
     dag_runs_select, total_entries = paginated_select(

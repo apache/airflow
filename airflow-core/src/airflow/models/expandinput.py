@@ -26,10 +26,11 @@ import attrs
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    from typing import TypeGuard
+
     from sqlalchemy.orm import Session
 
     from airflow.models.xcom_arg import SchedulerXComArg
-    from airflow.typing_compat import TypeGuard
 
 from airflow.sdk.definitions._internal.expandinput import (
     DictOfListsExpandInput,
