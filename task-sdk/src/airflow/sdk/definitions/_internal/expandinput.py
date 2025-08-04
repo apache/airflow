@@ -269,8 +269,7 @@ class ListOfDictsExpandInput(ResolveMixin):
 
     def resolve(
         self, context: Mapping[str, Any]
-    ) -> Sequence[XComArg | Mapping[str, Any]] | tuple[
-        Mapping[str, Any], set[int]]:
+    ) -> Sequence[XComArg | Mapping[str, Any]] | tuple[Mapping[str, Any], set[int]]:
         if enable_lazy_task_expansion:
             if _needs_run_time_resolution(self.value):
                 self.value = self.value.resolve(context)
