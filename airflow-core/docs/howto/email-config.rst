@@ -54,8 +54,10 @@ Equivalent environment variables look like:
 To configure SMTP settings, checkout the :ref:`SMTP <config:smtp>` section in the standard configuration.
 If you do not want to store the SMTP credentials in the config or in the environment variables, you can create a
 connection called ``smtp_default`` of ``Email`` type, or choose a custom connection name and set the ``email_conn_id`` with its name in
-the configuration & store SMTP username-password in it. Other SMTP settings like host, port etc always gets picked up
-from the configuration only. The connection can be of any type (for example 'HTTP connection').
+the configuration & store SMTP username-password in it. SMTP settings like host, port, TLS/SSL, and credentials can be
+set either in the Airflow configuration file (in the ``[smtp]`` section), or dynamically via a connection of
+type ``Email``. If a connection is provided (e.g., via ``email_conn_id`` or ``conn_id`` in an operator), it takes
+precedence over the config.
 
 If you want to check which email backend is currently set, you can use ``airflow config get-value email email_backend`` command as in
 the example below.
@@ -81,6 +83,74 @@ For example a ``html_content_template`` file could look like this:
     For more information on setting the configuration, see :doc:`set-config`
 
 .. _email-configuration-sendgrid:
+
+
+Using SMTP via an Email Connection
+----------------------------------
+
+You can configure Airflow to send emails using an ``Email``-type connection instead of hardcoding SMTP settings in ``airflow.cfg``.
+
+To do this:
+
+1. Create a connection in the Airflow UI (Admin > Connections) with:
+   - Conn Type: ``Email``
+   - Host: your SMTP server (e.g., ``smtp.example.com``)
+   - Login / Password: your SMTP credentials
+   - Port: usually ``587`` or ``465``
+   - Extra (as JSON):
+
+     .. code-block:: json
+
+        {
+          "starttls": true,
+          "ssl": false,
+          "mail_from": "Your Name <your_email@example.com>"
+        }
+
+2. In ``airflow.cfg``, reference this connection:
+
+   .. code-block:: ini
+
+      [email]
+      email_backend = airflow.utils.email.send_email_smtp
+      email_conn_id = smtp_default
+
+Or via environment variables:
+
+   .. code-block:: bash
+
+      AIRFLOW__EMAIL__EMAIL_BACKEND=airflow.utils.email.send_email_smtp
+      AIRFLOW__EMAIL__EMAIL_CONN_ID=smtp_default
+
+When this is set, SMTP settings will be read from the connection instead of the config file. This allows better secret management and more dynamic email setup.
+
+.. note::
+
+   If both connection and config values are present, the connection values take precedence.
+
+
+Using EmailOperator with a Connection
+-------------------------------------
+
+To send email from a DAG using a specific SMTP connection, pass a ``conn_id`` to the ``EmailOperator``.
+
+Example:
+
+.. code-block:: python
+
+    from airflow.operators.email import EmailOperator
+
+    send_email_task = EmailOperator(
+        task_id='send_report_by_email',
+        conn_id='smtp_default',
+        to=['user@example.com'],
+        subject='Your Report',
+        html_content='Here is your report.',
+        files=['/tmp/report.xlsx']
+    )
+
+Airflow will use the SMTP credentials and parameters defined in the ``smtp_default`` connection. If the ``conn_id`` is not provided, it will fall back to using the configuration in ``airflow.cfg``.
+
 
 Send email using SendGrid
 -------------------------
