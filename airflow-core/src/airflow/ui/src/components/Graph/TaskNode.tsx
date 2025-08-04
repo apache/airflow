@@ -95,7 +95,6 @@ export const TaskNode = ({
               fontSize="sm"
               overflow="hidden"
               textOverflow="ellipsis"
-              textTransform="capitalize"
               whiteSpace="nowrap"
             >
               {isGroup ? "Task Group" : operator}
