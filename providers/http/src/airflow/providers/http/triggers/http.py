@@ -23,8 +23,7 @@ import pickle
 import sys
 from collections.abc import AsyncIterator
 from importlib import import_module
-from typing import TYPE_CHECKING, Any, Callable
-
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
 import requests
@@ -304,7 +303,7 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
                 }
             )
         except Exception as e:
-            self.log.error("status: error, message: %s" % str(e))
+            self.log.error("status: error, message: %s", str(e))
 
     def _import_from_response_check_path(self):
         module_path, func_name = self.response_check_path.rsplit(".", 1)

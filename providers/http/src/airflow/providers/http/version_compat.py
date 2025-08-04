@@ -48,4 +48,3 @@ else:
     from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
 
 __all__ = ["AIRFLOW_V_3_0_PLUS", "AIRFLOW_V_3_1_PLUS", "BaseHook", "BaseOperator", "BaseSensorOperator"]
-
