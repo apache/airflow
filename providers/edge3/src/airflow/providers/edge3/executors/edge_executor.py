@@ -155,7 +155,6 @@ class EdgeExecutor(BaseExecutor):
         )
 
         if existing_job:
-            # self.log.info(f"EdgeExecutor: Job already exists for {key}, updating it.")
             existing_job.state = TaskInstanceState.QUEUED
             existing_job.queue = queue or DEFAULT_QUEUE
             existing_job.concurrency_slots = task_instance.pool_slots
@@ -174,7 +173,6 @@ class EdgeExecutor(BaseExecutor):
                     command=str(command),
                 )
             )
-            # self.log.info(f"EdgeExecutor: Inserted new job for {key}")
 
     @provide_session
     def queue_workload(
@@ -205,7 +203,6 @@ class EdgeExecutor(BaseExecutor):
         )
 
         if existing_job:
-            # self.log.info(f"EdgeExecutor: Workload already exists for {key}, updating it.")
             existing_job.state = TaskInstanceState.QUEUED
             existing_job.queue = task_instance.queue
             existing_job.concurrency_slots = task_instance.pool_slots
@@ -224,7 +221,6 @@ class EdgeExecutor(BaseExecutor):
                     command=workload.model_dump_json(),
                 )
             )
-            # self.log.info(f"EdgeExecutor: Inserted new workload for {key}")
 
     def _check_worker_liveness(self, session: Session) -> bool:
         """Reset worker state if heartbeat timed out."""
