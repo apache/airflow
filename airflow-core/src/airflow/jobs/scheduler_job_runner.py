@@ -25,7 +25,7 @@ import signal
 import sys
 import time
 from collections import Counter, defaultdict, deque
-from collections.abc import Callable, Collection, Iterable, Iterator
+from collections.abc import Callable, Collection, Iterable, Iterator, Mapping
 from contextlib import ExitStack
 from datetime import date, timedelta
 from functools import lru_cache, partial
@@ -335,9 +335,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         timer.start()
 
         try:
-            print(str(query))
-            query = with_row_locks(query, of=TI, session=session, skip_locked=True)
-            task_instances_to_examine: list[TI] = session.scalars(query).all()
+            params: Mapping[str, Any] = self.task_selector_params_provider(
+                conf=conf,
+                scheduler_job_runner=self,
+            )
+            task_instances_to_examine: list[TI] = self.task_selector.query_tasks_with_locks(
+                session,
+                **params,
+            )
 
             timer.stop(send=True)
         except OperationalError as e:
@@ -355,7 +360,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         task_instance_str = "\n".join(f"\t{x!r}" for x in task_instances_to_examine)
         self.log.info("%s tasks up for execution:\n%s", len(task_instances_to_examine), task_instance_str)
 
-        # TODO: think what to do with the executors part
         executor_slots_available: dict[ExecutorName, int] = {}
         # First get a mapping of executor names to slots they have available
         for executor in self.job.executors:
@@ -366,14 +370,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             executor_slots_available[executor.name] = executor.slots_available
 
         for task_instance in task_instances_to_examine:
-            pool_name = task_instance.pool
-
-            pool_stats = pools.get(pool_name)
-            if not pool_stats:
-                self.log.warning("Tasks using non-existent pool '%s' will not be scheduled", pool_name)
-                starved_pools.add(pool_name)
-                continue
-
             if executor_obj := self._try_to_load_executor(task_instance.executor):
                 if TYPE_CHECKING:
                     # All executors should have a name if they are initted from the executor_loader.
@@ -384,7 +380,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         "Not scheduling %s since its executor %s does not currently have any more "
                         "available slots"
                     )
-                    starved_tasks.add((task_instance.dag_id, task_instance.task_id))
                     continue
                 executor_slots_available[executor_obj.name] -= 1
             else:
@@ -393,7 +388,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # loader can fail if some direct DB modification has happened or another as yet unknown
                 # edge case. _try_to_load_executor will log an error message explaining the executor
                 # cannot be found.
-                starved_tasks.add((task_instance.dag_id, task_instance.task_id))
                 continue
 
             executable_tis.append(task_instance)

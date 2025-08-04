@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import itertools
 from collections import Counter
+from functools import cache
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Column, select, tuple_, update
@@ -54,6 +55,7 @@ class OptimisticTaskSelector(TaskSelectorStrategy, LoggingMixin):
         self.num_starving_tasks_total = 0
         self.priority_order = [-TaskInstance.priority_weight, DagRun.logical_date, TaskInstance.map_index]
 
+    @cache
     def get_query(self, **additional_params) -> Query:
         priority_order = self.priority_order
         max_tis = additional_params.get("max_tis", 32)
@@ -75,6 +77,7 @@ class OptimisticTaskSelector(TaskSelectorStrategy, LoggingMixin):
 
     def query_tasks_with_locks(self, session: Session, **additional_params) -> Query:
         priority_order: list[Column] = additional_params["priority_order"]
+        executor_slots_available: dict[str, int] = additional_params["executor_slots_available"]
         max_tis: int = additional_params.get("max_tis", 32)
 
         query = self.get_query(
@@ -132,6 +135,7 @@ class OptimisticTaskSelector(TaskSelectorStrategy, LoggingMixin):
                 starved_tasks,
                 starved_dags,
                 starved_tasks_task_dagrun_concurrency,
+                executor_slots_available,
             )
 
             executable_tis.extend(executable_tis_result)
@@ -176,6 +180,7 @@ class OptimisticTaskSelector(TaskSelectorStrategy, LoggingMixin):
         starved_tasks: set[tuple[str, str]],
         starved_dags: set[str],
         starved_tasks_task_dagrun_concurrency: set[tuple[str, str, str]],
+        executor_slots_available: dict[str, int],
     ) -> tuple[list[TaskInstance], int]:
         executable_tis: list[TaskInstance] = []
         num_starving_tasks_total: int = 0
@@ -233,6 +238,28 @@ class OptimisticTaskSelector(TaskSelectorStrategy, LoggingMixin):
             ] += 1
 
             pool_stats["open"] = open_slots
+
+            if executor_name := task_instance.executor:
+                if TYPE_CHECKING:
+                    # All executors should have a name if they are initted from the executor_loader.
+                    # But we need to check for None to make mypy happy.
+                    assert executor_name
+                if executor_slots_available[executor_name] <= 0:
+                    self.log.debug(
+                        "Not scheduling %s since its executor %s does not currently have any more "
+                        "available slots"
+                    )
+                    starved_tasks.add((task_instance.dag_id, task_instance.task_id))
+                    continue
+                executor_slots_available[executor_name] -= 1
+            else:
+                # This is a defensive guard for if we happen to have a task who's executor cannot be
+                # found. The check in the dag parser should make this not realistically possible but the
+                # loader can fail if some direct DB modification has happened or another as yet unknown
+                # edge case. _try_to_load_executor will log an error message explaining the executor
+                # cannot be found.
+                starved_tasks.add((task_instance.dag_id, task_instance.task_id))
+                continue
 
         return executable_tis, num_starving_tasks_total
 
