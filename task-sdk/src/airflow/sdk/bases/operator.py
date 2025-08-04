@@ -37,7 +37,6 @@ import attrs
 
 from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.sdk import timezone
-from airflow.sdk.bases.trigger import StartTriggerArgs
 from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
@@ -85,7 +84,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.serialization.enums import DagAttributeTypes
     from airflow.task.priority_strategy import PriorityWeightStrategy
-    from airflow.triggers.base import BaseTrigger
+    from airflow.triggers.base import BaseTrigger, StartTriggerArgs
     from airflow.typing_compat import Self
     from airflow.utils.operator_resources import Resources
 
