@@ -1119,8 +1119,9 @@ class TestSchedulerJob:
             ("scheduler", "max_tis_per_query"): "100",
             ("scheduler", "max_dagruns_to_create_per_loop"): "10",
             ("scheduler", "max_dagruns_per_loop_to_schedule"): "20",
+            ("scheduler", "fair_task_selection_limit_per_dag"): "4",
             ("core", "parallelism"): "100",
-            ("core", "max_active_tasks_per_dag"): "4",
+            ("core", "max_active_tasks_per_dag"): "2",
             ("core", "max_active_runs_per_dag"): "10",
             ("core", "default_pool_task_slot_count"): "64",
         }
@@ -1153,7 +1154,7 @@ class TestSchedulerJob:
 
             from airflow.configuration import conf
 
-            task_num = conf.getint("core", "max_active_tasks_per_dag") * 6
+            task_num = conf.getint("scheduler", "fair_task_selection_limit_per_dag") * 6
 
             # 6 dags * 4 = 24.
             assert task_num == 24
