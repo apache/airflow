@@ -48,7 +48,7 @@ from airflow.exceptions import (
     DeserializingResultError,
 )
 from airflow.models.connection import Connection
-from airflow.models.taskinstance import TaskInstance, clear_task_instances, set_current_context
+from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import (
     BranchExternalPythonOperator,
@@ -74,8 +74,11 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperator
+    from airflow.sdk.execution_time.context import set_current_context
 else:
     from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
+    from airflow.models.taskinstance import set_current_context  # type: ignore[attr-defined,no-redef]
+
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
@@ -548,11 +551,11 @@ class TestBranchOperator(BasePythonTest):
             ("join", [State.SUCCESS, State.SKIPPED, State.SUCCESS]),
         ],
     )
-    def test_empty_branch(self, choice, expected_states):
+    def test_empty_branch(self, choice, expected_states, session):
         """
         Tests that BranchPythonOperator handles empty branches properly.
         """
-        with self.dag_non_serialized:
+        with self.dag_maker(self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True):
 
             def f():
                 return choice
@@ -564,13 +567,13 @@ class TestBranchOperator(BasePythonTest):
             branch >> [task1, join]
             task1 >> join
 
-        dr = self.create_dag_run()
+        dr = self.dag_maker.create_dagrun()
         task_ids = [self.task_id, "task1", "join"]
         tis = {ti.task_id: ti for ti in dr.task_instances}
 
         for task_id in task_ids:  # Mimic the specific order the scheduling would run the tests.
             task_instance = tis[task_id]
-            task_instance.refresh_from_task(self.dag_non_serialized.get_task(task_id))
+            task_instance.refresh_from_task(self.dag_maker.dag.get_task(task_id))
             if AIRFLOW_V_3_0_1:
                 from airflow.exceptions import DownstreamTasksSkipped
 
@@ -755,10 +758,11 @@ class TestShortCircuitOperator(BasePythonTest):
         After a downstream task is skipped by ShortCircuitOperator, clearing the skipped task
         should not cause it to be executed.
         """
-        with self.dag_non_serialized:
+        with self.dag_maker(self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True):
             short_circuit = ShortCircuitOperator(task_id=self.task_id, python_callable=lambda: False)
             short_circuit >> self.op1 >> self.op2
-        dr = self.create_dag_run()
+
+        dr = self.dag_maker.create_dagrun()
 
         if AIRFLOW_V_3_0_1:
             from airflow.exceptions import DownstreamTasksSkipped
@@ -841,6 +845,54 @@ class TestShortCircuitOperator(BasePythonTest):
         assert tis[0].xcom_pull(task_ids=short_op_push_xcom.task_id, key="skipmixin_key") == {
             "skipped": ["empty_task"]
         }
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 2 implementation is different")
+    def test_short_circuit_operator_skips_sensors(self):
+        """Test that ShortCircuitOperator properly skips sensors in Airflow 3.x."""
+        from airflow.sdk.bases.sensor import BaseSensorOperator
+
+        # Create a sensor similar to S3FileSensor to reproduce the issue
+        class CustomS3Sensor(BaseSensorOperator):
+            def __init__(self, bucket_name: str, object_key: str, **kwargs):
+                super().__init__(**kwargs)
+                self.bucket_name = bucket_name
+                self.object_key = object_key
+                self.timeout = 0
+                self.poke_interval = 0
+
+            def poke(self, context):
+                # Simulate sensor logic
+                return True
+
+        with self.dag_maker(self.dag_id):
+            # ShortCircuit that evaluates to False (should skip all downstream)
+            short_circuit = ShortCircuitOperator(
+                task_id="check_dis_is_mon_to_fri_not_holiday",
+                python_callable=lambda: False,  # This causes skipping
+            )
+
+            sensor_task = CustomS3Sensor(
+                task_id="wait_for_ticker_to_secid_lookup_s3_file",
+                bucket_name="test-bucket",
+                object_key="ticker_to_secid_lookup.csv",
+            )
+
+            short_circuit >> sensor_task
+
+        dr = self.dag_maker.create_dagrun()
+
+        self.dag_maker.run_ti("check_dis_is_mon_to_fri_not_holiday", dr)
+
+        # Verify the sensor is included in the skip list by checking XCom
+        # (this was the bug - sensors were not being included in skip list)
+        tis = dr.get_task_instances()
+        xcom_data = tis[0].xcom_pull(task_ids="check_dis_is_mon_to_fri_not_holiday", key="skipmixin_key")
+
+        assert xcom_data is not None, "XCom data should exist"
+        skipped_task_ids = set(xcom_data.get("skipped", []))
+        assert "wait_for_ticker_to_secid_lookup_s3_file" in skipped_task_ids, (
+            "Sensor should be skipped by ShortCircuitOperator"
+        )
 
 
 virtualenv_string_args: list[str] = []
@@ -1608,6 +1660,42 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         msg = str(exc_info.value)
         assert f"Invalid requirement '{invalid_requirement}'" in msg
 
+    @mock.patch("airflow.providers.standard.operators.python.PythonVirtualenvOperator._prepare_venv")
+    @mock.patch(
+        "airflow.providers.standard.operators.python.PythonVirtualenvOperator._execute_python_callable_in_subprocess"
+    )
+    @mock.patch(
+        "airflow.providers.standard.operators.python.PythonVirtualenvOperator._cleanup_python_pycache_dir"
+    )
+    def test_execute_callable_pycache_cleanup(
+        self, pycache_cleanup_mock, execute_in_subprocess_mock, prepare_venv_mock
+    ):
+        custom_pycache_prefix = "custom/__pycache__"
+        tempdir_name = "tmp"
+        venv_dir_temp_name = "venvrandom"
+        venv_path_tmp = f"/{tempdir_name}/{venv_dir_temp_name}"
+        expected_cleanup_path = Path.cwd() / custom_pycache_prefix / tempdir_name / venv_dir_temp_name
+
+        def f():
+            return 1
+
+        op = PythonVirtualenvOperator(
+            task_id="task",
+            python_callable=f,
+            system_site_packages=False,
+        )
+        with mock.patch.object(sys, "pycache_prefix", new=custom_pycache_prefix):
+            with mock.patch(
+                "airflow.providers.standard.operators.python.TemporaryDirectory"
+            ) as mock_temp_dir:
+                mock_context = mock_temp_dir.return_value.__enter__
+                mock_context.return_value = venv_path_tmp
+                op.execute_callable()
+
+        execute_in_subprocess_mock.assert_called_once()
+        prepare_venv_mock.assert_called_once_with(Path(venv_path_tmp))
+        pycache_cleanup_mock.assert_called_once_with(expected_cleanup_path)
+
 
 # when venv tests are run in parallel to other test they create new processes and this might take
 # quite some time in shared docker environment and get some contention even between different containers
@@ -1691,6 +1779,24 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
     def setup_tests(self):
         self.branch_1 = EmptyOperator(task_id="branch_1")
         self.branch_2 = EmptyOperator(task_id="branch_2")
+
+    # Skip some tests from base class that are not applicable for branching operators
+    # as the branching condition is mandatory but not given by base class
+    @pytest.mark.skip(reason="Test is not working for branching operators")
+    def test_string_args(self):
+        pass
+
+    @pytest.mark.skip(reason="Test is not working for branching operators")
+    def test_return_none(self):
+        pass
+
+    @pytest.mark.skip(reason="Test is not working for branching operators")
+    def test_nonimported_as_arg(self):
+        pass
+
+    @pytest.mark.skip(reason="Test is not working for branching operators")
+    def test_on_skip_exit_code(self):
+        pass
 
     def test_with_args(self):
         def f(a, b, c=False, d=False):

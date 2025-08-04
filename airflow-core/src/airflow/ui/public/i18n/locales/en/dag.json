@@ -19,6 +19,7 @@
   },
   "header": {
     "buttons": {
+      "advanced": "Advanced",
       "dagDocs": "Dag Docs"
     }
   },
@@ -34,6 +35,7 @@
     },
     "info": "INFO",
     "noTryNumber": "No try number",
+    "settings": "Log Settings",
     "viewInExternal": "View logs in {{name}} (attempt {{attempt}})",
     "warning": "WARNING"
   },
@@ -101,6 +103,7 @@
     "mappedTaskInstances_other": "Task Instances [{{count}}]",
     "overview": "Overview",
     "renderedTemplates": "Rendered Templates",
+    "requiredActions": "Required Actions",
     "runs": "Runs",
     "taskInstances": "Task Instances",
     "tasks": "Tasks",

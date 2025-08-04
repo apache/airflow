@@ -24,6 +24,7 @@ import ReactMarkdown from "src/components/ReactMarkdown";
 import { Accordion, Alert } from "src/components/ui";
 import { useConfig } from "src/queries/useConfig";
 
+import { FavoriteDags } from "./FavoriteDags";
 import { Health } from "./Health";
 import { HistoricalMetrics } from "./HistoricalMetrics";
 import { PoolSummary } from "./PoolSummary";
@@ -35,9 +36,11 @@ export const Dashboard = () => {
 
   return (
     <Box overflow="auto" px={4}>
-      <VStack alignItems="start">
+      <VStack alignItems="stretch" gap={6}>
+        {/* All flex items within this VStack should specify an increasing order. This
+        will be used by third parties plugins to position themselves within the page via CSS */}
         {alerts.length > 0 ? (
-          <Accordion.Root collapsible defaultValue={["ui_alerts"]}>
+          <Accordion.Root collapsible defaultValue={["ui_alerts"]} order={1}>
             <Accordion.Item key="ui_alerts" value="ui_alerts">
               {alerts.map((alert: UIAlert, index) =>
                 index === 0 ? (
@@ -57,20 +60,23 @@ export const Dashboard = () => {
             </Accordion.Item>
           </Accordion.Root>
         ) : undefined}
-        <Heading mb={2} size="2xl">
+        <Heading order={2} size="2xl">
           {translate("welcome")}
         </Heading>
+        <Box order={3}>
+          <Stats />
+        </Box>
+        <Box order={4}>
+          <FavoriteDags />
+        </Box>
+        <Box display="flex" gap={8} order={5}>
+          <Health />
+          <PoolSummary />
+        </Box>
+        <Box order={6}>
+          <HistoricalMetrics />
+        </Box>
       </VStack>
-      <Box>
-        <Stats />
-      </Box>
-      <Box display="flex" gap={8} mt={8}>
-        <Health />
-        <PoolSummary />
-      </Box>
-      <Box mt={8}>
-        <HistoricalMetrics />
-      </Box>
     </Box>
   );
 };

@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-databricks"
-version = "7.6.0"
+version = "7.7.0"
 description = "Provider package apache-airflow-providers-databricks for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -47,9 +47,10 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
 ]
-requires-python = "~=3.10"
+requires-python = ">=3.10"
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
@@ -59,14 +60,16 @@ dependencies = [
     "apache-airflow>=2.10.0",
     "apache-airflow-providers-common-compat>=1.6.0",
     "apache-airflow-providers-common-sql>=1.27.0",
+    "apache-airflow-providers-openlineage>=2.3.0",
     "requests>=2.32.0,<3",
-    "databricks-sql-connector>=3.0.0",
+    "databricks-sql-connector>=4.0.0",
     "databricks-sqlalchemy>=1.0.2",
     "aiohttp>=3.9.2, <4",
     "mergedeep>=1.3.4",
     'pandas>=2.1.2; python_version <"3.13"',
     'pandas>=2.2.3; python_version >="3.13"',
-    "pyarrow>=16.1.0",
+    "pyarrow>=16.1.0; python_version < '3.13'",
+    "pyarrow>=18.0.0; python_version >= '3.13'",
 ]
 
 # The optional dependencies should be modified in place in the generated file
@@ -80,13 +83,10 @@ dependencies = [
     "azure-identity>=1.3.1",
 ]
 "fab" = [
-    "apache-airflow-providers-fab"
+    "apache-airflow-providers-fab>=2.2.0; python_version < '3.13'"
 ]
 "standard" = [
     "apache-airflow-providers-standard"
-]
-"openlineage" = [
-    "apache-airflow-providers-openlineage>=2.3.0"
 ]
 
 [dependency-groups]
@@ -99,7 +99,9 @@ dev = [
     "apache-airflow-providers-fab",
     "apache-airflow-providers-openlineage",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
-    "deltalake>=0.12.0",
+    # https://github.com/delta-io/delta-rs/issues/3621
+    "deltalake>=0.12.0,!=1.1.1",
+    "apache-airflow-providers-fab>=2.2.0; python_version < '3.13'",
     "apache-airflow-providers-microsoft-azure",
     "apache-airflow-providers-common-sql[pandas,polars]",
 ]
@@ -130,8 +132,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.6.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.6.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.7.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.7.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

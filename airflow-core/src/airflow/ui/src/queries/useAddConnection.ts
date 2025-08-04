@@ -35,10 +35,10 @@ export const useAddConnection = ({ onSuccessConfirm }: { onSuccessConfirm: () =>
     });
 
     toaster.create({
-      description: translate("toaster.success.description", {
+      description: translate("toaster.create.success.description", {
         resourceName: translate("admin:connections.connection_one"),
       }),
-      title: translate("toaster.success.title", {
+      title: translate("toaster.create.success.title", {
         action: translate("toaster.create"),
         resourceName: translate("admin:connections.connection_one"),
       }),

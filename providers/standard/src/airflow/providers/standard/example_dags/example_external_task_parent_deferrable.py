@@ -20,7 +20,11 @@ from airflow import DAG
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
-from airflow.utils.timezone import datetime
+
+try:
+    from airflow.sdk.timezone import datetime
+except ImportError:
+    from airflow.utils.timezone import datetime  # type: ignore[no-redef]
 
 with DAG(
     dag_id="example_external_task",
@@ -56,9 +60,3 @@ with DAG(
     end = EmptyOperator(task_id="end")
 
     start >> [trigger_child_task, external_task_sensor] >> end
-
-    from tests_common.test_utils.watcher import watcher
-
-    # This test needs watcher in order to properly mark success/failure
-    # when "teardown" task with trigger rule is part of the DAG
-    list(dag.tasks) >> watcher()

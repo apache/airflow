@@ -6,14 +6,22 @@
       "warning": "This will remove all metadata related to the Dag, including Runs and Tasks."
     }
   },
+  "favoriteDag": "Favorite Dag",
   "filters": {
     "allRunTypes": "All Run Types",
     "allStates": "All States",
+    "favorite": {
+      "all": "All",
+      "favorite": "Favorite",
+      "unfavorite": "Unfavorite"
+    },
     "paused": {
       "active": "Active",
       "all": "All",
       "paused": "Paused"
-    }
+    },
+    "runIdPatternFilter": "Search Dag Runs",
+    "triggeringUserNameFilter": "Search by Triggering User"
   },
   "ownerLink": "Owner link for {{owner}}",
   "runAndTaskActions": {
@@ -55,6 +63,7 @@
       "onlyFailed": "Clear only failed tasks",
       "past": "Past",
       "queueNew": "Queue up new tasks",
+      "runOnLatestVersion": "Run with latest bundle version",
       "upstream": "Upstream"
     }
   },
@@ -83,5 +92,6 @@
       "desc": "Sort by Next Dag Run (Latest-Earliest)"
     },
     "placeholder": "Sort by"
-  }
+  },
+  "unfavoriteDag": "Unfavorite Dag"
 }

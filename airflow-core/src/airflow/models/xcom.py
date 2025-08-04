@@ -39,20 +39,13 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Query, relationship
 
+from airflow._shared.timezones import timezone
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
-from airflow.utils import timezone
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.helpers import is_container
 from airflow.utils.json import XComDecoder, XComEncoder
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
-
-# XCom constants below are needed for providers backward compatibility,
-# which should import the constants directly after apache-airflow>=2.6.0
-from airflow.utils.xcom import (
-    MAX_XCOM_SIZE,  # noqa: F401
-    XCOM_RETURN_KEY,
-)
 
 log = logging.getLogger(__name__)
 
@@ -60,6 +53,9 @@ if TYPE_CHECKING:
     from sqlalchemy.engine import Row
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.expression import Select, TextClause
+
+
+XCOM_RETURN_KEY = "return_value"
 
 
 class XComModel(TaskInstanceDependencies):

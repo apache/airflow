@@ -31,10 +31,7 @@ from influxdb_client import InfluxDBClient
 from influxdb_client.client.write.point import Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.influxdb.version_compat import BaseHook
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -95,7 +92,7 @@ class InfluxDBHook(BaseHook):
         self.connection = self.get_connection(self.influxdb_conn_id)
         self.extras = self.connection.extra_dejson.copy()
 
-        self.uri = self.get_uri(self.connection)  # type: ignore[arg-type]
+        self.uri = self.get_uri(self.connection)
         self.log.info("URI: %s", self.uri)
 
         if self.client is not None:

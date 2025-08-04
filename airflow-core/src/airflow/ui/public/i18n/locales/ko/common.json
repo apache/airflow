@@ -60,6 +60,7 @@
   },
   "dagRun_one": "Dag 실행",
   "dagRun_other": "Dag 실행들",
+  "dagRunId": "Dag 실행 ID",
   "dagWarnings": "Dag 경고/오류",
   "defaultToGraphView": "그래프 뷰 기본 보기",
   "defaultToGridView": "그리드 뷰 기본 보기",
@@ -77,6 +78,12 @@
     "home": "홈",
     "notFound": "페이지를 찾을 수 없습니다.",
     "title": "오류"
+  },
+  "expand": {
+    "collapse": "접기",
+    "expand": "펼치기",
+    "hotkey": "e",
+    "tooltip": "{{hotkey}}를 눌러 펼치기/접기합니다."
   },
   "expression": {
     "all": "모두",
@@ -103,6 +110,7 @@
     "dags": "Dags",
     "docs": "문서",
     "home": "홈",
+    "legacyFabViews": "레거시 FAB 뷰",
     "plugins": "플러그인",
     "security": "보안"
   },
@@ -147,6 +155,11 @@
   },
   "selectLanguage": "언어 선택",
   "showDetailsPanel": "세부 정보 패널 펼치기",
+  "source": {
+    "hide": "소스 숨기기",
+    "hotkey": "s",
+    "show": "소스 보기"
+  },
   "sourceAssetEvent_one": "소스 에셋 이벤트",
   "sourceAssetEvent_other": "소스 에셋 이벤트",
   "startDate": "시작일",
@@ -226,6 +239,11 @@
     "lastHour": "지난 1시간",
     "pastWeek": "지난 주"
   },
+  "timestamp": {
+    "hide": "타임스탬프 숨기기",
+    "hotkey": "t",
+    "show": "타임스탬프 보기"
+  },
   "timezone": "시간대",
   "timezoneModal": {
     "current-timezone": "현재 시간:",
@@ -270,10 +288,12 @@
       }
     }
   },
+  "total": "총 {{state}} 수",
   "triggered": "트리거됨",
   "tryNumber": "시도 횟수",
   "user": "사용자",
   "wrap": {
+    "hotkey": "w",
     "tooltip": "{{hotkey}}를 눌러 텍스트 줄바꿈 토글",
     "unwrap": "줄바꿈 해제",
     "wrap": "줄바꿈"

@@ -26,7 +26,12 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
-from airflow.api_fastapi.common.dagbag import DagBagDep
+from airflow.api_fastapi.common.dagbag import (
+    DagBagDep,
+    get_dag_for_run,
+    get_dag_for_run_or_latest_version,
+    get_latest_version_of_dag,
+)
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
@@ -181,10 +186,8 @@ def get_mapped_task_instances(
     # 0 can mean a mapped TI that expanded to an empty list, so it is not an automatic 404
     unfiltered_total_count = get_query_count(query, session=session)
     if unfiltered_total_count == 0:
-        dag = dag_bag.get_dag(dag_id)
-        if not dag:
-            error_message = f"DAG {dag_id} not found"
-            raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
+        dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
+        dag = get_dag_for_run_or_latest_version(dag_bag, dag_run, dag_id, session)
         try:
             task = dag.get_task(task_id)
         except TaskNotFound:
@@ -258,7 +261,8 @@ def get_task_instance_dependencies(
     deps = []
 
     if ti.state in [None, TaskInstanceState.SCHEDULED]:
-        dag = dag_bag.get_dag(ti.dag_id)
+        dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == ti.dag_id, DagRun.run_id == ti.run_id))
+        dag = dag_bag.get_dag_for_run(dag_run, session=session)
 
         if dag:
             try:
@@ -437,6 +441,7 @@ def get_task_instances(
     This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve Task Instances for all DAGs
     and DAG runs.
     """
+    dag_run = None
     query = (
         select(TI)
         .join(TI.dag_run)
@@ -444,13 +449,6 @@ def get_task_instances(
         .options(joinedload(TI.dag_version))
         .options(joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)))
     )
-
-    if dag_id != "~":
-        dag = dag_bag.get_dag(dag_id)
-        if not dag:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with dag_id: `{dag_id}` was not found")
-        query = query.where(TI.dag_id == dag_id)
-
     if dag_run_id != "~":
         dag_run = session.scalar(select(DagRun).filter_by(run_id=dag_run_id))
         if not dag_run:
@@ -459,6 +457,9 @@ def get_task_instances(
                 f"DagRun with run_id: `{dag_run_id}` was not found",
             )
         query = query.where(TI.run_id == dag_run_id)
+    if dag_id != "~":
+        get_dag_for_run_or_latest_version(dag_bag, dag_run, dag_id, session)
+        query = query.where(TI.dag_id == dag_id)
 
     task_instance_select, total_entries = paginated_select(
         statement=query,
@@ -541,7 +542,7 @@ def get_task_instances_batch(
     order_by = SortParam(
         ["id", "state", "duration", "start_date", "end_date", "map_index"],
         TI,
-    ).set_value(body.order_by)
+    ).set_value([body.order_by] if body.order_by else None)
 
     query = select(TI).join(TI.dag_run)
     task_instance_select, total_entries = paginated_select(
@@ -654,10 +655,7 @@ def post_clear_task_instances(
     session: SessionDep,
 ) -> TaskInstanceCollectionResponse:
     """Clear task instances."""
-    dag = dag_bag.get_dag(dag_id)
-    if not dag:
-        error_message = f"DAG {dag_id} not found"
-        raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
 
     reset_dag_runs = body.reset_dag_runs
     dry_run = body.dry_run
@@ -675,7 +673,8 @@ def post_clear_task_instances(
         if dag_run is None:
             error_message = f"Dag Run id {dag_run_id} not found in dag {dag_id}"
             raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
-
+        # Get the specific dag version:
+        dag = get_dag_for_run(dag_bag, dag_run, session)
         if past or future:
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST,
@@ -703,27 +702,37 @@ def post_clear_task_instances(
             # If we had upstream/downstream etc then also include those!
             task_ids.extend(tid for tid in dag.task_dict if tid != task_id)
 
-    task_instances = dag.clear(
-        dry_run=True,
-        run_id=None if past or future else dag_run_id,
-        task_ids=task_ids,
-        dag_bag=dag_bag,
-        session=session,
-        **body.model_dump(
-            include={
-                "start_date",
-                "end_date",
-                "only_failed",
-                "only_running",
-            }
-        ),
-    )
+    # Prepare common parameters
+    common_params = {
+        "dry_run": True,
+        "task_ids": task_ids,
+        "dag_bag": dag_bag,
+        "session": session,
+        "run_on_latest_version": body.run_on_latest_version,
+        "only_failed": body.only_failed,
+        "only_running": body.only_running,
+    }
+
+    if dag_run_id is not None and not (past or future):
+        # Use run_id-based clearing when we have a specific dag_run_id and not using past/future
+        task_instances = dag.clear(
+            **common_params,
+            run_id=dag_run_id,
+        )
+    else:
+        # Use date-based clearing when no dag_run_id or when past/future is specified
+        task_instances = dag.clear(
+            **common_params,
+            start_date=body.start_date,
+            end_date=body.end_date,
+        )
 
     if not dry_run:
         clear_task_instances(
             task_instances,
             session,
             DagRunState.QUEUED if reset_dag_runs else False,
+            run_on_latest_version=body.run_on_latest_version,
         )
 
     return TaskInstanceCollectionResponse(

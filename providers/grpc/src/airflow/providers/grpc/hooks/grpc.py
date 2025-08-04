@@ -23,18 +23,14 @@ from typing import Any
 
 import grpc
 from google import auth as google_auth
-from google.auth import jwt as google_auth_jwt  # type: ignore[attr-defined]
+from google.auth import jwt as google_auth_jwt
 from google.auth.transport import (
     grpc as google_auth_transport_grpc,
     requests as google_auth_transport_requests,
 )
 
 from airflow.exceptions import AirflowConfigException
-
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.grpc.version_compat import BaseHook
 
 
 class GrpcHook(BaseHook):

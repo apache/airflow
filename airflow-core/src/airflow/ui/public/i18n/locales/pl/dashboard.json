@@ -1,4 +1,12 @@
 {
+  "favorite": {
+    "favoriteDags_few": "Pierwsze {{count}} ulubione Dagi",
+    "favoriteDags_many": "Pierwsze {{count}} ulubionych Dagów",
+    "favoriteDags_one": "Pierwszy ulubiony Dag",
+    "favoriteDags_other": "Pierwsze {{count}} ulubione Dagi",
+    "noDagRuns": "Brak uruchomień dla tego Daga.",
+    "noFavoriteDags": "Brak ulubionych. Kliknij ikonę gwiazdki obok Daga na liście, aby dodać go do ulubionych."
+  },
   "group": "Grupa",
   "health": {
     "dagProcessor": "Processor Dagów",

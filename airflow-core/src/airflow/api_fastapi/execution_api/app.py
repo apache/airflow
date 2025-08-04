@@ -100,7 +100,7 @@ class CadwynWithOpenAPICustomization(Cadwyn):
     # Workaround lack of customzation https://github.com/zmievsa/cadwyn/issues/255
     async def openapi_jsons(self, req: Request) -> JSONResponse:
         resp = await super().openapi_jsons(req)
-        open_apischema = json.loads(resp.body)  # type: ignore[arg-type]
+        open_apischema = json.loads(resp.body)
         open_apischema = self.customize_openapi(open_apischema)
 
         resp.body = resp.render(open_apischema)
@@ -224,6 +224,7 @@ class InProcessExecutionAPI:
     @cached_property
     def app(self):
         if not self._app:
+            from airflow.api_fastapi.common.dagbag import create_dag_bag
             from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
             from airflow.api_fastapi.execution_api.deps import (
                 JWTBearerDep,
@@ -235,6 +236,9 @@ class InProcessExecutionAPI:
             from airflow.api_fastapi.execution_api.routes.xcoms import has_xcom_access
 
             self._app = create_task_execution_api_app()
+
+            # Set up dag_bag in app state for dependency injection
+            self._app.state.dag_bag = create_dag_bag()
 
             async def always_allow(): ...
 

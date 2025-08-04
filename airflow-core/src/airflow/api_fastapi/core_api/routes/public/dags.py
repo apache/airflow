@@ -22,10 +22,10 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, Query, Response, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
-from sqlalchemy import select, update
+from sqlalchemy import delete, insert, select, update
 
 from airflow.api.common import delete_dag as delete_dag_module
-from airflow.api_fastapi.common.dagbag import DagBagDep
+from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import (
     SessionDep,
     paginated_select,
@@ -38,6 +38,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryDagIdPatternSearch,
     QueryDagIdPatternSearchWithNone,
     QueryExcludeStaleFilter,
+    QueryFavoriteFilter,
     QueryLastDagRunStateFilter,
     QueryLimit,
     QueryOffset,
@@ -60,12 +61,14 @@ from airflow.api_fastapi.core_api.datamodels.dags import (
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
     EditableDagsFilterDep,
+    GetUserDep,
     ReadableDagsFilterDep,
     requires_access_dag,
 )
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import AirflowException, DagNotFound
-from airflow.models import DAG, DagModel
+from airflow.models import DagModel
+from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dagrun import DagRun
 
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
@@ -113,6 +116,7 @@ def get_dags(
     ],
     readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
+    is_favorite: QueryFavoriteFilter,
 ) -> DAGCollectionResponse:
     """Get all DAGs."""
     query = generate_dag_with_latest_run_query(
@@ -133,6 +137,7 @@ def get_dags(
             dag_id_pattern,
             dag_display_name_pattern,
             tags,
+            is_favorite,
             owners,
             readable_dags_filter,
         ],
@@ -167,10 +172,7 @@ def get_dag(
     dag_bag: DagBagDep,
 ) -> DAGResponse:
     """Get basic information about a DAG."""
-    dag: DAG = dag_bag.get_dag(dag_id)
-    if not dag:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
-
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
     dag_model: DagModel = session.get(DagModel, dag_id)
     if not dag_model:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Unable to obtain dag with id {dag_id} from session")
@@ -194,9 +196,7 @@ def get_dag(
 )
 def get_dag_details(dag_id: str, session: SessionDep, dag_bag: DagBagDep) -> DAGDetailsResponse:
     """Get details of DAG."""
-    dag: DAG = dag_bag.get_dag(dag_id)
-    if not dag:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
 
     dag_model: DagModel = session.get(DagModel, dag_id)
     if not dag_model:
@@ -314,6 +314,54 @@ def patch_dags(
     return DAGCollectionResponse(
         dags=dags,
         total_entries=total_entries,
+    )
+
+
+@dags_router.post(
+    "/{dag_id}/favorite",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_dag(method="GET")), Depends(action_logging())],
+)
+def favorite_dag(dag_id: str, session: SessionDep, user: GetUserDep):
+    """Mark the DAG as favorite."""
+    dag = session.get(DagModel, dag_id)
+    if not dag:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"DAG with id '{dag_id}' not found")
+
+    user_id = str(user.get_id())
+    session.execute(insert(DagFavorite).values(dag_id=dag_id, user_id=user_id))
+
+
+@dags_router.post(
+    "/{dag_id}/unfavorite",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
+    dependencies=[Depends(requires_access_dag(method="GET")), Depends(action_logging())],
+)
+def unfavorite_dag(dag_id: str, session: SessionDep, user: GetUserDep):
+    """Unmark the DAG as favorite."""
+    dag = session.get(DagModel, dag_id)
+    if not dag:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"DAG with id '{dag_id}' not found")
+
+    user_id = str(user.get_id())
+
+    favorite_exists = session.execute(
+        select(DagFavorite).where(
+            DagFavorite.dag_id == dag_id,
+            DagFavorite.user_id == user_id,
+        )
+    ).first()
+
+    if not favorite_exists:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="DAG is not marked as favorite")
+
+    session.execute(
+        delete(DagFavorite).where(
+            DagFavorite.dag_id == dag_id,
+            DagFavorite.user_id == user_id,
+        )
     )
 
 

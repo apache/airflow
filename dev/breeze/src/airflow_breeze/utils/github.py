@@ -30,7 +30,7 @@ from rich.markup import escape
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
-from airflow_breeze.utils.shared_options import get_dry_run
+from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 
 if TYPE_CHECKING:
     from requests import Response
@@ -88,12 +88,14 @@ def download_file_from_github(
     """
     Downloads a file from the GitHub repository of Apache Airflow using the GitHub API.
 
+    In case of any error different from 404, it will exit the process with error code 1.
+
     :param reference: tag to download from
     :param path: path of the file relative to the repository root
     :param output_file: Path where the file should be downloaded
     :param github_token: GitHub token to use for authentication
     :param timeout: timeout in seconds for the download request, default is 60 seconds
-    :return: whether the file was successfully downloaded (False if the file is missing or error occurred)
+    :return: whether the file was successfully downloaded (False if the file is missing)
     """
     import requests
 
@@ -114,7 +116,7 @@ def download_file_from_github(
                     f"   2. GitHub API rate limiting\n"
                     f"   3. Invalid or missing GitHub token"
                 )
-                return False
+                sys.exit(1)
             if response.status_code == 404:
                 get_console().print(f"[warning]The {url} has not been found. Skipping")
                 return False
@@ -122,11 +124,11 @@ def download_file_from_github(
                 get_console().print(
                     f"[error]{url} could not be downloaded. Status code {response.status_code}"
                 )
-                return False
+                sys.exit(1)
             output_file.write_bytes(response.content)
         except requests.Timeout:
             get_console().print(f"[error]The request to {url} timed out after {timeout} seconds.")
-            return False
+            sys.exit(1)
     get_console().print(f"[success]Downloaded {url} to {output_file}")
     return True
 
@@ -134,11 +136,14 @@ def download_file_from_github(
 ACTIVE_TAG_MATCH = re.compile(r"^(\d+)\.\d+\.\d+$")
 
 
-def get_active_airflow_versions(confirm: bool = True) -> tuple[list[str], dict[str, str]]:
+def get_active_airflow_versions(
+    confirm: bool = True, remote_name: str = "apache"
+) -> tuple[list[str], dict[str, str]]:
     """
     Gets list of active Airflow versions from GitHub.
 
     :param confirm: if True, will ask the user before proceeding with the versions found
+    :param remote_name: name of the remote to fetch tags from (e.g., 'apache')
     :return: tuple: list of active Airflow versions and dict of Airflow release dates (in iso format)
     """
     from git import GitCommandError, Repo
@@ -146,13 +151,13 @@ def get_active_airflow_versions(confirm: bool = True) -> tuple[list[str], dict[s
 
     airflow_release_dates: dict[str, str] = {}
     get_console().print(
-        "\n[warning]Make sure you have `apache` remote added pointing to apache/airflow repository\n"
+        f"\n[warning]Make sure you have `{remote_name}` remote added pointing to apache/airflow repository\n"
     )
     get_console().print("[info]Fetching all released Airflow 2/3 versions from GitHub[/]\n")
     repo = Repo(AIRFLOW_ROOT_PATH)
     all_active_tags: list[str] = []
     try:
-        ref_tags = repo.git.ls_remote("--tags", "apache").splitlines()
+        ref_tags = repo.git.ls_remote("--tags", remote_name).splitlines()
     except GitCommandError as ex:
         get_console().print(
             "[error]Could not fetch tags from `apache` remote! Make sure to have it configured.\n"
@@ -176,7 +181,10 @@ def get_active_airflow_versions(confirm: bool = True) -> tuple[list[str], dict[s
             get_console().print("[error]Error fetching tag date for Airflow {version}")
             sys.exit(1)
         airflow_release_dates[version] = date
-    get_console().print("[info]All Airflow 2/3 versions")
+    get_console().print("[info]All Airflow 2/3 versions loaded from GitHub[/]")
+    if get_verbose():
+        get_console().print("[info]Found active Airflow versions:[/]")
+        get_console().print(airflow_versions)
     if confirm:
         for version in airflow_versions:
             get_console().print(f"  {version}: [info]{airflow_release_dates[version]}[/]")

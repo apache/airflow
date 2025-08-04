@@ -30,7 +30,7 @@ Example
 
 .. code-block:: bash
 
-    ENDPOINT_URL="http://localhost:8080/"
+    ENDPOINT_URL="http://localhost:8080"
     curl -X 'POST' \
         "${ENDPOINT_URL}/auth/token" \
         -H 'Content-Type: application/json' \

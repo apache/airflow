@@ -148,8 +148,6 @@ jobs:
           persist-credentials: false
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        with:
-          use-uv: ${{ inputs.use-uv }}
         id: breeze
       - name: "Get information about the Workflow"
         id: source-run-info
@@ -186,7 +184,7 @@ jobs:
       - name: Install pre-commit, uv, and pre-commit-uv
         shell: bash
         env:
-          UV_VERSION: "0.7.17"  # Keep this comment to allow automatic replacement of uv version
+          UV_VERSION: "0.8.4"  # Keep this comment to allow automatic replacement of uv version
           PRE_COMMIT_VERSION: "4.2.0"  # Keep this comment to allow automatic replacement of pre-commit version
           PRE_COMMIT_UV_VERSION: "4.1.4"  # Keep this comment to allow automatic replacement of pre-commit-uv version
         run: |
@@ -209,7 +207,7 @@ jobs:
       run-ui-tests: ${{needs.build-info.outputs.run-ui-tests}}
       run-www-tests: ${{needs.build-info.outputs.run-www-tests}}
       needs-api-codegen: ${{needs.build-info.outputs.needs-api-codegen}}
-      default-python-version: ${{needs.build-info.outputs.default-python-version}}
+      default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       basic-checks-only: ${{needs.build-info.outputs.basic-checks-only}}
       skip-pre-commits: ${{needs.build-info.outputs.skip-pre-commits}}
       canary-run: ${{needs.build-info.outputs.canary-run}}
@@ -254,7 +252,7 @@ jobs:
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+      default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       skip-pre-commits: ${{ needs.build-info.outputs.skip-pre-commits }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
@@ -297,7 +295,7 @@ jobs:
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+      default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       docs-list-as-string: ${{ needs.build-info.outputs.docs-list-as-string }}
       latest-versions-only: ${{ needs.build-info.outputs.latest-versions-only }}
       basic-checks-only: ${{ needs.build-info.outputs.basic-checks-only }}
@@ -330,7 +328,7 @@ jobs:
       runners: ${{ needs.build-info.outputs.amd-runners }}
       platform: "linux/amd64"
       canary-run: ${{ needs.build-info.outputs.canary-run }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+      default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       selected-providers-list-as-string: ${{ needs.build-info.outputs.selected-providers-list-as-string }}
       # yamllint disable rule:line-length
@@ -353,7 +351,7 @@ jobs:
       runners: ${{ needs.build-info.outputs.amd-runners }}
       platform: "linux/amd64"
       helm-test-packages: ${{ needs.build-info.outputs.helm-test-packages }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+      default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       use-uv: ${{ needs.build-info.outputs.use-uv }}
     if: >
       needs.build-info.outputs.needs-helm-tests == 'true' &&
@@ -386,6 +384,8 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+      default-branch: ${{ needs.build-info.outputs.default-branch }}
+
     if: needs.build-info.outputs.run-tests == 'true'
 
   tests-postgres-providers:
@@ -414,6 +414,7 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+      default-branch: ${{ needs.build-info.outputs.default-branch }}
     if: needs.build-info.outputs.run-tests == 'true'
 
   tests-mysql-core:
@@ -442,6 +443,7 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+      default-branch: ${{ needs.build-info.outputs.default-branch }}
     if: needs.build-info.outputs.run-tests == 'true'
 
   tests-mysql-providers:
@@ -470,6 +472,7 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+      default-branch: ${{ needs.build-info.outputs.default-branch }}
     if: needs.build-info.outputs.run-tests == 'true'
 
 
@@ -501,6 +504,7 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+      default-branch: ${{ needs.build-info.outputs.default-branch }}
     if: needs.build-info.outputs.run-tests == 'true'
 
   tests-sqlite-providers:
@@ -531,6 +535,7 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+      default-branch: ${{ needs.build-info.outputs.default-branch }}
     if: needs.build-info.outputs.run-tests == 'true'
 
 
@@ -561,6 +566,7 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+      default-branch: ${{ needs.build-info.outputs.default-branch }}
     if: needs.build-info.outputs.run-tests == 'true'
 
   tests-non-db-providers:
@@ -590,6 +596,7 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+      default-branch: ${{ needs.build-info.outputs.default-branch }}
     if: needs.build-info.outputs.run-tests == 'true'
 
   tests-special:
@@ -613,7 +620,7 @@ jobs:
       providers-test-types-list-as-strings-in-json: >
         ${{ needs.build-info.outputs.providers-test-types-list-as-strings-in-json }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+      default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
       excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
@@ -637,7 +644,7 @@ jobs:
       testable-core-integrations: ${{ needs.build-info.outputs.testable-core-integrations }}
       testable-providers-integrations: ${{ needs.build-info.outputs.testable-providers-integrations }}
       run-system-tests: ${{ needs.build-info.outputs.run-tests }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+      default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
       default-mysql-version: ${{ needs.build-info.outputs.default-mysql-version }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
@@ -675,6 +682,7 @@ jobs:
       monitor-delay-time-in-seconds: 120
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+      default-branch: ${{ needs.build-info.outputs.default-branch }}
 
   tests-with-lowest-direct-resolution-providers:
     name: "Low dep tests: providers"
@@ -704,6 +712,7 @@ jobs:
       monitor-delay-time-in-seconds: 120
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+      default-branch: ${{ needs.build-info.outputs.default-branch }}
 
   build-prod-images:
     name: Build PROD images
@@ -722,7 +731,7 @@ jobs:
       upload-image-artifact: "true"
       upload-package-artifact: "true"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+      default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       branch: ${{ needs.build-info.outputs.default-branch }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
@@ -743,7 +752,7 @@ jobs:
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
       disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+      default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       canary-run: ${{ needs.build-info.outputs.canary-run }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
     if: needs.build-info.outputs.prod-image-build == 'true'
@@ -777,7 +786,7 @@ jobs:
     with:
       runners: ${{ needs.build-info.outputs.amd-runners }}
       platform: "linux/amd64"
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+      default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
@@ -845,7 +854,7 @@ jobs:
     with:
       runners: ${{ needs.build-info.outputs.amd-runners }}
       platform: "linux/amd64"
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+      default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
@@ -899,7 +908,7 @@ jobs:
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+      default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
@@ -924,12 +933,12 @@ jobs:
           # yamllint disable rule:line-length
           payload: |
             channel: "internal-airflow-ci-cd"
-            text: "🚨🕒 Scheduled CI Failure Alert (AMD) on branch *${{ github.ref_name }}* 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+            text: "🚨🕒 Failure Alert: Scheduled CI (AMD) on branch *${{ github.ref_name }}* 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
             blocks:
               - type: "section"
                 text:
                   type: "mrkdwn"
-                  text: "🚨🕒 Scheduled CI Failure Alert (AMD) 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+                  text: "🚨🕒 Failure Alert: Scheduled CI (AMD) 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
           # yamllint enable rule:line-length
 
   summarize-warnings:
@@ -958,7 +967,7 @@ jobs:
       - name: "Setup python"
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
         with:
-          python-version: ${{ inputs.default-python-version }}
+          python-version: "${{ inputs.default-python-version }}"
       - name: "Summarize all warnings"
         run: |
           ./scripts/ci/testing/summarize_captured_warnings.py ./artifacts \

@@ -3,17 +3,24 @@
   "dagActions": {
     "delete": {
       "button": "Usuń Daga",
-      "warning": "Wszystkie metadane, włączając metadane Dagów, wykonań i zadań zostaną usunięte."
+      "warning": "Wszystkie metadane, włączając metadane Dagów, wykonań Dagów i zadań zostaną usunięte."
     }
   },
+  "favoriteDag": "Ulubiony Dag",
   "filters": {
-    "allRunTypes": "Wszystkie Typy Wykonań",
+    "allRunTypes": "Wszystkie Typy Wykonań Dagów",
     "allStates": "Wszystkie Stany",
+    "favorite": {
+      "all": "Wszystkie",
+      "favorite": "Ulubione",
+      "unfavorite": "Nieulubione"
+    },
     "paused": {
       "active": "Aktywne",
       "all": "Wszystkie",
       "paused": "Wstrzymane"
-    }
+    },
+    "runIdPatternFilter": "Szukaj Wykonań Dagów"
   },
   "ownerLink": "Link do właściciela {{owner}}",
   "runAndTaskActions": {
@@ -55,6 +62,7 @@
       "onlyFailed": "Wyczyść tylko nieudane zadania",
       "past": "Przeszłe zadania",
       "queueNew": "Kolejkuj nowe zadania",
+      "runOnLatestVersion": "Uruchom w najnowszej wersji paczki Dagów",
       "upstream": "Taski nadrzędne"
     }
   },
@@ -79,9 +87,10 @@
       "desc": "Sortuj według Stanu Ostatniego Wykonania (Z-A)"
     },
     "nextDagRun": {
-      "asc": "Sortuj według Następnego Wykonania Daga (Najwcześniejsze-Najnowsze)",
-      "desc": "Sortuj według Następnego Wykonania Daga (Najnowsze-Najwcześniejsze)"
+      "asc": "Sortuj według Następnego Wykonania (Najwcześniejsze-Najnowsze)",
+      "desc": "Sortuj według Następnego Wykonania (Najnowsze-Najwcześniejsze)"
     },
     "placeholder": "Sortuj według"
-  }
+  },
+  "unfavoriteDag": "Usuń Daga z ulubionych"
 }

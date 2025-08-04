@@ -28,10 +28,7 @@ from asana.api_client import ApiClient
 from asana.configuration import Configuration
 from asana.rest import ApiException
 
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.asana.version_compat import BaseHook
 
 
 class AsanaHook(BaseHook):

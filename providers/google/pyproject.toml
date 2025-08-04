@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-google"
-version = "16.1.0"
+version = "17.0.0"
 description = "Provider package apache-airflow-providers-google for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -47,9 +47,10 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
 ]
-requires-python = "~=3.10"
+requires-python = ">=3.10"
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
@@ -77,10 +78,9 @@ dependencies = [
     # google-cloud-aiplatform doesn't install ray for python 3.12 (issue: https://github.com/googleapis/python-aiplatform/issues/5252).
     # Temporarily lock in ray 2.42.0 which is compatible with python 3.12 until linked issue is solved.
     # Remove the ray dependency as well as google-cloud-bigquery-storage once linked issue is fixed
-    "google-cloud-aiplatform[evaluation,ray]>=1.73.0;python_version < '3.12'",
-    "google-cloud-aiplatform[evaluation]>=1.73.0;python_version >= '3.12'",
-    "ray[default]>=2.42.0 ; python_version >= '3.12' and python_version < '3.13'",
-    "google-cloud-bigquery-storage>=2.31.0; python_version >= '3.12'",
+    "google-cloud-aiplatform[evaluation]>=1.73.0",
+    "ray[default]>=2.42.0 ; python_version < '3.13'",
+    "google-cloud-bigquery-storage>=2.31.0 ; python_version < '3.13'",
     "google-cloud-alloydb>=0.4.0",
     "google-cloud-automl>=2.12.0",
     "google-cloud-bigquery>=3.24.0",
@@ -109,8 +109,8 @@ dependencies = [
     "google-cloud-secret-manager>=2.16.0",
     "google-cloud-spanner>=3.50.0",
     "google-cloud-speech>=2.18.0",
-    "google-cloud-storage>=2.7.0",
-    "google-cloud-storage-transfer>=1.4.1",
+    "google-cloud-storage>=2.9.0",
+    "google-cloud-storage-transfer>=1.13.0",
     "google-cloud-tasks>=2.13.0",
     "google-cloud-texttospeech>=2.14.1",
     "google-cloud-translate>=3.16.0",
@@ -125,11 +125,13 @@ dependencies = [
     # See https://github.com/looker-open-source/sdk-codegen/issues/1518
     "looker-sdk>=22.4.0,!=24.18.0",
     "pandas-gbq>=0.7.0",
-    # A transient dependency of google-cloud-bigquery-datatransfer, but we
-    # further constrain it since older versions are buggy.
-    "proto-plus>=1.19.6",
+    'pandas>=2.1.2; python_version <"3.13"',
+    'pandas>=2.2.3; python_version >="3.13"',
+    "proto-plus>=1.26.0",
     # Used to write parquet files by BaseSqlToGCSOperator
-    "pyarrow>=16.1.0",
+    # TODO: remove it when apache-beam allows pyarrow 18+
+    "pyarrow>=16.1.0; python_version < '3.13'",
+    "pyarrow>=18.0.0; python_version >= '3.13'",
     "python-slugify>=7.0.0",
     "PyOpenSSL>=23.0.0",
     "sqlalchemy-bigquery>=1.2.1",
@@ -145,16 +147,16 @@ dependencies = [
 [project.optional-dependencies]
 "apache.beam" = [
     'apache-beam[gcp]>=2.53.0; python_version < "3.12"',
-    'apache-beam[gcp]>=2.57.0; python_version >= "3.12"',
+    'apache-beam[gcp]>=2.57.0; python_version >= "3.12" and python_version < "3.13"',
 ]
 "cncf.kubernetes" = [
     "apache-airflow-providers-cncf-kubernetes>=10.1.0",
 ]
 "fab" = [
-    "apache-airflow-providers-fab>=2.0.0",
+    "apache-airflow-providers-fab>=2.0.0; python_version < '3.13'",
 ]
 "leveldb" = [
-    "plyvel>=1.5.1",
+    "plyvel>=1.5.1; python_version < '3.13'",
 ]
 "oracle" = [
     "apache-airflow-providers-oracle>=3.1.0",
@@ -257,8 +259,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-google/16.1.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-google/16.1.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-google/17.0.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-google/17.0.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

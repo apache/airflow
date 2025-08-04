@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-common-sql"
-version = "1.27.3"
+version = "1.27.4"
 description = "Provider package apache-airflow-providers-common-sql for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -47,9 +47,10 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
 ]
-requires-python = "~=3.10"
+requires-python = ">=3.10"
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
@@ -68,7 +69,9 @@ dependencies = [
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
 "pandas" = [
-    'pandas>=2.1.2; python_version <"3.13"',
+    'pandas[sql-other]>=2.1.2; python_version <"3.13"',
+    # Technically - we should add "sql-other" here as well, but this will only be possible when we move
+    # to sqlalchemy 2+ TODO(potiuk): do so.
     'pandas>=2.2.3; python_version >="3.13"',
 ]
 "openlineage" = [
@@ -118,8 +121,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.27.3"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.27.3/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.27.4"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.27.4/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
