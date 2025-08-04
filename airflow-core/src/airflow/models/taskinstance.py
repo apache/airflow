@@ -89,7 +89,6 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComSelectSequence, XComModel
-from airflow.plugins_manager import integrate_macros_plugins
 from airflow.sdk.definitions._internal.expandinput import NotFullyPopulated
 from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
