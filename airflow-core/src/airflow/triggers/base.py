@@ -39,6 +39,7 @@ log = structlog.get_logger(logger_name=__name__)
 def __getattr__(name: str):
     if name == "StartTriggerArgs":
         import warnings
+
         from airflow.sdk.bases.trigger import StartTriggerArgs as SDKStartTriggerArgs
 
         warnings.warn(
