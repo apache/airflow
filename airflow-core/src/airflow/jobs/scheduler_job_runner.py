@@ -60,7 +60,7 @@ from airflow.models.asset import (
 from airflow.models.backfill import Backfill
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dag_version import DagVersion
-from airflow.models.dagbag import SchedulerDagBag
+from airflow.models.dagbag import DBDagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.serialized_dag import SerializedDagModel
@@ -213,7 +213,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if log:
             self._log = log
 
-        self.scheduler_dag_bag = SchedulerDagBag(load_op_links=False)
+        self.scheduler_dag_bag = DBDagBag(load_op_links=False)
 
         task_selector_type = conf.get("scheduler", "scheduler_task_selector_strategy")
 
@@ -501,7 +501,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @classmethod
     def process_executor_events(
-        cls, executor: BaseExecutor, job_id: str | None, scheduler_dag_bag: SchedulerDagBag, session: Session
+        cls, executor: BaseExecutor, job_id: str | None, scheduler_dag_bag: DBDagBag, session: Session
     ) -> int:
         """
         Respond to executor events.
@@ -2234,3 +2234,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # ourselves here and the user should get some feedback about that.
         self.log.warning("Executor, %s, was not found but a Task was configured to use it", executor_name)
         return None
+
+
+# Backcompat for older versions of task sdk import SchedulerDagBag from here
+SchedulerDagBag = DBDagBag

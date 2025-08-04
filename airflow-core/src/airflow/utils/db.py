@@ -60,8 +60,6 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.task_instance_session import get_current_task_instance_session
 
 if TYPE_CHECKING:
-    from alembic.runtime.environment import EnvironmentContext
-    from alembic.script import ScriptDirectory
     from sqlalchemy.engine import Row
     from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
@@ -70,6 +68,8 @@ if TYPE_CHECKING:
 
     from airflow.models.connection import Connection
     from airflow.typing_compat import Self
+    from alembic.runtime.environment import EnvironmentContext
+    from alembic.script import ScriptDirectory
 
     # TODO: Import this from sqlalchemy.orm instead when switching to SQLA 2.
     # https://docs.sqlalchemy.org/en/20/orm/mapping_api.html#sqlalchemy.orm.MappedClassProtocol
@@ -573,9 +573,8 @@ def get_default_connections():
 
 def _create_db_from_orm(session):
     log.info("Creating Airflow database tables from the ORM")
-    from alembic import command
-
     from airflow.models.base import Base
+    from alembic import command
 
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         engine = session.get_bind().engine

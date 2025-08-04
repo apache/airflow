@@ -25,7 +25,7 @@ from pydantic import ValidationError
 from sqlalchemy import delete, insert, select, update
 
 from airflow.api.common import delete_dag as delete_dag_module
-from airflow.api_fastapi.common.dagbag import DagBagDep
+from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import (
     SessionDep,
     paginated_select,
@@ -34,6 +34,8 @@ from airflow.api_fastapi.common.db.dags import generate_dag_with_latest_run_quer
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
     FilterParam,
+    QueryBundleNameFilter,
+    QueryBundleVersionFilter,
     QueryDagDisplayNamePatternSearch,
     QueryDagIdPatternSearch,
     QueryDagIdPatternSearchWithNone,
@@ -85,6 +87,8 @@ def get_dags(
     exclude_stale: QueryExcludeStaleFilter,
     paused: QueryPausedFilter,
     last_dag_run_state: QueryLastDagRunStateFilter,
+    bundle_name: QueryBundleNameFilter,
+    bundle_version: QueryBundleVersionFilter,
     dag_run_start_date_range: Annotated[
         RangeFilter, Depends(datetime_range_filter_factory("dag_run_start_date", DagRun, "start_date"))
     ],
@@ -140,6 +144,8 @@ def get_dags(
             is_favorite,
             owners,
             readable_dags_filter,
+            bundle_name,
+            bundle_version,
         ],
         order_by=order_by,
         offset=offset,
@@ -172,10 +178,7 @@ def get_dag(
     dag_bag: DagBagDep,
 ) -> DAGResponse:
     """Get basic information about a DAG."""
-    dag = dag_bag.get_latest_version_of_dag(dag_id, session)
-    if not dag:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
-
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
     dag_model: DagModel = session.get(DagModel, dag_id)
     if not dag_model:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Unable to obtain dag with id {dag_id} from session")
@@ -199,9 +202,7 @@ def get_dag(
 )
 def get_dag_details(dag_id: str, session: SessionDep, dag_bag: DagBagDep) -> DAGDetailsResponse:
     """Get details of DAG."""
-    dag = dag_bag.get_latest_version_of_dag(dag_id, session)
-    if not dag:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
 
     dag_model: DagModel = session.get(DagModel, dag_id)
     if not dag_model:

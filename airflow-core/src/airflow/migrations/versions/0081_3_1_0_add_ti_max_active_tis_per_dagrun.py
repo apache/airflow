@@ -17,28 +17,29 @@
 # under the License.
 
 """
-Add callback_state to deadline.
+Add max_active_tis_per_dag and max_active_tis_per_dagrun to task_instance table.
 
 Revision ID: 2f49f2dae90c
-Revises: f56f68b9e02f
+Revises: 3bda03debd04
 Create Date: 2025-07-28 16:39:01.181132
 """
 
 from __future__ import annotations
 
 import sqlalchemy as sa
+
 from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "2f49f2dae90c"
-down_revision = "f56f68b9e02f"
+down_revision = "3bda03debd04"
 branch_labels = None
 depends_on = None
 airflow_version = "3.1.0"
 
 
 def upgrade():
-    """Add callback_state to deadline."""
+    """Add max_active_tis_per_dag and max_active_tis_per_dagrun to task_instance table."""
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
         batch_op.add_column(sa.Column("max_active_tis_per_dag", sa.Integer, nullable=True))
         batch_op.add_column(sa.Column("max_active_tis_per_dagrun", sa.Integer, nullable=True))

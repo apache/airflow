@@ -36,6 +36,7 @@
       "extraFields": "Extra Fields",
       "extraFieldsJson": "Extra Fields JSON",
       "helperText": "Connection type missing? Make sure you have installed the corresponding Airflow Providers Package.",
+      "helperTextForRedactedFields": "Redacted fields ('***') will remain unchanged if not modified.",
       "selectConnectionType": "Select Connection Type",
       "standardFields": "Standard Fields"
     },

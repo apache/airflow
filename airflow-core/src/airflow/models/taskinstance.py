@@ -224,9 +224,9 @@ def clear_task_instances(
     :meta private:
     """
     task_instance_ids: list[str] = []
-    from airflow.models.dagbag import SchedulerDagBag
+    from airflow.models.dagbag import DBDagBag
 
-    scheduler_dagbag = SchedulerDagBag(load_op_links=False)
+    scheduler_dagbag = DBDagBag(load_op_links=False)
 
     for ti in tis:
         task_instance_ids.append(ti.id)

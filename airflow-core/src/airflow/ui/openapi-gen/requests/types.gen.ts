@@ -1849,7 +1849,7 @@ export type LightGridTaskInstanceSummary = {
 /**
  * Define all menu items defined in the menu.
  */
-export type MenuItem = 'Assets' | 'Audit Log' | 'Config' | 'Connections' | 'Dags' | 'Docs' | 'Plugins' | 'Pools' | 'Providers' | 'Variables' | 'XComs';
+export type MenuItem = 'Required Actions' | 'Assets' | 'Audit Log' | 'Config' | 'Connections' | 'Dags' | 'Docs' | 'Plugins' | 'Pools' | 'Providers' | 'Variables' | 'XComs';
 
 /**
  * Menu Item Collection serializer for responses.
@@ -2210,6 +2210,10 @@ export type GetDagRunsData = {
     startDateGte?: string | null;
     startDateLte?: string | null;
     state?: Array<(string)>;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    triggeringUserNamePattern?: string | null;
     updatedAtGte?: string | null;
     updatedAtLte?: string | null;
 };
@@ -2293,6 +2297,8 @@ export type ListDagWarningsData = {
 export type ListDagWarningsResponse = DAGWarningCollectionResponse;
 
 export type GetDagsData = {
+    bundleName?: string | null;
+    bundleVersion?: string | null;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
@@ -2389,6 +2395,8 @@ export type GetDagTagsData = {
 export type GetDagTagsResponse = DAGTagCollectionResponse;
 
 export type GetDagsUiData = {
+    bundleName?: string | null;
+    bundleVersion?: string | null;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
@@ -2957,6 +2965,10 @@ export type GetHitlDetailsData = {
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
     subjectSearch?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    taskIdPattern?: string | null;
     userId?: Array<(string)>;
 };
 

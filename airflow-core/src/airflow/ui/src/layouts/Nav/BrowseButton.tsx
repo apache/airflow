@@ -38,6 +38,11 @@ const links = [
     key: "xcoms",
     title: "XComs",
   },
+  {
+    href: "/required_actions",
+    key: "requiredActions",
+    title: "Required Actions",
+  },
 ];
 
 export const BrowseButton = ({

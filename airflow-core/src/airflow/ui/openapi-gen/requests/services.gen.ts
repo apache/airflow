@@ -984,6 +984,7 @@ export class DagRunService {
      * @param data.state
      * @param data.orderBy
      * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.triggeringUserNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns DAGRunCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1010,7 +1011,8 @@ export class DagRunService {
                 run_type: data.runType,
                 state: data.state,
                 order_by: data.orderBy,
-                run_id_pattern: data.runIdPattern
+                run_id_pattern: data.runIdPattern,
+                triggering_user_name_pattern: data.triggeringUserNamePattern
             },
             errors: {
                 401: 'Unauthorized',
@@ -1364,6 +1366,8 @@ export class DagService {
      * @param data.excludeStale
      * @param data.paused
      * @param data.lastDagRunState
+     * @param data.bundleName
+     * @param data.bundleVersion
      * @param data.dagRunStartDateGte
      * @param data.dagRunStartDateLte
      * @param data.dagRunEndDateGte
@@ -1389,6 +1393,8 @@ export class DagService {
                 exclude_stale: data.excludeStale,
                 paused: data.paused,
                 last_dag_run_state: data.lastDagRunState,
+                bundle_name: data.bundleName,
+                bundle_version: data.bundleVersion,
                 dag_run_start_date_gte: data.dagRunStartDateGte,
                 dag_run_start_date_lte: data.dagRunStartDateLte,
                 dag_run_end_date_gte: data.dagRunEndDateGte,
@@ -1650,6 +1656,8 @@ export class DagService {
      * @param data.excludeStale
      * @param data.paused
      * @param data.lastDagRunState
+     * @param data.bundleName
+     * @param data.bundleVersion
      * @param data.orderBy
      * @param data.isFavorite
      * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
@@ -1672,6 +1680,8 @@ export class DagService {
                 exclude_stale: data.excludeStale,
                 paused: data.paused,
                 last_dag_run_state: data.lastDagRunState,
+                bundle_name: data.bundleName,
+                bundle_version: data.bundleVersion,
                 order_by: data.orderBy,
                 is_favorite: data.isFavorite
             },
@@ -3516,6 +3526,7 @@ export class HumanInTheLoopService {
      * @param data.orderBy
      * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.dagRunId
+     * @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.state
      * @param data.responseReceived
      * @param data.userId
@@ -3534,6 +3545,7 @@ export class HumanInTheLoopService {
                 order_by: data.orderBy,
                 dag_id_pattern: data.dagIdPattern,
                 dag_run_id: data.dagRunId,
+                task_id_pattern: data.taskIdPattern,
                 state: data.state,
                 response_received: data.responseReceived,
                 user_id: data.userId,
