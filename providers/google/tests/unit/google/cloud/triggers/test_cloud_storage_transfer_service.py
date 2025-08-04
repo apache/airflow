@@ -154,30 +154,50 @@ class TestCloudStorageTransferServiceCreateJobsTrigger:
         assert actual_event == expected_event
         mock_sleep.assert_called_once_with(POLL_INTERVAL)
 
-    @pytest.mark.parametrize(
-        "latest_operations_names, expected_failed_job",
-        [
-            ([None, LATEST_OPERATION_NAME_1], JOB_0),
-            ([LATEST_OPERATION_NAME_0, None], JOB_1),
-        ],
-    )
     @pytest.mark.asyncio
     @mock.patch(ASYNC_HOOK_CLASS_PATH + ".get_latest_operation")
     @mock.patch(ASYNC_HOOK_CLASS_PATH + ".get_jobs")
-    async def test_run_error_job_has_no_latest_operation(
-        self, get_jobs, get_latest_operation, trigger, latest_operations_names, expected_failed_job
-    ):
-        get_jobs.return_value = mock_jobs(names=JOB_NAMES, latest_operation_names=latest_operations_names)
+    async def test_run_wait_for_job_with_no_initial_operation(self, get_jobs, get_latest_operation, trigger):
+        get_jobs.side_effect = [
+            mock_jobs(names=JOB_NAMES, latest_operation_names=[LATEST_OPERATION_NAME_0, None]),
+            mock_jobs(names=JOB_NAMES, latest_operation_names=LATEST_OPERATION_NAMES),
+        ]
         get_latest_operation.side_effect = [
-            create_mock_operation(status=TransferOperation.Status.SUCCESS, name="operation_" + job_name)
-            if job_name
-            else None
-            for job_name in latest_operations_names
+            create_mock_operation(status=TransferOperation.Status.IN_PROGRESS, name=LATEST_OPERATION_NAME_0),
+            None,
+            create_mock_operation(status=TransferOperation.Status.SUCCESS, name=LATEST_OPERATION_NAME_0),
+            create_mock_operation(status=TransferOperation.Status.SUCCESS, name=LATEST_OPERATION_NAME_1),
         ]
         expected_event = TriggerEvent(
             {
-                "status": "error",
-                "message": f"Transfer job {expected_failed_job} has no latest operation.",
+                "status": "success",
+                "message": f"Transfer jobs {JOB_0}, {JOB_1} completed successfully",
+            }
+        )
+
+        generator = trigger.run()
+        actual_event = await generator.asend(None)
+
+        assert actual_event == expected_event
+
+    @pytest.mark.asyncio
+    @mock.patch(ASYNC_HOOK_CLASS_PATH + ".get_latest_operation")
+    @mock.patch(ASYNC_HOOK_CLASS_PATH + ".get_jobs")
+    async def test_run_continues_polling_if_no_operation(self, get_jobs, get_latest_operation, trigger):
+        get_jobs.side_effect = [
+            mock_jobs(names=JOB_NAMES, latest_operation_names=[None, None]),
+            mock_jobs(names=JOB_NAMES, latest_operation_names=LATEST_OPERATION_NAMES),
+        ]
+        get_latest_operation.side_effect = [
+            None,
+            None,
+            create_mock_operation(status=TransferOperation.Status.SUCCESS, name=LATEST_OPERATION_NAME_0),
+            create_mock_operation(status=TransferOperation.Status.SUCCESS, name=LATEST_OPERATION_NAME_1),
+        ]
+        expected_event = TriggerEvent(
+            {
+                "status": "success",
+                "message": f"Transfer jobs {JOB_0}, {JOB_1} completed successfully",
             }
         )
 

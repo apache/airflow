@@ -75,6 +75,7 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
         while True:
             self.log.info("Attempting to request jobs statuses")
             jobs_completed_successfully = 0
+            all_operations_found = True
             try:
                 jobs_pager = await async_hook.get_jobs(job_names=self.job_names)
                 jobs, awaitable_operations = [], []
@@ -87,13 +88,9 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
 
                 for job, operation in zip(jobs, operations):
                     if operation is None:
-                        yield TriggerEvent(
-                            {
-                                "status": "error",
-                                "message": f"Transfer job {job.name} has no latest operation.",
-                            }
-                        )
-                        return
+                        self.log.info("Transfer job %s has no latest operation yet, waiting.", job.name)
+                        all_operations_found = False
+                        continue
                     elif operation.status == TransferOperation.Status.SUCCESS:
                         jobs_completed_successfully += 1
                     elif operation.status in (
@@ -111,6 +108,11 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
             except (GoogleAPIError, AirflowException) as ex:
                 yield TriggerEvent({"status": "error", "message": str(ex)})
                 return
+
+            if not all_operations_found:
+                self.log.info("Not all transfer jobs have associated operations yet. Waiting.")
+                await asyncio.sleep(self.poll_interval)
+                continue
 
             jobs_total = len(self.job_names)
             self.log.info("Transfer jobs completed: %s of %s", jobs_completed_successfully, jobs_total)
