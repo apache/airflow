@@ -25,8 +25,8 @@ from typing import TYPE_CHECKING, Any, ClassVar, Union
 import attrs
 
 from airflow.sdk import XComArg
+from airflow.sdk.definitions import enable_lazy_task_expansion
 from airflow.sdk.definitions._internal.mixins import ResolveMixin
-from airflow.sdk.definitions.mappedoperator import enable_lazy_task_expansion
 
 if TYPE_CHECKING:
     from typing import TypeGuard

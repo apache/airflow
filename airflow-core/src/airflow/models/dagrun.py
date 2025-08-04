@@ -73,7 +73,8 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
-from airflow.sdk.definitions.mappedoperator import MappedOperator, enable_lazy_task_expansion
+from airflow.sdk.definitions import enable_lazy_task_expansion
+from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions._internal.abstractoperator import NotMapped
 from airflow.sdk.definitions.deadline import DeadlineReference
 from airflow.stats import Stats

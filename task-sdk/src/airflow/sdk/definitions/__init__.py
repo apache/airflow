@@ -14,3 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+from __future__ import annotations
+
+from airflow.configuration import conf
+
+
+# AIP-88: https://cwiki.apache.org/confluence/display/AIRFLOW/%5BWIP%5D+AIP-88%3A+Lazy+task+expansion
+enable_lazy_task_expansion = conf.getboolean("scheduler", "enable_lazy_task_expansion", fallback=False)

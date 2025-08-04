@@ -134,8 +134,9 @@ class TaskMap(TaskInstanceDependencies):
         from airflow.models.mappedoperator import get_mapped_ti_count
         from airflow.models.taskinstance import TaskInstance
         from airflow.sdk.bases.operator import BaseOperator
-        from airflow.sdk.definitions.mappedoperator import MappedOperator, enable_lazy_task_expansion
         from airflow.serialization.serialized_objects import SerializedBaseOperator
+        from airflow.sdk.definitions import enable_lazy_task_expansion
+        from airflow.sdk.definitions.mappedoperator import MappedOperator
         from airflow.sdk.definitions._internal.abstractoperator import NotMapped
         from airflow.settings import task_instance_mutation_hook
 

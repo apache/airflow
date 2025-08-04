@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any, overload
 
 from airflow.exceptions import AirflowException, XComNotFound
 from airflow.models.xcom import XComModel
-from airflow.sdk.definitions.mappedoperator import enable_lazy_task_expansion
+from airflow.sdk.definitions import enable_lazy_task_expansion
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 from airflow.sdk.definitions._internal.mixins import DependencyMixin, ResolveMixin
 from airflow.sdk.definitions._internal.setup_teardown import SetupTeardownContext
