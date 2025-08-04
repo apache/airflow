@@ -120,7 +120,7 @@ class TimeSensor(BaseSensorOperator):
             super().execute(context)
 
     def execute_complete(self, context: Context, event: Any = None) -> None:
-        return
+        return None
 
     def poke(self, context: Context) -> bool:
         self.log.info("Checking if the time (%s) has come", self.target_datetime)
