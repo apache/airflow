@@ -1849,7 +1849,7 @@ export type LightGridTaskInstanceSummary = {
 /**
  * Define all menu items defined in the menu.
  */
-export type MenuItem = 'Assets' | 'Audit Log' | 'Config' | 'Connections' | 'Dags' | 'Docs' | 'Plugins' | 'Pools' | 'Providers' | 'Variables' | 'XComs';
+export type MenuItem = 'Required Actions' | 'Assets' | 'Audit Log' | 'Config' | 'Connections' | 'Dags' | 'Docs' | 'Plugins' | 'Pools' | 'Providers' | 'Variables' | 'XComs';
 
 /**
  * Menu Item Collection serializer for responses.
