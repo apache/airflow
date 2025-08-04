@@ -399,3 +399,75 @@ class TestEmailSmtp:
         assert final_mock.starttls.called
         final_mock.sendmail.assert_called_once_with("from", "to", msg.as_string())
         assert final_mock.quit.called
+
+    @mock.patch("smtplib.SMTP_SSL")
+    @mock.patch("smtplib.SMTP")
+    def test_send_mime_connection_host_port_override(self, mock_smtp, mock_smtp_ssl, monkeypatch):
+        """Test that connection host and port override configuration values."""
+        monkeypatch.setenv(
+            "AIRFLOW_CONN_SMTP_TEST_OVERRIDE",
+            json.dumps({
+                "conn_type": "smtp",
+                "host": "conn.example.com",
+                "port": 2525,
+                "login": "conn-user",
+                "password": "conn-pass"
+            }),
+        )
+        msg = MIMEMultipart()
+        email.send_mime_email("from", "to", msg, dryrun=False, conn_id="smtp_test_override")
+        mock_smtp.assert_called_once_with(
+            host="conn.example.com",  # Should use connection host, not config
+            port=2525,  # Should use connection port, not config
+            timeout=conf.getint("smtp", "SMTP_TIMEOUT"),
+        )
+        mock_smtp.return_value.login.assert_called_once_with("conn-user", "conn-pass")
+
+    @mock.patch("smtplib.SMTP_SSL")
+    @mock.patch("smtplib.SMTP")
+    def test_send_mime_connection_extra_ssl_starttls(self, mock_smtp, mock_smtp_ssl, monkeypatch):
+        """Test connection with SSL and STARTTLS settings in extra field."""
+        monkeypatch.setenv(
+            "AIRFLOW_CONN_SMTP_EXTRA_SSL",
+            json.dumps({
+                "conn_type": "smtp",
+                "host": "ssl.example.com",
+                "port": 465,
+                "login": "ssl-user",
+                "password": "ssl-pass",
+                "extra": json.dumps({
+                    "ssl": True,
+                    "starttls": False,
+                    "timeout": 60
+                })
+            }),
+        )
+        mock_smtp_ssl.return_value = mock.Mock()
+        msg = MIMEMultipart()
+        with conf_vars({("email", "ssl_context"): "default"}):
+            email.send_mime_email("from", "to", msg, dryrun=False, conn_id="smtp_extra_ssl")
+        # Should use SMTP_SSL because ssl=True in extra
+        assert not mock_smtp.called
+        mock_smtp_ssl.assert_called_once_with(
+            host="ssl.example.com",
+            port=465,
+            timeout=60,  # Should use timeout from connection extra
+            context=mock.ANY,
+        )
+        mock_smtp_ssl.return_value.login.assert_called_once_with("ssl-user", "ssl-pass")
+
+    @mock.patch("smtplib.SMTP_SSL")
+    @mock.patch("smtplib.SMTP")
+    def test_send_mime_connection_fallback_to_config(self, mock_smtp, mock_smtp_ssl, monkeypatch):
+        """Test connection fallback to config when connection doesn't exist or has missing values."""
+        msg = MIMEMultipart()
+        # Use a connection ID that doesn't exist - should fallback to config
+        email.send_mime_email("from", "to", msg, dryrun=False, conn_id="nonexistent_conn")
+        mock_smtp.assert_called_once_with(
+            host=conf.get("smtp", "SMTP_HOST"),
+            port=conf.getint("smtp", "SMTP_PORT"),
+            timeout=conf.getint("smtp", "SMTP_TIMEOUT"),
+        )
+        # Should not attempt login since no connection found
+        assert not mock_smtp.return_value.login.called
+
