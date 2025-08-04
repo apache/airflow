@@ -439,11 +439,12 @@ class TestKubernetesHook:
             mock_get_client.assert_called_with(cluster_context="test")
             assert kubernetes_hook.get_namespace() == "test"
 
-    def test_missing_default_connection_is_ok(self, remove_default_conn):
+    def test_missing_default_connection_is_ok(self, remove_default_conn, mock_supervisor_comms):
         # prove to ourselves that the default conn doesn't exist
         k8s_conn_exists = os.environ.get(f"AIRFLOW_CONN_{DEFAULT_CONN_ID.upper()}")
         assert k8s_conn_exists is None
 
+        mock_supervisor_comms.send.side_effect = [ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)] * 2
         # verify K8sHook still works
         hook = KubernetesHook()
         assert hook.conn_extras == {}
