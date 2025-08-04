@@ -258,8 +258,12 @@ def send_mime_email(
             airflow_conn = Connection.get_connection_from_secrets(conn_id)
             smtp_user = airflow_conn.login
             smtp_password = airflow_conn.password
-            smtp_host = airflow_conn.host
-            smtp_port = airflow_conn.port
+            if airflow_conn.host:
+                smtp_host = airflow_conn.host
+            if airflow_conn.port:
+                smtp_port = airflow_conn.port
+            smtp_user = airflow_conn.login or smtp_user
+            smtp_password = airflow_conn.password or smtp_password
             smtp_starttls = airflow_conn.extra_dejson.get("starttls", smtp_starttls)
             smtp_ssl = airflow_conn.extra_dejson.get("ssl", smtp_ssl)
             smtp_timeout = airflow_conn.extra_dejson.get("timeout", smtp_timeout)
