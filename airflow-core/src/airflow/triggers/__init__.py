@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 from airflow.utils.deprecation_tools import add_deprecated_classes
 
 if TYPE_CHECKING:
-    from airflow.triggers.base import StartTriggerArgs as StartTriggerArgs
+    from airflow.triggers.base import StartTriggerArgs
 
 
 __deprecated_classes = {
