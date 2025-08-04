@@ -83,8 +83,6 @@ from airflow.serialization.serialized_objects import (
 from airflow.task.priority_strategy import _DownstreamPriorityWeightStrategy
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.timetables.simple import NullTimetable, OnceTimetable
-from airflow.triggers.base import StartTriggerArgs
-from airflow.utils import timezone
 from airflow.utils.module_loading import qualname
 from airflow.utils.operator_resources import Resources
 
