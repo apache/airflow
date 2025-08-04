@@ -45,7 +45,7 @@ def __getattr__(name: str):
             "airflow.triggers.base.StartTriggerArgs is deprecated. "
             "Use airflow.sdk.bases.trigger.StartTriggerArgs instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         return SDKStartTriggerArgs
 
