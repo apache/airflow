@@ -51,7 +51,7 @@ const DeletePoolButton = ({ poolName, withText = false }: Props) => {
       <DeleteDialog
         isDeleting={isPending}
         onClose={onClose}
-        onDelete={() => mutate({ poolName: encodeURIComponent(poolName) })}
+        onDelete={() => mutate({ poolName })}
         open={open}
         resourceName={poolName}
         title={translate("pools.delete.title")}
