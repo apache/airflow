@@ -48,7 +48,6 @@ export const namespaces = [
 
 const baseHref = document.querySelector("head > base")?.getAttribute("href") ?? "";
 const baseUrl = new URL(baseHref, globalThis.location.origin);
-const basePath = new URL(baseUrl).pathname.replace(/\/$/u, "");
 
 void i18n
   .use(Backend)
@@ -56,7 +55,7 @@ void i18n
   .use(initReactI18next)
   .init({
     backend: {
-      loadPath: `${basePath}/static/i18n/locales/{{lng}}/{{ns}}.json`,
+      loadPath: new URL("/static/i18n/locales/{{lng}}/{{ns}}.json", baseUrl).href,
     },
     defaultNS: "common",
     detection: {
