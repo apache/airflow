@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-03T13:15:11.547551
+# This constraints file was automatically generated on 2025-08-04T13:48:51.541799
 # via `uv pip install --resolution highest` for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -96,7 +96,7 @@ amqp==5.3.1
 analytics-python==1.2.9
 annotated-types==0.7.0
 ansicolors==1.1.8
-anyio==4.9.0
+anyio==4.10.0
 apache-airflow-providers-airbyte==5.2.2
 apache-airflow-providers-alibaba==3.2.2
 apache-airflow-providers-amazon==9.11.0
@@ -267,14 +267,14 @@ click-repl==0.3.0
 click==8.2.1
 clickclick==20.10.2
 cloudpickle==3.1.1
-cohere==5.16.1
+cohere==5.16.2
 colorama==0.4.6
 colorful==0.5.7
 colorlog==6.9.0
 comm==0.2.3
 confluent-kafka==2.11.0
 connexion==2.14.2
-coverage==7.10.1
+coverage==7.10.2
 crcmod==1.7
 cron-descriptor==1.4.5
 croniter==6.0.0
@@ -433,6 +433,7 @@ inflection==0.5.1
 influxdb-client==1.49.0
 iniconfig==2.1.0
 inputimeout==1.0.4
+invoke==2.2.0
 ipdb==0.13.13
 ipykernel==6.30.0
 ipython==9.4.0
@@ -555,7 +556,7 @@ pandas-stubs==2.3.0.250703
 pandas==2.1.4
 pandocfilters==1.5.1
 papermill==2.6.0
-paramiko==3.5.1
+paramiko==4.0.0
 parso==0.8.4
 pathable==0.4.4
 pathspec==0.12.1
@@ -817,7 +818,7 @@ yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.20.1
 ydb-dbapi==0.1.12
-ydb==3.21.6
+ydb==3.21.7
 zeep==4.3.1
 zenpy==2.0.56
 zipp==3.23.0

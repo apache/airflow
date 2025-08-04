@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-03T13:12:26.645160
+# This constraints file was automatically generated on 2025-08-04T13:47:03.638547
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -75,7 +75,7 @@ amqp==5.3.1
 analytics-python==1.2.9
 annotated-types==0.7.0
 ansicolors==1.1.8
-anyio==4.9.0
+anyio==4.10.0
 apache-beam==2.66.0
 apispec==6.8.2
 apprise==1.9.4
@@ -154,14 +154,14 @@ click-repl==0.3.0
 click==8.1.8
 clickclick==20.10.2
 cloudpickle==2.2.1
-cohere==5.16.1
+cohere==5.16.2
 colorama==0.4.6
 colorful==0.5.7
 colorlog==6.9.0
 comm==0.2.3
 confluent-kafka==2.11.0
 connexion==2.14.2
-coverage==7.10.1
+coverage==7.10.2
 crcmod==1.7
 cron-descriptor==1.4.5
 croniter==6.0.0
@@ -698,7 +698,7 @@ yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.20.1
 ydb-dbapi==0.1.12
-ydb==3.21.6
+ydb==3.21.7
 zeep==4.3.1
 zenpy==2.0.56
 zipp==3.23.0
