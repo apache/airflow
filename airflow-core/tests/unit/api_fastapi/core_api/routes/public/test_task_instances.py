@@ -4514,6 +4514,29 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                         {
                             "action": "delete",
                             "entities": [
+                                {
+                                    "task_id": TASK_ID,
+                                    "map_index": -1,
+                                },
+                            ],
+                        }
+                    ]
+                },
+                {
+                    "delete": {
+                        "success": [TASK_ID],
+                        "errors": [],
+                    }
+                },
+                id="delete-with-entity-success",
+            ),
+            pytest.param(
+                [{"task_id": TASK_ID, "state": State.SUCCESS}],
+                {
+                    "actions": [
+                        {
+                            "action": "delete",
+                            "entities": [
                                 "non_existent_task",
                             ],
                             "action_on_non_existence": "skip",
@@ -4527,6 +4550,30 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                     }
                 },
                 id="delete-skip",
+            ),
+            pytest.param(
+                [{"task_id": TASK_ID, "state": State.SUCCESS}],
+                {
+                    "actions": [
+                        {
+                            "action": "delete",
+                            "entities": [
+                                {
+                                    "task_id": "non_existent_task",
+                                    "map_index": -1,
+                                },
+                            ],
+                            "action_on_non_existence": "skip",
+                        }
+                    ]
+                },
+                {
+                    "delete": {
+                        "success": [],
+                        "errors": [],
+                    }
+                },
+                id="delete-with-entity-skip",
             ),
             pytest.param(
                 [{"task_id": TASK_ID, "state": State.SUCCESS}],
@@ -4552,6 +4599,79 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                     }
                 },
                 id="delete-failure",
+            ),
+            pytest.param(
+                [{"task_id": TASK_ID, "state": State.SUCCESS}],
+                {
+                    "actions": [
+                        {
+                            "action": "delete",
+                            "entities": [
+                                {
+                                    "task_id": "non_existent_task",
+                                    "map_index": -1,
+                                },
+                            ],
+                        }
+                    ]
+                },
+                {
+                    "delete": {
+                        "success": [],
+                        "errors": [
+                            {
+                                "error": "No task instances found for task_id: non_existent_task",
+                                "status_code": 404,
+                            }
+                        ],
+                    }
+                },
+                id="delete-with-entity-failure",
+            ),
+            pytest.param(
+                [
+                    {"task_id": TASK_ID, "state": State.SUCCESS, "map_index": 0},
+                    {"task_id": TASK_ID, "state": State.SUCCESS, "map_index": 1},
+                    {"task_id": TASK_ID, "state": State.SUCCESS, "map_index": 2},
+                ],
+                {
+                    "actions": [
+                        {
+                            "action": "delete",
+                            "entities": [
+                                {"task_id": TASK_ID, "map_index": -1},
+                            ],
+                        }
+                    ]
+                },
+                {
+                    "delete": {
+                        "success": [TASK_ID],
+                        "errors": [],
+                    }
+                },
+                id="delete-all-map-indexes",
+            ),
+            pytest.param(
+                [
+                    {"task_id": TASK_ID, "state": State.SUCCESS},
+                    {"task_id": "another_task", "state": State.SUCCESS, "map_index": 0},
+                ],
+                {
+                    "actions": [
+                        {
+                            "action": "delete",
+                            "entities": [TASK_ID, {"task_id": "another_task", "map_index": 0}],
+                        }
+                    ]
+                },
+                {
+                    "delete": {
+                        "success": [TASK_ID, "another_task[0]"],
+                        "errors": [],
+                    }
+                },
+                id="mixed-string-and-object",
             ),
             pytest.param(
                 [{"task_id": TASK_ID, "state": State.RUNNING}],
