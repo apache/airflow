@@ -132,7 +132,6 @@ _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ..
     DagAccessEntity.AUDIT_LOG: (RESOURCE_AUDIT_LOG,),
     DagAccessEntity.CODE: (RESOURCE_DAG_CODE,),
     DagAccessEntity.DEPENDENCIES: (RESOURCE_DAG_DEPENDENCIES,),
-    DagAccessEntity.HITL_DETAIL: (RESOURCE_HITL_DETAIL,),
     DagAccessEntity.RUN: (RESOURCE_DAG_RUN,),
     # RESOURCE_TASK_INSTANCE has been originally misused. RESOURCE_TASK_INSTANCE referred to task definition
     # AND task instances without making the difference
@@ -177,6 +176,7 @@ if AIRFLOW_V_3_1_PLUS:
     from airflow.providers.fab.www.security.permissions import RESOURCE_HITL_DETAIL
 
     _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE[MenuItem.REQUIRED_ACTIONS] = RESOURCE_HITL_DETAIL
+    _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE[DagAccessEntity.HITL_DETAIL] = (RESOURCE_HITL_DETAIL,)
 
 
 class FabAuthManager(BaseAuthManager[User]):
