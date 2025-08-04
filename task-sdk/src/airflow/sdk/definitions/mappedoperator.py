@@ -832,7 +832,7 @@ class MappedOperator(AbstractOperator):
 
         This method is for allowing mapped operator to start execution from triggerer.
         """
-        from airflow.triggers.base import StartTriggerArgs
+        from airflow.sdk.bases.trigger import StartTriggerArgs
 
         if not self.start_trigger_args:
             return None
