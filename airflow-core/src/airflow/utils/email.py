@@ -234,15 +234,10 @@ def send_mime_email(
     or fallback to configuration variables for SMTP parameters.
 
     :param e_from: Sender email address.
-    :type e_from: str
     :param e_to: Recipient email address or list of addresses.
-    :type e_to: str or list[str]
     :param mime_msg: The MIME message to send (should be a MIMEMultipart object).
-    :type mime_msg: MIMEMultipart
     :param conn_id: Airflow SMTP connection ID to use (default: "smtp_default").
-    :type conn_id: str
     :param dryrun: If True, do not actually send the email (for testing/logging only).
-    :type dryrun: bool
 
     :raises AirflowException: If the SMTP connection fails after all retries.
     :raises smtplib.SMTPException: For SMTP-related errors.
