@@ -1826,7 +1826,7 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
     )
 
     mocked_redact = mocker.patch(target)
-    mocked_redact.side_effect = lambda item, name=None, max_depth=None: item
+    mocked_redact.side_effect = lambda item, *args, **kwargs: item
     with pytest.MonkeyPatch.context() as mp_ctx:
         mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", False)
         yield
