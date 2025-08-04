@@ -515,7 +515,7 @@ class ClusterGenerator:
 
         if self.driver_pool_size > 0:
             cluster_data["auxiliary_node_groups"] = [self._build_driver_pool()]
-        
+
         if self.cluster_tier:
             cluster_data["cluster_tier"] = self.cluster_tier
 
