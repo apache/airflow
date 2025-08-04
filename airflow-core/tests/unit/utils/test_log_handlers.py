@@ -562,6 +562,18 @@ class TestFileTaskLogHandler:
         assert extract_events(logs, False) == expected_logs
         assert metadata == {"end_of_log": True, "log_pos": 3}
 
+    @pytest.mark.parametrize("is_tih", [False, True])
+    def test_read_served_logs(self, is_tih, create_task_instance):
+        ti = create_task_instance(
+            state=TaskInstanceState.SUCCESS,
+            hostname="test_hostname",
+        )
+        if is_tih:
+            ti = TaskInstanceHistory(ti, ti.state)
+        fth = FileTaskHandler("")
+        sources, _ = fth._read_from_logs_server(ti, "test.log")
+        assert len(sources) > 0
+
     def test_add_triggerer_suffix(self):
         sample = "any/path/to/thing.txt"
         assert FileTaskHandler.add_triggerer_suffix(sample) == sample + ".trigger"
