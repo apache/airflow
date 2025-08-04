@@ -32,12 +32,8 @@ class TestAirflowCommon:
         "logs_values, expected_mount",
         [
             (
-                    {"persistence": {"enabled": True, "subPath": "test/logs"}},
-                    {
-                        "subPath": "test/logs",
-                        "mountPath": "/opt/airflow/logs",
-                        "name": "logs"
-                    },
+                {"persistence": {"enabled": True, "subPath": "test/logs"}},
+                {"subPath": "test/logs", "mountPath": "/opt/airflow/logs", "name": "logs"},
             ),
         ],
     )
@@ -53,7 +49,6 @@ class TestAirflowCommon:
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
-
             ],
         )
 
