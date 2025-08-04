@@ -549,8 +549,11 @@ class Connection(Base, LoggingMixin):
         return conn
 
     @classmethod
-    def from_json(cls, value, conn_id=None) -> Connection:
-        kwargs = json.loads(value)
+    def from_json(cls, value, conn_id=None) -> Connection | None:
+        try:
+            kwargs = json.loads(value)
+        except json.JSONDecodeError:
+            return None
         extra = kwargs.pop("extra", None)
         if extra:
             kwargs["extra"] = extra if isinstance(extra, str) else json.dumps(extra)
@@ -561,8 +564,8 @@ class Connection(Base, LoggingMixin):
         if port:
             try:
                 kwargs["port"] = int(port)
-            except ValueError:
-                raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.")
+            except ValueError as e:
+                raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.") from e
         return Connection(conn_id=conn_id, **kwargs)
 
     def as_json(self) -> str:
