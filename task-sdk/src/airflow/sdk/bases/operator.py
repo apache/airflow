@@ -37,7 +37,6 @@ import attrs
 
 from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.sdk import timezone
-from airflow.sdk.bases.trigger import StartTriggerArgs
 from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
@@ -79,6 +78,7 @@ if TYPE_CHECKING:
     import jinja2
 
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
+    from airflow.sdk.bases.trigger import StartTriggerArgs
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.taskgroup import TaskGroup
