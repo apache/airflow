@@ -26,11 +26,11 @@ from sqlalchemy.orm import Session
 from wrapt import synchronized
 
 from airflow.exceptions import AirflowException
+from airflow.models.xcom import XComModel
 from airflow.sdk.bases.operator import BaseOperator as Operator
 from airflow.sdk.definitions._internal.mixins import ResolveMixin
 from airflow.sdk.definitions.context import Context
 from airflow.sdk.definitions.xcom_arg import MapXComArg  # noqa: F401
-from airflow.sdk.execution_time.xcom import XCom
 from airflow.serialization import serde
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.log.logging_mixin import LoggingMixin
