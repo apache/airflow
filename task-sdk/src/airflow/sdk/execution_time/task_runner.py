@@ -552,11 +552,12 @@ class RuntimeTaskInstance(TaskInstance):
             assert isinstance(response, DagRunStateResult)
 
         return response.state
-    
+
     @property
     def stats_tags(self) -> dict[str, str]:
         """Returns task instance tags."""
         return {"dag_id": self.dag_id, "task_id": self.task_id}
+
 
 def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int | None = None) -> None:
     """Push a XCom through XCom.set, which pushes to XCom Backend if configured."""
@@ -1045,6 +1046,12 @@ def _handle_current_task_failed(
     end_date = datetime.now(tz=timezone.utc)
     if ti._ti_context_from_server and ti._ti_context_from_server.should_retry:
         return RetryTask(end_date=end_date), TaskInstanceState.UP_FOR_RETRY
+
+    Stats.incr(f"operator_failures_{ti.task}", tags=ti.stats_tags)
+    # Same metric with tagging
+    Stats.incr("operator_failures", tags={**ti.stats_tags, "operator": ti.task})
+    Stats.incr("ti_failures", tags=ti.stats_tags)
+
     return TaskState(
         state=TaskInstanceState.FAILED, end_date=end_date, rendered_map_index=ti.rendered_map_index
     ), TaskInstanceState.FAILED
