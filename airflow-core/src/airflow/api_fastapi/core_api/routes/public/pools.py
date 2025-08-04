@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 from typing import Annotated
-from urllib.parse import unquote
 
 from fastapi import Depends, HTTPException, Query, status
 from fastapi.exceptions import RequestValidationError
@@ -50,7 +49,7 @@ pools_router = AirflowRouter(tags=["Pool"], prefix="/pools")
 
 
 @pools_router.delete(
-    "/{pool_name}",
+    "/{pool_name:path}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses=create_openapi_http_exception_doc(
         [
@@ -65,7 +64,6 @@ def delete_pool(
     session: SessionDep,
 ):
     """Delete a pool entry."""
-    pool_name = unquote(pool_name)
     if pool_name == "default_pool":
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Default Pool can't be deleted")
 
@@ -76,7 +74,7 @@ def delete_pool(
 
 
 @pools_router.get(
-    "/{pool_name}",
+    "/{pool_name:path}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_pool(method="GET"))],
 )
@@ -85,7 +83,6 @@ def get_pool(
     session: SessionDep,
 ) -> PoolResponse:
     """Get a pool."""
-    pool_name = unquote(pool_name)
     pool = session.scalar(select(Pool).where(Pool.pool == pool_name))
     if pool is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Pool with name: `{pool_name}` was not found")
@@ -127,7 +124,7 @@ def get_pools(
 
 
 @pools_router.patch(
-    "/{pool_name}",
+    "/{pool_name:path}",
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,
@@ -143,7 +140,6 @@ def patch_pool(
     update_mask: list[str] | None = Query(None),
 ) -> PoolResponse:
     """Update a Pool."""
-    pool_name = unquote(pool_name)
     if patch_body.name and patch_body.name != pool_name:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
