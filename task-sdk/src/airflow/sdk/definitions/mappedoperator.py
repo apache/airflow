@@ -28,7 +28,6 @@ import attrs
 import methodtools
 
 from airflow.configuration import conf
-from airflow.models.abstractoperator import TaskStateChangeCallback
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_EXECUTOR,
