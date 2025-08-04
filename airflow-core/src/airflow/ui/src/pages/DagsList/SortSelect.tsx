@@ -36,7 +36,7 @@ export const SortSelect = ({ handleSortChange, orderBy }: Props) => {
       collection={dagSortOptions}
       data-testid="sort-by-select"
       onValueChange={handleSortChange}
-      value={orderBy === undefined ? undefined : [orderBy]}
+      value={orderBy === undefined ? undefined : orderBy}
       width="310px"
     >
       <Select.Trigger>
