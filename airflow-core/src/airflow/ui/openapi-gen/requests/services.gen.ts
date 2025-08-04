@@ -1366,6 +1366,8 @@ export class DagService {
      * @param data.excludeStale
      * @param data.paused
      * @param data.lastDagRunState
+     * @param data.bundleName
+     * @param data.bundleVersion
      * @param data.dagRunStartDateGte
      * @param data.dagRunStartDateLte
      * @param data.dagRunEndDateGte
@@ -1391,6 +1393,8 @@ export class DagService {
                 exclude_stale: data.excludeStale,
                 paused: data.paused,
                 last_dag_run_state: data.lastDagRunState,
+                bundle_name: data.bundleName,
+                bundle_version: data.bundleVersion,
                 dag_run_start_date_gte: data.dagRunStartDateGte,
                 dag_run_start_date_lte: data.dagRunStartDateLte,
                 dag_run_end_date_gte: data.dagRunEndDateGte,
@@ -1652,6 +1656,8 @@ export class DagService {
      * @param data.excludeStale
      * @param data.paused
      * @param data.lastDagRunState
+     * @param data.bundleName
+     * @param data.bundleVersion
      * @param data.orderBy
      * @param data.isFavorite
      * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
@@ -1674,6 +1680,8 @@ export class DagService {
                 exclude_stale: data.excludeStale,
                 paused: data.paused,
                 last_dag_run_state: data.lastDagRunState,
+                bundle_name: data.bundleName,
+                bundle_version: data.bundleVersion,
                 order_by: data.orderBy,
                 is_favorite: data.isFavorite
             },
