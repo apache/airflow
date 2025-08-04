@@ -984,6 +984,7 @@ export class DagRunService {
      * @param data.state
      * @param data.orderBy
      * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.triggeringUserNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns DAGRunCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1010,7 +1011,8 @@ export class DagRunService {
                 run_type: data.runType,
                 state: data.state,
                 order_by: data.orderBy,
-                run_id_pattern: data.runIdPattern
+                run_id_pattern: data.runIdPattern,
+                triggering_user_name_pattern: data.triggeringUserNamePattern
             },
             errors: {
                 401: 'Unauthorized',
