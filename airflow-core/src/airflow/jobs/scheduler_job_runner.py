@@ -32,7 +32,7 @@ from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import and_, delete, desc, exists, func, or_, select, text, tuple_, update
+from sqlalchemy import and_, delete, desc, exists, func, inspect, or_, select, text, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
@@ -2006,6 +2006,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
             else:
                 if task.on_failure_callback:
+                    if inspect(ti).detached:
+                        ti = session.merge(ti)
+                        self.log.warning(
+                            "The task instance %s was detached from the session. it has been re-attached.", ti
+                        )
                     request = TaskCallbackRequest(
                         filepath=ti.dag_model.relative_fileloc,
                         bundle_name=ti.dag_version.bundle_name,
