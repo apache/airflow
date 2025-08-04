@@ -1141,18 +1141,25 @@ class TestSchedulerJob:
             self.job_runner = SchedulerJobRunner(job=scheduler_job)
             session = settings.Session()
 
-            self.task_helper(dag_maker, session, "dag_12000_tasks", 12000)
-            self.task_helper(dag_maker, session, "dag_800_tasks", 800)
+            self.task_helper(dag_maker, session, "dag_1300_tasks", 1300)
+            self.task_helper(dag_maker, session, "dag_1200_tasks", 1200)
             self.task_helper(dag_maker, session, "dag_1100_tasks", 1100)
-
-            import time
-
-            start_time = time.perf_counter()
+            self.task_helper(dag_maker, session, "dag_1000_tasks", 100)
+            self.task_helper(dag_maker, session, "dag_900_tasks", 90)
+            self.task_helper(dag_maker, session, "dag_800_tasks", 80)
 
             count = 0
             iterations = 0
 
-            while count < 12:
+            from airflow.configuration import conf
+
+            task_num = conf.getint("core", "max_active_tasks_per_dag") * 6
+
+            # 6 dags * 4 = 24.
+            assert task_num == 24
+
+            queued_tis = None
+            while count < task_num:
                 # Use `_executable_task_instances_to_queued` because it returns a list of TIs
                 # while `_critical_section_enqueue_task_instances` just returns the number of the TIs.
                 queued_tis = self.job_runner._executable_task_instances_to_queued(
@@ -1160,17 +1167,23 @@ class TestSchedulerJob:
                 )
                 count += len(queued_tis)
                 iterations += 1
-                print(f"test: count: {count}")
-
-            duration_s = time.perf_counter() - start_time
-            print(f"test: needed iterations: {iterations} | total time: {duration_s:.2f}")
 
             if fts_enabled:
                 assert iterations == 1
-                assert count == 12
+                assert count == task_num
+
+                assert queued_tis is not None
+
+                dag_counts = Counter(ti.dag_id for ti in queued_tis)
+
+                # Tasks from all 6 dags should have been queued.
+                assert len(dag_counts) == 6
+                assert all(count == 4 for count in dag_counts.values()), (
+                    "Count for each dag_id should be 4 but it isn't"
+                )
             else:
                 assert iterations >= 2
-                assert count >= 12
+                assert count >= task_num
 
     def test_find_executable_task_instances_order_priority_with_pools(self, dag_maker):
         """
