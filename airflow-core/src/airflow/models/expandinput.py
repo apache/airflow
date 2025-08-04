@@ -19,8 +19,8 @@ from __future__ import annotations
 
 import functools
 import operator
-from collections.abc import Generator, Iterable, Mapping, Sized
-from typing import TYPE_CHECKING, Any, ClassVar, Union
+from collections.abc import Iterable, Sized
+from typing import TYPE_CHECKING, Any, ClassVar
 import attrs
 
 from airflow.utils.log.logging_mixin import LoggingMixin
