@@ -39,3 +39,37 @@ using this ``AssetWatcher`` for scheduling.
     This trigger requires **Airflow >= 3.0** due to dependencies on:
     - ``AssetWatcher``
     - Event-driven scheduling infrastructure
+
+Usage Example with AssetWatcher
+-------------------------------
+
+Here's a basic example using the trigger inside an AssetWatcher:
+
+Parameters
+----------
+
+``http_conn_id``
+    http connection id that has the base API url i.e https://www.google.com/ and optional authentication credentials.
+    Default headers can also be specified in the Extra field in json format.
+
+``auth_type``
+    The auth type for the service
+
+``method``
+    the API method to be called
+
+``endpoint``
+    Endpoint to be called, i.e. ``resource/v1/query?``
+
+``headers``
+    Additional headers to be passed through as a dict
+
+``data``
+    Payload to be uploaded or request parameters
+
+``extra_options``
+    Additional kwargs to pass when creating a request.
+    For example, ``run(json=obj)`` is passed as ``aiohttp.ClientSession().get(json=obj)``.
+
+``response_check_path``
+    Path to method that evaluates whether the API response passes the conditions set by the user to trigger DAGs

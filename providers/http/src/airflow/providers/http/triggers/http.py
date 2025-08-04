@@ -246,15 +246,14 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
         API url i.e https://www.google.com/ and optional authentication credentials. Default
         headers can also be specified in the Extra field in json format.
     :param auth_type: The auth type for the service
-    :param method: the API method to be called
+    :param method: The API method to be called
     :param endpoint: Endpoint to be called, i.e. ``resource/v1/query?``.
     :param headers: Additional headers to be passed through as a dict.
     :param data: Payload to be uploaded or request parameters.
     :param extra_options: Additional kwargs to pass when creating a request.
         For example, ``run(json=obj)`` is passed as
         ``aiohttp.ClientSession().get(json=obj)``.
-        2XX or 3XX status codes
-    :param response_check_path: path to method that evaluates whether the API response
+    :param response_check_path: Path to method that evaluates whether the API response
         passes the conditions set by the user to trigger DAGs
     """
 
@@ -294,8 +293,11 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
         try:
             while True:
                 response = await super()._get_response(hook)
-                if not self.response_check_path or self._run_response_check(response):
+                if not self.response_check_path or await self._run_response_check(response) == True:
+                    print("line 297")
+                    print(f"not? {not self.response_check_path}")
                     break
+            print("line 299")
             yield TriggerEvent(
                 {
                     "status": "success",
@@ -312,7 +314,10 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
         module = importlib.import_module(module_path)
         return getattr(module, func_name)
 
-    def _run_response_check(self, response) -> bool:
+    async def _run_response_check(self, response) -> bool:
         """Run the response_check callable provided by the user."""
-        response_check = self._import_from_response_check_path()
-        return response_check(response)
+        print("line 319")
+        response_check = await asyncio.to_thread(self._import_from_response_check_path)
+        check = await response_check(response)
+        print(f"check: {check}")
+        return check
