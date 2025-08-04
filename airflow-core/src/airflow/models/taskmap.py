@@ -144,38 +144,10 @@ class TaskMap(TaskInstanceDependencies):
             if not isinstance(task, (BaseOperator, MappedOperator, SerializedBaseOperator)):
                 raise RuntimeError(
                     f"cannot expand unrecognized operator type {type(task).__module__}.{type(task).__name__}"
-
-        try:
-            total_length: int | None = get_mapped_ti_count(task, run_id, session=session)
-        except NotFullyPopulated as e:
-            if not task.dag or not task.dag.partial:
-                task.log.error(
-                    "Cannot expand %r for run %s; missing upstream values: %s",
-                    task,
-                    run_id,
-                    sorted(e.missing),
                 )
-            total_length = None
-
-        state: TaskInstanceState | None = None
-        unmapped_ti: TaskInstance | None = session.scalars(
-            select(TaskInstance).where(
-                TaskInstance.dag_id == task.dag_id,
-                TaskInstance.task_id == task.task_id,
-                TaskInstance.run_id == run_id,
-                TaskInstance.map_index == -1,
-                or_(TaskInstance.state.in_(State.unfinished), TaskInstance.state.is_(None)),
-            )
-        ).one_or_none()
-
-        all_expanded_tis: list[TaskInstance] = []
-
-        if unmapped_ti:
-            if TYPE_CHECKING:
-                assert task.dag is None or isinstance(task.dag, SchedulerDAG)
 
             try:
-                total_length: int | None = DBBaseOperator.get_mapped_ti_count(task, run_id, session=session)
+                total_length: int | None = get_mapped_ti_count(task, run_id, session=session)
             except NotFullyPopulated as e:
                 if not task.dag or not task.dag.partial:
                     task.log.error(
@@ -240,7 +212,6 @@ class TaskMap(TaskInstanceDependencies):
                         task.log.debug("Deleting the original task instance: %s", unmapped_ti)
                         session.delete(unmapped_ti)
                     state = unmapped_ti.state
-                dag_version_id = unmapped_ti.dag_version_id
 
             if total_length is None or total_length < 1:
                 # Nothing to fixup.
