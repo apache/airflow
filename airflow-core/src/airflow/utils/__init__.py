@@ -44,6 +44,8 @@ __deprecated_classes = {
     },
     "helpers": {
         "render_template_as_native": "airflow.sdk.definitions.context.render_template_as_native",
+        # fallback for unmoved helpers
+        "*": "airflow.utils.helpers",
     },
 }
 
