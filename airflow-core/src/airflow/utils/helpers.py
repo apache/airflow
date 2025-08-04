@@ -330,3 +330,21 @@ def prevent_duplicates(kwargs1: dict[str, Any], kwargs2: Mapping[str, Any], *, f
         raise TypeError(f"{fail_reason} argument: {duplicated_keys.pop()}")
     duplicated_keys_display = ", ".join(sorted(duplicated_keys))
     raise TypeError(f"{fail_reason} arguments: {duplicated_keys_display}")
+
+
+def __getattr__(name: str):
+    """Provide backward compatibility for moved functions in this module."""
+    if name == "render_template_as_native":
+        import warnings
+
+        from airflow.sdk.definitions.context import render_template_as_native as sdk_render_template_as_native
+
+        warnings.warn(
+            "airflow.utils.helpers.render_template_as_native is deprecated. "
+            "Use airflow.sdk.definitions.context.render_template_as_native instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return sdk_render_template_as_native
+
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
