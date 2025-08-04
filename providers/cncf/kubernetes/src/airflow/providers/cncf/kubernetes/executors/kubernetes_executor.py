@@ -417,6 +417,46 @@ class KubernetesExecutor(BaseExecutor):
         if TYPE_CHECKING:
             assert self.kube_scheduler
 
+        if state == TaskInstanceState.FAILED:
+            try:
+                if self.kube_client:
+                    pod = self.kube_client.read_namespaced_pod(name=pod_name, namespace=namespace)
+                    pod_status = getattr(pod.status, "phase", None)
+                    pod_reason = getattr(pod.status, "reason", None)
+                    pod_message = getattr(pod.status, "message", None)
+
+                    # If containerStatuses has detailed reasons, print them as well.
+                    container_statuses = getattr(pod.status, "container_statuses", None)
+                    container_state = None
+                    container_reason = None
+                    container_message = None
+                    if container_statuses:
+                        for cs in container_statuses:
+                            state_obj = cs.state
+                            if state_obj.terminated:
+                                container_state = "terminated"
+                                container_reason = getattr(state_obj.terminated, "reason", None)
+                                container_message = getattr(state_obj.terminated, "message", None)
+                                break
+                            if state_obj.waiting:
+                                container_state = "waiting"
+                                container_reason = getattr(state_obj.waiting, "reason", None)
+                                container_message = getattr(state_obj.waiting, "message", None)
+                                break
+                    self.log.error(
+                        "Pod %s in namespace %s failed. Pod phase: %s, reason: %s, message: %s, container_state: %s, container_reason: %s, container_message: %s",
+                        pod_name,
+                        namespace,
+                        pod_status,
+                        pod_reason,
+                        pod_message,
+                        container_state,
+                        container_reason,
+                        container_message,
+                    )
+            except Exception as e:
+                self.log.warning("Failed to fetch pod failure reason for %s/%s: %s", namespace, pod_name, e)
+
         if state == ADOPTED:
             # When the task pod is adopted by another executor,
             # then remove the task from the current executor running queue.
