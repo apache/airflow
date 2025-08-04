@@ -20,6 +20,9 @@ from __future__ import annotations
 from airflow.utils.deprecation_tools import add_deprecated_classes
 
 __deprecated_classes = {
+    "base": {
+        "StartTriggerArgs": "airflow.sdk.bases.trigger.StartTriggerArgs",
+    },
     "external_task": {
         "WorkflowTrigger": "airflow.providers.standard.triggers.external_task.WorkflowTrigger",
         "DagStateTrigger": "airflow.providers.standard.triggers.external_task.DagStateTrigger",

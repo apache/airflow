@@ -30,13 +30,10 @@ from pydantic import (
     model_serializer,
 )
 
-from airflow.sdk.bases.trigger import StartTriggerArgs as StartTriggerArgs
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
 log = structlog.get_logger(logger_name=__name__)
-
-__all__ = ["StartTriggerArgs"]
 
 
 class BaseTrigger(abc.ABC, LoggingMixin):
