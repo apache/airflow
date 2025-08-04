@@ -27,7 +27,6 @@ from unittest import mock
 import paramiko
 import pytest
 
-from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.ssh.hooks.ssh import SSHHook
@@ -725,7 +724,7 @@ class TestSSHHook:
             transport = ssh_mock.return_value.get_transport.return_value
             assert transport.get_security_options.return_value.ciphers == TEST_CIPHERS
 
-    def test_openssh_private_key(self):
+    def test_openssh_private_key(self, create_connection_without_db):
         # Paramiko behaves differently with OpenSSH generated keys to paramiko
         # generated keys, so we need a test one.
         # This has been generated specifically to put here, it is not otherwise in use
@@ -750,37 +749,27 @@ class TestSSHHook:
         """
         )
 
-        session = settings.Session()
-        try:
-            conn = Connection(
-                conn_id="openssh_pkey",
-                host="localhost",
-                conn_type="ssh",
-                extra={"private_key": TEST_OPENSSH_PRIVATE_KEY},
-            )
-            session.add(conn)
-            session.flush()
-            hook = SSHHook(ssh_conn_id=conn.conn_id)
-            assert isinstance(hook.pkey, paramiko.RSAKey)
-        finally:
-            session.delete(conn)
-            session.commit()
+        conn = Connection(
+            conn_id="openssh_pkey",
+            host="localhost",
+            conn_type="ssh",
+            extra={"private_key": TEST_OPENSSH_PRIVATE_KEY},
+        )
+        create_connection_without_db(conn)
+        hook = SSHHook(ssh_conn_id=conn.conn_id)
+        assert isinstance(hook.pkey, paramiko.RSAKey)
 
-    def test_oneline_key(self):
+    def test_oneline_key(self, create_connection_without_db, mock_supervisor_comms):
         TEST_ONELINE_KEY = "-----BEGIN OPENSSHPRIVATE KEY-----asdfg-----END OPENSSHPRIVATE KEY-----"
-        session = settings.Session()
         conn = Connection(
             conn_id="openssh_pkey",
             host="localhost",
             conn_type="ssh",
             extra={"private_key": TEST_ONELINE_KEY},
         )
-        session.add(conn)
-        session.flush()
+        create_connection_without_db(conn)
         with pytest.raises(AirflowException, match="Key must have BEGIN and END"):
             SSHHook(ssh_conn_id=conn.conn_id)
-        session.delete(conn)
-        session.commit()
 
     @pytest.mark.flaky(reruns=5)
     def test_exec_ssh_client_command(self):

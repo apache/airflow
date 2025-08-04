@@ -25,6 +25,8 @@ import pytest
 from airflow.exceptions import AirflowNotFoundException
 from airflow.models import Connection
 from airflow.providers.samba.hooks.samba import SambaHook
+from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.execution_time.comms import ErrorResponse
 
 try:
     import importlib.util
@@ -40,7 +42,8 @@ PATH_PARAMETER_NAMES = {"path", "src", "dst"}
 
 class TestSambaHook:
     @pytest.mark.db_test
-    def test_get_conn_should_fail_if_conn_id_does_not_exist(self):
+    def test_get_conn_should_fail_if_conn_id_does_not_exist(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
         with pytest.raises(AirflowNotFoundException):
             SambaHook("non-existed-connection-id")
 

@@ -35,6 +35,8 @@ from kubernetes.config import ConfigException
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook, KubernetesHook
+from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.execution_time.comms import ErrorResponse
 
 from tests_common.test_utils.db import clear_test_connections
 from tests_common.test_utils.providers import get_provider_min_airflow_version
@@ -1000,9 +1002,8 @@ class TestAsyncKubernetesHook:
         assert kube_client is None
 
     @pytest.mark.asyncio
-    async def test_load_config_with_several_params(
-        self,
-    ):
+    async def test_load_config_with_several_params(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
         hook = AsyncKubernetesHook(
             conn_id=CONN_ID,
             in_cluster=True,
