@@ -540,3 +540,38 @@ This means ``explicit_defaults_for_timestamp`` is disabled in your mysql server 
 
 #. Set ``explicit_defaults_for_timestamp = 1`` under the ``mysqld`` section in your ``my.cnf`` file.
 #. Restart the Mysql server.
+
+Connections
+^^^^^^^^^^^
+
+How can I test a connection or use a Canary Dag?
+------------------------------------------------
+
+For security reasons, the test connection functionality is disabled by default across the Airflow UI,
+API and CLI. This can be modified by setting `ref:config:core__test_connection`.
+
+You can utilize a Dag to regularly test connections. This is referred to as a "Canary Dag" and can detect and
+alert on failures in external systems that your Dags depend on. You can create a simple Dag that tests connections
+such as the following Airflow 3 example:
+
+.. code-block:: python
+
+  from airflow import DAG
+  from airflow.sdk import task
+
+  with DAG(dag_id='canary', schedule="@daily", doc_md="Canary DAG to regularly test connections to systems."):
+      @task(doc_md="Test a connection by its Connection ID.")
+      def test_connection(conn_id):
+          from airflow.hooks.base import BaseHook
+          ok, status = BaseHook.get_hook(conn_id=conn_id).test_connection()
+          if ok:
+              return status
+          raise RuntimeError(status)
+
+      for conn_id in [
+          # Add more connections here to create tasks to test them.
+          'aws_default',
+      ]:
+          test_connection.override(task_id=f"test_{conn_id}")(conn_id)
+
+
