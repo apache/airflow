@@ -28,7 +28,7 @@ This README is primarily aimed at developers working _on_ the Go-SDK itself. Use
 
 The Go SDK uses the Task Execution Interface (TEI or Task API) introduced in AIP-72 with Airflow 3.0.0.
 
-The Task API however does not provide a means to get the `ExecuteTaskWorkload` to the go worker itself. For the short term, we make use of [gopher-celery](github.com/marselester/gopher-celery) to get tasks from a Redis broker. Longer term we will likely need to stabilize the Edge Executor API and write a go client for that.
+The Task API however does not provide a means to get the `ExecuteTaskWorkload` to the go worker itself. For the short term, we make use of [gopher-celery](https://github.com/marselester/gopher-celery) to get tasks from a Redis broker. Longer term we will likely need to stabilize the Edge Executor API and write a go client for that.
 
 Since Go is a compiled language (putting aside projects such as [YAEGI](https://github.com/traefik/yaegi) that allow go to be interpreted) all tasks must be a) compiled in to the binary, and b) "registered" inside the worker process in order to be executed.
 

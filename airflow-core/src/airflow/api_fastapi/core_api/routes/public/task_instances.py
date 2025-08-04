@@ -26,7 +26,12 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
-from airflow.api_fastapi.common.dagbag import DagBagDep
+from airflow.api_fastapi.common.dagbag import (
+    DagBagDep,
+    get_dag_for_run,
+    get_dag_for_run_or_latest_version,
+    get_latest_version_of_dag,
+)
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
@@ -182,13 +187,7 @@ def get_mapped_task_instances(
     unfiltered_total_count = get_query_count(query, session=session)
     if unfiltered_total_count == 0:
         dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
-        if dag_run:
-            dag = dag_bag.get_dag_for_run(dag_run, session=session)
-        else:
-            dag = dag_bag.get_latest_version_of_dag(dag_id, session=session)
-        if not dag:
-            error_message = f"DAG {dag_id} not found"
-            raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
+        dag = get_dag_for_run_or_latest_version(dag_bag, dag_run, dag_id, session)
         try:
             task = dag.get_task(task_id)
         except TaskNotFound:
@@ -459,12 +458,7 @@ def get_task_instances(
             )
         query = query.where(TI.run_id == dag_run_id)
     if dag_id != "~":
-        if dag_run:
-            dag = dag_bag.get_dag_for_run(dag_run, session)
-        else:
-            dag = dag_bag.get_latest_version_of_dag(dag_id, session)
-        if not dag:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with dag_id: `{dag_id}` was not found")
+        get_dag_for_run_or_latest_version(dag_bag, dag_run, dag_id, session)
         query = query.where(TI.dag_id == dag_id)
 
     task_instance_select, total_entries = paginated_select(
@@ -661,10 +655,7 @@ def post_clear_task_instances(
     session: SessionDep,
 ) -> TaskInstanceCollectionResponse:
     """Clear task instances."""
-    dag = dag_bag.get_latest_version_of_dag(dag_id, session)
-    if not dag:
-        error_message = f"DAG {dag_id} not found"
-        raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
 
     reset_dag_runs = body.reset_dag_runs
     dry_run = body.dry_run
@@ -683,9 +674,7 @@ def post_clear_task_instances(
             error_message = f"Dag Run id {dag_run_id} not found in dag {dag_id}"
             raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
         # Get the specific dag version:
-        dag = dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
-        if not dag:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG {dag_id} not found")
+        dag = get_dag_for_run(dag_bag, dag_run, session)
         if past or future:
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST,

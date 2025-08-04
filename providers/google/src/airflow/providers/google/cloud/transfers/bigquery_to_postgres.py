@@ -21,6 +21,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from psycopg2.extensions import register_adapter
+from psycopg2.extras import Json
+
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.transfers.bigquery_to_sql import BigQueryToSqlBaseOperator
 from airflow.providers.google.cloud.utils.bigquery_get_data import bigquery_get_data
@@ -76,6 +79,8 @@ class BigQueryToPostgresOperator(BigQueryToSqlBaseOperator):
         self.replace_index = replace_index
 
     def get_sql_hook(self) -> PostgresHook:
+        register_adapter(list, Json)
+        register_adapter(dict, Json)
         return PostgresHook(database=self.database, postgres_conn_id=self.postgres_conn_id)
 
     def execute(self, context: Context) -> None:

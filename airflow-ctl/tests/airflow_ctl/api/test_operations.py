@@ -832,7 +832,7 @@ class TestDagOperations:
         response = client.dags.get_import_error(import_error_id=0)
         assert response == self.import_error_response
 
-    def test_list_import_error(self):
+    def test_list_import_errors(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/importErrors"
             return httpx.Response(
@@ -840,7 +840,7 @@ class TestDagOperations:
             )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.dags.list_import_error()
+        response = client.dags.list_import_errors()
         assert response == self.import_error_collection_response
 
     def test_get_stats(self):
@@ -932,16 +932,16 @@ class TestDagRunOperations:
 
     def test_get(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == f"/api/v2/dag_runs/{self.dag_run_id}"
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}"
             return httpx.Response(200, json=json.loads(self.dag_run_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.dag_runs.get(dag_run_id=self.dag_run_id)
+        response = client.dag_runs.get(dag_id=self.dag_id, dag_run_id=self.dag_run_id)
         assert response == self.dag_run_response
 
     def test_list(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == "/api/v2/dag_runs"
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/dagRuns"
             return httpx.Response(200, json=json.loads(self.dag_run_collection_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
@@ -954,13 +954,13 @@ class TestDagRunOperations:
         )
         assert response == self.dag_run_collection_response
 
-    def test_create(self):
+    def test_trigger(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == f"/api/v2/dag_runs/{self.dag_id}"
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/dagRuns"
             return httpx.Response(200, json=json.loads(self.dag_run_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.dag_runs.create(dag_id=self.dag_id, trigger_dag_run=self.trigger_dag_run)
+        response = client.dag_runs.trigger(dag_id=self.dag_id, trigger_dag_run=self.trigger_dag_run)
         assert response == self.dag_run_response
 
 

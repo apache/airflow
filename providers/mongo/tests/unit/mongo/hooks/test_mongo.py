@@ -31,8 +31,14 @@ from tests_common.test_utils.compat import connection_as_json
 
 @pytest.fixture
 def container_mongo_client(mongodb_container):
-    client = MongoClient(mongodb_container)
+    # Add some timeouts to the connection options to ensure that the MongoDB client interacts correctly
 
+    options = {"ssl": False, "socketTimeoutMS": 60000, "connectTimeoutMS": 60000}
+    client = MongoClient(mongodb_container, **options)
+    try:
+        client.admin.command("ping")
+    except Exception as e:
+        raise e
     yield client
 
     client.close()
@@ -84,7 +90,7 @@ def mongo_connections(mongodb_container):
             password="test",
             host=mongodb_container_host,
             port=int(mongodb_container_port),
-            extra='{"allow_insecure": true, "ssl": false}',
+            extra='{"allow_insecure": true, "ssl": false, "socketTimeoutMS": 60000, "connectTimeoutMS": 60000}',
         ),
     ]
 

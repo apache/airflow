@@ -1217,10 +1217,11 @@ class DAG:
                             log.exception("Task failed; ti=%s", ti)
                 if use_executor:
                     executor.heartbeat()
-                    from airflow.jobs.scheduler_job_runner import SchedulerDagBag, SchedulerJobRunner
+                    from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+                    from airflow.models.dagbag import DBDagBag
 
                     SchedulerJobRunner.process_executor_events(
-                        executor=executor, job_id=None, scheduler_dag_bag=SchedulerDagBag(), session=session
+                        executor=executor, job_id=None, scheduler_dag_bag=DBDagBag(), session=session
                     )
             if use_executor:
                 executor.end()
