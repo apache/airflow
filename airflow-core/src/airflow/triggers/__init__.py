@@ -26,6 +26,9 @@ if TYPE_CHECKING:
 
 
 __deprecated_classes = {
+    "base": {
+        "StartTriggerArgs": "airflow.sdk.bases.trigger.StartTriggerArgs",
+    },
     "external_task": {
         "WorkflowTrigger": "airflow.providers.standard.triggers.external_task.WorkflowTrigger",
         "DagStateTrigger": "airflow.providers.standard.triggers.external_task.DagStateTrigger",
