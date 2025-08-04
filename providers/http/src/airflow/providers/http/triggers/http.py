@@ -293,7 +293,7 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
         try:
             while True:
                 response = await super()._get_response(hook)
-                if not self.response_check_path or await self._run_response_check(response)==True:
+                if not self.response_check_path or await self._run_response_check(response) == True:
                     print("line 297")
                     print(f"not? {not self.response_check_path}")
                     break
