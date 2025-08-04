@@ -35,7 +35,16 @@ export const supportedLanguages = [
 ] as const;
 
 export const defaultLanguage = "en";
-export const namespaces = ["common", "dashboard", "dags", "admin", "browse", "assets", "components"] as const;
+export const namespaces = [
+  "common",
+  "dashboard",
+  "dags",
+  "admin",
+  "browse",
+  "assets",
+  "components",
+  "hitl",
+] as const;
 
 void i18n
   .use(Backend)

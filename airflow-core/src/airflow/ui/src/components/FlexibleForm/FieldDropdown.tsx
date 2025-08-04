@@ -36,7 +36,7 @@ const enumTypes = ["string", "number", "integer"];
 
 export const FieldDropdown = ({ name, onUpdate }: FlexibleFormElementProps) => {
   const { t: translate } = useTranslation("components");
-  const { paramsDict, setParamsDict } = useParamStore();
+  const { disabled, paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
 
   const selectOptions = createListCollection({
@@ -63,6 +63,7 @@ export const FieldDropdown = ({ name, onUpdate }: FlexibleFormElementProps) => {
   return (
     <Select.Root
       collection={selectOptions}
+      disabled={disabled}
       id={`element_${name}`}
       name={`element_${name}`}
       onValueChange={(event) => handleChange(event.value)}

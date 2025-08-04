@@ -19,13 +19,17 @@
 import { ReactFlowProvider } from "@xyflow/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FiBarChart, FiCode } from "react-icons/fi";
+import { FiBarChart, FiCode, FiUser } from "react-icons/fi";
 import { LuChartColumn } from "react-icons/lu";
 import { MdDetails, MdOutlineEventNote } from "react-icons/md";
 import { RiArrowGoBackFill } from "react-icons/ri";
 import { useParams } from "react-router-dom";
 
-import { useDagServiceGetDagDetails, useDagServiceGetLatestRunInfo } from "openapi/queries";
+import {
+  useDagServiceGetDagDetails,
+  useDagServiceGetLatestRunInfo,
+  useHumanInTheLoopServiceGetHitlDetails,
+} from "openapi/queries";
 import { TaskIcon } from "src/assets/TaskIcon";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
@@ -45,6 +49,7 @@ export const Dag = () => {
     { icon: <LuChartColumn />, label: translate("tabs.overview"), value: "" },
     { icon: <FiBarChart />, label: translate("tabs.runs"), value: "runs" },
     { icon: <TaskIcon />, label: translate("tabs.tasks"), value: "tasks" },
+    { icon: <FiUser />, label: translate("tabs.requiredActions"), value: "required_actions" },
     { icon: <RiArrowGoBackFill />, label: translate("tabs.backfills"), value: "backfills" },
     { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
     { icon: <FiCode />, label: translate("tabs.code"), value: "code" },
@@ -67,7 +72,29 @@ export const Dag = () => {
   // pending state and new runs are initiated from other page
   useRefreshOnNewDagRuns(dagId, hasPendingRuns);
 
-  const displayTabs = tabs.filter((tab) => !(dag?.timetable_summary === null && tab.value === "backfills"));
+  const { data: hitlData } = useHumanInTheLoopServiceGetHitlDetails(
+    {
+      dagIdPattern: dagId,
+    },
+    undefined,
+    {
+      enabled: Boolean(dagId),
+    },
+  );
+
+  const hasHitlTasks = (hitlData?.total_entries ?? 0) > 0;
+
+  const displayTabs = tabs.filter((tab) => {
+    if (dag?.timetable_summary === null && tab.value === "backfills") {
+      return false;
+    }
+
+    if (tab.value === "required_actions" && !hasHitlTasks) {
+      return false;
+    }
+
+    return true;
+  });
 
   const {
     data: latestRun,

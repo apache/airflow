@@ -16,30 +16,35 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
+import { Box } from "@chakra-ui/react";
+import { useParams } from "react-router-dom";
 
-import type { FlexibleFormElementProps } from ".";
-import { Switch } from "../ui";
+import { useHumanInTheLoopServiceGetMappedTiHitlDetail } from "openapi/queries";
+import { ProgressBar } from "src/components/ui";
 
-export const FieldBool = ({ name }: FlexibleFormElementProps) => {
-  const { disabled, paramsDict, setParamsDict } = useParamStore();
-  const param = paramsDict[name] ?? paramPlaceholder;
-  const onCheck = (value: boolean) => {
-    if (paramsDict[name]) {
-      paramsDict[name].value = value;
-    }
+import { HITLResponseForm } from "../HITLTaskInstances/HITLResponseForm";
 
-    setParamsDict(paramsDict);
-  };
+export const HITLResponse = () => {
+  const { dagId, mapIndex, runId, taskId } = useParams();
+
+  const { data: hitlDetail } = useHumanInTheLoopServiceGetMappedTiHitlDetail({
+    dagId: dagId ?? "~",
+    dagRunId: runId ?? "~",
+    mapIndex: Number(mapIndex ?? -1),
+    taskId: taskId ?? "~",
+  });
+
+  if (!hitlDetail) {
+    return (
+      <Box flexGrow={1}>
+        <ProgressBar />
+      </Box>
+    );
+  }
 
   return (
-    <Switch
-      checked={Boolean(param.value)}
-      colorPalette="blue"
-      disabled={disabled}
-      id={`element_${name}`}
-      name={`element_${name}`}
-      onCheckedChange={(event) => onCheck(event.checked)}
-    />
+    <Box px={4}>
+      <HITLResponseForm hitlDetail={hitlDetail} />
+    </Box>
   );
 };
