@@ -23,28 +23,20 @@ export const detectLanguage = (value: string): string => {
   const trimmed = value.trim();
 
   // Try to detect JSON
-  if (
-    (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
-    (trimmed.startsWith("[") && trimmed.endsWith("]"))
-  ) {
-    try {
-      JSON.parse(trimmed);
+  try {
+    JSON.parse(trimmed);
 
-      return "json";
-    } catch {
-      // Not valid JSON, continue
-    }
+    return "json";
+  } catch {
+    // Not valid JSON, continue
   }
 
   // Try to detect YAML by parsing
   try {
-    // Basic heuristics first - must contain colons or dashes for key-value pairs or lists
-    if (trimmed.includes(":") || trimmed.includes("- ")) {
-      parseYaml(trimmed);
+    parseYaml(trimmed);
 
-      // If parsing succeeds and it's not just a simple string, it's likely YAML
-      return "yaml";
-    }
+    // If parsing succeeds and it's not just a simple string, it's likely YAML
+    return "yaml";
   } catch {
     // Not valid YAML, continue to other checks
   }
