@@ -74,7 +74,7 @@ from airflow.triggers import base as events
 from airflow.utils.helpers import log_filename_template_renderer
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
-from airflow.utils.session import provide_session, create_session
+from airflow.utils.session import create_session, provide_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -588,7 +588,9 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 context = trigger.task_instance.get_template_context()
                 task.render_template_fields(context=context)
                 with create_session() as session:
-                    trigger.kwargs = task.expand_start_trigger_args(context=context, session=session).trigger_kwargs
+                    trigger.kwargs = task.expand_start_trigger_args(
+                        context = context, session = session
+                    ).trigger_kwargs
             return trigger
 
         def create_workload(trigger: Trigger) -> workloads.RunTrigger:
@@ -597,9 +599,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
                 trigger = expand_start_trigger_args(trigger)
 
-                ser_ti = workloads.TaskInstance.model_validate(
-                    trigger.task_instance, from_attributes=True
-                )
+                ser_ti = workloads.TaskInstance.model_validate(trigger.task_instance, from_attributes=True)
                 # When producing logs from TIs, include the job id producing the logs to disambiguate it.
                 self.logger_cache[new_id] = TriggerLoggingFactory(
                     log_path=f"{log_path}.trigger.{self.job.id}.log",
@@ -611,7 +611,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                     id=new_id,
                     encrypted_kwargs=trigger.encrypted_kwargs,
                     ti=ser_ti,
-                    timeout_after=trigger.task_instance.trigger_timeout
+                    timeout_after=trigger.task_instance.trigger_timeout,
                 )
             return workloads.RunTrigger(
                 classpath=trigger.classpath,
