@@ -19,7 +19,8 @@
       "active": "啟用中",
       "all": "全部",
       "paused": "暫停"
-    }
+    },
+    "runIdPatternFilter": "搜尋 Dag 執行"
   },
   "ownerLink": "擁有者 {{owner}} 的連結",
   "runAndTaskActions": {
@@ -61,6 +62,7 @@
       "onlyFailed": "只清除失敗任務",
       "past": "過去",
       "queueNew": "排隊新任務",
+      "runOnLatestVersion": "執行最新套件包版本",
       "upstream": "上游"
     }
   },
