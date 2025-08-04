@@ -26,7 +26,6 @@ from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, run_job_async
 from airflow.models import DagBag, DagRun
 from airflow.policies import task_instance_mutation_hook
-from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.ti_deps.dep_context import DepContext
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import create_session
@@ -141,6 +140,8 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
 
     @staticmethod
     def has_mapped_operator(task_instance: TaskInstance) -> bool:
+        from airflow.sdk.definitions.mappedoperator import MappedOperator
+
         return (
             isinstance(task_instance.task, MappedOperator)
             and task_instance.map_index == -1
