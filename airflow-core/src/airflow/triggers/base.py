@@ -36,7 +36,6 @@ from airflow.utils.state import TaskInstanceState
 
 log = structlog.get_logger(logger_name=__name__)
 
-__all__ = ["StartTriggerArgs"]
 __deprecated_classes = {
     __name__: {
         "StartTriggerArgs": "airflow.sdk.bases.trigger.StartTriggerArgs",
