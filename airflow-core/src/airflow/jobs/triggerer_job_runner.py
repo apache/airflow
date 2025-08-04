@@ -430,7 +430,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             else:
                 resp = conn
         elif isinstance(msg, DeleteVariable):
-            self.client.variables.delete(msg.key)
+            resp = self.client.variables.delete(msg.key)
         elif isinstance(msg, GetVariable):
             var = self.client.variables.get(msg.key)
             if isinstance(var, VariableResponse):
