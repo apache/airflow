@@ -22,7 +22,7 @@ from collections.abc import Callable
 from functools import cached_property, lru_cache
 from multiprocessing import Process
 from time import sleep
-from typing import TYPE_CHECKING, NoReturn, Union
+from typing import TYPE_CHECKING, NoReturn
 
 from sqlalchemy import Column, Index, Integer, String, case, select
 from sqlalchemy.exc import OperationalError
@@ -368,6 +368,7 @@ def run_job_async(job: Job, execute_callable: Callable[[], int | None]) -> int |
 
     :meta private:
     """
+
     def execute_async_job() -> int | None:
         asyncio.set_event_loop(asyncio.new_event_loop())
 
