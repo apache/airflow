@@ -60,34 +60,23 @@ exclude_methods = [
 # connection when not needed, i.e init
 
 
-class HandleConnectionManagementMetaclass(type):
-    """A meta class to add the connection handling with managed connections."""
+def handle_connection_management_decorator(func):
+    def handle_connection_management(self, *args, **kwargs):
+        if not self.managed_conn:
+            if self.conn is None:
+                raise self.CONNECTION_NOT_OPEN_EXCEPTION
 
-    def __new__(cls, name, bases, dct):
-        for attr_name, attr_value in dct.items():
-            if callable(attr_value) and not attr_name.startswith("_") and attr_name not in exclude_methods:
+            return func(self, *args, **kwargs)
 
-                def handle_connection_management_decorator(func):
-                    def handle_connection_management(self, *args, **kwargs):
-                        if not self.managed_conn:
-                            if self.conn is None:
-                                raise dct["CONNECTION_NOT_OPEN_EXCEPTION"]
+        with self.get_managed_conn() as conn:
+            self.conn = conn
+            result = func(self, *args, **kwargs)
+            return result
 
-                            return func(self, *args, **kwargs)
-
-                        with self.get_managed_conn() as conn:
-                            self.conn = conn
-                            result = func(self, *args, **kwargs)
-                            return result
-
-                    return handle_connection_management
-
-                dct[attr_name] = handle_connection_management_decorator(attr_value)
-
-        return super().__new__(cls, name, bases, dct)
+    return handle_connection_management
 
 
-class SFTPHook(SSHHook, metaclass=HandleConnectionManagementMetaclass):
+class SFTPHook(SSHHook):
     """
     Interact with SFTP.
 
@@ -201,7 +190,8 @@ class SFTPHook(SSHHook, metaclass=HandleConnectionManagementMetaclass):
         """Get the number of open connections."""
         return self._conn_count
 
-    def describe_directory(self, path: str) -> dict[Any, dict[str, Any]]:
+    @handle_connection_management_decorator
+    def describe_directory(self, path: str) -> dict[str, dict[str, str | int | None]]:
         """
         Get file information in a directory on the remote system.
 
@@ -219,6 +209,7 @@ class SFTPHook(SSHHook, metaclass=HandleConnectionManagementMetaclass):
             for f in sorted(self.conn.listdir_attr(path), key=lambda f: f.filename)  # type: ignore[union-attr]
         }
 
+    @handle_connection_management_decorator
     def list_directory(self, path: str) -> list[str]:
         """
         List files in a directory on the remote system.
@@ -227,6 +218,7 @@ class SFTPHook(SSHHook, metaclass=HandleConnectionManagementMetaclass):
         """
         return sorted(self.conn.listdir(path))  # type: ignore[union-attr]
 
+    @handle_connection_management_decorator
     def list_directory_with_attr(self, path: str) -> list[SFTPAttributes]:
         """
         List files in a directory on the remote system including their SFTPAttributes.
@@ -235,6 +227,7 @@ class SFTPHook(SSHHook, metaclass=HandleConnectionManagementMetaclass):
         """
         return [file for file in self.conn.listdir_attr(path)]  # type: ignore[union-attr]
 
+    @handle_connection_management_decorator
     def mkdir(self, path: str, mode: int = 0o777) -> None:
         """
         Create a directory on the remote system.
@@ -247,6 +240,7 @@ class SFTPHook(SSHHook, metaclass=HandleConnectionManagementMetaclass):
         """
         return self.conn.mkdir(path, mode)  # type: ignore[union-attr,return-value]
 
+    @handle_connection_management_decorator
     def isdir(self, path: str) -> bool:
         """
         Check if the path provided is a directory.
@@ -258,6 +252,7 @@ class SFTPHook(SSHHook, metaclass=HandleConnectionManagementMetaclass):
         except OSError:
             return False
 
+    @handle_connection_management_decorator
     def isfile(self, path: str) -> bool:
         """
         Check if the path provided is a file.
@@ -269,6 +264,7 @@ class SFTPHook(SSHHook, metaclass=HandleConnectionManagementMetaclass):
         except OSError:
             return False
 
+    @handle_connection_management_decorator
     def create_directory(self, path: str, mode: int = 0o777) -> None:
         """
         Create a directory on the remote system.
@@ -293,6 +289,7 @@ class SFTPHook(SSHHook, metaclass=HandleConnectionManagementMetaclass):
             self.log.info("Creating %s", path)
             self.conn.mkdir(path, mode=mode)  # type: ignore
 
+    @handle_connection_management_decorator
     def delete_directory(self, path: str, include_files: bool = False) -> None:
         """
         Delete a directory on the remote system.
@@ -312,6 +309,7 @@ class SFTPHook(SSHHook, metaclass=HandleConnectionManagementMetaclass):
             self.conn.rmdir(dir_path)  # type: ignore
         self.conn.rmdir(path)  # type: ignore
 
+    @handle_connection_management_decorator
     def retrieve_file(self, remote_full_path: str, local_full_path: str, prefetch: bool = True) -> None:
         """
         Transfer the remote file to a local location.
@@ -338,6 +336,7 @@ class SFTPHook(SSHHook, metaclass=HandleConnectionManagementMetaclass):
         else:
             self.conn.get(remote_full_path, local_full_path, prefetch=prefetch)  # type: ignore
 
+    @handle_connection_management_decorator
     def store_file(self, remote_full_path: str, local_full_path: str, confirm: bool = True) -> None:
         """
         Transfer a local file to the remote location.
@@ -353,6 +352,7 @@ class SFTPHook(SSHHook, metaclass=HandleConnectionManagementMetaclass):
         else:
             self.conn.put(local_full_path, remote_full_path, confirm=confirm)  # type: ignore
 
+    @handle_connection_management_decorator
     def delete_file(self, path: str) -> None:
         """
         Remove a file on the server.
@@ -445,6 +445,7 @@ class SFTPHook(SSHHook, metaclass=HandleConnectionManagementMetaclass):
             for conn in conns:
                 conn.close()
 
+    @handle_connection_management_decorator
     def store_directory(self, remote_full_path: str, local_full_path: str, confirm: bool = True) -> None:
         """
         Transfer a local directory to the remote location.
@@ -457,21 +458,16 @@ class SFTPHook(SSHHook, metaclass=HandleConnectionManagementMetaclass):
         """
         if self.path_exists(remote_full_path):
             raise AirflowException(f"{remote_full_path} already exists")
-        with self.get_managed_conn():
-            self.create_directory(remote_full_path)
-            for root, dirs, files in os.walk(local_full_path):
-                for dir_name in dirs:
-                    dir_path = os.path.join(root, dir_name)
-                    new_remote_path = os.path.join(
-                        remote_full_path, os.path.relpath(dir_path, local_full_path)
-                    )
-                    self.create_directory(new_remote_path)
-                for file_name in files:
-                    file_path = os.path.join(root, file_name)
-                    new_remote_path = os.path.join(
-                        remote_full_path, os.path.relpath(file_path, local_full_path)
-                    )
-                    self.store_file(new_remote_path, file_path, confirm)
+        self.create_directory(remote_full_path)
+        for root, dirs, files in os.walk(local_full_path):
+            for dir_name in dirs:
+                dir_path = os.path.join(root, dir_name)
+                new_remote_path = os.path.join(remote_full_path, os.path.relpath(dir_path, local_full_path))
+                self.create_directory(new_remote_path)
+            for file_name in files:
+                file_path = os.path.join(root, file_name)
+                new_remote_path = os.path.join(remote_full_path, os.path.relpath(file_path, local_full_path))
+                self.store_file(new_remote_path, file_path, confirm)
 
     def store_directory_concurrently(
         self,
@@ -538,6 +534,7 @@ class SFTPHook(SSHHook, metaclass=HandleConnectionManagementMetaclass):
             for conn in conns:
                 conn.close()
 
+    @handle_connection_management_decorator
     def get_mod_time(self, path: str) -> str:
         """
         Get an entry's modification time.
@@ -547,6 +544,7 @@ class SFTPHook(SSHHook, metaclass=HandleConnectionManagementMetaclass):
         ftp_mdtm = self.conn.stat(path).st_mtime  # type: ignore[union-attr]
         return datetime.datetime.fromtimestamp(ftp_mdtm).strftime("%Y%m%d%H%M%S")  # type: ignore
 
+    @handle_connection_management_decorator
     def path_exists(self, path: str) -> bool:
         """
         Whether a remote entity exists.
@@ -670,7 +668,7 @@ class SFTPHook(SSHHook, metaclass=HandleConnectionManagementMetaclass):
                 return file
         return ""
 
-    def get_files_by_pattern(self, path, fnmatch_pattern, managed_conn: bool = True) -> list[str]:
+    def get_files_by_pattern(self, path, fnmatch_pattern) -> list[str]:
         """
         Get all matching files based on the given fnmatch type pattern.
 
