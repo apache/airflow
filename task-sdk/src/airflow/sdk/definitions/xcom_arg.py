@@ -403,9 +403,7 @@ def _get_callable_name(f: Callable | str) -> str:
 
 
 class _MappableResult(Iterable):
-    def __init__(
-        self, value: Sequence | dict, callables: FilterCallables | MapCallables
-    ) -> None:
+    def __init__(self, value: Sequence | dict, callables: FilterCallables | MapCallables) -> None:
         self.value = self._convert(value)
         self.callables = callables
 
@@ -421,9 +419,7 @@ class _MappableResult(Iterable):
             return list(value)
         if isinstance(value, list):
             return value
-        raise ValueError(
-            f"{cls.__name__} expects sequence or dict, not {type(value).__name__}"
-        )
+        raise ValueError(f"{cls.__name__} expects sequence or dict, not {type(value).__name__}")
 
     def _apply_callables(self, value) -> Any:
         for func in self.callables:

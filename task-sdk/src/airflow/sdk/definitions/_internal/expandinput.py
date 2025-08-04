@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import functools
 import operator
-from collections.abc import Iterable, Generator, Mapping, Sequence, Sized
+from collections.abc import Generator, Iterable, Mapping, Sequence, Sized
 from typing import TYPE_CHECKING, Any, ClassVar, Union
 
 import attrs
@@ -196,7 +196,9 @@ class DictOfListsExpandInput(ResolveMixin):
             if isinstance(x, XComArg):
                 yield from x.iter_references()
 
-    def resolve(self, context: Mapping[str, Any]) -> Generator[Mapping[str, Any], tuple[Mapping[str, Any], set[int]]]:
+    def resolve(
+        self, context: Mapping[str, Any]
+    ) -> Generator[Mapping[str, Any], tuple[Mapping[str, Any], set[int]]]:
         if enable_lazy_task_expansion:
             for key in self.value:
                 value = self.value[key]
@@ -265,7 +267,10 @@ class ListOfDictsExpandInput(ResolveMixin):
                 if isinstance(x, XComArg):
                     yield from x.iter_references()
 
-    def resolve(self, context: Mapping[str, Any]) -> Sequence[XComArg | Mapping[str, Any]] | tuple[Mapping[str, Any], set[int]]:
+    def resolve(
+        self, context: Mapping[str, Any]
+    ) -> Sequence[XComArg | Mapping[str, Any]] | tuple[
+        Mapping[str, Any], set[int]]:
         if enable_lazy_task_expansion:
             if _needs_run_time_resolution(self.value):
                 self.value = self.value.resolve(context)

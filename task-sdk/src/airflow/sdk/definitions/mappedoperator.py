@@ -692,7 +692,9 @@ class MappedOperator(AbstractOperator):
         self.log.debug("map_index: %s", map_index)
         expand_input = self._get_specified_expand_input().resolve(context)
         self.log.debug("expand_input: %s", expand_input)
-        kwargs = next(expand_input) if map_index == 0 else next(islice(expand_input, map_index, map_index + 1))
+        kwargs = (
+            next(expand_input) if map_index == 0 else next(islice(expand_input, map_index, map_index + 1))
+        )
         self.log.debug("kwargs: %s", kwargs)
         return kwargs, {id(kwargs)}
 
