@@ -1989,12 +1989,12 @@ scheduler:
 
         The type of the task selector to be used by the scheduler, decides how the
         airflow scheduler should get it's tasks that need to be queried, as of now,
-        there are only 2 types of task queriers, which include 'OPTIMISTIC_SELECTOR'
-        and 'PESSIMISTIC_SELECTOR'.
+        there are only 2 types of task queriers, which include 'OPTIMISTIC'
+        and 'PESSIMISTIC'.
       version_added: 3.1.0
       type: string
-      example: OPTIMISTIC_SELECTOR
-      default: "OPTIMISTIC_SELECTOR"
+      example: OPTIMISTIC
+      default: "OPTIMISTIC"
     scheduler_heartbeat_sec:
       description: |
         The scheduler constantly tries to trigger new tasks (look at the

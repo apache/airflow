@@ -18,10 +18,9 @@ from __future__ import annotations
 
 import itertools
 from collections import Counter
-from functools import cache
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, select, tuple_, update
+from sqlalchemy import select, tuple_, update
 from sqlalchemy.orm import Query, Session, selectinload
 
 from airflow.models import DagRun, Pool, TaskInstance
@@ -55,7 +54,6 @@ class OptimisticTaskSelector(TaskSelectorStrategy, LoggingMixin):
         self.num_starving_tasks_total = 0
         self.priority_order = [-TaskInstance.priority_weight, DagRun.logical_date, TaskInstance.map_index]
 
-    @cache
     def get_query(self, **additional_params) -> Query:
         priority_order = self.priority_order
         max_tis = additional_params.get("max_tis", 32)
@@ -76,12 +74,10 @@ class OptimisticTaskSelector(TaskSelectorStrategy, LoggingMixin):
         return query
 
     def query_tasks_with_locks(self, session: Session, **additional_params) -> Query:
-        priority_order: list[Column] = additional_params["priority_order"]
         executor_slots_available: dict[str, int] = additional_params["executor_slots_available"]
         max_tis: int = additional_params.get("max_tis", 32)
 
         query = self.get_query(
-            priority_order=priority_order,
             max_tis=max_tis,
         )
 
@@ -286,6 +282,8 @@ class OptimisticTaskSelector(TaskSelectorStrategy, LoggingMixin):
                     starved_tasks_task_dagrun_concurrency
                 )
             )
+
+        return query
 
     def _get_pool_stats(self, session: Session) -> tuple[dict[str, PoolStats], int]:
         # Get the pool settings. We get a lock on the pool rows, treating this as a "critical section"

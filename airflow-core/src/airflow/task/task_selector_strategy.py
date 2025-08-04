@@ -18,12 +18,13 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Protocol
-
-from sqlalchemy.orm import Query, Session
+from typing import TYPE_CHECKING, Protocol
 
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.sqlalchemy import with_row_locks
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Query, Session
 
 
 class TaskSelectorStrategy(Protocol):
@@ -45,10 +46,7 @@ class TaskSelectorStrategy(Protocol):
 
         Expects getting a priority_order to know how to priorotize the TI's correctly.
         """
-        priority_order = additional_params["priority_order"]
-        max_tis = additional_params.get("max_tis", 32)
-
-        query = self.get_query(priority_order=priority_order, max_tis=max_tis)
+        query = self.get_query(**additional_params)
         query = with_row_locks(query, of=TaskInstance, session=session, skip_locked=True)
 
         return session.scalars(query).all()

@@ -30,8 +30,8 @@ if TYPE_CHECKING:
     from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
     from airflow.task.task_selector_strategy import TaskSelectorStrategy
 
-OPTIMISTIC_SELECTOR = "OPTIMISTIC_SELECTOR"
-PESSIMISTIC_SELECTOR = "PESSIMISTIC_SELECTOR"
+OPTIMISTIC_SELECTOR = "OPTIMISTIC"
+PESSIMISTIC_SELECTOR = "PESSIMISTIC"
 
 TASK_SELECTORS: dict[str, TaskSelectorStrategy] = {}
 TASK_SELECTOR_PARAMS_PROVIDERS: dict[str, Callable[[ParamsProviderType], Any]] = {}

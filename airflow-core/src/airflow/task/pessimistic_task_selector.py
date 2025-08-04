@@ -23,11 +23,8 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import Column, and_, func, select, text
 from sqlalchemy.orm import Query, selectinload
-from sqlalchemy.sql import expression
-from sqlalchemy.sql.selectable import CTE
 
 from airflow.models import DagRun, TaskInstance
-from airflow.models.base import Base
 from airflow.models.dag import DagModel
 from airflow.models.pool import Pool
 from airflow.task.task_selector_strategy import TaskSelectorStrategy
@@ -36,7 +33,10 @@ from airflow.utils.state import DagRunState, TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Query
-    from sqlalchemy.sql.selectable import Select
+    from sqlalchemy.sql import expression
+    from sqlalchemy.sql.selectable import CTE, Select
+
+    from airflow.models.base import Base
 
 
 @dataclass
@@ -184,6 +184,8 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
         query = query.options(selectinload(TI.dag_model))
         query = query.limit(max_tis)
 
+        return query
+
     def _running_tasks_group(self, *group_fields: Column) -> CTE:
         return (
             select(TI, func.count("*").label("now_running"))
@@ -204,11 +206,11 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
                 limit.running_now_join,
                 *(
                     getattr(TI, predicate) == getattr(limit.running_now_join.c, predicate)
-                    for predicate in limit.join_predicates
+                    for predicate in limit.running_now_join_predicates
                 ),
             )
             .where(
                 getattr(inner_query.c, limit.window.name) + limit.running_now_join.c.now_running
-                < limit.max_units
+                < limit.limit_column
             )
         )
