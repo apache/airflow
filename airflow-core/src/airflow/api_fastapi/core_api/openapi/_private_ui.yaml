@@ -838,6 +838,26 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
+    AppBuilderMenuItemResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+        href:
+          type: string
+          title: Href
+        category:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Category
+      additionalProperties: true
+      type: object
+      required:
+      - name
+      - href
+      title: AppBuilderMenuItemResponse
+      description: Serializer for AppBuilder Menu Item responses.
     BackfillCollectionResponse:
       properties:
         backfills:
@@ -1057,6 +1077,12 @@ components:
           - type: string
           - type: 'null'
           title: External Log Name
+        plugins_extra_menu_items:
+          items:
+            $ref: '#/components/schemas/AppBuilderMenuItemResponse'
+          type: array
+          title: Plugins Extra Menu Items
+          default: []
       type: object
       required:
       - page_size

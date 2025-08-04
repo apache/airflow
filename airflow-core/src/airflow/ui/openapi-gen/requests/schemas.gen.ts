@@ -6341,6 +6341,14 @@ export const $ConfigResponse = {
                 }
             ],
             title: 'External Log Name'
+        },
+        plugins_extra_menu_items: {
+            items: {
+                '$ref': '#/components/schemas/AppBuilderMenuItemResponse'
+            },
+            type: 'array',
+            title: 'Plugins Extra Menu Items',
+            default: []
         }
     },
     type: 'object',

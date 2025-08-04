@@ -17,43 +17,60 @@
  * under the License.
  */
 import { Heading, Separator } from "@chakra-ui/react";
-import type { ColumnDef } from "@tanstack/react-table";
-import type { TFunction } from "i18next";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import { useConfigServiceGetConfig } from "openapi/queries";
-import type { ConfigOption } from "openapi/requests/types.gen";
+import { useConfigServiceGetConfig, useAuthLinksServiceGetAuthMenus } from "openapi/queries";
 import { DataTable } from "src/components/DataTable";
 import { ErrorAlert } from "src/components/ErrorAlert";
 
-type ConfigColums = {
-  section: string;
-} & ConfigOption;
-
-const createColumns = (translate: TFunction): Array<ColumnDef<ConfigColums>> => [
+const createColumns = (translate: (key: string) => string) => [
   {
     accessorKey: "section",
-    enableSorting: false,
-    header: translate("config.columns.section"),
+    header: translate("columns.section"),
   },
   {
     accessorKey: "key",
-    enableSorting: false,
-    header: translate("columns.key"),
+    header: translate("columns.option"),
   },
   {
     accessorKey: "value",
-    enableSorting: false,
     header: translate("columns.value"),
   },
 ];
 
 export const Configs = () => {
   const { t: translate } = useTranslation(["admin", "common"]);
-  const { data, error } = useConfigServiceGetConfig();
+  const { data: authLinks, error: authError, isLoading: isAuthLoading } = useAuthLinksServiceGetAuthMenus();
 
+  // All hooks must be called at the top level, before any returns
+  const hasConfigAccess = authLinks?.authorized_menu_items.includes("Config") ?? false;
+  const { data, error } = useConfigServiceGetConfig(undefined, undefined, {
+    enabled: Boolean(authLinks) && hasConfigAccess,
+  });
   const columns = useMemo(() => createColumns(translate), [translate]);
+
+  // Handle auth loading state
+  if (isAuthLoading) {
+    return (
+      <>
+        <Heading mb={4}>{translate("config.title")}</Heading>
+        <Separator />
+        <div>{translate("common:loading")}</div>
+      </>
+    );
+  }
+
+  // Handle auth error state
+  if (Boolean(authError)) {
+    return (
+      <>
+        <Heading mb={4}>{translate("config.title")}</Heading>
+        <Separator />
+        <ErrorAlert error={authError} />
+      </>
+    );
+  }
 
   const render =
     data?.sections.flatMap((section) =>
@@ -62,6 +79,17 @@ export const Configs = () => {
         section: section.name,
       })),
     ) ?? [];
+
+  // Show access denied message if user doesn't have config permissions
+  if (!hasConfigAccess) {
+    return (
+      <>
+        <Heading mb={4}>{translate("config.title")}</Heading>
+        <Separator />
+        <ErrorAlert error={{ message: translate("common:errors.accessDenied") }} />
+      </>
+    );
+  }
 
   return (
     <>

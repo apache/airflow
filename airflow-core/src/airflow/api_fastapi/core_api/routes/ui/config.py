@@ -20,10 +20,11 @@ from typing import Any
 
 from fastapi import Depends, status
 
+from airflow import plugins_manager
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.config import ConfigResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import requires_authenticated
+from airflow.api_fastapi.core_api.security import GetUserDep, requires_authenticated
 from airflow.configuration import conf
 from airflow.settings import DASHBOARD_UIALERTS
 from airflow.utils.log.log_reader import TaskLogReader
@@ -46,9 +47,54 @@ API_CONFIG_KEYS = [
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_authenticated())],
 )
-def get_configs() -> ConfigResponse:
+def get_configs(user: GetUserDep) -> ConfigResponse:
     """Get configs for UI."""
     config = {key: conf.get("api", key) for key in API_CONFIG_KEYS}
+
+    plugins_manager.initialize_flask_plugins()
+    plugins_manager.initialize_ui_plugins()
+
+    plugins_extra_menu_items = []
+    if plugins_manager.flask_appbuilder_menu_links:
+        plugins_extra_menu_items.extend(plugins_manager.flask_appbuilder_menu_links)
+
+    if plugins_manager.external_views:
+        for external_view in plugins_manager.external_views:
+            destination = external_view.get("destination")
+            if destination is None or destination == "nav":
+                href = external_view.get("href")
+                if not href and external_view.get("url_route"):
+                    href = f"/plugin/{external_view['url_route']}"
+                elif not href:
+                    continue
+                menu_item = {
+                    "name": external_view["name"],
+                    "href": href,
+                    "category": external_view.get("category")
+                }
+                plugins_extra_menu_items.append(menu_item)
+
+    if plugins_manager.react_apps:
+        for react_app in plugins_manager.react_apps:
+            destination = react_app.get("destination")
+            if destination is None or destination == "nav":
+                url_route = react_app.get("url_route")
+                if not url_route:
+                    continue
+
+                href = f"/plugin/{url_route}"
+                menu_item = {
+                    "name": react_app["name"],
+                    "href": href,
+                    "category": react_app.get("category")
+                }
+                plugins_extra_menu_items.append(menu_item)
+    plugin_import_errors = []
+    if plugins_manager.import_errors:
+        plugin_import_errors = [
+            {"source": source, "error": error}
+            for source, error in plugins_manager.import_errors.items()
+        ]
 
     task_log_reader = TaskLogReader()
     additional_config: dict[str, Any] = {
@@ -57,6 +103,8 @@ def get_configs() -> ConfigResponse:
         "dashboard_alert": DASHBOARD_UIALERTS,
         "show_external_log_redirect": task_log_reader.supports_external_link,
         "external_log_name": getattr(task_log_reader.log_handler, "log_name", None),
+        "plugins_extra_menu_items": plugins_extra_menu_items,
+        "plugin_import_errors": plugin_import_errors,
     }
 
     config.update({key: value for key, value in additional_config.items()})

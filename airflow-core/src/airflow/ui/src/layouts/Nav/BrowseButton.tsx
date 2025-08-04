@@ -20,9 +20,8 @@ import { useTranslation } from "react-i18next";
 import { FiGlobe } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
 
-import type { MenuItem } from "openapi/requests/types.gen";
+import type { MenuItem, AppBuilderMenuItemResponse } from "openapi/requests/types.gen";
 import { Menu } from "src/components/ui";
-import type { NavItemResponse } from "src/utils/types";
 
 import { NavButton } from "./NavButton";
 import { PluginMenuItem } from "./PluginMenuItem";
@@ -45,7 +44,7 @@ export const BrowseButton = ({
   externalViews,
 }: {
   readonly authorizedMenuItems: Array<MenuItem>;
-  readonly externalViews: Array<NavItemResponse>;
+  readonly externalViews: Array<AppBuilderMenuItemResponse>;
 }) => {
   const { t: translate } = useTranslation("common");
   const menuItems = links

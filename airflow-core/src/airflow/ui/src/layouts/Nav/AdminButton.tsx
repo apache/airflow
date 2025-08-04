@@ -20,12 +20,10 @@ import { useTranslation } from "react-i18next";
 import { FiSettings } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
 
-import type { MenuItem } from "openapi/requests/types.gen";
+import type { MenuItem, AppBuilderMenuItemResponse } from "openapi/requests/types.gen";
 import { Menu } from "src/components/ui";
-import type { NavItemResponse } from "src/utils/types";
 
 import { NavButton } from "./NavButton";
-import { PluginMenuItem } from "./PluginMenuItem";
 
 const links = [
   {
@@ -59,20 +57,44 @@ export const AdminButton = ({
   externalViews,
 }: {
   readonly authorizedMenuItems: Array<MenuItem>;
-  readonly externalViews: Array<NavItemResponse>;
+  readonly externalViews: Array<AppBuilderMenuItemResponse>;
 }) => {
   const { t: translate } = useTranslation("common");
-  const menuItems = links
+
+  interface CombinedView {
+    external: boolean;
+    href: string;
+    title: string;
+    name?: string;
+  }
+
+  // Combine static links and external views
+  const allViews: CombinedView[] = [
+    ...links.map((link) => ({ ...link, external: false })),
+    ...externalViews
+      .filter((view) => Boolean(view.href) && Boolean(view.name))
+      .map((view) => ({
+        external: true,
+        href: view.href,
+        title: view.name,
+        name: view.name,
+      })),
+  ];
+
+  const menuItems = allViews
     .filter(({ title }) => authorizedMenuItems.includes(title as MenuItem))
-    .map((link) => (
-      <Menu.Item asChild key={link.title} value={link.title}>
-        <RouterLink aria-label={translate(`admin.${link.title}`)} to={link.href}>
-          {translate(`admin.${link.title}`)}
+    .map((view) => (
+      <Menu.Item asChild key={view.title} value={view.title}>
+        <RouterLink
+          aria-label={translate(`admin.${view.title}`)}
+          to={view.href as string}
+        >
+          {translate(`admin.${view.title}`)}
         </RouterLink>
       </Menu.Item>
     ));
 
-  if (!menuItems.length && !externalViews.length) {
+  if (!menuItems.length) {
     return undefined;
   }
 
@@ -81,12 +103,7 @@ export const AdminButton = ({
       <Menu.Trigger asChild>
         <NavButton icon={<FiSettings size="1.75rem" />} title={translate("nav.admin")} />
       </Menu.Trigger>
-      <Menu.Content>
-        {menuItems}
-        {externalViews.map((view) => (
-          <PluginMenuItem {...view} key={view.name} />
-        ))}
-      </Menu.Content>
+      <Menu.Content>{menuItems}</Menu.Content>
     </Menu.Root>
   );
 };
