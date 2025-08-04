@@ -4661,13 +4661,13 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                     "actions": [
                         {
                             "action": "delete",
-                            "entities": [TASK_ID, {"task_id": "another_task", "map_index": 0}],
+                            "entities": [TASK_ID, {"task_id": "another_task", "map_index": -1}],
                         }
                     ]
                 },
                 {
                     "delete": {
-                        "success": [TASK_ID, "another_task[0]"],
+                        "success": [TASK_ID, "another_task"],
                         "errors": [],
                     }
                 },
