@@ -34,6 +34,8 @@ from airflow.api_fastapi.common.db.dags import generate_dag_with_latest_run_quer
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
     FilterParam,
+    QueryBundleNameFilter,
+    QueryBundleVersionFilter,
     QueryDagDisplayNamePatternSearch,
     QueryDagIdPatternSearch,
     QueryDagIdPatternSearchWithNone,
@@ -85,6 +87,8 @@ def get_dags(
     exclude_stale: QueryExcludeStaleFilter,
     paused: QueryPausedFilter,
     last_dag_run_state: QueryLastDagRunStateFilter,
+    bundle_name: QueryBundleNameFilter,
+    bundle_version: QueryBundleVersionFilter,
     dag_run_start_date_range: Annotated[
         RangeFilter, Depends(datetime_range_filter_factory("dag_run_start_date", DagRun, "start_date"))
     ],
@@ -140,6 +144,8 @@ def get_dags(
             is_favorite,
             owners,
             readable_dags_filter,
+            bundle_name,
+            bundle_version,
         ],
         order_by=order_by,
         offset=offset,
