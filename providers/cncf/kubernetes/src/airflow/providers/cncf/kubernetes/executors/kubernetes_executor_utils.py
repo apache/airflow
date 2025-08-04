@@ -530,7 +530,17 @@ class AirflowKubernetesScheduler(LoggingMixin):
         self.log.debug("Terminating kube_watchers...")
         for kube_watcher in self.kube_watchers.values():
             kube_watcher.terminate()
-            kube_watcher.join()
+            self.log.debug("kube_watcher=%s", kube_watcher)
+
+        # for now 20 seconds is max wait time for kube watchers to terminate.
+        max_wait_time = 20
+        start_time = time.time()
+        for kube_watcher in self.kube_watchers.values():
+            kube_watcher.join(timeout=max(int(max_wait_time - (time.time() - start_time)), 0))
+            if kube_watcher.is_alive():
+                self.log.warning("kube_watcher didn't terminate in time=%s", kube_watcher)
+                kube_watcher.kill()
+                kube_watcher.join()
             self.log.debug("kube_watcher=%s", kube_watcher)
         self.log.debug("Flushing watcher_queue...")
         self._flush_watcher_queue()

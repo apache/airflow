@@ -89,7 +89,6 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComSelectSequence, XComModel
-from airflow.models.pool import Pool
 from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
@@ -123,6 +122,7 @@ if TYPE_CHECKING:
 
     from airflow.models.dag import DAG as SchedulerDAG, DagModel
     from airflow.models.dagrun import DagRun
+    from airflow.models.pool import Pool
     from airflow.sdk import BaseOperator
     from airflow.sdk.api.datamodels._generated import AssetProfile
     from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
@@ -224,9 +224,9 @@ def clear_task_instances(
     :meta private:
     """
     task_instance_ids: list[str] = []
-    from airflow.jobs.scheduler_job_runner import SchedulerDagBag
+    from airflow.models.dagbag import SchedulerDagBag
 
-    scheduler_dagbag = SchedulerDagBag()
+    scheduler_dagbag = SchedulerDagBag(load_op_links=False)
 
     for ti in tis:
         task_instance_ids.append(ti.id)
@@ -237,7 +237,10 @@ def clear_task_instances(
             ti.state = TaskInstanceState.RESTARTING
         else:
             dr = ti.dag_run
-            ti_dag = scheduler_dagbag.get_dag(dag_run=dr, session=session, latest=run_on_latest_version)
+            if run_on_latest_version:
+                ti_dag = scheduler_dagbag.get_latest_version_of_dag(ti.dag_id, session=session)
+            else:
+                ti_dag = scheduler_dagbag.get_dag_for_run(dag_run=dr, session=session)
             if not ti_dag:
                 log.warning("No serialized dag found for dag '%s'", dr.dag_id)
             task_id = ti.task_id
@@ -280,7 +283,10 @@ def clear_task_instances(
             if dr.state in State.finished_dr_states:
                 dr.state = dag_run_state
                 dr.start_date = timezone.utcnow()
-                dr_dag = scheduler_dagbag.get_dag(dag_run=dr, session=session, latest=run_on_latest_version)
+                if run_on_latest_version:
+                    dr_dag = scheduler_dagbag.get_latest_version_of_dag(dr.dag_id, session=session)
+                else:
+                    dr_dag = scheduler_dagbag.get_dag_for_run(dag_run=dr, session=session)
                 if not dr_dag:
                     log.warning("No serialized dag found for dag '%s'", dr.dag_id)
                 if dr_dag and not dr_dag.disable_bundle_versioning and run_on_latest_version:

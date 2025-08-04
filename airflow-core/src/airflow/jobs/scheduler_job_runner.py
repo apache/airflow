@@ -25,19 +25,17 @@ import signal
 import sys
 import time
 from collections import Counter, defaultdict, deque
-from collections.abc import Callable, Collection, Iterable, Iterator
+from collections.abc import Callable, Collection, Iterable, Iterator, Mapping
 from contextlib import ExitStack
-from dataclasses import dataclass
 from datetime import date, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Column, and_, delete, desc, exists, func, or_, select, text, tuple_, update
+from sqlalchemy import and_, delete, desc, exists, func, or_, select, text, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
-from sqlalchemy.sql.selectable import CTE
 
 from airflow import settings
 from airflow._shared.timezones import timezone
@@ -62,13 +60,14 @@ from airflow.models.asset import (
 from airflow.models.backfill import Backfill
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbag import SchedulerDagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.trigger import TRIGGER_FAIL_REPR, TriggerFailureReason
-from airflow.models.base import Base
 from airflow.stats import Stats
+from airflow.task.task_selectors import TASK_SELECTOR_PARAMS_PROVIDERS, TASK_SELECTORS
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.traces import utils as trace_utils
@@ -91,7 +90,6 @@ if TYPE_CHECKING:
 
     from pendulum.datetime import DateTime
     from sqlalchemy.orm import Query, Session
-    from sqlalchemy.sql.selectable import Select, Subquery
 
     from airflow.executors.base_executor import BaseExecutor
     from airflow.executors.executor_utils import ExecutorName
@@ -106,48 +104,6 @@ DM = DagModel
 
 TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT = "stuck in queued reschedule"
 """:meta private:"""
-
-
-class SchedulerDagBag:
-    """
-    Internal class for retrieving and caching dags in the scheduler.
-
-    :meta private:
-    """
-
-    def __init__(self):
-        self._dags: dict[str, DAG] = {}  # dag_version_id to dag
-
-    def _get_dag(self, version_id: str, session: Session) -> DAG | None:
-        if dag := self._dags.get(version_id):
-            return dag
-        dag_version = session.get(DagVersion, version_id, options=[joinedload(DagVersion.serialized_dag)])
-        if not dag_version:
-            return None
-        serdag = dag_version.serialized_dag
-        if not serdag:
-            return None
-        serdag.load_op_links = False
-        dag = serdag.dag
-        if not dag:
-            return None
-        self._dags[version_id] = dag
-        return dag
-
-    @staticmethod
-    def _version_from_dag_run(dag_run, latest, session):
-        if latest or not dag_run.bundle_version:
-            dag_version = DagVersion.get_latest_version(dag_id=dag_run.dag_id, session=session)
-            if dag_version:
-                return dag_version
-
-        return dag_run.created_dag_version
-
-    def get_dag(self, dag_run: DagRun, session: Session, latest=False) -> DAG | None:
-        version = self._version_from_dag_run(dag_run=dag_run, latest=latest, session=session)
-        if not version:
-            return None
-        return self._get_dag(version_id=version.id, session=session)
 
 
 def _get_current_dag(dag_id: str, session: Session) -> DAG | None:
@@ -257,7 +213,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if log:
             self._log = log
 
-        self.scheduler_dag_bag = SchedulerDagBag()
+        self.scheduler_dag_bag = SchedulerDagBag(load_op_links=False)
+
+        task_selector_type = conf.get("scheduler", "scheduler_task_selector_strategy")
+
+        self.task_selector = TASK_SELECTORS[task_selector_type]
+        self.task_selector_params_provider = TASK_SELECTOR_PARAMS_PROVIDERS[task_selector_type]
 
     @provide_session
     def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
@@ -335,6 +296,21 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.info("\n\t".join(map(repr, callstack)))
             self.log.info("-" * 80)
 
+    def _aqcuire_lock_for_pgsql(self, session: Session) -> None:
+        from airflow.utils.db import DBLocks
+
+        # Optimization: to avoid littering the DB errors of "ERROR: canceling statement due to lock
+        # timeout", try to take out a transactional advisory lock (unlocks automatically on
+        # COMMIT/ROLLBACK)
+        lock_acquired = session.execute(
+            text("SELECT pg_try_advisory_xact_lock(:id)").bindparams(
+                id=DBLocks.SCHEDULER_CRITICAL_SECTION.value
+            )
+        ).scalar()
+        if not lock_acquired:
+            # Throw an error like the one that would happen with NOWAIT
+            raise OperationalError("Failed to acquire advisory lock", params=None, orig=RuntimeError("55P03"))
+
     def _executable_task_instances_to_queued(self, max_tis: int, session: Session) -> list[TI]:
         """
         Find TIs that are ready for execution based on conditions.
@@ -350,140 +326,22 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         :param max_tis: Maximum number of TIs to queue in this loop.
         :return: list[airflow.models.TaskInstance]
         """
-        from airflow.models.pool import Pool
-        from airflow.utils.db import DBLocks
-
         executable_tis: list[TI] = []
 
         if session.get_bind().dialect.name == "postgresql":
-            # Optimization: to avoid littering the DB errors of "ERROR: canceling statement due to lock
-            # timeout", try to take out a transactional advisory lock (unlocks automatically on
-            # COMMIT/ROLLBACK)
-            lock_acquired = session.execute(
-                text("SELECT pg_try_advisory_xact_lock(:id)").bindparams(
-                    id=DBLocks.SCHEDULER_CRITICAL_SECTION.value
-                )
-            ).scalar()
-            if not lock_acquired:
-                # Throw an error like the one that would happen with NOWAIT
-                raise OperationalError(
-                    "Failed to acquire advisory lock", params=None, orig=RuntimeError("55P03")
-                )
-
-        # Get the pool settings. We get a lock on the pool rows, treating this as a "critical section"
-        # Throws an exception if lock cannot be obtained, rather than blocking
-        pools = Pool.slots_stats(lock_rows=True, session=session)
-
-        # If the pools are full, there is no point doing anything!
-        # If _somehow_ the pool is overfull, don't let the limit go negative - it breaks SQL
-        pool_slots_free = sum(max(0, pool["open"]) for pool in pools.values())
-        starved_pools = {pool_name for pool_name, stats in pools.items() if stats["open"] <= 0}
-        starved_tasks: set[tuple[str, str]] = set()
-
-        if pool_slots_free == 0:
-            self.log.debug("All pools are full!")
-            return []
-
-        priority_order = [-TI.priority_weight, DR.logical_date, TI.map_index]
-
-        query = (
-            select(TI)
-            .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
-            .join(TI.dag_run)
-            .where(DR.state == DagRunState.RUNNING)
-            .join(TI.dag_model)
-            .where(~DM.is_paused)
-            .where(TI.state == TaskInstanceState.SCHEDULED)
-            .where(DM.bundle_name.is_not(None))
-        )
-
-        @dataclass
-        class LimitWindowDescriptor:
-            running_now_join: CTE
-            running_now_join_predicates: Collection[str]
-            limit_column: Column
-            window: expression.ColumnElement
-            limit_join_model: Base | None = None
-
-        def running_tasks_group(group_fields: Collection[Column], states: Collection[TaskInstanceState]=EXECUTION_STATES) -> CTE:
-            return (
-                select(*group_fields, func.count("*").label("now_running"))
-                .where(TI.state.in_(states))
-                .group_by(*group_fields)
-                .cte()
-            )
-
-        def add_window_limit(query: Select, limit: LimitWindowDescriptor) -> Select:
-            inner_query = (
-                query.add_columns(limit.window)
-                .subquery()
-            )
-            query = (
-                select(TI)
-                .join(inner_query, TI.id == inner_query.c.id)
-                .outerjoin(limit.running_now_join,
-                    and_(*(getattr(TI, predicate) == getattr(limit.running_now_join.c, predicate) for predicate in limit.running_now_join_predicates))
-                )
-                .join(DR, TI.run_id == DR.run_id)
-            )
-            if limit.limit_join_model is not None:
-                query = query.join(limit.limit_join_model)
-
-            return (
-                query.where(
-                    and_(
-                        func.coalesce(getattr(inner_query.c, limit.window.name), text("0")) +
-                        func.coalesce(limit.running_now_join.c.now_running, text("0")) <= func.coalesce(limit.limit_column, max_tis)
-                    )
-                )
-            )
-
-        running_total_tis_per_dagrun = running_tasks_group([TI.dag_id, TI.run_id])
-        running_tis_per_dag = running_tasks_group([TI.dag_id, TI.task_id])
-        running_total_tis_per_task_run = running_tasks_group([TI.dag_id, TI.run_id, TI.task_id])
-        running_tis_per_pool = running_tasks_group([TI.pool], [*EXECUTION_STATES, TaskInstanceState.DEFERRED])
-
-        total_tis_per_dagrun_count = (
-            func.row_number()
-            .over(partition_by=(TI.dag_id, TI.run_id), order_by=priority_order)
-            .label("total_tis_per_dagrun_count")
-        )
-        tis_per_dag_count = (
-            func.row_number()
-            .over(partition_by=(TI.dag_id, TI.task_id), order_by=priority_order)
-            .label("tis_per_dag_count")
-        )
-        mapped_tis_per_task_run_count = (
-            func.row_number()
-            .over(partition_by=(TI.dag_id, TI.run_id, TI.task_id), order_by=priority_order)
-            .label("mapped_tis_per_dagrun_count")
-        )
-        pool_slots_taken = (
-            func.sum(TI.pool_slots)
-            .over(partition_by=(TI.pool), order_by=priority_order)
-            .label("pool_slots_taken")
-        )
-
-        limits = [
-            LimitWindowDescriptor(running_total_tis_per_dagrun, ['dag_id', 'run_id'], DagModel.max_active_tasks, total_tis_per_dagrun_count, TI.dag_model),
-            LimitWindowDescriptor(running_tis_per_dag, ['dag_id', 'task_id'], TI.max_active_tis_per_dag, tis_per_dag_count),
-            LimitWindowDescriptor(running_total_tis_per_task_run, ['dag_id', 'run_id', 'task_id'], TI.max_active_tis_per_dagrun, mapped_tis_per_task_run_count),
-            LimitWindowDescriptor(running_tis_per_pool, ['pool'], Pool.slots, pool_slots_taken, TI.pool_model),
-        ]
-
-        for limit in limits:
-            query = add_window_limit(query, limit)
-
-        query = query.options(selectinload(TI.dag_model))
-        query = query.limit(max_tis)
-
+            self._aqcuire_lock_for_pgsql(session)
         timer = Stats.timer("scheduler.critical_section_query_duration")
         timer.start()
 
         try:
-            query = with_row_locks(query, of=TI, session=session, skip_locked=True)
-            task_instances_to_examine: list[TI] = session.scalars(query).all()
-            timer.stop(send=True)
+            params: Mapping[str, Any] = self.task_selector_params_provider(
+                conf=conf,  # type: ignore[call-arg]
+                scheduler_job_runner=self,  # type: ignore[call-arg]
+            )
+            task_instances_to_examine: list[TI] = self.task_selector.query_tasks_with_locks(
+                session,
+                **params,
+            )
         except OperationalError as e:
             timer.stop(send=False)
             raise e
@@ -509,14 +367,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             executor_slots_available[executor.name] = executor.slots_available
 
         for task_instance in task_instances_to_examine:
-            pool_name = task_instance.pool
-
-            pool_stats = pools.get(pool_name)
-            if not pool_stats:
-                self.log.warning("Tasks using non-existent pool '%s' will not be scheduled", pool_name)
-                starved_pools.add(pool_name)
-                continue
-
             if executor_obj := self._try_to_load_executor(task_instance.executor):
                 if TYPE_CHECKING:
                     # All executors should have a name if they are initted from the executor_loader.
@@ -527,7 +377,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         "Not scheduling %s since its executor %s does not currently have any more "
                         "available slots"
                     )
-                    starved_tasks.add((task_instance.dag_id, task_instance.task_id))
                     continue
                 executor_slots_available[executor_obj.name] -= 1
             else:
@@ -536,13 +385,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # loader can fail if some direct DB modification has happened or another as yet unknown
                 # edge case. _try_to_load_executor will log an error message explaining the executor
                 # cannot be found.
-                starved_tasks.add((task_instance.dag_id, task_instance.task_id))
                 continue
 
             executable_tis.append(task_instance)
-
-        Stats.gauge("scheduler.tasks.starving", len(starved_tasks))
-        Stats.gauge("scheduler.tasks.executable", len(executable_tis))
 
         if executable_tis:
             task_instance_str = "\n".join(f"\t{x!r}" for x in executable_tis)
@@ -788,7 +633,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                 # Get task from the Serialized DAG
                 try:
-                    dag = scheduler_dag_bag.get_dag(dag_run=ti.dag_run, session=session)
+                    dag = scheduler_dag_bag.get_dag_for_run(dag_run=ti.dag_run, session=session)
                     cls.logger().error(
                         "DAG '%s' for task instance %s not found in serialized_dag table",
                         ti.dag_id,
@@ -917,7 +762,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .group_by(DR)
             )
             for dag_run in paused_runs:
-                dag = self.scheduler_dag_bag.get_dag(dag_run=dag_run, session=session)
+                dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
                 if dag is not None:
                     dag_run.dag = dag
                     _, callback_to_run = dag_run.update_state(execute_callbacks=False, session=session)
@@ -1269,7 +1114,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # Send the callbacks after we commit to ensure the context is up to date when it gets run
         # cache saves time during scheduling of many dag_runs for same dag
         cached_get_dag: Callable[[DagRun], DAG | None] = lru_cache()(
-            partial(self.scheduler_dag_bag.get_dag, session=session)
+            partial(self.scheduler_dag_bag.get_dag_for_run, session=session)
         )
         for dag_run, callback_to_run in callback_tuples:
             dag = cached_get_dag(dag_run)
@@ -1611,7 +1456,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         # cache saves time during scheduling of many dag_runs for same dag
         cached_get_dag: Callable[[DagRun], DAG | None] = lru_cache()(
-            partial(self.scheduler_dag_bag.get_dag, session=session)
+            partial(self.scheduler_dag_bag.get_dag_for_run, session=session)
         )
 
         span = Trace.get_current_span()
@@ -1701,7 +1546,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             callback: DagCallbackRequest | None = None
 
-            dag = dag_run.dag = self.scheduler_dag_bag.get_dag(dag_run=dag_run, session=session)
+            dag = dag_run.dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
             dag_model = DM.get_dagmodel(dag_run.dag_id, session)
 
             if not dag or not dag_model:
@@ -1819,7 +1664,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.debug("DAG %s not changed structure, skipping dagrun.verify_integrity", dag_run.dag_id)
             return True
         # Refresh the DAG
-        dag_run.dag = self.scheduler_dag_bag.get_dag(dag_run=dag_run, session=session)
+        dag_run.dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
         if not dag_run.dag:
             return False
         # Select all TIs in State.unfinished and update the dag_version_id
@@ -2147,7 +1992,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         task_instances_without_heartbeats = session.scalars(
             select(TI)
             .options(selectinload(TI.dag_model))
-            .options(selectinload(TI.dag_run))
+            .options(selectinload(TI.dag_run).selectinload(DagRun.consumed_asset_events))
             .options(selectinload(TI.dag_version))
             .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
             .join(DM, TI.dag_id == DM.dag_id)

@@ -1983,6 +1983,18 @@ scheduler:
       type: float
       example: ~
       default: "5"
+    scheduler_task_selector_strategy:
+      description: |
+        .. note:: |experimental|
+
+        The type of the task selector to be used by the scheduler, decides how the
+        airflow scheduler should get it's tasks that need to be queried, as of now,
+        there are only 2 types of task queriers, which include 'OPTIMISTIC_SELECTOR'
+        and 'PESSIMISTIC_SELECTOR'.
+      version_added: 3.1.0
+      type: string
+      example: OPTIMISTIC_SELECTOR
+      default: "OPTIMISTIC_SELECTOR"
     scheduler_heartbeat_sec:
       description: |
         The scheduler constantly tries to trigger new tasks (look at the
