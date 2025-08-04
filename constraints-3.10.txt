@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-04T13:50:02.407720
+# This constraints file was automatically generated on 2025-08-04T17:42:18.880746
 # via `uv pip install --resolution highest` for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -440,7 +440,7 @@ iniconfig==2.1.0
 inputimeout==1.0.4
 invoke==2.2.0
 ipdb==0.13.13
-ipykernel==6.30.0
+ipykernel==6.30.1
 ipython==8.37.0
 isodate==0.7.2
 itsdangerous==2.2.0
