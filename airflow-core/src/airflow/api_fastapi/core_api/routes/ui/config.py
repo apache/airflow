@@ -32,6 +32,48 @@ from airflow.utils.log.log_reader import TaskLogReader
 config_router = AirflowRouter(tags=["Config"])
 
 
+def _build_menu_item_from_external_view(external_view: dict) -> dict | None:
+    """Build a menu item from an external view configuration."""
+    destination = external_view.get("destination")
+    if destination is not None and destination != "nav":
+        return None
+
+    name = external_view.get("name")
+    if not name:
+        return None
+
+    href = external_view.get("href")
+    if not href and external_view.get("url_route"):
+        href = f"/plugin/{external_view['url_route']}"
+    elif not href:
+        return None
+
+    return {
+        "name": name,
+        "href": href,
+        "category": external_view.get("category"),
+    }
+
+
+def _build_menu_item_from_react_app(react_app: dict) -> dict | None:
+    """Build a menu item from a React app configuration."""
+    destination = react_app.get("destination")
+    if destination is not None and destination != "nav":
+        return None
+
+    name = react_app.get("name")
+    url_route = react_app.get("url_route")
+
+    if not name or not url_route:
+        return None
+
+    return {
+        "name": name,
+        "href": f"/plugin/{url_route}",
+        "category": react_app.get("category"),
+    }
+
+
 API_CONFIG_KEYS = [
     "enable_swagger_ui",
     "hide_paused_dags_by_default",
@@ -60,38 +102,14 @@ def get_configs(user: GetUserDep) -> ConfigResponse:
 
     if plugins_manager.external_views:
         for external_view in plugins_manager.external_views:
-            destination = external_view.get("destination")
-            if destination is None or destination == "nav":
-                href = external_view.get("href")
-                if not href and external_view.get("url_route"):
-                    href = f"/plugin/{external_view['url_route']}"
-                elif not href:
-                    continue
-                menu_item = {
-                    "name": external_view.get("name"),
-                    "href": href,
-                    "category": external_view.get("category"),
-                }
-                if not menu_item["name"]:
-                    continue
+            menu_item = _build_menu_item_from_external_view(external_view)
+            if menu_item:
                 plugins_extra_menu_items.append(menu_item)
 
     if plugins_manager.react_apps:
         for react_app in plugins_manager.react_apps:
-            destination = react_app.get("destination")
-            if destination is None or destination == "nav":
-                url_route = react_app.get("url_route")
-                if not url_route:
-                    continue
-
-                href = f"/plugin/{url_route}"
-                menu_item = {
-                    "name": react_app.get("name"),
-                    "href": href,
-                    "category": react_app.get("category"),
-                }
-                if not menu_item["name"]:
-                    continue
+            menu_item = _build_menu_item_from_react_app(react_app)
+            if menu_item:
                 plugins_extra_menu_items.append(menu_item)
 
     plugin_import_errors = [

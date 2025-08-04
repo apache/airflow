@@ -78,7 +78,7 @@ export const AdminButton = ({
   ];
 
   const menuItems = allViews
-    .filter(({ title }) => authorizedMenuItems.includes(title))
+    .filter(({ title }) => authorizedMenuItems.includes(title as MenuItem))
     .map((view) => (
       <Menu.Item asChild key={view.title} value={view.title}>
         <RouterLink
