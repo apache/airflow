@@ -118,11 +118,9 @@ export const useNavigation = ({
   const [mode, setMode] = useState<NavigationMode>("TI");
 
   useEffect(() => {
-    if (typeof globalThis !== "undefined") {
-      const detectedMode = detectModeFromUrl(globalThis.location.pathname);
+    const detectedMode = detectModeFromUrl(globalThis.location.pathname);
 
-      setMode(detectedMode);
-    }
+    setMode(detectedMode);
   }, [dagId, groupId, runId, taskId]);
 
   const currentIndices = useMemo((): NavigationIndices => {
