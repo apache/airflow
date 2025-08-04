@@ -407,7 +407,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             if fts_enabled:
                 dag_concurrency_subquery = self.__get_current_dag_concurrency(states=EXECUTION_STATES)
-                per_dag_limit = conf.getint("core", "max_active_tasks_per_dag")
+                per_dag_limit = conf.getint("scheduler", "fair_task_selection_limit_per_dag")
 
                 query = query.join(
                     dag_concurrency_subquery, TI.dag_id == dag_concurrency_subquery.c.dag_id, isouter=True
@@ -421,15 +421,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if fts_enabled:
                 self.log.info("Scheduler fair selection is enabled")
 
-                # per_dag_limit = DM.max_active_tasks
-                per_dagrun_limit = conf.getint("core", "max_active_tasks_per_dag")
+                per_dag_limit = conf.getint("scheduler", "fair_task_selection_limit_per_dag")
 
-                self.log.info("Scheduler fair selection per dag limit is %d", per_dagrun_limit)
+                self.log.info("Scheduler fair selection per dag limit is %d", per_dag_limit)
 
                 _subquery_dm = select(DM.dag_id).where(not_(DM.is_paused)).distinct().subquery()
 
                 _subquery_lateral = lateral(
-                    query.where(TI.dag_id == _subquery_dm.c.dag_id).limit(per_dagrun_limit)
+                    query.where(TI.dag_id == _subquery_dm.c.dag_id).limit(per_dag_limit)
                 ).alias("limited")
 
                 _reduced = (
