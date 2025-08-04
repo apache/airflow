@@ -30,10 +30,18 @@ from pydantic import (
     model_serializer,
 )
 
+from airflow.utils import add_deprecated_classes
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
 log = structlog.get_logger(logger_name=__name__)
+
+__deprecated_classes = {
+    __name__: {
+        "StartTriggerArgs": "airflow.sdk.bases.trigger.StartTriggerArgs",
+    },
+}
+add_deprecated_classes(__deprecated_classes, __name__)
 
 
 class BaseTrigger(abc.ABC, LoggingMixin):
