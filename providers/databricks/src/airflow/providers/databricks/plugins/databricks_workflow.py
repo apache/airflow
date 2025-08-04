@@ -33,7 +33,12 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
-from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperatorLink, TaskGroup, XCom
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.providers.fab.www import auth
+else:
+    from airflow.www import auth  # type: ignore
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
@@ -43,17 +48,6 @@ if TYPE_CHECKING:
     from airflow.models import BaseOperator
     from airflow.providers.databricks.operators.databricks import DatabricksTaskBaseOperator
     from airflow.utils.context import Context
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.providers.fab.www import auth
-    from airflow.sdk import BaseOperatorLink
-    from airflow.sdk.definitions.taskgroup import TaskGroup
-    from airflow.sdk.execution_time.xcom import XCom
-else:
-    from airflow.models import XCom  # type: ignore[no-redef]
-    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
-    from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
-    from airflow.www import auth  # type: ignore[no-redef]
 
 
 REPAIR_WAIT_ATTEMPTS = os.getenv("DATABRICKS_REPAIR_WAIT_ATTEMPTS", 20)

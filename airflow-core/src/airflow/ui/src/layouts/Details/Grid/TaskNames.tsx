@@ -67,15 +67,16 @@ export const TaskNames = ({ nodes }: Props) => {
       transition="background-color 0.2s"
     >
       {node.isGroup ? (
-        <Flex alignItems="center">
-          <Link asChild data-testid={node.id} display="inline">
-            <RouterLink
-              replace
-              to={{
-                pathname: `/dags/${dagId}/tasks/group/${node.id}`,
-                search: searchParams.toString(),
-              }}
-            >
+        <Link asChild data-testid={node.id} display="block" width="100%">
+          <RouterLink
+            replace
+            style={{ outline: "none" }}
+            to={{
+              pathname: `/dags/${dagId}/tasks/group/${node.id}`,
+              search: searchParams.toString(),
+            }}
+          >
+            <Flex alignItems="center" width="100%">
               <TaskName
                 fontSize="sm"
                 fontWeight="normal"
@@ -85,26 +86,31 @@ export const TaskNames = ({ nodes }: Props) => {
                 paddingLeft={node.depth * 3 + 2}
                 setupTeardownType={node.setup_teardown_type}
               />
-            </RouterLink>
-          </Link>
-          <chakra.button
-            aria-label={translate("grid.buttons.toggleGroup")}
-            display="inline"
-            height="20px"
-            ml={1}
-            onClick={() => toggleGroupId(node.id)}
-            outlineColor="bg.inverted"
-            px={1}
-          >
-            <FiChevronUp
-              size="1rem"
-              style={{
-                transform: `rotate(${node.isOpen ? 0 : 180}deg)`,
-                transition: "transform 0.5s",
-              }}
-            />
-          </chakra.button>
-        </Flex>
+              <chakra.span
+                _focus={{ outline: "none" }}
+                alignItems="center"
+                aria-label={translate("grid.buttons.toggleGroup")}
+                cursor="pointer"
+                display="inline-flex"
+                ml={1}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  toggleGroupId(node.id);
+                }}
+                px={1}
+              >
+                <FiChevronUp
+                  size="1rem"
+                  style={{
+                    transform: `rotate(${node.isOpen ? 0 : 180}deg)`,
+                    transition: "transform 0.5s",
+                  }}
+                />
+              </chakra.span>
+            </Flex>
+          </RouterLink>
+        </Link>
       ) : (
         <Link asChild data-testid={node.id} display="inline">
           <RouterLink

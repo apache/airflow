@@ -51,7 +51,7 @@ from airflow.providers.common.sql.operators.sql import (
 )
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils import timezone
+from airflow.utils import timezone  # type: ignore[attr-defined]
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -844,7 +844,7 @@ class TestValueCheckOperator:
 
         operator.execute(None)
 
-        mock_hook.get_first.assert_called_once_with(sql)
+        mock_hook.get_first.assert_called_once_with(sql, None)
 
     @mock.patch.object(SQLValueCheckOperator, "get_db_hook")
     def test_execute_fail(self, mock_get_db_hook):

@@ -23,6 +23,7 @@ import itertools
 import logging
 import os
 import sys
+import warnings
 import weakref
 from collections import abc
 from collections.abc import Callable, Collection, Iterable, MutableSet
@@ -46,6 +47,7 @@ from airflow.exceptions import (
     DuplicateTaskIdFound,
     FailFastDagInvalidTriggerRule,
     ParamValidationError,
+    RemovedInAirflow4Warning,
     TaskNotFound,
 )
 from airflow.sdk.bases.operator import BaseOperator
@@ -63,7 +65,6 @@ from airflow.timetables.simple import (
     OnceTimetable,
 )
 from airflow.utils.dag_cycle_tester import check_cycle
-from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
@@ -468,6 +469,12 @@ class DAG:
             self.default_args["start_date"] = timezone.convert_to_utc(start_date)
         if end_date := self.default_args.get("end_date", None):
             self.default_args["end_date"] = timezone.convert_to_utc(end_date)
+        if self.access_control is not None:
+            warnings.warn(
+                "The airflow.security.permissions module is deprecated; please see https://airflow.apache.org/docs/apache-airflow/stable/security/deprecated_permissions.html",
+                RemovedInAirflow4Warning,
+                stacklevel=2,
+            )
 
     @params.validator
     def _validate_params(self, _, params: ParamsDict):
@@ -1210,10 +1217,11 @@ class DAG:
                             log.exception("Task failed; ti=%s", ti)
                 if use_executor:
                     executor.heartbeat()
-                    from airflow.jobs.scheduler_job_runner import SchedulerDagBag, SchedulerJobRunner
+                    from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+                    from airflow.models.dagbag import DBDagBag
 
                     SchedulerJobRunner.process_executor_events(
-                        executor=executor, job_id=None, scheduler_dag_bag=SchedulerDagBag(), session=session
+                        executor=executor, job_id=None, scheduler_dag_bag=DBDagBag(), session=session
                     )
             if use_executor:
                 executor.end()
@@ -1378,6 +1386,8 @@ if TYPE_CHECKING:
 
 
 def dag(dag_id_or_func=None, __DAG_class=DAG, __warnings_stacklevel_delta=2, **decorator_kwargs):
+    from airflow.sdk.definitions._internal.decorators import fixup_decorator_warning_stack
+
     # TODO: Task-SDK: remove __DAG_class
     # __DAG_class is a temporary hack to allow the dag decorator in airflow.models.dag to continue to
     # return SchedulerDag objects

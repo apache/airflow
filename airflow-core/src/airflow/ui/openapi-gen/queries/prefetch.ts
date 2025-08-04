@@ -542,7 +542,7 @@ export const prefetchUseDagServiceGetDagsUi = (queryClient: QueryClient, { dagDi
 * Get latest run.
 * @param data The data for the request.
 * @param data.dagId
-* @returns DAGRunLightResponse Successful Response
+* @returns unknown Successful Response
 * @throws ApiError
 */
 export const prefetchUseDagServiceGetLatestRunInfo = (queryClient: QueryClient, { dagId }: {
@@ -1223,6 +1223,7 @@ export const prefetchUseHumanInTheLoopServiceGetMappedTiHitlDetail = (queryClien
 * @param data.orderBy
 * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @param data.dagRunId
+* @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @param data.state
 * @param data.responseReceived
 * @param data.userId
@@ -1231,7 +1232,7 @@ export const prefetchUseHumanInTheLoopServiceGetMappedTiHitlDetail = (queryClien
 * @returns HITLDetailCollection Successful Response
 * @throws ApiError
 */
-export const prefetchUseHumanInTheLoopServiceGetHitlDetails = (queryClient: QueryClient, { bodySearch, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, userId }: {
+export const prefetchUseHumanInTheLoopServiceGetHitlDetails = (queryClient: QueryClient, { bodySearch, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, taskIdPattern, userId }: {
   bodySearch?: string;
   dagIdPattern?: string;
   dagRunId?: string;
@@ -1241,8 +1242,9 @@ export const prefetchUseHumanInTheLoopServiceGetHitlDetails = (queryClient: Quer
   responseReceived?: boolean;
   state?: string[];
   subjectSearch?: string;
+  taskIdPattern?: string;
   userId?: string[];
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailsKeyFn({ bodySearch, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, userId }), queryFn: () => HumanInTheLoopService.getHitlDetails({ bodySearch, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, userId }) });
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailsKeyFn({ bodySearch, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, taskIdPattern, userId }), queryFn: () => HumanInTheLoopService.getHitlDetails({ bodySearch, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, taskIdPattern, userId }) });
 /**
 * Get Health
 * @returns HealthInfoResponse Successful Response
@@ -1413,19 +1415,6 @@ export const prefetchUseGridServiceGetGridTiSummaries = (queryClient: QueryClien
   dagId: string;
   runId: string;
 }) => queryClient.prefetchQuery({ queryKey: Common.UseGridServiceGetGridTiSummariesKeyFn({ dagId, runId }), queryFn: () => GridService.getGridTiSummaries({ dagId, runId }) });
-/**
-* Get Latest Run
-* Get information about the latest dag run by run_after.
-*
-* This is used by the UI to figure out if it needs to rerun queries and resume auto refresh.
-* @param data The data for the request.
-* @param data.dagId
-* @returns unknown Successful Response
-* @throws ApiError
-*/
-export const prefetchUseGridServiceGetLatestRun = (queryClient: QueryClient, { dagId }: {
-  dagId: string;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseGridServiceGetLatestRunKeyFn({ dagId }), queryFn: () => GridService.getLatestRun({ dagId }) });
 /**
 * Get Calendar
 * Get calendar data for a DAG including historical and planned DAG runs.

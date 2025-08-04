@@ -358,7 +358,11 @@ class SFTPHook(SSHHook):
                 self.retrieve_file(file_path, new_local_path, prefetch)
 
     def retrieve_directory_concurrently(
-        self, remote_full_path: str, local_full_path: str, workers: int = os.cpu_count() or 2
+        self,
+        remote_full_path: str,
+        local_full_path: str,
+        workers: int = os.cpu_count() or 2,
+        prefetch: bool = True,
     ) -> None:
         """
         Transfer the remote directory to a local location concurrently.
@@ -405,6 +409,7 @@ class SFTPHook(SSHHook):
                         conns[i],
                         local_file_chunks[i],
                         remote_file_chunks[i],
+                        prefetch,
                     )
                     for i in range(workers)
                 ]
