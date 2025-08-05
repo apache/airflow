@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import atexit
+import contextlib
 import io
 import logging
 import os
@@ -42,6 +43,7 @@ from typing import (
     TextIO,
     cast,
 )
+from urllib.parse import urlparse
 from uuid import UUID
 
 import attrs
@@ -81,6 +83,7 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetDagRunState,
     GetDRCount,
+    GetPreviousDagRun,
     GetPrevSuccessfulDagRun,
     GetTaskRescheduleStartDate,
     GetTaskStates,
@@ -126,6 +129,7 @@ if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger, WrappedLogger
 
     from airflow.executors.workloads import BundleInfo
+    from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
     from airflow.secrets import BaseSecretsBackend
     from airflow.typing_compat import Self
@@ -209,7 +213,7 @@ def _reset_signals():
 
 
 def _configure_logs_over_json_channel(log_fd: int):
-    # A channel that the task can send JSON-formated logs over.
+    # A channel that the task can send JSON-formatted logs over.
     #
     # JSON logs sent this way will be handled nicely
     from airflow.sdk.log import configure_logging
@@ -1128,7 +1132,14 @@ class ActivitySubprocess(WatchedSubprocess):
                 resp = xcom
         elif isinstance(msg, GetXComSequenceSlice):
             xcoms = self.client.xcoms.get_sequence_slice(
-                msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.start, msg.stop, msg.step
+                msg.dag_id,
+                msg.run_id,
+                msg.task_id,
+                msg.key,
+                msg.start,
+                msg.stop,
+                msg.step,
+                msg.include_prior_dates,
             )
             resp = XComSequenceSliceResult.from_response(xcoms)
         elif isinstance(msg, DeferTask):
@@ -1223,6 +1234,12 @@ class ActivitySubprocess(WatchedSubprocess):
                 logical_dates=msg.logical_dates,
                 run_ids=msg.run_ids,
                 states=msg.states,
+            )
+        elif isinstance(msg, GetPreviousDagRun):
+            resp = self.client.dag_runs.get_previous(
+                dag_id=msg.dag_id,
+                logical_date=msg.logical_date,
+                state=msg.state,
             )
         elif isinstance(msg, DeleteVariable):
             resp = self.client.variables.delete(msg.key)
@@ -1401,20 +1418,17 @@ class InProcessTestSupervisor(ActivitySubprocess):
 
     @staticmethod
     def _api_client(dag=None):
-        from airflow.models.dagbag import DagBag
         from airflow.sdk.api.client import Client
 
         api = in_process_api_server()
         if dag is not None:
             from airflow.api_fastapi.common.dagbag import dag_bag_from_app
-            from airflow.serialization.serialized_objects import SerializedDAG
+            from airflow.models.dagbag import DBDagBag
 
-            # This is needed since the Execution API server uses the DagBag in its "state".
+            # This is needed since the Execution API server uses the DBDagBag in its "state".
             # This `app.state.dag_bag` is used to get some DAG properties like `fail_fast`.
-            dag_bag = DagBag(include_examples=False, collect_dags=False, load_op_links=False)
+            dag_bag = DBDagBag()
 
-            # Mimic the behavior of the DagBag in the API server by converting the DAG to a SerializedDAG
-            dag_bag.dags[dag.dag_id] = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
             api.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag
 
         client = Client(base_url=None, token="", dry_run=True, transport=api.transport)
@@ -1625,6 +1639,93 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     return backends
 
 
+@contextlib.contextmanager
+def _remote_logging_conn(client: Client):
+    """
+    Pre-fetch the needed remote logging connection.
+
+    If a remote logger is in use, and has the logging/remote_logging option set, we try to fetch the
+    connection it needs, now, directly from the API client, and store it in an env var, so that when the logging
+    hook tries to get the connection it
+    can find it easily from the env vars
+
+    This is needed as the BaseHook.get_connection looks for SUPERVISOR_COMMS, but we are still in the
+    supervisor process when this is needed, so that doesn't exist yet.
+    """
+    from airflow.sdk.log import load_remote_conn_id, load_remote_log_handler
+
+    if load_remote_log_handler() is None or not (conn_id := load_remote_conn_id()):
+        # Nothing to do
+        yield
+        return
+
+    # Since we need to use the API Client directly, we can't use Connection.get as that would try to use
+    # SUPERVISOR_COMMS
+
+    # TODO: Store in the SecretsCache if its enabled - see #48858
+
+    def _get_conn() -> Connection | None:
+        backends = ensure_secrets_backend_loaded()
+        for secrets_backend in backends:
+            try:
+                conn = secrets_backend.get_connection(conn_id=conn_id)
+                if conn:
+                    return conn
+            except Exception:
+                log.exception(
+                    "Unable to retrieve connection from secrets backend (%s). "
+                    "Checking subsequent secrets backend.",
+                    type(secrets_backend).__name__,
+                )
+
+        conn = client.connections.get(conn_id)
+        if isinstance(conn, ConnectionResponse):
+            conn_result = ConnectionResult.from_conn_response(conn)
+            from airflow.sdk.definitions.connection import Connection
+
+            return Connection(**conn_result.model_dump(exclude={"type"}, by_alias=True))
+        return None
+
+    if conn := _get_conn():
+        key = f"AIRFLOW_CONN_{conn_id.upper()}"
+        old = os.getenv(key)
+
+        os.environ[key] = conn.get_uri()
+
+        try:
+            yield
+        finally:
+            if old is None:
+                del os.environ[key]
+            else:
+                os.environ[key] = old
+
+
+def _configure_logging(log_path: str, client: Client) -> tuple[FilteringBoundLogger, BinaryIO | TextIO]:
+    # If we are told to write logs to a file, redirect the task logger to it. Make sure we append to the
+    # file though, otherwise when we resume we would lose the logs from the start->deferral segment if it
+    # lands on the same node as before.
+    from airflow.sdk.log import init_log_file, logging_processors
+
+    log_file_descriptor: BinaryIO | TextIO | None = None
+
+    log_file = init_log_file(log_path)
+
+    pretty_logs = False
+    if pretty_logs:
+        log_file_descriptor = log_file.open("a", buffering=1)
+        underlying_logger: WrappedLogger = structlog.WriteLogger(cast("TextIO", log_file_descriptor))
+    else:
+        log_file_descriptor = log_file.open("ab")
+        underlying_logger = structlog.BytesLogger(cast("BinaryIO", log_file_descriptor))
+
+    with _remote_logging_conn(client):
+        processors = logging_processors(enable_pretty_log=pretty_logs)[0]
+    logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
+
+    return logger, log_file_descriptor
+
+
 def supervise(
     *,
     ti: TaskInstance,
@@ -1650,12 +1751,42 @@ def supervise(
     :param subprocess_logs_to_stdout: Should task logs also be sent to stdout via the main logger.
     :param client: Optional preconfigured client for communication with the server (Mostly for tests).
     :return: Exit code of the process.
+    :raises ValueError: If server URL is empty or invalid.
     """
     # One or the other
     from airflow.sdk.execution_time.secrets_masker import reset_secrets_masker
 
-    if not client and ((not server) ^ dry_run):
-        raise ValueError(f"Can only specify one of {server=} or {dry_run=}")
+    if not client:
+        if dry_run and server:
+            raise ValueError(f"Can only specify one of {server=} or {dry_run=}")
+
+        if not dry_run:
+            if not server:
+                raise ValueError(
+                    "Invalid execution API server URL. Please ensure that a valid URL is configured."
+                )
+
+            try:
+                parsed_url = urlparse(server)
+            except Exception as e:
+                raise ValueError(
+                    f"Invalid execution API server URL '{server}': {e}. "
+                    "Please ensure that a valid URL is configured."
+                ) from e
+
+            if parsed_url.scheme not in ("http", "https"):
+                raise ValueError(
+                    f"Invalid execution API server URL '{server}': "
+                    "URL must use http:// or https:// scheme. "
+                    "Please ensure that a valid URL is configured."
+                )
+
+            if not parsed_url.netloc:
+                raise ValueError(
+                    f"Invalid execution API server URL '{server}': "
+                    "URL must include a valid host. "
+                    "Please ensure that a valid URL is configured."
+                )
 
     if not dag_rel_path:
         raise ValueError("dag_path is required")
@@ -1670,22 +1801,7 @@ def supervise(
     logger: FilteringBoundLogger | None = None
     log_file_descriptor: BinaryIO | TextIO | None = None
     if log_path:
-        # If we are told to write logs to a file, redirect the task logger to it. Make sure we append to the
-        # file though, otherwise when we resume we would lose the logs from the start->deferral segment if it
-        # lands on the same node as before.
-        from airflow.sdk.log import init_log_file, logging_processors
-
-        log_file = init_log_file(log_path)
-
-        pretty_logs = False
-        if pretty_logs:
-            log_file_descriptor = log_file.open("a", buffering=1)
-            underlying_logger: WrappedLogger = structlog.WriteLogger(cast("TextIO", log_file_descriptor))
-        else:
-            log_file_descriptor = log_file.open("ab")
-            underlying_logger = structlog.BytesLogger(cast("BinaryIO", log_file_descriptor))
-        processors = logging_processors(enable_pretty_log=pretty_logs)[0]
-        logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
+        logger, log_file_descriptor = _configure_logging(log_path, client)
 
     backends = ensure_secrets_backend_loaded()
     log.info(

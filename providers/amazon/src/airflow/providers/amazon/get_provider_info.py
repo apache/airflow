@@ -250,6 +250,7 @@ def get_provider_info():
                 "integration-name": "Amazon Systems Manager (SSM)",
                 "external-doc-url": "https://aws.amazon.com/systems-manager/",
                 "logo": "/docs/integration-logos/AWS-Systems-Manager_light-bg@4x.png",
+                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/ssm.rst"],
                 "tags": ["aws"],
             },
             {
@@ -445,6 +446,10 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.amazon.aws.operators.step_function"],
             },
             {
+                "integration-name": "Amazon Systems Manager (SSM)",
+                "python-modules": ["airflow.providers.amazon.aws.operators.ssm"],
+            },
+            {
                 "integration-name": "Amazon RDS",
                 "python-modules": ["airflow.providers.amazon.aws.operators.rds"],
             },
@@ -580,6 +585,10 @@ def get_provider_info():
             {
                 "integration-name": "AWS Step Functions",
                 "python-modules": ["airflow.providers.amazon.aws.sensors.step_function"],
+            },
+            {
+                "integration-name": "Amazon Systems Manager (SSM)",
+                "python-modules": ["airflow.providers.amazon.aws.sensors.ssm"],
             },
             {
                 "integration-name": "Amazon QuickSight",
@@ -845,6 +854,10 @@ def get_provider_info():
             {
                 "integration-name": "Amazon Simple Storage Service (S3)",
                 "python-modules": ["airflow.providers.amazon.aws.triggers.s3"],
+            },
+            {
+                "integration-name": "Amazon Systems Manager (SSM)",
+                "python-modules": ["airflow.providers.amazon.aws.triggers.ssm"],
             },
             {
                 "integration-name": "Amazon EMR",

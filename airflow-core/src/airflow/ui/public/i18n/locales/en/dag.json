@@ -19,6 +19,7 @@
   },
   "header": {
     "buttons": {
+      "advanced": "Advanced",
       "dagDocs": "Dag Docs"
     }
   },
@@ -102,6 +103,7 @@
     "mappedTaskInstances_other": "Task Instances [{{count}}]",
     "overview": "Overview",
     "renderedTemplates": "Rendered Templates",
+    "requiredActions": "Required Actions",
     "runs": "Runs",
     "taskInstances": "Task Instances",
     "tasks": "Tasks",

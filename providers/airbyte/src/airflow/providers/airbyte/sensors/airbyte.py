@@ -79,6 +79,7 @@ class AirbyteJobSensor(BaseSensorOperator):
 
         if status == JobStatusEnum.FAILED:
             message = f"Job failed: \n{job}"
+            self.log.debug("Failed with context: %s", context)
             raise AirflowException(message)
         if status == JobStatusEnum.CANCELLED:
             message = f"Job was cancelled: \n{job}"
@@ -117,6 +118,7 @@ class AirbyteJobSensor(BaseSensorOperator):
                 self.log.info("%s completed successfully.", self.task_id)
                 return
             elif state == JobStatusEnum.FAILED:
+                self.log.debug("Failed with context: %s", context)
                 raise AirflowException(f"Job failed:\n{job}")
             elif state == JobStatusEnum.CANCELLED:
                 raise AirflowException(f"Job was cancelled:\n{job}")
@@ -133,6 +135,7 @@ class AirbyteJobSensor(BaseSensorOperator):
         successful.
         """
         if event["status"] == "error":
+            self.log.debug("An error occurred with context: %s", context)
             raise AirflowException(event["message"])
 
         self.log.info("%s completed successfully.", self.task_id)

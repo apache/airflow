@@ -55,6 +55,7 @@
   - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
   - [Close the testing status issue](#close-the-testing-status-issue)
   - [Remove Provider distributions scheduled for removal](#remove-provider-distributions-scheduled-for-removal)
+  - [Misc / Post Release Helpers](#misc--post-release-helpers)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -411,7 +412,7 @@ If you are seeing others there is an issue.
 You can remove the redundant provider files manually with:
 
 ```shell script
-svn rm file_name  // repeate that for every file
+svn rm file_name  // repeat that for every file
 svn commit -m "delete old providers"
 ```
 
@@ -477,7 +478,7 @@ twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*
 Assume that your remote for apache repository is called `apache` you should now
 set tags for the providers in the repo.
 
-Sometimes in cases when there is a connectivity issue to Github, it might be possible that local tags get created
+Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local tags get created
 and lead to annoying errors. The default behaviour would be to clean such local tags up.
 
 If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false.
@@ -521,6 +522,20 @@ The `--ref` parameter should be the tag of the release candidate you are publish
 
 The `--site-env` parameter should be set to `staging` for pre-release versions or `live` for final releases. the default option is `auto`
 if the tag is rc it publishes to `staging` bucket, otherwise it publishes to `live` bucket.
+
+One of the interesting features of publishing this way is that you can also rebuild historical version of
+the documentation with patches applied to the documentation (if they can be applied cleanly).
+
+Yoy should specify the `--apply-commits` parameter with the list of commits you want to apply
+separated by commas and the workflow will apply those commits to the documentation before
+building it (don't forget to add --skip-write-to-stable-folder if you are publishing
+previous version of the distribution). Example:
+
+```shell script
+breeze workflow-run publish-docs --ref providers-apache-hive/9.0.0 --site-env live \
+  --apply-commits 4ae273cbedec66c87dc40218c7a94863390a380d --skip-write-to-stable-folder \
+  apache.hive
+```
 
 Other available parameters can be found with:
 
@@ -632,6 +647,14 @@ issue. There is a comment generated with NOTE TO RELEASE MANAGER about this in t
 Hit Preview button on "create issue" screen before creating it to verify how it will look like
 for the contributors.
 
+By default, the command will output a clickable link to create the issue from terminal if you don't want this option use --no-include-browser-link flag
+
+```shell script
+cd "${AIRFLOW_REPO_ROOT}"
+
+breeze release-management generate-issue-content-providers --only-available-in-dist --no-include-browser-link --github-token TOKEN \
+    --excluded-pr-list PR_NUMBER1,PR_NUMBER2
+```
 
 
 ## Prepare voting email for Providers release candidate
@@ -1237,7 +1260,7 @@ Copy links to updated packages, sort it alphabetically and save it on the side. 
 Assume that your remote for apache repository is called `apache` you should now
 set tags for the providers in the repo.
 
-Sometimes in cases when there is a connectivity issue to Github, it might be possible that local tags get created
+Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local tags get created
 and lead to annoying errors. The default behaviour would be to clean such local tags up.
 
 If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false.
@@ -1353,7 +1376,7 @@ git pull apache main
 current_date=$(date '+%Y-%m-%d%n')
 branch="update-providers-metadata-${current_date}"
 git checkout -b "${branch}"
-breeze release-management generate-providers-metadata --refresh-constraints
+breeze release-management generate-providers-metadata --refresh-constraints-and-airflow-releases
 git add -p .
 git commit -m "Update providers metadata ${current_date}"
 git push --set-upstream origin "${branch}"
@@ -1481,3 +1504,23 @@ The following places should be checked:
 Run `breeze setup regenerate-command-images --force`
 
 Update test_get_removed_providers in `/dev/breeze/tests/test_packages.py` by removing the provider from the list
+
+
+## Misc / Post Release Helpers
+
+In case you need to rebuild docs with addition of a commit that is not part of the original release use
+
+
+```shell script
+  breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto> PACKAGE1 \
+  --apply-commits <commit_hash> --skip-write-to-stable-folder \
+  PACKAGE1
+```
+
+Example:
+
+```shell script
+breeze workflow-run publish-docs --ref providers-apache-hive/9.0.0 --site-env live \
+  --apply-commits 4ae273cbedec66c87dc40218c7a94863390a380d --skip-write-to-stable-folder \
+  apache.hive
+```

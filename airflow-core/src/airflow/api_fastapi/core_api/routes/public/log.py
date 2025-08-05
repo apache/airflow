@@ -139,7 +139,7 @@ def get_log(
         metadata["end_of_log"] = True
         raise HTTPException(status.HTTP_404_NOT_FOUND, "TaskInstance not found")
 
-    dag = dag_bag.get_dag(dag_id)
+    dag = dag_bag.get_dag_for_run(ti.dag_run, session=session)
     if dag:
         with contextlib.suppress(TaskNotFound):
             ti.task = dag.get_task(ti.task_id)

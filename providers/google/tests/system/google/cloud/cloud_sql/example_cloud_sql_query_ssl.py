@@ -35,7 +35,13 @@ from typing import Any
 
 from googleapiclient import discovery
 
-from airflow.decorators import task
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import task
+else:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLHook
 from airflow.providers.google.cloud.hooks.secret_manager import GoogleCloudSecretManagerHook
@@ -249,7 +255,6 @@ os.environ["AIRFLOW_CONN_PUBLIC_MYSQL_TCP_SSL"] = (
     "sslrootcert={server_ca_file}".format(**mysql_kwargs)
 )
 # [END howto_operator_cloudsql_query_connections_env]
-
 
 log = logging.getLogger(__name__)
 

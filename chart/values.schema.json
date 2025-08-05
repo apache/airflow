@@ -695,6 +695,12 @@
             "x-docsSection": "Airflow",
             "default": true
         },
+        "allowJobLaunching": {
+            "description": "Whether various Airflow components launch jobs.",
+            "type": "boolean",
+            "x-docsSection": "Airflow",
+            "default": false
+        },
         "images": {
             "description": "Images.",
             "type": "object",
@@ -1820,7 +1826,7 @@
                         "query": {
                             "description": "Query to use for KEDA autoscaling. Must return a single integer.",
                             "type": "string",
-                            "default": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }}) FROM task_instance WHERE (state='running' OR state='queued') {{- if or (contains \"CeleryKubernetesExecutor\" .Values.executor) (contains \"KubernetesExecutor\" .Values.executor) }} AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}' {{- end }}"
+                            "default": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }}) FROM task_instance WHERE (state='running' OR state='queued') {{- if contains \"CeleryKubernetesExecutor\" .Values.executor }} AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}' {{- else if contains \"KubernetesExecutor\" .Values.executor }} AND executor != 'KubernetesExecutor' {{- end }}"
                         },
                         "usePgbouncer": {
                             "description": "Weather to use PGBouncer to connect to the database or not when it is enabled. This configuration will be ignored if PGBouncer is not enabled.",
@@ -2291,6 +2297,15 @@
                         "type": "string"
                     }
                 },
+                "schedulerName": {
+                    "description": "Specify kube scheduler name for Airflow Celery workers objects and pods created with pod-template-file.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null,
+                    "x-docsSection": "Common"
+                },
                 "labels": {
                     "description": "Labels to add to the Airflow Celery workers objects and pods created with pod-template-file.",
                     "type": "object",
@@ -2530,6 +2545,89 @@
                             }
                         }
                     ]
+                },
+                "useWorkerDedicatedServiceAccounts": {
+                    "description": "One common Service Account for all workers will be created if flag is set to false. If true, dedicated Service Accounts for every worker type will be created.",
+                    "type": "boolean",
+                    "default": false
+                },
+                "celery": {
+                    "description": "Airflow Celery Workers configuration.",
+                    "type": "object",
+                    "x-docsSection": "Workers",
+                    "properties": {
+                        "serviceAccount": {
+                            "description": "Create ServiceAccount.",
+                            "type": "object",
+                            "properties": {
+                                "automountServiceAccountToken": {
+                                    "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "create": {
+                                    "description": "Specifies whether a ServiceAccount should be created.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "name": {
+                                    "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "annotations": {
+                                    "description": "Annotations to add to the Airflow Celery worker Kubernetes ServiceAccount.",
+                                    "type": "object",
+                                    "default": {},
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "kubernetes": {
+                    "description": "Airflow pod-template-file configuration.",
+                    "type": "object",
+                    "x-docsSection": "Workers",
+                    "properties": {
+                        "serviceAccount": {
+                            "description": "Create ServiceAccount.",
+                            "type": "object",
+                            "properties": {
+                                "automountServiceAccountToken": {
+                                    "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "create": {
+                                    "description": "Specifies whether a ServiceAccount should be created.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "name": {
+                                    "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "annotations": {
+                                    "description": "Annotations to add to the worker Kubernetes ServiceAccount.",
+                                    "type": "object",
+                                    "default": {},
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         },

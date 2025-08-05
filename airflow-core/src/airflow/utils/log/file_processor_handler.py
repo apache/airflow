@@ -23,7 +23,7 @@ from datetime import datetime
 from pathlib import Path
 
 from airflow import settings
-from airflow.utils import timezone
+from airflow._shared.timezones import timezone
 from airflow.utils.helpers import parse_template_string
 from airflow.utils.log.logging_mixin import DISABLE_PROPOGATE
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler

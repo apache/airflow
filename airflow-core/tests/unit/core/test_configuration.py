@@ -1715,6 +1715,7 @@ def test_sensitive_values():
     # items not matching this pattern must be added here manually
     sensitive_values = {
         ("database", "sql_alchemy_conn"),
+        ("database", "sql_alchemy_conn_async"),
         ("core", "fernet_key"),
         ("api_auth", "jwt_secret"),
         ("api", "secret_key"),
@@ -1730,7 +1731,7 @@ def test_sensitive_values():
         ("opensearch", "password"),
         ("webserver", "secret_key"),
     }
-    all_keys = {(s, k) for s, v in conf.configuration_description.items() for k in v.get("options")}
+    all_keys = {(s, k) for s, v in conf.configuration_description.items() for k in v["options"]}
     suspected_sensitive = {(s, k) for (s, k) in all_keys if k.endswith(("password", "kwargs"))}
     exclude_list = {
         ("aws_batch_executor", "submit_job_kwargs"),

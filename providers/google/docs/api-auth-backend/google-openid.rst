@@ -59,7 +59,7 @@ look like the following.
 
   .. code-block:: bash
 
-      ENDPOINT_URL="http://localhost:8080/"
+      ENDPOINT_URL="http://localhost:8080"
 
       AUDIENCE="project-id-random-value.apps.googleusercontent.com"
       ID_TOKEN="$(gcloud auth print-identity-token "--audiences=${AUDIENCE}")"

@@ -347,7 +347,7 @@ The requirements that Airflow might need depend on many factors, including (but 
     the technology/cloud/integration of monitoring etc.
   * Technical details of database, hardware, network, etc. that your deployment is running on
   * The complexity of the code you add to your DAGS, configuration, plugins, settings etc. (note, that
-    Airflow runs the code that DAG author and Deployment Manager provide)
+    Airflow runs the code that Dag author and Deployment Manager provide)
   * The number and choice of providers you install and use (Airflow has more than 80 providers) that can
     be installed by choice of the Deployment Manager and using them might require more resources.
   * The choice of parameters that you use when tuning Airflow. Airflow has many configuration parameters
