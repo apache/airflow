@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import importlib
+import inspect
 import pickle
 import sys
 from collections.abc import AsyncIterator
@@ -253,8 +254,8 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
     :param extra_options: Additional kwargs to pass when creating a request.
         For example, ``run(json=obj)`` is passed as
         ``aiohttp.ClientSession().get(json=obj)``.
-    :param response_check_path: Path to method that evaluates whether the API response
-        passes the conditions set by the user to trigger DAGs
+    :param response_check_path: Path to the function that evaluates whether the API response
+        passes the conditions set by the user to fire the trigger. The method must be asynchronous.
     """
 
     def __init__(
@@ -293,11 +294,8 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
         try:
             while True:
                 response = await super()._get_response(hook)
-                if not self.response_check_path or await self._run_response_check(response) == True:
-                    print("line 297")
-                    print(f"not? {not self.response_check_path}")
+                if not self.response_check_path or await self._run_response_check(response):
                     break
-            print("line 299")
             yield TriggerEvent(
                 {
                     "status": "success",
@@ -308,6 +306,7 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
             self.log.error("status: error, message: %s", str(e))
 
     def _import_from_response_check_path(self):
+        """Import the response check callable from the path provided by the user."""
         module_path, func_name = self.response_check_path.rsplit(".", 1)
         if module_path in sys.modules:
             module = importlib.reload(sys.modules[module_path])
@@ -316,8 +315,8 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
 
     async def _run_response_check(self, response) -> bool:
         """Run the response_check callable provided by the user."""
-        print("line 319")
         response_check = await asyncio.to_thread(self._import_from_response_check_path)
+        if not inspect.iscoroutinefunction(response_check):
+            raise AirflowException("The response_check callable is not asynchronous.")
         check = await response_check(response)
-        print(f"check: {check}")
         return check
