@@ -25,7 +25,12 @@ from tests_common.test_utils.config import conf_vars
 
 class TestLogin:
     @patch("airflow.api_fastapi.auth.managers.simple.routes.login.SimpleAuthManagerLogin")
-    def test_create_token(self, mock_simple_auth_manager_login, test_client, auth_manager):
+    def test_create_token(
+        self,
+        mock_simple_auth_manager_login,
+        test_client,
+        auth_manager,
+    ):
         mock_simple_auth_manager_login.create_token.return_value = "DUMMY_TOKEN"
 
         response = test_client.post(
@@ -33,7 +38,29 @@ class TestLogin:
             json={"username": "test1", "password": "DUMMY_PASS"},
         )
         assert response.status_code == 201
-        assert response.json()["access_token"]
+        assert "access_token" in response.json()
+
+    @patch("airflow.api_fastapi.auth.managers.simple.routes.login.SimpleAuthManagerLogin")
+    def test_create_token_with_form_data(
+        self,
+        mock_simple_auth_manager_login,
+        test_client,
+        auth_manager,
+        test_user,
+    ):
+        mock_simple_auth_manager_login.create_token.return_value = "DUMMY_TOKEN"
+
+        response = test_client.post(
+            "/auth/token",
+            data={
+                "username": "test1",
+                "password": "DUMMY_PASS",
+            },
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+
+        assert response.status_code == 201
+        assert "access_token" in response.json()
 
     def test_create_token_invalid_user_password(self, test_client):
         response = test_client.post(
