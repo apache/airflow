@@ -40,6 +40,7 @@
     "activeDags": "Aktywne Dagi",
     "failedDags": "Nieudane Dagi",
     "queuedDags": "Zakolejkowane Dagi",
+    "requiredActions": "Wymagane akcje",
     "runningDags": "Wykonane Dagi",
     "stats": "Statystyki"
   },
