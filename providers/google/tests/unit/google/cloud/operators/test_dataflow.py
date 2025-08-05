@@ -37,6 +37,8 @@ from airflow.providers.google.cloud.operators.dataflow import (
     DataflowStopJobOperator,
     DataflowTemplatedJobStartOperator,
 )
+from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.execution_time.comms import ErrorResponse
 from airflow.version import version
 
 TASK_ID = "test-dataflow-operator"
@@ -519,10 +521,11 @@ class TestDataflowCreatePipelineOperator:
         )
 
     @pytest.mark.db_test
-    def test_body_invalid(self):
+    def test_body_invalid(self, mock_supervisor_comms):
         """
         Test that if the operator is not passed a Request Body, an AirflowException is raised
         """
+        mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
         init_kwargs = {
             "task_id": "test_create_datapipeline",
             "body": {},
@@ -562,10 +565,11 @@ class TestDataflowCreatePipelineOperator:
             DataflowCreatePipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
     @pytest.mark.db_test
-    def test_response_invalid(self):
+    def test_response_invalid(self, mock_supervisor_comms):
         """
         Test that if the Response Body contains an error message, an AirflowException is raised
         """
+        mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
         init_kwargs = {
             "task_id": "test_create_datapipeline",
             "body": {"name": TEST_PIPELINE_NAME, "error": "Testing that AirflowException is raised"},
@@ -627,10 +631,11 @@ class TestDataflowRunPipelineOperator:
         )
 
     @pytest.mark.db_test
-    def test_invalid_data_pipeline_name(self):
+    def test_invalid_data_pipeline_name(self, mock_supervisor_comms):
         """
         Test that AirflowException is raised if Run Operator is not given a data pipeline name.
         """
+        mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
         init_kwargs = {
             "task_id": TASK_ID,
             "pipeline_name": None,
@@ -642,10 +647,11 @@ class TestDataflowRunPipelineOperator:
             DataflowRunPipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
     @pytest.mark.db_test
-    def test_invalid_project_id(self):
+    def test_invalid_project_id(self, mock_supervisor_comms):
         """
         Test that AirflowException is raised if Run Operator is not given a project ID.
         """
+        mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
         init_kwargs = {
             "task_id": TASK_ID,
             "pipeline_name": TEST_PIPELINE_NAME,
@@ -657,10 +663,11 @@ class TestDataflowRunPipelineOperator:
             DataflowRunPipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
     @pytest.mark.db_test
-    def test_invalid_location(self):
+    def test_invalid_location(self, mock_supervisor_comms):
         """
         Test that AirflowException is raised if Run Operator is not given a location.
         """
+        mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
         init_kwargs = {
             "task_id": TASK_ID,
             "pipeline_name": TEST_PIPELINE_NAME,
@@ -737,10 +744,11 @@ class TestDataflowDeletePipelineOperator:
         )
 
     @pytest.mark.db_test
-    def test_invalid_data_pipeline_name(self):
+    def test_invalid_data_pipeline_name(self, mock_supervisor_comms):
         """
         Test that AirflowException is raised if Delete Operator is not given a data pipeline name.
         """
+        mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
         init_kwargs = {
             "task_id": TASK_ID,
             "pipeline_name": None,
@@ -752,10 +760,11 @@ class TestDataflowDeletePipelineOperator:
             DataflowDeletePipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
     @pytest.mark.db_test
-    def test_invalid_project_id(self):
+    def test_invalid_project_id(self, mock_supervisor_comms):
         """
         Test that AirflowException is raised if Delete Operator is not given a project ID.
         """
+        mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
         init_kwargs = {
             "task_id": TASK_ID,
             "pipeline_name": TEST_PIPELINE_NAME,
@@ -767,10 +776,11 @@ class TestDataflowDeletePipelineOperator:
             DataflowDeletePipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
     @pytest.mark.db_test
-    def test_invalid_location(self):
+    def test_invalid_location(self, mock_supervisor_comms):
         """
         Test that AirflowException is raised if Delete Operator is not given a location.
         """
+        mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
         init_kwargs = {
             "task_id": TASK_ID,
             "pipeline_name": TEST_PIPELINE_NAME,
@@ -782,10 +792,11 @@ class TestDataflowDeletePipelineOperator:
             DataflowDeletePipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
     @pytest.mark.db_test
-    def test_invalid_response(self):
+    def test_invalid_response(self, mock_supervisor_comms):
         """
         Test that AirflowException is raised if Delete Operator fails execution and returns error.
         """
+        mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
         init_kwargs = {
             "task_id": TASK_ID,
             "pipeline_name": TEST_PIPELINE_NAME,

@@ -25,6 +25,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from airflow.providers.google.cloud.log.gcs_task_handler import GCSTaskHandler
+from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.execution_time.comms import ErrorResponse
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import datetime
 
@@ -99,7 +101,10 @@ class TestGCSTaskHandler:
     )
     @mock.patch("google.cloud.storage.Client")
     @mock.patch("google.cloud.storage.Blob")
-    def test_should_read_logs_from_remote(self, mock_blob, mock_client, mock_creds, session):
+    def test_should_read_logs_from_remote(
+        self, mock_blob, mock_client, mock_creds, session, mock_supervisor_comms
+    ):
+        mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
         mock_obj = MagicMock()
         mock_obj.name = "remote/log/location/1.log"
         mock_client.return_value.list_blobs.return_value = [mock_obj]
