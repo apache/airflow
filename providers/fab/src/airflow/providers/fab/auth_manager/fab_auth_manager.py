@@ -175,6 +175,7 @@ if AIRFLOW_V_3_1_PLUS:
     from airflow.providers.fab.www.security.permissions import RESOURCE_HITL_DETAIL
 
     _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE[MenuItem.REQUIRED_ACTIONS] = RESOURCE_HITL_DETAIL
+    _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE[DagAccessEntity.HITL_DETAIL] = (RESOURCE_HITL_DETAIL,)
 
 
 class FabAuthManager(BaseAuthManager[User]):
