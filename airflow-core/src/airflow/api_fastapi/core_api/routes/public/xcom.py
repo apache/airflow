@@ -26,7 +26,14 @@ from sqlalchemy.orm import joinedload
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
-from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, QueryXComKeyPatternSearch
+from airflow.api_fastapi.common.parameters import (
+    QueryLimit,
+    QueryOffset,
+    QueryXComDagIdPatternSearch,
+    QueryXComKeyPatternSearch,
+    QueryXComRunIdPatternSearch,
+    QueryXComTaskIdPatternSearch,
+)
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.xcom import (
     XComCollectionResponse,
@@ -128,6 +135,9 @@ def get_xcom_entries(
     readable_xcom_filter: ReadableXComFilterDep,
     session: SessionDep,
     xcom_key_pattern: QueryXComKeyPatternSearch,
+    dag_id_pattern: QueryXComDagIdPatternSearch,
+    run_id_pattern: QueryXComRunIdPatternSearch,
+    task_id_pattern: QueryXComTaskIdPatternSearch,
     map_index: Annotated[int | None, Query(ge=-1)] = None,
 ) -> XComCollectionResponse:
     """
@@ -144,14 +154,22 @@ def get_xcom_entries(
 
     if task_id != "~":
         query = query.where(XComModel.task_id == task_id)
+
     if dag_run_id != "~":
         query = query.where(DR.run_id == dag_run_id)
+
     if map_index is not None:
         query = query.where(XComModel.map_index == map_index)
 
     query, total_entries = paginated_select(
         statement=query,
-        filters=[readable_xcom_filter, xcom_key_pattern],
+        filters=[
+            readable_xcom_filter,
+            xcom_key_pattern,
+            dag_id_pattern,
+            run_id_pattern,
+            task_id_pattern,
+        ],
         offset=offset,
         limit=limit,
         session=session,

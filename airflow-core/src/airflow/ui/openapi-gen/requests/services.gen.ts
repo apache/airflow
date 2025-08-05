@@ -3008,6 +3008,9 @@ export class XcomService {
      * @param data.limit
      * @param data.offset
      * @param data.xcomKeyPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns XComCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -3024,7 +3027,10 @@ export class XcomService {
                 map_index: data.mapIndex,
                 limit: data.limit,
                 offset: data.offset,
-                xcom_key_pattern: data.xcomKeyPattern
+                xcom_key_pattern: data.xcomKeyPattern,
+                dag_id_pattern: data.dagIdPattern,
+                run_id_pattern: data.runIdPattern,
+                task_id_pattern: data.taskIdPattern
             },
             errors: {
                 400: 'Bad Request',

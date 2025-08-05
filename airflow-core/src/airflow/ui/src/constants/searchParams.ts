@@ -17,6 +17,7 @@
  * under the License.
  */
 export enum SearchParamsKeys {
+  DAG_ID_PATTERN = "dag_id_pattern",
   DEPENDENCIES = "dependencies",
   END_DATE = "end_date",
   FAVORITE = "favorite",
@@ -37,6 +38,7 @@ export enum SearchParamsKeys {
   STATE = "state",
   TAGS = "tags",
   TAGS_MATCH_MODE = "tags_match_mode",
+  TASK_ID_PATTERN = "task_id_pattern",
   TRY_NUMBER = "try_number",
   VERSION_NUMBER = "version_number",
 }

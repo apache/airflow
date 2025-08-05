@@ -1078,18 +1078,24 @@ export const useXcomServiceGetXcomEntry = <TData = Common.XcomServiceGetXcomEntr
 * @param data.limit
 * @param data.offset
 * @param data.xcomKeyPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @returns XComCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useXcomServiceGetXcomEntries = <TData = Common.XcomServiceGetXcomEntriesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, limit, mapIndex, offset, taskId, xcomKeyPattern }: {
+export const useXcomServiceGetXcomEntries = <TData = Common.XcomServiceGetXcomEntriesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagIdPattern, dagRunId, limit, mapIndex, offset, runIdPattern, taskId, taskIdPattern, xcomKeyPattern }: {
   dagId: string;
+  dagIdPattern?: string;
   dagRunId: string;
   limit?: number;
   mapIndex?: number;
   offset?: number;
+  runIdPattern?: string;
   taskId: string;
+  taskIdPattern?: string;
   xcomKeyPattern?: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseXcomServiceGetXcomEntriesKeyFn({ dagId, dagRunId, limit, mapIndex, offset, taskId, xcomKeyPattern }, queryKey), queryFn: () => XcomService.getXcomEntries({ dagId, dagRunId, limit, mapIndex, offset, taskId, xcomKeyPattern }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseXcomServiceGetXcomEntriesKeyFn({ dagId, dagIdPattern, dagRunId, limit, mapIndex, offset, runIdPattern, taskId, taskIdPattern, xcomKeyPattern }, queryKey), queryFn: () => XcomService.getXcomEntries({ dagId, dagIdPattern, dagRunId, limit, mapIndex, offset, runIdPattern, taskId, taskIdPattern, xcomKeyPattern }) as TData, ...options });
 /**
 * Get Tasks
 * Get tasks for DAG.

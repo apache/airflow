@@ -569,15 +569,18 @@ export const UseXcomServiceGetXcomEntryKeyFn = ({ dagId, dagRunId, deserialize, 
 export type XcomServiceGetXcomEntriesDefaultResponse = Awaited<ReturnType<typeof XcomService.getXcomEntries>>;
 export type XcomServiceGetXcomEntriesQueryResult<TData = XcomServiceGetXcomEntriesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useXcomServiceGetXcomEntriesKey = "XcomServiceGetXcomEntries";
-export const UseXcomServiceGetXcomEntriesKeyFn = ({ dagId, dagRunId, limit, mapIndex, offset, taskId, xcomKeyPattern }: {
+export const UseXcomServiceGetXcomEntriesKeyFn = ({ dagId, dagIdPattern, dagRunId, limit, mapIndex, offset, runIdPattern, taskId, taskIdPattern, xcomKeyPattern }: {
   dagId: string;
+  dagIdPattern?: string;
   dagRunId: string;
   limit?: number;
   mapIndex?: number;
   offset?: number;
+  runIdPattern?: string;
   taskId: string;
+  taskIdPattern?: string;
   xcomKeyPattern?: string;
-}, queryKey?: Array<unknown>) => [useXcomServiceGetXcomEntriesKey, ...(queryKey ?? [{ dagId, dagRunId, limit, mapIndex, offset, taskId, xcomKeyPattern }])];
+}, queryKey?: Array<unknown>) => [useXcomServiceGetXcomEntriesKey, ...(queryKey ?? [{ dagId, dagIdPattern, dagRunId, limit, mapIndex, offset, runIdPattern, taskId, taskIdPattern, xcomKeyPattern }])];
 export type TaskServiceGetTasksDefaultResponse = Awaited<ReturnType<typeof TaskService.getTasks>>;
 export type TaskServiceGetTasksQueryResult<TData = TaskServiceGetTasksDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useTaskServiceGetTasksKey = "TaskServiceGetTasks";

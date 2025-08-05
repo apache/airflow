@@ -729,6 +729,15 @@ QueryTIDagVersionFilter = Annotated[
 QueryXComKeyPatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(XComModel.key, "xcom_key_pattern"))
 ]
+QueryXComDagIdPatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(XComModel.dag_id, "dag_id_pattern"))
+]
+QueryXComRunIdPatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(XComModel.run_id, "run_id_pattern"))
+]
+QueryXComTaskIdPatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(XComModel.task_id, "task_id_pattern"))
+]
 
 # Assets
 QueryAssetNamePatternSearch = Annotated[
