@@ -3117,3 +3117,5 @@ logs:
     storageClassName:
     ## the name of an existing PVC to use
     existingClaim:
+    ## the subpath of the existing PVC to use
+    subPath:
