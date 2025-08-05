@@ -173,7 +173,6 @@ class DeferredIterable(Iterator, ResolveMixin, LoggingMixin):
     @classmethod
     def get_operator_from_dag(cls, dag_fileloc: str, dag_id: str, task_id: str) -> Operator:
         """Loads a DAG using DagBag and gets the operator by task_id."""
-
         from airflow.models import DagBag
 
         dag_bag = DagBag(collect_dags=False)  # Avoid loading all DAGs
