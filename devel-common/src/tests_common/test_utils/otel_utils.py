@@ -20,6 +20,7 @@ import json
 import logging
 import pprint
 from collections import defaultdict
+from typing import Literal
 
 from sqlalchemy import inspect, select
 
@@ -94,16 +95,14 @@ def clean_task_lines(lines: list) -> list:
     return cleaned_lines
 
 
-def _extract_obj_from_output(output_lines: list[str], kind: str):
+def _extract_obj_from_output(output_lines: list[str], kind: Literal["spans"] | Literal["metrics"]):
     """
     Used to extract spans or metrics from the output.
 
     Parameters
     ----------
-    output_lines : list[str]
-        The captured stdout split into lines.
-    kind : "spans" | "metrics"
-        Which json type to extract from the output.
+    :param output_lines: The captured stdout split into lines.
+    :param kind: Which json type to extract from the output.
     """
     assert kind in ("spans", "metrics")
 
