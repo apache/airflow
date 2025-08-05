@@ -169,3 +169,21 @@ class TestSambaHook:
         get_conn_mock.return_value = CONNECTION
         hook = SambaHook("samba_default")
         assert hook._join_path(path) == full_path
+
+    @mock.patch("airflow.providers.samba.hooks.samba.smbclient.open_file", return_value=mock.Mock())
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
+    def test_open_file(self, get_conn_mock, open_file_mock):
+        CONNECTION = Connection(
+            host="ip",
+            schema="share",
+            login="username",
+            password="password",
+        )
+
+        get_conn_mock.return_value = CONNECTION
+        samba_hook = SambaHook("samba_default")
+        path = "test_file.txt"
+        mode = "wb"
+        result = samba_hook.open_file(path, mode=mode)
+        assert result is not None, "open_file method returned None"
+        assert hasattr(result, "write"), f"Error: {result} does not have a 'write' method"
