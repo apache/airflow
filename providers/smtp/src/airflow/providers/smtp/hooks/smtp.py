@@ -46,6 +46,11 @@ if TYPE_CHECKING:
         from airflow.models.connection import Connection  # type: ignore[assignment]
 
 
+def build_xoauth2_string(username: str, token: str) -> str:
+    """Local fallback for older Airflow cores (≤2.11)."""
+    return f"user={username}\x01auth=Bearer {token}\x01\x01"
+
+
 class SmtpHook(BaseHook):
     """
     This hook connects to a mail server by using the smtp protocol.
@@ -62,11 +67,13 @@ class SmtpHook(BaseHook):
     conn_type = "smtp"
     hook_name = "SMTP"
 
-    def __init__(self, smtp_conn_id: str = default_conn_name) -> None:
+    def __init__(self, smtp_conn_id: str = default_conn_name, auth_type: str = "basic") -> None:
         super().__init__()
         self.smtp_conn_id = smtp_conn_id
         self.smtp_connection: Connection | None = None
         self.smtp_client: smtplib.SMTP_SSL | smtplib.SMTP | None = None
+        self._auth_type = auth_type
+        self._access_token: str | None = None
 
     def __enter__(self) -> SmtpHook:
         return self.get_conn()
@@ -98,7 +105,21 @@ class SmtpHook(BaseHook):
                 else:
                     if self.smtp_starttls:
                         self.smtp_client.starttls()
-                    if self.smtp_user and self.smtp_password:
+
+                    # choose auth
+                    if self._auth_type == "oauth2":
+                        if not self._access_token:
+                            self._access_token = self._get_oauth2_token()
+                        user_identity = self.smtp_user or self.from_email
+                        if user_identity is None:
+                            raise AirflowException(
+                                "smtp_user or from_email must be set for OAuth2 authentication"
+                            )
+                        self.smtp_client.auth(
+                            "XOAUTH2",
+                            lambda _=None: build_xoauth2_string(user_identity, self._access_token),
+                        )
+                    elif self.smtp_user and self.smtp_password:
                         self.smtp_client.login(self.smtp_user, self.smtp_password)
                     break
 
@@ -136,7 +157,7 @@ class SmtpHook(BaseHook):
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import BooleanField, IntegerField, StringField
-        from wtforms.validators import NumberRange
+        from wtforms.validators import NumberRange, any_of
 
         return {
             "from_email": StringField(lazy_gettext("From email"), widget=BS3TextFieldWidget()),
@@ -160,6 +181,18 @@ class SmtpHook(BaseHook):
             "html_content_template": StringField(
                 lazy_gettext("Path to the html content template"), widget=BS3TextFieldWidget()
             ),
+            "auth_type": StringField(
+                lazy_gettext("Auth Type"),
+                widget=BS3TextFieldWidget(),
+                description="basic  or  oauth2",
+                validators=[any_of(["basic", "oauth2"])],
+                default="basic",
+            ),
+            "access_token": StringField(lazy_gettext("Access Token"), widget=BS3TextFieldWidget()),
+            "client_id": StringField(lazy_gettext("Client ID"), widget=BS3TextFieldWidget()),
+            "client_secret": StringField(lazy_gettext("Client Secret"), widget=BS3TextFieldWidget()),
+            "tenant_id": StringField(lazy_gettext("Tenant ID"), widget=BS3TextFieldWidget()),
+            "scope": StringField(lazy_gettext("Scope"), widget=BS3TextFieldWidget()),
         }
 
     def test_connection(self) -> tuple[bool, str]:
@@ -353,6 +386,40 @@ class SmtpHook(BaseHook):
         pattern = r"\s*[,;]\s*"
         return re.split(pattern, addresses)
 
+    def _get_oauth2_token(self) -> str:
+        """
+        Return a valid OAuth 2.0 access-token.
+
+        If access_token provided in connection extra, then use it.
+        Else, try MSAL client-credential flow when client_id & client_secret exist.
+        """
+        extra = self.conn.extra_dejson
+
+        if token := extra.get("access_token"):
+            return token
+
+        client_id = extra.get("client_id")
+        client_secret = extra.get("client_secret")
+        tenant_id = extra.get("tenant_id", "common")
+        scope = extra.get("scope", "https://outlook.office.com/.default")
+
+        if client_id and client_secret:
+            from msal import ConfidentialClientApplication
+
+            app = ConfidentialClientApplication(
+                client_id=client_id,
+                client_credential=client_secret,
+                authority=f"https://login.microsoftonline.com/{tenant_id}",
+            )
+            result = app.acquire_token_for_client(scopes=[scope])
+            if "access_token" not in result:
+                raise AirflowException(f"Unable to obtain access token: {result.get('error_description')}")
+            return result["access_token"]
+
+        raise AirflowException(
+            "auth_type='oauth2' but neither 'access_token' nor client credentials supplied in connection extra."
+        )
+
     @property
     def conn(self) -> Connection:
         if not self.smtp_connection:
@@ -406,6 +473,19 @@ class SmtpHook(BaseHook):
     @property
     def ssl_context(self) -> str | None:
         return self.conn.extra_dejson.get("ssl_context")
+
+    @property
+    def auth_type(self) -> str:
+        return self.conn.extra_dejson.get("auth_type", self._auth_type)
+
+    @property
+    def access_token(self) -> str | None:
+        if self._access_token:
+            return self._access_token
+        token = self.conn.extra_dejson.get("access_token")
+        if token:
+            self._access_token = token
+        return self._access_token
 
     @staticmethod
     def _read_template(template_path: str) -> str:

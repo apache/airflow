@@ -287,6 +287,26 @@ class TestSecretsMasker:
 
         assert filt.redact(value, name) == expected
 
+    @pytest.mark.parametrize(
+        ("name", "value", "expected"),
+        [
+            ("api_key", "pass", "*️⃣*️⃣*️⃣"),
+            ("api_key", ("pass",), ("*️⃣*️⃣*️⃣",)),
+            (None, {"data": {"secret": "secret"}}, {"data": {"secret": "*️⃣*️⃣*️⃣"}}),
+            # Non string dict keys
+            (None, {1: {"secret": "secret"}}, {1: {"secret": "*️⃣*️⃣*️⃣"}}),
+            (
+                "api_key",
+                {"other": "innoent", "nested": ["x", "y"]},
+                {"other": "*️⃣*️⃣*️⃣", "nested": ["*️⃣*️⃣*️⃣", "*️⃣*️⃣*️⃣"]},
+            ),
+        ],
+    )
+    def test_redact_replacement(self, name, value, expected):
+        filt = SecretsMasker()
+
+        assert filt.redact(value, name, replacement="*️⃣*️⃣*️⃣") == expected
+
     def test_redact_filehandles(self, caplog):
         filt = SecretsMasker()
         with open("/dev/null", "w") as handle:
@@ -609,7 +629,10 @@ class TestContainerTypesRedaction:
         secrets_masker = SecretsMasker()
 
         with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
-            with patch("airflow.sdk.execution_time.secrets_masker._is_v1_env_var", return_value=True):
+            with patch(
+                "airflow.sdk.execution_time.secrets_masker._is_v1_env_var",
+                side_effect=lambda a: isinstance(a, MockV1EnvVar),
+            ):
                 redacted_secret = redact(secret_env_var)
                 redacted_normal = redact(normal_env_var)
 
@@ -696,7 +719,7 @@ class TestDirectMethodCalls:
             "nested": {"tuple": ("a", "b", "c"), "set": {"x", "y", "z"}},
         }
 
-        result = secrets_masker._redact_all(test_data, depth=0)
+        result = secrets_masker._redact_all(test_data, depth=0, replacement="***")
 
         assert result["string"] == "***"
         assert result["number"] == 12345
