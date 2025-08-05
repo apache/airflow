@@ -18,6 +18,7 @@
  */
 import { Flex, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { DAGRunPatchStates, DAGRunResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
@@ -35,6 +36,7 @@ type Props = {
 const MarkRunAsDialog = ({ dagRun, onClose, open, state }: Props) => {
   const dagId = dagRun.dag_id;
   const dagRunId = dagRun.dag_run_id;
+  const { t: translate } = useTranslation();
 
   const [note, setNote] = useState<string | null>(dagRun.note);
   const { isPending, mutate } = usePatchDagRun({ dagId, dagRunId, onSuccess: onClose });
@@ -45,7 +47,11 @@ const MarkRunAsDialog = ({ dagRun, onClose, open, state }: Props) => {
         <Dialog.Header>
           <VStack align="start" gap={4}>
             <Heading size="xl">
-              <strong>Mark DagRun as {state}:</strong> {dagRunId} <StateBadge state={state} />
+              {translate("dags:runAndTaskActions.markAs.title", {
+                state,
+                type: translate("dagRun_one"),
+              })}
+              : {dagRunId} <StateBadge state={state} />
             </Heading>
           </VStack>
         </Dialog.Header>
@@ -66,7 +72,7 @@ const MarkRunAsDialog = ({ dagRun, onClose, open, state }: Props) => {
                 });
               }}
             >
-              Confirm
+              {translate("modal.confirm")}
             </Button>
           </Flex>
         </Dialog.Body>

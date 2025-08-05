@@ -27,6 +27,106 @@
 Changelog
 ---------
 
+3.12.2
+......
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup mypy ignores in celery provider (#53261)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Use standard library ''typing'' imports for Python 3.10+ (#53158)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bumping min version of azure-storage-blob to 12.26.0 (#53440)``
+   * ``Resolve OOM When Reading Large Logs in Webserver (#49470)``
+   * ``Make dag_version_id in TI non-nullable (#50825)``
+   * ``OpenTelemetry traces implementation cleanup (#49180)``
+
+3.12.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prevent legacy static hybrid executors to be running in Airflow 3 (#51760)``
+
+Misc
+~~~~
+
+* ``Upgrade ruff to latest version (0.12.1) (#52562)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Use BaseSensorOperator from task sdk in providers (#52296)``
+* ``Remove unused import Sequence from the celery_executor.py (#52290)``
+* ``Move type-ignores up one line (#52195)``
+* ``Ignore mypy errors for deprecated executors (#52187)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unused pytestmark = pytest.mark.db_test (#52067)``
+
+3.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Enhance Celery CLI with Worker and Queue Management Features (#51257)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Celery executor subprocess to stream stdout/stderr using subprocess.run (#50682)``
+
+Misc
+~~~~
+
+* ``Add worker_umask to celery provider.yaml (#51218)``
+* ``Remove Airflow 2 code path in executors (#51009)``
+* ``Prevent legacy static hybrid executors to be running in Airflow 3 (#51733)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update the executor and provider doc to highlight the two statically coded hybrid executors are no longer supported in Airflow 3.0.0+ (#51715)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.11.0
+......
+
+.. note::
+    This release of provider is only available for Airflow 2.10+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix execution API server URL handling for relative paths (#49782)``
+
+Misc
+~~~~
+
+* ``Min provider version=2.10; use running_state freely (#49924)``
+* ``Remove AIRFLOW_2_10_PLUS conditions (#49877)``
+* ``Bump min Airflow version in providers to 2.10 (#49843)``
+* ``Make default execution server URL be relative to API Base URL (#49747)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Revert "Limit Celery to not include 5.5.2 (#49940)" (#49951)``
+   * ``Limit Celery to not include 5.5.2 (#49940)``
+   * ``Avoid committing history for providers (#49907)``
+   * ``capitalize the term airflow (#49450)``
+   * ``Prepare docs for Apr 3rd wave of providers (#49338)``
+   * ``Move celery integration tests to celery provider. (#49178)``
+
 3.10.6
 ......
 

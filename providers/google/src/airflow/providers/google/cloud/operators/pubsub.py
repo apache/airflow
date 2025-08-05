@@ -25,8 +25,8 @@ This module contains Google PubSub operators.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.pubsub_v1.types import (
@@ -40,6 +40,7 @@ from google.cloud.pubsub_v1.types import (
     SchemaSettings,
 )
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.providers.google.cloud.links.pubsub import PubSubSubscriptionLink, PubSubTopicLink
@@ -182,7 +183,6 @@ class PubSubCreateTopicOperator(GoogleCloudBaseOperator):
         self.log.info("Created topic %s", self.topic)
         PubSubTopicLink.persist(
             context=context,
-            task_instance=self,
             topic_id=self.topic,
             project_id=self.project_id or hook.project_id,
         )
@@ -391,7 +391,6 @@ class PubSubCreateSubscriptionOperator(GoogleCloudBaseOperator):
         self.log.info("Created subscription for topic %s", self.topic)
         PubSubSubscriptionLink.persist(
             context=context,
-            task_instance=self,
             subscription_id=self.subscription or result,  # result returns subscription name
             project_id=self.project_id or hook.project_id,
         )
@@ -770,7 +769,7 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
         messages_callback: Callable[[list[ReceivedMessage], Context], Any] | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: int = 300,
         **kwargs,
     ) -> None:

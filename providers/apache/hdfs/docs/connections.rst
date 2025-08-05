@@ -44,4 +44,6 @@ Extra (optional, connection parameters)
     * ``use_ssl`` - If SSL should be used. By default is set to `false`.
     * ``verify`` - How to verify SSL. For more information refer to https://docs.python-requests.org/en/master/user/advanced/#ssl-cert-verification.
     * ``cert`` - Client certificate path for mTLS, can be combined cert or used with ``key``
-    * ``key`` - Client key path for mTLS with ``cert``
+    * ``key`` - Client key path for mTLS with ``cert``.
+    * ``cookies`` - Add cookies to session.
+    * ``headers`` - Add headers to session.

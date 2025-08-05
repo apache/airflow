@@ -18,6 +18,7 @@
  */
 import { Box, chakra, Flex, Link } from "@chakra-ui/react";
 import type { MouseEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { FiChevronUp } from "react-icons/fi";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
@@ -48,13 +49,14 @@ const onMouseLeave = (event: MouseEvent<HTMLDivElement>) => {
 };
 
 export const TaskNames = ({ nodes }: Props) => {
+  const { t: translate } = useTranslation("dag");
   const { toggleGroupId } = useOpenGroups();
-  const { dagId = "", taskId } = useParams();
+  const { dagId = "", groupId, taskId } = useParams();
   const [searchParams] = useSearchParams();
 
   return nodes.map((node) => (
     <Box
-      bg={node.id === taskId ? "blue.muted" : undefined}
+      bg={node.id === taskId || node.id === groupId ? "blue.muted" : undefined}
       borderBottomWidth={1}
       borderColor={node.isGroup ? "border.emphasized" : "border.muted"}
       id={node.id.replaceAll(".", "-")}
@@ -65,35 +67,50 @@ export const TaskNames = ({ nodes }: Props) => {
       transition="background-color 0.2s"
     >
       {node.isGroup ? (
-        <Flex>
-          <TaskName
-            display="inline"
-            fontSize="sm"
-            fontWeight="normal"
-            isGroup={true}
-            isMapped={Boolean(node.is_mapped)}
-            label={node.label}
-            paddingLeft={node.depth * 3 + 2}
-            setupTeardownType={node.setup_teardown_type}
-          />
-          <chakra.button
-            aria-label="Toggle group"
-            display="inline"
-            height="20px"
-            ml={1}
-            onClick={() => toggleGroupId(node.id)}
-            outlineColor="bg.inverted"
-            px={1}
+        <Link asChild data-testid={node.id} display="block" width="100%">
+          <RouterLink
+            replace
+            style={{ outline: "none" }}
+            to={{
+              pathname: `/dags/${dagId}/tasks/group/${node.id}`,
+              search: searchParams.toString(),
+            }}
           >
-            <FiChevronUp
-              size="1rem"
-              style={{
-                transform: `rotate(${node.isOpen ? 0 : 180}deg)`,
-                transition: "transform 0.5s",
-              }}
-            />
-          </chakra.button>
-        </Flex>
+            <Flex alignItems="center" width="100%">
+              <TaskName
+                fontSize="sm"
+                fontWeight="normal"
+                isGroup={true}
+                isMapped={Boolean(node.is_mapped)}
+                label={node.label}
+                paddingLeft={node.depth * 3 + 2}
+                setupTeardownType={node.setup_teardown_type}
+              />
+              <chakra.span
+                _focus={{ outline: "none" }}
+                alignItems="center"
+                aria-label={translate("grid.buttons.toggleGroup")}
+                cursor="pointer"
+                display="inline-flex"
+                ml={1}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  toggleGroupId(node.id);
+                }}
+                px={1}
+              >
+                <FiChevronUp
+                  size="1rem"
+                  style={{
+                    transform: `rotate(${node.isOpen ? 0 : 180}deg)`,
+                    transition: "transform 0.5s",
+                  }}
+                />
+              </chakra.span>
+            </Flex>
+          </RouterLink>
+        </Link>
       ) : (
         <Link asChild data-testid={node.id} display="inline">
           <RouterLink

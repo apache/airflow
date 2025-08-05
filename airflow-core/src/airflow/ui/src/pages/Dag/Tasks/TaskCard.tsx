@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Heading, VStack, Box, SimpleGrid, Text, Link } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries/queries.ts";
@@ -35,6 +36,7 @@ type Props = {
 };
 
 export const TaskCard = ({ dagId, task }: Props) => {
+  const { t: translate } = useTranslation();
   const refetchInterval = useAutoRefresh({ dagId });
 
   const { data } = useTaskInstanceServiceGetTaskInstances(
@@ -42,7 +44,7 @@ export const TaskCard = ({ dagId, task }: Props) => {
       dagId,
       dagRunId: "~",
       limit: 14,
-      orderBy: "-run_after",
+      orderBy: ["-run_after"],
       taskId: task.task_id ?? "",
     },
     undefined,
@@ -64,19 +66,19 @@ export const TaskCard = ({ dagId, task }: Props) => {
       <SimpleGrid columns={4} gap={4} height={20}>
         <VStack align="flex-start" gap={1}>
           <Heading color="fg.muted" fontSize="xs">
-            Operator
+            {translate("task.operator")}
           </Heading>
           <Text fontSize="sm">{task.operator_name}</Text>
         </VStack>
         <VStack align="flex-start" gap={1}>
           <Heading color="fg.muted" fontSize="xs">
-            Trigger Rule
+            {translate("task.triggerRule")}
           </Heading>
           <Text fontSize="sm">{task.trigger_rule}</Text>
         </VStack>
         <VStack align="flex-start" gap={1}>
           <Heading color="fg.muted" fontSize="xs">
-            Last Instance
+            {translate("task.lastInstance")}
           </Heading>
           {data?.task_instances[0] ? (
             <TaskInstanceTooltip taskInstance={data.task_instances[0]}>

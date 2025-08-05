@@ -25,11 +25,16 @@ from typing import Any
 
 import pytest
 
-from airflow.decorators import setup, task, teardown
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import setup, task, teardown
+else:
+    from airflow.decorators import setup, task, teardown  # type: ignore[attr-defined,no-redef]
+
 
 pytestmark = pytest.mark.db_test
 
@@ -57,10 +62,10 @@ class TestPythonVirtualenvDecorator:
             import cloudpickle  # noqa: F401
 
         with dag_maker(serialized=True):
-            ret = f()
-        dag_maker.create_dagrun()
+            f()
+        dr = dag_maker.create_dagrun()
 
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        dag_maker.run_ti("f", dr)
 
     @DILL_MARKER
     def test_add_dill(self, dag_maker):
@@ -70,10 +75,10 @@ class TestPythonVirtualenvDecorator:
             import dill  # noqa: F401
 
         with dag_maker(serialized=True):
-            ret = f()
-        dag_maker.create_dagrun()
+            f()
+        dr = dag_maker.create_dagrun()
 
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        dag_maker.run_ti("f", dr)
 
     def test_no_requirements(self, dag_maker):
         """Tests that the python callable is invoked on task run."""
@@ -83,10 +88,10 @@ class TestPythonVirtualenvDecorator:
             pass
 
         with dag_maker(serialized=True):
-            ret = f()
-        dag_maker.create_dagrun()
+            f()
+        dr = dag_maker.create_dagrun()
 
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        dag_maker.run_ti("f", dr)
 
     @pytest.mark.parametrize(
         "serializer",
@@ -105,10 +110,10 @@ class TestPythonVirtualenvDecorator:
             raise Exception
 
         with dag_maker(serialized=True):
-            ret = f()
-        dag_maker.create_dagrun()
+            f()
+        dr = dag_maker.create_dagrun()
 
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        dag_maker.run_ti("f", dr)
 
     @pytest.mark.parametrize(
         "serializer",
@@ -128,10 +133,10 @@ class TestPythonVirtualenvDecorator:
             import funcsigs  # noqa: F401
 
         with dag_maker(serialized=True):
-            ret = f()
-        dag_maker.create_dagrun()
+            f()
+        dr = dag_maker.create_dagrun()
 
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        dag_maker.run_ti("f", dr)
 
     @pytest.mark.parametrize(
         "serializer",
@@ -156,10 +161,10 @@ class TestPythonVirtualenvDecorator:
                 raise Exception
 
         with dag_maker(serialized=True):
-            ret = f()
-        dag_maker.create_dagrun()
+            f()
+        dr = dag_maker.create_dagrun()
 
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        dag_maker.run_ti("f", dr)
 
     @pytest.mark.parametrize(
         "serializer",
@@ -192,10 +197,10 @@ class TestPythonVirtualenvDecorator:
                 raise Exception
 
         with dag_maker(template_searchpath=tmp_path.as_posix(), serialized=True):
-            ret = f()
-        dag_maker.create_dagrun()
+            f()
+        dr = dag_maker.create_dagrun()
 
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        dag_maker.run_ti("f", dr)
 
     @pytest.mark.parametrize(
         "serializer, extra_requirements",
@@ -217,10 +222,10 @@ class TestPythonVirtualenvDecorator:
             import funcsigs  # noqa: F401
 
         with dag_maker(serialized=True):
-            ret = f()
-        dag_maker.create_dagrun()
+            f()
+        dr = dag_maker.create_dagrun()
 
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        dag_maker.run_ti("f", dr)
 
     @pytest.mark.parametrize(
         "serializer",
@@ -237,11 +242,11 @@ class TestPythonVirtualenvDecorator:
             raise Exception
 
         with dag_maker(serialized=True):
-            ret = f()
-        dag_maker.create_dagrun()
+            f()
+        dr = dag_maker.create_dagrun()
 
         with pytest.raises(CalledProcessError):
-            ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            dag_maker.run_ti("f", dr)
 
     @pytest.mark.parametrize(
         "serializer, extra_requirements",
@@ -265,10 +270,10 @@ class TestPythonVirtualenvDecorator:
             raise Exception
 
         with dag_maker(serialized=True):
-            ret = f()
-        dag_maker.create_dagrun()
+            f()
+        dr = dag_maker.create_dagrun()
 
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        dag_maker.run_ti("f", dr)
 
     @pytest.mark.parametrize(
         "serializer, extra_requirements",
@@ -287,10 +292,10 @@ class TestPythonVirtualenvDecorator:
             raise Exception
 
         with dag_maker(serialized=True):
-            ret = f(0, 1, c=True)
-        dag_maker.create_dagrun()
+            f(0, 1, c=True)
+        dr = dag_maker.create_dagrun()
 
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        dag_maker.run_ti("f", dr)
 
     def test_return_none(self, dag_maker):
         @task.virtualenv
@@ -298,10 +303,10 @@ class TestPythonVirtualenvDecorator:
             return None
 
         with dag_maker(serialized=True):
-            ret = f()
-        dag_maker.create_dagrun()
+            f()
+        dr = dag_maker.create_dagrun()
 
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        dag_maker.run_ti("f", dr)
 
     def test_nonimported_as_arg(self, dag_maker):
         @task.virtualenv
@@ -309,10 +314,10 @@ class TestPythonVirtualenvDecorator:
             return None
 
         with dag_maker(serialized=True):
-            ret = f(datetime.datetime.now(tz=datetime.timezone.utc))
-        dag_maker.create_dagrun()
+            f(datetime.datetime.now(tz=datetime.timezone.utc))
+        dr = dag_maker.create_dagrun()
 
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        dag_maker.run_ti("f", dr)
 
     def test_marking_virtualenv_python_task_as_setup(self, dag_maker):
         @setup
@@ -321,13 +326,13 @@ class TestPythonVirtualenvDecorator:
             return 1
 
         with dag_maker(serialized=True) as dag:
-            ret = f()
-        dag_maker.create_dagrun()
+            f()
+        dr = dag_maker.create_dagrun()
 
         assert len(dag.task_group.children) == 1
         setup_task = dag.task_group.children["f"]
         assert setup_task.is_setup
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        dag_maker.run_ti("f", dr)
 
     def test_marking_virtualenv_python_task_as_teardown(self, dag_maker):
         @teardown
@@ -336,13 +341,13 @@ class TestPythonVirtualenvDecorator:
             return 1
 
         with dag_maker(serialized=True) as dag:
-            ret = f()
-        dag_maker.create_dagrun()
+            f()
+        dr = dag_maker.create_dagrun()
 
         assert len(dag.task_group.children) == 1
         teardown_task = dag.task_group.children["f"]
         assert teardown_task.is_teardown
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        dag_maker.run_ti("f", dr)
 
     @pytest.mark.parametrize("on_failure_fail_dagrun", [True, False])
     def test_marking_virtualenv_python_task_as_teardown_with_on_failure_fail(
@@ -354,14 +359,14 @@ class TestPythonVirtualenvDecorator:
             return 1
 
         with dag_maker(serialized=True) as dag:
-            ret = f()
-        dag_maker.create_dagrun()
+            f()
+        dr = dag_maker.create_dagrun()
 
         assert len(dag.task_group.children) == 1
         teardown_task = dag.task_group.children["f"]
         assert teardown_task.is_teardown
         assert teardown_task.on_failure_fail_dagrun is on_failure_fail_dagrun
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        dag_maker.run_ti("f", dr)
 
     def test_invalid_annotation(self, dag_maker):
         import uuid
@@ -377,10 +382,10 @@ class TestPythonVirtualenvDecorator:
             return value["unique_id"]
 
         with dag_maker(serialized=True):
-            ret = in_venv(value)
+            in_venv(value)
 
         dr = dag_maker.create_dagrun()
-        ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date)
+        dag_maker.run_ti("in_venv", dr)
         ti = dr.get_task_instances()[0]
 
         assert ti.state == TaskInstanceState.SUCCESS

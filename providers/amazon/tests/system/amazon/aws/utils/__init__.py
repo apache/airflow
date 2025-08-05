@@ -29,11 +29,16 @@ from uuid import uuid4
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
 
-from airflow.decorators import task
+try:
+    from airflow.sdk import task
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.providers.amazon.aws.hooks.ssm import SsmHook
-from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.state import DagRunState, State
 from airflow.utils.trigger_rule import TriggerRule
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from botocore.client import BaseClient
@@ -69,12 +74,11 @@ def _get_test_name() -> str:
     """
     # The exact layer of the stack will depend on if this is called directly
     # or from another helper, but the test will always contain the identifier.
-    test_filename: str = next(
-        frame.filename
+    return next(
+        Path(frame.filename).stem
         for frame in inspect.stack()
-        if any(identifier in frame.filename for identifier in TEST_FILE_IDENTIFIERS)
+        if any(identifier in Path(frame.filename).stem for identifier in TEST_FILE_IDENTIFIERS)
     )
-    return Path(test_filename).stem
 
 
 def _validate_env_id(env_id: str) -> str:
@@ -95,19 +99,18 @@ def _validate_env_id(env_id: str) -> str:
 
 
 @functools.cache
-def _fetch_from_ssm(key: str, test_name: str | None = None) -> str:
+def _fetch_from_ssm(key: str, test_name: str) -> str:
     """
     Test values are stored in the SSM Value as a JSON-encoded dict of key/value pairs.
 
     :param key: The key to search for within the returned Parameter Value.
     :return: The value of the provided key from SSM
     """
-    _test_name: str = test_name or _get_test_name()
     hook = SsmHook(aws_conn_id=None)
     value: str = ""
 
     try:
-        value = json.loads(hook.get_parameter_value(_test_name))[key]
+        value = json.loads(hook.get_parameter_value(test_name))[key]
     # Since a default value after the SSM check is allowed, these exceptions should not stop execution.
     except NoCredentialsError as e:
         log.info("No boto credentials found: %s", e)
@@ -136,9 +139,9 @@ class Variable:
     def __init__(
         self,
         name: str,
+        test_name: str,
         to_split: bool = False,
         delimiter: str | None = None,
-        test_name: str | None = None,
         optional: bool = False,
     ):
         self.name = name
@@ -188,7 +191,6 @@ class SystemTestContextBuilder:
 
     def __init__(self):
         self.variables = set()
-        self.env_id = set_env_id()
         self.test_name = _get_test_name()
 
     def add_variable(
@@ -229,7 +231,7 @@ class SystemTestContextBuilder:
 
         @task
         def variable_fetcher(ti=None):
-            ti.xcom_push(ENV_ID_KEY, self.env_id)
+            ti.xcom_push(ENV_ID_KEY, set_env_id(self.test_name))
             for variable in self.variables:
                 ti.xcom_push(variable.name, variable.get_value())
 
@@ -238,8 +240,8 @@ class SystemTestContextBuilder:
 
 def fetch_variable(
     key: str,
+    test_name: str,
     default_value: str | None = None,
-    test_name: str | None = None,
     optional: bool = False,
 ) -> str | None:
     """
@@ -261,7 +263,7 @@ def fetch_variable(
     return value
 
 
-def set_env_id() -> str:
+def set_env_id(test_name) -> str:
     """
     Retrieves or generates an Environment ID, validate that it is suitable,
     export it as an Environment Variable, and return it.
@@ -272,7 +274,7 @@ def set_env_id() -> str:
 
     :return: A valid System Test Environment ID.
     """
-    env_id: str = str(fetch_variable(ENV_ID_ENVIRON_KEY, DEFAULT_ENV_ID))
+    env_id: str = str(fetch_variable(ENV_ID_ENVIRON_KEY, test_name, DEFAULT_ENV_ID))
     env_id = _validate_env_id(env_id)
 
     os.environ[ENV_ID_ENVIRON_KEY] = env_id
@@ -384,3 +386,8 @@ def _purge_logs(
 @task
 def split_string(string):
     return string.split(",")
+
+
+@task
+def get_role_name(arn: str) -> str:
+    return arn.split("/")[-1]

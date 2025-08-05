@@ -16,12 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Callable
+from typing import TYPE_CHECKING, Annotated
 from urllib.parse import ParseResult, urljoin, urlparse
 
 from fastapi import Depends, HTTPException, Request, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer, OAuth2PasswordBearer
 from jwt import ExpiredSignatureError, InvalidTokenError
 from pydantic import NonNegativeInt
 
@@ -47,6 +48,7 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.xcom import XComModel
 
 if TYPE_CHECKING:
+    from fastapi.security import HTTPAuthorizationCredentials
     from sqlalchemy.sql import Select
 
     from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
@@ -61,36 +63,36 @@ auth_description = (
     "information (such as user identity and scope) to authenticate subsequent requests. "
     "To learn more about Airflow public API authentication, please read https://airflow.apache.org/docs/apache-airflow/stable/security/api.html."
 )
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", description=auth_description)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", description=auth_description, auto_error=False)
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
-async def get_user(token_str: Annotated[str, Depends(oauth2_scheme)]) -> BaseUser:
+async def resolve_user_from_token(token_str: str | None) -> BaseUser:
+    if not token_str:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+
     try:
         return await get_auth_manager().get_user_from_token(token_str)
     except ExpiredSignatureError:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Token Expired")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token Expired")
     except InvalidTokenError:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Invalid JWT token")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid JWT token")
+
+
+async def get_user(
+    oauth_token: str | None = Depends(oauth2_scheme),
+    bearer_credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+) -> BaseUser:
+    token_str = None
+    if bearer_credentials and bearer_credentials.scheme.lower() == "bearer":
+        token_str = bearer_credentials.credentials
+    elif oauth_token:
+        token_str = oauth_token
+
+    return await resolve_user_from_token(token_str)
 
 
 GetUserDep = Annotated[BaseUser, Depends(get_user)]
-
-
-async def get_user_with_exception_handling(request: Request) -> BaseUser | None:
-    # Currently the UI does not support JWT authentication, this method defines a fallback if no token is provided by the UI.
-    # We can remove this method when issue https://github.com/apache/airflow/issues/44884 is done.
-    token_str = None
-
-    # TODO remove try-except when authentication integrated everywhere, safeguard for non integrated clients and endpoints
-    try:
-        token_str = await oauth2_scheme(request)
-    except HTTPException as e:
-        if e.status_code == status.HTTP_401_UNAUTHORIZED:
-            return None
-
-    if not token_str:  # Handle None or empty token
-        return None
-    return await get_user(token_str)
 
 
 def requires_access_dag(
@@ -194,10 +196,10 @@ ReadableTagsFilterDep = Annotated[
 ]
 
 
-def requires_access_backfill(method: ResourceMethod) -> Callable:
+def requires_access_backfill(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+        user: GetUserDep,
     ) -> None:
         backfill_id: NonNegativeInt | None = request.path_params.get("backfill_id")
 
@@ -242,10 +244,10 @@ def requires_access_connection(method: ResourceMethod) -> Callable[[Request, Bas
     return inner
 
 
-def requires_access_configuration(method: ResourceMethod) -> Callable[[Request, BaseUser | None], None]:
+def requires_access_configuration(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+        user: GetUserDep,
     ) -> None:
         section: str | None = request.query_params.get("section") or request.path_params.get("section")
 
@@ -260,10 +262,10 @@ def requires_access_configuration(method: ResourceMethod) -> Callable[[Request, 
     return inner
 
 
-def requires_access_variable(method: ResourceMethod) -> Callable[[Request, BaseUser | None], None]:
+def requires_access_variable(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+        user: GetUserDep,
     ) -> None:
         variable_key: str | None = request.path_params.get("variable_key")
 
@@ -276,10 +278,10 @@ def requires_access_variable(method: ResourceMethod) -> Callable[[Request, BaseU
     return inner
 
 
-def requires_access_asset(method: ResourceMethod) -> Callable:
+def requires_access_asset(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+        user: GetUserDep,
     ) -> None:
         asset_id = request.path_params.get("asset_id")
 
@@ -292,10 +294,10 @@ def requires_access_asset(method: ResourceMethod) -> Callable:
     return inner
 
 
-def requires_access_view(access_view: AccessView) -> Callable[[Request, BaseUser | None], None]:
+def requires_access_view(access_view: AccessView) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+        user: GetUserDep,
     ) -> None:
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_view(
@@ -306,10 +308,10 @@ def requires_access_view(access_view: AccessView) -> Callable[[Request, BaseUser
     return inner
 
 
-def requires_access_asset_alias(method: ResourceMethod) -> Callable:
+def requires_access_asset_alias(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+        user: GetUserDep,
     ) -> None:
         asset_alias_id: str | None = request.path_params.get("asset_alias_id")
 
@@ -318,6 +320,18 @@ def requires_access_asset_alias(method: ResourceMethod) -> Callable:
                 method=method, details=AssetAliasDetails(id=asset_alias_id), user=user
             ),
         )
+
+    return inner
+
+
+def requires_authenticated() -> Callable:
+    """Just ensure the user is authenticated - no need to check any specific permissions."""
+
+    def inner(
+        request: Request,
+        user: GetUserDep,
+    ) -> None:
+        pass
 
     return inner
 

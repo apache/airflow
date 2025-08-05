@@ -1,0 +1,232 @@
+---
+name: Airflow Providers Bug report
+description: Problems and issues with code in Apache Airflow Providers
+labels: ["kind:bug", "area:providers", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      # yamllint disable rule:line-length
+      value: "
+        <img src='https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/logos/airflow_64x64_emoji_transparent.png' align='left' width='80' height='80'>
+        Thank you for finding the time to report a problem!
+
+        We really appreciate the community's efforts to improve Airflow.
+
+        Note, you do not need to create an issue if you have a change ready to submit!
+
+        You can open a [pull request](https://github.com/apache/airflow/pulls) immediately instead.
+        <br clear='left'/>"
+      # yamllint enable rule:line-length
+  - type: dropdown
+    attributes:
+      label: Apache Airflow Provider(s)
+      description: Provider(s) that the issue report is about (you can choose more than one)
+      multiple: true
+      options:
+        - airbyte
+        - alibaba
+        - amazon
+        - apache-beam
+        - apache-cassandra
+        - apache-drill
+        - apache-druid
+        - apache-flink
+        - apache-hdfs
+        - apache-hive
+        - apache-iceberg
+        - apache-impala
+        - apache-kafka
+        - apache-kylin
+        - apache-livy
+        - apache-pig
+        - apache-pinot
+        - apache-spark
+        - apache-tinkerpop
+        - apprise
+        - arangodb
+        - asana
+        - atlassian-jira
+        - celery
+        - cloudant
+        - cncf-kubernetes
+        - cohere
+        - common-compat
+        - common-io
+        - common-messaging
+        - common-sql
+        - databricks
+        - datadog
+        - dbt-cloud
+        - dingding
+        - discord
+        - docker
+        - edge3
+        - elasticsearch
+        - exasol
+        - fab
+        - facebook
+        - ftp
+        - git
+        - github
+        - google
+        - grpc
+        - hashicorp
+        - http
+        - imap
+        - influxdb
+        - jdbc
+        - jenkins
+        - keycloak
+        - microsoft-azure
+        - microsoft-mssql
+        - microsoft-psrp
+        - microsoft-winrm
+        - mongo
+        - mysql
+        - neo4j
+        - odbc
+        - openai
+        - openfaas
+        - openlineage
+        - opensearch
+        - opsgenie
+        - oracle
+        - pagerduty
+        - papermill
+        - pgvector
+        - pinecone
+        - postgres
+        - presto
+        - qdrant
+        - redis
+        - salesforce
+        - samba
+        - segment
+        - sendgrid
+        - sftp
+        - singularity
+        - slack
+        - smtp
+        - snowflake
+        - sqlite
+        - ssh
+        - standard
+        - tableau
+        - telegram
+        - teradata
+        - trino
+        - vertica
+        - weaviate
+        - yandex
+        - ydb
+        - zendesk
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Versions of Apache Airflow Providers
+      description: What Apache Airflow Providers versions are you using?
+      placeholder: You can use `pip freeze | grep apache-airflow-providers` (you can leave only relevant ones)
+  - type: input
+    attributes:
+      label: Apache Airflow version
+      description: >
+        What Apache Airflow version are you using?
+        [Only Airflow 2 is supported](https://github.com/apache/airflow#version-life-cycle) for bugs.
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Operating System
+      description: What Operating System are you using?
+      placeholder: "You can get it via `cat /etc/os-release` for example"
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: Deployment
+      description: >
+        What kind of deployment do you have? If you use a Managed Service, consider first using regular
+        channels of reporting issues for the service.
+      multiple: false
+      options:
+        - "Official Apache Airflow Helm Chart"
+        - "Other 3rd-party Helm chart"
+        - "Docker-Compose"
+        - "Other Docker-based deployment"
+        - "Virtualenv installation"
+        - "Astronomer"
+        - "Google Cloud Composer"
+        - "Amazon (AWS) MWAA"
+        - "Microsoft ADF Managed Airflow"
+        - "Other"
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Deployment details
+      description: Additional description of your deployment.
+      placeholder: >
+        Enter any relevant details of your deployment. Especially version of your tools,
+        software (docker-compose, helm, k8s, etc.), any customisation and configuration you added.
+  - type: textarea
+    attributes:
+      label: What happened
+      description: Describe what happened.
+      placeholder: >
+        Please provide the context in which the problem occurred and explain what happened
+  - type: textarea
+    attributes:
+      label: What you think should happen instead
+      description: What do you think went wrong?
+      placeholder: >
+        Please explain why you think the behaviour is erroneous. It is extremely helpful if you copy&paste
+        the fragment of logs showing the exact error messages or wrong behaviour and screenshots for
+        UI problems or YouTube link to a video of you demonstrating the problem. You can include files by
+        dragging and dropping them here.
+  - type: textarea
+    attributes:
+      label: How to reproduce
+      description: >
+        What should we do to reproduce the problem? If you are not able to provide a reproducible case,
+        please open a [Discussion](https://github.com/apache/airflow/discussions) instead.
+      placeholder: >
+        Please make sure you provide a reproducible step-by-step case of how to reproduce the problem
+        as minimally and precisely as possible. Keep in mind we do not have access to your cluster or
+        DAGs. Remember that non-reproducible issues will be closed! Opening a discussion is
+        recommended as a first step.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Anything else
+      description: Anything else we need to know?
+      placeholder: >
+        How often does this problem occur? (Once? Every time? Only when certain conditions are met?)
+        Any relevant logs to include? Put them here inside fenced
+        ``` ``` blocks or inside a foldable details tag if it's long:
+        <details><summary>x.log</summary> lots of stuff </details>
+  - type: checkboxes
+    attributes:
+      label: Are you willing to submit PR?
+      description: >
+        This is absolutely not required, but we are happy to guide you in the contribution process
+        especially if you already have a good understanding of how to implement the fix.
+        Airflow is a community-managed project and we love to bring new contributors in.
+        Find us in #new-contributors on Slack!
+      options:
+        - label: Yes I am willing to submit a PR!
+  - type: checkboxes
+    attributes:
+      label: Code of Conduct
+      description: >
+        The Code of Conduct helps create a safe space for everyone. We require
+        that everyone agrees to it.
+      options:
+        - label: >
+            I agree to follow this project's
+            [Code of Conduct](https://github.com/apache/airflow/blob/main/CODE_OF_CONDUCT.md)
+          required: true
+  - type: markdown
+    attributes:
+      value: "Thanks for completing our form!"

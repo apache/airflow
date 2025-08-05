@@ -58,6 +58,9 @@ __deprecated_classes = {
     "empty": {
         "EmptyOperator": "airflow.providers.standard.operators.empty.EmptyOperator",
     },
+    "email": {
+        "EmailOperator": "airflow.providers.smtp.operators.smtp.EmailOperator",
+    },
     "smooth": {
         "SmoothOperator": "airflow.providers.standard.operators.smooth.SmoothOperator",
     },

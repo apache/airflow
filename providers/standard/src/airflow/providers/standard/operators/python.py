@@ -21,30 +21,37 @@ import inspect
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import sys
 import textwrap
 import types
+import warnings
 from abc import ABCMeta, abstractmethod
-from collections.abc import Collection, Container, Iterable, Mapping, Sequence
+from collections.abc import Callable, Collection, Container, Iterable, Mapping, Sequence
 from functools import cache
+from itertools import chain
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Callable, NamedTuple, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 import lazy_object_proxy
+from packaging.requirements import InvalidRequirement, Requirement
+from packaging.specifiers import InvalidSpecifier
+from packaging.version import InvalidVersion
 
 from airflow.exceptions import (
     AirflowConfigException,
     AirflowException,
+    AirflowProviderDeprecationWarning,
     AirflowSkipException,
     DeserializingResultError,
 )
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.variable import Variable
+from airflow.providers.standard.hooks.package_index import PackageIndexHook
 from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv, write_python_script
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
 from airflow.utils import hashlib_wrapper
 from airflow.utils.context import context_copy_partial, context_merge
 from airflow.utils.file import get_unique_dag_module_name
@@ -323,7 +330,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
                 self.skip(
                     dag_run=context["dag_run"],
                     tasks=to_skip,
-                    execution_date=cast("DateTime", dag_run.logical_date),  # type: ignore[call-arg, union-attr]
+                    execution_date=cast("DateTime", dag_run.logical_date),  # type: ignore[call-arg]
                     map_index=context["ti"].map_index,
                 )
 
@@ -488,9 +495,21 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         return textwrap.dedent(inspect.getsource(self.python_callable))
 
     def _write_args(self, file: Path):
+        def resolve_proxies(obj):
+            """Recursively replaces lazy_object_proxy.Proxy instances with their resolved values."""
+            if isinstance(obj, lazy_object_proxy.Proxy):
+                return obj.__wrapped__  # force evaluation
+            if isinstance(obj, dict):
+                return {k: resolve_proxies(v) for k, v in obj.items()}
+            if isinstance(obj, list):
+                return [resolve_proxies(v) for v in obj]
+            return obj
+
         if self.op_args or self.op_kwargs:
             self.log.info("Use %r as serializer.", self.serializer)
-            file.write_bytes(self.pickling_library.dumps({"args": self.op_args, "kwargs": self.op_kwargs}))
+            file.write_bytes(
+                self.pickling_library.dumps({"args": self.op_args, "kwargs": resolve_proxies(self.op_kwargs)})
+            )
 
     def _write_string_args(self, file: Path):
         file.write_text("\n".join(map(str, self.string_args)))
@@ -637,6 +656,8 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         exit code will be treated as a failure.
     :param index_urls: an optional list of index urls to load Python packages from.
         If not provided the system pip conf will be used to source packages from.
+    :param index_urls_from_connection_ids: An optional list of ``PackageIndex`` connection IDs.
+        Will be appended to ``index_urls``.
     :param venv_cache_path: Optional path to the virtual environment parent folder in which the
         virtual environment will be cached, creates a sub-folder venv-{hash} whereas hash will be replaced
         with a checksum of requirements. If not provided the virtual environment will be created and deleted
@@ -650,7 +671,9 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
     """
 
     template_fields: Sequence[str] = tuple(
-        {"requirements", "index_urls", "venv_cache_path"}.union(PythonOperator.template_fields)
+        {"requirements", "index_urls", "index_urls_from_connection_ids", "venv_cache_path"}.union(
+            PythonOperator.template_fields
+        )
     )
     template_ext: Sequence[str] = (".txt",)
 
@@ -671,6 +694,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         expect_airflow: bool = True,
         skip_on_exit_code: int | Container[int] | None = None,
         index_urls: None | Collection[str] | str = None,
+        index_urls_from_connection_ids: None | Collection[str] | str = None,
         venv_cache_path: None | os.PathLike[str] = None,
         env_vars: dict[str, str] | None = None,
         inherit_env: bool = True,
@@ -705,6 +729,12 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             self.index_urls = list(index_urls)
         else:
             self.index_urls = None
+        if isinstance(index_urls_from_connection_ids, str):
+            self.index_urls_from_connection_ids: list[str] | None = [index_urls_from_connection_ids]
+        elif isinstance(index_urls_from_connection_ids, Collection):
+            self.index_urls_from_connection_ids = list(index_urls_from_connection_ids)
+        else:
+            self.index_urls_from_connection_ids = None
         self.venv_cache_path = venv_cache_path
         super().__init__(
             python_callable=python_callable,
@@ -831,7 +861,27 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             self.log.info("New Python virtual environment created in %s", venv_path)
             return venv_path
 
+    def _cleanup_python_pycache_dir(self, cache_dir_path: Path) -> None:
+        try:
+            shutil.rmtree(cache_dir_path)
+            self.log.debug("The directory %s has been deleted.", cache_dir_path)
+        except FileNotFoundError:
+            self.log.warning("Fail to delete %s. The directory does not exist.", cache_dir_path)
+        except PermissionError:
+            self.log.warning("Permission denied to delete the directory %s.", cache_dir_path)
+
+    def _retrieve_index_urls_from_connection_ids(self):
+        """Retrieve index URLs from Package Index connections."""
+        if self.index_urls is None:
+            self.index_urls = []
+        for conn_id in self.index_urls_from_connection_ids:
+            conn_url = PackageIndexHook(conn_id).get_connection_url()
+            self.index_urls.append(conn_url)
+
     def execute_callable(self):
+        if self.index_urls_from_connection_ids:
+            self._retrieve_index_urls_from_connection_ids()
+
         if self.venv_cache_path:
             venv_path = self._ensure_venv_cache_exists(Path(self.venv_cache_path))
             python_path = venv_path / "bin" / "python"
@@ -839,17 +889,49 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
 
         with TemporaryDirectory(prefix="venv") as tmp_dir:
             tmp_path = Path(tmp_dir)
+            tmp_dir, temp_venv_dir = tmp_path.relative_to(tmp_path.anchor).parts
+            custom_pycache_prefix = Path(sys.pycache_prefix or "")
+            venv_python_cache_dir = Path.cwd() / custom_pycache_prefix / tmp_dir / temp_venv_dir
             self._prepare_venv(tmp_path)
             python_path = tmp_path / "bin" / "python"
             result = self._execute_python_callable_in_subprocess(python_path)
+            self._cleanup_python_pycache_dir(venv_python_cache_dir)
             return result
 
     def _iter_serializable_context_keys(self):
         yield from self.BASE_SERIALIZABLE_CONTEXT_KEYS
-        if self.system_site_packages or "apache-airflow" in self.requirements:
+
+        found_airflow = found_pendulum = False
+
+        if self.system_site_packages:
+            # If we're using system packages, assume both are present
+            found_airflow = found_pendulum = True
+        else:
+            for raw_str in chain.from_iterable(req.splitlines() for req in self.requirements):
+                line = raw_str.strip()
+                # Skip blank lines and full‐line comments
+                if not line or line.startswith("#"):
+                    continue
+
+                # Strip off any inline comment
+                # e.g. turn "foo==1.2.3  # comment" → "foo==1.2.3"
+                req_str = re.sub(r"#.*$", "", line).strip()
+
+                try:
+                    req = Requirement(req_str)
+                except (InvalidRequirement, InvalidSpecifier, InvalidVersion) as e:
+                    raise ValueError(f"Invalid requirement '{raw_str}': {e}") from e
+
+                if req.name == "apache-airflow":
+                    found_airflow = found_pendulum = True
+                    break
+                elif req.name == "pendulum":
+                    found_pendulum = True
+
+        if found_airflow:
             yield from self.AIRFLOW_SERIALIZABLE_CONTEXT_KEYS
             yield from self.PENDULUM_SERIALIZABLE_CONTEXT_KEYS
-        elif "pendulum" in self.requirements:
+        elif found_pendulum:
             yield from self.PENDULUM_SERIALIZABLE_CONTEXT_KEYS
 
 
@@ -1113,6 +1195,13 @@ def get_current_context() -> Mapping[str, Any]:
     was starting to execute.
     """
     if AIRFLOW_V_3_0_PLUS:
+        warnings.warn(
+            "Using get_current_context from standard provider is deprecated and will be removed."
+            "Please import `from airflow.sdk import get_current_context` and use it instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+
         from airflow.sdk import get_current_context
 
         return get_current_context()

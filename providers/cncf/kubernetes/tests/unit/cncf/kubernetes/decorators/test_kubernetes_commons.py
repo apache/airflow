@@ -16,17 +16,17 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 from unittest import mock
 
 import pytest
 
-from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import setup, task, teardown
 else:
-    from airflow.decorators import setup, task, teardown
+    from airflow.decorators import setup, task, teardown  # type: ignore[attr-defined,no-redef]
 
 from airflow.utils import timezone
 
@@ -91,6 +91,7 @@ class TestKubernetesDecoratorsBase:
 
         self.mock_create_pod = mock.patch(f"{POD_MANAGER_CLASS}.create_pod").start()
         self.mock_await_pod_start = mock.patch(f"{POD_MANAGER_CLASS}.await_pod_start").start()
+        self.mock_watch_pod_events = mock.patch(f"{POD_MANAGER_CLASS}.watch_pod_events").start()
         self.mock_await_xcom_sidecar_container_start = mock.patch(
             f"{POD_MANAGER_CLASS}.await_xcom_sidecar_container_start"
         ).start()
@@ -107,6 +108,12 @@ class TestKubernetesDecoratorsBase:
         # {pod_manager.py:572} ERROR - Could not retrieve containers for the pod: ...
         self.mock_fetch_logs = mock.patch(f"{POD_MANAGER_CLASS}.fetch_requested_container_logs").start()
         self.mock_fetch_logs.return_value = "logs"
+
+        try:
+            yield
+        except Exception:
+            pass
+        mock.patch.stopall()
 
     def teardown_method(self):
         clear_db_runs()
@@ -185,6 +192,7 @@ class TestKubernetesDecoratorsCommons(TestKubernetesDecoratorsBase):
         teardown_task = self.dag.task_group.children[TASK_FUNCTION_NAME_ID]
         assert teardown_task.is_teardown
 
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "name",
         ["no_name_in_args", None, "test_task_name"],

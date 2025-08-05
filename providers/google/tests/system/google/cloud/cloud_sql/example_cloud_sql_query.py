@@ -21,6 +21,7 @@ Example Airflow DAG that performs query in a Cloud SQL instance.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 from collections import namedtuple
@@ -32,9 +33,6 @@ from typing import Any
 
 from googleapiclient import discovery
 
-from airflow import settings
-from airflow.decorators import task, task_group
-from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.cloud_sql import (
     CloudSQLCreateInstanceDatabaseOperator,
@@ -42,11 +40,19 @@ from airflow.providers.google.cloud.operators.cloud_sql import (
     CloudSQLDeleteInstanceOperator,
     CloudSQLExecuteQueryOperator,
 )
-from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import task, task_group
+else:
+    # Airflow 2 path
+    from airflow.decorators import task, task_group  # type: ignore[attr-defined,no-redef]
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 from system.openlineage.operator import OpenLineageTestOperator
+from tests_common.test_utils.api_client_helpers import create_airflow_connection, delete_airflow_connection
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
@@ -148,7 +154,6 @@ def cloud_sql_database_create_body(instance: str) -> dict[str, Any]:
 CLOUD_SQL_INSTANCE_NAME = ""
 DATABASE_TYPE = ""  # "postgres|mysql|mssql"
 
-
 # [START howto_operator_cloudsql_query_connections]
 # Connect via proxy over TCP
 CONNECTION_PROXY_TCP_KWARGS = {
@@ -206,7 +211,6 @@ CONNECTION_PUBLIC_TCP_KWARGS = {
 }
 
 # [END howto_operator_cloudsql_query_connections]
-
 
 CONNECTION_PROXY_SOCKET_ID = f"{DAG_ID}_{ENV_ID}_proxy_socket"
 CONNECTION_PROXY_TCP_ID = f"{DAG_ID}_{ENV_ID}_proxy_tcp"
@@ -373,9 +377,7 @@ os.environ["AIRFLOW_CONN_PUBLIC_MYSQL_TCP_SSL_NO_PROJECT_ID"] = (
 )
 # [END howto_operator_cloudsql_query_connections_env]
 
-
 log = logging.getLogger(__name__)
-
 
 with DAG(
     dag_id=DAG_ID,
@@ -454,20 +456,16 @@ with DAG(
             port: str,
             kwargs: dict[str, Any],
         ) -> str | None:
-            session = settings.Session()
-            log.info("Removing connection %s if it exists", connection_id)
-            query = session.query(Connection).filter(Connection.conn_id == connection_id)
-            query.delete()
-
             connection: dict[str, Any] = deepcopy(kwargs)
             connection["extra"]["instance"] = instance
             connection["host"] = ip_address
             connection["extra"]["database_type"] = db_type
             connection["port"] = port
-            _conn = Connection(conn_id=connection_id, **connection)
-            session.add(_conn)
-            session.commit()
-            log.info("Connection created: '%s'", connection_id)
+            connection["extra"] = json.dumps(connection["extra"])
+            create_airflow_connection(
+                connection_id=connection_id,
+                connection_conf=connection,
+            )
             return connection_id
 
         @task_group(group_id=f"create_connections_{database_type}")
@@ -513,11 +511,7 @@ with DAG(
 
         @task()
         def delete_connection(connection_id: str) -> None:
-            session = Session()
-            log.info("Removing connection %s", connection_id)
-            query = session.query(Connection).filter(Connection.conn_id == connection_id)
-            query.delete()
-            session.commit()
+            delete_airflow_connection(connection_id=connection_id)
 
         delete_connections_task = delete_connection.expand(
             connection_id=[f"{conn.id}_{database_type}" for conn in CONNECTIONS]

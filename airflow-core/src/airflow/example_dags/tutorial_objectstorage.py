@@ -15,7 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
+
+from collections.abc import Mapping
 
 # [START tutorial]
 # [START import_module]
@@ -26,19 +29,17 @@ from airflow.sdk import ObjectStoragePath, dag, task
 
 # [END import_module]
 
-API = "https://opendata.fmi.fi/timeseries"
+API = "https://air-quality-api.open-meteo.com/v1/air-quality"
 
 aq_fields = {
-    "fmisid": "int32",
-    "time": "datetime64[ns]",
-    "AQINDEX_PT1H_avg": "float64",
-    "PM10_PT1H_avg": "float64",
-    "PM25_PT1H_avg": "float64",
-    "O3_PT1H_avg": "float64",
-    "CO_PT1H_avg": "float64",
-    "SO2_PT1H_avg": "float64",
-    "NO2_PT1H_avg": "float64",
-    "TRSC_PT1H_avg": "float64",
+    "pm10": "float64",
+    "pm2_5": "float64",
+    "carbon_monoxide": "float64",
+    "nitrogen_dioxide": "float64",
+    "sulphur_dioxide": "float64",
+    "ozone": "float64",
+    "european_aqi": "float64",
+    "us_aqi": "float64",
 }
 
 # [START create_object_storage_path]
@@ -72,22 +73,26 @@ def tutorial_objectstorage():
         import pandas as pd
 
         logical_date = kwargs["logical_date"]
-        start_time = kwargs["data_interval_start"]
 
-        params = {
-            "format": "json",
-            "precision": "double",
-            "groupareas": "0",
-            "producer": "airquality_urban",
-            "area": "Uusimaa",
-            "param": ",".join(aq_fields.keys()),
-            "starttime": start_time.isoformat(timespec="seconds"),
-            "endtime": logical_date.isoformat(timespec="seconds"),
-            "tz": "UTC",
+        latitude = 28.6139
+        longitude = 77.2090
+
+        params: Mapping[str, str | float] = {
+            "latitude": latitude,
+            "longitude": longitude,
+            "hourly": ",".join(aq_fields.keys()),
+            "timezone": "UTC",
         }
 
         response = requests.get(API, params=params)
         response.raise_for_status()
+
+        data = response.json()
+        hourly_data = data.get("hourly", {})
+
+        df = pd.DataFrame(hourly_data)
+
+        df["time"] = pd.to_datetime(df["time"])
 
         # ensure the bucket exists
         base.mkdir(exist_ok=True)
@@ -95,17 +100,17 @@ def tutorial_objectstorage():
         formatted_date = logical_date.format("YYYYMMDD")
         path = base / f"air_quality_{formatted_date}.parquet"
 
-        df = pd.DataFrame(response.json()).astype(aq_fields)
         with path.open("wb") as file:
             df.to_parquet(file)
-
         return path
 
     # [END get_air_quality_data]
 
     # [START analyze]
     @task
-    def analyze(path: ObjectStoragePath, **kwargs):
+    def analyze(
+        path: ObjectStoragePath,
+    ):
         """
         #### Analyze
         This task analyzes the air quality data, prints the results
@@ -114,7 +119,10 @@ def tutorial_objectstorage():
 
         conn = duckdb.connect(database=":memory:")
         conn.register_filesystem(path.fs)
-        conn.execute(f"CREATE OR REPLACE TABLE airquality_urban AS SELECT * FROM read_parquet('{path}')")
+        s3_path = path.path
+        conn.execute(
+            f"CREATE OR REPLACE TABLE airquality_urban AS SELECT * FROM read_parquet('{path.protocol}://{s3_path}')"
+        )
 
         df2 = conn.execute("SELECT * FROM airquality_urban").fetchdf()
 

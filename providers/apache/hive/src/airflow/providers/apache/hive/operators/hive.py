@@ -24,17 +24,12 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
-from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
-from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.execution_time.context import AIRFLOW_VAR_NAME_FORMAT_MAPPING, context_to_airflow_vars
-else:
-    from airflow.utils.operator_helpers import (  # type: ignore[no-redef, attr-defined]
-        AIRFLOW_VAR_NAME_FORMAT_MAPPING,
-        context_to_airflow_vars,
-    )
+from airflow.providers.apache.hive.version_compat import (
+    AIRFLOW_VAR_NAME_FORMAT_MAPPING,
+    BaseOperator,
+    context_to_airflow_vars,
+)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

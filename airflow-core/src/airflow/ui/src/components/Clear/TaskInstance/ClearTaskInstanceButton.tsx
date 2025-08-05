@@ -17,35 +17,57 @@
  * under the License.
  */
 import { Box, useDisclosure } from "@chakra-ui/react";
+import { useHotkeys } from "react-hotkeys-hook";
+import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+import { Tooltip } from "src/components/ui";
 import ActionButton from "src/components/ui/ActionButton";
 
 import ClearTaskInstanceDialog from "./ClearTaskInstanceDialog";
 
 type Props = {
+  readonly isHotkeyEnabled?: boolean;
   readonly taskInstance: TaskInstanceResponse;
   readonly withText?: boolean;
 };
 
-const ClearTaskInstanceButton = ({ taskInstance, withText = true }: Props) => {
+const ClearTaskInstanceButton = ({ isHotkeyEnabled = false, taskInstance, withText = true }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
+  const { t: translate } = useTranslation();
+
+  useHotkeys(
+    "shift+c",
+    () => {
+      onOpen();
+    },
+    { enabled: isHotkeyEnabled },
+  );
 
   return (
-    <Box>
-      <ActionButton
-        actionName="Clear Task Instance"
-        icon={<CgRedo />}
-        onClick={onOpen}
-        text="Clear Task Instance"
-        withText={withText}
-      />
+    <Tooltip
+      closeDelay={100}
+      content={translate("dags:runAndTaskActions.clear.buttonTooltip")}
+      disabled={!isHotkeyEnabled}
+      openDelay={100}
+    >
+      <Box>
+        <ActionButton
+          actionName={translate("dags:runAndTaskActions.clear.button", {
+            type: translate("taskInstance_one"),
+          })}
+          icon={<CgRedo />}
+          onClick={onOpen}
+          text={translate("dags:runAndTaskActions.clear.button", { type: translate("taskInstance_one") })}
+          withText={withText}
+        />
 
-      {open ? (
-        <ClearTaskInstanceDialog onClose={onClose} open={open} taskInstance={taskInstance} />
-      ) : undefined}
-    </Box>
+        {open ? (
+          <ClearTaskInstanceDialog onClose={onClose} open={open} taskInstance={taskInstance} />
+        ) : undefined}
+      </Box>
+    </Tooltip>
   );
 };
 

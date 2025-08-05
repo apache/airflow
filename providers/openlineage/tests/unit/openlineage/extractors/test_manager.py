@@ -69,9 +69,8 @@ def hook_lineage_collector():
 
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import ObjectStoragePath
+    from airflow.sdk import BaseOperator, ObjectStoragePath
     from airflow.sdk.api.datamodels._generated import TaskInstance as SDKTaskInstance
-    from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.execution_time import task_runner
     from airflow.sdk.execution_time.comms import StartupDetails
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, parse
@@ -324,7 +323,6 @@ def test_extractor_manager_does_not_use_hook_level_lineage_when_operator(
     assert metadata.outputs == []
 
 
-@pytest.mark.db_test
 @pytest.mark.skipif(
     AIRFLOW_V_3_0_PLUS,
     reason="Test for hook level lineage in Airflow < 3.0",

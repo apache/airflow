@@ -54,12 +54,8 @@ class RdsBaseOperator(AwsBaseOperator[RdsHook]):
     def __init__(
         self,
         *args,
-        aws_conn_id: str | None = "aws_conn_id",
-        region_name: str | None = None,
         **kwargs,
     ):
-        self.aws_conn_id = aws_conn_id
-        self.region_name = region_name
         super().__init__(*args, **kwargs)
 
         self._await_interval = 60  # seconds

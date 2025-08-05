@@ -18,8 +18,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Callable
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 import requests
 from botocore import UNSIGNED

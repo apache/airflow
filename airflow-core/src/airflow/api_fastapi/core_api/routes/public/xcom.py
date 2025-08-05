@@ -19,11 +19,12 @@ from __future__ import annotations
 import copy
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Query, Request, status
+from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import and_, select
 from sqlalchemy.orm import joinedload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
+from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run_or_latest_version
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -38,9 +39,8 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import ReadableXComFilterDep, requires_access_dag
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import TaskNotFound
-from airflow.models import DAG, DagRun as DR
+from airflow.models import DagRun as DR
 from airflow.models.xcom import XComModel
-from airflow.settings import conf
 
 xcom_router = AirflowRouter(
     tags=["XCom"], prefix="/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries"
@@ -68,41 +68,41 @@ def get_xcom_entry(
     stringify: Annotated[bool, Query()] = False,
 ) -> XComResponseNative | XComResponseString:
     """Get an XCom entry."""
-    if deserialize:
-        if not conf.getboolean("api", "enable_xcom_deserialize_support", fallback=False):
-            raise HTTPException(
-                status.HTTP_400_BAD_REQUEST, "XCom deserialization is disabled in configuration."
-            )
-        query = select(XComModel, XComModel.value)
-    else:
-        query = select(XComModel)
-
-    query = query.where(
-        XComModel.dag_id == dag_id,
-        XComModel.task_id == task_id,
-        XComModel.key == xcom_key,
-        XComModel.map_index == map_index,
+    xcom_query = XComModel.get_many(
+        run_id=dag_run_id,
+        key=xcom_key,
+        task_ids=task_id,
+        dag_ids=dag_id,
+        map_indexes=map_index,
+        session=session,
+        limit=1,
     )
-    query = query.join(DR, and_(XComModel.dag_id == DR.dag_id, XComModel.run_id == DR.run_id))
-    query = query.where(DR.run_id == dag_run_id)
-    query = query.options(joinedload(XComModel.dag_run).joinedload(DR.dag_model))
 
-    if deserialize:
-        item = session.execute(query).one_or_none()
-    else:
-        item = session.scalars(query).one_or_none()
+    # We use `BaseXCom.get_many` to fetch XComs directly from the database, bypassing the XCom Backend.
+    # This avoids deserialization via the backend (e.g., from a remote storage like S3) and instead
+    # retrieves the raw serialized value from the database.
+    result = xcom_query.limit(1).first()
 
-    if item is None:
+    if result is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"XCom entry with key: `{xcom_key}` not found")
 
-    if deserialize:
-        from airflow.sdk.execution_time.xcom import XCom
+    item = copy.copy(result)
 
-        xcom, value = item
-        xcom_stub = copy.copy(xcom)
-        xcom_stub.value = value
-        xcom_stub.value = XCom.deserialize_value(xcom_stub)
-        item = xcom_stub
+    if deserialize:
+        # We use `airflow.serialization.serde` for deserialization here because custom XCom backends (with their own
+        # serializers/deserializers) are only used on the worker side during task execution.
+
+        # However, the XCom value is *always* stored in the metadata database as a valid JSON object.
+        # Therefore, for purposes such as UI display or returning API responses, deserializing with
+        # `airflow.serialization.serde` is safe and recommended.
+        from airflow.serialization.serde import deserialize as serde_deserialize
+
+        # full=False ensures that the `item` is deserialized without loading the classes, and it returns a stringified version
+        item.value = serde_deserialize(XComModel.deserialize_value(item), full=False)
+    else:
+        # For native format, return the raw serialized value from the database
+        # This preserves the JSON string format that the API expects
+        item.value = result.value
 
     if stringify:
         return XComResponseString.model_validate(item)
@@ -185,28 +185,29 @@ def create_xcom_entry(
     dag_run_id: str,
     request_body: XComCreateBody,
     session: SessionDep,
-    request: Request,
+    dag_bag: DagBagDep,
 ) -> XComResponseNative:
     """Create an XCom entry."""
+    from airflow.models.dagrun import DagRun
+
+    dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
     # Validate DAG ID
-    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
-    if not dag:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with ID: `{dag_id}` was not found")
+    dag = get_dag_for_run_or_latest_version(dag_bag, dag_run, dag_id, session)
 
     # Validate Task ID
     try:
         dag.get_task(task_id)
     except TaskNotFound:
         raise HTTPException(
-            status.HTTP_404_NOT_FOUND, f"Task with ID: `{task_id}` not found in DAG: `{dag_id}`"
+            status.HTTP_404_NOT_FOUND, f"Task with ID: `{task_id}` not found in dag: `{dag_id}`"
         )
 
     # Validate DAG Run ID
-    dag_run = dag.get_dagrun(dag_run_id, session)
     if not dag_run:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND, f"DAG Run with ID: `{dag_run_id}` not found for DAG: `{dag_id}`"
-        )
+        if not dag_run:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND, f"Dag Run with ID: `{dag_run_id}` not found for dag: `{dag_id}`"
+            )
 
     # Check existing XCom
     already_existing_query = XComModel.get_many(

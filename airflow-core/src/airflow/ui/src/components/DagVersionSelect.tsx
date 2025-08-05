@@ -18,6 +18,7 @@
  */
 import { createListCollection, Flex, Select, type SelectValueChangeDetails, Text } from "@chakra-ui/react";
 import { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { useDagVersionServiceGetDagVersions } from "openapi/queries";
@@ -33,16 +34,12 @@ type VersionSelected = {
 };
 
 export const DagVersionSelect = ({ showLabel = true }: { readonly showLabel?: boolean }) => {
+  const { t: translate } = useTranslation("components");
   const { dagId = "" } = useParams();
-
-  const { data, isLoading } = useDagVersionServiceGetDagVersions({ dagId, orderBy: "-version_number" });
-
+  const { data, isLoading } = useDagVersionServiceGetDagVersions({ dagId, orderBy: ["-version_number"] });
   const [searchParams, setSearchParams] = useSearchParams();
-
   const selectedVersionNumber = useSelectedVersion();
-
   const selectedVersion = data?.dag_versions.find((dv) => dv.version_number === selectedVersionNumber);
-
   const versionOptions = useMemo(
     () =>
       createListCollection({
@@ -50,7 +47,6 @@ export const DagVersionSelect = ({ showLabel = true }: { readonly showLabel?: bo
       }),
     [data],
   );
-
   const handleStateChange = useCallback(
     ({ items }: SelectValueChangeDetails<VersionSelected>) => {
       if (items[0]) {
@@ -71,13 +67,17 @@ export const DagVersionSelect = ({ showLabel = true }: { readonly showLabel?: bo
       value={selectedVersionNumber === undefined ? [] : [selectedVersionNumber.toString()]}
       width="250px"
     >
-      {showLabel ? <Select.Label fontSize="xs">Dag Version</Select.Label> : undefined}
+      {showLabel ? (
+        <Select.Label fontSize="xs">{translate("versionSelect.dagVersion")}</Select.Label>
+      ) : undefined}
       <Select.Control>
         <Select.Trigger>
           <Select.ValueText placeholder="All Versions">
             {selectedVersion === undefined ? undefined : (
               <Flex justifyContent="space-between" width="175px">
-                <Text>v{selectedVersion.version_number}</Text>
+                <Text>
+                  {translate("versionSelect.versionCode", { versionCode: selectedVersion.version_number })}
+                </Text>
                 <Time datetime={selectedVersion.created_at} />
               </Flex>
             )}
@@ -91,7 +91,9 @@ export const DagVersionSelect = ({ showLabel = true }: { readonly showLabel?: bo
         <Select.Content>
           {versionOptions.items.map((option) => (
             <Select.Item item={option} key={option.version.version_number}>
-              <Text>v{option.version.version_number}</Text>
+              <Text>
+                {translate("versionSelect.versionCode", { versionCode: option.version.version_number })}
+              </Text>
               <Time datetime={option.version.created_at} />
             </Select.Item>
           ))}

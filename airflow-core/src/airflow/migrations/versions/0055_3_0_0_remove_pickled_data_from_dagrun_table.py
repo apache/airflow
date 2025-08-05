@@ -47,6 +47,17 @@ airflow_version = "3.0.0"
 def upgrade():
     """Apply remove pickled data from dagrun table."""
     conn = op.get_bind()
+    empty_vals = {
+        "mysql": "X'80057D942E'",
+        "postgresql": r"'\x80057D942E'",
+        "sqlite": "X'80057D942E'",
+    }
+    dialect = conn.dialect.name
+    try:
+        empty_val = empty_vals[dialect]
+    except KeyError:
+        raise RuntimeError(f"Dialect {dialect} not supported.")
+
     conf_type = sa.JSON().with_variant(postgresql.JSONB, "postgresql")
     op.add_column("dag_run", sa.Column("conf_json", conf_type, nullable=True))
 
@@ -61,12 +72,20 @@ def upgrade():
             """)
         )
     else:
-        BATCH_SIZE = 100
+        BATCH_SIZE = 1000
         offset = 0
         while True:
+            err_count = 0
+            batch_num = offset + 1
+            print(f"converting dag run conf. batch={batch_num}")
             rows = conn.execute(
                 text(
-                    f"SELECT id,conf FROM dag_run WHERE conf IS not NULL order by id LIMIT {BATCH_SIZE} OFFSET {offset}"
+                    "SELECT id, conf "
+                    "FROM dag_run "
+                    "WHERE conf IS not NULL "
+                    f"AND conf != {empty_val}"
+                    f"ORDER BY id LIMIT {BATCH_SIZE} "
+                    f"OFFSET {offset}"
                 )
             ).fetchall()
             if not rows:
@@ -85,9 +104,11 @@ def upgrade():
                                             """),
                         {"json_data": json_data, "id": row_id},
                     )
-                except Exception as e:
-                    print(f"Error converting dagrun conf to json for dagrun ID {row_id}: {e}")
+                except Exception:
+                    err_count += 1
                     continue
+            if err_count:
+                print(f"could not convert dag run conf for {err_count} records. batch={batch_num}")
             offset += BATCH_SIZE
 
     op.drop_column("dag_run", "conf")
@@ -112,12 +133,16 @@ def downgrade():
         )
 
     else:
-        BATCH_SIZE = 100
+        BATCH_SIZE = 1000
         offset = 0
         while True:
             rows = conn.execute(
                 text(
-                    f"SELECT id,conf FROM dag_run WHERE conf IS not NULL order by id LIMIT {BATCH_SIZE} OFFSET {offset}"
+                    "SELECT id,conf "
+                    "FROM dag_run "
+                    "WHERE conf IS NOT NULL "
+                    f"ORDER BY id LIMIT {BATCH_SIZE} "
+                    f"OFFSET {offset}"
                 )
             ).fetchall()
             if not rows:

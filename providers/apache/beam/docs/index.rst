@@ -75,7 +75,9 @@ apache-airflow-providers-apache-beam package
 `Apache Beam <https://beam.apache.org/>`__.
 
 
-Release: 6.0.4
+Release: 6.1.3
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------
@@ -93,17 +95,18 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider distribution is ``2.9.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
 
-==================  ======================================
+==================  ==================================================================
 PIP package         Version required
-==================  ======================================
-``apache-airflow``  ``>=2.9.0``
-``apache-beam``     ``>=2.53.0; python_version < "3.12"``
-``apache-beam``     ``>=2.57.0; python_version >= "3.12"``
-``pyarrow``         ``>=14.0.1``
-``numpy``           ``>=1.26.0``
-==================  ======================================
+==================  ==================================================================
+``apache-airflow``  ``>=2.10.0``
+``apache-beam``     ``>=2.60.0; python_version < "3.13"``
+``pyarrow``         ``>=16.1.0; python_version < "3.13"``
+``numpy``           ``>=1.22.4; python_version < "3.11"``
+``numpy``           ``>=1.23.2; python_version < "3.12" and python_version >= "3.11"``
+``numpy``           ``>=1.26.0; python_version >= "3.12" and python_version < "3.13"``
+==================  ==================================================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -131,5 +134,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-apache-beam 6.0.4 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_beam-6.0.4.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_beam-6.0.4.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_beam-6.0.4.tar.gz.sha512>`__)
-* `The apache-airflow-providers-apache-beam 6.0.4 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_beam-6.0.4-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_beam-6.0.4-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_beam-6.0.4-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-apache-beam 6.1.3 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_beam-6.1.3.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_beam-6.1.3.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_beam-6.1.3.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-beam 6.1.3 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_beam-6.1.3-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_beam-6.1.3-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_beam-6.1.3-py3-none-any.whl.sha512>`__)

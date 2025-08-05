@@ -24,23 +24,46 @@ on:  # yamllint disable-line rule:truthy
         description: "The branch or tag to checkout for the docs publishing"
         required: true
         type: string
+      destination:
+        description: "The destination location in S3"
+        required: false
+        default: auto
+        type: choice
+        options:
+          - auto
+          - live
+          - staging
+      include-docs:
+        description: "Space separated list of packages to build"
+        required: true
+        type: string
       exclude-docs:
         description: "Comma separated list of docs to exclude"
         required: false
-        default: "NO_DOCS"
+        default: "no-docs-excluded"
         type: string
-      destination-location:
-        description: "The destination location in S3"
+      skip-write-to-stable-folder:
+        description: "Do not override stable version"
         required: false
-        default: "s3://staging-docs-airflow-apache-org/docs"
-        type: string
-      docs-list-as-string:
-        description: "Space separated list of docs to build"
+        default: false
+        type: boolean
+      build-sboms:
+        description: "Build SBOMs"
         required: false
-        default: ""
+        default: false
+        type: boolean
+      airflow-base-version:
+        required: false
+        description: "Override the Airflow Base Version to use for the docs build"
         type: string
-env:
-  AIRFLOW_ROOT_PATH: "/home/runner/work/temp-airflow-repo-reference"  # checkout dir for referenced tag
+      airflow-version:
+        required: false
+        description: "Override the Airflow Version to use for the docs build"
+        type: string
+      apply-commits:
+        required: false
+        description: "Optionally apply commit hashes before building - to patch the docs (coma separated)"
+        type: string
 permissions:
   contents: read
 jobs:
@@ -48,16 +71,28 @@ jobs:
     timeout-minutes: 10
     name: "Build Info"
     runs-on: ["ubuntu-24.04"]
-    outputs:
-      amd-runners: ${{ steps.selective-checks.outputs.amd-runners }}
-      arm-runners: ${{ steps.selective-checks.outputs.arm-runners }}
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
       VERBOSE: true
       REF: ${{ inputs.ref }}
+      INCLUDE_DOCS: ${{ inputs.include-docs }}
       EXCLUDE_DOCS: ${{ inputs.exclude-docs }}
-      DESTINATION_LOCATION: ${{ inputs.destination-location }}
-      DOCS_LIST_AS_STRING: ${{ inputs.docs-list-as-string }}
+      DESTINATION: ${{ inputs.destination }}
+      SKIP_WRITE_TO_STABLE_FOLDER: ${{ inputs.skip-write-to-stable-folder }}
+      BUILD_SBOMS: ${{ inputs.build-sboms }}
+      AIRFLOW_BASE_VERSION: ${{ inputs.airflow-base-version || '' }}
+      AIRFLOW_VERSION: ${{ inputs.airflow-version || '' }}
+      APPLY_COMMITS: ${{ inputs.apply-commits || '' }}
+    outputs:
+      include-docs: ${{ inputs.include-docs == 'all' && '' || inputs.include-docs }}
+      destination-location: ${{ steps.parameters.outputs.destination-location }}
+      destination: ${{ steps.parameters.outputs.destination }}
+      extra-build-options: ${{ steps.parameters.outputs.extra-build-options }}
+      airflow-base-version: ${{ steps.parameters.outputs.airflow-base-version }}
+      airflow-version: ${{ steps.parameters.outputs.airflow-version }}
+      # yamllint disable rule:line-length
+      skip-write-to-stable-folder: ${{ inputs.skip-write-to-stable-folder && '--skip-write-to-stable-folder' || '' }}
+      default-python-version: "3.10"
     if: contains(fromJSON('[
       "ashb",
       "eladkal",
@@ -71,60 +106,58 @@ jobs:
     steps:
       - name: "Input parameters summary"
         shell: bash
+        id: parameters
         run: |
           echo "Input parameters summary"
           echo "========================="
           echo "Ref: '${REF}'"
+          echo "Included docs : '${INCLUDE_DOCS}'"
           echo "Exclude docs: '${EXCLUDE_DOCS}'"
-          echo "Destination location: '${DESTINATION_LOCATION}'"
-          echo "Docs list as string: '${DOCS_LIST_AS_STRING}'"
-      - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
-      - name: "Install uv"
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
-        with:
-          use-uv: "true"
-      - name: Selective checks
-        id: selective-checks
-        env:
-          VERBOSE: "false"
-        run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
-
-  build-ci-images:
-    name: Build CI images
-    uses: ./.github/workflows/ci-image-build.yml
-    needs: [build-info]
-    permissions:
-      contents: read
-      # This write is only given here for `push` events from "apache/airflow" repo. It is not given for PRs
-      # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
-      packages: write
-    with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
-      arm-runners: ${{ needs.build-info.outputs.arm-runners }}
-      platform: "linux/amd64"
-      push-image: "false"
-      upload-image-artifact: "true"
-      upload-mount-cache-artifact: false
-      python-versions: "['3.9']"
-      branch: ${{ inputs.ref }}
-      use-uv: true
-      upgrade-to-newer-dependencies: false
-      constraints-branch: "constraints-main"
-      docker-cache: registry
-      disable-airflow-repo-cache: false
+          echo "Destination: '${DESTINATION}'"
+          echo "Skip write to stable folder: '${SKIP_WRITE_TO_STABLE_FOLDER}'"
+          echo "Build SBOMs: '${BUILD_SBOMS}'"
+          echo "Airflow Base Version: '${AIRFLOW_BASE_VERSION}'"
+          echo "Airflow Version: '${AIRFLOW_VERSION}'"
+          echo "Apply commits: '${APPLY_COMMITS}'"
+          if [[ "${DESTINATION}" == "auto" ]]; then
+             if [[ "${REF}" =~ ^.*[0-9]*\.[0-9]*\.[0-9]*$ ]]; then
+                echo "${REF} looks like final release, using live destination"
+                DESTINATION="live"
+             else
+                echo "${REF} does not looks like final release, using staging destination"
+                DESTINATION="staging"
+             fi
+          fi
+          echo "destination=${DESTINATION}" >> ${GITHUB_OUTPUT}
+          if [[ "${DESTINATION}"  == "live" ]]; then
+             echo "destination-location=s3://live-docs-airflow-apache-org/docs/" >> ${GITHUB_OUTPUT}
+          else
+             echo "destination-location=s3://staging-docs-airflow-apache-org/docs/" >> ${GITHUB_OUTPUT}
+          fi
+          if [[ " ${INCLUDE_DOCS} " =~ " apache-airflow " ]]; then
+             if [[ ${AIRFLOW_BASE_VERSION=} == "" && ${AIRFLOW_VERSION=} == "" ]]; then
+                echo "No Airflow Versions provided, using ${REF} to determine it."
+                AIRFLOW_VERSION="${REF}"
+                set +e
+                AIRFLOW_BASE_VERSION=$(echo "${REF}" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+                set -e
+                if [[ ${AIRFLOW_BASE_VERSION=} == "" ]]; then
+                   echo
+                   echo "No Airflow Base Version found in ${REF}"
+                   echo "You need to force airflow version and airflow base version in the workflow."
+                   echo
+                   exit 1
+                fi
+             fi
+             echo "airflow-base-version=${AIRFLOW_BASE_VERSION}" >> ${GITHUB_OUTPUT}
+             echo "airflow-version=${AIRFLOW_VERSION}" >> ${GITHUB_OUTPUT}
+          else
+             echo "airflow-version=no-airflow" >> ${GITHUB_OUTPUT}
+             echo "airflow-base-version=no-airflow" >> ${GITHUB_OUTPUT}
+          fi
 
   build-docs:
-    needs: [build-ci-images]
+    needs: [build-info]
     timeout-minutes: 150
     name: "Build documentation"
     runs-on: ubuntu-latest
@@ -132,46 +165,138 @@ jobs:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
-      INCLUDE_NOT_READY_PROVIDERS: "true"
       INCLUDE_SUCCESS_OUTPUTS: false
-      PYTHON_MAJOR_MINOR_VERSION: ${{ inputs.default-python-version }}
       VERBOSE: "true"
+      EXTRA_BUILD_OPTIONS: ${{ needs.build-info.outputs.extra-build-options }}
+      APPLY_COMMITS: ${{ inputs.apply-commits || '' }}
     steps:
       - name: "Cleanup repo"
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} "
-        uses: actions/checkout@v4
+      - name: "Checkout current version first to clean-up stuff"
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - name: "Checkout from ${{ inputs.ref }} to build docs"
-        run: |
-          git clone https://github.com/apache/airflow.git "${AIRFLOW_ROOT_PATH}"
-          cd "${AIRFLOW_ROOT_PATH}" && git checkout ${REF}
-        env:
-          REF: ${{ inputs.ref }}
-      - name: "Prepare breeze & CI image: 3.9"
-        uses: ./.github/actions/prepare_breeze_and_image
+          path: current-version
+      - name: "Prepare and cleanup runner"
+        run: ./scripts/ci/prepare_and_cleanup_runner.sh
+        working-directory: current-version
+        # We are checking repo for both - breeze and docs from the ref provided as input
+        # This will take longer as we need to rebuild CI image and it will not use cache
+        # but it will build the CI image from the version of Airflow that is used to check out things
+      - name: "Checkout ${{ inputs.ref }} "
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
-          platform: "linux/amd64"
-          python: 3.9
-          use-uv: true
-      - name: "Building docs with --docs-only flag"
+          persist-credentials: false
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+          fetch-tags: true
+      - name: "Apply patch commits if provided"
+        run: |
+          if [[ "${APPLY_COMMITS}" != "" ]]; then
+            git config --global user.email "bot@airflow.apache.org"
+            git config --global user.name "Your friendly bot"
+            echo "Applying commits ${APPLY_COMMITS} to the docs"
+            # Split APPLY_COMMITS by comma and apply each commit
+            IFS=',' read -ra COMMIT_ARRAY <<< "${APPLY_COMMITS}"
+            for APPLY_COMMIT in "${COMMIT_ARRAY[@]}"; do
+              echo "Applying commit ${APPLY_COMMIT}"
+              git fetch origin "${APPLY_COMMIT}"
+              git cherry-pick "${APPLY_COMMIT}"
+            done
+          else
+            echo "No commits provided to apply, skipping."
+          fi
+      - name: "Install Breeze from the ${{ inputs.ref }} reference"
+        uses: ./.github/actions/breeze
+        with:
+          python-version: "${{ needs.build-info.outputs.default-python-version }}"
+      - name: "Building image from the ${{ inputs.ref }} reference"
         env:
-          DOCS_LIST_AS_STRING: ${{ inputs.docs-list-as-string }}
+          INCLUDE_DOCS: ${{ needs.build-info.outputs.include-docs }}
+          INCLUDE_COMMITS: ${{ startsWith(inputs.ref, 'providers') && 'true' || 'false' }}
+        # if the regular breeze ci-image build fails, we will try to build the image using docker buildx
+        # This is needed for the case when we are building an old image which tries to use main as
+        # a cache and it fails because the main branch has changed and does not have the same pyproject.toml
+        # Structure as the one we are trying to build.
         run: >
-          breeze build-docs ${DOCS_LIST_AS_STRING} --docs-only
+          breeze ci-image build ||
+          docker buildx build --load --builder default --progress=auto --pull
+          --build-arg AIRFLOW_EXTRAS=devel-ci --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES=false
+          --build-arg AIRFLOW_USE_UV=true --build-arg UV_HTTP_TIMEOUT=300
+          --build-arg BUILD_PROGRESS=auto --build-arg INSTALL_MYSQL_CLIENT_TYPE=mariadb
+          --build-arg VERSION_SUFFIX_FOR_PYPI=dev0
+          -t ghcr.io/apache/airflow/main/ci/python3.9:latest --target main .
+          -f Dockerfile.ci --platform linux/amd64
+      - name: "Building docs with --docs-only flag using ${{ inputs.ref }} reference breeze"
+        env:
+          INCLUDE_DOCS: ${{ needs.build-info.outputs.include-docs }}
+          INCLUDE_COMMITS: ${{ startsWith(inputs.ref, 'providers') && 'true' || 'false' }}
+        run: >
+          breeze build-docs ${INCLUDE_DOCS} --docs-only
+      - name: "Checkout current version to run SBOM generation"
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          fetch-tags: true
+          path: current-version
+        if: inputs.build-sboms
+      - name: "Reinstall breeze from the current version"
+        run: |
+          breeze setup self-upgrade --use-current-airflow-sources
+        if: inputs.build-sboms
+        working-directory: current-version
+      - name: "Make sure SBOM dir exists and has the right permissions"
+        run: |
+          sudo mkdir -vp ./files/sbom
+          sudo chown -R "${USER}" .
+        working-directory: current-version
+        if: inputs.build-sboms
+      - name: "Prepare SBOMs using current version of Breeze"
+        env:
+          AIRFLOW_VERSION: ${{ needs.build-info.outputs.airflow-version }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHON_VERSION: "${{ needs.build-info.outputs.default-python-version }}"
+          FORCE: "true"
+        run: >
+          breeze sbom update-sbom-information
+          --airflow-version ${AIRFLOW_VERSION} --remote-name origin --force
+          --all-combinations --run-in-parallel --airflow-root-path "${GITHUB_WORKSPACE}"
+        working-directory: current-version
+        if: inputs.build-sboms
+      - name: "Generated SBOM files"
+        run: |
+          echo "Generated SBOM files:"
+          find ./generated/_build/docs/apache-airflow/stable/sbom/ -type f | sort
+        if: inputs.build-sboms
+      - name: "Reinstall breeze from ${{ inputs.ref }} reference"
+        run:
+          breeze setup self-upgrade --use-current-airflow-sources
+        if: inputs.build-sboms
+      - name: Check disk space available
+        run: df -H
+      # Here we will create temp airflow-site dir to publish docs
+      - name: Create /mnt/airflow-site directory
+        run: |
+          sudo mkdir -p /mnt/airflow-site && sudo chown -R "${USER}" /mnt/airflow-site
+          echo "AIRFLOW_SITE_DIRECTORY=/mnt/airflow-site/" >> "$GITHUB_ENV"
+      - name: "Publish docs to /mnt/airflow-site directory using ${{ inputs.ref }} reference breeze"
+        env:
+          INCLUDE_DOCS: ${{ needs.build-info.outputs.include-docs }}
+        run: >
+          breeze release-management publish-docs --override-versioned --run-in-parallel ${INCLUDE_DOCS}
       - name: "Upload build docs"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: airflow-docs
-          path: ${{ env.AIRFLOW_ROOT_PATH }}/generated/_build
+          path: /mnt/airflow-site
           retention-days: '7'
           if-no-files-found: 'error'
           overwrite: 'true'
 
   publish-docs-to-s3:
-    needs: [build-docs]
+    needs: [build-docs, build-info]
     name: "Publish documentation to S3"
     permissions:
       id-token: write
@@ -181,61 +306,44 @@ jobs:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
-      INCLUDE_NOT_READY_PROVIDERS: "true"
       INCLUDE_SUCCESS_OUTPUTS: false
-      PYTHON_MAJOR_MINOR_VERSION: 3.9
+      PYTHON_MAJOR_MINOR_VERSION: 3.10
       VERBOSE: "true"
     steps:
       - name: "Cleanup repo"
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} "
-        uses: actions/checkout@v4
+        # We are checking repo for both - breeze and docs from the "workflow' branch
+        # This will take longer as we need to rebuild CI image and it will not use cache
+        # but it will build the CI image from the version of Airflow that is used to check out things
+      - name: "Checkout ${{ inputs.ref }} "
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
-      - name: "Checkout ${{ inputs.ref }}"
-        run: |
-          git clone https://github.com/apache/airflow.git "${AIRFLOW_ROOT_PATH}"
-          cd "${AIRFLOW_ROOT_PATH}" && git checkout ${REF}
-        env:
-          REF: ${{ inputs.ref }}
+      - name: "Prepare and cleanup runner"
+        run: ./scripts/ci/prepare_and_cleanup_runner.sh
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: "Download docs prepared as artifacts"
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
         with:
           name: airflow-docs
-          path: ${{ env.AIRFLOW_ROOT_PATH }}/generated/_build
+          path: /mnt/airflow-site
       - name: Check disk space available
-        run: df -h
-      # Here we will create temp airflow-site dir to publish
-      # docs and for back-references
-      - name: Create /mnt/airflow-site directory
-        run: |
-          sudo mkdir -p /mnt/airflow-site && sudo chown -R "${USER}" /mnt/airflow-site
-           echo "AIRFLOW_SITE_DIRECTORY=/mnt/airflow-site/" >> "$GITHUB_ENV"
-      - name: "Prepare breeze & CI image: 3.9"
-        uses: ./.github/actions/prepare_breeze_and_image
-        with:
-          platform: "linux/amd64"
-          python: 3.9
-          use-uv: true
-      - name: "Publish docs to tmp directory"
+        run: df -H
+      - name: "Update watermarks"
         env:
-          DOCS_LIST_AS_STRING: ${{ inputs.docs-list-as-string }}
-        run: >
-          breeze release-management publish-docs --override-versioned --run-in-parallel
-          ${DOCS_LIST_AS_STRING}
-      - name: Check disk space available
-        run: df -h
-      - name: "Generate back references for providers"
-        run: breeze release-management add-back-references all-providers
-      - name: "Generate back references for apache-airflow"
-        run: breeze release-management add-back-references apache-airflow
-      - name: "Generate back references for docker-stack"
-        run: breeze release-management add-back-references docker-stack
-      - name: "Generate back references for helm-chart"
-        run: breeze release-management add-back-references helm-chart
+          SOURCE_DIR_PATH: "/mnt/airflow-site/docs-archive/"
+        # yamllint disable rule:line-length
+        run: |
+          curl -sSf -o add_watermark.py https://raw.githubusercontent.com/apache/airflow-site/refs/heads/main/.github/scripts/add_watermark.py \
+          --header "Authorization: Bearer ${{ github.token }} " --header "X-GitHub-Api-Version: 2022-11-28"
+          chmod a+x add_watermark.py
+          mkdir -p images
+          curl -sSf -o images/staging.png https://raw.githubusercontent.com/apache/airflow-site/refs/heads/main/.github/scripts/images/staging.png
+          uv run add_watermark.py --pattern 'main.min*css' --folder ${SOURCE_DIR_PATH} \
+          --image-directory images --url-prefix /images
+        if: needs.build-info.outputs.destination == 'staging'
       - name: Install AWS CLI v2
         run: |
           curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
@@ -251,10 +359,11 @@ jobs:
           aws-region: us-east-2
       - name: "Syncing docs to S3"
         env:
-          DESTINATION_LOCATION: "${{ inputs.destination-location }}"
+          DESTINATION_LOCATION: "${{ needs.build-info.outputs.destination-location }}"
           SOURCE_DIR_PATH: "/mnt/airflow-site/docs-archive/"
           EXCLUDE_DOCS: "${{ inputs.exclude-docs }}"
+          SKIP_WRITE_TO_STABLE_FOLDER: "${{ needs.build-info.outputs.skip-write-to-stable-folder }}"
         run: |
           breeze release-management publish-docs-to-s3 --source-dir-path ${SOURCE_DIR_PATH} \
           --destination-location ${DESTINATION_LOCATION} --stable-versions \
-          --exclude-docs ${EXCLUDE_DOCS}
+          --exclude-docs ${EXCLUDE_DOCS} --overwrite ${SKIP_WRITE_TO_STABLE_FOLDER}

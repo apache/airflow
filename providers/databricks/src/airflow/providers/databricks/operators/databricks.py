@@ -29,12 +29,10 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.databricks.hooks.databricks import (
     DatabricksHook,
     RunLifeCycleState,
     RunState,
-    SQLStatementState,
 )
 from airflow.providers.databricks.operators.databricks_workflow import (
     DatabricksWorkflowTaskGroup,
@@ -43,24 +41,37 @@ from airflow.providers.databricks.operators.databricks_workflow import (
 from airflow.providers.databricks.plugins.databricks_workflow import (
     WorkflowJobRepairSingleTaskLink,
     WorkflowJobRunLink,
+    store_databricks_job_run_link,
 )
 from airflow.providers.databricks.triggers.databricks import (
     DatabricksExecutionTrigger,
-    DatabricksSQLStatementExecutionTrigger,
 )
-from airflow.providers.databricks.utils.databricks import normalise_json_content, validate_trigger_event
-from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.databricks.utils.databricks import (
+    extract_failed_task_errors,
+    normalise_json_content,
+    validate_trigger_event,
+)
+from airflow.providers.databricks.utils.mixins import DatabricksSQLStatementsMixin
+from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.providers.databricks.operators.databricks_workflow import (
+        DatabricksWorkflowTaskGroup,
+    )
+    from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.utils.context import Context
-    from airflow.utils.task_group import TaskGroup
+
+    try:
+        from airflow.sdk import TaskGroup
+    except ImportError:
+        from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperatorLink
     from airflow.sdk.execution_time.xcom import XCom
 else:
-    from airflow.models import XCom  # type: ignore[no-redef]
+    from airflow.models import XCom
     from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
 
 DEFER_METHOD_NAME = "execute_complete"
@@ -95,17 +106,7 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
                     log.info("View run status, Spark UI, and logs at %s", run_page_url)
                     return
                 if run_state.result_state == "FAILED":
-                    failed_tasks = []
-                    for task in run_info.get("tasks", []):
-                        if task.get("state", {}).get("result_state", "") == "FAILED":
-                            task_run_id = task["run_id"]
-                            task_key = task["task_key"]
-                            run_output = hook.get_run_output(task_run_id)
-                            if "error" in run_output:
-                                error = run_output["error"]
-                            else:
-                                error = run_state.state_message
-                            failed_tasks.append({"task_key": task_key, "run_id": task_run_id, "error": error})
+                    failed_tasks = extract_failed_task_errors(hook, run_info, run_state)
 
                     error_message = (
                         f"{operator.task_id} failed with terminal state: {run_state} "
@@ -978,7 +979,7 @@ class DatabricksRunNowOperator(BaseOperator):
             self.log.error("Error: Task: %s with invalid run_id was requested to be cancelled.", self.task_id)
 
 
-class DatabricksSQLStatementsOperator(BaseOperator):
+class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator):
     """
     Submits a Databricks SQL Statement to Databricks using the api/2.0/sql/statements/ API endpoint.
 
@@ -1073,59 +1074,6 @@ class DatabricksSQLStatementsOperator(BaseOperator):
             caller=caller,
         )
 
-    def _handle_operator_execution(self) -> None:
-        end_time = time.time() + self.timeout
-        while end_time > time.time():
-            statement_state = self._hook.get_sql_statement_state(self.statement_id)
-            if statement_state.is_terminal:
-                if statement_state.is_successful:
-                    self.log.info("%s completed successfully.", self.task_id)
-                    return
-                error_message = (
-                    f"{self.task_id} failed with terminal state: {statement_state.state} "
-                    f"and with the error code {statement_state.error_code} "
-                    f"and error message {statement_state.error_message}"
-                )
-                raise AirflowException(error_message)
-
-            self.log.info("%s in run state: %s", self.task_id, statement_state.state)
-            self.log.info("Sleeping for %s seconds.", self.polling_period_seconds)
-            time.sleep(self.polling_period_seconds)
-
-        self._hook.cancel_sql_statement(self.statement_id)
-        raise AirflowException(
-            f"{self.task_id} timed out after {self.timeout} seconds with state: {statement_state.state}",
-        )
-
-    def _handle_deferrable_operator_execution(self) -> None:
-        statement_state = self._hook.get_sql_statement_state(self.statement_id)
-        end_time = time.time() + self.timeout
-        if not statement_state.is_terminal:
-            if not self.statement_id:
-                raise AirflowException("Failed to retrieve statement_id after submitting SQL statement.")
-            self.defer(
-                trigger=DatabricksSQLStatementExecutionTrigger(
-                    statement_id=self.statement_id,
-                    databricks_conn_id=self.databricks_conn_id,
-                    end_time=end_time,
-                    polling_period_seconds=self.polling_period_seconds,
-                    retry_limit=self.databricks_retry_limit,
-                    retry_delay=self.databricks_retry_delay,
-                    retry_args=self.databricks_retry_args,
-                ),
-                method_name=DEFER_METHOD_NAME,
-            )
-        else:
-            if statement_state.is_successful:
-                self.log.info("%s completed successfully.", self.task_id)
-            else:
-                error_message = (
-                    f"{self.task_id} failed with terminal state: {statement_state.state} "
-                    f"and with the error code {statement_state.error_code} "
-                    f"and error message {statement_state.error_message}"
-                )
-                raise AirflowException(error_message)
-
     def execute(self, context: Context):
         json = {
             "statement": self.statement,
@@ -1146,34 +1094,65 @@ class DatabricksSQLStatementsOperator(BaseOperator):
         if not self.wait_for_termination:
             return
         if self.deferrable:
-            self._handle_deferrable_operator_execution()
+            self._handle_deferrable_execution(defer_method_name=DEFER_METHOD_NAME)  # type: ignore[misc]
         else:
-            self._handle_operator_execution()
+            self._handle_execution()  # type: ignore[misc]
 
-    def on_kill(self):
+    def get_openlineage_facets_on_complete(self, _) -> OperatorLineage:
+        """Implement _on_complete because we use statement_id."""
+        from airflow.providers.common.compat.openlineage.facet import (
+            ExternalQueryRunFacet,
+            SQLJobFacet,
+        )
+        from airflow.providers.openlineage.extractors import OperatorLineage
+        from airflow.providers.openlineage.sqlparser import DatabaseInfo, SQLParser
+
+        db_info = DatabaseInfo(
+            scheme="databricks",
+            authority=self._hook.host,
+            database=self.catalog,
+            is_uppercase_names=False,
+            # Other args will not be used as we'll not query DB for details, we only do sql parsing.
+        )
+
+        sql_parser = SQLParser(
+            dialect="databricks",
+            default_schema=self.schema or "default",
+        )
+
+        run_facets = {}
         if self.statement_id:
-            self._hook.cancel_sql_statement(self.statement_id)
-            self.log.info(
-                "Task: %s with statement ID: %s was requested to be cancelled.",
-                self.task_id,
-                self.statement_id,
+            run_facets["externalQuery"] = ExternalQueryRunFacet(
+                externalQueryId=self.statement_id, source=sql_parser.create_namespace(db_info)
             )
-        else:
-            self.log.error(
-                "Error: Task: %s with invalid statement_id was requested to be cancelled.", self.task_id
+        job_facets = {"sql": SQLJobFacet(query=SQLParser.normalize_sql(self.statement))}
+
+        query = f"{self.statement}"
+        if self.parameters:
+            # Catalog, schema or table can be parameterized, so it's crucial to fill them before parsing
+            for param in self.parameters:
+                query = query.replace(f":{param['name']}", param.get("value") or "null")
+
+        parser_result = None
+        try:
+            # Try performing offline sql parsing, without db access,
+            parser_result = sql_parser.generate_openlineage_metadata_from_sql(
+                sql=query,
+                database_info=db_info,
+                database=None,  # Provided in db_info
+                use_connection=False,  # Prevents DB call for table details, that will fail with API
+                sqlalchemy_engine=None,  # Not needed when use_connection is False
+                hook=None,  # type: ignore[arg-type] # Not needed when use_connection is False
             )
+        except Exception as e:
+            self.log.debug("OpenLineage failed to parse query `%s` with error %s", query, e)
 
-    def execute_complete(self, context: dict | None, event: dict):
-        statement_state = SQLStatementState.from_json(event["state"])
-        error = event["error"]
-        statement_id = event["statement_id"]
-
-        if statement_state.is_successful:
-            self.log.info("SQL Statement with ID %s completed successfully.", statement_id)
-            return
-
-        error_message = f"SQL Statement execution failed with terminal state: {statement_state} and with the error {error}"
-        raise AirflowException(error_message)
+        return OperatorLineage(
+            inputs=parser_result.inputs if parser_result else [],
+            outputs=parser_result.outputs if parser_result else [],
+            job_facets=parser_result.job_facets if parser_result else job_facets,
+            run_facets={**parser_result.run_facets, **run_facets} if parser_result else run_facets,
+        )
 
 
 class DatabricksTaskBaseOperator(BaseOperator, ABC):
@@ -1236,10 +1215,16 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         super().__init__(**kwargs)
 
         if self._databricks_workflow_task_group is not None:
-            self.operator_extra_links = (
-                WorkflowJobRunLink(),
-                WorkflowJobRepairSingleTaskLink(),
-            )
+            # Conditionally set operator_extra_links based on Airflow version. In Airflow 3, only show the job run link.
+            # In Airflow 2, show the job run link and the repair link.
+            # TODO: Once we expand the plugin functionality in Airflow 3.1, this can be re-evaluated on how to handle the repair link.
+            if AIRFLOW_V_3_0_PLUS:
+                self.operator_extra_links = (WorkflowJobRunLink(),)
+            else:
+                self.operator_extra_links = (
+                    WorkflowJobRunLink(),
+                    WorkflowJobRepairSingleTaskLink(),
+                )
         else:
             # Databricks does not support repair for non-workflow tasks, hence do not show the repair link.
             self.operator_extra_links = (DatabricksJobRunLink(),)
@@ -1340,15 +1325,15 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
 
         return self.databricks_run_id
 
-    def _handle_terminal_run_state(self, run_state: RunState) -> None:
+    def _handle_terminal_run_state(self, run_state: RunState, errors: list) -> None:
         """Handle the terminal state of the run."""
         if run_state.life_cycle_state != RunLifeCycleState.TERMINATED.value:
             raise AirflowException(
-                f"Databricks job failed with state {run_state.life_cycle_state}. Message: {run_state.state_message}"
+                f"Databricks job failed with state {run_state.life_cycle_state}. Message: {run_state.state_message}. Errors: {errors}"
             )
         if not run_state.is_successful:
             raise AirflowException(
-                f"Task failed. Final state {run_state.result_state}. Reason: {run_state.state_message}"
+                f"Task failed. Final state {run_state.result_state}. Reason: {run_state.state_message}. Errors: {errors}"
             )
         self.log.info("Task succeeded. Final state %s.", run_state.result_state)
 
@@ -1430,12 +1415,17 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
             time.sleep(self.polling_period_seconds)
             run = self._hook.get_run(current_task_run_id)
             run_state = RunState(**run["state"])
+
             self.log.info(
                 "Current state of the databricks task %s is %s",
                 self.databricks_task_key,
                 run_state.life_cycle_state,
             )
-        self._handle_terminal_run_state(run_state)
+
+        # Extract errors from the run response using utility function
+        errors = extract_failed_task_errors(self._hook, run, run_state)
+
+        self._handle_terminal_run_state(run_state, errors)
 
     def execute(self, context: Context) -> None:
         """Execute the operator. Launch the job and monitor it if wait_for_termination is set to True."""
@@ -1444,11 +1434,18 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
             if not self.workflow_run_metadata:
                 launch_task_id = next(task for task in self.upstream_task_ids if task.endswith(".launch"))
                 self.workflow_run_metadata = context["ti"].xcom_pull(task_ids=launch_task_id)
-            workflow_run_metadata = WorkflowRunMetadata(  # type: ignore[arg-type]
-                **self.workflow_run_metadata
-            )
+            workflow_run_metadata = WorkflowRunMetadata(**self.workflow_run_metadata)
             self.databricks_run_id = workflow_run_metadata.run_id
             self.databricks_conn_id = workflow_run_metadata.conn_id
+
+            # Store operator links in XCom for Airflow 3 compatibility
+            if AIRFLOW_V_3_0_PLUS:
+                # Store the job run link
+                store_databricks_job_run_link(
+                    context=context,
+                    metadata=workflow_run_metadata,
+                    logger=self.log,
+                )
         else:
             self._launch_job(context=context)
         if self.wait_for_termination:
@@ -1456,7 +1453,8 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
 
     def execute_complete(self, context: dict | None, event: dict) -> None:
         run_state = RunState.from_json(event["run_state"])
-        self._handle_terminal_run_state(run_state)
+        errors = event.get("errors", [])
+        self._handle_terminal_run_state(run_state, errors)
 
 
 class DatabricksNotebookOperator(DatabricksTaskBaseOperator):

@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from google.api_core.exceptions import NotFound
 from google.cloud.aiplatform.vertex_ray.util import resources
@@ -93,8 +93,10 @@ class CreateRayClusterOperator(RayBaseOperator):
     :param location: Required. The ID of the Google Cloud region that the service belongs to.
     :param head_node_type: The head node resource. Resources.node_count must be 1. If not set, default
         value of Resources() class will be used.
-    :param python_version: Python version for the ray cluster.
-    :param ray_version: Ray version for the ray cluster. Default is 2.33.0.
+    :param python_version: Required. Python version for the ray cluster.
+    :param ray_version: Required. Ray version for the ray cluster.
+        Currently only 3 version are available: 2.9.3, 2.33, 2.42. For more information please refer to
+        https://github.com/googleapis/python-aiplatform/blob/main/setup.py#L101
     :param network: Virtual private cloud (VPC) network. For Ray Client, VPC peering is required to
         connect to the Ray Cluster managed in the Vertex API service. For Ray Job API, VPC network is not
         required because Ray Cluster connection can be accessed through dashboard address.
@@ -136,9 +138,9 @@ class CreateRayClusterOperator(RayBaseOperator):
 
     def __init__(
         self,
+        python_version: str,
+        ray_version: Literal["2.9.3", "2.33", "2.42"],
         head_node_type: resources.Resources = resources.Resources(),
-        python_version: str = "3.10",
-        ray_version: str = "2.33",
         network: str | None = None,
         service_account: str | None = None,
         cluster_name: str | None = None,
@@ -188,12 +190,13 @@ class CreateRayClusterOperator(RayBaseOperator):
                 labels=self.labels,
             )
             cluster_id = self.hook.extract_cluster_id(cluster_path)
-            self.xcom_push(
-                context=context,
+            context["ti"].xcom_push(
                 key="cluster_id",
                 value=cluster_id,
             )
-            VertexAIRayClusterLink.persist(context=context, task_instance=self, cluster_id=cluster_id)
+            VertexAIRayClusterLink.persist(
+                context=context, location=self.location, cluster_id=cluster_id, project_id=self.project_id
+            )
             self.log.info("Ray cluster was created.")
         except Exception as error:
             raise AirflowException(error)
@@ -220,7 +223,7 @@ class ListRayClustersOperator(RayBaseOperator):
     operator_extra_links = (VertexAIRayClusterListLink(),)
 
     def execute(self, context: Context):
-        VertexAIRayClusterListLink.persist(context=context, task_instance=self)
+        VertexAIRayClusterListLink.persist(context=context, project_id=self.project_id)
         self.log.info("Listing Clusters from location %s.", self.location)
         try:
             ray_cluster_list = self.hook.list_ray_clusters(
@@ -268,8 +271,9 @@ class GetRayClusterOperator(RayBaseOperator):
     def execute(self, context: Context):
         VertexAIRayClusterLink.persist(
             context=context,
-            task_instance=self,
+            location=self.location,
             cluster_id=self.cluster_id,
+            project_id=self.project_id,
         )
         self.log.info("Getting Cluster: %s", self.cluster_id)
         try:
@@ -278,7 +282,7 @@ class GetRayClusterOperator(RayBaseOperator):
                 location=self.location,
                 cluster_id=self.cluster_id,
             )
-            self.log.info("Cluster was gotten.")
+            self.log.info("Cluster data has been retrieved.")
             ray_cluster_dict = self.hook.serialize_cluster_obj(ray_cluster)
             return ray_cluster_dict
         except NotFound as not_found_err:
@@ -325,8 +329,9 @@ class UpdateRayClusterOperator(RayBaseOperator):
     def execute(self, context: Context):
         VertexAIRayClusterLink.persist(
             context=context,
-            task_instance=self,
+            location=self.location,
             cluster_id=self.cluster_id,
+            project_id=self.project_id,
         )
         self.log.info("Updating a Ray cluster.")
         try:

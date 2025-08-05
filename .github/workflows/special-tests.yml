@@ -20,8 +20,12 @@ name: Special tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      amd-runners:
-        description: "The array of labels (in json form) determining public AMD runners."
+      runners:
+        description: "The array of labels (in json form) determining runners."
+        required: true
+        type: string
+      platform:
+        description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
         required: true
         type: string
       default-branch:
@@ -90,7 +94,8 @@ jobs:
       contents: read
       packages: read
     with:
-      amd-runners: ${{ inputs.amd-runners }}
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
       downgrade-sqlalchemy: "true"
       test-name: "MinSQLAlchemy-Postgres"
       test-scope: "DB"
@@ -105,6 +110,7 @@ jobs:
       debug-resources: ${{ inputs.debug-resources }}
       skip-providers-tests: ${{ inputs.skip-providers-tests }}
       use-uv: ${{ inputs.use-uv }}
+      default-branch: ${{ inputs.default-branch }}
 
   tests-min-sqlalchemy-providers:
     name: "Min SQLAlchemy test: providers"
@@ -113,7 +119,8 @@ jobs:
       contents: read
       packages: read
     with:
-      amd-runners: ${{ inputs.amd-runners }}
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
       downgrade-sqlalchemy: "true"
       test-name: "MinSQLAlchemy-Postgres"
       test-scope: "DB"
@@ -128,6 +135,7 @@ jobs:
       debug-resources: ${{ inputs.debug-resources }}
       skip-providers-tests: ${{ inputs.skip-providers-tests }}
       use-uv: ${{ inputs.use-uv }}
+      default-branch: ${{ inputs.default-branch }}
 
   tests-boto-core:
     name: "Latest Boto test: core"
@@ -136,7 +144,8 @@ jobs:
       contents: read
       packages: read
     with:
-      amd-runners: ${{ inputs.amd-runners }}
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
       upgrade-boto: "true"
       test-name: "LatestBoto-Postgres"
       test-scope: "All"
@@ -152,6 +161,7 @@ jobs:
       debug-resources: ${{ inputs.debug-resources }}
       skip-providers-tests: ${{ inputs.skip-providers-tests }}
       use-uv: ${{ inputs.use-uv }}
+      default-branch: ${{ inputs.default-branch }}
 
   tests-boto-providers:
     name: "Latest Boto test: providers"
@@ -160,7 +170,8 @@ jobs:
       contents: read
       packages: read
     with:
-      amd-runners: ${{ inputs.amd-runners }}
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
       upgrade-boto: "true"
       test-name: "LatestBoto-Postgres"
       test-scope: "All"
@@ -176,7 +187,7 @@ jobs:
       debug-resources: ${{ inputs.debug-resources }}
       skip-providers-tests: ${{ inputs.skip-providers-tests }}
       use-uv: ${{ inputs.use-uv }}
-
+      default-branch: ${{ inputs.default-branch }}
 
   tests-pendulum-2-core:
     name: "Pendulum2 test: core"
@@ -185,7 +196,8 @@ jobs:
       contents: read
       packages: read
     with:
-      amd-runners: ${{ inputs.amd-runners }}
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
       downgrade-pendulum: "true"
       test-name: "Pendulum2-Postgres"
       test-scope: "All"
@@ -201,6 +213,7 @@ jobs:
       debug-resources: ${{ inputs.debug-resources }}
       skip-providers-tests: ${{ inputs.skip-providers-tests }}
       use-uv: ${{ inputs.use-uv }}
+      default-branch: ${{ inputs.default-branch }}
 
   tests-pendulum-2-providers:
     name: "Pendulum2 test: providers"
@@ -209,7 +222,8 @@ jobs:
       contents: read
       packages: read
     with:
-      amd-runners: ${{ inputs.amd-runners }}
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
       downgrade-pendulum: "true"
       test-name: "Pendulum2-Postgres"
       test-scope: "All"
@@ -225,6 +239,7 @@ jobs:
       debug-resources: ${{ inputs.debug-resources }}
       skip-providers-tests: ${{ inputs.skip-providers-tests }}
       use-uv: ${{ inputs.use-uv }}
+      default-branch: ${{ inputs.default-branch }}
 
   tests-quarantined-core:
     name: "Quarantined test: core"
@@ -233,7 +248,8 @@ jobs:
       contents: read
       packages: read
     with:
-      amd-runners: ${{ inputs.amd-runners }}
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
       test-name: "Postgres"
       test-scope: "Quarantined"
       test-group: "core"
@@ -248,6 +264,7 @@ jobs:
       debug-resources: ${{ inputs.debug-resources }}
       skip-providers-tests: ${{ inputs.skip-providers-tests }}
       use-uv: ${{ inputs.use-uv }}
+      default-branch: ${{ inputs.default-branch }}
 
   tests-quarantined-providers:
     name: "Quarantined test: providers"
@@ -256,7 +273,8 @@ jobs:
       contents: read
       packages: read
     with:
-      amd-runners: ${{ inputs.amd-runners }}
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
       test-name: "Postgres"
       test-scope: "Quarantined"
       test-group: "providers"
@@ -271,56 +289,7 @@ jobs:
       debug-resources: ${{ inputs.debug-resources }}
       skip-providers-tests: ${{ inputs.skip-providers-tests }}
       use-uv: ${{ inputs.use-uv }}
-
-
-  tests-arm-collection-core:
-    name: "ARM Collection test: core"
-    uses: ./.github/workflows/run-unit-tests.yml
-    permissions:
-      contents: read
-      packages: read
-    with:
-      amd-runners: ${{ inputs.amd-runners }}
-      test-name: "Postgres"
-      test-scope: "ARM collection"
-      test-group: "core"
-      backend: "postgres"
-      python-versions: "['${{ inputs.default-python-version }}']"
-      backend-versions: "['${{ inputs.default-postgres-version }}']"
-      excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
-      excludes: "[]"
-      test-types-as-strings-in-json: ${{ inputs.core-test-types-list-as-strings-in-json }}
-      include-success-outputs: ${{ inputs.include-success-outputs }}
-      run-coverage: ${{ inputs.run-coverage }}
-      debug-resources: ${{ inputs.debug-resources }}
-      skip-providers-tests: ${{ inputs.skip-providers-tests }}
-      use-uv: ${{ inputs.use-uv }}
-    if: ${{ inputs.default-branch == 'main' }}
-
-  tests-arm-collection-providers:
-    name: "ARM Collection test: providers"
-    uses: ./.github/workflows/run-unit-tests.yml
-    permissions:
-      contents: read
-      packages: read
-    with:
-      amd-runners: ${{ inputs.amd-runners }}
-      test-name: "Postgres"
-      test-scope: "ARM collection"
-      test-group: "providers"
-      backend: "postgres"
-      python-versions: "['${{ inputs.default-python-version }}']"
-      backend-versions: "['${{ inputs.default-postgres-version }}']"
-      excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
-      excludes: "[]"
-      test-types-as-strings-in-json: ${{ inputs.core-test-types-list-as-strings-in-json }}
-      include-success-outputs: ${{ inputs.include-success-outputs }}
-      run-coverage: ${{ inputs.run-coverage }}
-      debug-resources: ${{ inputs.debug-resources }}
-      skip-providers-tests: ${{ inputs.skip-providers-tests }}
-      use-uv: ${{ inputs.use-uv }}
-    if: ${{ inputs.default-branch == 'main' }}
-
+      default-branch: ${{ inputs.default-branch }}
 
   tests-system-core:
     name: "System test: ${{ matrix.test-group }}"
@@ -329,7 +298,8 @@ jobs:
       contents: read
       packages: read
     with:
-      amd-runners: ${{ inputs.amd-runners }}
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
       test-name: "SystemTest"
       test-scope: "System"
       test-group: "core"
@@ -344,3 +314,4 @@ jobs:
       debug-resources: ${{ inputs.debug-resources }}
       skip-providers-tests: ${{ inputs.skip-providers-tests }}
       use-uv: ${{ inputs.use-uv }}
+      default-branch: ${{ inputs.default-branch }}

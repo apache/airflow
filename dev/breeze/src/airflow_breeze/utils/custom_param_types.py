@@ -25,6 +25,7 @@ from typing import Any
 import click
 from click import Context, Parameter, ParamType
 
+from airflow_breeze.global_constants import GITHUB_REPO_BRANCH_PATTERN
 from airflow_breeze.utils.cache import (
     check_if_values_allowed,
     read_and_validate_value_from_cache,
@@ -50,7 +51,7 @@ class BetterChoice(click.Choice):
         super().__init__(*args)
         self.all_choices: Sequence[str] = self.choices
 
-    def get_metavar(self, param) -> str:
+    def get_metavar(self, param, ctx=None) -> str:
         choices_str = " | ".join(self.all_choices)
         # Use curly braces to indicate a required argument.
         if param.required and param.param_type_name == "argument":
@@ -167,7 +168,7 @@ class CacheableChoice(click.Choice):
                 write_to_cache_file(param_name, new_value, check_allowed_values=False)
         return super().convert(new_value, param, ctx)
 
-    def get_metavar(self, param) -> str:
+    def get_metavar(self, param, ctx=None) -> str:
         param_name = param.envvar if param.envvar else param.name.upper()
         current_value = (
             read_from_cache_file(param_name) if not generating_command_images() else param.default.value
@@ -236,19 +237,16 @@ class MySQLBackendVersionChoice(BackendVersionChoice):
         return super().convert(value, param, ctx)
 
 
-ALLOWED_VCS_PROTOCOLS = ("git+file://", "git+https://", "git+ssh://", "git+http://", "git+git://", "git://")
-
-
 class UseAirflowVersionType(BetterChoice):
     """Extends choice with dynamic version number."""
 
     def __init__(self, *args):
         super().__init__(*args)
-        self.all_choices = [*self.choices, "<airflow_version>"]
+        self.all_choices = [*self.choices, "<airflow_version>", "<owner/repo:branch>"]
 
     def convert(self, value, param, ctx):
         if re.match(r"^\d*\.\d*\.\d*\S*$", value):
             return value
-        if value.startswith(ALLOWED_VCS_PROTOCOLS):
+        if re.match(GITHUB_REPO_BRANCH_PATTERN, value):
             return value
         return super().convert(value, param, ctx)

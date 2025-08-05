@@ -17,11 +17,10 @@
 # under the License.
 from __future__ import annotations
 
-import importlib
-from typing import TYPE_CHECKING
-
 import pymongo
 import pytest
+from pymongo import MongoClient
+from pymongo.errors import CollectionInvalid
 
 from airflow.exceptions import AirflowConfigException
 from airflow.models import Connection
@@ -29,22 +28,36 @@ from airflow.providers.mongo.hooks.mongo import MongoHook
 
 from tests_common.test_utils.compat import connection_as_json
 
-pytestmark = pytest.mark.db_test
 
-if TYPE_CHECKING:
-    from types import ModuleType
+@pytest.fixture
+def container_mongo_client(mongodb_container):
+    # Add some timeouts to the connection options to ensure that the MongoDB client interacts correctly
 
-mongomock: ModuleType | None
+    options = {"ssl": False, "socketTimeoutMS": 60000, "connectTimeoutMS": 60000}
+    client = MongoClient(mongodb_container, **options)
+    try:
+        client.admin.command("ping")
+    except Exception as e:
+        raise e
+    yield client
 
-try:
-    mongomock = importlib.import_module("mongomock")
-except ImportError:
-    mongomock = None
+    client.close()
+
+
+@pytest.fixture
+def mongo_collection(container_mongo_client):
+    collection = container_mongo_client.test.test_collection
+
+    yield collection
+
+    collection.drop()
 
 
 @pytest.fixture(scope="module", autouse=True)
-def mongo_connections():
+def mongo_connections(mongodb_container):
     """Create MongoDB connections which use for testing purpose."""
+    (mongodb_container_host, mongodb_container_port) = mongodb_container.split("@")[1].split(":")
+
     connections = [
         Connection(conn_id="mongo_default", conn_type="mongo", host="mongo", port=27017),
         Connection(
@@ -70,6 +83,15 @@ def mongo_connections():
         ),
         # Mongo establishes connection during initialization, so we need to have this connection
         Connection(conn_id="fake_connection", conn_type="mongo", host="mongo", port=27017),
+        Connection(
+            conn_id="mongo_default_with_test_container",
+            conn_type="mongo",
+            login="test",
+            password="test",
+            host=mongodb_container_host,
+            port=int(mongodb_container_port),
+            extra='{"allow_insecure": true, "ssl": false, "socketTimeoutMS": 60000, "connectTimeoutMS": 60000}',
+        ),
     ]
 
     with pytest.MonkeyPatch.context() as mp:
@@ -78,23 +100,9 @@ def mongo_connections():
         yield
 
 
-class MongoHookTest(MongoHook):
-    """
-    Extending hook so that a mockmongo collection object can be passed in
-    to get_collection()
-    """
-
-    def __init__(self, mongo_conn_id="mongo_default", *args, **kwargs):
-        super().__init__(mongo_conn_id=mongo_conn_id, *args, **kwargs)
-
-    def get_collection(self, mock_collection, mongo_db=None):
-        return mock_collection
-
-
-@pytest.mark.skipif(mongomock is None, reason="mongomock package not present")
 class TestMongoHook:
     def setup_method(self):
-        self.hook = MongoHookTest(mongo_conn_id="mongo_default")
+        self.hook = MongoHook(mongo_conn_id="mongo_default_with_test_container")
         self.conn = self.hook.get_conn()
 
     def teardown_method(self):
@@ -107,8 +115,10 @@ class TestMongoHook:
         assert MongoHook("fake_connection").mongo_conn_id == "fake_connection"
 
     def test_get_conn(self):
-        assert self.hook.connection.port == 27017
-        assert isinstance(self.conn, pymongo.MongoClient)
+        hook = MongoHook(mongo_conn_id="mongo_default")
+        conn = hook.get_conn()
+        assert hook.connection.port == 27017
+        assert isinstance(conn, pymongo.MongoClient)
 
     def test_srv(self):
         hook = MongoHook(mongo_conn_id="mongo_default_with_srv")
@@ -132,144 +142,130 @@ class TestMongoHook:
         with pytest.raises(AirflowConfigException, match="srv URI should not specify a port"):
             MongoHook(mongo_conn_id="mongo_invalid_srv_with_port")
 
-    def test_insert_one(self):
-        collection = mongomock.MongoClient().db.collection
+    def test_insert_one(self, mongo_collection):
         obj = {"test_insert_one": "test_value"}
-        self.hook.insert_one(collection, obj)
+        self.hook.insert_one("test_collection", obj, mongo_db="test")
 
-        result_obj = collection.find_one(filter=obj)
+        result_obj = mongo_collection.find_one(filter=obj)
 
         assert obj == result_obj
 
-    def test_insert_many(self):
-        collection = mongomock.MongoClient().db.collection
+    def test_insert_many(self, mongo_collection):
         objs = [{"test_insert_many_1": "test_value"}, {"test_insert_many_2": "test_value"}]
 
-        self.hook.insert_many(collection, objs)
+        self.hook.insert_many("test_collection", objs, mongo_db="test")
 
-        result_objs = list(collection.find())
+        result_objs = list(mongo_collection.find())
         assert len(result_objs) == 2
 
-    def test_update_one(self):
-        collection = mongomock.MongoClient().db.collection
+    def test_update_one(self, mongo_collection):
         obj = {"_id": "1", "field": 0}
-        collection.insert_one(obj)
+        mongo_collection.insert_one(obj)
 
         filter_doc = obj
         update_doc = {"$inc": {"field": 123}}
 
-        self.hook.update_one(collection, filter_doc, update_doc)
+        self.hook.update_one("test_collection", filter_doc, update_doc, mongo_db="test")
 
-        result_obj = collection.find_one(filter="1")
+        result_obj = mongo_collection.find_one(filter="1")
         assert result_obj["field"] == 123
 
-    def test_update_one_with_upsert(self):
-        collection = mongomock.MongoClient().db.collection
-
+    def test_update_one_with_upsert(self, mongo_collection):
         filter_doc = {"_id": "1", "field": 0}
         update_doc = {"$inc": {"field": 123}}
 
-        self.hook.update_one(collection, filter_doc, update_doc, upsert=True)
+        self.hook.update_one("test_collection", filter_doc, update_doc, upsert=True, mongo_db="test")
 
-        result_obj = collection.find_one(filter="1")
+        result_obj = mongo_collection.find_one(filter="1")
         assert result_obj["field"] == 123
 
-    def test_update_many(self):
-        collection = mongomock.MongoClient().db.collection
+    def test_update_many(self, mongo_collection):
         obj1 = {"_id": "1", "field": 0}
         obj2 = {"_id": "2", "field": 0}
-        collection.insert_many([obj1, obj2])
+        mongo_collection.insert_many([obj1, obj2])
 
         filter_doc = {"field": 0}
         update_doc = {"$inc": {"field": 123}}
 
-        self.hook.update_many(collection, filter_doc, update_doc)
+        self.hook.update_many("test_collection", filter_doc, update_doc, mongo_db="test")
 
-        result_obj = collection.find_one(filter="1")
+        result_obj = mongo_collection.find_one(filter="1")
         assert result_obj["field"] == 123
 
-        result_obj = collection.find_one(filter="2")
+        result_obj = mongo_collection.find_one(filter="2")
         assert result_obj["field"] == 123
 
-    def test_update_many_with_upsert(self):
-        collection = mongomock.MongoClient().db.collection
-
+    def test_update_many_with_upsert(self, mongo_collection):
         filter_doc = {"_id": "1", "field": 0}
         update_doc = {"$inc": {"field": 123}}
 
-        self.hook.update_many(collection, filter_doc, update_doc, upsert=True)
+        self.hook.update_many("test_collection", filter_doc, update_doc, upsert=True, mongo_db="test")
 
-        result_obj = collection.find_one(filter="1")
+        result_obj = mongo_collection.find_one(filter="1")
         assert result_obj["field"] == 123
 
-    def test_replace_one(self):
-        collection = mongomock.MongoClient().db.collection
+    def test_replace_one(self, mongo_collection):
         obj1 = {"_id": "1", "field": "test_value_1"}
         obj2 = {"_id": "2", "field": "test_value_2"}
-        collection.insert_many([obj1, obj2])
+        mongo_collection.insert_many([obj1, obj2])
 
         obj1["field"] = "test_value_1_updated"
-        self.hook.replace_one(collection, obj1)
+        self.hook.replace_one("test_collection", obj1, mongo_db="test")
 
-        result_obj = collection.find_one(filter="1")
+        result_obj = mongo_collection.find_one(filter="1")
         assert result_obj["field"] == "test_value_1_updated"
 
         # Other document should stay intact
-        result_obj = collection.find_one(filter="2")
+        result_obj = mongo_collection.find_one(filter="2")
         assert result_obj["field"] == "test_value_2"
 
-    def test_replace_one_with_filter(self):
-        collection = mongomock.MongoClient().db.collection
+    def test_replace_one_with_filter(self, mongo_collection):
         obj1 = {"_id": "1", "field": "test_value_1"}
         obj2 = {"_id": "2", "field": "test_value_2"}
-        collection.insert_many([obj1, obj2])
+        mongo_collection.insert_many([obj1, obj2])
 
         obj1["field"] = "test_value_1_updated"
-        self.hook.replace_one(collection, obj1, {"field": "test_value_1"})
+        self.hook.replace_one("test_collection", obj1, {"field": "test_value_1"}, mongo_db="test")
 
-        result_obj = collection.find_one(filter="1")
+        result_obj = mongo_collection.find_one(filter="1")
         assert result_obj["field"] == "test_value_1_updated"
 
         # Other document should stay intact
-        result_obj = collection.find_one(filter="2")
+        result_obj = mongo_collection.find_one(filter="2")
         assert result_obj["field"] == "test_value_2"
 
-    def test_replace_one_with_upsert(self):
-        collection = mongomock.MongoClient().db.collection
-
+    def test_replace_one_with_upsert(self, mongo_collection):
         obj = {"_id": "1", "field": "test_value_1"}
-        self.hook.replace_one(collection, obj, upsert=True)
+        self.hook.replace_one("test_collection", obj, upsert=True, mongo_db="test")
 
-        result_obj = collection.find_one(filter="1")
+        result_obj = mongo_collection.find_one(filter="1")
         assert result_obj["field"] == "test_value_1"
 
-    def test_replace_many(self):
-        collection = mongomock.MongoClient().db.collection
+    def test_replace_many(self, mongo_collection):
         obj1 = {"_id": "1", "field": "test_value_1"}
         obj2 = {"_id": "2", "field": "test_value_2"}
-        collection.insert_many([obj1, obj2])
+        mongo_collection.insert_many([obj1, obj2])
 
         obj1["field"] = "test_value_1_updated"
         obj2["field"] = "test_value_2_updated"
-        self.hook.replace_many(collection, [obj1, obj2])
+        self.hook.replace_many("test_collection", [obj1, obj2], mongo_db="test")
 
-        result_obj = collection.find_one(filter="1")
+        result_obj = mongo_collection.find_one(filter="1")
         assert result_obj["field"] == "test_value_1_updated"
 
-        result_obj = collection.find_one(filter="2")
+        result_obj = mongo_collection.find_one(filter="2")
         assert result_obj["field"] == "test_value_2_updated"
 
-    def test_replace_many_with_upsert(self):
-        collection = mongomock.MongoClient().db.collection
+    def test_replace_many_with_upsert(self, mongo_collection):
         obj1 = {"_id": "1", "field": "test_value_1"}
         obj2 = {"_id": "2", "field": "test_value_2"}
 
-        self.hook.replace_many(collection, [obj1, obj2], upsert=True)
+        self.hook.replace_many("test_collection", [obj1, obj2], upsert=True, mongo_db="test")
 
-        result_obj = collection.find_one(filter="1")
+        result_obj = mongo_collection.find_one(filter="1")
         assert result_obj["field"] == "test_value_1"
 
-        result_obj = collection.find_one(filter="2")
+        result_obj = mongo_collection.find_one(filter="2")
         assert result_obj["field"] == "test_value_2"
 
     def test_create_uri_with_all_creds(self):
@@ -284,7 +280,8 @@ class TestMongoHook:
         self.hook.connection.login = None
         self.hook.connection.password = None
         self.hook.connection.port = None
-        assert self.hook._create_uri() == "mongodb://mongo/None"
+        self.hook.connection.host = "mongo"
+        assert self.hook._create_uri() == "mongodb://mongo"
 
     def test_create_uri_srv_true(self):
         self.hook.extras["srv"] = True
@@ -295,97 +292,124 @@ class TestMongoHook:
         self.hook.connection.schema = "test_db"
         assert self.hook._create_uri() == "mongodb+srv://test_user:test_password@test_host:1234/test_db"
 
-    def test_delete_one(self):
-        collection = mongomock.MongoClient().db.collection
+    def test_delete_one(self, mongo_collection):
         obj = {"_id": "1"}
-        collection.insert_one(obj)
+        mongo_collection.insert_one(obj)
 
-        self.hook.delete_one(collection, {"_id": "1"})
+        self.hook.delete_one("test_collection", {"_id": "1"}, mongo_db="test")
 
-        assert collection.count_documents({}) == 0
+        assert mongo_collection.count_documents({}) == 0
 
-    def test_delete_many(self):
-        collection = mongomock.MongoClient().db.collection
+    def test_delete_many(self, mongo_collection):
         obj1 = {"_id": "1", "field": "value"}
         obj2 = {"_id": "2", "field": "value"}
-        collection.insert_many([obj1, obj2])
+        mongo_collection.insert_many([obj1, obj2])
 
-        self.hook.delete_many(collection, {"field": "value"})
+        self.hook.delete_many("test_collection", {"field": "value"}, mongo_db="test")
 
-        assert collection.count_documents({}) == 0
+        assert mongo_collection.count_documents({}) == 0
 
-    def test_find_one(self):
-        collection = mongomock.MongoClient().db.collection
+    def test_find_one(self, mongo_collection):
         obj = {"test_find_one": "test_value"}
-        collection.insert_one(obj)
+        mongo_collection.insert_one(obj)
 
-        result_obj = self.hook.find(collection, {}, find_one=True)
+        result_obj = self.hook.find("test_collection", {}, find_one=True, mongo_db="test")
         result_obj = {result: result_obj[result] for result in result_obj}
         assert obj == result_obj
 
-    def test_find_many(self):
-        collection = mongomock.MongoClient().db.collection
+    def test_find_many(self, mongo_collection):
         objs = [{"_id": 1, "test_find_many_1": "test_value"}, {"_id": 2, "test_find_many_2": "test_value"}]
-        collection.insert_many(objs)
+        mongo_collection.insert_many(objs)
 
-        result_objs = self.hook.find(mongo_collection=collection, query={}, projection={}, find_one=False)
+        result_objs = self.hook.find(
+            mongo_collection="test_collection", query={}, projection={}, find_one=False, mongo_db="test"
+        )
 
         assert len(list(result_objs)) > 1
 
-    def test_find_many_with_projection(self):
-        collection = mongomock.MongoClient().db.collection
+    def test_find_many_with_projection(self, mongo_collection):
         objs = [
             {"_id": "1", "test_find_many_1": "test_value", "field_3": "a"},
             {"_id": "2", "test_find_many_2": "test_value", "field_3": "b"},
         ]
-        collection.insert_many(objs)
+        mongo_collection.insert_many(objs)
 
         projection = {"_id": 0}
         result_objs = self.hook.find(
-            mongo_collection=collection, query={}, projection=projection, find_one=False
+            mongo_collection="test_collection",
+            query={},
+            projection=projection,
+            find_one=False,
+            mongo_db="test",
         )
         assert "_id" not in result_objs[0]
 
-    def test_aggregate(self):
-        collection = mongomock.MongoClient().db.collection
+    def test_aggregate(self, mongo_collection):
         objs = [
             {"test_id": "1", "test_status": "success"},
             {"test_id": "2", "test_status": "failure"},
             {"test_id": "3", "test_status": "success"},
         ]
 
-        collection.insert_many(objs)
+        mongo_collection.insert_many(objs)
 
         aggregate_query = [{"$match": {"test_status": "success"}}]
 
-        results = self.hook.aggregate(collection, aggregate_query)
+        results = self.hook.aggregate("test_collection", aggregate_query, mongo_db="test")
         assert len(list(results)) == 2
 
-    def test_distinct(self):
-        collection = mongomock.MongoClient().db.collection
+    def test_distinct(self, mongo_collection):
         objs = [
             {"test_id": "1", "test_status": "success"},
             {"test_id": "2", "test_status": "failure"},
             {"test_id": "3", "test_status": "success"},
         ]
 
-        collection.insert_many(objs)
+        mongo_collection.insert_many(objs)
 
-        results = self.hook.distinct(collection, "test_status")
+        results = self.hook.distinct("test_collection", "test_status", mongo_db="test")
         assert len(results) == 2
 
-    def test_distinct_with_filter(self):
-        collection = mongomock.MongoClient().db.collection
+    def test_distinct_with_filter(self, mongo_collection):
         objs = [
             {"test_id": "1", "test_status": "success"},
             {"test_id": "2", "test_status": "failure"},
             {"test_id": "3", "test_status": "success"},
         ]
 
-        collection.insert_many(objs)
+        mongo_collection.insert_many(objs)
 
-        results = self.hook.distinct(collection, "test_id", {"test_status": "failure"})
+        results = self.hook.distinct(
+            "test_collection", "test_id", {"test_status": "failure"}, mongo_db="test"
+        )
         assert len(results) == 1
+
+    def test_create_standard_collection(self, container_mongo_client):
+        self.hook.get_conn = lambda: container_mongo_client
+        self.hook.connection.schema = "test_db"
+
+        collection = self.hook.create_collection(mongo_collection="plain_collection")
+        assert collection.name == "plain_collection"
+        assert "plain_collection" in container_mongo_client["test_db"].list_collection_names()
+
+    def test_return_if_exists_true_returns_existing(self, container_mongo_client):
+        self.hook.get_conn = lambda: container_mongo_client
+        self.hook.connection.schema = "test_db"
+
+        first = self.hook.create_collection(mongo_collection="foo")
+        second = self.hook.create_collection(mongo_collection="foo", return_if_exists=True)
+
+        assert first.full_name == second.full_name
+        assert "foo" in container_mongo_client["test_db"].list_collection_names()
+
+    def test_return_if_exists_false_raises(self, container_mongo_client):
+        self.hook.get_conn = lambda: container_mongo_client
+        self.hook.connection.schema = "test_db"
+
+        self.hook.create_collection(mongo_collection="bar")
+
+        with pytest.raises(CollectionInvalid):
+            self.hook.create_collection(mongo_collection="bar", return_if_exists=False)
 
 
 def test_context_manager():

@@ -19,11 +19,14 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+import pendulum
 import pytest
 
+from airflow import macros
 from airflow.models.dag import DAG
 from airflow.providers.standard.sensors.date_time import DateTimeSensor
-from airflow.utils import timezone
+
+from tests_common.test_utils.version_compat import timezone
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 
@@ -90,3 +93,34 @@ class TestDateTimeSensor:
     def test_poke(self, mock_utcnow, task_id, target_time, expected):
         op = DateTimeSensor(task_id=task_id, target_time=target_time, dag=self.dag)
         assert op.poke(None) == expected
+
+    @pytest.mark.parametrize(
+        "native, target_time, expected_type",
+        [
+            (False, "2025-01-01T00:00:00+00:00", pendulum.DateTime),
+            (True, "{{ data_interval_end }}", pendulum.DateTime),
+            (False, pendulum.datetime(2025, 1, 1, tz="UTC"), pendulum.DateTime),
+        ],
+    )
+    def test_moment(self, native, target_time, expected_type):
+        dag = DAG(
+            dag_id="moment_dag",
+            start_date=pendulum.datetime(2025, 1, 1, tz="UTC"),
+            schedule=None,
+            render_template_as_native_obj=native,
+        )
+
+        sensor = DateTimeSensor(
+            task_id="moment",
+            target_time=target_time,
+            dag=dag,
+        )
+
+        ctx = {
+            "data_interval_end": pendulum.datetime(2025, 1, 1, tz="UTC"),
+            "macros": macros,
+            "dag": dag,
+        }
+        sensor.render_template_fields(ctx)
+
+        assert isinstance(sensor._moment, expected_type)

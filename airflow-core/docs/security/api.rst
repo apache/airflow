@@ -43,7 +43,7 @@ Request
 
 .. code-block:: bash
 
-    ENDPOINT_URL="http://localhost:8080/"
+    ENDPOINT_URL="http://localhost:8080"
     curl -X POST ${ENDPOINT_URL}/auth/token \
       -H "Content-Type: application/json" \
       -d '{
@@ -63,7 +63,7 @@ Use the JWT token to call Airflow public API
 
 .. code-block:: bash
 
-    ENDPOINT_URL="http://localhost:8080/"
+    ENDPOINT_URL="http://localhost:8080"
     curl -X GET ${ENDPOINT_URL}/api/v2/dags \
       -H "Authorization: Bearer <JWT-TOKEN>"
 
@@ -93,3 +93,10 @@ Page size limit
 To protect against requests that may lead to application instability, the stable API has a limit of items in response.
 The default is 100 items, but you can change it using ``maximum_page_limit``  option in ``[api]``
 section in the ``airflow.cfg`` file.
+
+Request Payload Considerations
+------------------------------
+
+When using REST APIs that accept data payloads (such as the Variables API), be mindful of the payload size.
+Large payloads (out of ordinary size, like a million bytes) can impact the performance of the Airflow webserver.
+It's recommended to implement appropriate size limits at the proxy layer for your deployment.

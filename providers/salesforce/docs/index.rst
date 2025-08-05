@@ -77,7 +77,9 @@ apache-airflow-providers-salesforce package
 `Salesforce <https://www.salesforce.com/>`__
 
 
-Release: 5.10.1
+Release: 5.11.2
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------
@@ -95,12 +97,13 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider distribution is ``2.9.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
 
-=====================  ==================
+=====================  =====================================
 PIP package            Version required
-=====================  ==================
-``apache-airflow``     ``>=2.9.0``
+=====================  =====================================
+``apache-airflow``     ``>=2.10.0``
 ``simple-salesforce``  ``>=1.0.0``
-``pandas``             ``>=2.1.2,<2.2``
-=====================  ==================
+``pandas``             ``>=2.1.2; python_version < "3.13"``
+``pandas``             ``>=2.2.3; python_version >= "3.13"``
+=====================  =====================================

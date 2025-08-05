@@ -47,3 +47,53 @@ def header_accept_json_or_text_depends(
 
 
 HeaderAcceptJsonOrText = Annotated[Mimetype, Depends(header_accept_json_or_text_depends)]
+
+
+def header_accept_json_or_ndjson_depends(
+    accept: Annotated[
+        str,
+        Header(
+            json_schema_extra={
+                "type": "string",
+                "enum": [Mimetype.JSON, Mimetype.NDJSON, Mimetype.ANY],
+            }
+        ),
+    ] = Mimetype.ANY,
+) -> Mimetype:
+    if accept.startswith(Mimetype.ANY):
+        return Mimetype.ANY
+    if accept.startswith(Mimetype.JSON):
+        return Mimetype.JSON
+    if accept.startswith(Mimetype.NDJSON) or accept.startswith(Mimetype.ANY):
+        return Mimetype.NDJSON
+
+    raise HTTPException(
+        status_code=status.HTTP_406_NOT_ACCEPTABLE,
+        detail="Only application/json or application/x-ndjson is supported",
+    )
+
+
+HeaderAcceptJsonOrNdjson = Annotated[Mimetype, Depends(header_accept_json_or_ndjson_depends)]
+
+
+def header_content_type_json_or_form_depends(
+    content_type: Annotated[
+        str,
+        Header(
+            alias="Content-Type",
+            description="Content-Type of the request body",
+            json_schema_extra={"enum": [Mimetype.JSON, Mimetype.FORM]},
+        ),
+    ] = Mimetype.JSON,
+) -> Mimetype:
+    if content_type.startswith(Mimetype.JSON):
+        return Mimetype.JSON
+    if content_type.startswith(Mimetype.FORM):
+        return Mimetype.FORM
+    raise HTTPException(
+        status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+        detail="Only application/json or application/x-www-form-urlencoded is supported",
+    )
+
+
+HeaderContentTypeJsonOrForm = Annotated[Mimetype, Depends(header_content_type_json_or_form_depends)]

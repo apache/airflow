@@ -16,8 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example DAG demonstrating ``TimeDeltaSensorAsync``, a drop in replacement for ``TimeDeltaSensor`` that
-defers and doesn't occupy a worker slot while it waits
+Example DAG demonstrating ``TimeDeltaSensor``, that defers and doesn't occupy a worker slot while it waits
 """
 
 from __future__ import annotations
@@ -27,7 +26,7 @@ import datetime
 import pendulum
 
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.providers.standard.sensors.time_delta import TimeDeltaSensorAsync
+from airflow.providers.standard.sensors.time_delta import TimeDeltaSensor
 from airflow.sdk import DAG
 
 with DAG(
@@ -37,6 +36,6 @@ with DAG(
     catchup=False,
     tags=["example"],
 ) as dag:
-    wait = TimeDeltaSensorAsync(task_id="wait", delta=datetime.timedelta(seconds=30))
+    wait = TimeDeltaSensor(task_id="wait", delta=datetime.timedelta(seconds=30), deferrable=True)
     finish = EmptyOperator(task_id="finish")
     wait >> finish

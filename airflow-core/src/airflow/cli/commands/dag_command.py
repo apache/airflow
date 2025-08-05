@@ -24,31 +24,29 @@ import errno
 import json
 import logging
 import operator
-import os
 import re
 import subprocess
 import sys
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
 
+from airflow._shared.timezones import timezone
 from airflow.api.client import get_current_api_client
 from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.jobs.job import Job
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
-from airflow.models.dag import DAG
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
-from airflow.utils import cli as cli_utils, timezone
+from airflow.utils import cli as cli_utils
 from airflow.utils.cli import get_dag, suppress_logs_and_warning, validate_dag_bundle_arg
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
 from airflow.utils.helpers import ask_yesno
+from airflow.utils.platform import getuser
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState
@@ -57,6 +55,7 @@ if TYPE_CHECKING:
     from graphviz.dot import Dot
     from sqlalchemy.orm import Session
 
+    from airflow.models.dag import DAG
     from airflow.timetables.base import DataInterval
 
 DAG_DETAIL_FIELDS = {*DAGResponse.model_fields, *DAGResponse.model_computed_fields}
@@ -70,11 +69,17 @@ def dag_trigger(args) -> None:
     """Create a dag run for the specified dag."""
     api_client = get_current_api_client()
     try:
+        user = getuser()
+    except AirflowConfigException as e:
+        log.warning("Failed to get user name from os: %s, not setting the triggering user", e)
+        user = None
+    try:
         message = api_client.trigger_dag(
             dag_id=args.dag_id,
             run_id=args.run_id,
             conf=args.conf,
             logical_date=args.logical_date,
+            triggering_user_name=user,
             replace_microseconds=args.replace_microseconds,
         )
         AirflowConsole().print_as(
@@ -591,29 +596,6 @@ def dag_list_dag_runs(args, dag: DAG | None = None, session: Session = NEW_SESSI
     AirflowConsole().print_as(data=dag_runs, output=args.output, mapper=_render_dagrun)
 
 
-def _parse_and_get_dag(dag_id: str) -> DAG | None:
-    """Given a dag_id, determine the bundle and relative fileloc from the db, then parse and return the DAG."""
-    db_dag = get_dag(bundle_names=None, dag_id=dag_id, from_db=True)
-    bundle_name = db_dag.get_bundle_name()
-    if bundle_name is None:
-        raise AirflowException(
-            f"Bundle name for DAG {dag_id!r} is not found in the database. This should not happen."
-        )
-    if db_dag.relative_fileloc is None:
-        raise AirflowException(
-            f"Relative fileloc for DAG {dag_id!r} is not found in the database. This should not happen."
-        )
-    bundle = DagBundlesManager().get_bundle(bundle_name)
-    bundle.initialize()
-    dag_absolute_path = os.fspath(Path(bundle.path, db_dag.relative_fileloc))
-
-    with _airflow_parsing_context_manager(dag_id=dag_id):
-        bag = DagBag(
-            dag_folder=dag_absolute_path, include_examples=False, safe_mode=False, load_op_links=False
-        )
-        return bag.dags.get(dag_id)
-
-
 @cli_utils.action_cli
 @providers_configuration_loaded
 @provide_session
@@ -632,19 +614,17 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
         re.compile(args.mark_success_pattern) if args.mark_success_pattern is not None else None
     )
 
-    dag = dag or _parse_and_get_dag(args.dag_id)
+    dag = dag or get_dag(bundle_names=args.bundle_name, dag_id=args.dag_id, dagfile_path=args.dagfile_path)
     if not dag:
         raise AirflowException(
             f"Dag {args.dag_id!r} could not be found; either it does not exist or it failed to parse."
         )
 
-    dag = DAG.from_sdk_dag(dag)
     dr: DagRun = dag.test(
         logical_date=logical_date,
         run_conf=run_conf,
         use_executor=use_executor,
         mark_success_pattern=mark_success_pattern,
-        session=session,
     )
     show_dagrun = args.show_dagrun
     imgcat = args.imgcat_dagrun

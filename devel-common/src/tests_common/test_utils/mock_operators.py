@@ -21,17 +21,17 @@ from typing import TYPE_CHECKING
 
 import attr
 
-from airflow.models.baseoperator import BaseOperator
-
 from tests_common.test_utils.compat import BaseOperatorLink
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
 
-if AIRFLOW_V_3_0_PLUS:
+try:
     from airflow.models.xcom import XComModel as XCom
-else:
+    from airflow.sdk import BaseOperator
+except ImportError:
+    from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
     from airflow.models.xcom import XCom  # type: ignore[no-redef]
 
 
@@ -151,8 +151,15 @@ class CustomOperator(BaseOperator):
     @property
     def operator_extra_links(self):
         """Return operator extra links."""
+        # For mapped operators
+        if not hasattr(self, "bash_command"):
+            # For mapped operators, we return CustomOpLink since each mapped instance
+            # will get its own link during runtime
+            return (CustomOpLink(),)
+        # For non-mapped operators
         if isinstance(self.bash_command, str) or self.bash_command is None:
             return (CustomOpLink(),)
+        # For operators with multiple commands
         return (CustomBaseIndexOpLink(i) for i, _ in enumerate(self.bash_command))
 
     def __init__(self, bash_command=None, **kwargs):

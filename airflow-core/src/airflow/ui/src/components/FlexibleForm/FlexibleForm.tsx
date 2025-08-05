@@ -16,30 +16,39 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Icon, Stack, StackSeparator, Text } from "@chakra-ui/react";
+import { Icon, Stack, StackSeparator, Text } from "@chakra-ui/react";
 import { useCallback, useEffect, useState } from "react";
 import { MdError } from "react-icons/md";
 
 import type { ParamsSpec } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 
+import ReactMarkdown from "../ReactMarkdown";
 import { Accordion } from "../ui";
 import { Row } from "./Row";
 import { isRequired } from "./isParamRequired";
 
 export type FlexibleFormProps = {
-  flexibleFormDefaultSection: string;
-  initialParamsDict: { paramsDict: ParamsSpec };
-  key?: string;
-  setError: (error: boolean) => void;
+  readonly disabled?: boolean;
+  readonly flexFormDescription?: string;
+  readonly flexibleFormDefaultSection: string;
+  readonly initialParamsDict: { paramsDict: ParamsSpec };
+  readonly isHITL?: boolean;
+  readonly key?: string;
+  readonly setError: (error: boolean) => void;
+  readonly subHeader?: string;
 };
 
 export const FlexibleForm = ({
+  disabled,
+  flexFormDescription,
   flexibleFormDefaultSection,
   initialParamsDict,
+  isHITL,
   setError,
+  subHeader,
 }: FlexibleFormProps) => {
-  const { paramsDict: params, setinitialParamDict, setParamsDict } = useParamStore();
+  const { paramsDict: params, setDisabled, setInitialParamDict, setParamsDict } = useParamStore();
   const processedSections = new Map();
   const [sectionError, setSectionError] = useState<Map<string, boolean>>(new Map());
 
@@ -62,17 +71,17 @@ export const FlexibleForm = ({
       const paramsCopy = structuredClone(initialParamsDict.paramsDict);
 
       setParamsDict(paramsCopy);
-      setinitialParamDict(initialParamsDict.paramsDict);
+      setInitialParamDict(initialParamsDict.paramsDict);
     }
-  }, [initialParamsDict, params, setParamsDict, setinitialParamDict]);
+  }, [initialParamsDict, params, setParamsDict, setInitialParamDict]);
 
   useEffect(
     () => () => {
       // Clear paramsDict and initialParamDict when the component is unmounted or modal closes
       setParamsDict({});
-      setinitialParamDict({});
+      setInitialParamDict({});
     },
-    [setParamsDict, setinitialParamDict],
+    [setParamsDict, setInitialParamDict],
   );
 
   useEffect(() => {
@@ -84,6 +93,10 @@ export const FlexibleForm = ({
     }
   }, [params, setError, recheckSection, sectionError]);
 
+  useEffect(() => {
+    setDisabled(disabled ?? false);
+  }, [disabled, setDisabled]);
+
   const onUpdate = (_value?: string, error?: unknown) => {
     recheckSection();
     if (!Boolean(error) && sectionError.size === 0) {
@@ -93,43 +106,82 @@ export const FlexibleForm = ({
     }
   };
 
-  return Object.entries(params).some(([, param]) => typeof param.schema.section !== "string")
-    ? Object.entries(params).map(([, secParam]) => {
-        const currentSection = secParam.schema.section ?? flexibleFormDefaultSection;
+  return Object.entries(params).some(([, param]) => typeof param.schema.section !== "string") ? (
+    Object.entries(params).map(([, secParam]) => {
+      const currentSection = secParam.schema.section ?? flexibleFormDefaultSection;
 
-        if (processedSections.has(currentSection)) {
-          return undefined;
-        } else {
-          processedSections.set(currentSection, true);
+      if (processedSections.has(currentSection)) {
+        return undefined;
+      } else {
+        processedSections.set(currentSection, true);
 
-          return (
-            <Accordion.Item key={currentSection} value={currentSection}>
-              <Accordion.ItemTrigger cursor="button">
-                <Text color={sectionError.get(currentSection) ? "red" : undefined}>{currentSection}</Text>
-                {sectionError.get(currentSection) ? (
-                  <Icon color="red" margin="-1">
-                    <MdError />
-                  </Icon>
+        return (
+          <Accordion.Item
+            // We need to make the item content overflow visible for dropdowns to work, but directly applying the style does not work
+            css={{
+              "& > div:nth-of-type(1)": {
+                overflow: "visible",
+              },
+            }}
+            key={currentSection}
+            value={currentSection}
+          >
+            <Accordion.ItemTrigger cursor="button">
+              <Text color={sectionError.get(currentSection) ? "fg.error" : undefined}>{currentSection}</Text>
+              {sectionError.get(currentSection) ? (
+                <Icon color="fg.error" margin="-1">
+                  <MdError />
+                </Icon>
+              ) : undefined}
+            </Accordion.ItemTrigger>
+
+            <Accordion.ItemContent pt={0}>
+              <Accordion.ItemBody>
+                {Boolean(subHeader) ? (
+                  <Text color="fg.muted" fontSize="xs" mb={2}>
+                    {subHeader}
+                  </Text>
                 ) : undefined}
-              </Accordion.ItemTrigger>
-              <Accordion.ItemContent paddingTop={0}>
-                <Box p={5}>
-                  <Stack separator={<StackSeparator />}>
-                    {Object.entries(params)
-                      .filter(
-                        ([, param]) =>
-                          param.schema.section === currentSection ||
-                          (currentSection === flexibleFormDefaultSection && !Boolean(param.schema.section)),
-                      )
-                      .map(([name]) => (
-                        <Row key={name} name={name} onUpdate={onUpdate} />
-                      ))}
-                  </Stack>
-                </Box>
-              </Accordion.ItemContent>
-            </Accordion.Item>
-          );
-        }
-      })
-    : undefined;
+                <Stack separator={<StackSeparator py={2} />}>
+                  {Boolean(flexFormDescription) ? (
+                    <ReactMarkdown>{flexFormDescription}</ReactMarkdown>
+                  ) : undefined}
+                  {Object.entries(params)
+                    .filter(
+                      ([, param]) =>
+                        param.schema.section === currentSection ||
+                        (currentSection === flexibleFormDefaultSection && !Boolean(param.schema.section)),
+                    )
+                    .map(([name]) => (
+                      <Row key={name} name={name} onUpdate={onUpdate} />
+                    ))}
+                </Stack>
+              </Accordion.ItemBody>
+            </Accordion.ItemContent>
+          </Accordion.Item>
+        );
+      }
+    })
+  ) : isHITL ? (
+    <Accordion.Item key={flexibleFormDefaultSection} value={flexibleFormDefaultSection}>
+      <Accordion.ItemTrigger cursor="button">
+        <Text color={sectionError.get(flexibleFormDefaultSection) ? "fg.error" : undefined}>
+          {flexibleFormDefaultSection}
+        </Text>
+        {sectionError.get(flexibleFormDefaultSection) ? (
+          <Icon color="fg.error" margin="-1">
+            <MdError />
+          </Icon>
+        ) : undefined}
+      </Accordion.ItemTrigger>
+
+      <Accordion.ItemContent pt={0}>
+        <Accordion.ItemBody>
+          <Stack separator={<StackSeparator py={2} />}>
+            {Boolean(flexFormDescription) ? <ReactMarkdown>{flexFormDescription}</ReactMarkdown> : undefined}
+          </Stack>
+        </Accordion.ItemBody>
+      </Accordion.ItemContent>
+    </Accordion.Item>
+  ) : undefined;
 };

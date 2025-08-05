@@ -18,12 +18,14 @@
  */
 import { Flex, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
+import { useDagServiceGetDagDetails } from "openapi/queries";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
 import Time from "src/components/Time";
-import { Button, Dialog } from "src/components/ui";
+import { Button, Dialog, Checkbox } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
@@ -38,6 +40,7 @@ type Props = {
 const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
   const taskId = taskInstance.task_id;
   const mapIndex = taskInstance.map_index;
+  const { t: translate } = useTranslation();
 
   const dagId = taskInstance.dag_id;
   const dagRunId = taskInstance.dag_run_id;
@@ -55,6 +58,7 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
   const future = selectedOptions.includes("future");
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
+  const [runOnLatestVersion, setRunOnLatestVersion] = useState(false);
 
   const [note, setNote] = useState<string | null>(taskInstance.note);
   const { isPending: isPendingPatchDagRun, mutate: mutatePatchTaskInstance } = usePatchTaskInstance({
@@ -62,6 +66,11 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
     dagRunId,
     mapIndex,
     taskId,
+  });
+
+  // Get current DAG's bundle version to compare with task instance's DAG version bundle version
+  const { data: dagDetails } = useDagServiceGetDagDetails({
+    dagId,
   });
 
   const { data } = useClearTaskInstancesDryRun({
@@ -77,6 +86,7 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
       include_past: past,
       include_upstream: upstream,
       only_failed: onlyFailed,
+      run_on_latest_version: runOnLatestVersion,
       task_ids: [[taskId, mapIndex]],
     },
   });
@@ -86,14 +96,28 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
     total_entries: 0,
   };
 
+  // Check if bundle versions are different
+  const currentDagBundleVersion = dagDetails?.bundle_version;
+  const taskInstanceDagVersionBundleVersion = taskInstance.dag_version.bundle_version;
+  const bundleVersionsDiffer = currentDagBundleVersion !== taskInstanceDagVersionBundleVersion;
+  const shouldShowBundleVersionOption =
+    bundleVersionsDiffer &&
+    taskInstanceDagVersionBundleVersion !== null &&
+    taskInstanceDagVersionBundleVersion !== "";
+
   return (
     <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
       <Dialog.Content backdrop>
         <Dialog.Header>
           <VStack align="start" gap={4}>
             <Heading size="xl">
-              <strong>Clear Task Instance:</strong> {taskInstance.task_display_name}{" "}
-              <Time datetime={taskInstance.start_date} />
+              <strong>
+                {translate("dags:runAndTaskActions.clear.title", {
+                  type: translate("taskInstance_one"),
+                })}
+                :
+              </strong>{" "}
+              {taskInstance.task_display_name} <Time datetime={taskInstance.start_date} />
             </Heading>
           </VStack>
         </Dialog.Header>
@@ -103,19 +127,49 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
         <Dialog.Body width="full">
           <Flex justifyContent="center">
             <SegmentedControl
+              defaultValues={["downstream"]}
               multiple
               onChange={setSelectedOptions}
               options={[
-                { disabled: taskInstance.logical_date === null, label: "Past", value: "past" },
-                { disabled: taskInstance.logical_date === null, label: "Future", value: "future" },
-                { label: "Upstream", value: "upstream" },
-                { label: "Downstream", value: "downstream" },
-                { label: "Only Failed", value: "onlyFailed" },
+                {
+                  disabled: taskInstance.logical_date === null,
+                  label: translate("dags:runAndTaskActions.options.past"),
+                  value: "past",
+                },
+                {
+                  disabled: taskInstance.logical_date === null,
+                  label: translate("dags:runAndTaskActions.options.future"),
+                  value: "future",
+                },
+                {
+                  label: translate("dags:runAndTaskActions.options.upstream"),
+                  value: "upstream",
+                },
+                {
+                  label: translate("dags:runAndTaskActions.options.downstream"),
+                  value: "downstream",
+                },
+                {
+                  label: translate("dags:runAndTaskActions.options.onlyFailed"),
+                  value: "onlyFailed",
+                },
               ]}
             />
           </Flex>
           <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
-          <Flex justifyContent="end" mt={3}>
+          <Flex
+            {...(shouldShowBundleVersionOption ? { alignItems: "center" } : {})}
+            justifyContent={shouldShowBundleVersionOption ? "space-between" : "end"}
+            mt={3}
+          >
+            {shouldShowBundleVersionOption ? (
+              <Checkbox
+                checked={runOnLatestVersion}
+                onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
+              >
+                {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
+              </Checkbox>
+            ) : undefined}
             <Button
               colorPalette="blue"
               disabled={affectedTasks.total_entries === 0}
@@ -131,7 +185,8 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
                     include_past: past,
                     include_upstream: upstream,
                     only_failed: onlyFailed,
-                    task_ids: [taskId],
+                    run_on_latest_version: runOnLatestVersion,
+                    task_ids: [[taskId, mapIndex]],
                   },
                 });
                 if (note !== taskInstance.note) {
@@ -145,7 +200,7 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
                 }
               }}
             >
-              <CgRedo /> Confirm
+              <CgRedo /> {translate("modal.confirm")}
             </Button>
           </Flex>
         </Dialog.Body>

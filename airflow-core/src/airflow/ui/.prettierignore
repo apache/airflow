@@ -5,3 +5,5 @@ dist/
 *.yaml
 coverage/*
 .pnpm-store
+public/i18n/locales/*
+openapi-gen/

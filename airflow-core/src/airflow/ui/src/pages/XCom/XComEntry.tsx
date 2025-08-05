@@ -19,7 +19,8 @@
 import { Skeleton, HStack, Text } from "@chakra-ui/react";
 
 import { useXcomServiceGetXcomEntry } from "openapi/queries";
-import type { XComResponseString } from "openapi/requests/types.gen";
+import type { XComResponseNative } from "openapi/requests/types.gen";
+import RenderedJsonField from "src/components/RenderedJsonField";
 import { ClipboardIconButton, ClipboardRoot } from "src/components/ui";
 
 type XComEntryProps = {
@@ -31,14 +32,19 @@ type XComEntryProps = {
 };
 
 export const XComEntry = ({ dagId, mapIndex, runId, taskId, xcomKey }: XComEntryProps) => {
-  const { data, isLoading } = useXcomServiceGetXcomEntry<XComResponseString>({
+  const { data, isLoading } = useXcomServiceGetXcomEntry<XComResponseNative>({
     dagId,
     dagRunId: runId,
+    deserialize: true,
     mapIndex,
-    stringify: true,
+    stringify: false,
     taskId,
     xcomKey,
   });
+  // When deserialize=true, the API returns a stringified representation
+  // so we don't need to JSON.stringify it again
+  const valueFormatted =
+    typeof data?.value === "string" ? data.value : JSON.stringify(data?.value, undefined, 4);
 
   return isLoading ? (
     <Skeleton
@@ -47,14 +53,18 @@ export const XComEntry = ({ dagId, mapIndex, runId, taskId, xcomKey }: XComEntry
       height="10px"
       width={200} // TODO: Make Skeleton take style from column definition
     />
-  ) : (data?.value?.length ?? 0) > 0 ? (
+  ) : (
     <HStack>
-      <Text>{data?.value}</Text>
       {Boolean(data?.value) ? (
-        <ClipboardRoot value={data?.value ?? ""}>
+        <ClipboardRoot value={valueFormatted}>
           <ClipboardIconButton />
         </ClipboardRoot>
       ) : undefined}
+      {["array", "object"].includes(typeof data?.value) ? (
+        <RenderedJsonField content={data?.value as object} enableClipboard={false} />
+      ) : (
+        <Text>{valueFormatted}</Text>
+      )}
     </HStack>
-  ) : undefined;
+  );
 };

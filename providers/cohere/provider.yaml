@@ -24,10 +24,17 @@ description: |
     `Cohere <https://docs.cohere.com/docs>`__
 
 state: ready
-source-date-epoch: 1743477799
+source-date-epoch: 1753690000
 
-# note that those versions are maintained by release manager - do not update them manually
+# Note that those versions are maintained by release manager - do not update them manually
+# with the exception of case where other provider in sources has >= new provider version.
+# In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
+# to be done in the same PR
 versions:
+  - 1.5.3
+  - 1.5.2
+  - 1.5.1
+  - 1.5.0
   - 1.4.3
   - 1.4.2
   - 1.4.0

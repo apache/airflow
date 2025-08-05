@@ -36,7 +36,6 @@ from kubernetes_asyncio import client as async_client, config as async_config
 from urllib3.exceptions import HTTPError
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
-from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import should_retry_creation
@@ -45,6 +44,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     container_is_completed,
     container_is_running,
 )
+from airflow.providers.cncf.kubernetes.version_compat import BaseHook
 from airflow.utils import yaml
 
 if TYPE_CHECKING:
@@ -93,6 +93,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
     :param cluster_context: Optionally specify a context to use (e.g. if you have multiple
         in your kubeconfig.
     :param config_file: Path to kubeconfig file.
+    :param config_dict: Takes the config file as a dict.
     :param in_cluster: Set to ``True`` if running from within a kubernetes cluster.
     :param disable_verify_ssl: Set to ``True`` if SSL verification should be disabled.
     :param disable_tcp_keepalive: Set to ``True`` if you want to disable keepalive logic.
@@ -140,19 +141,22 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
     def __init__(
         self,
-        conn_id: str | None = default_conn_name,
+        conn_id: str | None = None,
+        kubernetes_conn_id: str | None = default_conn_name,
         client_configuration: client.Configuration | None = None,
         cluster_context: str | None = None,
         config_file: str | None = None,
+        config_dict: dict | None = None,
         in_cluster: bool | None = None,
         disable_verify_ssl: bool | None = None,
         disable_tcp_keepalive: bool | None = None,
     ) -> None:
         super().__init__()
-        self.conn_id = conn_id
+        self.conn_id = conn_id or kubernetes_conn_id
         self.client_configuration = client_configuration
         self.cluster_context = cluster_context
         self.config_file = config_file
+        self.config_dict = config_dict
         self.in_cluster = in_cluster
         self.disable_verify_ssl = disable_verify_ssl
         self.disable_tcp_keepalive = disable_tcp_keepalive
@@ -173,7 +177,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         default to cluster-derived credentials.
         """
         try:
-            return super().get_connection(conn_id)
+            return super().get_connection(conn_id)  # type: ignore[return-value]
         except AirflowNotFoundException:
             if conn_id == cls.default_conn_name:
                 return Connection(conn_id=cls.default_conn_name)
@@ -212,12 +216,14 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         cluster_context = self._coalesce_param(self.cluster_context, self._get_field("cluster_context"))
         kubeconfig_path = self._coalesce_param(self.config_file, self._get_field("kube_config_path"))
         kubeconfig = self._get_field("kube_config")
-        num_selected_configuration = sum(1 for o in [in_cluster, kubeconfig, kubeconfig_path] if o)
+        num_selected_configuration = sum(
+            1 for o in [in_cluster, kubeconfig, kubeconfig_path, self.config_dict] if o
+        )
 
         if num_selected_configuration > 1:
             raise AirflowException(
                 "Invalid connection configuration. Options kube_config_path, "
-                "kube_config, in_cluster are mutually exclusive. "
+                "kube_config, in_cluster, config_dict are mutually exclusive. "
                 "You can only use one option at a time."
             )
 
@@ -262,6 +268,16 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
                     client_configuration=self.client_configuration,
                     context=cluster_context,
                 )
+            return client.ApiClient()
+
+        if self.config_dict:
+            self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("config dictionary"))
+            self._is_in_cluster = False
+            config.load_kube_config_from_dict(
+                config_dict=self.config_dict,
+                client_configuration=self.client_configuration,
+                context=cluster_context,
+            )
             return client.ApiClient()
 
         return self._get_default_client(cluster_context=cluster_context)
@@ -706,6 +722,14 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
         return list(yaml.safe_load_all(response.text))
 
+    def test_connection(self):
+        try:
+            conn = self.get_conn()
+            version: client.VersionInfo = client.VersionApi(conn).get_code()
+            return True, f"Connection successful. Version Info: {version.to_dict()}"
+        except Exception as e:
+            return False, str(e)
+
 
 def _get_bool(val) -> bool | None:
     """Convert val to bool if can be done with certainty; if we cannot infer intention we return None."""
@@ -762,7 +786,7 @@ class AsyncKubernetesHook(KubernetesHook):
         if self.config_dict:
             self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("config dictionary"))
             self._is_in_cluster = False
-            await async_config.load_kube_config_from_dict(self.config_dict)
+            await async_config.load_kube_config_from_dict(self.config_dict, context=cluster_context)
             return async_client.ApiClient()
 
         if kubeconfig_path is not None:

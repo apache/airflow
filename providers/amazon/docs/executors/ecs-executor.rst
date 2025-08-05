@@ -74,7 +74,7 @@ In the case of conflicts, the order of precedence from lowest to highest is:
    provided.
 
 .. note::
-   ``exec_config`` is an optional parameter that can be provided to operators. It is a dictionary type and in the context of the ECS Executor it represents a ``run_task_kwargs`` configuration which is then updated over-top of the ``run_task_kwargs`` specified in Airflow config above (if present). It is a recursive update which essentially applies Python update to each nested dictionary in the configuration. Loosely approximated as: ``run_task_kwargs.update(exec_config)``
+   ``executor_config`` is an optional parameter that can be provided to operators. It is a dictionary type and in the context of the ECS Executor it represents a ``run_task_kwargs`` configuration which is then updated over-top of the ``run_task_kwargs`` specified in Airflow config above (if present). It is a recursive update which essentially applies Python update to each nested dictionary in the configuration. Loosely approximated as: ``run_task_kwargs.update(executor_config)``
 
 Required config options:
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -161,6 +161,33 @@ newly created Task Role and Task Execution role for the Task Definition.
 .. include:: general.rst
   :start-after: .. BEGIN DOCKERFILE_AUTH_SECOND_METHOD
   :end-before: .. END DOCKERFILE_AUTH_SECOND_METHOD
+
+.. include:: general.rst
+  :start-after: .. BEGIN BASE_IMAGE
+  :end-before: .. END BASE_IMAGE
+
+.. include:: general.rst
+  :start-after: .. BEGIN LOADING_DAGS_OVERVIEW
+  :end-before: .. END LOADING_DAGS_OVERVIEW
+
+.. include:: general.rst
+  :start-after: .. BEGIN LOADING_DAGS_FROM_S3
+  :end-before: .. END LOADING_DAGS_FROM_S3
+
+.. include:: general.rst
+  :start-after: .. BEGIN LOADING_DAGS_FROM_LOCAL
+  :end-before: .. END LOADING_DAGS_FROM_LOCAL
+
+.. include:: general.rst
+  :start-after: .. BEGIN DEPENDENCIES
+  :end-before: .. END DEPENDENCIES
+
+Building Image for AWS ECS Executor
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Detailed instructions on how to use the Docker image, that you have
+created via this readme, with the ECS Executor can be found
+:ref:`here <setup_guide>`.
 
 .. _logging:
 

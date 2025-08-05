@@ -17,37 +17,43 @@
  * under the License.
  */
 import { Link } from "@chakra-ui/react";
-import { FiBookOpen } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
+import { FiBookOpen, FiExternalLink } from "react-icons/fi";
 
 import { Menu } from "src/components/ui";
 import { useConfig } from "src/queries/useConfig";
+import type { NavItemResponse } from "src/utils/types";
 
 import { NavButton } from "./NavButton";
+import { PluginMenuItem } from "./PluginMenuItem";
 
 const baseUrl = document.querySelector("base")?.href ?? "http://localhost:8080/";
 
 const links = [
   {
     href: "https://airflow.apache.org/docs/",
-    title: "Documentation",
+    key: "documentation",
   },
   {
     href: "https://github.com/apache/airflow",
-    title: "GitHub Repo",
+    key: "githubRepo",
   },
   {
     href: new URL("docs", baseUrl).href,
-    title: "REST API Reference",
+    key: "restApiReference",
   },
 ];
 
 export const DocsButton = ({
+  externalViews,
   showAPI,
   version,
 }: {
+  readonly externalViews: Array<NavItemResponse>;
   readonly showAPI?: boolean;
   readonly version?: string;
 }) => {
+  const { t: translate } = useTranslation("common");
   const showAPIDocs = Boolean(useConfig("enable_swagger_ui")) && showAPI;
 
   const versionLink = `https://airflow.apache.org/docs/apache-airflow/${version}/index.html`;
@@ -55,15 +61,21 @@ export const DocsButton = ({
   return (
     <Menu.Root positioning={{ placement: "right" }}>
       <Menu.Trigger asChild>
-        <NavButton icon={<FiBookOpen size="1.75rem" />} title="Docs" />
+        <NavButton icon={<FiBookOpen size="1.75rem" />} title={translate("nav.docs")} />
       </Menu.Trigger>
       <Menu.Content>
         {links
           .filter((link) => !(!showAPIDocs && link.href === "/docs"))
           .map((link) => (
-            <Menu.Item asChild key={link.title} value={link.title}>
-              <Link aria-label={link.title} href={link.href} rel="noopener noreferrer" target="_blank">
-                {link.title}
+            <Menu.Item asChild key={link.key} value={translate(`docs.${link.key}`)}>
+              <Link
+                aria-label={translate(`docs.${link.key}`)}
+                href={link.href}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                {translate(`docs.${link.key}`)}
+                <FiExternalLink />
               </Link>
             </Menu.Item>
           ))}
@@ -71,9 +83,13 @@ export const DocsButton = ({
           <Menu.Item asChild key={version} value={version}>
             <Link aria-label={version} href={versionLink} rel="noopener noreferrer" target="_blank">
               {version}
+              <FiExternalLink />
             </Link>
           </Menu.Item>
         )}
+        {externalViews.map((view) => (
+          <PluginMenuItem {...view} key={view.name} />
+        ))}
       </Menu.Content>
     </Menu.Root>
   );

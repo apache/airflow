@@ -16,10 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex } from "@chakra-ui/react";
+import { Flex, Link, Box } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
+import { Link as RouterLink } from "react-router-dom";
 
+import type { PoolResponse } from "openapi/requests/types.gen";
 import { Tooltip } from "src/components/ui";
-import { capitalize } from "src/utils";
 import { type Slots, slotConfigs } from "src/utils/slots";
 
 export const PoolBar = ({
@@ -27,42 +29,54 @@ export const PoolBar = ({
   poolsWithSlotType,
   totalSlots,
 }: {
-  readonly pool: Slots;
+  readonly pool: PoolResponse | Slots;
   readonly poolsWithSlotType?: Slots;
   readonly totalSlots: number;
-}) => (
-  <>
-    {slotConfigs.map(({ color, icon, key }) => {
-      const slotValue = pool[key];
-      const flexValue = slotValue / totalSlots || 0;
+}) => {
+  const { t: translate } = useTranslation("common");
 
-      if (flexValue === 0) {
-        return undefined;
-      }
+  return (
+    <>
+      {slotConfigs.map(({ color, icon, key }) => {
+        const slotValue = pool[key];
+        const flexValue = slotValue / totalSlots || 0;
 
-      const tooltipContent = `${capitalize(key.replace("_", " "))}: ${slotValue}${
-        poolsWithSlotType ? ` (${poolsWithSlotType[key]} pools)` : ""
-      }`;
+        if (flexValue === 0) {
+          return undefined;
+        }
 
-      return (
-        <Tooltip content={tooltipContent} key={key}>
-          <Flex
-            alignItems="center"
-            bg={`${color}.solid`}
-            color="white"
-            flex={flexValue}
-            gap={1}
-            h="100%"
-            justifyContent="center"
-            px={1}
-            py={0.5}
-            textAlign="center"
-          >
-            {icon}
-            {slotValue}
-          </Flex>
-        </Tooltip>
-      );
-    })}
-  </>
-);
+        const slotType = key.replace("_slots", "");
+        const poolCount = poolsWithSlotType ? poolsWithSlotType[key] : 0;
+        const tooltipContent = `${translate(`pools.${slotType}`)}: ${slotValue} (${poolCount} ${translate("pools.pools", { count: poolCount })})`;
+        const poolContent = (
+          <Tooltip content={tooltipContent} key={key}>
+            <Flex
+              alignItems="center"
+              bg={`${color}.solid`}
+              color="white"
+              gap={1}
+              h="100%"
+              justifyContent="center"
+              px={1}
+              textAlign="center"
+              w="100%"
+            >
+              {icon}
+              {slotValue}
+            </Flex>
+          </Tooltip>
+        );
+
+        return color !== "success" && "name" in pool ? (
+          <Link asChild display="flex" flex={flexValue} key={key}>
+            <RouterLink to={`/task_instances?state=${color}&pool=${pool.name}`}>{poolContent}</RouterLink>
+          </Link>
+        ) : (
+          <Box display="flex" flex={flexValue} key={key}>
+            {poolContent}
+          </Box>
+        );
+      })}
+    </>
+  );
+};

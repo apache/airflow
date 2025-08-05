@@ -20,10 +20,47 @@ Upgrading to Airflow 3
 
 Apache Airflow 3 is a major release and contains :ref:`breaking changes<breaking-changes>`. This guide walks you through the steps required to upgrade from Airflow 2.x to Airflow 3.0.
 
+Understanding Airflow 3.x Architecture Changes
+-----------------------------------------------
+
+Airflow 3.x introduces significant architectural changes that improve security, scalability, and maintainability. Understanding these changes helps you prepare for the upgrade and adapt your workflows accordingly.
+
+Airflow 2.x Architecture
+^^^^^^^^^^^^^^^^^^^^^^^^
+.. image:: ../img/airflow-2-arch.png
+   :alt: Airflow 2.x architecture diagram showing scheduler, metadata database, and worker
+   :align: center
+
+- All components communicate directly with the Airflow metadata database.
+- Airflow 2 was designed to run all components within the same network space: task code and task execution code (airflow package code that runs user code) run in the same process.
+- Workers communicate directly with the Airflow database and execute all user code.
+- User code could import sessions and perform malicious actions on the Airflow metadata database.
+- The number of connections to the database was excessive, leading to scaling challenges.
+
+Airflow 3.x Architecture
+^^^^^^^^^^^^^^^^^^^^^^^^
+.. image:: ../img/airflow-3-arch.png
+   :alt: Airflow 3.x architecture diagram showing the decoupled Execution API Server and worker subprocesses
+   :align: center
+
+- The API server is currently the sole access point for the metadata DB for tasks and workers.
+- It supports several applications: the Airflow REST API, an internal API for the Airflow UI that hosts static JS, and an API for workers to interact with when executing TIs via the task execution interface.
+- Workers communicate with the API server instead of directly with the database.
+- DAG processor and Triggerer utilize the task execution mechanism for their tasks, especially when they require variables or connections.
+
+Database Access Restrictions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+In Airflow 3, direct metadata database access from task code is now restricted. This is a key security and architectural improvement that affects how Dag authors interact with Airflow resources:
+
+- **No Direct Database Access**: Task code can no longer directly import and use Airflow database sessions or models.
+- **API-Based Resource Access**: All runtime interactions (state transitions, heartbeats, XComs, and resource fetching) are handled through a dedicated Task Execution API.
+- **Enhanced Security**: This ensures isolation and security by preventing malicious task code from accessing or modifying the Airflow metadata database.
+- **Stable Interface**: The Task SDK provides a stable, forward-compatible interface for accessing Airflow resources without direct database dependencies.
+
 Step 1: Take care of prerequisites
 ----------------------------------
 
-- Make sure that you are on Airflow 2.7 or later.
+- Make sure that you are on Airflow 2.7 or later. It is recommended to upgrade to latest 2.x and then to Airflow 3.
 - Make sure that your Python version is in the supported list. Airflow 3.0.0 supports the following Python versions: Python 3.9, 3.10, 3.11 and 3.12.
 - Ensure that you are not using any features or functionality that have been :ref:`removed in Airflow 3<breaking-changes>`.
 
@@ -42,35 +79,55 @@ Step 2: Clean and back up your existing Airflow Instance
   You can use the ``airflow db clean`` :ref:`Airflow CLI command<cli-db-clean>` to trim your Airflow database.
 
 - Ensure that there are no errors related to dag processing, such as ``AirflowDagDuplicatedIdException``.  You should
-  be able to run ``airflow dags reserialize`` with no errors.  If you have have to resolve errors from dag processing,
+  be able to run ``airflow dags reserialize`` with no errors.  If you have to resolve errors from dag processing,
   ensure you deploy your changes to your old instance prior to upgrade, and wait until your dags have all been reprocessed
   (and all errors gone) before you proceed with upgrade.
 
-Step 3: DAG Authors - Check your Airflow DAGs for compatibility
+Step 3: Dag authors - Check your Airflow dags for compatibility
 ----------------------------------------------------------------
 
-To minimize friction for users upgrading from prior versions of Airflow, we have created a dag upgrade check utility using `Ruff <https://docs.astral.sh/ruff/>`_.
+To minimize friction for users upgrading from prior versions of Airflow, we have created a dag upgrade check utility using `Ruff <https://docs.astral.sh/ruff/>`_ combined with `AIR <https://docs.astral.sh/ruff/rules/#airflow-air>`_ rules.
+The rules AIR301 and AIR302 indicate breaking changes in Airflow 3, while AIR311 and AIR312 highlight changes that are not currently breaking but are strongly recommended for updates.
 
-The latest available ``ruff`` version will have the most up-to-date rules, but be sure to use at least version ``0.11.6``. The below example demonstrates how to check
+The latest available ``ruff`` version will have the most up-to-date rules, but be sure to use at least version ``0.11.13``. The below example demonstrates how to check
 for dag incompatibilities that will need to be fixed before they will work as expected on Airflow 3.
 
 .. code-block:: bash
 
-    ruff check dag/ --select AIR301 --preview
+    ruff check dags/ --select AIR301 --preview
 
 To preview the recommended fixes, run the following command:
 
 .. code-block:: bash
 
-    ruff check dag/ --select AIR301 --show-fixes --preview
+    ruff check dags/ --select AIR301 --show-fixes --preview
 
 Some changes can be automatically fixed. To do so, run the following command:
 
 .. code-block:: bash
 
-    ruff check dag/ --select AIR301 --fix --preview
+    ruff check dags/ --select AIR301 --fix --preview
 
-Step 4: Install the Standard Providers
+
+Some of the fixes are marked as unsafe. Unsafe fixes usually do not break dag code. They're marked as unsafe as they may change some runtime behavior. For more information, see `Fix Safety <https://docs.astral.sh/ruff/linter/#fix-safety>`_.
+To trigger these fixes, run the following command:
+
+.. code-block:: bash
+
+    ruff check dags/ --select AIR301 --fix --unsafe-fixes --preview
+
+.. note::
+  Ruff has strict policy about when a rule becomes stable. Till it does you must use --preview flag.
+  The progress of Airflow Ruff rule become stable can be tracked in https://github.com/astral-sh/ruff/issues/17749
+  That said, from Airflow side the rules are perfectly fine to be used.
+
+.. note::
+
+    In AIR rules, unsafe fixes involve changing import paths while keeping the name of the imported member the same. For instance, changing the import from ``from airflow.sensors.base_sensor_operator import BaseSensorOperator`` to ``from airflow.sdk.bases.sensor import BaseSensorOperator`` requires ruff to remove the original import before adding the new one. In contrast, safe fixes include changes to both the member name and the import path, such as changing ``from airflow.datasets import Dataset`` to `from airflow.sdk import Asset``. These adjustments do not require ruff to remove the old import. To remove unused legacy imports, it is necessary to enable the `unused-import` rule (F401) <https://docs.astral.sh/ruff/rules/unused-import/#unused-import-f401>.
+
+You can also configure these flags through configuration files. See `Configuring Ruff <https://docs.astral.sh/ruff/configuration/>`_ for details.
+
+Step 4: Install the Standard Provider
 --------------------------------------
 
 - Some of the commonly used Operators which were bundled as part of the ``airflow-core`` package (for example ``BashOperator`` and ``PythonOperator``)
@@ -78,8 +135,14 @@ Step 4: Install the Standard Providers
 - For convenience, this package can also be installed on Airflow 2.x versions, so that DAGs can be modified to reference these Operators from the standard provider
   package instead of Airflow Core.
 
+Step 5: Review custom operators for direct db access
+----------------------------------------------------
 
-Step 5: Deployment Managers - Upgrade your Airflow Instance
+- In Airflow 3 operators can not access the Airflow metadata database directly using database sessions.
+  If you have custom operators, review the code to make sure there are no direct db access.
+  You can follow examples in https://github.com/apache/airflow/issues/49187 to find how to modify your code if needed.
+
+Step 6: Deployment Managers - Upgrade your Airflow Instance
 ------------------------------------------------------------
 
 For an easier and safer upgrade process, we have also created a utility to upgrade your Airflow instance configuration.
@@ -108,9 +171,10 @@ The biggest part of an Airflow upgrade is the database upgrade. The database upg
 
 If you have plugins that use Flask-AppBuilder views ( ``appbuilder_views`` ), Flask-AppBuilder menu items ( ``appbuilder_menu_items`` ), or Flask blueprints ( ``flask_blueprints`` ), you will either need to convert
 them to FastAPI apps or ensure you install the FAB provider which provides a backwards compatibility layer for Airflow 3.
-Ideally, you should convert your plugins to FastAPI apps ( ``fastapi_apps`` ), as the compatibility layer in the FAB provider is deprecated.
+Ideally, you should convert your plugins to the Airflow 3 Plugin interface i.e External Views (``external_views``), Fast API apps (``fastapi_apps``)
+and FastAPI middlewares (``fastapi_root_middlewares``).
 
-Step 6: Changes to your startup scripts
+Step 7: Changes to your startup scripts
 ---------------------------------------
 
 In Airflow 3, the Webserver has become a generic API server. The API server can be started up using the following command:
@@ -140,6 +204,7 @@ These include:
 - **CeleryKubernetesExecutor and LocalKubernetesExecutor**: Replaced by `Multiple Executor Configuration <https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/executor/index.html#using-multiple-executors-concurrently>`_
 - **SLAs**: Deprecated and removed; Will be replaced by forthcoming `Deadline Alerts <https://cwiki.apache.org/confluence/x/tglIEw>`_.
 - **Subdir**: Used as an argument on many CLI commands, ``--subdir`` or ``-S`` has been superseded by :doc:`DAG bundles </administration-and-deployment/dag-bundles>`.
+- **REST API** (``/api/v1``) replaced: Use the modern FastAPI-based stable ``/api/v2`` instead; see :doc:`Airflow API v2 </stable-rest-api-ref>` for details.
 - **Some Airflow context variables**: The following keys are no longer available in a :ref:`task instance's context <templates:variables>`. If not replaced, will cause dag errors:
   - ``tomorrow_ds``
   - ``tomorrow_ds_nodash``
@@ -160,3 +225,4 @@ These include:
   .. code-block:: ini
 
       airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+- **AUTH API** api routes defined in the auth manager are prefixed with the ``/auth`` route. Urls consumed outside of the application such as oauth redirect urls will have to updated accordingly. For example an oauth redirect url that was ``https://<your-airflow-url.com>/oauth-authorized/google`` in Airflow 2.x will be ``https://<your-airflow-url.com>/auth/oauth-authorized/google`` in Airflow 3.x

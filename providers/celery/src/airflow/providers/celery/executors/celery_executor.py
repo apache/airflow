@@ -30,7 +30,6 @@ import math
 import operator
 import time
 from collections import Counter
-from collections.abc import Sequence
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import cpu_count
 from typing import TYPE_CHECKING, Any
@@ -66,14 +65,14 @@ CELERY_SEND_ERR_MSG_HEADER = "Error sending Celery task"
 
 if TYPE_CHECKING:
     import argparse
+    from collections.abc import Sequence
 
     from sqlalchemy.orm import Session
 
     from airflow.executors import workloads
-    from airflow.executors.base_executor import TaskTuple
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.providers.celery.executors.celery_executor_utils import TaskInstanceInCelery
+    from airflow.providers.celery.executors.celery_executor_utils import TaskInstanceInCelery, TaskTuple
 
 
 # PEP562
@@ -157,6 +156,32 @@ ARG_WITHOUT_GOSSIP = Arg(
     help="Don't subscribe to other workers events",
     action="store_true",
 )
+ARG_OUTPUT = Arg(
+    (
+        "-o",
+        "--output",
+    ),
+    help="Output format. Allowed values: json, yaml, plain, table (default: table)",
+    metavar="(table, json, yaml, plain)",
+    choices=("table", "json", "yaml", "plain"),
+    default="table",
+)
+ARG_FULL_CELERY_HOSTNAME = Arg(
+    ("-H", "--celery-hostname"),
+    required=True,
+    help="Specify the full celery hostname. example: celery@hostname",
+)
+ARG_REQUIRED_QUEUES = Arg(
+    ("-q", "--queues"),
+    help="Comma delimited list of queues to serve",
+    required=True,
+)
+ARG_YES = Arg(
+    ("-y", "--yes"),
+    help="Do not prompt to confirm. Use with care!",
+    action="store_true",
+    default=False,
+)
 
 CELERY_CLI_COMMAND_PATH = "airflow.providers.celery.cli.celery_command"
 
@@ -207,6 +232,42 @@ CELERY_COMMANDS = (
         func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.stop_worker"),
         args=(ARG_PID, ARG_VERBOSE),
     ),
+    ActionCommand(
+        name="list-workers",
+        help="List active celery workers",
+        func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.list_workers"),
+        args=(ARG_OUTPUT,),
+    ),
+    ActionCommand(
+        name="shutdown-worker",
+        help="Request graceful shutdown of celery workers",
+        func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.shutdown_worker"),
+        args=(ARG_FULL_CELERY_HOSTNAME,),
+    ),
+    ActionCommand(
+        name="shutdown-all-workers",
+        help="Request graceful shutdown of all active celery workers",
+        func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.shutdown_all_workers"),
+        args=(ARG_YES,),
+    ),
+    ActionCommand(
+        name="add-queue",
+        help="Subscribe Celery worker to specified queues",
+        func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.add_queue"),
+        args=(
+            ARG_REQUIRED_QUEUES,
+            ARG_FULL_CELERY_HOSTNAME,
+        ),
+    ),
+    ActionCommand(
+        name="remove-queue",
+        help="Unsubscribe Celery worker from specified queues",
+        func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.remove_queue"),
+        args=(
+            ARG_REQUIRED_QUEUES,
+            ARG_FULL_CELERY_HOSTNAME,
+        ),
+    ),
 )
 
 
@@ -256,7 +317,7 @@ class CeleryExecutor(BaseExecutor):
         """
         return max(1, math.ceil(to_send_count / self._sync_parallelism))
 
-    def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
+    def _process_tasks(self, task_tuples: Sequence[TaskTuple]) -> None:
         # Airflow V2 version
         from airflow.providers.celery.executors.celery_executor_utils import execute_command
 
@@ -264,18 +325,18 @@ class CeleryExecutor(BaseExecutor):
 
         self._send_tasks(task_tuples_to_send)
 
-    def _process_workloads(self, input: list[workloads.All]) -> None:
+    def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
         # Airflow V3 version -- have to delay imports until we know we are on v3
-        from airflow.executors import workloads
+        from airflow.executors.workloads import ExecuteTask
         from airflow.providers.celery.executors.celery_executor_utils import execute_workload
 
         tasks = [
             (workload.ti.key, workload, workload.ti.queue, execute_workload)
-            for workload in input
-            if isinstance(workload, workloads.ExecuteTask)
+            for workload in workloads
+            if isinstance(workload, ExecuteTask)
         ]
-        if len(tasks) != len(input):
-            invalid = list(workload for workload in input if not isinstance(workload, workloads.ExecuteTask))
+        if len(tasks) != len(workloads):
+            invalid = list(workload for workload in workloads if not isinstance(workload, ExecuteTask))
             raise ValueError(f"{type(self)}._process_workloads cannot handle {invalid}")
 
         self._send_tasks(tasks)
@@ -412,7 +473,6 @@ class CeleryExecutor(BaseExecutor):
 
         celery_tasks = {}
         not_adopted_tis = []
-
         for ti in tis:
             if ti.external_executor_id is not None:
                 celery_tasks[ti.external_executor_id] = (AsyncResult(ti.external_executor_id), ti)

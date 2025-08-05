@@ -20,11 +20,17 @@ package-name: apache-airflow-providers-apache-kafka
 name: Apache Kafka
 
 state: ready
-source-date-epoch: 1744788833
+source-date-epoch: 1753688868
 description: |
   `Apache Kafka  <https://kafka.apache.org/>`__
-# note that those versions are maintained by release manager - do not update them manually
+# Note that those versions are maintained by release manager - do not update them manually
+# with the exception of case where other provider in sources has >= new provider version.
+# In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
+# to be done in the same PR
 versions:
+  - 1.10.1
+  - 1.10.0
+  - 1.9.0
   - 1.8.1
   - 1.8.0
   - 1.7.0
@@ -40,6 +46,10 @@ versions:
   - 1.1.1
   - 1.1.0
   - 1.0.0
+
+excluded-python-versions:
+  # TODO(potiuk): check the status of confluent-kafka on Python 3.13
+  - "3.13"
 
 integrations:
   - integration-name: Apache Kafka
@@ -70,7 +80,11 @@ triggers:
   - integration-name: Apache Kafka
     python-modules:
       - airflow.providers.apache.kafka.triggers.await_message
+      - airflow.providers.apache.kafka.triggers.msg_queue
 
 connection-types:
   - hook-class-name: airflow.providers.apache.kafka.hooks.base.KafkaBaseHook
     connection-type: kafka
+
+queues:
+  - airflow.providers.apache.kafka.queues.kafka.KafkaMessageQueueProvider

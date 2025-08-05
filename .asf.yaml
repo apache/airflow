@@ -20,13 +20,13 @@
 github:
   description: "Apache Airflow - A platform to programmatically author, schedule, and monitor workflows"
   homepage: https://airflow.apache.org/
-  # Social media preview image is not supported by Github API/asf.yaml, need to be uploaded
-  # manually in Github repository --> Settings --> click "Edit" in "Social preview"
+  # Social media preview image is not supported by GitHub API/asf.yaml, need to be uploaded
+  # manually in GitHub repository --> Settings --> click "Edit" in "Social preview"
   # See also:
   # https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/customizing-your-repositorys-social-media-preview
   # social_media_preview: docs/apache-airflow/img/logos/github_repository_social_image.png
   labels:
-    # Note that Github only supports <=20 labels/topics per repo! Pipeline will fail if you add more.
+    # Note that GitHub only supports <=20 labels/topics per repo! Pipeline will fail if you add more.
     - airflow
     - apache
     - apache-airflow
@@ -134,6 +134,11 @@ github:
         required_approving_review_count: 1
       required_linear_history: true
       required_signatures: false
+    v2-11-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+      required_signatures: false
     v3-0-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
@@ -157,6 +162,7 @@ github:
     - cmarteepants
     - karenbraganz
     - gyli
+    - jroachgolf84
 
 notifications:
   jobs: jobs@airflow.apache.org

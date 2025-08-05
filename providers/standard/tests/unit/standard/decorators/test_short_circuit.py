@@ -20,13 +20,16 @@ from __future__ import annotations
 import pytest
 from pendulum import datetime
 
-from airflow.decorators import task
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
+
 if AIRFLOW_V_3_0_PLUS:
     from airflow.exceptions import DownstreamTasksSkipped
+    from airflow.sdk import task
+else:
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 
 pytestmark = pytest.mark.db_test
 
@@ -34,8 +37,8 @@ pytestmark = pytest.mark.db_test
 DEFAULT_DATE = datetime(2022, 8, 17)
 
 
-@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test doesn't run on AF3. Companion test below.")
-def test_short_circuit_decorator_af2(dag_maker):
+@pytest.mark.skipif(AIRFLOW_V_3_0_1, reason="Test doesn't run on AF 3.0.1. Companion test below.")
+def test_short_circuit_decorator(dag_maker):
     with dag_maker(serialized=True):
 
         @task
@@ -63,8 +66,8 @@ def test_short_circuit_decorator_af2(dag_maker):
 
     dr = dag_maker.create_dagrun()
 
-    for t in dag_maker.dag.tasks:
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+    for dag_task in dag_maker.dag.tasks:
+        dag_maker.run_ti(dag_task.task_id, dr, ignore_ti_state=True)
 
     task_state_mapping = {
         "short_circuit_false": State.SUCCESS,
@@ -82,9 +85,9 @@ def test_short_circuit_decorator_af2(dag_maker):
         assert ti.state == task_state_mapping[ti.task_id]
 
 
-@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only runs on AF3")
+@pytest.mark.skipif(not AIRFLOW_V_3_0_1, reason="Test only runs on AF3.0.1")
 @pytest.mark.parametrize(["condition", "should_be_skipped"], [(True, False), (False, True)])
-def test_short_circuit_decorator_af3(dag_maker, session, condition, should_be_skipped):
+def test_short_circuit_decorator_af301(dag_maker, session, condition, should_be_skipped):
     with dag_maker(serialized=True, session=session):
 
         @task.short_circuit()
@@ -112,7 +115,7 @@ def test_short_circuit_decorator_af3(dag_maker, session, condition, should_be_sk
         ti_sc.run()
 
 
-@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only runs on AF3")
+@pytest.mark.skipif(not AIRFLOW_V_3_0_1, reason="Test only runs on AF3.0.1")
 @pytest.mark.parametrize(
     ["ignore_downstream_trigger_rules", "expected"], [(True, State.SKIPPED), (False, State.SUCCESS)]
 )
@@ -179,10 +182,10 @@ def test_short_circuit_with_multiple_outputs(dag_maker):
         return {"x": 1, "y": 2}
 
     with dag_maker(serialized=True):
-        ret = multiple_output()
+        multiple_output()
 
     dr = dag_maker.create_dagrun()
-    ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+    dag_maker.run_ti("multiple_output", dr)
     ti = dr.get_task_instances()[0]
     assert ti.xcom_pull() == {"x": 1, "y": 2}
 
@@ -193,9 +196,9 @@ def test_short_circuit_with_multiple_outputs_and_empty_dict(dag_maker):
         return {}
 
     with dag_maker(serialized=True):
-        ret = empty_dict()
+        empty_dict()
 
     dr = dag_maker.create_dagrun()
-    ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+    dag_maker.run_ti("empty_dict", dr)
     ti = dr.get_task_instances()[0]
     assert ti.xcom_pull() == {}

@@ -24,7 +24,7 @@ import pytest
 from httpx import Response
 from sqlalchemy import select
 
-from airflow.models.dagbag import DagBag
+from airflow.models.dagbag import DBDagBag
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils.state import DagRunState
@@ -46,9 +46,9 @@ TEST_DAG_DISPLAY_NAME = "example_simplest_dag"
 
 
 @pytest.fixture
-def test_dag():
+def test_dag(session):
     parse_and_sync_to_db(EXAMPLE_DAG_FILE, include_examples=False)
-    return DagBag(read_dags_from_db=True).get_dag(TEST_DAG_ID)
+    return DBDagBag().get_latest_version_of_dag(TEST_DAG_ID, session)
 
 
 class TestGetDAGSource:
@@ -112,7 +112,7 @@ class TestGetDAGSource:
         assert response.headers["Content-Type"].startswith("application/json")
 
     @pytest.mark.parametrize("accept", ["application/json", "text/plain"])
-    def test_should_respond_200_version(self, test_client, accept, session, test_dag, testing_dag_bundle):
+    def test_should_respond_200_version(self, test_client, accept, session, test_dag):
         dag_content = self._get_dag_file_code(test_dag.fileloc)
         test_dag.create_dagrun(
             run_id="test1",
@@ -123,7 +123,7 @@ class TestGetDAGSource:
         )
         # force reserialization
         test_dag.doc_md = "new doc"
-        SerializedDagModel.write_dag(test_dag, bundle_name="testing")
+        SerializedDagModel.write_dag(test_dag, bundle_name="dags-folder")
         dagcode = (
             session.query(DagCode)
             .filter(DagCode.fileloc == test_dag.fileloc)

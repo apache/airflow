@@ -20,9 +20,9 @@ import os
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
+from airflow.providers.mysql.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     try:

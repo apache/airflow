@@ -22,7 +22,7 @@ from unittest.mock import Mock, patch
 import boto3
 import pytest
 
-from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if not AIRFLOW_V_3_0_PLUS:
     pytest.skip("AWS auth manager is only compatible with Airflow >= 3.0.0", allow_module_level=True)
@@ -103,7 +103,7 @@ def create_avp_policy_store(env_id):
 def env_id():
     global env_id_cache
     if not env_id_cache:
-        env_id_cache = set_env_id()
+        env_id_cache = set_env_id("test_aws_auth_manager")
     return env_id_cache
 
 

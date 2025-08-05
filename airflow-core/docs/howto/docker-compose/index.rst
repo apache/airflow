@@ -211,7 +211,7 @@ In a second terminal you can check the condition of the containers and make sure
     247ebe6cf87a   apache/airflow:|version|   "/usr/bin/dumb-init …"   3 minutes ago    Up 3 minutes (healthy)    8080/tcp                           compose_airflow-worker_1
     ed9b09fc84b1   apache/airflow:|version|   "/usr/bin/dumb-init …"   3 minutes ago    Up 3 minutes (healthy)    8080/tcp                           compose_airflow-scheduler_1
     7cb1fb603a98   apache/airflow:|version|   "/usr/bin/dumb-init …"   3 minutes ago    Up 3 minutes (healthy)    0.0.0.0:8080->8080/tcp             compose_airflow-api_server_1
-    74f3bbe506eb   postgres:13      |version-spacepad| "docker-entrypoint.s…"   18 minutes ago   Up 17 minutes (healthy)   5432/tcp                           compose_postgres_1
+    74f3bbe506eb   postgres:16      |version-spacepad| "docker-entrypoint.s…"   18 minutes ago   Up 17 minutes (healthy)   5432/tcp                           compose_postgres_1
     0bd6576d23cb   redis:latest     |version-spacepad| "docker-entrypoint.s…"   10 hours ago     Up 17 minutes (healthy)   0.0.0.0:6379->6379/tcp             compose_redis_1
 
 Accessing the environment
@@ -279,7 +279,7 @@ Here is a sample ``curl`` command, which sends a request to retrieve a pool list
 
 .. code-block:: bash
 
-    ENDPOINT_URL="http://localhost:8080/"
+    ENDPOINT_URL="http://localhost:8080"
     curl -X GET  \
         --user "airflow:airflow" \
         "${ENDPOINT_URL}/api/v1/pools"
@@ -307,11 +307,13 @@ Examples of how you can extend the image with custom providers, python packages,
 apt packages and more can be found in :doc:`Building the image <docker-stack:build>`.
 
 .. note::
-   Creating custom images means that you need to maintain also a level of automation as you need to re-create the images
-   when either the packages you want to install or Airflow is upgraded. Please do not forget about keeping these scripts.
-   Also keep in mind, that in cases when you run pure Python tasks, you can use the
-   `Python Virtualenv functions <_howto/operator:PythonVirtualenvOperator>`_ which will
-   dynamically source and install python dependencies during runtime. With Airflow 2.8.0 Virtualenvs can also be cached.
+   Creating custom images means that you need to maintain also a level of
+   automation as you need to re-create the images when either the packages you
+   want to install or Airflow is upgraded. Please do not forget about keeping
+   these scripts. Also keep in mind, that in cases when you run pure Python
+   tasks, you can use :ref:`Python Virtualenv functions <howto/operator:PythonVirtualenvOperator>`,
+   which will dynamically source and install python dependencies during runtime.
+   With Airflow 2.8.0, virtualenvs can also be cached.
 
 Special case - adding dependencies via requirements.txt file
 ============================================================

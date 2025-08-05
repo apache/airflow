@@ -21,15 +21,22 @@ from unittest import mock
 
 import pendulum
 import pytest
+from sqlalchemy import insert, select
 
 from airflow.models.dag import DagModel, DagTag
+from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dagrun import DagRun
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests_common.test_utils.db import (
+    clear_db_connections,
+    clear_db_dags,
+    clear_db_runs,
+    clear_db_serialized_dags,
+)
 from tests_common.test_utils.logs import check_last_log
 
 pytestmark = pytest.mark.db_test
@@ -56,6 +63,7 @@ class TestDagEndpoint:
 
     @staticmethod
     def _clear_db():
+        clear_db_connections()
         clear_db_runs()
         clear_db_dags()
         clear_db_serialized_dags()
@@ -172,7 +180,7 @@ class TestGetDags(TestDagEndpoint):
             ({"last_dag_run_state": "success", "exclude_stale": False}, 1, [DAG3_ID]),
             ({"last_dag_run_state": "failed", "exclude_stale": False}, 1, [DAG1_ID]),
             ({"dag_run_state": "failed"}, 1, [DAG1_ID]),
-            ({"dag_run_state": "failed", "exclude_stale": False}, 2, [DAG1_ID, DAG3_ID]),
+            ({"dag_run_state": "failed", "exclude_stale": False}, 1, [DAG1_ID]),
             (
                 {"dag_run_start_date_gte": DAG3_START_DATE_2.isoformat(), "exclude_stale": False},
                 1,
@@ -220,10 +228,10 @@ class TestGetDags(TestDagEndpoint):
                     "dag_run_state": "failed",
                     "exclude_stale": False,
                 },
-                1,
-                [DAG3_ID],
+                0,
+                [],
             ),
-            # # Sort
+            # Sort
             ({"order_by": "-dag_id"}, 2, [DAG2_ID, DAG1_ID]),
             ({"order_by": "-dag_display_name"}, 2, [DAG2_ID, DAG1_ID]),
             ({"order_by": "dag_display_name"}, 2, [DAG1_ID, DAG2_ID]),
@@ -240,9 +248,18 @@ class TestGetDags(TestDagEndpoint):
                 3,
                 [DAG3_ID, DAG1_ID, DAG2_ID],
             ),
+            (
+                {"order_by": ["next_dagrun", "-dag_display_name"], "exclude_stale": False},
+                3,
+                [DAG3_ID, DAG2_ID, DAG1_ID],
+            ),
             # Search
             ({"dag_id_pattern": "1"}, 1, [DAG1_ID]),
             ({"dag_display_name_pattern": "test_dag2"}, 1, [DAG2_ID]),
+            # Bundle filters
+            ({"bundle_name": "dag_maker"}, 2, [DAG1_ID, DAG2_ID]),
+            ({"bundle_name": "wrong_bundle"}, 0, []),
+            ({"bundle_version": "1.0.0"}, 0, []),
         ],
     )
     def test_get_dags(self, test_client, query_params, expected_total_entries, expected_ids):
@@ -263,6 +280,29 @@ class TestGetDags(TestDagEndpoint):
 
         assert body["total_entries"] == 2
         assert [dag["dag_id"] for dag in body["dags"]] == [DAG1_ID, DAG2_ID]
+
+    @pytest.mark.parametrize(
+        "setup_favorites, expected_total_entries, expected_ids",
+        [
+            ([], 0, []),
+            ([DAG1_ID], 1, [DAG1_ID]),
+            ([DAG1_ID, DAG2_ID], 2, [DAG1_ID, DAG2_ID]),
+        ],
+    )
+    def test_get_dags_filter_favorites(
+        self, session, test_client, setup_favorites, expected_total_entries, expected_ids
+    ):
+        """Test filtering DAGs by is_favorite=true."""
+        for dag_id in setup_favorites:
+            session.add(DagFavorite(user_id="test", dag_id=dag_id))
+        session.commit()
+
+        response = test_client.get("/dags", params={"is_favorite": True})
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == expected_total_entries
+        assert sorted([dag["dag_id"] for dag in body["dags"]]) == sorted(expected_ids)
 
     def test_get_dags_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/dags")
@@ -366,9 +406,9 @@ class TestPatchDags(TestDagEndpoint):
         assert response.status_code == expected_status_code
         if expected_status_code == 200:
             body = response.json()
-            assert [dag["dag_id"] for dag in body["dags"]] == expected_ids
-            paused_dag_ids = [dag["dag_id"] for dag in body["dags"] if dag["is_paused"]]
-            assert paused_dag_ids == expected_paused_ids
+            assert {dag["dag_id"] for dag in body["dags"]} == set(expected_ids)
+            paused_dag_ids = {dag["dag_id"] for dag in body["dags"] if dag["is_paused"]}
+            assert paused_dag_ids == set(expected_paused_ids)
             check_last_log(session, dag_id=DAG1_ID, event="patch_dag", logical_date=None)
 
     @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
@@ -381,7 +421,7 @@ class TestPatchDags(TestDagEndpoint):
         assert response.status_code == 200
         body = response.json()
 
-        assert [dag["dag_id"] for dag in body["dags"]] == [DAG1_ID, DAG2_ID]
+        assert {dag["dag_id"] for dag in body["dags"]} == {DAG1_ID, DAG2_ID}
 
     def test_patch_dags_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch("/dags", json={"is_paused": True})
@@ -392,20 +432,109 @@ class TestPatchDags(TestDagEndpoint):
         assert response.status_code == 403
 
 
+class TestFavoriteDag(TestDagEndpoint):
+    """Unit tests for favoriting a DAG."""
+
+    @pytest.mark.parametrize(
+        "dag_id, expected_status_code, expected_exist_in_favorites",
+        [
+            ("fake_dag_id", 404, None),
+            (DAG1_ID, 204, True),
+        ],
+    )
+    def test_favorite_dag(
+        self, test_client, dag_id, expected_status_code, expected_exist_in_favorites, session
+    ):
+        response = test_client.post(f"/dags/{dag_id}/favorite")
+        assert response.status_code == expected_status_code
+
+        if expected_status_code == 204:
+            result = session.execute(
+                select(DagFavorite).where(DagFavorite.dag_id == dag_id, DagFavorite.user_id == "test")
+            ).first()
+            assert result is not None if expected_exist_in_favorites else result is None
+            check_last_log(session, dag_id=dag_id, event="favorite_dag", logical_date=None)
+
+    def test_favorite_dag_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.post(f"/dags/{DAG1_ID}/favorite")
+        assert response.status_code == 401
+
+    def test_favorite_dag_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.post(f"/dags/{DAG1_ID}/favorite")
+        assert response.status_code == 403
+
+    def test_favoriting_already_favorited_dag_returns_409(self, test_client):
+        response = test_client.post(f"/dags/{DAG1_ID}/favorite")
+        assert response.status_code == 204
+
+        response = test_client.post(f"/dags/{DAG1_ID}/favorite")
+        assert response.status_code == 409
+
+
+class TestUnfavoriteDag(TestDagEndpoint):
+    """Unit tests for unfavoriting a DAG."""
+
+    @pytest.mark.parametrize(
+        "dag_id, expected_status_code, expected_exist_in_favorites",
+        [
+            ("fake_dag_id", 404, None),
+            (DAG1_ID, 204, False),
+        ],
+    )
+    def test_unfavorite_dag(
+        self, test_client, dag_id, expected_status_code, expected_exist_in_favorites, session
+    ):
+        if dag_id != "fake_dag_id":
+            session.execute(insert(DagFavorite).values(dag_id=dag_id, user_id="test"))
+            session.commit()
+
+        response = test_client.post(f"/dags/{dag_id}/unfavorite")
+        assert response.status_code == expected_status_code
+
+        if expected_status_code == 204:
+            result = session.execute(
+                select(DagFavorite).where(DagFavorite.dag_id == dag_id, DagFavorite.user_id == "test")
+            ).first()
+            assert result is not None if expected_exist_in_favorites else result is None
+            check_last_log(session, dag_id=dag_id, event="unfavorite_dag", logical_date=None)
+
+    def test_unfavorite_dag_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.post(f"/dags/{DAG1_ID}/unfavorite")
+        assert response.status_code == 401
+
+    def test_unfavorite_dag_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.post(f"/dags/{DAG1_ID}/unfavorite")
+        assert response.status_code == 403
+
+    def test_unfavoriting_dag_that_is_not_favorite_returns_409(self, test_client):
+        response = test_client.post(f"/dags/{DAG1_ID}/unfavorite")
+        assert response.status_code == 409
+
+
 class TestDagDetails(TestDagEndpoint):
     """Unit tests for DAG Details."""
 
     @pytest.mark.parametrize(
-        "query_params, dag_id, expected_status_code, dag_display_name, start_date",
+        "query_params, dag_id, expected_status_code, dag_display_name, start_date, owner_links",
         [
-            ({}, "fake_dag_id", 404, "fake_dag", "2023-12-31T00:00:00Z"),
-            ({}, DAG2_ID, 200, DAG2_ID, "2021-06-15T00:00:00Z"),
+            ({}, "fake_dag_id", 404, "fake_dag", "2023-12-31T00:00:00Z", {}),
+            ({}, DAG2_ID, 200, DAG2_ID, "2021-06-15T00:00:00Z", {}),
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @mock.patch("airflow.api_fastapi.core_api.datamodels.dag_versions.hasattr")
     def test_dag_details(
-        self, test_client, query_params, dag_id, expected_status_code, dag_display_name, start_date
+        self,
+        mock_hasattr,
+        test_client,
+        query_params,
+        dag_id,
+        expected_status_code,
+        dag_display_name,
+        start_date,
+        owner_links,
     ):
+        mock_hasattr.return_value = False
         response = test_client.get(f"/dags/{dag_id}/details", params=query_params)
         assert response.status_code == expected_status_code
         if expected_status_code != 200:
@@ -448,6 +577,7 @@ class TestDagDetails(TestDagEndpoint):
                 "dag_id": "test_dag2",
                 "id": mock.ANY,
                 "version_number": 1,
+                "dag_display_name": dag_display_name,
             },
             "last_expired": None,
             "last_parsed": last_parsed,
@@ -460,6 +590,100 @@ class TestDagDetails(TestDagEndpoint):
             "next_dagrun_logical_date": None,
             "next_dagrun_run_after": None,
             "owners": ["airflow"],
+            "owner_links": {},
+            "params": {
+                "foo": {
+                    "__class": "airflow.sdk.definitions.param.Param",
+                    "description": None,
+                    "schema": {},
+                    "value": 1,
+                }
+            },
+            "relative_fileloc": "test_dags.py",
+            "render_template_as_native_obj": False,
+            "timetable_summary": None,
+            "start_date": start_date,
+            "tags": [],
+            "template_search_path": None,
+            "timetable_description": "Never, external triggers only",
+            "timezone": UTC_JSON_REPR,
+        }
+        assert res_json == expected
+
+    @pytest.mark.parametrize(
+        "query_params, dag_id, expected_status_code, dag_display_name, start_date, owner_links",
+        [
+            ({}, "fake_dag_id", 404, "fake_dag", "2023-12-31T00:00:00Z", {}),
+            ({}, DAG2_ID, 200, DAG2_ID, "2021-06-15T00:00:00Z", {}),
+        ],
+    )
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_dag_details_with_view_url_template(
+        self,
+        test_client,
+        query_params,
+        dag_id,
+        expected_status_code,
+        dag_display_name,
+        start_date,
+        owner_links,
+    ):
+        response = test_client.get(f"/dags/{dag_id}/details", params=query_params)
+        assert response.status_code == expected_status_code
+        if expected_status_code != 200:
+            return
+
+        # Match expected and actual responses below.
+        res_json = response.json()
+        last_parsed = res_json["last_parsed"]
+        last_parsed_time = res_json["last_parsed_time"]
+        file_token = res_json["file_token"]
+        expected = {
+            "bundle_name": "dag_maker",
+            "bundle_version": None,
+            "asset_expression": None,
+            "catchup": False,
+            "concurrency": 16,
+            "dag_id": dag_id,
+            "dag_display_name": dag_display_name,
+            "dag_run_timeout": None,
+            "default_args": {
+                "depends_on_past": False,
+                "retries": 1,
+                "retry_delay": "PT5M",
+            },
+            "description": None,
+            "doc_md": "details",
+            "end_date": None,
+            "fileloc": __file__,
+            "file_token": file_token,
+            "has_import_errors": False,
+            "has_task_concurrency_limits": True,
+            "is_stale": False,
+            "is_paused": False,
+            "is_paused_upon_creation": None,
+            "latest_dag_version": {
+                "bundle_name": "dag_maker",
+                "bundle_url": "http://test_host.github.com/tree/None/dags",
+                "bundle_version": None,
+                "created_at": mock.ANY,
+                "dag_id": "test_dag2",
+                "id": mock.ANY,
+                "version_number": 1,
+                "dag_display_name": dag_display_name,
+            },
+            "last_expired": None,
+            "last_parsed": last_parsed,
+            "last_parsed_time": last_parsed_time,
+            "max_active_runs": 16,
+            "max_active_tasks": 16,
+            "max_consecutive_failed_dag_runs": 0,
+            "next_dagrun_data_interval_end": None,
+            "next_dagrun_data_interval_start": None,
+            "next_dagrun_logical_date": None,
+            "next_dagrun_run_after": None,
+            "owners": ["airflow"],
+            "owner_links": {},
             "params": {
                 "foo": {
                     "__class": "airflow.sdk.definitions.param.Param",

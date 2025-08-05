@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, Text, HStack } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiDatabase } from "react-icons/fi";
 import { Link } from "react-router-dom";
 
@@ -34,6 +35,7 @@ export const AssetEvent = ({
   readonly assetId?: number;
   readonly event: AssetEventResponse;
 }) => {
+  const { t: translate } = useTranslation("dashboard");
   let source = "";
 
   const { from_rest_api: fromRestAPI, from_trigger: fromTrigger, ...extra } = event.extra ?? {};
@@ -45,7 +47,7 @@ export const AssetEvent = ({
   }
 
   return (
-    <Box borderBottomWidth={1} fontSize={13} mt={1} p={2}>
+    <Box borderBottomWidth={1} fontSize={13} pb={2}>
       <Text fontWeight="bold">
         <Time datetime={event.timestamp} />
       </Text>
@@ -57,8 +59,12 @@ export const AssetEvent = ({
           <Tooltip
             content={
               <div>
-                <Text> group: {event.group ?? ""} </Text>
-                <Text> uri: {event.uri ?? ""} </Text>
+                <Text>
+                  {translate("group")}: {event.group ?? ""}
+                </Text>
+                <Text>
+                  {translate("uri")}: {event.uri ?? ""}
+                </Text>
               </div>
             }
             showArrow
@@ -72,7 +78,7 @@ export const AssetEvent = ({
         </HStack>
       )}
       <HStack>
-        <Box>Source: </Box>
+        <Box>{translate("source")}: </Box>
         {source === "" ? (
           <Link
             to={`/dags/${event.source_dag_id}/runs/${event.source_run_id}/tasks/${event.source_task_id}${event.source_map_index > -1 ? `/mapped/${event.source_map_index}` : ""}`}

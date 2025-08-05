@@ -195,6 +195,61 @@ TYPE_OF_CHANGE_DESCRIPTION = {
 }
 
 
+def classification_result(provider_id, changed_files):
+    changed_files = list(filter(lambda f: provider_id in f, changed_files))
+
+    if not changed_files:
+        return "other"
+
+    def is_doc(f):
+        return re.match(r"^providers/.+/docs/", f) and f.endswith(".rst")
+
+    def is_test_or_example(f):
+        return re.match(r"^providers/.+/tests/", f) or re.match(
+            r"^providers/.+/src/airflow/providers/.+/example_dags/", f
+        )
+
+    all_docs = all(is_doc(f) for f in changed_files)
+    all_test_or_example = all(is_test_or_example(f) for f in changed_files)
+
+    has_docs = any(is_doc(f) for f in changed_files)
+    has_test_or_example = any(is_test_or_example(f) for f in changed_files)
+
+    has_real_code = any(not (is_doc(f) or is_test_or_example(f)) for f in changed_files)
+
+    if all_docs:
+        return "documentation"
+    if all_test_or_example:
+        return "test_or_example_only"
+    if not has_real_code and (has_docs or has_test_or_example):
+        return "documentation"
+    return "other"
+
+
+def classify_provider_pr_files(provider_id: str, commit_hash: str) -> str:
+    """
+    Classify a provider commit based on changed files.
+
+    - Returns 'documentation' if any provider doc files are present.
+    - Returns 'test_or_example_only' if only test/example DAGs changed.
+    - Returns 'other' otherwise.
+    """
+    try:
+        result = run_command(
+            ["git", "diff", "--name-only", f"{commit_hash}^", commit_hash],
+            cwd=AIRFLOW_ROOT_PATH,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        changed_files = result.stdout.strip().splitlines()
+    except subprocess.CalledProcessError:
+        # safe to return other here
+        return "other"
+
+    return classification_result(provider_id, changed_files)
+
+
 def _get_git_log_command(
     folder_paths: list[Path] | None = None, from_commit: str | None = None, to_commit: str | None = None
 ) -> list[str]:
@@ -454,7 +509,7 @@ def _ask_the_user_for_the_type_of_changes(non_interactive: bool) -> TypeOfChange
     while True:
         get_console().print(
             "[warning]Type of change (d)ocumentation, (b)ugfix, (f)eature, (x)breaking "
-            f"change, (m)misc, (s)kip,(v)airflow_min_version_bump (q)uit [{display_answers}]?[/] ",
+            f"change, (m)isc, (s)kip, airflow_min_(v)ersion_bump (q)uit [{display_answers}]?[/] ",
             end="",
         )
         try:
@@ -722,7 +777,7 @@ def update_release_notes(
     regenerate_missing_docs: bool,
     non_interactive: bool,
     only_min_version_update: bool,
-) -> tuple[bool, bool]:
+) -> tuple[bool, bool, bool]:
     """Updates generated files.
 
     This includes the readme, changes, and provider.yaml files.
@@ -732,7 +787,8 @@ def update_release_notes(
     :param base_branch: base branch to check changes in apache remote for changes
     :param regenerate_missing_docs: whether to regenerate missing docs
     :param non_interactive: run in non-interactive mode (useful for CI)
-    :return: tuple of two bools: (with_breaking_change, maybe_with_new_features)
+    :param only_min_version_update: whether to only update min version
+    :return: tuple of three bools: (with_breaking_change, maybe_with_new_features, with_min_airflow_version_bump)
     """
     proceed, list_of_list_of_changes, changes_as_table = _get_all_changes_for_package(
         provider_id=provider_id,
@@ -744,6 +800,7 @@ def update_release_notes(
     maybe_with_new_features = False
     original_provider_yaml_content: str | None = None
     marked_for_release = False
+    with_min_airflow_version_bump = False
     if not reapply_templates_only:
         if proceed:
             if non_interactive:
@@ -770,7 +827,7 @@ def update_release_notes(
             answer = user_confirm(f"Does the provider: {provider_id} have any changes apart from 'doc-only'?")
             if answer == Answer.NO:
                 _mark_latest_changes_as_documentation_only(provider_id, list_of_list_of_changes)
-                return with_breaking_changes, maybe_with_new_features
+                return with_breaking_changes, maybe_with_new_features, False
             change_table_len = len(list_of_list_of_changes[0])
             table_iter = 0
             global SHORT_HASH_TO_TYPE_DICT
@@ -780,12 +837,32 @@ def update_release_notes(
                 formatted_message = format_message_for_classification(
                     list_of_list_of_changes[0][table_iter].message_without_backticks
                 )
-                get_console().print(
-                    f"[green]Define the type of change for "
-                    f"`{formatted_message}`"
-                    f" by referring to the above table[/]"
-                )
-                type_of_change = _ask_the_user_for_the_type_of_changes(non_interactive=non_interactive)
+                change = list_of_list_of_changes[0][table_iter]
+
+                classification = classify_provider_pr_files(provider_id, change.full_hash)
+                if classification == "documentation":
+                    get_console().print(
+                        f"[green]Automatically classifying change as DOCUMENTATION since it contains only doc changes:[/]\n"
+                        f"[blue]{formatted_message}[/]"
+                    )
+                    type_of_change = TypeOfChange.DOCUMENTATION
+                elif classification == "test_or_example_only":
+                    get_console().print(
+                        f"[green]Automatically classifying change as SKIPPED since it only contains test/example changes:[/]\n"
+                        f"[blue]{formatted_message}[/]"
+                    )
+                    type_of_change = TypeOfChange.SKIP
+                else:
+                    get_console().print(
+                        f"[green]Define the type of change for "
+                        f"`{formatted_message}`"
+                        f" by referring to the above table[/]"
+                    )
+                    type_of_change = _ask_the_user_for_the_type_of_changes(non_interactive=non_interactive)
+
+                if type_of_change == TypeOfChange.MIN_AIRFLOW_VERSION_BUMP:
+                    with_min_airflow_version_bump = True
+
                 change_hash = list_of_list_of_changes[0][table_iter].short_hash
                 SHORT_HASH_TO_TYPE_DICT[change_hash] = type_of_change
                 type_of_current_package_changes.append(type_of_change)
@@ -899,7 +976,7 @@ def update_release_notes(
         provider_details.documentation_provider_distribution_path,
         regenerate_missing_docs,
     )
-    return with_breaking_changes, maybe_with_new_features
+    return with_breaking_changes, maybe_with_new_features, with_min_airflow_version_bump
 
 
 def _find_insertion_index_for_version(content: list[str], version: str) -> tuple[int, bool]:
@@ -970,6 +1047,7 @@ def _generate_new_changelog(
     context: dict[str, Any],
     with_breaking_changes: bool,
     maybe_with_new_features: bool,
+    with_min_airflow_version_bump: bool = False,
 ):
     latest_version = provider_details.versions[0]
     current_changelog = provider_details.changelog_path.read_text()
@@ -1012,6 +1090,7 @@ def _generate_new_changelog(
                 "version": latest_version,
                 "version_header": "." * len(latest_version),
                 "classified_changes": classified_changes,
+                "min_airflow_version_bump": with_min_airflow_version_bump,
             }
         )
         generated_new_changelog = render_template(
@@ -1082,6 +1161,7 @@ def update_changelog(
     with_breaking_changes: bool,
     maybe_with_new_features: bool,
     only_min_version_update: bool,
+    with_min_airflow_version_bump: bool,
 ):
     """Internal update changelog method.
 
@@ -1091,6 +1171,7 @@ def update_changelog(
     :param with_breaking_changes: whether there are any breaking changes
     :param maybe_with_new_features: whether there are any new features
     :param only_min_version_update: whether to only update the min version
+    :param with_min_airflow_version_bump: whether there is a min airflow version bump anywhere
     """
     provider_details = get_provider_details(package_id)
     jinja_context = get_provider_documentation_jinja_context(
@@ -1120,6 +1201,7 @@ def update_changelog(
             context=jinja_context,
             with_breaking_changes=with_breaking_changes,
             maybe_with_new_features=maybe_with_new_features,
+            with_min_airflow_version_bump=with_min_airflow_version_bump,
         )
     get_console().print(f"\n[info]Update index.rst for {package_id}\n")
     _update_index_rst(jinja_context, package_id, provider_details.documentation_provider_distribution_path)

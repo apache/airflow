@@ -25,6 +25,16 @@ from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterH
 
 from unit.microsoft.azure.test_utils import get_airflow_connection
 
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
+
 
 class Base:
     def teardown_method(self, method):
@@ -33,7 +43,7 @@ class Base:
     @contextmanager
     def patch_hook_and_request_adapter(self, response):
         with (
-            patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection),
+            patch(f"{BASEHOOK_PATCH_PATH}.get_connection", side_effect=get_airflow_connection),
             patch.object(HttpxRequestAdapter, "get_http_response_message") as mock_get_http_response,
         ):
             if isinstance(response, Exception):

@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
 
-Package ``apache-airflow-providers-apache-tinkerpop``
+``apache-airflow-providers-apache-tinkerpop``
 =====================================================
 
 .. toctree::
@@ -78,7 +78,9 @@ Apache TinkerPop is a graph computing framework for both graph databases (OLTP) 
 systems (OLAP) and Gremlin is its graph traversal language.
 
 
-Release: 1.0.0
+Release: 1.0.2
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------

@@ -1,0 +1,30 @@
+{
+  "consumingDags": "消費者 Dags",
+  "createEvent": {
+    "button": "建立事件",
+    "manual": {
+      "description": "手動建立資源事件",
+      "extra": "資源事件額外資訊",
+      "label": "手動"
+    },
+    "materialize": {
+      "description": "觸發資源上游的 Dag",
+      "descriptionWithDag": "觸發此資源上游的 Dag: {{dagName}}",
+      "label": "實體化",
+      "unpauseDag": "觸發時取消暫停 {{dagName}}"
+    },
+    "success": {
+      "manualDescription": "已成功手動建立資源事件。",
+      "manualTitle": "已建立資源事件",
+      "materializeDescription": "已成功觸發上游 Dag {{dagId}}。",
+      "materializeTitle": "正在實體化資源"
+    },
+    "title": "為 {{name}} 建立資源事件"
+  },
+  "group": "群組",
+  "lastAssetEvent": "最後資源事件",
+  "name": "名稱",
+  "producingTasks": "生產任務",
+  "scheduledDags": "已排程的 Dags",
+  "searchPlaceholder": "搜尋資源"
+}

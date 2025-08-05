@@ -21,22 +21,14 @@ import { http, HttpResponse, type HttpHandler } from "msw";
 export const handlers: Array<HttpHandler> = [
   http.get("/ui/config", () =>
     HttpResponse.json({
-      audit_view_excluded_events: "gantt,landing_times,tries,duration,calendar,graph,grid,tree,tree_data",
-      audit_view_included_events: "",
       auto_refresh_interval: 3,
       default_wrap: false,
       enable_swagger_ui: true,
       hide_paused_dags_by_default: false,
       instance_name: "Airflow",
-      instance_name_has_markup: false,
-      navbar_color: "#fff",
-      navbar_hover_color: "#eee",
-      navbar_text_color: "#51504f",
-      navbar_text_hover_color: "#51504f",
       page_size: 15,
       require_confirmation_dag_change: false,
       test_connection: "Disabled",
-      warn_deployment_exposure: true,
     }),
   ),
 ];

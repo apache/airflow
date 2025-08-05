@@ -18,18 +18,18 @@
  */
 import { Box, Heading, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
-import { useBackfillServiceListBackfills1 } from "openapi/queries";
+import { useBackfillServiceListBackfillsUi } from "openapi/queries";
 import type { BackfillResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
-import { reprocessBehaviors } from "src/constants/reprocessBehaviourParams";
-import { getDuration, pluralize } from "src/utils";
+import { getDuration } from "src/utils";
 
-const columns: Array<ColumnDef<BackfillResponse>> = [
+const getColumns = (translate: (key: string) => string): Array<ColumnDef<BackfillResponse>> => [
   {
     accessorKey: "date_from",
     cell: ({ row }) => (
@@ -38,7 +38,7 @@ const columns: Array<ColumnDef<BackfillResponse>> = [
       </Text>
     ),
     enableSorting: false,
-    header: "From",
+    header: translate("table.from"),
   },
   {
     accessorKey: "date_to",
@@ -48,20 +48,21 @@ const columns: Array<ColumnDef<BackfillResponse>> = [
       </Text>
     ),
     enableSorting: false,
-    header: "To",
+    header: translate("table.to"),
   },
   {
     accessorKey: "reprocess_behavior",
     cell: ({ row }) => (
       <Text>
-        {
-          reprocessBehaviors.find((rb: { value: string }) => rb.value === row.original.reprocess_behavior)
-            ?.label
-        }
+        {row.original.reprocess_behavior === "none"
+          ? translate("components:backfill.missingRuns")
+          : row.original.reprocess_behavior === "failed"
+            ? translate("components:backfill.missingAndErroredRuns")
+            : translate("components:backfill.allRuns")}
       </Text>
     ),
     enableSorting: false,
-    header: "Reprocess Behavior",
+    header: translate("components:backfill.reprocessBehavior"),
   },
   {
     accessorKey: "created_at",
@@ -71,7 +72,7 @@ const columns: Array<ColumnDef<BackfillResponse>> = [
       </Text>
     ),
     enableSorting: false,
-    header: "Created at",
+    header: translate("table.createdAt"),
   },
   {
     accessorKey: "completed_at",
@@ -81,7 +82,7 @@ const columns: Array<ColumnDef<BackfillResponse>> = [
       </Text>
     ),
     enableSorting: false,
-    header: "Completed at",
+    header: translate("table.completedAt"),
   },
   {
     accessorKey: "duration",
@@ -93,23 +94,24 @@ const columns: Array<ColumnDef<BackfillResponse>> = [
       </Text>
     ),
     enableSorting: false,
-    header: "Duration",
+    header: translate("duration"),
   },
   {
     accessorKey: "max_active_runs",
     enableSorting: false,
-    header: "Max Active Runs",
+    header: translate("table.maxActiveRuns"),
   },
 ];
 
 export const Backfills = () => {
+  const { t: translate } = useTranslation();
   const { setTableURLState, tableURLState } = useTableURLState();
 
   const { pagination } = tableURLState;
 
   const { dagId = "" } = useParams();
 
-  const { data, error, isFetching, isLoading } = useBackfillServiceListBackfills1({
+  const { data, error, isFetching, isLoading } = useBackfillServiceListBackfillsUi({
     dagId,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
@@ -119,14 +121,14 @@ export const Backfills = () => {
     <Box>
       <ErrorAlert error={error} />
       <Heading my={1} size="md">
-        {pluralize("Backfill", data ? data.total_entries : 0)}
+        {translate("backfill", { count: data ? data.total_entries : 0 })}
       </Heading>
       <DataTable
-        columns={columns}
+        columns={getColumns(translate)}
         data={data ? data.backfills : []}
         isFetching={isFetching}
         isLoading={isLoading}
-        modelName="Backfill"
+        modelName={translate("backfill_one")}
         onStateChange={setTableURLState}
         total={data ? data.total_entries : 0}
       />

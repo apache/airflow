@@ -34,6 +34,12 @@ def get_provider_info():
                 "tags": ["protocol"],
             }
         ],
+        "operators": [
+            {
+                "integration-name": "OpenLineage",
+                "python-modules": ["airflow.providers.openlineage.operators.empty"],
+            }
+        ],
         "plugins": [
             {
                 "name": "openlineage",
@@ -42,7 +48,7 @@ def get_provider_info():
         ],
         "config": {
             "openlineage": {
-                "description": "This section applies settings for OpenLineage integration.\nMore about configuration and it's precedence can be found in the `user's guide\n<https://airflow.apache.org/docs/apache-airflow-providers-openlineage/stable/guides/user.html#transport-setup>`_.\n",
+                "description": "This section applies settings for OpenLineage integration.\nMore about configuration and its precedence can be found in the `user's guide\n<https://airflow.apache.org/docs/apache-airflow-providers-openlineage/stable/guides/user.html#transport-setup>`_.\n",
                 "options": {
                     "disabled": {
                         "description": "Disable sending events without uninstalling the OpenLineage Provider by setting this to true.\n",

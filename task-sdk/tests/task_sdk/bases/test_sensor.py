@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 from typing import TYPE_CHECKING
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 import time_machine
@@ -34,12 +34,12 @@ from airflow.exceptions import (
 )
 from airflow.models.trigger import TriggerFailureReason
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import timezone
 from airflow.sdk.bases.sensor import BaseSensorOperator, PokeReturnValue, poke_mode_only
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.execution_time.comms import RescheduleTask, TaskRescheduleStartDate
-from airflow.utils import timezone
+from airflow.sdk.timezone import datetime
 from airflow.utils.state import State
-from airflow.utils.timezone import datetime
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
@@ -205,7 +205,7 @@ class TestBaseSensor:
         time_machine.coordinates.shift(sensor.poke_interval)
 
         # Mocking values from DB/API-server
-        mock_supervisor_comms.get_message.return_value = TaskRescheduleStartDate(start_date=date1)
+        mock_supervisor_comms.send.return_value = TaskRescheduleStartDate(start_date=date1)
         state, msg, error = run_task(task=sensor, context_update={"task_reschedule_count": 1})
 
         assert state == State.FAILED
@@ -227,7 +227,7 @@ class TestBaseSensor:
         time_machine.coordinates.shift(sensor.poke_interval)
 
         # Mocking values from DB/API-server
-        mock_supervisor_comms.get_message.return_value = TaskRescheduleStartDate(start_date=date1)
+        mock_supervisor_comms.send.return_value = TaskRescheduleStartDate(start_date=date1)
         state, msg, _ = run_task(task=sensor, context_update={"task_reschedule_count": 1})
         assert state == State.SKIPPED
 
@@ -254,7 +254,7 @@ class TestBaseSensor:
             return (timezone.utcnow() - task_start_date).total_seconds()
 
         new_interval = 0
-        mock_supervisor_comms.get_message.return_value = TaskRescheduleStartDate(start_date=task_start_date)
+        mock_supervisor_comms.send.return_value = TaskRescheduleStartDate(start_date=task_start_date)
 
         # loop poke returns false
         for _poke_count in range(1, false_count + 1):
@@ -368,13 +368,11 @@ class TestBaseSensor:
             task_id=SENSOR_OP, return_value=None, poke_interval=5, timeout=60, exponential_backoff=True
         )
 
-        with patch("airflow.utils.timezone.utcnow") as mock_utctime:
-            mock_utctime.return_value = DEFAULT_DATE
-
+        with time_machine.travel(DEFAULT_DATE):
             started_at = timezone.utcnow() - timedelta(seconds=10)
 
             def run_duration():
-                return (timezone.utcnow - started_at).total_seconds()
+                return (timezone.utcnow() - started_at).total_seconds()
 
             interval1 = sensor._get_next_poke_interval(started_at, run_duration, 1)
             interval2 = sensor._get_next_poke_interval(started_at, run_duration, 2)
@@ -395,13 +393,11 @@ class TestBaseSensor:
             exponential_backoff=True,
         )
 
-        with patch("airflow.utils.timezone.utcnow") as mock_utctime:
-            mock_utctime.return_value = DEFAULT_DATE
-
+        with time_machine.travel(DEFAULT_DATE):
             started_at = timezone.utcnow() - timedelta(seconds=10)
 
             def run_duration():
-                return (timezone.utcnow - started_at).total_seconds()
+                return (timezone.utcnow() - started_at).total_seconds()
 
             intervals = [
                 sensor._get_next_poke_interval(started_at, run_duration, retry_number)
@@ -428,13 +424,11 @@ class TestBaseSensor:
             max_wait=timedelta(seconds=30),
         )
 
-        with patch("airflow.utils.timezone.utcnow") as mock_utctime:
-            mock_utctime.return_value = DEFAULT_DATE
-
+        with time_machine.travel(DEFAULT_DATE):
             started_at = timezone.utcnow() - timedelta(seconds=10)
 
             def run_duration():
-                return (timezone.utcnow - started_at).total_seconds()
+                return (timezone.utcnow() - started_at).total_seconds()
 
             for idx, expected in enumerate([2, 6, 13, 30, 30, 30, 30, 30]):
                 assert sensor._get_next_poke_interval(started_at, run_duration, idx) == expected
@@ -516,9 +510,9 @@ class TestBaseSensor:
             # For timeout calculation, we need to use the first reschedule date
             # This ensures the timeout is calculated from the start of the task
             if test_state["first_reschedule_date"] is None:
-                mock_supervisor_comms.get_message.return_value = TaskRescheduleStartDate(start_date=None)
+                mock_supervisor_comms.send.return_value = TaskRescheduleStartDate(start_date=None)
             else:
-                mock_supervisor_comms.get_message.return_value = TaskRescheduleStartDate(
+                mock_supervisor_comms.send.return_value = TaskRescheduleStartDate(
                     start_date=test_state["first_reschedule_date"]
                 )
 

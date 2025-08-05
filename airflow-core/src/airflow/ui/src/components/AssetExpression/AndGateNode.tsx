@@ -18,36 +18,41 @@
  */
 import { Box, VStack, Badge } from "@chakra-ui/react";
 import type { PropsWithChildren } from "react";
+import { useTranslation } from "react-i18next";
 import { TbLogicAnd } from "react-icons/tb";
 
-export const AndGateNode = ({ children }: PropsWithChildren) => (
-  <Box
-    bg="bg.subtle"
-    border="2px dashed"
-    borderRadius="lg"
-    display="inline-block"
-    minW="fit-content"
-    p={4}
-    position="relative"
-  >
-    <Badge
-      alignItems="center"
-      borderRadius="full"
-      display="flex"
-      fontSize="sm"
-      gap={1}
-      left="50%"
-      position="absolute"
-      px={3}
-      py={1}
-      top="-3"
-      transform="translateX(-50%)"
+export const AndGateNode = ({ children }: PropsWithChildren) => {
+  const { t: translate } = useTranslation("common");
+
+  return (
+    <Box
+      bg="bg.subtle"
+      border="2px dashed"
+      borderRadius="lg"
+      display="inline-block"
+      minW="fit-content"
+      p={4}
+      position="relative"
     >
-      <TbLogicAnd size={18} />
-      AND
-    </Badge>
-    <VStack align="center" gap={4} mt={3}>
-      {children}
-    </VStack>
-  </Box>
-);
+      <Badge
+        alignItems="center"
+        borderRadius="full"
+        display="flex"
+        fontSize="sm"
+        gap={1}
+        left="50%"
+        position="absolute"
+        px={3}
+        py={1}
+        top="-3"
+        transform="translateX(-50%)"
+      >
+        <TbLogicAnd size={18} />
+        {translate("expression.and")}
+      </Badge>
+      <VStack align="center" gap={4} mt={3}>
+        {children}
+      </VStack>
+    </Box>
+  );
+};

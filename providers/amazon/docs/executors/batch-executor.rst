@@ -69,7 +69,7 @@ Options <https://airflow.apache.org/docs/apache-airflow/stable/howto/set-config.
    :end-before: .. END CONFIG_OPTIONS_PRECEDENCE
 
 .. note::
-   ``exec_config`` is an optional parameter that can be provided to operators. It is a dictionary type and in the context of the Batch Executor it represents a ``submit_job_kwargs`` configuration which is then updated over-top of the ``submit_job_kwargs`` specified in Airflow config above (if present). It is a recursive update which essentially applies Python update to each nested dictionary in the configuration. Loosely approximated as: ``submit_job_kwargs.update(exec_config)``
+   ``executor_config`` is an optional parameter that can be provided to operators. It is a dictionary type and in the context of the Batch Executor it represents a ``submit_job_kwargs`` configuration which is then updated over-top of the ``submit_job_kwargs`` specified in Airflow config above (if present). It is a recursive update which essentially applies Python update to each nested dictionary in the configuration. Loosely approximated as: ``submit_job_kwargs.update(executor_config)``
 
 Required config options:
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -98,7 +98,7 @@ hints and examples, see the ``config_templates`` folder in the Amazon
 provider package.
 
 .. note::
-   ``exec_config`` is an optional parameter that can be provided to operators. It is a dictionary type and in the context of the Batch Executor it represents a ``submit_job_kwargs`` configuration which is then updated over-top of the ``submit_job_kwargs`` specified in Airflow config above (if present). It is a recursive update which essentially applies Python update to each nested dictionary in the configuration. Loosely approximated as: ``submit_job_kwargs.update(exec_config)``
+   ``executor_config`` is an optional parameter that can be provided to operators. It is a dictionary type and in the context of the Batch Executor it represents a ``submit_job_kwargs`` configuration which is then updated over-top of the ``submit_job_kwargs`` specified in Airflow config above (if present). It is a recursive update which essentially applies Python update to each nested dictionary in the configuration. Loosely approximated as: ``submit_job_kwargs.update(executor_config)``
 
 .. _dockerfile_for_batch_executor:
 
@@ -140,6 +140,33 @@ newly created Job Role and  Execution role for the Job Definition.
 .. include:: general.rst
    :start-after: .. BEGIN DOCKERFILE_AUTH_SECOND_METHOD
    :end-before: .. END DOCKERFILE_AUTH_SECOND_METHOD
+
+.. include:: general.rst
+  :start-after: .. BEGIN BASE_IMAGE
+  :end-before: .. END BASE_IMAGE
+
+.. include:: general.rst
+  :start-after: .. BEGIN LOADING_DAGS_OVERVIEW
+  :end-before: .. END LOADING_DAGS_OVERVIEW
+
+.. include:: general.rst
+  :start-after: .. BEGIN LOADING_DAGS_FROM_S3
+  :end-before: .. END LOADING_DAGS_FROM_S3
+
+.. include:: general.rst
+  :start-after: .. BEGIN LOADING_DAGS_FROM_LOCAL
+  :end-before: .. END LOADING_DAGS_FROM_LOCAL
+
+.. include:: general.rst
+  :start-after: .. BEGIN DEPENDENCIES
+  :end-before: .. END DEPENDENCIES
+
+Building Image for AWS Batch Executor
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Detailed instructions on how to use the Docker image, that you have
+created via this readme, with the Batch Executor can be found
+:ref:`here <batch_setup_guide>`.
 
 .. _batch_logging:
 

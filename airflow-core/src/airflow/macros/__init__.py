@@ -17,17 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.sdk.definitions.macros import (  # noqa: F401
-    datetime,
-    datetime_diff_for_humans,
-    dateutil,
-    ds_add,
-    ds_format,
-    ds_format_locale,
-    json,
-    random,
-    time,
-    timedelta,
-    uuid,
-    yaml,
+from airflow.utils.deprecation_tools import add_deprecated_classes
+
+add_deprecated_classes(
+    {__name__: {"*": "airflow.sdk.execution_time.macros"}},
+    package=__name__,
 )

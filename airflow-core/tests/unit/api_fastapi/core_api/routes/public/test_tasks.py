@@ -16,14 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-import os
-import unittest
 from datetime import datetime
 
 import pytest
 
+from airflow.api_fastapi.common.dagbag import dag_bag_from_app
 from airflow.models.dag import DAG
-from airflow.models.dagbag import DagBag
+from airflow.models.dagbag import DBDagBag
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
@@ -64,13 +63,15 @@ class TestTaskEndpoint:
 
         task1 >> task2
         task4 >> task5
-        dag_bag = DagBag(os.devnull, include_examples=False)
-        dag_bag.dags = {
-            dag.dag_id: dag,
-            mapped_dag.dag_id: mapped_dag,
-            unscheduled_dag.dag_id: unscheduled_dag,
-        }
-        test_client.app.state.dag_bag = dag_bag
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        mapped_dag.sync_to_db()
+        SerializedDagModel.write_dag(mapped_dag, bundle_name="testing")
+        unscheduled_dag.sync_to_db()
+        SerializedDagModel.write_dag(unscheduled_dag, bundle_name="testing")
+        dag_bag = DBDagBag()
+
+        test_client.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag
 
     @staticmethod
     def clear_db():
@@ -229,13 +230,18 @@ class TestGetTask(TestTaskEndpoint):
 
     def test_should_respond_200_serialized(self, test_client, testing_dag_bundle):
         # Get the dag out of the dagbag before we patch it to an empty one
-        dag = test_client.app.state.dag_bag.get_dag(self.dag_id)
+
+        with DAG(self.dag_id, schedule=None, start_date=self.task1_start_date, doc_md="details") as dag:
+            task1 = EmptyOperator(task_id=self.task_id, params={"foo": "bar"})
+            task2 = EmptyOperator(task_id=self.task_id2, start_date=self.task2_start_date)
+
+            task1 >> task2
+
         dag.sync_to_db()
         SerializedDagModel.write_dag(dag, bundle_name="test_bundle")
 
-        dag_bag = DagBag(os.devnull, include_examples=False, read_dags_from_db=True)
-        patcher = unittest.mock.patch.object(test_client.app.state, "dag_bag", dag_bag)
-        patcher.start()
+        dag_bag = DBDagBag()
+        test_client.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag
 
         expected = {
             "class_ref": {
@@ -281,7 +287,6 @@ class TestGetTask(TestTaskEndpoint):
         )
         assert response.status_code == 200
         assert response.json() == expected
-        patcher.stop()
 
     def test_should_respond_404(self, test_client):
         task_id = "xxxx_not_existing"

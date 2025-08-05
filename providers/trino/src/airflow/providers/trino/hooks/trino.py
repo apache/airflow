@@ -146,14 +146,25 @@ class TrinoHook(DbApiHook):
 
     def get_conn(self) -> Connection:
         """Return a connection object."""
-        db = self.get_connection(self.trino_conn_id)  # type: ignore[attr-defined]
+        db = self.get_connection(self.get_conn_id())
         extra = db.extra_dejson
         auth = None
         user = db.login
-        if db.password and extra.get("auth") in ("kerberos", "certs"):
-            raise AirflowException(f"The {extra.get('auth')!r} authorization type doesn't support password.")
+        auth_methods = []
         if db.password:
-            auth = trino.auth.BasicAuthentication(db.login, db.password)  # type: ignore[attr-defined]
+            auth_methods.append("password")
+        if extra.get("auth") == "jwt":
+            auth_methods.append("jwt")
+        if extra.get("auth") == "certs":
+            auth_methods.append("certs")
+        if extra.get("auth") == "kerberos":
+            auth_methods.append("kerberos")
+        if len(auth_methods) > 1:
+            raise AirflowException(
+                f"Multiple authentication methods specified: {', '.join(auth_methods)}. Only one is allowed."
+            )
+        if db.password:
+            auth = trino.auth.BasicAuthentication(db.login, db.password)
         elif extra.get("auth") == "jwt":
             if not exactly_one(jwt_file := "jwt__file" in extra, jwt_token := "jwt__token" in extra):
                 msg = (
@@ -176,7 +187,7 @@ class TrinoHook(DbApiHook):
                 extra.get("certs__client_key_path"),
             )
         elif extra.get("auth") == "kerberos":
-            auth = trino.auth.KerberosAuthentication(  # type: ignore[attr-defined]
+            auth = trino.auth.KerberosAuthentication(
                 config=extra.get("kerberos__config", os.environ.get("KRB5_CONFIG")),
                 service_name=extra.get("kerberos__service_name"),
                 mutual_authentication=_boolify(extra.get("kerberos__mutual_authentication", False)),
@@ -205,19 +216,20 @@ class TrinoHook(DbApiHook):
             catalog=extra.get("catalog", "hive"),
             schema=db.schema,
             auth=auth,
-            # type: ignore[func-returns-value]
             isolation_level=self.get_isolation_level(),
             verify=_boolify(extra.get("verify", True)),
             session_properties=extra.get("session_properties") or None,
             client_tags=extra.get("client_tags") or None,
             timezone=extra.get("timezone") or None,
+            extra_credential=extra.get("extra_credential") or None,
+            roles=extra.get("roles") or None,
         )
 
         return trino_conn
 
     def get_isolation_level(self) -> Any:
         """Return an isolation level."""
-        db = self.get_connection(self.trino_conn_id)  # type: ignore[attr-defined]
+        db = self.get_connection(self.get_conn_id())
         isolation_level = db.extra_dejson.get("isolation_level", "AUTOCOMMIT").upper()
         return getattr(IsolationLevel, isolation_level, IsolationLevel.AUTOCOMMIT)
 

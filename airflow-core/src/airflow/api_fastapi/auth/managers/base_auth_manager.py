@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 from abc import ABCMeta, abstractmethod
 from functools import cache
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
 
 from jwt import InvalidTokenError
 from sqlalchemy import select
@@ -36,7 +36,6 @@ from airflow.api_fastapi.auth.tokens import (
 from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
 from airflow.configuration import conf
 from airflow.models import DagModel
-from airflow.typing_compat import Literal
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -47,10 +46,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.api_fastapi.auth.managers.models.batch_apis import (
-        IsAuthorizedConnectionRequest,
         IsAuthorizedDagRequest,
-        IsAuthorizedPoolRequest,
-        IsAuthorizedVariableRequest,
     )
     from airflow.api_fastapi.auth.managers.models.resource_details import (
         AccessView,
@@ -66,7 +62,10 @@ if TYPE_CHECKING:
 
 # This cannot be in the TYPE_CHECKING block since some providers import it globally.
 # TODO: Move this inside once all providers drop Airflow 2.x support.
-ResourceMethod = Literal["GET", "POST", "PUT", "DELETE", "MENU"]
+# List of methods (or actions) a user can do against a resource
+ResourceMethod = Literal["GET", "POST", "PUT", "DELETE"]
+# Extends ``ResourceMethod`` to include "MENU". The method "MENU" is only supported with specific resources (menu items)
+ExtendedResourceMethod = Literal["GET", "POST", "PUT", "DELETE", "MENU"]
 
 log = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseUser)
@@ -130,6 +129,15 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         The user is redirected to this URL when logging out. If None is returned (by default), no redirection
         is performed. This redirection is usually needed to invalidate resources when logging out, such as a
         session.
+        """
+        return None
+
+    def get_url_refresh(self) -> str | None:
+        """
+        Return the URL to refresh the authentication token.
+
+        This is used to refresh the authentication token when it expires.
+        The default implementation returns None, which means that the auth manager does not support refresh token.
         """
         return None
 
@@ -304,27 +312,6 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         :param user: the user
         """
 
-    def batch_is_authorized_connection(
-        self,
-        requests: Sequence[IsAuthorizedConnectionRequest],
-        *,
-        user: T,
-    ) -> bool:
-        """
-        Batch version of ``is_authorized_connection``.
-
-        By default, calls individually the ``is_authorized_connection`` API on each item in the list of
-        requests, which can lead to some poor performance. It is recommended to override this method in the auth
-        manager implementation to provide a more efficient implementation.
-
-        :param requests: a list of requests containing the parameters for ``is_authorized_connection``
-        :param user: the user to performing the action
-        """
-        return all(
-            self.is_authorized_connection(method=request["method"], details=request.get("details"), user=user)
-            for request in requests
-        )
-
     def batch_is_authorized_dag(
         self,
         requests: Sequence[IsAuthorizedDagRequest],
@@ -348,48 +335,6 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
                 details=request.get("details"),
                 user=user,
             )
-            for request in requests
-        )
-
-    def batch_is_authorized_pool(
-        self,
-        requests: Sequence[IsAuthorizedPoolRequest],
-        *,
-        user: T,
-    ) -> bool:
-        """
-        Batch version of ``is_authorized_pool``.
-
-        By default, calls individually the ``is_authorized_pool`` API on each item in the list of
-        requests. Can lead to some poor performance. It is recommended to override this method in the auth
-        manager implementation to provide a more efficient implementation.
-
-        :param requests: a list of requests containing the parameters for ``is_authorized_pool``
-        :param user: the user to performing the action
-        """
-        return all(
-            self.is_authorized_pool(method=request["method"], details=request.get("details"), user=user)
-            for request in requests
-        )
-
-    def batch_is_authorized_variable(
-        self,
-        requests: Sequence[IsAuthorizedVariableRequest],
-        *,
-        user: T,
-    ) -> bool:
-        """
-        Batch version of ``is_authorized_variable``.
-
-        By default, calls individually the ``is_authorized_variable`` API on each item in the list of
-        requests. Can lead to some poor performance. It is recommended to override this method in the auth
-        manager implementation to provide a more efficient implementation.
-
-        :param requests: a list of requests containing the parameters for ``is_authorized_variable``
-        :param user: the user to performing the action
-        """
-        return all(
-            self.is_authorized_variable(method=request["method"], details=request.get("details"), user=user)
             for request in requests
         )
 

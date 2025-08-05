@@ -16,26 +16,20 @@
 # under the License.
 from __future__ import annotations
 
-import os
-
 import pytest
 
+from airflow._shared.timezones import timezone
+from airflow.api_fastapi.common.dagbag import dag_bag_from_app
 from airflow.api_fastapi.core_api.datamodels.extra_links import ExtraLinkCollectionResponse
-from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.models.dagbag import DagBag
+from airflow.models.dagbag import DBDagBag
 from airflow.models.xcom import XComModel as XCom
 from airflow.plugins_manager import AirflowPlugin
-from airflow.utils import timezone
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.compat import BaseOperatorLink
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_xcom
 from tests_common.test_utils.mock_operators import CustomOperator
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -91,13 +85,10 @@ class TestGetExtraLinks:
 
         self.dag = self._create_dag(dag_maker)
 
-        DagBundlesManager().sync_bundles_to_db()
-        dag_bag = DagBag(os.devnull, include_examples=False)
-        dag_bag.dags = {self.dag.dag_id: self.dag}
-        test_client.app.state.dag_bag = dag_bag
-        dag_bag.sync_to_db("dags-folder", None)
+        dag_bag = DBDagBag()
+        test_client.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag
 
-        self.dag.create_dagrun(
+        dag_maker.create_dagrun(
             run_id=self.dag_run_id,
             logical_date=self.default_time,
             run_type=DagRunType.MANUAL,
@@ -118,6 +109,9 @@ class TestGetExtraLinks:
             CustomOperator(
                 task_id=self.task_multiple_links, bash_command=["TEST_LINK_VALUE_1", "TEST_LINK_VALUE_2"]
             )
+            _ = CustomOperator.partial(task_id=self.task_mapped).expand(
+                bash_command=["TEST_LINK_VALUE_1", "TEST_LINK_VALUE_2"]
+            )
         return dag
 
     @pytest.mark.parametrize(
@@ -126,14 +120,8 @@ class TestGetExtraLinks:
             pytest.param(
                 "/dags/INVALID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_LINK/links",
                 404,
-                {"detail": "DAG with ID = INVALID not found"},
+                {"detail": "The Dag with ID: `INVALID` was not found"},
                 id="missing_dag",
-            ),
-            pytest.param(
-                "/dags/TEST_DAG_ID/dagRuns/INVALID/taskInstances/TEST_SINGLE_LINK/links",
-                404,
-                {"detail": "DAG Run with ID = INVALID not found"},
-                id="missing_dag_run",
             ),
             pytest.param(
                 "/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/INVALID/links",
@@ -149,7 +137,7 @@ class TestGetExtraLinks:
         assert response.status_code == expected_status_code
         assert response.json() == expected_response
 
-    def test_should_respond_200(self, dag_maker, test_client):
+    def test_should_respond_200(self, test_client, session):
         XCom.set(
             key="search_query",
             value="TEST_LINK_VALUE",
@@ -164,7 +152,6 @@ class TestGetExtraLinks:
             dag_id=self.dag_id,
             run_id=self.dag_run_id,
         )
-
         response = test_client.get(
             f"/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_single_link}/links",
         )
@@ -265,29 +252,37 @@ class TestGetExtraLinks:
             ).model_dump()
         )
 
-    @pytest.mark.xfail(reason="TODO: TaskSDK need to fix this, Extra links should work for mapped operator")
-    def test_should_respond_200_mapped_task_instance(self, test_client):
-        map_index = 0
-        XCom.set(
-            key="search_query",
-            value="TEST_LINK_VALUE_1",
-            task_id=self.task_mapped,
-            dag_id=self.dag.dag_id,
-            run_id=self.dag_run_id,
-            map_index=map_index,
-        )
-        response = test_client.get(
-            f"/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_mapped}/links",
-            params={"map_index": map_index},
-        )
-        assert response.status_code == 200
-        assert (
-            response.json()
-            == ExtraLinkCollectionResponse(
-                extra_links={"Google Custom": "http://google.com/custom_base_link?search=TEST_LINK_VALUE_1"},
-                total_entries=1,
-            ).model_dump()
-        )
+    def test_should_respond_200_mapped_task_instance(self, test_client, session):
+        for map_index, value in enumerate(["TEST_LINK_VALUE_1", "TEST_LINK_VALUE_2"]):
+            XCom.set(
+                key="search_query",
+                value=value,
+                task_id=self.task_mapped,
+                dag_id=self.dag_id,
+                run_id=self.dag_run_id,
+                map_index=map_index,
+            )
+            XCom.set(
+                key="_link_CustomOpLink",
+                value=f"http://google.com/custom_base_link?search={value}",
+                task_id=self.task_mapped,
+                dag_id=self.dag_id,
+                run_id=self.dag_run_id,
+                map_index=map_index,
+            )
+            session.commit()
+            response = test_client.get(
+                f"/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_mapped}/links",
+                params={"map_index": map_index},
+            )
+            assert response.status_code == 200
+            assert (
+                response.json()
+                == ExtraLinkCollectionResponse(
+                    extra_links={"Google Custom": f"http://google.com/custom_base_link?search={value}"},
+                    total_entries=1,
+                ).model_dump()
+            )
 
     def test_should_respond_401_unauthenticated(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(
@@ -309,4 +304,4 @@ class TestGetExtraLinks:
             params={"map_index": 4},
         )
         assert response.status_code == 404
-        assert response.json() == {"detail": "Task with ID = TEST_MAPPED_TASK not found"}
+        assert response.json() == {"detail": "TaskInstance not found"}

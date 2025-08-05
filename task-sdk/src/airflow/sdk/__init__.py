@@ -25,6 +25,7 @@ __all__ = [
     "AssetAll",
     "AssetAny",
     "AssetWatcher",
+    "BaseHook",
     "BaseNotifier",
     "BaseOperator",
     "BaseOperatorLink",
@@ -58,6 +59,7 @@ __all__ = [
 __version__ = "1.1.0"
 
 if TYPE_CHECKING:
+    from airflow.sdk.bases.hook import BaseHook
     from airflow.sdk.bases.notifier import BaseNotifier
     from airflow.sdk.bases.operator import BaseOperator, chain, chain_linear, cross_downstream
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
@@ -84,7 +86,8 @@ __lazy_imports: dict[str, str] = {
     "AssetAll": ".definitions.asset",
     "AssetAny": ".definitions.asset",
     "AssetWatcher": ".definitions.asset",
-    "BaseNotifier": ".definitions.notifier",
+    "BaseHook": ".bases.hook",
+    "BaseNotifier": ".bases.notifier",
     "BaseOperator": ".bases.operator",
     "BaseOperatorLink": ".bases.operatorlink",
     "BaseSensorOperator": ".bases.sensor",

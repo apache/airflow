@@ -16,7 +16,7 @@
     under the License.
 
 Bundles
-=======
+#######
 
 Use the :class:`~airflow.providers.git.bundles.git.GitDagBundle` to configure a Git bundle in your Airflow's
 ``[dag_processor] dag_bundle_config_list``.

@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-host: 172.18.0.2
+host: gremlin
 port: 8182
 channelizer: org.apache.tinkerpop.gremlin.server.channel.WebSocketChannelizer
 graphs: {

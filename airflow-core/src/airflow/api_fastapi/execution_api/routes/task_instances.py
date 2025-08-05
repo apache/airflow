@@ -17,15 +17,19 @@
 
 from __future__ import annotations
 
+import contextlib
+import itertools
 import json
 from collections import defaultdict
 from collections.abc import Iterator
-from typing import TYPE_CHECKING, Annotated, Any
+from datetime import datetime
+from typing import TYPE_CHECKING, Annotated, Any, cast
 from uuid import UUID
 
+import attrs
 import structlog
 from cadwyn import VersionedAPIRouter
-from fastapi import Body, Depends, HTTPException, Query, Request, status
+from fastapi import Body, HTTPException, Query, status
 from pydantic import JsonValue
 from sqlalchemy import func, or_, tuple_, update
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
@@ -33,9 +37,12 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import select
 from structlog.contextvars import bind_contextvars
 
+from airflow._shared.timezones import timezone
+from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+    InactiveAssetsResponse,
     PrevSuccessfulDagRunResponse,
     TaskStatesResponse,
     TIDeferredStatePayload,
@@ -49,27 +56,31 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TISuccessStatePayload,
     TITerminalStatePayload,
 )
-from airflow.api_fastapi.execution_api.deps import JWTBearer
-from airflow.models.dagbag import DagBag
+from airflow.api_fastapi.execution_api.deps import JWTBearerTIPathDep
+from airflow.exceptions import TaskNotFound
+from airflow.models.asset import AssetActive
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_tasks
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
+from airflow.sdk.definitions._internal.expandinput import NotFullyPopulated
+from airflow.sdk.definitions.asset import Asset, AssetUniqueKey
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup
-from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
 
 if TYPE_CHECKING:
-    from airflow.sdk.types import Operator
+    from sqlalchemy.sql.dml import Update
 
+    from airflow.models.expandinput import SchedulerExpandInput
+    from airflow.sdk.types import Operator
 
 router = VersionedAPIRouter()
 
 ti_id_router = VersionedAPIRouter(
     dependencies=[
         # This checks that the UUID in the url matches the one in the token for us.
-        Depends(JWTBearer(path_param_name="task_instance_id")),
+        JWTBearerTIPathDep
     ]
 )
 
@@ -91,7 +102,7 @@ def ti_run(
     task_instance_id: UUID,
     ti_run_payload: Annotated[TIEnterRunningPayload, Body()],
     session: SessionDep,
-    request: Request,
+    dag_bag: DagBagDep,
 ) -> TIRunContext:
     """
     Run a TaskInstance.
@@ -242,8 +253,10 @@ def ti_run(
             or 0
         )
 
-        if dag := request.app.state.dag_bag.get_dag(ti.dag_id):
-            upstream_map_indexes = dict(_get_upstream_map_indexes(dag.get_task(ti.task_id), ti.map_index))
+        if dag := dag_bag.get_dag_for_run(dag_run=dr, session=session):
+            upstream_map_indexes = dict(
+                _get_upstream_map_indexes(dag.get_task(ti.task_id), ti.map_index, ti.run_id, session)
+            )
         else:
             upstream_map_indexes = None
 
@@ -273,7 +286,7 @@ def ti_run(
 
 
 def _get_upstream_map_indexes(
-    task: Operator, ti_map_index: int
+    task: Operator, ti_map_index: int, run_id: str, session: SessionDep
 ) -> Iterator[tuple[str, int | list[int] | None]]:
     for upstream_task in task.upstream_list:
         map_indexes: int | list[int] | None
@@ -286,8 +299,17 @@ def _get_upstream_map_indexes(
             map_indexes = ti_map_index
         else:
             # tasks not in the same mapped task group
-            # the upstream mapped task group should combine the xcom as a list and return it
-            mapped_ti_count: int = upstream_task.task_group.get_parse_time_mapped_ti_count()
+            # the upstream mapped task group should combine the return xcom as a list and return it
+            mapped_ti_count: int
+            upstream_mapped_group = upstream_task.task_group
+            try:
+                # for cases that does not need to resolve xcom
+                mapped_ti_count = upstream_mapped_group.get_parse_time_mapped_ti_count()
+            except NotFullyPopulated:
+                # for cases that needs to resolve xcom to get the correct count
+                mapped_ti_count = cast(
+                    "SchedulerExpandInput", upstream_mapped_group._expand_input
+                ).get_total_map_length(run_id, session=session)
             map_indexes = list(range(mapped_ti_count)) if mapped_ti_count is not None else None
 
         yield upstream_task.task_id, map_indexes
@@ -306,7 +328,7 @@ def ti_update_state(
     task_instance_id: UUID,
     ti_patch_payload: Annotated[TIStateUpdate, Body()],
     session: SessionDep,
-    request: Request,
+    dag_bag: DagBagDep,
 ):
     """
     Update the state of a TaskInstance.
@@ -361,39 +383,75 @@ def ti_update_state(
 
     # We exclude_unset to avoid updating fields that are not set in the payload
     data = ti_patch_payload.model_dump(exclude={"task_outlets", "outlet_events"}, exclude_unset=True)
-
     query = update(TI).where(TI.id == ti_id_str).values(data)
 
-    if isinstance(ti_patch_payload, TITerminalStatePayload):
+    try:
+        query, updated_state = _create_ti_state_update_query_and_update_state(
+            ti_patch_payload=ti_patch_payload,
+            ti_id_str=ti_id_str,
+            session=session,
+            query=query,
+            updated_state=updated_state,
+            dag_id=dag_id,
+            dag_bag=dag_bag,
+        )
+    except Exception:
+        # Set a task to failed in case any unexpected exception happened during task state update
+        log.exception("Error updating Task Instance state to %s. Set the task to failed", updated_state)
+        ti = session.get(TI, ti_id_str)
+        query = TI.duration_expression_update(datetime.now(tz=timezone.utc), query, session.bind)
+        query = query.values(state=TaskInstanceState.FAILED)
+        _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
+
+    # TODO: Replace this with FastAPI's Custom Exception handling:
+    # https://fastapi.tiangolo.com/tutorial/handling-errors/#install-custom-exception-handlers
+    try:
+        result = session.execute(query)
+        log.info("Task instance state updated", new_state=updated_state, rows_affected=result.rowcount)
+    except SQLAlchemyError as e:
+        log.error("Error updating Task Instance state", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error occurred"
+        )
+
+
+def _handle_fail_fast_for_dag(ti: TI, dag_id: str, session: SessionDep, dag_bag: DagBagDep) -> None:
+    dr = ti.dag_run
+    ser_dag = dag_bag.get_dag_for_run(dag_run=dr, session=session)
+    if ser_dag and getattr(ser_dag, "fail_fast", False):
+        task_dict = getattr(ser_dag, "task_dict")
+        task_teardown_map = {k: v.is_teardown for k, v in task_dict.items()}
+        _stop_remaining_tasks(task_instance=ti, task_teardown_map=task_teardown_map, session=session)
+
+
+def _create_ti_state_update_query_and_update_state(
+    *,
+    ti_patch_payload: TIStateUpdate,
+    ti_id_str: str,
+    query: Update,
+    updated_state,
+    session: SessionDep,
+    dag_bag: DagBagDep,
+    dag_id: str,
+) -> tuple[Update, TaskInstanceState]:
+    if isinstance(ti_patch_payload, (TITerminalStatePayload, TIRetryStatePayload, TISuccessStatePayload)):
+        ti = session.get(TI, ti_id_str)
         updated_state = ti_patch_payload.state
         query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
         query = query.values(state=updated_state)
 
         if updated_state == TerminalTIState.FAILED:
-            ti = session.get(TI, ti_id_str)
-            ser_dag = request.app.state.dag_bag.get_dag(dag_id)
-            if ser_dag and getattr(ser_dag, "fail_fast", False):
-                task_dict = getattr(ser_dag, "task_dict")
-                task_teardown_map = {k: v.is_teardown for k, v in task_dict.items()}
-                _stop_remaining_tasks(task_instance=ti, task_teardown_map=task_teardown_map, session=session)
-
-    elif isinstance(ti_patch_payload, TIRetryStatePayload):
-        ti = session.get(TI, ti_id_str)
-        updated_state = ti_patch_payload.state
-        ti.prepare_db_for_next_try(session)
-        query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
-        query = query.values(state=updated_state)
-    elif isinstance(ti_patch_payload, TISuccessStatePayload):
-        query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
-        updated_state = ti_patch_payload.state
-        task_instance = session.get(TI, ti_id_str)
-        TI.register_asset_changes_in_db(
-            task_instance,
-            ti_patch_payload.task_outlets,  # type: ignore
-            ti_patch_payload.outlet_events,
-            session,
-        )
-        query = query.values(state=updated_state)
+            # This is the only case needs extra handling for TITerminalStatePayload
+            _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
+        elif isinstance(ti_patch_payload, TIRetryStatePayload):
+            ti.prepare_db_for_next_try(session)
+        elif isinstance(ti_patch_payload, TISuccessStatePayload):
+            TI.register_asset_changes_in_db(
+                ti,
+                ti_patch_payload.task_outlets,  # type: ignore
+                ti_patch_payload.outlet_events,
+                session,
+            )
     elif isinstance(ti_patch_payload, TIDeferredStatePayload):
         # Calculate timeout if it was passed
         timeout = None
@@ -444,14 +502,17 @@ def ti_update_state(
             # As documented in https://dev.mysql.com/doc/refman/5.7/en/datetime.html.
             _MYSQL_TIMESTAMP_MAX = timezone.datetime(2038, 1, 19, 3, 14, 7)
             if ti_patch_payload.reschedule_date > _MYSQL_TIMESTAMP_MAX:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail={
-                        "reason": "invalid_reschedule_date",
-                        "message": f"Cannot reschedule to {ti_patch_payload.reschedule_date.isoformat()} "
-                        f"since it is over MySQL's TIMESTAMP storage limit.",
-                    },
+                # Set a task to failed in case any unexpected exception happened during task state update
+                log.exception(
+                    "Error updating Task Instance state to %s. Set the task to failed", updated_state
                 )
+                data = ti_patch_payload.model_dump(exclude={"reschedule_date"}, exclude_unset=True)
+                query = update(TI).where(TI.id == ti_id_str).values(data)
+                query = TI.duration_expression_update(datetime.now(tz=timezone.utc), query, session.bind)
+                query = query.values(state=TaskInstanceState.FAILED)
+                ti = session.get(TI, ti_id_str)
+                _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
+                return query, updated_state
 
         task_instance = session.get(TI, ti_id_str)
         actual_start_date = timezone.utcnow()
@@ -470,16 +531,10 @@ def ti_update_state(
         # clear the next_method and next_kwargs so that none of the retries pick them up
         query = query.values(state=TaskInstanceState.UP_FOR_RESCHEDULE, next_method=None, next_kwargs=None)
         updated_state = TaskInstanceState.UP_FOR_RESCHEDULE
-    # TODO: Replace this with FastAPI's Custom Exception handling:
-    # https://fastapi.tiangolo.com/tutorial/handling-errors/#install-custom-exception-handlers
-    try:
-        result = session.execute(query)
-        log.info("Task instance state updated", new_state=updated_state, rows_affected=result.rowcount)
-    except SQLAlchemyError as e:
-        log.error("Error updating Task Instance state", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error occurred"
-        )
+    else:
+        raise ValueError(f"Unexpected Payload Type {type(ti_patch_payload)}")
+
+    return query, updated_state
 
 
 @ti_id_router.patch(
@@ -680,6 +735,7 @@ def get_previous_successful_dagrun(
 def get_task_instance_count(
     dag_id: str,
     session: SessionDep,
+    dag_bag: DagBagDep,
     map_index: Annotated[int | None, Query()] = None,
     task_ids: Annotated[list[str] | None, Query()] = None,
     task_group_id: Annotated[str | None, Query()] = None,
@@ -703,7 +759,7 @@ def get_task_instance_count(
         query = query.where(TI.run_id.in_(run_ids))
 
     if task_group_id:
-        group_tasks = _get_group_tasks(dag_id, task_group_id, session, logical_dates, run_ids)
+        group_tasks = _get_group_tasks(dag_id, task_group_id, session, dag_bag, logical_dates, run_ids)
 
         # Get unique (task_id, map_index) pairs
 
@@ -731,7 +787,6 @@ def get_task_instance_count(
             query = query.where(TI.state.in_(states))
 
     count = session.scalar(query)
-
     return count or 0
 
 
@@ -739,6 +794,7 @@ def get_task_instance_count(
 def get_task_instance_states(
     dag_id: str,
     session: SessionDep,
+    dag_bag: DagBagDep,
     map_index: Annotated[int | None, Query()] = None,
     task_ids: Annotated[list[str] | None, Query()] = None,
     task_group_id: Annotated[str | None, Query()] = None,
@@ -762,7 +818,7 @@ def get_task_instance_states(
     results = session.scalars(query).all()
 
     if task_group_id:
-        group_tasks = _get_group_tasks(dag_id, task_group_id, session, logical_dates, run_ids)
+        group_tasks = _get_group_tasks(dag_id, task_group_id, session, dag_bag, logical_dates, run_ids)
 
         results = results + group_tasks if task_ids else group_tasks
 
@@ -792,18 +848,11 @@ def _is_eligible_to_retry(state: str, try_number: int, max_tries: int) -> bool:
     return max_tries != 0 and try_number <= max_tries
 
 
-def _get_group_tasks(dag_id: str, task_group_id: str, session: SessionDep, logical_dates=None, run_ids=None):
+def _get_group_tasks(
+    dag_id: str, task_group_id: str, session: SessionDep, dag_bag: DagBagDep, logical_dates=None, run_ids=None
+):
     # Get all tasks in the task group
-    dag = DagBag(read_dags_from_db=True).get_dag(dag_id, session)
-    if not dag:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": f"DAG {dag_id} not found",
-            },
-        )
-
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session, include_reason=True)
     task_group = dag.task_group_dict.get(task_group_id)
     if not task_group:
         raise HTTPException(
@@ -825,6 +874,69 @@ def _get_group_tasks(dag_id: str, task_group_id: str, session: SessionDep, logic
     ).all()
 
     return group_tasks
+
+
+@ti_id_router.get(
+    "/{task_instance_id}/validate-inlets-and-outlets",
+    status_code=status.HTTP_200_OK,
+    responses={
+        status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
+    },
+)
+def validate_inlets_and_outlets(
+    task_instance_id: UUID,
+    session: SessionDep,
+    dag_bag: DagBagDep,
+) -> InactiveAssetsResponse:
+    """Validate whether there're inactive assets in inlets and outlets of a given task instance."""
+    ti_id_str = str(task_instance_id)
+    bind_contextvars(ti_id=ti_id_str)
+
+    ti = session.scalar(select(TI).where(TI.id == ti_id_str))
+    if not ti:
+        log.error("Task Instance not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "reason": "not_found",
+                "message": "Task Instance not found",
+            },
+        )
+
+    if not ti.task:
+        dr = ti.dag_run
+        dag = dag_bag.get_dag_for_run(dag_run=dr, session=session)
+        if dag:
+            with contextlib.suppress(TaskNotFound):
+                ti.task = dag.get_task(ti.task_id)
+
+    inlets = [asset.asprofile() for asset in ti.task.inlets if isinstance(asset, Asset)]
+    outlets = [asset.asprofile() for asset in ti.task.outlets if isinstance(asset, Asset)]
+    if not (inlets or outlets):
+        return InactiveAssetsResponse(inactive_assets=[])
+
+    all_asset_unique_keys: set[AssetUniqueKey] = {
+        AssetUniqueKey.from_asset(inlet_or_outlet)  # type: ignore
+        for inlet_or_outlet in itertools.chain(inlets, outlets)
+    }
+    active_asset_unique_keys = {
+        AssetUniqueKey(name, uri)
+        for name, uri in session.execute(
+            select(AssetActive.name, AssetActive.uri).where(
+                tuple_(AssetActive.name, AssetActive.uri).in_(
+                    attrs.astuple(key) for key in all_asset_unique_keys
+                )
+            )
+        )
+    }
+    different = all_asset_unique_keys - active_asset_unique_keys
+
+    return InactiveAssetsResponse(
+        inactive_assets=[
+            asset_unique_key.to_asset().asprofile()  # type: ignore
+            for asset_unique_key in different
+        ]
+    )
 
 
 # This line should be at the end of the file to ensure all routes are registered

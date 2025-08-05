@@ -151,19 +151,19 @@ Step 4: Prepare PR
 
    For example, to address this example issue, do the following:
 
-   * Read about `email configuration in Airflow </docs/apache-airflow/howto/email-config.rst>`__.
+   * Read about `email configuration in Airflow </airflow-core/docs/howto/email-config.rst>`__.
 
    * Find the class you should modify. For the example GitHub issue,
-     this is `email.py <https://github.com/apache/airflow/blob/main/airflow/utils/email.py>`__.
+     this is `email.py <https://github.com/apache/airflow/blob/main/airflow-core/src/airflow/utils/email.py>`__.
 
    * Find the test class where you should add tests. For the example ticket,
-     this is `test_email.py <https://github.com/apache/airflow/blob/main/tests/utils/test_email.py>`__.
+     this is `test_email.py <https://github.com/apache/airflow/blob/main/airflow-core/tests/unit/utils/test_email.py>`__.
 
    * Make sure your fork's main is synced with Apache Airflow's main before you create a branch. See
-     `How to sync your fork <#how-to-sync-your-fork>`_ for details.
+     `How to sync your fork <10_working_with_git.rst#how-to-sync-your-fork>`_ for details.
 
    * Create a local branch for your development. Make sure to use latest
-     ``apache/main`` as base for the branch. See `How to Rebase PR <#how-to-rebase-pr>`_ for some details
+     ``apache/main`` as base for the branch. See `How to Rebase PR </contributing-docs/10_working_with_git.rst#how-to-rebase-pr>`_ for some details
      on setting up the ``apache`` remote. Note, some people develop their changes directly in their own
      ``main`` branches - this is OK and you can make PR from your main to ``apache/main`` but we
      recommend to always create a local branch for your development. This allows you to easily compare
@@ -205,7 +205,7 @@ Step 4: Prepare PR
 
         uv tool run towncrier create --dir airflow-core --config newsfragments/config.toml --content "`cat airflow-core/newsfragments/template.significant.rst`"
 
-2. Rebase your fork, squash commits, and resolve all conflicts. See `How to rebase PR <#how-to-rebase-pr>`_
+2. Rebase your fork, squash commits, and resolve all conflicts. See `How to rebase PR <10_working_with_git.rst#how-to-rebase-pr>`_
    if you need help with rebasing your change. Remember to rebase often if your PR takes a lot of time to
    review/fix. This will make rebase process much easier and less painful and the more often you do it,
    the more comfortable you will feel doing it.
@@ -214,7 +214,7 @@ Step 4: Prepare PR
 
 4. Make sure your commit has a good title and description of the context of your change, enough
    for maintainers reviewing it to understand why you are proposing a change. Make sure to follow other
-   PR guidelines described in `Pull Request guidelines <#pull-request-guidelines>`_.
+   PR guidelines described in `Pull Request guidelines <05_pull_requests.rst#pull-request-guidelines>`_.
    Create Pull Request! Make yourself ready for the discussion!
 
 5. The ``static checks`` and ``tests`` in your PR serve as a first-line-of-check, whether the PR

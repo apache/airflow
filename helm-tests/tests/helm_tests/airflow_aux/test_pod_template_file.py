@@ -24,8 +24,6 @@ import jmespath
 import pytest
 from chart_utils.helm_template_generator import render_chart
 
-from helm_tests.airflow_aux.test_container_lifecycle import CONTAINER_LIFECYCLE_PARAMETERS
-
 
 @pytest.fixture(scope="class")
 def isolate_chart(request, tmp_path_factory) -> Path:
@@ -577,20 +575,30 @@ class TestPodTemplateFile:
             "spec.topologySpreadConstraints[0]", docs[0]
         )
 
-    def test_scheduler_name(self):
+    @pytest.mark.parametrize(
+        "base_scheduler_name, worker_scheduler_name, expected",
+        [
+            ("default-scheduler", "most-allocated", "most-allocated"),
+            ("default-scheduler", None, "default-scheduler"),
+            (None, None, None),
+        ],
+    )
+    def test_scheduler_name(self, base_scheduler_name, worker_scheduler_name, expected):
         docs = render_chart(
-            values={"schedulerName": "airflow-scheduler"},
+            values={
+                "schedulerName": base_scheduler_name,
+                "workers": {"schedulerName": worker_scheduler_name},
+            },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
-        assert (
-            jmespath.search(
-                "spec.schedulerName",
-                docs[0],
-            )
-            == "airflow-scheduler"
-        )
+        scheduler_name = jmespath.search("spec.schedulerName", docs[0])
+
+        if expected is not None:
+            assert scheduler_name == expected
+        else:
+            assert scheduler_name is None
 
     def test_should_not_create_default_affinity(self):
         docs = render_chart(show_only=["templates/pod-template-file.yaml"], chart_dir=self.temp_chart_dir)
@@ -923,21 +931,23 @@ class TestPodTemplateFile:
 
         assert jmespath.search("spec.priorityClassName", docs[0]) == "test-priority"
 
-    def test_workers_container_lifecycle_webhooks_are_configurable(self, hook_type="preStop"):
-        lifecycle_hook_params = CONTAINER_LIFECYCLE_PARAMETERS[hook_type]
-        lifecycle_hooks_config = {hook_type: lifecycle_hook_params["lifecycle_templated"]}
+    def test_workers_container_lifecycle_webhooks_are_configurable(self):
         docs = render_chart(
-            name=lifecycle_hook_params["release_name"],
+            name="test-release",
             values={
-                "workers": {"containerLifecycleHooks": lifecycle_hooks_config},
+                "workers": {
+                    "containerLifecycleHooks": {
+                        "preStop": {"exec": {"command": ["echo", "preStop", "{{ .Release.Name }}"]}}
+                    }
+                },
             },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
-        assert lifecycle_hook_params["lifecycle_parsed"] == jmespath.search(
-            f"spec.containers[0].lifecycle.{hook_type}", docs[0]
-        )
+        assert jmespath.search("spec.containers[0].lifecycle.preStop", docs[0]) == {
+            "exec": {"command": ["echo", "preStop", "test-release"]}
+        }
 
     def test_termination_grace_period_seconds(self):
         docs = render_chart(
@@ -1092,3 +1102,20 @@ class TestPodTemplateFile:
 
         scheduler_env = jmespath.search("spec.containers[0].env[*].name", docs[0])
         assert set(["KRB5_CONFIG", "KRB5CCNAME"]).issubset(scheduler_env)
+
+    def test_workers_kubernetes_service_account_custom_names_in_objects(self):
+        k8s_objects = render_chart(
+            "test-rbac",
+            values={
+                "workers": {
+                    "useWorkerDedicatedServiceAccounts": True,
+                    "kubernetes": {"serviceAccount": {"name": "TestWorkerKubernetes"}},
+                },
+            },
+            show_only=[
+                "templates/pod-template-file.yaml",
+            ],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.serviceAccountName", k8s_objects[0]) == "TestWorkerKubernetes"

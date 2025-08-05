@@ -76,7 +76,9 @@ apache-airflow-providers-zendesk package
 `Zendesk <https://www.zendesk.com/>`__
 
 
-Release: 4.9.1
+Release: 4.10.2
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------
@@ -94,11 +96,11 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider distribution is ``2.9.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.9.0``
+``apache-airflow``  ``>=2.10.0``
 ``zenpy``           ``>=2.0.40``
 ==================  ==================

@@ -16,13 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useTranslation } from "react-i18next";
+
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
 import { JsonEditor } from "../JsonEditor";
 
 export const FieldAdvancedArray = ({ name, onUpdate }: FlexibleFormElementProps) => {
-  const { paramsDict, setParamsDict } = useParamStore();
+  const { t: translate } = useTranslation("components");
+  const { disabled, paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
   // Determine the expected type based on schema
   const expectedType = param.schema.items?.type ?? "object";
@@ -40,18 +43,18 @@ export const FieldAdvancedArray = ({ name, onUpdate }: FlexibleFormElementProps)
         const parsedValue = JSON.parse(value) as unknown;
 
         if (!Array.isArray(parsedValue)) {
-          throw new TypeError("Value must be an array.");
+          throw new TypeError(translate("flexibleForm.validationErrorArrayNotArray"));
         }
 
         if (expectedType === "number" && !parsedValue.every((item) => typeof item === "number")) {
           // Ensure all elements in the array are numbers
-          throw new TypeError("All elements in the array must be numbers.");
+          throw new TypeError(translate("flexibleForm.validationErrorArrayNotNumbers"));
         } else if (
           expectedType === "object" &&
           !parsedValue.every((item) => typeof item === "object" && item !== null)
         ) {
           // Ensure all elements in the array are objects
-          throw new TypeError("All elements in the array must be objects.");
+          throw new TypeError(translate("flexibleForm.validationErrorArrayNotObject"));
         }
 
         if (paramsDict[name]) {
@@ -68,6 +71,7 @@ export const FieldAdvancedArray = ({ name, onUpdate }: FlexibleFormElementProps)
 
   return (
     <JsonEditor
+      editable={!Boolean(disabled)}
       id={`element_${name}`}
       onChange={handleChange}
       value={JSON.stringify(param.value ?? [], undefined, 2)}

@@ -45,6 +45,13 @@ def search_upwards_for_airflow_root_path(start_from: Path) -> Path | None:
         airflow_candidate_init_py = directory / "airflow-core" / "src" / "airflow" / "__init__.py"
         if airflow_candidate_init_py.exists() and "airflow" in airflow_candidate_init_py.read_text().lower():
             return directory
+        airflow_2_candidate_init_py = directory / "airflow" / "__init__.py"
+        if (
+            airflow_2_candidate_init_py.exists()
+            and "airflow" in airflow_2_candidate_init_py.read_text().lower()
+            and directory.parent.name != "src"
+        ):
+            return directory
         directory = directory.parent
     return None
 
@@ -86,16 +93,20 @@ def get_package_setup_metadata_hash() -> str:
     """
     # local imported to make sure that autocomplete works
     try:
-        from importlib.metadata import distribution  # type: ignore[attr-defined]
+        from importlib.metadata import distribution
     except ImportError:
-        from importlib_metadata import distribution  # type: ignore[no-redef, assignment]
+        from importlib_metadata import distribution  # type: ignore[assignment]
 
     prefix = "Package config hash: "
     metadata = distribution("apache-airflow-breeze").metadata
     try:
-        description = metadata.json["description"]  # type: ignore[attr-defined]
-    except AttributeError:
-        description = metadata.as_string()
+        description = metadata.json["description"]
+    except (AttributeError, KeyError):
+        description = str(metadata["Description"]) if "Description" in metadata else ""
+
+    if isinstance(description, list):
+        description = "\n".join(description)
+
     for line in description.splitlines(keepends=False):
         if line.startswith(prefix):
             return line[len(prefix) :]
@@ -279,8 +290,11 @@ def find_airflow_root_path_to_operate_on() -> Path:
 
 
 AIRFLOW_ROOT_PATH = find_airflow_root_path_to_operate_on().resolve()
+AIRFLOW_PYPROJECT_TOML_FILE_PATH = AIRFLOW_ROOT_PATH / "pyproject.toml"
 AIRFLOW_CORE_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-core"
 AIRFLOW_CORE_SOURCES_PATH = AIRFLOW_CORE_ROOT_PATH / "src"
+AIRFLOW_TASK_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "task-sdk"
+AIRFLOW_TASK_SDK_SOURCES_PATH = AIRFLOW_TASK_SDK_ROOT_PATH / "src"
 AIRFLOW_WWW_DIR = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "www"
 AIRFLOW_UI_DIR = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "ui"
 # Do not delete it - it is used for old commit retrieval from providers

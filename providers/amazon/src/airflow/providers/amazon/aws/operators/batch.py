@@ -32,7 +32,6 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.models.mappedoperator import MappedOperator
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.links.batch import (
     BatchJobDefinitionLink,
@@ -141,28 +140,12 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
         "retry_strategy": "json",
     }
 
-    @property
-    def operator_extra_links(self):
-        op_extra_links = [BatchJobDetailsLink()]
-
-        if isinstance(self, MappedOperator):
-            wait_for_completion = self.partial_kwargs.get(
-                "wait_for_completion"
-            ) or self.expand_input.value.get("wait_for_completion")
-            array_properties = self.partial_kwargs.get("array_properties") or self.expand_input.value.get(
-                "array_properties"
-            )
-        else:
-            wait_for_completion = self.wait_for_completion
-            array_properties = self.array_properties
-
-        if wait_for_completion:
-            op_extra_links.extend([BatchJobDefinitionLink(), BatchJobQueueLink()])
-        if not array_properties:
-            # There is no CloudWatch Link to the parent Batch Job available.
-            op_extra_links.append(CloudWatchEventsLink())
-
-        return tuple(op_extra_links)
+    operator_extra_links = (
+        BatchJobDetailsLink(),
+        BatchJobDefinitionLink(),
+        BatchJobQueueLink(),
+        CloudWatchEventsLink(),
+    )
 
     def __init__(
         self,

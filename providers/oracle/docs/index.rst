@@ -56,7 +56,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-oracle/|version|/airflow/providers/oracle/example_dags>
+    Example DAGs <_api/airflow/providers/oracle/example_dags/index>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-oracle/>
     Installing from sources <installing-providers-from-sources>
 
@@ -77,7 +77,9 @@ apache-airflow-providers-oracle package
 `Oracle <https://www.oracle.com/en/database/>`__
 
 
-Release: 4.0.3
+Release: 4.1.3
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------
@@ -95,12 +97,12 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider distribution is ``2.9.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
 
 =======================================  ==================
 PIP package                              Version required
 =======================================  ==================
-``apache-airflow``                       ``>=2.9.0``
+``apache-airflow``                       ``>=2.10.0``
 ``apache-airflow-providers-common-sql``  ``>=1.20.0``
 ``oracledb``                             ``>=2.0.0``
 =======================================  ==================
@@ -130,5 +132,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-oracle 4.0.3 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.0.3.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.0.3.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.0.3.tar.gz.sha512>`__)
-* `The apache-airflow-providers-oracle 4.0.3 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.0.3-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.0.3-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.0.3-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-oracle 4.1.3 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.1.3.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.1.3.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.1.3.tar.gz.sha512>`__)
+* `The apache-airflow-providers-oracle 4.1.3 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.1.3-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.1.3-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.1.3-py3-none-any.whl.sha512>`__)

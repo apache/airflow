@@ -23,7 +23,7 @@ import lazy_object_proxy
 import pendulum
 import pytest
 
-from airflow.sdk.definitions import macros
+from airflow.sdk.execution_time import macros
 
 
 @pytest.mark.parametrize(

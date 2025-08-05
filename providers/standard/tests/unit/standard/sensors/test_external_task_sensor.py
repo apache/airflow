@@ -26,12 +26,33 @@ from unittest import mock
 import pytest
 
 from airflow import settings
-from airflow.exceptions import AirflowException, AirflowSensorTimeout, AirflowSkipException, TaskDeferred
+from airflow.exceptions import (
+    AirflowException,
+    AirflowSensorTimeout,
+    AirflowSkipException,
+    TaskDeferred,
+)
 from airflow.models import DagBag, DagRun, TaskInstance
-from airflow.models.baseoperator import BaseOperator
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseOperator
+else:
+    from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.xcom_arg import XComArg
+from airflow.providers.standard.exceptions import (
+    DuplicateStateError,
+    ExternalDagDeletedError,
+    ExternalDagFailedError,
+    ExternalDagNotFoundError,
+    ExternalTaskFailedError,
+    ExternalTaskGroupFailedError,
+    ExternalTaskGroupNotFoundError,
+    ExternalTaskNotFoundError,
+)
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
@@ -45,7 +66,6 @@ from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.timetables.base import DataInterval
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.task_group import TaskGroup
 from airflow.utils.timezone import coerce_datetime, datetime
 from airflow.utils.types import DagRunType
 
@@ -54,10 +74,18 @@ from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
+    from airflow.models.dag_version import DagVersion
     from airflow.sdk import task as task_deco
     from airflow.utils.types import DagRunTriggeredByType
 else:
-    from airflow.decorators import task as task_deco
+    from airflow.decorators import task as task_deco  # type: ignore[attr-defined,no-redef]
+
+try:
+    from airflow.sdk.definitions.taskgroup import TaskGroup
+except ImportError:
+    # Fallback for Airflow < 3.1
+    from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
+
 pytestmark = pytest.mark.db_test
 
 
@@ -100,10 +128,17 @@ class TestExternalTaskSensorV2:
             with TaskGroup(group_id=TEST_TASK_GROUP_ID) as task_group:
                 _ = [EmptyOperator(task_id=f"task{i}") for i in range(len(target_states))]
             dag.sync_to_db()
+        if AIRFLOW_V_3_0_PLUS:
+            SerializedDagModel.write_dag(dag, bundle_name="testing")
+        else:
             SerializedDagModel.write_dag(dag)
 
         for idx, task in enumerate(task_group):
-            ti = TaskInstance(task=task, run_id=self.dag_run_id)
+            if AIRFLOW_V_3_0_PLUS:
+                dag_version = DagVersion.get_latest_version(task_group[idx].dag_id)
+                ti = TaskInstance(task=task, run_id=self.dag_run_id, dag_version_id=dag_version.id)
+            else:
+                ti = TaskInstance(task=task, run_id=self.dag_run_id)
             ti.run(ignore_ti_state=True, mark_success=True)
             ti.set_state(target_states[idx])
 
@@ -123,16 +158,27 @@ class TestExternalTaskSensorV2:
                 fake_task()
                 fake_mapped_task.expand(x=list(map_indexes))
         dag.sync_to_db()
-        SerializedDagModel.write_dag(dag)
+        if AIRFLOW_V_3_0_PLUS:
+            SerializedDagModel.write_dag(dag, bundle_name="testing")
+        else:
+            SerializedDagModel.write_dag(dag)
 
         for task in task_group:
             if task.task_id == "fake_mapped_task":
                 for map_index in map_indexes:
-                    ti = TaskInstance(task=task, run_id=self.dag_run_id, map_index=map_index)
+                    if AIRFLOW_V_3_0_PLUS:
+                        dag_version = DagVersion.get_latest_version(dag.dag_id)
+                        ti = TaskInstance(task=task, run_id=self.dag_run_id, dag_version_id=dag_version.id)
+                    else:
+                        ti = TaskInstance(task=task, run_id=self.dag_run_id, map_index=map_index)
                     ti.run(ignore_ti_state=True, mark_success=True)
                     ti.set_state(target_state)
             else:
-                ti = TaskInstance(task=task, run_id=self.dag_run_id)
+                if AIRFLOW_V_3_0_PLUS:
+                    dag_version = DagVersion.get_latest_version(dag.dag_id)
+                    ti = TaskInstance(task=task, run_id=self.dag_run_id, dag_version_id=dag_version.id)
+                else:
+                    ti = TaskInstance(task=task, run_id=self.dag_run_id)
                 ti.run(ignore_ti_state=True, mark_success=True)
                 ti.set_state(target_state)
 
@@ -226,7 +272,7 @@ class TestExternalTaskSensorV2:
             dag=self.dag,
             poke_interval=0.1,
         )
-        with pytest.raises(AirflowException, match="Sensor has timed out"):
+        with pytest.raises(AirflowSensorTimeout, match="Sensor has timed out"):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_external_task_group_sensor_success(self):
@@ -253,13 +299,13 @@ class TestExternalTaskSensorV2:
             dag=self.dag,
         )
         with pytest.raises(
-            AirflowException,
+            ExternalTaskGroupFailedError,
             match=f"The external task_group '{TEST_TASK_GROUP_ID}' in DAG '{TEST_DAG_ID}' failed.",
         ):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_catch_overlap_allowed_failed_state(self):
-        with pytest.raises(AirflowException):
+        with pytest.raises(DuplicateStateError):
             ExternalTaskSensor(
                 task_id="test_external_task_sensor_check",
                 external_dag_id=TEST_DAG_ID,
@@ -303,7 +349,7 @@ class TestExternalTaskSensorV2:
         error_message = rf"Some of the external tasks \['{TEST_TASK_ID}'\] in DAG {TEST_DAG_ID} failed\."
         with caplog.at_level(logging.INFO, logger=op.log.name):
             caplog.clear()
-            with pytest.raises(AirflowException, match=error_message):
+            with pytest.raises(ExternalTaskFailedError, match=error_message):
                 op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         assert (
             f"Poking for tasks ['{TEST_TASK_ID}'] in dag {TEST_DAG_ID} on {DEFAULT_DATE.isoformat()} ... "
@@ -404,7 +450,7 @@ class TestExternalTaskSensorV2:
         )
         with caplog.at_level(logging.INFO, logger=op.log.name):
             caplog.clear()
-            with pytest.raises(AirflowException, match=error_message):
+            with pytest.raises(ExternalTaskFailedError, match=error_message):
                 op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         assert (
             f"Poking for tasks ['{TEST_TASK_ID}', '{TEST_TASK_ID_ALTERNATE}'] "
@@ -552,12 +598,12 @@ exit 0
             dag=dag,
         )
 
-        # We need to test for an AirflowException explicitly since
+        # We need to test for an ExternalTaskFailedError explicitly since
         # AirflowSensorTimeout is a subclass that will be raised if this does
         # not execute properly.
-        with pytest.raises(AirflowException) as ex_ctx:
+        with pytest.raises(ExternalTaskFailedError) as ex_ctx:
             task_chain_with_failure.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        assert type(ex_ctx.value) is AirflowException
+        assert type(ex_ctx.value) is ExternalTaskFailedError
 
     def test_external_task_sensor_delta(self):
         self.add_time_sensor()
@@ -745,15 +791,16 @@ exit 0
             )
 
     def test_external_task_sensor_waits_for_task_check_existence(self):
+        self.add_time_sensor()
         op = ExternalTaskSensor(
             task_id="test_external_task_sensor_check",
-            external_dag_id="example_bash_operator",
+            external_dag_id=TEST_DAG_ID,
             external_task_id="non-existing-task",
             check_existence=True,
             dag=self.dag,
         )
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(ExternalDagNotFoundError):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_external_task_sensor_waits_for_dag_check_existence(self):
@@ -765,7 +812,7 @@ exit 0
             dag=self.dag,
         )
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(ExternalDagNotFoundError):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_external_task_group_with_mapped_tasks_sensor_success(self):
@@ -791,7 +838,7 @@ exit 0
             dag=self.dag,
         )
         with pytest.raises(
-            AirflowException,
+            ExternalTaskGroupFailedError,
             match=f"The external task_group '{TEST_TASK_GROUP_ID}' in DAG '{TEST_DAG_ID}' failed.",
         ):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
@@ -846,7 +893,7 @@ exit 0
         (
             (
                 False,
-                AirflowException,
+                ExternalTaskFailedError,
             ),
             (
                 True,
@@ -870,8 +917,24 @@ exit 0
             deferrable=False,
             **kwargs,
         )
-        with pytest.raises(expected_exception, match=expected_message):
-            op.execute(context={})
+
+        # We need to handle the specific exception types based on kwargs
+        if not soft_fail:
+            expected_exc = expected_exception
+            if "external_task_ids" in kwargs:
+                expected_exc = ExternalTaskFailedError
+            elif "external_task_group_id" in kwargs:
+                expected_exc = ExternalTaskGroupFailedError
+            elif "failed_states" in kwargs and not any(
+                k in kwargs for k in ["external_task_ids", "external_task_group_id"]
+            ):
+                expected_exc = ExternalDagFailedError
+
+            with pytest.raises(expected_exc, match=expected_message):
+                op.execute(context={})
+        else:
+            with pytest.raises(expected_exception, match=expected_message):
+                op.execute(context={})
 
     @pytest.mark.parametrize(
         "response_get_current, response_exists, kwargs, expected_message",
@@ -903,11 +966,11 @@ exit 0
         (
             (
                 False,
-                AirflowException,
+                ExternalDagNotFoundError,
             ),
             (
                 True,
-                AirflowException,
+                ExternalDagNotFoundError,
             ),
         ),
     )
@@ -946,8 +1009,67 @@ exit 0
         )
         if not hasattr(op, "never_fail"):
             expected_message = "Skipping due to soft_fail is set to True." if soft_fail else expected_message
-        with pytest.raises(expected_exception, match=expected_message):
+        specific_exception = expected_exception
+        if response_get_current is None:
+            specific_exception = ExternalDagNotFoundError
+        elif not response_exists:
+            specific_exception = ExternalDagDeletedError
+        elif "external_task_ids" in kwargs:
+            specific_exception = ExternalTaskNotFoundError
+        elif "external_task_group_id" in kwargs:
+            specific_exception = ExternalTaskGroupNotFoundError
+
+        with pytest.raises(specific_exception, match=expected_message):
             op.execute(context={})
+
+    @pytest.mark.execution_timeout(10)
+    def test_external_task_sensor_deferrable(self, dag_maker):
+        context = {"execution_date": DEFAULT_DATE}
+        with dag_maker() as dag:
+            op = ExternalTaskSensor(
+                task_id="test_external_task_sensor_check",
+                external_dag_id="test_dag_parent",
+                external_task_id="test_task",
+                deferrable=True,
+                allowed_states=["success"],
+            )
+            dr = dag.create_dagrun(
+                run_id="abcrhroceuh",
+                run_type=DagRunType.MANUAL,
+                state=None,
+            )
+            context.update(dag_run=dr, logical_date=DEFAULT_DATE)
+
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute(context=context)
+        assert isinstance(exc.value.trigger, WorkflowTrigger)
+        assert exc.value.trigger.external_dag_id == "test_dag_parent"
+        assert exc.value.trigger.external_task_ids == ["test_task"]
+        assert exc.value.trigger.execution_dates == [DEFAULT_DATE]
+
+    def test_get_logical_date(self):
+        """For AF 2, we check for execution_date in context."""
+        context = {"execution_date": DEFAULT_DATE}
+        op = ExternalTaskSensor(
+            task_id="test_external_task_sensor_check",
+            external_dag_id="test_dag_parent",
+            external_task_id="test_task",
+        )
+        assert op._get_logical_date(context) == DEFAULT_DATE
+
+    def test_handle_execution_date_fn(self):
+        def func(dt, context):
+            assert context["execution_date"] == dt
+            return dt + timedelta(0)
+
+        op = ExternalTaskSensor(
+            task_id="test_external_task_sensor_check",
+            external_dag_id="test_dag_parent",
+            external_task_id="test_task",
+            execution_date_fn=func,
+        )
+        context = {"execution_date": DEFAULT_DATE}
+        assert op._handle_execution_date_fn(context) == DEFAULT_DATE
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Different test for AF 2")
@@ -1002,7 +1124,7 @@ class TestExternalTaskSensorV3:
 
         self.context["ti"].get_ti_count.return_value = 1
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(ExternalTaskFailedError):
             op.execute(context=self.context)
 
         self.context["ti"].get_ti_count.assert_called_once_with(
@@ -1194,6 +1316,7 @@ class TestExternalTaskSensorV3:
         assert isinstance(exc.value.trigger, WorkflowTrigger)
         assert exc.value.trigger.external_dag_id == "test_dag_parent"
         assert exc.value.trigger.external_task_ids == ["test_task"]
+        assert exc.value.trigger.logical_dates == [DEFAULT_DATE]
 
     @pytest.mark.execution_timeout(10)
     def test_external_task_sensor_only_dag_id(self, dag_maker):
@@ -1227,7 +1350,7 @@ class TestExternalTaskSensorV3:
 
         self.context["ti"].get_task_states.return_value = {"run_id": {"test_group.task_id": State.FAILED}}
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(ExternalTaskGroupFailedError):
             op.execute(context=self.context)
 
         self.context["ti"].get_task_states.assert_called_once_with(
@@ -1235,6 +1358,43 @@ class TestExternalTaskSensorV3:
             logical_dates=[DEFAULT_DATE],
             task_group_id="test_group",
         )
+
+    def test_get_logical_date(self):
+        """For AF 3, we check for logical date or dag_run.run_after  in context."""
+
+        context = {"logical_date": DEFAULT_DATE}
+        op = ExternalTaskSensor(
+            task_id="test_external_task_sensor_check",
+            external_dag_id="test_dag_parent",
+            external_task_id="test_task",
+        )
+        assert op._get_logical_date(context) == DEFAULT_DATE
+
+    def test_get_logical_date_with_dag_run_after(self):
+        """For AF 3, we check for logical date or dag_run.run_after  in context."""
+        op = ExternalTaskSensor(
+            task_id="test_external_task_sensor_check",
+            external_dag_id="test_dag_parent",
+            external_task_id="test_task",
+        )
+        mock_dag_run = mock.MagicMock()
+        mock_dag_run.run_after = DEFAULT_DATE
+        context = {"dag_run": mock_dag_run}
+        assert op._get_logical_date(context) == DEFAULT_DATE
+
+    def test_handle_execution_date_fn(self):
+        def func(dt, context):
+            assert context["logical_date"] == dt
+            return dt + timedelta(0)
+
+        op = ExternalTaskSensor(
+            task_id="test_external_task_sensor_check",
+            external_dag_id="test_dag_parent",
+            external_task_id="test_task",
+            execution_date_fn=func,
+        )
+        context = {"logical_date": DEFAULT_DATE}
+        assert op._handle_execution_date_fn(context) == DEFAULT_DATE
 
 
 class TestExternalTaskAsyncSensor:
@@ -1261,7 +1421,7 @@ class TestExternalTaskAsyncSensor:
         assert isinstance(exc.value.trigger, WorkflowTrigger), "Trigger is not a WorkflowTrigger"
 
     def test_defer_and_fire_failed_state_trigger(self):
-        """Tests that an AirflowException is raised in case of error event"""
+        """Tests that an ExternalTaskNotFoundError is raised in case of error event"""
         sensor = ExternalTaskSensor(
             task_id=TASK_ID,
             external_task_id=EXTERNAL_TASK_ID,
@@ -1269,13 +1429,13 @@ class TestExternalTaskAsyncSensor:
             deferrable=True,
         )
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(ExternalTaskNotFoundError):
             sensor.execute_complete(
                 context=mock.MagicMock(), event={"status": "error", "message": "test failure message"}
             )
 
     def test_defer_and_fire_timeout_state_trigger(self):
-        """Tests that an AirflowException is raised in case of timeout event"""
+        """Tests that an ExternalTaskNotFoundError is raised in case of timeout event"""
         sensor = ExternalTaskSensor(
             task_id=TASK_ID,
             external_task_id=EXTERNAL_TASK_ID,
@@ -1283,7 +1443,7 @@ class TestExternalTaskAsyncSensor:
             deferrable=True,
         )
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(ExternalTaskNotFoundError):
             sensor.execute_complete(
                 context=mock.MagicMock(),
                 event={"status": "timeout", "message": "Dag was not started within 1 minute, assuming fail."},
@@ -1304,6 +1464,55 @@ class TestExternalTaskAsyncSensor:
                 event={"status": "success"},
             )
         mock_log_info.assert_called_with("External tasks %s has executed successfully.", [EXTERNAL_TASK_ID])
+
+    def test_defer_execute_check_failed_status(self):
+        """Tests that the execute_complete method properly handles the 'failed' status from WorkflowTrigger"""
+        sensor = ExternalTaskSensor(
+            task_id=TASK_ID,
+            external_task_id=EXTERNAL_TASK_ID,
+            external_dag_id=EXTERNAL_DAG_ID,
+            deferrable=True,
+        )
+
+        with pytest.raises(ExternalDagFailedError, match="External job has failed."):
+            sensor.execute_complete(
+                context=mock.MagicMock(),
+                event={"status": "failed"},
+            )
+
+    def test_defer_execute_check_failed_status_soft_fail(self):
+        """Tests that the execute_complete method properly handles the 'failed' status with soft_fail=True"""
+        sensor = ExternalTaskSensor(
+            task_id=TASK_ID,
+            external_task_id=EXTERNAL_TASK_ID,
+            external_dag_id=EXTERNAL_DAG_ID,
+            deferrable=True,
+            soft_fail=True,
+        )
+
+        with pytest.raises(AirflowSkipException, match="External job has failed skipping."):
+            sensor.execute_complete(
+                context=mock.MagicMock(),
+                event={"status": "failed"},
+            )
+
+    def test_defer_with_failed_states(self):
+        """Tests that failed_states are properly passed to the WorkflowTrigger when the sensor is deferred"""
+        failed_states = ["failed", "upstream_failed"]
+        sensor = ExternalTaskSensor(
+            task_id=TASK_ID,
+            external_task_id=EXTERNAL_TASK_ID,
+            external_dag_id=EXTERNAL_DAG_ID,
+            deferrable=True,
+            failed_states=failed_states,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            sensor.execute(context=mock.MagicMock())
+
+        trigger = exc.value.trigger
+        assert isinstance(trigger, WorkflowTrigger), "Trigger is not a WorkflowTrigger"
+        assert trigger.failed_states == failed_states, "failed_states not properly passed to WorkflowTrigger"
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Needs Flask app context fixture for AF 2")
@@ -1724,6 +1933,8 @@ def dag_bag_cyclic():
 
         for dag in dags:
             if AIRFLOW_V_3_0_PLUS:
+                dag.sync_to_db()
+                SerializedDagModel.write_dag(dag, bundle_name="testing")
                 dag_bag.bag_dag(dag=dag)
             else:
                 dag_bag.bag_dag(dag=dag, root_dag=dag)  # type: ignore[call-arg]
@@ -1771,14 +1982,13 @@ def test_external_task_marker_cyclic_shallow(dag_bag_cyclic):
 
 
 @pytest.fixture
-def dag_bag_multiple():
+def dag_bag_multiple(session):
     """
     Create a DagBag containing two DAGs, linked by multiple ExternalTaskMarker.
     """
     dag_bag = DagBag(dag_folder=DEV_NULL, include_examples=False)
     daily_dag = DAG("daily_dag", start_date=DEFAULT_DATE, schedule="@daily")
     agg_dag = DAG("agg_dag", start_date=DEFAULT_DATE, schedule="@daily")
-
     if AIRFLOW_V_3_0_PLUS:
         dag_bag.bag_dag(dag=daily_dag)
         dag_bag.bag_dag(dag=agg_dag)
@@ -1798,6 +2008,16 @@ def dag_bag_multiple():
             dag=agg_dag,
         )
         begin >> task
+
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.models.dagbundle import DagBundleModel
+
+        bundle_name = "abcbunhdlerch3rc"
+        session.merge(DagBundleModel(name=bundle_name))
+        session.flush()
+        DAG.bulk_write_to_db(bundle_name=bundle_name, dags=[daily_dag, agg_dag], bundle_version=None)
+        SerializedDagModel.write_dag(dag=daily_dag, bundle_name=bundle_name)
+        SerializedDagModel.write_dag(dag=agg_dag, bundle_name=bundle_name)
 
     return dag_bag
 
@@ -1819,7 +2039,7 @@ def test_clear_multiple_external_task_marker(dag_bag_multiple):
 
 
 @pytest.fixture
-def dag_bag_head_tail():
+def dag_bag_head_tail(session):
     """
     Create a DagBag containing one DAG, with task "head" depending on task "tail" of the
     previous logical_date.
@@ -1855,7 +2075,14 @@ def dag_bag_head_tail():
         head >> body >> tail
 
     if AIRFLOW_V_3_0_PLUS:
+        from airflow.models.dagbundle import DagBundleModel
+
         dag_bag.bag_dag(dag=dag)
+        bundle_name = "9e8uh9odhu9c"
+        session.merge(DagBundleModel(name=bundle_name))
+        session.flush()
+        DAG.bulk_write_to_db(bundle_name=bundle_name, dags=[dag], bundle_version=None)
+        SerializedDagModel.write_dag(dag=dag, bundle_name=bundle_name)
     else:
         dag_bag.bag_dag(dag=dag, root_dag=dag)
 
@@ -1865,6 +2092,9 @@ def dag_bag_head_tail():
 @provide_session
 def test_clear_overlapping_external_task_marker(dag_bag_head_tail, session):
     dag: DAG = dag_bag_head_tail.get_dag("head_tail")
+    dag.sync_to_db()
+    if AIRFLOW_V_3_0_PLUS:
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
 
     # "Run" 10 times.
     for delta in range(10):
@@ -1882,7 +2112,12 @@ def test_clear_overlapping_external_task_marker(dag_bag_head_tail, session):
             dagrun.execution_date = logical_date
         session.add(dagrun)
         for task in dag.tasks:
-            ti = TaskInstance(task=task)
+            if AIRFLOW_V_3_0_PLUS:
+                dag_version = DagVersion.get_latest_version(task.dag_id, session=session)
+                ti = TaskInstance(task=task, dag_version_id=dag_version.id)
+
+            else:
+                ti = TaskInstance(task=task)
             dagrun.task_instances.append(ti)
             ti.state = TaskInstanceState.SUCCESS
     session.flush()
@@ -1890,9 +2125,11 @@ def test_clear_overlapping_external_task_marker(dag_bag_head_tail, session):
     assert dag.clear(start_date=DEFAULT_DATE, dag_bag=dag_bag_head_tail, session=session) == 30
 
 
-@provide_session
 def test_clear_overlapping_external_task_marker_with_end_date(dag_bag_head_tail, session):
     dag: DAG = dag_bag_head_tail.get_dag("head_tail")
+    dag.sync_to_db()
+    if AIRFLOW_V_3_0_PLUS:
+        SerializedDagModel.write_dag(dag=dag, bundle_name="testing")
 
     # "Run" 10 times.
     for delta in range(10):
@@ -1909,8 +2146,13 @@ def test_clear_overlapping_external_task_marker_with_end_date(dag_bag_head_tail,
         else:
             dagrun.execution_date = logical_date
         session.add(dagrun)
+
         for task in dag.tasks:
-            ti = TaskInstance(task=task)
+            if AIRFLOW_V_3_0_PLUS:
+                dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+                ti = TaskInstance(task=task, dag_version_id=dag_version.id)
+            else:
+                ti = TaskInstance(task=task)
             dagrun.task_instances.append(ti)
             ti.state = TaskInstanceState.SUCCESS
     session.flush()
@@ -1969,6 +2211,7 @@ def dag_bag_head_tail_mapped_tasks():
         head >> body >> tail
 
     if AIRFLOW_V_3_0_PLUS:
+        dag.sync_to_db()
         dag_bag.bag_dag(dag=dag)
     else:
         dag_bag.bag_dag(dag=dag, root_dag=dag)
@@ -1976,10 +2219,11 @@ def dag_bag_head_tail_mapped_tasks():
     return dag_bag
 
 
-@provide_session
 def test_clear_overlapping_external_task_marker_mapped_tasks(dag_bag_head_tail_mapped_tasks, session):
     dag: DAG = dag_bag_head_tail_mapped_tasks.get_dag("head_tail")
-
+    dag.sync_to_db()
+    if AIRFLOW_V_3_0_PLUS:
+        SerializedDagModel.write_dag(dag=dag, bundle_name="testing")
     # "Run" 10 times.
     for delta in range(10):
         logical_date = DEFAULT_DATE + timedelta(days=delta)
@@ -1998,11 +2242,24 @@ def test_clear_overlapping_external_task_marker_mapped_tasks(dag_bag_head_tail_m
         for task in dag.tasks:
             if task.task_id == "dummy_task":
                 for map_index in range(5):
-                    ti = TaskInstance(task=task, run_id=dagrun.run_id, map_index=map_index)
+                    if AIRFLOW_V_3_0_PLUS:
+                        dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+                        ti = TaskInstance(
+                            task=task,
+                            run_id=dagrun.run_id,
+                            map_index=map_index,
+                            dag_version_id=dag_version.id,
+                        )
+                    else:
+                        ti = TaskInstance(task=task, run_id=dagrun.run_id, map_index=map_index)
                     ti.state = TaskInstanceState.SUCCESS
                     dagrun.task_instances.append(ti)
             else:
-                ti = TaskInstance(task=task, run_id=dagrun.run_id)
+                if AIRFLOW_V_3_0_PLUS:
+                    dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+                    ti = TaskInstance(task=task, run_id=dagrun.run_id, dag_version_id=dag_version.id)
+                else:
+                    ti = TaskInstance(task=task, run_id=dagrun.run_id)
                 ti.state = TaskInstanceState.SUCCESS
                 dagrun.task_instances.append(ti)
     session.flush()

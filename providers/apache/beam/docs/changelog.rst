@@ -26,6 +26,73 @@
 Changelog
 ---------
 
+6.1.3
+.....
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup type ignores (#53303)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Replace BaseHook to Task SDK for apache/beam (#52781)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.1.2
+.....
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Bump pyarrow to 16.1.0 minimum version for several providers (#52635)``
+* ``Provider Migration: Update beam for Airflow 3.0 compatibility (#52607)``
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make sure all test version imports come from test_common (#52425)``
+   * ``Remove pytest.mark.db_test: apache beam (#52059)``
+
+6.1.1
+.....
+
+Misc
+~~~~
+
+* ``Bump apache-beam>=2.60.0 (#51961)``
+* ``Change the Link implementation in Google Provider to make it cleand and compatible with Airflow 3 (#51576)``
+* ``Bump apache-beam minimum version dependency to 2.60.0 (#51825)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.1.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.10+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Features
+~~~~~~~~
+
+* ``Add new DataflowJobStateCompleteTrigger (#47993)``
+
+Misc
+~~~~
+
+* ``Bump min Airflow version in providers to 2.10 (#49843)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Avoid committing history for providers (#49907)``
+
 6.0.4
 .....
 

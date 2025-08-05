@@ -23,18 +23,19 @@ from collections import defaultdict, deque
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import pendulum
 
 from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
+from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import Log
 from airflow.stats import Stats
 from airflow.traces import NO_TRACE_ID
-from airflow.traces.tracer import Trace, add_span, gen_context
-from airflow.traces.utils import gen_span_id_from_ti_key, gen_trace_id
+from airflow.traces.tracer import DebugTrace, Trace, add_debug_span, gen_context
+from airflow.traces.utils import gen_span_id_from_ti_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.thread_safe_dict import ThreadSafeDict
@@ -51,28 +52,14 @@ if TYPE_CHECKING:
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.cli.cli_config import GroupCommand
-    from airflow.executors import workloads
     from airflow.executors.executor_utils import ExecutorName
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
 
-    # Command to execute - list of strings
-    # the first element is always "airflow".
-    # It should be result of TaskInstance.generate_command method.
-    CommandType = Sequence[str]
-
-    # Task that is queued. It contains all the information that is
-    # needed to run the task.
-    #
-    # Tuple of: command, priority, queue name, TaskInstance
-    QueuedTaskInstanceType = tuple[CommandType, int, Optional[str], TaskInstance]
-
     # Event_buffer dict value type
     # Tuple of: state, info
-    EventBufferValueType = tuple[Optional[str], Any]
+    EventBufferValueType = tuple[str | None, Any]
 
-    # Task tuple to send to be executed
-    TaskTuple = tuple[TaskInstanceKey, CommandType, Optional[str], Optional[Any]]
 
 log = logging.getLogger(__name__)
 
@@ -112,7 +99,7 @@ class RunningRetryAttemptType:
 
 class BaseExecutor(LoggingMixin):
     """
-    Base class to inherit for concrete executors such as Celery, Kubernetes, Local, Sequential, etc.
+    Base class to inherit for concrete executors such as Celery, Kubernetes, Local, etc.
 
     :param parallelism: how many jobs should run at one time.
     """
@@ -159,7 +146,7 @@ class BaseExecutor(LoggingMixin):
 
         self.parallelism: int = parallelism
         self.team_id: str | None = team_id
-        self.queued_tasks: dict[TaskInstanceKey, QueuedTaskInstanceType] = {}
+        self.queued_tasks: dict[TaskInstanceKey, workloads.ExecuteTask] = {}
         self.running: set[TaskInstanceKey] = set()
         self.event_buffer: dict[TaskInstanceKey, EventBufferValueType] = {}
         self._task_event_logs: deque[Log] = deque()
@@ -192,62 +179,23 @@ class BaseExecutor(LoggingMixin):
         """Add an event to the log table."""
         self._task_event_logs.append(Log(event=event, task_instance=ti_key, extra=extra))
 
-    def queue_command(
-        self,
-        task_instance: TaskInstance,
-        command: CommandType,
-        priority: int = 1,
-        queue: str | None = None,
-    ):
-        """Queues command to task."""
-        if task_instance.key not in self.queued_tasks:
-            self.log.info("Adding to queue: %s", command)
-            self.queued_tasks[task_instance.key] = (command, priority, queue, task_instance)
-        else:
-            self.log.error("could not queue task %s", task_instance.key)
-
     def queue_workload(self, workload: workloads.All, session: Session) -> None:
-        raise ValueError(f"Un-handled workload kind {type(workload).__name__!r} in {type(self).__name__}")
+        if not isinstance(workload, workloads.ExecuteTask):
+            raise ValueError(f"Un-handled workload kind {type(workload).__name__!r} in {type(self).__name__}")
+        ti = workload.ti
+        self.queued_tasks[ti.key] = workload
 
-    def queue_task_instance(
-        self,
-        task_instance: TaskInstance,
-        mark_success: bool = False,
-        ignore_all_deps: bool = False,
-        ignore_depends_on_past: bool = False,
-        wait_for_past_depends_before_skipping: bool = False,
-        ignore_task_deps: bool = False,
-        ignore_ti_state: bool = False,
-        pool: str | None = None,
-        cfg_path: str | None = None,
-    ) -> None:
-        """Queues task instance."""
-        if TYPE_CHECKING:
-            assert task_instance.task
+    def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
+        """
+        Process the given workloads.
 
-        pool = pool or task_instance.pool
+        This method must be implemented by subclasses to define how they handle
+        the execution of workloads (e.g., queuing them to workers, submitting to
+        external systems, etc.).
 
-        command_list_to_run = task_instance.command_as_list(
-            local=True,
-            mark_success=mark_success,
-            ignore_all_deps=ignore_all_deps,
-            ignore_depends_on_past=ignore_depends_on_past,
-            wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
-            ignore_task_deps=ignore_task_deps,
-            ignore_ti_state=ignore_ti_state,
-            pool=pool,
-            # cfg_path is needed to propagate the config values if using impersonation
-            # (run_as_user), given that there are different code paths running tasks.
-            # https://github.com/apache/airflow/pull/2991
-            cfg_path=cfg_path,
-        )
-        self.log.debug("created command %s", command_list_to_run)
-        self.queue_command(
-            task_instance,
-            command_list_to_run,
-            priority=task_instance.priority_weight,
-            queue=task_instance.task.queue,
-        )
+        :param workloads: List of workloads to process
+        """
+        raise NotImplementedError(f"{type(self).__name__} must implement _process_workloads()")
 
     def has_task(self, task_instance: TaskInstance) -> bool:
         """
@@ -270,7 +218,7 @@ class BaseExecutor(LoggingMixin):
         Executors should override this to perform gather statuses.
         """
 
-    @add_span
+    @add_debug_span
     def heartbeat(self) -> None:
         """Heartbeat sent to trigger new jobs."""
         open_slots = self.parallelism - len(self.running)
@@ -347,33 +295,23 @@ class BaseExecutor(LoggingMixin):
             tags={"status": "running", "name": name},
         )
 
-    def order_queued_tasks_by_priority(self) -> list[tuple[TaskInstanceKey, QueuedTaskInstanceType]]:
+    def order_queued_tasks_by_priority(self) -> list[tuple[TaskInstanceKey, workloads.ExecuteTask]]:
         """
         Orders the queued tasks by priority.
 
-        :return: List of tuples from the queued_tasks according to the priority.
+        :return: List of workloads from the queued_tasks according to the priority.
         """
-        from airflow.executors import workloads
-
         if not self.queued_tasks:
             return []
 
-        kind = next(iter(self.queued_tasks.values()))
-        if isinstance(kind, workloads.BaseWorkload):
-            # V3 + new executor that supports workloads
-            return sorted(
-                self.queued_tasks.items(),
-                key=lambda x: x[1].ti.priority_weight,
-                reverse=True,
-            )
-
+        # V3 + new executor that supports workloads
         return sorted(
             self.queued_tasks.items(),
-            key=lambda x: x[1][1],
+            key=lambda x: x[1].ti.priority_weight,
             reverse=True,
         )
 
-    @add_span
+    @add_debug_span
     def trigger_tasks(self, open_slots: int) -> None:
         """
         Initiate async execution of the queued tasks, up to the number of available slots.
@@ -381,7 +319,6 @@ class BaseExecutor(LoggingMixin):
         :param open_slots: Number of open slots
         """
         sorted_queue = self.order_queued_tasks_by_priority()
-        task_tuples = []
         workload_list = []
 
         for _ in range(min((open_slots, len(self.queued_tasks)))):
@@ -397,103 +334,36 @@ class BaseExecutor(LoggingMixin):
             # deferred task has completed. In this case and for this reason,
             # we make a small number of attempts to see if the task has been
             # removed from the running set in the meantime.
-            if key in self.running:
-                attempt = self.attempts[key]
-                if attempt.can_try_again():
-                    # if it hasn't been much time since first check, let it be checked again next time
-                    self.log.info("queued but still running; attempt=%s task=%s", attempt.total_tries, key)
-                    continue
-
-                # Otherwise, we give up and remove the task from the queue.
-                self.log.error(
-                    "could not queue task %s (still running after %d attempts).",
-                    key,
-                    attempt.total_tries,
-                )
-                self.log_task_event(
-                    event="task launch failure",
-                    extra=(
-                        "Task was in running set and could not be queued "
-                        f"after {attempt.total_tries} attempts."
-                    ),
-                    ti_key=key,
-                )
+            if key in self.attempts:
                 del self.attempts[key]
-                del self.queued_tasks[key]
-            else:
-                if key in self.attempts:
-                    del self.attempts[key]
-                # TODO: TaskSDK: Compat, remove when KubeExecutor is fully moved over to TaskSDK too.
-                # TODO: TaskSDK: We need to minimum version requirements on executors with Airflow 3.
-                # How/where do we do that? Executor loader?
-                from airflow.executors import workloads
 
-                if isinstance(item, workloads.ExecuteTask) and hasattr(item, "ti"):
-                    ti = item.ti
+            if isinstance(item, workloads.ExecuteTask) and hasattr(item, "ti"):
+                ti = item.ti
 
-                    # If it's None, then the span for the current TaskInstanceKey hasn't been started.
-                    if self.active_spans is not None and self.active_spans.get(key) is None:
-                        from airflow.models.taskinstance import SimpleTaskInstance
+                # If it's None, then the span for the current id hasn't been started.
+                if self.active_spans is not None and self.active_spans.get("ti:" + str(ti.id)) is None:
+                    if isinstance(ti, workloads.TaskInstance):
+                        parent_context = Trace.extract(ti.parent_context_carrier)
+                    else:
+                        parent_context = Trace.extract(ti.dag_run.context_carrier)
+                    # Start a new span using the context from the parent.
+                    # Attributes will be set once the task has finished so that all
+                    # values will be available (end_time, duration, etc.).
 
-                        if isinstance(ti, (SimpleTaskInstance, workloads.TaskInstance)):
-                            parent_context = Trace.extract(ti.parent_context_carrier)
-                        else:
-                            parent_context = Trace.extract(ti.dag_run.context_carrier)
-                        # Start a new span using the context from the parent.
-                        # Attributes will be set once the task has finished so that all
-                        # values will be available (end_time, duration, etc.).
+                    span = Trace.start_child_span(
+                        span_name=f"{ti.task_id}",
+                        parent_context=parent_context,
+                        component="task",
+                        start_as_current=False,
+                    )
+                    self.active_spans.set("ti:" + str(ti.id), span)
+                    # Inject the current context into the carrier.
+                    carrier = Trace.inject()
+                    ti.context_carrier = carrier
 
-                        span = Trace.start_child_span(
-                            span_name=f"{ti.task_id}",
-                            parent_context=parent_context,
-                            component="task",
-                            start_as_current=False,
-                        )
-                        self.active_spans.set(key, span)
-                        # Inject the current context into the carrier.
-                        carrier = Trace.inject()
-                        ti.context_carrier = carrier
-
-                if hasattr(self, "_process_workloads"):
-                    workload_list.append(item)
-                else:
-                    (command, _, queue, ti) = item
-                    task_tuples.append((key, command, queue, getattr(ti, "executor_config", None)))
-
-        if task_tuples:
-            self._process_tasks(task_tuples)
-        elif workload_list:
-            self._process_workloads(workload_list)  # type: ignore[attr-defined]
-
-    @add_span
-    def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
-        for key, command, queue, executor_config in task_tuples:
-            task_instance = self.queued_tasks[key][3]  # TaskInstance in fourth element
-            trace_id = int(gen_trace_id(task_instance.dag_run, as_int=True))
-            span_id = int(gen_span_id_from_ti_key(key, as_int=True))
-            links = [{"trace_id": trace_id, "span_id": span_id}]
-
-            # assuming that the span_id will very likely be unique inside the trace
-            with Trace.start_span(
-                span_name=f"{key.dag_id}.{key.task_id}",
-                component="BaseExecutor",
-                span_id=span_id,
-                links=links,
-            ) as span:
-                span.set_attributes(
-                    {
-                        "dag_id": key.dag_id,
-                        "run_id": key.run_id,
-                        "task_id": key.task_id,
-                        "try_number": key.try_number,
-                        "command": str(command),
-                        "queue": str(queue),
-                        "executor_config": str(executor_config),
-                    }
-                )
-                del self.queued_tasks[key]
-                self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
-                self.running.add(key)
+                workload_list.append(item)
+        if workload_list:
+            self._process_workloads(workload_list)
 
     # TODO: This should not be using `TaskInstanceState` here, this is just "did the process complete, or did
     # it die". It is possible for the task itself to finish with success, but the state of the task to be set
@@ -527,7 +397,7 @@ class BaseExecutor(LoggingMixin):
         trace_id = Trace.get_current_span().get_span_context().trace_id
         if trace_id != NO_TRACE_ID:
             span_id = int(gen_span_id_from_ti_key(key, as_int=True))
-            with Trace.start_span(
+            with DebugTrace.start_span(
                 span_name="fail",
                 component="BaseExecutor",
                 parent_sc=gen_context(trace_id=trace_id, span_id=span_id),
@@ -554,7 +424,7 @@ class BaseExecutor(LoggingMixin):
         trace_id = Trace.get_current_span().get_span_context().trace_id
         if trace_id != NO_TRACE_ID:
             span_id = int(gen_span_id_from_ti_key(key, as_int=True))
-            with Trace.start_span(
+            with DebugTrace.start_span(
                 span_name="success",
                 component="BaseExecutor",
                 parent_sc=gen_context(trace_id=trace_id, span_id=span_id),
@@ -608,23 +478,6 @@ class BaseExecutor(LoggingMixin):
                     cleared_events[ti_key] = self.event_buffer.pop(ti_key)
 
         return cleared_events
-
-    def execute_async(
-        self,
-        key: TaskInstanceKey,
-        command: CommandType,
-        queue: str | None = None,
-        executor_config: Any | None = None,
-    ) -> None:  # pragma: no cover
-        """
-        Execute the command asynchronously.
-
-        :param key: Unique key for the task instance
-        :param command: Command to run
-        :param queue: name of the queue
-        :param executor_config: Configuration passed to the executor.
-        """
-        raise NotImplementedError()
 
     def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
         """
@@ -682,28 +535,6 @@ class BaseExecutor(LoggingMixin):
     def slots_occupied(self):
         """Number of tasks this executor instance is currently managing."""
         return len(self.running) + len(self.queued_tasks)
-
-    @staticmethod
-    def validate_airflow_tasks_run_command(command: Sequence[str]) -> tuple[str | None, str | None]:
-        """
-        Check if the command to execute is airflow command.
-
-        Returns tuple (dag_id,task_id) retrieved from the command (replaced with None values if missing)
-        """
-        if command[0:3] != ["airflow", "tasks", "run"]:
-            raise ValueError('The command must start with ["airflow", "tasks", "run"].')
-        if len(command) > 3 and "--help" not in command:
-            dag_id: str | None = None
-            task_id: str | None = None
-            for arg in command[3:]:
-                if not arg.startswith("--"):
-                    if dag_id is None:
-                        dag_id = arg
-                    else:
-                        task_id = arg
-                        break
-            return dag_id, task_id
-        return None, None
 
     def debug_dump(self):
         """Get called in response to SIGUSR2 by the scheduler."""

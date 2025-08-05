@@ -20,18 +20,20 @@ Global constants that are used by all other Breeze components.
 
 from __future__ import annotations
 
-import itertools
 import json
 import platform
 import subprocess
+from collections.abc import Generator
 from enum import Enum
+from pathlib import Path
 
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.host_info_utils import Architecture
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_CORE_SOURCES_PATH,
-    AIRFLOW_PROVIDERS_ROOT_PATH,
+    AIRFLOW_PYPROJECT_TOML_FILE_PATH,
     AIRFLOW_ROOT_PATH,
+    AIRFLOW_TASK_SDK_SOURCES_PATH,
 )
 
 PUBLIC_AMD_RUNNERS = '["ubuntu-22.04"]'
@@ -42,8 +44,16 @@ ANSWER = ""
 APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 
 # Checked before putting in build cache
-ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.9", "3.10", "3.11", "3.12"]
+ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13"]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
+# We set 3.12 as default image version until FAB supports Python 3.13
+DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES = "3.12"
+
+
+# Maps each supported Python version to the minimum Airflow version that supports it.
+# Used to filter Airflow versions incompatible with a given Python runtime.
+PYTHON_TO_MIN_AIRFLOW_MAPPING = {"3.10": "2.4.0"}
+
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 # Database Backends used when starting Breeze. The "none" value means that the configuration is invalid.
 # No database will be started - access to a database will fail.
@@ -54,14 +64,12 @@ NONE_BACKEND = "none"
 ALLOWED_BACKENDS = [SQLITE_BACKEND, MYSQL_BACKEND, POSTGRES_BACKEND, NONE_BACKEND]
 ALLOWED_PROD_BACKENDS = [MYSQL_BACKEND, POSTGRES_BACKEND]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
-TESTABLE_CORE_INTEGRATIONS = [
-    "kerberos",
-]
+TESTABLE_CORE_INTEGRATIONS = ["kerberos", "redis"]
 TESTABLE_PROVIDERS_INTEGRATIONS = [
     "celery",
     "cassandra",
     "drill",
-    "gremlin",
+    "tinkerpop",
     "kafka",
     "mongo",
     "mssql",
@@ -191,8 +199,8 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
-PIP_VERSION = "25.1.1"
-UV_VERSION = "0.7.2"
+PIP_VERSION = "25.2"
+UV_VERSION = "0.8.4"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -203,6 +211,12 @@ REGULAR_DOC_PACKAGES = [
     "docker-stack",
     "helm-chart",
     "apache-airflow-providers",
+    "task-sdk",
+]
+
+DESTINATION_LOCATIONS = [
+    "s3://live-docs-airflow-apache-org/docs/",
+    "s3://staging-docs-airflow-apache-org/docs/",
 ]
 
 
@@ -245,6 +259,7 @@ class GroupOfTests(Enum):
     CORE = "core"
     PROVIDERS = "providers"
     TASK_SDK = "task-sdk"
+    TASK_SDK_INTEGRATION = "task-sdk-integration"
     CTL = "airflow-ctl"
     HELM = "helm"
     INTEGRATION_CORE = "integration-core"
@@ -280,6 +295,7 @@ ALLOWED_TEST_TYPE_CHOICES: dict[GroupOfTests, list[str]] = {
     GroupOfTests.CORE: [*ALL_TEST_SUITES.keys(), *all_selective_core_test_types()],
     GroupOfTests.PROVIDERS: [*ALL_TEST_SUITES.keys()],
     GroupOfTests.TASK_SDK: [ALL_TEST_TYPE],
+    GroupOfTests.TASK_SDK_INTEGRATION: [ALL_TEST_TYPE],
     GroupOfTests.HELM: [ALL_TEST_TYPE, *all_helm_test_packages()],
     GroupOfTests.CTL: [ALL_TEST_TYPE],
 }
@@ -330,23 +346,32 @@ ALLOWED_INSTALLATION_METHODS = [".", "apache-airflow"]
 ALLOWED_BUILD_CACHE = ["registry", "local", "disabled"]
 ALLOWED_BUILD_PROGRESS = ["auto", "plain", "tty"]
 MULTI_PLATFORM = "linux/amd64,linux/arm64"
-SINGLE_PLATFORMS = ["linux/amd64", "linux/arm64"]
+ALTERNATIVE_PLATFORMS = ["linux/x86_64", "linux/aarch64"]
+SINGLE_PLATFORMS = ["linux/amd64", "linux/arm64", *ALTERNATIVE_PLATFORMS]
 ALLOWED_PLATFORMS = [*SINGLE_PLATFORMS, MULTI_PLATFORM]
 
 ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
 
-ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
+ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
+
+GITHUB_REPO_BRANCH_PATTERN = r"^([^/]+)/([^/:]+):([^:]+)$"
+
+
+def normalize_platform_machine(platform_machine: str) -> str:
+    if "linux/" in platform_machine:
+        return {"linux/x86_64": "linux/amd64", "linux/aarch64": "linux/arm64"}.get(
+            platform_machine, platform_machine
+        )
+    return "linux/" + {"x86_64": "amd64", "aarch64": "arm64"}.get(platform_machine, platform_machine)
 
 
 def get_default_platform_machine() -> str:
     machine = platform.uname().machine.lower()
-    # Some additional conversion for various platforms...
-    machine = {"x86_64": "amd64", "aarch64": "arm64"}.get(machine, machine)
-    return machine
+    return normalize_platform_machine(machine)
 
 
 # Initialise base variables
-DOCKER_DEFAULT_PLATFORM = f"linux/{get_default_platform_machine()}"
+DOCKER_DEFAULT_PLATFORM = get_default_platform_machine()
 DOCKER_BUILDKIT = 1
 
 DRILL_HOST_PORT = "28047"
@@ -360,6 +385,13 @@ REDIS_HOST_PORT = "26379"
 SSH_PORT = "12322"
 VITE_DEV_PORT = "5173"
 WEB_HOST_PORT = "28080"
+BREEZE_DEBUG_SCHEDULER_PORT = "50231"
+BREEZE_DEBUG_DAG_PROCESSOR_PORT = "50232"
+BREEZE_DEBUG_TRIGGERER_PORT = "50233"
+BREEZE_DEBUG_APISERVER_PORT = "50234"
+BREEZE_DEBUG_CELERY_WORKER_PORT = "50235"
+BREEZE_DEBUG_EDGE_PORT = "50236"
+BREEZE_DEBUG_WEBSERVER_PORT = "50237"
 
 CELERY_BROKER_URLS_MAP = {"rabbitmq": "amqp://guest:guest@rabbitmq:5672", "redis": "redis://redis:6379/0"}
 SQLITE_URL = "sqlite:////root/airflow/sqlite/airflow.db"
@@ -369,7 +401,7 @@ PRODUCTION_IMAGE = False
 # All python versions include all past python versions available in previous branches
 # Even if we remove them from the main version. This is needed to make sure we can cherry-pick
 # changes from main to the previous branch.
-ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.9", "3.10", "3.11", "3.12"]
+ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13"]
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ALL_PYTHON_MAJOR_MINOR_VERSIONS
 CURRENT_POSTGRES_VERSIONS = ["13", "14", "15", "16", "17"]
 DEFAULT_POSTGRES_VERSION = CURRENT_POSTGRES_VERSIONS[0]
@@ -386,6 +418,7 @@ PYTHON_3_6_TO_3_10 = ["3.7", "3.8", "3.9", "3.10"]
 PYTHON_3_7_TO_3_11 = ["3.7", "3.8", "3.9", "3.10", "3.11"]
 PYTHON_3_8_TO_3_11 = ["3.8", "3.9", "3.10", "3.11"]
 PYTHON_3_8_TO_3_12 = ["3.8", "3.9", "3.10", "3.11", "3.12"]
+PYTHON_3_9_TO_3_12 = ["3.9", "3.10", "3.11", "3.12"]
 
 
 AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
@@ -438,6 +471,7 @@ AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
     "2.10.3": PYTHON_3_8_TO_3_12,
     "2.10.4": PYTHON_3_8_TO_3_12,
     "2.10.5": PYTHON_3_8_TO_3_12,
+    "2.11.0": PYTHON_3_9_TO_3_12,
 }
 
 DB_RESET = False
@@ -538,6 +572,19 @@ def get_airflow_version():
     return airflow_version
 
 
+def get_task_sdk_version():
+    task_sdk_init_py_file = AIRFLOW_TASK_SDK_SOURCES_PATH / "airflow" / "sdk" / "__init__.py"
+    task_sdk_version = "unknown"
+    with open(task_sdk_init_py_file) as init_file:
+        while line := init_file.readline():
+            if "__version__ = " in line:
+                task_sdk_version = line.split()[2][1:-1]
+                break
+    if task_sdk_version == "unknown":
+        raise RuntimeError("Unable to determine Task SDK version")
+    return task_sdk_version
+
+
 @clearable_cache
 def get_airflow_extras():
     airflow_dockerfile = AIRFLOW_ROOT_PATH / "Dockerfile"
@@ -549,9 +596,6 @@ def get_airflow_extras():
 
 
 # Initialize integrations
-ALL_PYPROJECT_TOML_FILES = AIRFLOW_ROOT_PATH.rglob("pyproject.toml")
-ALL_PROVIDER_YAML_FILES = AIRFLOW_PROVIDERS_ROOT_PATH.rglob("provider.yaml")
-ALL_PROVIDER_PYPROJECT_TOML_FILES = AIRFLOW_PROVIDERS_ROOT_PATH.rglob("provider.yaml")
 PROVIDER_RUNTIME_DATA_SCHEMA_PATH = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "provider_info.schema.json"
 AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
 AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH = (
@@ -562,12 +606,34 @@ UPDATE_PROVIDER_DEPENDENCIES_SCRIPT = (
     AIRFLOW_ROOT_PATH / "scripts" / "ci" / "pre_commit" / "update_providers_dependencies.py"
 )
 
+ALL_PYPROJECT_TOML_FILES = []
+
+
+def get_all_provider_pyproject_toml_provider_yaml_files() -> Generator[Path, None, None]:
+    pyproject_toml_content = AIRFLOW_PYPROJECT_TOML_FILE_PATH.read_text().splitlines()
+    in_workspace = False
+    for line in pyproject_toml_content:
+        trimmed_line = line.strip()
+        if not in_workspace and trimmed_line.startswith("[tool.uv.workspace]"):
+            in_workspace = True
+        elif in_workspace:
+            if trimmed_line.startswith("#"):
+                continue
+            if trimmed_line.startswith('"'):
+                path = trimmed_line.split('"')[1]
+                ALL_PYPROJECT_TOML_FILES.append(AIRFLOW_ROOT_PATH / path / "pyproject.toml")
+                if trimmed_line.startswith('"providers/'):
+                    yield AIRFLOW_ROOT_PATH / path / "pyproject.toml"
+                    yield AIRFLOW_ROOT_PATH / path / "provider.yaml"
+            elif trimmed_line.startswith("]"):
+                break
+
 
 def _calculate_provider_deps_hash():
     import hashlib
 
     hasher = hashlib.sha256()
-    for file in sorted(itertools.chain(ALL_PROVIDER_PYPROJECT_TOML_FILES, ALL_PROVIDER_YAML_FILES)):
+    for file in sorted(get_all_provider_pyproject_toml_provider_yaml_files()):
         hasher.update(file.read_bytes())
     return hasher.hexdigest()
 
@@ -636,6 +702,7 @@ NUM_RUNS = ""
 
 MIN_DOCKER_VERSION = "24.0.0"
 MIN_DOCKER_COMPOSE_VERSION = "2.20.2"
+MIN_GH_VERSION = "2.70.0"
 
 AIRFLOW_SOURCES_FROM = "."
 AIRFLOW_SOURCES_TO = "/opt/airflow"
@@ -680,19 +747,34 @@ DEFAULT_EXTRAS = [
 
 PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
-        "python-version": "3.9",
+        "python-version": "3.10",
         "airflow-version": "2.10.5",
-        "remove-providers": "cloudant common.messaging fab git",
+        "remove-providers": "common.messaging fab git keycloak",
         "run-tests": "true",
     },
     {
-        "python-version": "3.9",
-        "airflow-version": "3.0.0",
-        # TODO: bring back common-messaging when we bump airflow to 3.0.1
-        "remove-providers": "cloudant common.messaging",
+        "python-version": "3.10",
+        "airflow-version": "2.11.0",
+        "remove-providers": "common.messaging fab git keycloak",
+        "run-tests": "true",
+    },
+    {
+        "python-version": "3.10",
+        "airflow-version": "3.0.3",
+        "remove-providers": "",
         "run-tests": "true",
     },
 ]
+
+ALL_PYTHON_VERSION_TO_PATCH_VERSION: dict[str, str] = {
+    "3.6": "v3.6.15",
+    "3.7": "v3.7.17",
+    "3.8": "v3.8.20",
+    "3.9": "v3.9.23",
+    "3.10": "v3.10.18",
+    "3.11": "v3.11.13",
+    "3.12": "v3.12.11",
+}
 
 # Number of slices for low dep tests
 NUMBER_OF_LOW_DEP_SLICES = 5

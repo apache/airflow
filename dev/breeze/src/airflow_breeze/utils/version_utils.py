@@ -17,26 +17,6 @@
 from __future__ import annotations
 
 
-def get_latest_helm_chart_version():
-    import requests
-
-    response = requests.get("https://airflow.apache.org/_gen/packages-metadata.json")
-    data = response.json()
-    for package in data:
-        if package["package-name"] == "helm-chart":
-            stable_version = package["stable-version"]
-            return stable_version
-
-
-def get_latest_airflow_version():
-    import requests
-
-    response = requests.get("https://pypi.org/pypi/apache-airflow/json")
-    response.raise_for_status()
-    latest_released_version = response.json()["info"]["version"]
-    return latest_released_version
-
-
 def remove_local_version_suffix(version_suffix: str) -> str:
     if "+" in version_suffix:
         return version_suffix.split("+")[0]

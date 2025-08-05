@@ -27,6 +27,52 @@
 Changelog
 ---------
 
+4.1.2
+.....
+
+Misc
+~~~~
+
+* ``Fix unreachable code mypy warnings in sqlite provider (#53433)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Refactoring get con part dbapihook in providers (#53335)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.1.1
+.....
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove pytest.db_test marker from SQLite tests (#52037)``
+
+4.1.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.10+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Misc
+~~~~
+
+* ``Bump min Airflow version in providers to 2.10 (#49843)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Avoid committing history for providers (#49907)``
+   * ``test: migrate 'get_pandas_df' to 'get_df' in 'provider' test (#49339)``
+
 4.0.2
 .....
 
