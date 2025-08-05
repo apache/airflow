@@ -61,55 +61,6 @@ TEST_DEADLINE_CALLBACK = AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_
 
 class TestDeadlineAlert:
     @pytest.mark.parametrize(
-        "callback_callable, expected_path",
-        [
-            pytest.param(
-                empty_sync_callback_for_deadline_tests,
-                qualname(empty_sync_callback_for_deadline_tests),
-                id="valid_sync_callable",
-            ),
-            pytest.param(
-                empty_async_callback_for_deadline_tests,
-                qualname(empty_async_callback_for_deadline_tests),
-                id="valid_async_callable",
-            ),
-            pytest.param(TEST_CALLBACK_PATH, TEST_CALLBACK_PATH, id="valid_path_string"),
-            pytest.param(lambda x: x, None, id="lambda_function"),
-            pytest.param(TEST_CALLBACK_PATH + "  ", TEST_CALLBACK_PATH, id="path_with_whitespace"),
-            pytest.param(UNIMPORTABLE_DOT_PATH, UNIMPORTABLE_DOT_PATH, id="valid_format_not_importable"),
-        ],
-    )
-    def test_get_callback_path_happy_cases(self, callback_callable, expected_path):
-        path = DeadlineAlert.get_callback_path(callback_callable)
-        if expected_path is None:
-            assert path.endswith("<lambda>")
-        else:
-            assert path == expected_path
-
-    @pytest.mark.parametrize(
-        "callback_callable, req_awaitable, error_type",
-        [
-            pytest.param(42, False, ImportError, id="not_a_string"),
-            pytest.param("", False, ImportError, id="empty_string"),
-            pytest.param("os.path", False, AttributeError, id="non_callable_module"),
-            pytest.param(
-                qualname(empty_sync_callback_for_deadline_tests), True, AttributeError, id="non_awaitable"
-            ),
-        ],
-    )
-    def test_get_callback_path_error_cases(self, callback_callable, req_awaitable, error_type):
-        expected_message = ""
-        if error_type is ImportError:
-            expected_message = "doesn't look like a valid dot path."
-        elif req_awaitable:
-            expected_message = "is not awaitable."
-        elif error_type is AttributeError:
-            expected_message = "is not callable."
-
-        with pytest.raises(error_type, match=expected_message):
-            DeadlineAlert.get_callback_path(callback_callable, require_awaitable=req_awaitable)
-
-    @pytest.mark.parametrize(
         "test_alert, should_equal",
         [
             pytest.param(
@@ -210,6 +161,50 @@ class TestDeadlineAlert:
 
 class TestCallback:
     @pytest.mark.parametrize(
+        "callback_callable, expected_path",
+        [
+            pytest.param(
+                empty_sync_callback_for_deadline_tests,
+                qualname(empty_sync_callback_for_deadline_tests),
+                id="valid_sync_callable",
+            ),
+            pytest.param(
+                empty_async_callback_for_deadline_tests,
+                qualname(empty_async_callback_for_deadline_tests),
+                id="valid_async_callable",
+            ),
+            pytest.param(TEST_CALLBACK_PATH, TEST_CALLBACK_PATH, id="valid_path_string"),
+            pytest.param(lambda x: x, None, id="lambda_function"),
+            pytest.param(TEST_CALLBACK_PATH + "  ", TEST_CALLBACK_PATH, id="path_with_whitespace"),
+            pytest.param(UNIMPORTABLE_DOT_PATH, UNIMPORTABLE_DOT_PATH, id="valid_format_not_importable"),
+        ],
+    )
+    def test_get_callback_path_happy_cases(self, callback_callable, expected_path):
+        path = Callback.get_callback_path(callback_callable)
+        if expected_path is None:
+            assert path.endswith("<lambda>")
+        else:
+            assert path == expected_path
+
+    @pytest.mark.parametrize(
+        "callback_callable, error_type",
+        [
+            pytest.param(42, ImportError, id="not_a_string"),
+            pytest.param("", ImportError, id="empty_string"),
+            pytest.param("os.path", AttributeError, id="non_callable_module"),
+        ],
+    )
+    def test_get_callback_path_error_cases(self, callback_callable, error_type):
+        expected_message = ""
+        if error_type is ImportError:
+            expected_message = "doesn't look like a valid dot path."
+        elif error_type is AttributeError:
+            expected_message = "is not callable."
+
+        with pytest.raises(error_type, match=expected_message):
+            Callback.get_callback_path(callback_callable)
+
+    @pytest.mark.parametrize(
         "callback1_args, callback2_args, should_equal",
         [
             pytest.param(
@@ -305,6 +300,10 @@ class TestAsyncCallback:
         assert callback.path == expected_path
         assert callback.kwargs == kwargs
         assert isinstance(callback, Callback)
+
+    def test_init_error(self):
+        with pytest.raises(AttributeError, match="is not awaitable."):
+            AsyncCallback(empty_sync_callback_for_deadline_tests)
 
     def test_serialize_deserialize(self):
         callback = AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS)
