@@ -17,35 +17,36 @@
  * under the License.
  */
 import { ReactFlowProvider } from "@xyflow/react";
-import { FiCode } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
+import { FiCode, FiDatabase, FiUser } from "react-icons/fi";
 import { MdDetails, MdOutlineEventNote, MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
-import { useDagRunServiceGetDagRun, useDagServiceGetDagDetails } from "openapi/queries";
+import { useDagRunServiceGetDagRun, useHumanInTheLoopServiceGetHitlDetails } from "openapi/queries";
+import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { Header } from "./Header";
 
-const tabs = [
-  { icon: <MdOutlineTask />, label: "Task Instances", value: "" },
-  { icon: <MdOutlineEventNote />, label: "Events", value: "events" },
-  { icon: <FiCode />, label: "Code", value: "code" },
-  { icon: <MdDetails />, label: "Details", value: "details" },
-];
-
 export const Run = () => {
+  const { t: translate } = useTranslation("dag");
   const { dagId = "", runId = "" } = useParams();
 
-  const refetchInterval = useAutoRefresh({ dagId });
+  // Get external views with dag_run destination
+  const externalTabs = usePluginTabs("dag_run");
 
-  const {
-    data: dag,
-    error: dagError,
-    isLoading: isLoadinDag,
-  } = useDagServiceGetDagDetails({
-    dagId,
-  });
+  const tabs = [
+    { icon: <MdOutlineTask />, label: translate("tabs.taskInstances"), value: "" },
+    { icon: <FiUser />, label: translate("tabs.requiredActions"), value: "required_actions" },
+    { icon: <FiDatabase />, label: translate("tabs.assetEvents"), value: "asset_events" },
+    { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
+    { icon: <FiCode />, label: translate("tabs.code"), value: "code" },
+    { icon: <MdDetails />, label: translate("tabs.details"), value: "details" },
+    ...externalTabs,
+  ];
+
+  const refetchInterval = useAutoRefresh({ dagId });
 
   const {
     data: dagRun,
@@ -62,9 +63,30 @@ export const Run = () => {
     },
   );
 
+  const { data: hitlData } = useHumanInTheLoopServiceGetHitlDetails(
+    {
+      dagIdPattern: dagId,
+      dagRunId: runId,
+    },
+    undefined,
+    {
+      enabled: Boolean(dagId && runId),
+    },
+  );
+
+  const hasHitlTasksForRun = Boolean(hitlData?.hitl_details.length);
+
+  const displayTabs = tabs.filter((tab) => {
+    if (tab.value === "required_actions" && !hasHitlTasksForRun) {
+      return false;
+    }
+
+    return true;
+  });
+
   return (
     <ReactFlowProvider>
-      <DetailsLayout dag={dag} error={error ?? dagError} isLoading={isLoading || isLoadinDag} tabs={tabs}>
+      <DetailsLayout error={error} isLoading={isLoading} tabs={displayTabs}>
         {dagRun === undefined ? undefined : (
           <Header
             dagRun={dagRun}

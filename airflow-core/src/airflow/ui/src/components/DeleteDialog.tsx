@@ -18,6 +18,7 @@
  */
 import { Text, Heading, HStack } from "@chakra-ui/react";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
 import { Button, Dialog } from "src/components/ui";
@@ -34,7 +35,7 @@ type DeleteDialogProps = {
 };
 
 const DeleteDialog: React.FC<DeleteDialogProps> = ({
-  deleteButtonText = "Delete",
+  deleteButtonText,
   isDeleting,
   onClose,
   onDelete,
@@ -42,33 +43,36 @@ const DeleteDialog: React.FC<DeleteDialogProps> = ({
   resourceName,
   title,
   warningText,
-}) => (
-  <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="md" unmountOnExit>
-    <Dialog.Content backdrop>
-      <Dialog.Header>
-        <Heading size="lg">{title}</Heading>
-      </Dialog.Header>
-      <Dialog.CloseTrigger />
-      <Dialog.Body>
-        <Text>
-          Are you sure you want to delete <strong>{resourceName}</strong>? This action cannot be undone.
-        </Text>
-        <Text color="red.500" fontWeight="bold" mt={4}>
-          {warningText}
-        </Text>
-      </Dialog.Body>
-      <Dialog.Footer>
-        <HStack justifyContent="flex-end" width="100%">
-          <Button onClick={onClose} variant="outline">
-            Cancel
-          </Button>
-          <Button colorPalette="red" loading={isDeleting} onClick={onDelete}>
-            <FiTrash2 style={{ marginRight: "8px" }} /> {deleteButtonText}
-          </Button>
-        </HStack>
-      </Dialog.Footer>
-    </Dialog.Content>
-  </Dialog.Root>
-);
+}) => {
+  const { t: translate } = useTranslation("common");
+
+  return (
+    <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="md" unmountOnExit>
+      <Dialog.Content backdrop>
+        <Dialog.Header>
+          <Heading size="lg">{title}</Heading>
+        </Dialog.Header>
+        <Dialog.CloseTrigger />
+        <Dialog.Body>
+          <Text>{translate("modal.delete.confirmation", { resourceName })}</Text>
+          <Text color="fg.error" fontWeight="bold" mt={4}>
+            {warningText}
+          </Text>
+        </Dialog.Body>
+        <Dialog.Footer>
+          <HStack justifyContent="flex-end" width="100%">
+            <Button onClick={onClose} variant="outline">
+              {translate("modal.cancel")}
+            </Button>
+            <Button colorPalette="red" loading={isDeleting} onClick={onDelete}>
+              <FiTrash2 style={{ marginRight: "8px" }} />{" "}
+              {deleteButtonText ?? translate("modal.delete.button")}
+            </Button>
+          </HStack>
+        </Dialog.Footer>
+      </Dialog.Content>
+    </Dialog.Root>
+  );
+};
 
 export default DeleteDialog;

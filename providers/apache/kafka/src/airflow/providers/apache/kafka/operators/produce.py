@@ -17,13 +17,13 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from functools import partial
-from typing import Any, Callable
+from typing import Any
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.apache.kafka.hooks.produce import KafkaProducerHook
+from airflow.providers.apache.kafka.version_compat import BaseOperator
 from airflow.utils.module_loading import import_string
 
 local_logger = logging.getLogger("airflow")
@@ -116,8 +116,13 @@ class ProduceToTopicOperator(BaseOperator):
         if isinstance(self.producer_function, str):
             self.producer_function = import_string(self.producer_function)
 
+        if self.producer_function is not None and not callable(self.producer_function):
+            raise TypeError(
+                f"producer_function is not a callable, got {type(self.producer_function)} instead."
+            )
+
         producer_callable = partial(
-            self.producer_function,  # type: ignore
+            self.producer_function,
             *self.producer_function_args,
             **self.producer_function_kwargs,
         )

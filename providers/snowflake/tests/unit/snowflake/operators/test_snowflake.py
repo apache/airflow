@@ -18,11 +18,13 @@
 from __future__ import annotations
 
 from unittest import mock
+from unittest.mock import call
 
 import pendulum
 import pytest
 
 from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
@@ -34,7 +36,7 @@ from airflow.providers.snowflake.operators.snowflake import (
     SnowflakeValueCheckOperator,
 )
 from airflow.providers.snowflake.triggers.snowflake_trigger import SnowflakeSqlApiTrigger
-from airflow.utils import timezone
+from airflow.utils import timezone  # type: ignore[attr-defined]
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
@@ -58,23 +60,20 @@ SINGLE_STMT = "select i from user_test order by i;"
 
 @pytest.mark.db_test
 class TestSnowflakeOperator:
-    def setup_method(self):
-        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        dag = DAG(TEST_DAG_ID, schedule=None, default_args=args)
-        self.dag = dag
-
     @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
-    def test_snowflake_operator(self, mock_get_db_hook):
+    def test_snowflake_operator(self, mock_get_db_hook, dag_maker):
         sql = """
         CREATE TABLE IF NOT EXISTS test_airflow (
             dummy VARCHAR(50)
         );
         """
-        operator = SQLExecuteQueryOperator(
-            task_id="basic_snowflake", sql=sql, dag=self.dag, do_xcom_push=False, conn_id="snowflake_default"
-        )
+
+        with dag_maker(TEST_DAG_ID):
+            operator = SQLExecuteQueryOperator(
+                task_id="basic_snowflake", sql=sql, do_xcom_push=False, conn_id="snowflake_default"
+            )
         # do_xcom_push=False because otherwise the XCom test will fail due to the mocking (it actually works)
-        operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        dag_maker.run_ti(operator.task_id)
 
 
 class TestSnowflakeOperatorForParams:
@@ -110,25 +109,80 @@ class TestSnowflakeOperatorForParams:
         )
 
 
-@pytest.mark.parametrize(
-    "operator_class, kwargs",
-    [
-        (SnowflakeCheckOperator, dict(sql="Select * from test_table")),
-        (SnowflakeValueCheckOperator, dict(sql="Select * from test_table", pass_value=95)),
-        (SnowflakeIntervalCheckOperator, dict(table="test-table-id", metrics_thresholds={"COUNT(*)": 1.5})),
-    ],
-)
-class TestSnowflakeCheckOperators:
-    @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
+@pytest.fixture(autouse=True)
+def setup_connections(create_connection_without_db):
+    create_connection_without_db(
+        Connection(
+            conn_id="snowflake_default",
+            conn_type="snowflake",
+            host="test_host",
+            port=443,
+            schema="test_schema",
+            login="test_user",
+            password="test_password",
+        )
+    )
+
+
+class TestSnowflakeCheckOperator:
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLCheckOperator.get_db_hook")
     def test_get_db_hook(
         self,
         mock_get_db_hook,
-        operator_class,
-        kwargs,
     ):
-        operator = operator_class(task_id="snowflake_check", snowflake_conn_id="snowflake_default", **kwargs)
-        operator.get_db_hook()
-        mock_get_db_hook.assert_called_once()
+        operator = SnowflakeCheckOperator(
+            task_id="snowflake_check",
+            snowflake_conn_id="snowflake_default",
+            sql="Select * from test_table",
+            parameters={"param1": "value1"},
+        )
+        operator.execute({})
+        mock_get_db_hook.assert_has_calls(
+            [call().get_first("Select * from test_table", {"param1": "value1"})]
+        )
+
+
+class TestSnowflakeValueCheckOperator:
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLValueCheckOperator.get_db_hook")
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLValueCheckOperator.check_value")
+    def test_get_db_hook(
+        self,
+        mock_check_value,
+        mock_get_db_hook,
+    ):
+        mock_get_db_hook.return_value.get_first.return_value = ["test_value"]
+
+        operator = SnowflakeValueCheckOperator(
+            task_id="snowflake_check",
+            sql="Select * from test_table",
+            pass_value=95,
+            parameters={"param1": "value1"},
+        )
+        operator.execute({})
+        mock_get_db_hook.assert_has_calls(
+            [call().get_first("Select * from test_table", {"param1": "value1"})]
+        )
+        assert mock_check_value.call_args == call(["test_value"])
+
+
+class TestSnowflakeIntervalCheckOperator:
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLIntervalCheckOperator.__init__")
+    def test_get_db_hook(
+        self,
+        mock_snowflake_interval_check_operator,
+    ):
+        SnowflakeIntervalCheckOperator(
+            task_id="snowflake_check", table="test-table-id", metrics_thresholds={"COUNT(*)": 1.5}
+        )
+        assert mock_snowflake_interval_check_operator.call_args == mock.call(
+            table="test-table-id",
+            metrics_thresholds={"COUNT(*)": 1.5},
+            date_filter_column="ds",
+            days_back=-7,
+            conn_id="snowflake_default",
+            task_id="snowflake_check",
+            default_args={},
+        )
 
 
 @pytest.mark.parametrize(
@@ -180,6 +234,13 @@ def create_context(task, dag=None):
     tzinfo = pendulum.timezone("UTC")
     logical_date = timezone.datetime(2022, 1, 1, 1, 0, 0, tzinfo=tzinfo)
     if AIRFLOW_V_3_0_PLUS:
+        from airflow.models.dag_version import DagVersion
+        from airflow.models.serialized_dag import SerializedDagModel
+
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        dag_version = DagVersion.get_latest_version(dag.dag_id)
+        task_instance = TaskInstance(task=task, run_id="test_run_id", dag_version_id=dag_version.id)
         dag_run = DagRun(
             dag_id=dag.dag_id,
             logical_date=logical_date,
@@ -194,7 +255,7 @@ def create_context(task, dag=None):
             run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),
         )
 
-    task_instance = TaskInstance(task=task)
+        task_instance = TaskInstance(task=task)
     task_instance.dag_run = dag_run
     task_instance.xcom_push = mock.Mock()
     date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
@@ -211,6 +272,7 @@ def create_context(task, dag=None):
     }
 
 
+@pytest.mark.db_test
 class TestSnowflakeSqlApiOperator:
     @pytest.fixture
     def mock_execute_query(self):
@@ -331,6 +393,48 @@ class TestSnowflakeSqlApiOperator:
         with mock.patch.object(operator.log, "info") as mock_log_info:
             operator.execute_complete(context=None, event=mock_event)
         mock_log_info.assert_called_with("%s completed successfully.", TASK_ID)
+
+    @pytest.mark.parametrize(
+        "mock_event",
+        [
+            None,
+            ({"status": "success", "statement_query_ids": ["uuid", "uuid"]}),
+        ],
+    )
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.check_query_output")
+    def test_snowflake_sql_api_execute_complete_reassigns_query_ids(self, mock_conn, mock_event):
+        """Tests execute_complete assert with successful message"""
+
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+            deferrable=True,
+        )
+        expected_query_ids = mock_event["statement_query_ids"] if mock_event else []
+
+        assert operator.query_ids == []
+        assert operator._hook.query_ids == []
+
+        operator.execute_complete(context=None, event=mock_event)
+
+        assert operator.query_ids == expected_query_ids
+        assert operator._hook.query_ids == expected_query_ids
+
+    def test_snowflake_sql_api_caches_hook(self):
+        """Tests execute_complete assert with successful message"""
+
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+            deferrable=True,
+        )
+        hook1 = operator._hook
+        hook2 = operator._hook
+        assert hook1 is hook2
 
     @mock.patch("airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiOperator.defer")
     def test_snowflake_sql_api_execute_operator_failed_before_defer(

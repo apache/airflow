@@ -60,14 +60,11 @@ def test_execution_api_app(mock_create_task_exec_api, mock_init_plugins, mock_in
     mock_init_plugins.assert_not_called()
 
 
-def test_execution_api_app_lifespan(client):
+def test_execution_api_app_lifespan(client, get_execution_app):
     with client(apps="execution") as test_client:
-        test_app = test_client.app
-
-        # assert the execution app was created and lifespan was called
-        execution_app = [route.app for route in test_app.router.routes if route.path == "/execution"]
+        execution_app = get_execution_app(test_client)
         assert execution_app, "Execution API app not found in FastAPI app."
-        assert execution_app[0].state.lifespan_called, "Lifespan not called on Execution API app."
+        assert execution_app.state.lifespan_called, "Lifespan not called on Execution API app."
 
 
 @mock.patch("airflow.api_fastapi.app.init_views")

@@ -20,6 +20,7 @@ from __future__ import annotations
 import time
 from collections.abc import Iterable, Mapping, Sequence
 from datetime import timedelta
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, SupportsAbs, cast
 
 from airflow.configuration import conf
@@ -75,8 +76,6 @@ class SnowflakeCheckOperator(SQLCheckOperator):
         Template references are recognized by str ending in '.sql'
     :param snowflake_conn_id: Reference to
         :ref:`Snowflake connection id<howto/connection:snowflake>`
-    :param autocommit: if True, each command is automatically committed.
-        (default value: True)
     :param parameters: (optional) the parameters to render the SQL query with.
     :param warehouse: name of warehouse (will overwrite any warehouse
         defined in the connection's extra JSON)
@@ -108,8 +107,6 @@ class SnowflakeCheckOperator(SQLCheckOperator):
         sql: str,
         snowflake_conn_id: str = "snowflake_default",
         parameters: Iterable | Mapping[str, Any] | None = None,
-        autocommit: bool = True,
-        do_xcom_push: bool = True,
         warehouse: str | None = None,
         database: str | None = None,
         role: str | None = None,
@@ -178,8 +175,6 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
         tolerance: Any = None,
         snowflake_conn_id: str = "snowflake_default",
         parameters: Iterable | Mapping[str, Any] | None = None,
-        autocommit: bool = True,
-        do_xcom_push: bool = True,
         warehouse: str | None = None,
         database: str | None = None,
         role: str | None = None,
@@ -201,7 +196,12 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
                 **hook_params,
             }
         super().__init__(
-            sql=sql, pass_value=pass_value, tolerance=tolerance, conn_id=snowflake_conn_id, **kwargs
+            sql=sql,
+            pass_value=pass_value,
+            tolerance=tolerance,
+            conn_id=snowflake_conn_id,
+            parameters=parameters,
+            **kwargs,
         )
         self.query_ids: list[str] = []
 
@@ -258,9 +258,6 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
         date_filter_column: str = "ds",
         days_back: SupportsAbs[int] = -7,
         snowflake_conn_id: str = "snowflake_default",
-        parameters: Iterable | Mapping[str, Any] | None = None,
-        autocommit: bool = True,
-        do_xcom_push: bool = True,
         warehouse: str | None = None,
         database: str | None = None,
         role: str | None = None,
@@ -354,6 +351,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
             When executing the statement, Snowflake replaces placeholders (? and :name) in
             the statement with these specified values.
     :param deferrable: Run operator in the deferrable mode.
+    :param snowflake_api_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` & ``tenacity.AsyncRetrying`` classes.
     """
 
     LIFETIME = timedelta(minutes=59)  # The tokens will have a 59 minutes lifetime
@@ -380,6 +378,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
         token_renewal_delta: timedelta = RENEWAL_DELTA,
         bindings: dict[str, Any] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        snowflake_api_retry_args: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:
         self.snowflake_conn_id = snowflake_conn_id
@@ -389,7 +388,9 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
         self.token_renewal_delta = token_renewal_delta
         self.bindings = bindings
         self.execute_async = False
+        self.snowflake_api_retry_args = snowflake_api_retry_args or {}
         self.deferrable = deferrable
+        self.query_ids: list[str] = []
         if any([warehouse, database, role, schema, authenticator, session_parameters]):  # pragma: no cover
             hook_params = kwargs.pop("hook_params", {})  # pragma: no cover
             kwargs["hook_params"] = {
@@ -403,6 +404,17 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
             }
         super().__init__(conn_id=snowflake_conn_id, **kwargs)  # pragma: no cover
 
+    @cached_property
+    def _hook(self):
+        return SnowflakeSqlApiHook(
+            snowflake_conn_id=self.snowflake_conn_id,
+            token_life_time=self.token_life_time,
+            token_renewal_delta=self.token_renewal_delta,
+            deferrable=self.deferrable,
+            api_retry_args=self.snowflake_api_retry_args,
+            **self.hook_params,
+        )
+
     def execute(self, context: Context) -> None:
         """
         Make a POST API request to snowflake by using SnowflakeSQL and execute the query to get the ids.
@@ -410,15 +422,8 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
         By deferring the SnowflakeSqlApiTrigger class passed along with query ids.
         """
         self.log.info("Executing: %s", self.sql)
-        self._hook = SnowflakeSqlApiHook(
-            snowflake_conn_id=self.snowflake_conn_id,
-            token_life_time=self.token_life_time,
-            token_renewal_delta=self.token_renewal_delta,
-            deferrable=self.deferrable,
-            **self.hook_params,
-        )
         self.query_ids = self._hook.execute_query(
-            self.sql,  # type: ignore[arg-type]
+            self.sql,
             statement_count=self.statement_count,
             bindings=self.bindings,
         )
@@ -504,9 +509,11 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
                 msg = f"{event['status']}: {event['message']}"
                 raise AirflowException(msg)
             if "status" in event and event["status"] == "success":
-                hook = SnowflakeSqlApiHook(snowflake_conn_id=self.snowflake_conn_id)
-                query_ids = cast("list[str]", event["statement_query_ids"])
-                hook.check_query_output(query_ids)
+                self.query_ids = cast("list[str]", event["statement_query_ids"])
+                self._hook.check_query_output(self.query_ids)
                 self.log.info("%s completed successfully.", self.task_id)
+                # Re-assign query_ids to hook after coming back from deferral to be consistent for listeners.
+                if not self._hook.query_ids:
+                    self._hook.query_ids = self.query_ids
         else:
             self.log.info("%s completed successfully.", self.task_id)

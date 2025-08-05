@@ -56,6 +56,9 @@ def execute_workload(workload: ExecuteTask) -> None:
     log.info("Executing workload", workload=workload)
 
     base_url = conf.get("api", "base_url", fallback="/")
+    # If it's a relative URL, use localhost:8080 as the default
+    if base_url.startswith("/"):
+        base_url = f"http://localhost:8080{base_url}"
     default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
     server = conf.get("core", "execution_api_server_url", fallback=default_execution_api_server)
     log.info("Connecting to server:", server=server)

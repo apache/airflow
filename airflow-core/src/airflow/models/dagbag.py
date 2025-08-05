@@ -17,14 +17,17 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import importlib
 import importlib.machinery
 import importlib.util
 import os
+import signal
 import sys
 import textwrap
 import traceback
+import warnings
 import zipfile
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -34,9 +37,11 @@ from sqlalchemy import (
     Column,
     String,
 )
+from sqlalchemy.orm import joinedload
 from tabulate import tabulate
 
 from airflow import settings
+from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowClusterPolicyError,
@@ -48,8 +53,8 @@ from airflow.exceptions import (
 )
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base, StringID
+from airflow.models.dag_version import DagVersion
 from airflow.stats import Stats
-from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.docs import get_docs_url
 from airflow.utils.file import (
@@ -62,14 +67,35 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.timeout import timeout
 from airflow.utils.types import NOTSET
-from airflow.utils.warnings import capture_with_reraise
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     from sqlalchemy.orm import Session
 
+    from airflow.models import DagRun
     from airflow.models.dag import DAG
     from airflow.models.dagwarning import DagWarning
     from airflow.utils.types import ArgNotSet
+
+
+@contextlib.contextmanager
+def _capture_with_reraise() -> Generator[list[warnings.WarningMessage], None, None]:
+    """Capture warnings in context and re-raise it on exit from the context manager."""
+    captured_warnings = []
+    try:
+        with warnings.catch_warnings(record=True) as captured_warnings:
+            yield captured_warnings
+    finally:
+        if captured_warnings:
+            for cw in captured_warnings:
+                warnings.warn_explicit(
+                    message=cw.message,
+                    category=cw.category,
+                    filename=cw.filename,
+                    lineno=cw.lineno,
+                    source=cw.source,
+                )
 
 
 class FileLoadStat(NamedTuple):
@@ -129,7 +155,7 @@ class DagBag(LoggingMixin):
         bundle_path: Path | None = None,
     ):
         super().__init__()
-        self.bundle_path: Path | None = bundle_path
+        self.bundle_path = bundle_path
         include_examples = (
             include_examples
             if isinstance(include_examples, bool)
@@ -144,6 +170,7 @@ class DagBag(LoggingMixin):
         self.dags: dict[str, DAG] = {}
         # the file's last modified timestamp when we last read it
         self.file_last_changed: dict[str, datetime] = {}
+        # Store import errors with relative file paths as keys (relative to bundle_path)
         self.import_errors: dict[str, str] = {}
         self.captured_warnings: dict[str, tuple[str, ...]] = {}
         self.has_logged = False
@@ -306,7 +333,7 @@ class DagBag(LoggingMixin):
         DagContext.autoregistered_dags.clear()
 
         self.captured_warnings.pop(filepath, None)
-        with capture_with_reraise() as captured_warnings:
+        with _capture_with_reraise() as captured_warnings:
             if filepath.endswith(".py") or not zipfile.is_zipfile(filepath):
                 mods = self._load_modules_from_file(filepath, safe_mode)
             else:
@@ -355,8 +382,31 @@ class DagBag(LoggingMixin):
                 )
         return warnings
 
+    def _get_relative_fileloc(self, filepath: str) -> str:
+        """
+        Get the relative file location for a given filepath.
+
+        :param filepath: Absolute path to the file
+        :return: Relative path from bundle_path, or original filepath if no bundle_path
+        """
+        if self.bundle_path:
+            return str(Path(filepath).relative_to(self.bundle_path))
+        return filepath
+
     def _load_modules_from_file(self, filepath, safe_mode):
         from airflow.sdk.definitions._internal.contextmanager import DagContext
+
+        def handler(signum, frame):
+            """Handle SIGSEGV signal and let the user know that the import failed."""
+            msg = f"Received SIGSEGV signal while processing {filepath}."
+            self.log.error(msg)
+            relative_filepath = self._get_relative_fileloc(filepath)
+            self.import_errors[relative_filepath] = msg
+
+        try:
+            signal.signal(signal.SIGSEGV, handler)
+        except ValueError:
+            self.log.warning("SIGSEGV signal handler registration failed. Not in the main thread")
 
         if not might_contain_dag(filepath, safe_mode):
             # Don't want to spam user with skip messages
@@ -390,12 +440,13 @@ class DagBag(LoggingMixin):
                 # This would also catch `exit()` in a dag file
                 DagContext.autoregistered_dags.clear()
                 self.log.exception("Failed to import: %s", filepath)
+                relative_filepath = self._get_relative_fileloc(filepath)
                 if self.dagbag_import_error_tracebacks:
-                    self.import_errors[filepath] = traceback.format_exc(
+                    self.import_errors[relative_filepath] = traceback.format_exc(
                         limit=-self.dagbag_import_error_traceback_depth
                     )
                 else:
-                    self.import_errors[filepath] = str(e)
+                    self.import_errors[relative_filepath] = str(e)
                 return []
 
         dagbag_import_timeout = settings.get_dagbag_import_timeout(filepath)
@@ -455,12 +506,13 @@ class DagBag(LoggingMixin):
                     DagContext.autoregistered_dags.clear()
                     fileloc = os.path.join(filepath, zip_info.filename)
                     self.log.exception("Failed to import: %s", fileloc)
+                    relative_fileloc = self._get_relative_fileloc(fileloc)
                     if self.dagbag_import_error_tracebacks:
-                        self.import_errors[fileloc] = traceback.format_exc(
+                        self.import_errors[relative_fileloc] = traceback.format_exc(
                             limit=-self.dagbag_import_error_traceback_depth
                         )
                     else:
-                        self.import_errors[fileloc] = str(e)
+                        self.import_errors[relative_fileloc] = str(e)
                 finally:
                     if sys.path[0] == filepath:
                         del sys.path[0]
@@ -482,10 +534,8 @@ class DagBag(LoggingMixin):
 
         for dag, mod in top_level_dags:
             dag.fileloc = mod.__file__
-            if self.bundle_path:
-                dag.relative_fileloc = str(Path(mod.__file__).relative_to(self.bundle_path))
-            else:
-                dag.relative_fileloc = dag.fileloc
+            relative_fileloc = self._get_relative_fileloc(dag.fileloc)
+            dag.relative_fileloc = relative_fileloc
             try:
                 dag.validate()
                 self.bag_dag(dag=dag)
@@ -493,7 +543,7 @@ class DagBag(LoggingMixin):
                 pass
             except Exception as e:
                 self.log.exception("Failed to bag_dag: %s", dag.fileloc)
-                self.import_errors[dag.fileloc] = f"{type(e).__name__}: {e}"
+                self.import_errors[relative_fileloc] = f"{type(e).__name__}: {e}"
                 self.file_last_changed[dag.fileloc] = file_last_changed_on_disk
             else:
                 found_dags.append(dag)
@@ -586,14 +636,6 @@ class DagBag(LoggingMixin):
             example_dag_folder = next(iter(example_dags.__path__))
 
             files_to_parse.extend(list_py_file_paths(example_dag_folder, safe_mode=safe_mode))
-            try:
-                from system import standard
-
-                example_dag_folder_standard = next(iter(standard.__path__))
-                files_to_parse.extend(list_py_file_paths(example_dag_folder_standard, safe_mode=safe_mode))
-            except ImportError:
-                # Nothing happens - this should only work during tests
-                pass
 
         for filepath in files_to_parse:
             try:
@@ -661,15 +703,76 @@ class DagBag(LoggingMixin):
             else LazyDeserializedDAG(data=SerializedDAG.to_dict(dag))
             for dag in self.dags.values()
         ]
+        import_errors = {(bundle_name, rel_path): error for rel_path, error in self.import_errors.items()}
 
         update_dag_parsing_results_in_db(
             bundle_name,
             bundle_version,
             dags,
-            self.import_errors,
+            import_errors,
             self.dag_warnings,
             session=session,
         )
+
+
+class DBDagBag:
+    """
+    Internal class for retrieving and caching dags in the scheduler.
+
+    :meta private:
+    """
+
+    def __init__(self, load_op_links: bool = True):
+        self._dags: dict[str, DAG] = {}  # dag_version_id to dag
+        self.load_op_links = load_op_links
+
+    def _get_dag(self, version_id: str, session: Session) -> DAG | None:
+        if dag := self._dags.get(version_id):
+            return dag
+        dag_version = session.get(DagVersion, version_id, options=[joinedload(DagVersion.serialized_dag)])
+        if not dag_version:
+            return None
+        serdag = dag_version.serialized_dag
+        if not serdag:
+            return None
+        serdag.load_op_links = self.load_op_links
+        dag = serdag.dag
+        if not dag:
+            return None
+        self._dags[version_id] = dag
+        return dag
+
+    @staticmethod
+    def _version_from_dag_run(dag_run, session):
+        if not dag_run.bundle_version:
+            dag_version = DagVersion.get_latest_version(dag_id=dag_run.dag_id, session=session)
+            if dag_version:
+                return dag_version
+
+        return dag_run.created_dag_version
+
+    def get_dag_for_run(self, dag_run: DagRun, session: Session) -> DAG | None:
+        version = self._version_from_dag_run(dag_run=dag_run, session=session)
+        if not version:
+            return None
+        return self._get_dag(version_id=version.id, session=session)
+
+    def get_latest_version_of_dag(self, dag_id: str, session: Session) -> DAG | None:
+        """
+        Get the latest version of a DAG by its ID.
+
+        This method retrieves the latest version of the DAG with the given ID.
+        """
+        from airflow.models.serialized_dag import SerializedDagModel
+
+        serdag = SerializedDagModel.get(dag_id, session=session)
+        if not serdag:
+            return None
+        serdag.load_op_links = self.load_op_links
+        dag = serdag.dag
+
+        self._dags[serdag.dag_version.id] = dag
+        return dag
 
 
 def generate_md5_hash(context):

@@ -77,7 +77,9 @@ apache-airflow-providers-common-messaging package
 ``Common Messaging Provider``
 
 
-Release: 1.0.1
+Release: 1.0.5
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------

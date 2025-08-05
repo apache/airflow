@@ -173,11 +173,11 @@ class XComObjectStorageBackend(BaseXCom):
         try:
             with path.open(mode="rb", compression="infer") as f:
                 return json.load(f, cls=XComDecoder)
-        except (TypeError, ValueError):
+        except (FileNotFoundError, TypeError, ValueError):
             return data
 
     @staticmethod
-    def purge(xcom: XComResult, session: Session | None = None) -> None:  # type: ignore[override]
+    def purge(xcom: XComResult, session: Session | None = None) -> None:
         if not isinstance(xcom.value, str):
             return
         with contextlib.suppress(TypeError, ValueError):

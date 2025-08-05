@@ -65,7 +65,9 @@ apache-airflow-providers-apache-hdfs package
 and `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html>`__.
 
 
-Release: 4.8.1
+Release: 4.10.2
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------
@@ -83,13 +85,14 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider distribution is ``2.9.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
 
 =================================  =====================================
 PIP package                        Version required
 =================================  =====================================
-``apache-airflow``                 ``>=2.9.0``
+``apache-airflow``                 ``>=2.10.0``
 ``hdfs[avro,dataframe,kerberos]``  ``>=2.5.4; python_version < "3.12"``
 ``hdfs[avro,dataframe,kerberos]``  ``>=2.7.3; python_version >= "3.12"``
-``pandas``                         ``>=2.1.2,<2.2``
+``pandas``                         ``>=2.1.2; python_version < "3.13"``
+``pandas``                         ``>=2.2.3; python_version >= "3.13"``
 =================================  =====================================

@@ -29,9 +29,9 @@ import os
 import shutil
 import sys
 from collections import defaultdict
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
-from typing import Any, Callable, NamedTuple, TypeVar
+from typing import Any, NamedTuple, TypeVar
 
 import rich_click as click
 from click import Choice
@@ -511,7 +511,9 @@ click.rich_click.OPTION_GROUPS = {
 )
 @click.option("--docs-only", is_flag=True, help="Only build documentation")
 @click.option("--spellcheck-only", is_flag=True, help="Only perform spellchecking")
-@click.option("--include-commits", help="Include commits in the documentation.", is_flag=True)
+@click.option(
+    "--include-commits", help="Include commits in the documentation.", envvar="INCLUDE_COMMITS", is_flag=True
+)
 @click.option(
     "-j",
     "--jobs",
@@ -623,7 +625,7 @@ def build_docs(
 
     if len(packages_to_build) == 1:
         console.print(
-            "[yellow]Building one package. Forcing --one-pass-oly and --jobs to 1 as only one pass is needed."
+            "[yellow]Building one package. Forcing --one-pass-only and --jobs to 1 as only one pass is needed."
         )
         one_pass_only = True
         jobs = 1

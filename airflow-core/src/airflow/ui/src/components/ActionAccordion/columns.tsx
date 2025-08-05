@@ -16,30 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Link } from "@chakra-ui/react";
-import type { ColumnDef } from "@tanstack/react-table";
-import { Link as RouterLink } from "react-router-dom";
+import type { TFunction } from "i18next";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+import type { MetaColumn } from "src/components/DataTable/types";
 import { StateBadge } from "src/components/StateBadge";
-import { Tooltip } from "src/components/ui";
-import { getTaskInstanceLink } from "src/utils/links";
-import { trimText } from "src/utils/trimTextFn";
 
-export const columns: Array<ColumnDef<TaskInstanceResponse>> = [
+export const getColumns = (translate: TFunction): Array<MetaColumn<TaskInstanceResponse>> => [
   {
-    accessorKey: "task_display_name",
-    cell: ({ row: { original } }) => (
-      <Tooltip content={original.task_display_name}>
-        <Link asChild color="fg.info" fontWeight="bold" maxWidth="200px" overflow="hidden">
-          <RouterLink to={getTaskInstanceLink(original)}>
-            {trimText(original.task_display_name, 25).trimmedText}
-          </RouterLink>
-        </Link>
-      </Tooltip>
-    ),
-    enableSorting: false,
-    header: "Task ID",
+    accessorKey: "task_id",
+    header: translate("taskId"),
+    size: 200,
   },
   {
     accessorKey: "state",
@@ -47,19 +34,19 @@ export const columns: Array<ColumnDef<TaskInstanceResponse>> = [
       row: {
         original: { state },
       },
-    }) => <StateBadge state={state}>{state}</StateBadge>,
-    enableSorting: false,
-    header: () => "State",
+    }) => (
+      <StateBadge state={state}>
+        {state ? translate(`common:states.${state}`) : translate("common:states.no_status")}
+      </StateBadge>
+    ),
+    header: translate("state"),
   },
   {
-    accessorKey: "rendered_map_index",
-    enableSorting: false,
-    header: "Map Index",
+    accessorKey: "map_index",
+    header: translate("mapIndex"),
   },
-
   {
-    accessorKey: "dag_run_id",
-    enableSorting: false,
-    header: "Run Id",
+    accessorKey: "run_id",
+    header: translate("runId"),
   },
 ];

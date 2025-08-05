@@ -309,3 +309,25 @@ class TestWebHDFSHook:
 
             assert f"https://{connection.host}:{connection.port}" == mock_insecure_client.call_args.args[0]
             assert mock_insecure_client.call_args.kwargs["session"].cert == ("/path/to/combined.pem")
+
+    @patch("airflow.providers.apache.hdfs.hooks.webhdfs.InsecureClient")
+    @patch("airflow.providers.apache.hdfs.hooks.webhdfs.socket")
+    def test_conn_cookies(self, socket_mock, mock_insecure_client):
+        with patch(
+            "airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook.get_connection",
+            return_value=Connection(host="host_1", port=123, extra={"cookies": {"my": "cookies"}}),
+        ):
+            socket_mock.socket.return_value.connect_ex.return_value = 0
+            self.webhdfs_hook.get_conn()
+            assert mock_insecure_client.call_args.kwargs["session"].cookies.get("my") == "cookies"
+
+    @patch("airflow.providers.apache.hdfs.hooks.webhdfs.InsecureClient")
+    @patch("airflow.providers.apache.hdfs.hooks.webhdfs.socket")
+    def test_conn_headers(self, socket_mock, mock_insecure_client):
+        with patch(
+            "airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook.get_connection",
+            return_value=Connection(host="host_1", port=123, extra={"headers": {"my": "headers"}}),
+        ):
+            socket_mock.socket.return_value.connect_ex.return_value = 0
+            self.webhdfs_hook.get_conn()
+            assert mock_insecure_client.call_args.kwargs["session"].headers.get("my") == "headers"

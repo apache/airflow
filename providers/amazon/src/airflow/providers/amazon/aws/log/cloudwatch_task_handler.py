@@ -33,7 +33,6 @@ import watchtower
 from airflow.configuration import conf
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.utils import datetime_to_epoch_utc_ms
-from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -125,10 +124,10 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         def proc(logger: structlog.typing.WrappedLogger, method_name: str, event: structlog.typing.EventDict):
             if not logger or not (stream_name := relative_path_from_logger(logger)):
                 return event
-            # Only init the handler stream_name once. We cannot do it above when we init the handler because
-            # we don't yet know the log path at that point.
-            if not _handler.log_stream_name:
-                _handler.log_stream_name = stream_name.as_posix().replace(":", "_")
+            # We can't set the log stream name in the above init handler because
+            # the log path isn't known at that stage.
+            # Instead, we should always rely on the path (log stream name) provided by the logger.
+            _handler.log_stream_name = stream_name.as_posix().replace(":", "_")
             name = event.get("logger_name") or event.get("logger", "")
             level = structlog.stdlib.NAME_TO_LEVEL.get(method_name.lower(), logging.INFO)
             msg = copy.copy(event)
@@ -149,7 +148,14 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         return (proc,)
 
     def close(self):
-        self.handler.close()
+        # Use the flush method to ensure all logs are sent to CloudWatch.
+        # Closing the handler sets `shutting_down` to True, which prevents any further logs from being sent.
+        # When `shutting_down` is True, means the logging system is in the process of shutting down,
+        # during which it attempts to flush the logs which are queued.
+        if self.handler is None or self.handler.shutting_down:
+            return
+
+        self.handler.flush()
 
     def upload(self, path: os.PathLike | str, ti: RuntimeTI):
         # No-op, as we upload via the processor as we go
@@ -163,15 +169,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
             f"Reading remote log from Cloudwatch log_group: {self.log_group} log_stream: {relative_path}"
         ]
         try:
-            if AIRFLOW_V_3_0_PLUS:
-                from airflow.utils.log.file_task_handler import StructuredLogMessage
-
-                logs = [
-                    StructuredLogMessage.model_validate(log)
-                    for log in self.get_cloudwatch_logs(relative_path, ti)
-                ]
-            else:
-                logs = [self.get_cloudwatch_logs(relative_path, ti)]  # type: ignore[arg-value]
+            logs = [self.get_cloudwatch_logs(relative_path, ti)]
         except Exception as e:
             logs = None
             messages.append(str(e))
@@ -199,8 +197,6 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
             log_stream_name=stream_name,
             end_time=end_time,
         )
-        if AIRFLOW_V_3_0_PLUS:
-            return list(self._event_to_dict(e) for e in events)
         return "\n".join(self._event_to_str(event) for event in events)
 
     def _event_to_dict(self, event: dict) -> dict:
@@ -215,7 +211,8 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
 
     def _event_to_str(self, event: dict) -> str:
         event_dt = datetime.fromtimestamp(event["timestamp"] / 1000.0, tz=timezone.utc)
-        formatted_event_dt = event_dt.strftime("%Y-%m-%d %H:%M:%S,%f")[:-3]
+        # Format a datetime object to a string in Zulu time without milliseconds.
+        formatted_event_dt = event_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
         message = event["message"]
         return f"[{formatted_event_dt}] {message}"
 

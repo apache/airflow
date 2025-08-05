@@ -18,13 +18,19 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_utils import ExecutorName
+from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.utils.session import create_session
 from airflow.utils.state import State
+
+if TYPE_CHECKING:
+    from airflow.executors import workloads
 
 
 class MockExecutor(BaseExecutor):
@@ -50,10 +56,22 @@ class MockExecutor(BaseExecutor):
         # So we should pass self.success instead of lambda.
         self.mock_task_results = defaultdict(self.success)
 
+        # Mock JWT generator for token generation
+        mock_jwt_generator = MagicMock()
+        mock_jwt_generator.generate.return_value = "mock-token"
+
+        self.jwt_generator = mock_jwt_generator
+
         super().__init__(*args, **kwargs)
 
     def success(self):
         return State.SUCCESS
+
+    def _process_workloads(self, workload_list: Sequence[workloads.All]) -> None:
+        """Process the given workloads - mock implementation."""
+        # For mock executor, we don't actually process the workloads,
+        # they get processed in heartbeat()
+        pass
 
     def heartbeat(self):
         if not self.do_update:
@@ -65,17 +83,25 @@ class MockExecutor(BaseExecutor):
             # Create a stable/predictable sort order for events in self.history
             # for tests!
             def sort_by(item):
-                key, val = item
+                key, workload = item
                 (dag_id, task_id, date, try_number, map_index) = key
-                (_, prio, _, _) = val
+                # For workloads, use the task instance priority if available
+                prio = getattr(workload.ti, "priority_weight", 1) if hasattr(workload, "ti") else 1
                 # Sort by priority (DESC), then date,task, try
                 return -prio, date, dag_id, task_id, map_index, try_number
 
             open_slots = self.parallelism - len(self.running)
             sorted_queue = sorted(self.queued_tasks.items(), key=sort_by)
-            for key, (_, _, _, ti) in sorted_queue[:open_slots]:
+            for key, workload in sorted_queue[:open_slots]:
                 self.queued_tasks.pop(key)
                 state = self.mock_task_results[key]
+                ti = TaskInstance.get_task_instance(
+                    task_id=workload.ti.task_id,
+                    run_id=workload.ti.run_id,
+                    dag_id=workload.ti.dag_id,
+                    map_index=workload.ti.map_index,
+                    lock_for_update=True,
+                )
                 ti.set_state(state, session=session)
                 self.change_state(key, state)
             session.flush()

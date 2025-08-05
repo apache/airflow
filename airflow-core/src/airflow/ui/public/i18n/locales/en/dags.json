@@ -1,0 +1,97 @@
+{
+  "assetSchedule": "{{count}} of {{total}} assets updated",
+  "dagActions": {
+    "delete": {
+      "button": "Delete Dag",
+      "warning": "This will remove all metadata related to the Dag, including Runs and Tasks."
+    }
+  },
+  "favoriteDag": "Favorite Dag",
+  "filters": {
+    "allRunTypes": "All Run Types",
+    "allStates": "All States",
+    "favorite": {
+      "all": "All",
+      "favorite": "Favorite",
+      "unfavorite": "Unfavorite"
+    },
+    "paused": {
+      "active": "Active",
+      "all": "All",
+      "paused": "Paused"
+    },
+    "runIdPatternFilter": "Search Dag Runs",
+    "triggeringUserNameFilter": "Search by Triggering User"
+  },
+  "ownerLink": "Owner link for {{owner}}",
+  "runAndTaskActions": {
+    "affectedTasks": {
+      "noItemsFound": "No tasks found.",
+      "title": "Affected Tasks: {{count}}"
+    },
+    "clear": {
+      "button": "Clear {{type}}",
+      "buttonTooltip": "Press shift+c to clear",
+      "error": "Failed to clear {{type}}",
+      "title": "Clear {{type}}"
+    },
+    "delete": {
+      "button": "Delete {{type}}",
+      "dialog": {
+        "resourceName": "{{type}} {{id}}",
+        "title": "Delete {{type}}",
+        "warning": "This will remove all metadata related to the {{type}}."
+      },
+      "error": "Error deleting {{type}}",
+      "success": {
+        "description": "The {{type}} deletion request was successful.",
+        "title": "{{type}} Deleted Successfully"
+      }
+    },
+    "markAs": {
+      "button": "Mark {{type}} as...",
+      "buttonTooltip": {
+        "failed": "Press shift+f to mark as failed",
+        "success": "Press shift+s to mark as success"
+      },
+      "title": "Mark {{type}} as {{state}}"
+    },
+    "options": {
+      "downstream": "Downstream",
+      "existingTasks": "Clear existing tasks",
+      "future": "Future",
+      "onlyFailed": "Clear only failed tasks",
+      "past": "Past",
+      "queueNew": "Queue up new tasks",
+      "runOnLatestVersion": "Run with latest bundle version",
+      "upstream": "Upstream"
+    }
+  },
+  "search": {
+    "advanced": "Advanced Search",
+    "clear": "Clear search",
+    "dags": "Search Dags",
+    "hotkey": "+K",
+    "tasks": "Search Tasks"
+  },
+  "sort": {
+    "displayName": {
+      "asc": "Sort by Display Name (A-Z)",
+      "desc": "Sort by Display Name (Z-A)"
+    },
+    "lastRunStartDate": {
+      "asc": "Sort by Latest Run Start Date (Earliest-Latest)",
+      "desc": "Sort by Latest Run Start Date (Latest-Earliest)"
+    },
+    "lastRunState": {
+      "asc": "Sort by Latest Run State (A-Z)",
+      "desc": "Sort by Latest Run State (Z-A)"
+    },
+    "nextDagRun": {
+      "asc": "Sort by Next Dag Run (Earliest-Latest)",
+      "desc": "Sort by Next Dag Run (Latest-Earliest)"
+    },
+    "placeholder": "Sort by"
+  },
+  "unfavoriteDag": "Unfavorite Dag"
+}

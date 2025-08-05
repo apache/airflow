@@ -18,6 +18,7 @@
  */
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useVariableServiceBulkVariables, useVariableServiceGetVariablesKey } from "openapi/queries";
 import { toaster } from "src/components/ui";
@@ -30,6 +31,7 @@ type Props = {
 export const useBulkDeleteVariables = ({ clearSelections, onSuccessConfirm }: Props) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
+  const { t: translate } = useTranslation(["common", "admin"]);
 
   const onSuccess = async (responseData: { delete?: { errors: Array<unknown>; success: Array<string> } }) => {
     await queryClient.invalidateQueries({
@@ -47,8 +49,12 @@ export const useBulkDeleteVariables = ({ clearSelections, onSuccessConfirm }: Pr
         });
       } else if (Array.isArray(success) && success.length > 0) {
         toaster.create({
-          description: `${success.length} variables deleted successfully. Keys: ${success.join(", ")}`,
-          title: "Delete Variables Request Successful",
+          description: translate("toaster.bulkDelete.success.description", {
+            count: success.length,
+            keys: success.join(", "),
+            resourceName: translate("admin:variables.variable_other"),
+          }),
+          title: translate("toaster.bulkDelete.success.title"),
           type: "success",
         });
         clearSelections();

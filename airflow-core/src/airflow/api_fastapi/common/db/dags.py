@@ -21,72 +21,53 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
 
+from airflow.api_fastapi.common.db.common import (
+    apply_filters_to_select,
+)
+from airflow.api_fastapi.common.parameters import BaseParam, RangeFilter, SortParam
+from airflow.models import DagModel
+from airflow.models.dagrun import DagRun
+
 if TYPE_CHECKING:
     from sqlalchemy.sql import Select
 
-from airflow.models.dag import DagModel
-from airflow.models.dagrun import DagRun
 
+def generate_dag_with_latest_run_query(max_run_filters: list[BaseParam], order_by: SortParam) -> Select:
+    query = select(DagModel)
 
-def generate_dag_with_latest_run_query(dag_runs_cte: Select | None = None) -> Select:
-    latest_dag_run_per_dag_id_cte = (
-        select(DagRun.dag_id, func.max(DagRun.start_date).label("start_date"))
-        .where()
+    max_run_id_query = (  # ordering by id will not always be "latest run", but it's a simplifying assumption
+        select(DagRun.dag_id, func.max(DagRun.id).label("max_dag_run_id"))
         .group_by(DagRun.dag_id)
-        .cte()
+        .subquery(name="mrq")
     )
 
-    dags_select_with_latest_dag_run = (
-        select(DagModel)
-        .join(
-            latest_dag_run_per_dag_id_cte,
-            DagModel.dag_id == latest_dag_run_per_dag_id_cte.c.dag_id,
-            isouter=True,
-        )
-        .join(
-            DagRun,
-            DagRun.start_date == latest_dag_run_per_dag_id_cte.c.start_date
-            and DagRun.dag_id == latest_dag_run_per_dag_id_cte.c.dag_id,
-            isouter=True,
-        )
-        .order_by(DagModel.dag_id)
+    has_max_run_filter = False
+
+    for max_run_filter in max_run_filters:
+        if isinstance(max_run_filter, RangeFilter):
+            if max_run_filter.is_active():
+                has_max_run_filter = True
+                break
+        if max_run_filter.value:
+            has_max_run_filter = True
+            break
+
+    requested_order_by_set = set(order_by.value) if order_by.value is not None else set()
+    dag_run_order_by_set = set(
+        ["last_run_state", "last_run_start_date", "-last_run_state", "-last_run_start_date"],
     )
 
-    if dag_runs_cte is None:
-        return dags_select_with_latest_dag_run
-
-    dag_run_filters_cte = (
-        select(DagModel.dag_id)
-        .join(
-            dag_runs_cte,
-            DagModel.dag_id == dag_runs_cte.c.dag_id,
-        )
-        .join(
-            DagRun,
-            DagRun.dag_id == dag_runs_cte.c.dag_id,
-        )
-        .group_by(DagModel.dag_id)
-        .cte()
-    )
-
-    dags_with_latest_and_filtered_runs = (
-        select(DagModel)
-        .join(
-            dag_run_filters_cte,
-            dag_run_filters_cte.c.dag_id == DagModel.dag_id,
-        )
-        .join(
-            latest_dag_run_per_dag_id_cte,
-            DagModel.dag_id == latest_dag_run_per_dag_id_cte.c.dag_id,
+    if has_max_run_filter or (requested_order_by_set & dag_run_order_by_set):
+        query = query.join(
+            max_run_id_query,
+            DagModel.dag_id == max_run_id_query.c.dag_id,
             isouter=True,
-        )
-        .join(
-            DagRun,
-            DagRun.start_date == latest_dag_run_per_dag_id_cte.c.start_date
-            and DagRun.dag_id == latest_dag_run_per_dag_id_cte.c.dag_id,
-            isouter=True,
-        )
-        .order_by(DagModel.dag_id)
-    )
+        ).join(DagRun, DagRun.id == max_run_id_query.c.max_dag_run_id, isouter=True)
 
-    return dags_with_latest_and_filtered_runs
+    if has_max_run_filter:
+        query = apply_filters_to_select(
+            statement=query,
+            filters=max_run_filters,
+        )
+
+    return query

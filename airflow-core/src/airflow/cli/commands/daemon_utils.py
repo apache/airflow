@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import signal
 from argparse import Namespace
-from typing import Callable
+from collections.abc import Callable
 
 from daemon import daemon
 from daemon.pidfile import TimeoutPIDLockFile
@@ -45,7 +45,7 @@ def run_command_with_daemon_option(
     :param callback: the actual command to run with or without daemon context
     :param should_setup_logging: if true, then a log file handler for the daemon process will be created
     :param umask: file access creation mask ("umask") to set for the process on daemon start
-    :param pid_file: if specified, this file path us used to store daemon process PID.
+    :param pid_file: if specified, this file path is used to store daemon process PID.
         If not specified, a file path is generated with the default pattern.
     """
     if args.daemon:

@@ -17,9 +17,10 @@
  * under the License.
  */
 import { Box, Flex, Heading, HStack } from "@chakra-ui/react";
-import { FiClipboard, FiZap } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
+import { FiClipboard, FiZap, FiClock } from "react-icons/fi";
 
-import { useDashboardServiceDagStats } from "openapi/queries";
+import { useDashboardServiceDagStats, useHumanInTheLoopServiceGetHitlDetails } from "openapi/queries";
 import { useAutoRefresh } from "src/utils";
 
 import { DAGImportErrors } from "./DAGImportErrors";
@@ -31,26 +32,50 @@ export const Stats = () => {
   const { data: statsData, isLoading: isStatsLoading } = useDashboardServiceDagStats(undefined, {
     refetchInterval,
   });
+
+  const { data: hitlStatsData } = useHumanInTheLoopServiceGetHitlDetails(
+    {
+      responseReceived: false,
+    },
+    undefined,
+    {
+      refetchInterval,
+    },
+  );
+
   const failedDagsCount = statsData?.failed_dag_count ?? 0;
   const queuedDagsCount = statsData?.queued_dag_count ?? 0;
   const runningDagsCount = statsData?.running_dag_count ?? 0;
   const activeDagsCount = statsData?.active_dag_count ?? 0;
+  const hitlTIsCount = hitlStatsData?.hitl_details.length ?? 0;
+  const { t: translate } = useTranslation("dashboard");
 
   return (
     <Box>
       <Flex alignItems="center" color="fg.muted" my={2}>
         <FiClipboard />
         <Heading ml={1} size="xs">
-          Stats
+          {translate("stats.stats")}
         </Heading>
       </Flex>
 
       <HStack gap={4}>
+        {hitlTIsCount > 0 ? (
+          <StatsCard
+            colorScheme="failed"
+            count={hitlTIsCount}
+            icon={<FiClock />}
+            isLoading={isStatsLoading}
+            label={translate("stats.requiredActions")}
+            link="required_actions"
+          />
+        ) : undefined}
+
         <StatsCard
           colorScheme="failed"
           count={failedDagsCount}
           isLoading={isStatsLoading}
-          label="Failed dags"
+          label={translate("stats.failedDags")}
           link="dags?last_dag_run_state=failed"
           state="failed"
         />
@@ -64,7 +89,7 @@ export const Stats = () => {
             colorScheme="queued"
             count={queuedDagsCount}
             isLoading={isStatsLoading}
-            label="Queued dags"
+            label={translate("stats.queuedDags")}
             link="dags?last_dag_run_state=queued"
             state="queued"
           />
@@ -74,7 +99,7 @@ export const Stats = () => {
           colorScheme="running"
           count={runningDagsCount}
           isLoading={isStatsLoading}
-          label="Running dags"
+          label={translate("stats.runningDags")}
           link="dags?last_dag_run_state=running"
           state="running"
         />
@@ -84,7 +109,7 @@ export const Stats = () => {
           count={activeDagsCount}
           icon={<FiZap />}
           isLoading={isStatsLoading}
-          label="Active dags"
+          label={translate("stats.activeDags")}
           link="dags?paused=false"
         />
       </HStack>

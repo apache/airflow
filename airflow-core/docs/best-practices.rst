@@ -296,18 +296,12 @@ When you execute that code you will see:
 
 This means that the ``get_array`` is not executed as top-level code, but ``get_task_id`` is.
 
-.. _best_practices/dynamic_dag_generation:
-
 Code Quality and Linting
 ------------------------
 
 Maintaining high code quality is essential for the reliability and maintainability of your Airflow workflows. Utilizing linting tools can help identify potential issues and enforce coding standards. One such tool is ``ruff``, a fast Python linter that now includes specific rules for Airflow.
 
-ruff assists in detecting deprecated features and patterns that may affect your migration to Airflow 3.0. For instance, it includes rules prefixed with ``AIR`` to flag potential issues:
-
-- **AIR301**: Flags DAGs without an explicit ``schedule`` argument.
-- **AIR302**: Identifies usage of deprecated ``schedule_interval`` parameter.
-- **AIR303**: Detects imports from modules that have been relocated or removed in Airflow 3.0.
+ruff assists in detecting deprecated features and patterns that may affect your migration to Airflow 3.0. For instance, it includes rules prefixed with ``AIR`` to flag potential issues. The full list is detailed in `Airflow (AIR) <https://docs.astral.sh/ruff/rules/#airflow-air>`_.
 
 Installing and Using ruff
 -------------------------
@@ -316,13 +310,13 @@ Installing and Using ruff
 
    .. code-block:: bash
 
-      pip install "ruff>=0.9.5"
+      pip install "ruff>=0.11.6"
 
 2. **Running ruff**: Execute ``ruff`` to check your dags for potential issues:
 
    .. code-block:: bash
 
-      ruff check dags/ --select AIR301,AIR302,AIR303
+      ruff check dags/ --select AIR3 --preview
 
    This command will analyze your dags located in the ``dags/`` directory and report any issues related to the specified rules.
 
@@ -355,6 +349,7 @@ By integrating ``ruff`` into your development workflow, you can proactively addr
 
 For more information on ``ruff`` and its integration with Airflow, refer to the `official Airflow documentation <https://airflow.apache.org/docs/apache-airflow/stable/best-practices.html>`_.
 
+.. _best_practices/dynamic_dag_generation:
 
 Dynamic DAG Generation
 ----------------------
@@ -776,52 +771,28 @@ This is an example test want to verify the structure of a code-generated DAG aga
 
 .. code-block:: python
 
-    import datetime
-
     import pendulum
-    import pytest
 
     from airflow.sdk import DAG
-    from airflow.utils.state import DagRunState, TaskInstanceState
-    from airflow.utils.types import DagRunTriggeredByType, DagRunType
-
-    DATA_INTERVAL_START = pendulum.datetime(2021, 9, 13, tz="UTC")
-    DATA_INTERVAL_END = DATA_INTERVAL_START + datetime.timedelta(days=1)
-
-    TEST_DAG_ID = "my_custom_operator_dag"
-    TEST_TASK_ID = "my_custom_operator_task"
-    TEST_RUN_ID = "my_custom_operator_dag_run"
+    from airflow.utils.state import TaskInstanceState
 
 
-    @pytest.fixture()
-    def dag():
+    def test_my_custom_operator_execute_no_trigger(dag):
+        TEST_TASK_ID = "my_custom_operator_task"
         with DAG(
-            dag_id=TEST_DAG_ID,
+            dag_id="my_custom_operator_dag",
             schedule="@daily",
-            start_date=DATA_INTERVAL_START,
+            start_date=pendulum.datetime(2021, 9, 13, tz="UTC"),
         ) as dag:
             MyCustomOperator(
                 task_id=TEST_TASK_ID,
                 prefix="s3://bucket/some/prefix",
             )
-        return dag
 
-
-    def test_my_custom_operator_execute_no_trigger(dag):
-        dagrun = dag.create_dagrun(
-            run_id=TEST_RUN_ID,
-            logical_date=DATA_INTERVAL_START,
-            data_interval=(DATA_INTERVAL_START, DATA_INTERVAL_END),
-            run_type=DagRunType.MANUAL,
-            triggered_by=DagRunTriggeredByType.TIMETABLE,
-            state=DagRunState.RUNNING,
-            start_date=DATA_INTERVAL_END,
-        )
+        dagrun = dag.test()
         ti = dagrun.get_task_instance(task_id=TEST_TASK_ID)
-        ti.task = dag.get_task(task_id=TEST_TASK_ID)
-        ti.run(ignore_ti_state=True)
         assert ti.state == TaskInstanceState.SUCCESS
-        # Assert something related to tasks results.
+        # Assert something related to tasks results: ti.xcom_pull()
 
 
 Self-Checks
@@ -983,12 +954,12 @@ The benefits of the operator are:
   Airflow dependencies) to make use of multiple virtual environments
 * You can run tasks with different sets of dependencies on the same workers - thus Memory resources are
   reused (though see below about the CPU overhead involved in creating the venvs).
-* In bigger installations, DAG Authors do not need to ask anyone to create the venvs for you.
-  As a DAG Author, you only have to have virtualenv dependency installed and you can specify and modify the
+* In bigger installations, Dag authors do not need to ask anyone to create the venvs for you.
+  As a Dag author, you only have to have virtualenv dependency installed and you can specify and modify the
   environments as you see fit.
 * No changes in deployment requirements - whether you use Local virtualenv, or Docker, or Kubernetes,
   the tasks will work without adding anything to your deployment.
-* No need to learn more about containers, Kubernetes as a DAG Author. Only knowledge of Python requirements
+* No need to learn more about containers, Kubernetes as a Dag author. Only knowledge of Python requirements
   is required to author dags this way.
 
 There are certain limitations and overhead introduced by this operator:
@@ -1015,7 +986,7 @@ There are certain limitations and overhead introduced by this operator:
   same worker might be affected by previous tasks creating/modifying files etc.
 
 You can see detailed examples of using :class:`airflow.providers.standard.operators.python.PythonVirtualenvOperator` in
-:ref:`this section in the Taskflow API tutorial <taskflow-dynamically-created-virtualenv>`.
+:ref:`this section in the TaskFlow API tutorial <taskflow-dynamically-created-virtualenv>`.
 
 
 Using ExternalPythonOperator
@@ -1034,7 +1005,7 @@ and available in all the workers in case your Airflow runs in a distributed envi
 
 This way you avoid the overhead and problems of re-creating the virtual environment but they have to be
 prepared and deployed together with Airflow installation. Usually people who manage Airflow installation
-need to be involved, and in bigger installations those are usually different people than DAG Authors
+need to be involved, and in bigger installations those are usually different people than Dag authors
 (DevOps/System Admins).
 
 Those virtual environments can be prepared in various ways - if you use LocalExecutor they just need to be installed
@@ -1053,7 +1024,7 @@ The benefits of the operator are:
   be added dynamically. This is good for both, security and stability.
 * Limited impact on your deployment - you do not need to switch to Docker containers or Kubernetes to
   make a good use of the operator.
-* No need to learn more about containers, Kubernetes as a DAG Author. Only knowledge of Python, requirements
+* No need to learn more about containers, Kubernetes as a Dag author. Only knowledge of Python, requirements
   is required to author dags this way.
 
 The drawbacks:
@@ -1074,7 +1045,7 @@ The drawbacks:
   same worker might be affected by previous tasks creating/modifying files etc.
 
 You can think about the ``PythonVirtualenvOperator`` and ``ExternalPythonOperator`` as counterparts -
-that make it smoother to move from development phase to production phase. As a DAG author you'd normally
+that make it smoother to move from development phase to production phase. As a Dag author you'd normally
 iterate with dependencies and develop your DAG using ``PythonVirtualenvOperator`` (thus decorating
 your tasks with ``@task.virtualenv`` decorators) while after the iteration and changes you would likely
 want to change it for production to switch to the ``ExternalPythonOperator`` (and ``@task.external_python``)
@@ -1083,7 +1054,7 @@ The nice thing about this is that you can switch the decorator back at any time 
 developing it "dynamically" with ``PythonVirtualenvOperator``.
 
 You can see detailed examples of using :class:`airflow.providers.standard.operators.python.ExternalPythonOperator` in
-:ref:`Taskflow External Python example <taskflow-external-python-environment>`
+:ref:`TaskFlow External Python example <taskflow-external-python-environment>`
 
 Using DockerOperator or Kubernetes Pod Operator
 -----------------------------------------------
@@ -1147,9 +1118,9 @@ The drawbacks:
   containers etc. in order to author a DAG that uses those operators.
 
 You can see detailed examples of using :class:`airflow.operators.providers.Docker` in
-:ref:`Taskflow Docker example <taskflow-docker_environment>`
+:ref:`TaskFlow Docker example <taskflow-docker_environment>`
 and :class:`airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator`
-:ref:`Taskflow Kubernetes example <tasfklow-kpo>`
+:ref:`TaskFlow Kubernetes example <tasfklow-kpo>`
 
 Using multiple Docker Images and Celery Queues
 ----------------------------------------------

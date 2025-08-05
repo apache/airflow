@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from airflow_breeze.commands.main_command import main
+from airflow_breeze.commands.workflow_commands import workflow_run
 from airflow_breeze.utils.path_utils import (
     create_directories_and_files,
     find_airflow_root_path_to_operate_on,
@@ -49,6 +50,7 @@ main.add_command(prod_image)
 main.add_command(setup)
 main.add_command(release_management)
 main.add_command(sbom)
+main.add_command(workflow_run)
 
 if __name__ == "__main__":
     main()

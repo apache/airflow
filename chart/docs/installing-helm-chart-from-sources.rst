@@ -16,7 +16,7 @@
     under the License.
 
 Installing Helm Chart from sources
-----------------------------------
+==================================
 
 Released packages
 '''''''''''''''''
@@ -24,9 +24,8 @@ Released packages
 .. jinja:: official_download_page
 
     This page describes downloading and verifying ``Apache Airflow Official Helm Chart`` version
-    ``{{ package_version}}`` using officially released source packages. You can also install the chart
-    directly from the ``airflow.apache.org`` repo as described in
-    `Installing the chart <index#installing-the-chart>`_.
+    ``{{ package_version }}`` using officially released source packages. You can also install the chart
+    directly from the ``airflow.apache.org`` repo as described in :ref:`helm_chart_install`.
     You can choose different version of the chart by selecting different version from the drop-down at
     the top-left of the page.
 

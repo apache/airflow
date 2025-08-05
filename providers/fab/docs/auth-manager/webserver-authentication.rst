@@ -18,6 +18,15 @@
 FAB auth manager authentication
 ===============================
 
+.. note::
+
+   While this documentation refers to authentication using the ``apache-airflow-providers-fab`` package, please note:
+
+   - The **FAB auth provider** is actively maintained and compatible with the latest versions of Airflow.
+   - The legacy ``webserver_config.py`` file referenced in older docs is **no longer used** in recent versions of Airflow. Instead, authentication is handled via the new ``auth_manager`` framework configured in ``airflow.cfg``.
+
+   For more, see the :doc:`token`.
+
 By default, FAB auth manager requires users to specify a password prior to login. You can use the
 following CLI commands to create an account:
 
@@ -57,9 +66,10 @@ Other Methods
 '''''''''''''
 
 A ``webserver_config.py`` configuration file is automatically generated and can be used to configure FAB auth manager to support authentication
-methods like OAuth, OpenID, LDAP, REMOTE_USER. It should be noted that due to the limitation of Flask AppBuilder
-and Authlib, only a selection of OAuth2 providers is supported. This list includes ``github``, ``githublocal``, ``twitter``,
-``linkedin``, ``google``, ``azure``, ``openshift``, ``okta``, ``keycloak`` and ``keycloak_before_17``.
+methods like OAuth, OpenID, LDAP and REMOTE_USER. It should be noted that due to the limitation of Flask AppBuilder
+and Authlib, some OAuth2 providers may not be supported. Currently supported providers include ``github``, ``githublocal``, ``twitter``,
+``linkedin``, ``google``, ``azure``, ``openshift``, ``okta``, ``auth0``, ``keycloak``, ``keycloak_before_17`` and ``authentik``.
+If your provider is not on the list, you may need to adjust the ``remote_app`` configuration to match your provider's OAuth2 specification.
 
 By default, the following entry in the ``$AIRFLOW_HOME/webserver_config.py`` is used.
 
@@ -212,7 +222,7 @@ webserver_config.py itself if you wish.
         # If you ever want to support other providers, see how it is done here:
         # https://github.com/dpgaspar/Flask-AppBuilder/blob/master/flask_appbuilder/security/manager.py#L550
         def get_oauth_user_info(self, provider: str, resp: Any) -> dict[str, Union[str, list[str]]]:
-            # Creates the user info payload from Github.
+            # Creates the user info payload from GitHub.
             # The user previously allowed your app to act on their behalf,
             #   so now we can query the user and teams endpoints for their data.
             # Username and team membership are added to the payload and returned to FAB.
@@ -223,7 +233,7 @@ webserver_config.py itself if you wish.
             team_data = remote_app.get("user/teams")
             teams = team_parser(team_data.json())
             roles = map_roles(teams)
-            log.debug(f"User info from Github: {user_data}\nTeam info from Github: {teams}")
+            log.debug(f"User info from GitHub: {user_data}\nTeam info from GitHub: {teams}")
             return {"username": "github_" + user_data.get("login"), "role_keys": roles}
 
 Example using team based Authorization with KeyCloak
@@ -232,15 +242,15 @@ Here is an example of what you might have in your webserver_config.py:
 
 .. code-block:: python
 
-  import os
-  import jwt
-  import requests
   import logging
   from base64 import b64decode
+
+  import jwt
+  import requests
   from cryptography.hazmat.primitives import serialization
-  from flask_appbuilder.security.manager import AUTH_DB, AUTH_OAUTH
-  from airflow import configuration as conf
-  from airflow.www.security import AirflowSecurityManager
+  from flask_appbuilder.security.manager import AUTH_OAUTH
+
+  from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 
   log = logging.getLogger(__name__)
 
@@ -284,11 +294,11 @@ Here is an example of what you might have in your webserver_config.py:
   public_key = serialization.load_der_public_key(key_der)
 
 
-  class CustomSecurityManager(AirflowSecurityManager):
+  class CustomSecurityManager(FabAirflowSecurityManagerOverride):
       def get_oauth_user_info(self, provider, response):
           if provider == "keycloak":
               token = response["access_token"]
-              me = jwt.decode(token, public_key, algorithms=["HS256", "RS256"])
+              me = jwt.decode(token, public_key, algorithms=["HS256", "RS256"], audience="account")
 
               # Extract roles from resource access
               realm_access = me.get("realm_access", {})

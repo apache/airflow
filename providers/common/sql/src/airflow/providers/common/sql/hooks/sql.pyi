@@ -32,15 +32,14 @@ Definition of the public interface for airflow.providers.common.sql.src.airflow.
 isort:skip_file
 """
 
-from collections.abc import Generator, Iterable, Mapping, MutableMapping, Sequence
+from collections.abc import Callable, Generator, Iterable, Mapping, MutableMapping, Sequence
 from functools import cached_property as cached_property
-from typing import Any, Callable, Protocol, TypeVar, overload
+from typing import Any, Literal, Protocol, TypeVar, overload
 
 from _typeshed import Incomplete as Incomplete
 from pandas import DataFrame as PandasDataFrame
 from polars import DataFrame as PolarsDataFrame
 from sqlalchemy.engine import URL as URL, Engine as Engine, Inspector as Inspector
-from typing_extensions import Literal
 
 from airflow.hooks.base import BaseHook as BaseHook
 from airflow.models import Connection as Connection
@@ -111,6 +110,12 @@ class DbApiHook(BaseHook):
     def get_pandas_df_by_chunks(
         self, sql, parameters: list | tuple | Mapping[str, Any] | None = None, *, chunksize: int, **kwargs
     ) -> Generator[PandasDataFrame, None, None]: ...
+    def get_records(
+        self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None
+    ) -> Any: ...
+    def get_first(
+        self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None
+    ) -> Any: ...
     @overload
     def get_df(
         self,
@@ -126,21 +131,13 @@ class DbApiHook(BaseHook):
         sql: str | list[str],
         parameters: list | tuple | Mapping[str, Any] | None = None,
         *,
-        df_type: Literal["polars"] = "polars",
+        df_type: Literal["polars"],
         **kwargs: Any,
     ) -> PolarsDataFrame: ...
     @overload
-    def get_df(  # fallback overload
-        self,
-        sql: str | list[str],
-        parameters: list | tuple | Mapping[str, Any] | None = None,
-        *,
-        df_type: Literal["pandas", "polars"] = "pandas",
-    ) -> PandasDataFrame | PolarsDataFrame: ...
-    @overload
     def get_df_by_chunks(
         self,
-        sql,
+        sql: str | list[str],
         parameters: list | tuple | Mapping[str, Any] | None = None,
         *,
         chunksize: int,
@@ -150,54 +147,19 @@ class DbApiHook(BaseHook):
     @overload
     def get_df_by_chunks(
         self,
-        sql,
+        sql: str | list[str],
         parameters: list | tuple | Mapping[str, Any] | None = None,
         *,
         chunksize: int,
         df_type: Literal["polars"],
         **kwargs,
     ) -> Generator[PolarsDataFrame, None, None]: ...
-    @overload
-    def get_df_by_chunks(  # fallback overload
-        self,
-        sql,
-        parameters: list | tuple | Mapping[str, Any] | None = None,
-        *,
-        chunksize: int,
-        df_type: Literal["pandas", "polars"] = "pandas",
-    ) -> Generator[PandasDataFrame | PolarsDataFrame, None, None]: ...
-    def get_records(
-        self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None
-    ) -> Any: ...
-    def get_first(
-        self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None
-    ) -> Any: ...
     @staticmethod
     def strip_sql_string(sql: str) -> str: ...
     @staticmethod
     def split_sql_string(sql: str, strip_semicolon: bool = False) -> list[str]: ...
     @property
     def last_description(self) -> Sequence[Sequence] | None: ...
-    @overload
-    def run(
-        self,
-        sql: str | Iterable[str],
-        autocommit: bool = ...,
-        parameters: Iterable | Mapping[str, Any] | None = ...,
-        handler: None = ...,
-        split_statements: bool = ...,
-        return_last: bool = ...,
-    ) -> None: ...
-    @overload
-    def run(
-        self,
-        sql: str | Iterable[str],
-        autocommit: bool = ...,
-        parameters: Iterable | Mapping[str, Any] | None = ...,
-        handler: Callable[[Any], T] = ...,
-        split_statements: bool = ...,
-        return_last: bool = ...,
-    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None: ...
     def set_autocommit(self, conn, autocommit) -> None: ...
     def get_autocommit(self, conn) -> bool: ...
     def get_cursor(self) -> Any: ...
@@ -223,3 +185,23 @@ class DbApiHook(BaseHook):
     @staticmethod
     def get_openlineage_authority_part(connection, default_port: int | None = None) -> str: ...
     def get_db_log_messages(self, conn) -> None: ...
+    @overload
+    def run(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = ...,
+        parameters: Iterable | Mapping[str, Any] | None = ...,
+        handler: None = ...,
+        split_statements: bool = ...,
+        return_last: bool = ...,
+    ) -> None: ...
+    @overload
+    def run(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = ...,
+        parameters: Iterable | Mapping[str, Any] | None = ...,
+        handler: Callable[[Any], T] = ...,
+        split_statements: bool = ...,
+        return_last: bool = ...,
+    ) -> tuple | list | list[tuple] | list[list[tuple] | tuple] | None: ...

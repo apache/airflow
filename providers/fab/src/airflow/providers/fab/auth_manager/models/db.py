@@ -53,6 +53,7 @@ class FABDBManager(BaseDBManager):
     migration_dir = (PACKAGE_DIR / "migrations").as_posix()
     alembic_file = (PACKAGE_DIR / "alembic.ini").as_posix()
     supports_table_dropping = True
+    revision_heads_map = _REVISION_HEADS_MAP
 
     def create_db_from_orm(self):
         super().create_db_from_orm()

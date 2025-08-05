@@ -185,42 +185,6 @@ class AutoMLHook(GoogleBaseHook, OperationHelper):
             model_encryption_spec_key_name=model_encryption_spec_key_name,
         )
 
-    @deprecated(
-        planned_removal_date="June 15, 2025",
-        category=AirflowProviderDeprecationWarning,
-        reason="Deprecation of AutoMLText API",
-    )
-    def get_auto_ml_text_training_job(
-        self,
-        display_name: str,
-        prediction_type: str,
-        multi_label: bool = False,
-        sentiment_max: int = 10,
-        project: str | None = None,
-        location: str | None = None,
-        labels: dict[str, str] | None = None,
-        training_encryption_spec_key_name: str | None = None,
-        model_encryption_spec_key_name: str | None = None,
-    ) -> AutoMLTextTrainingJob:
-        """
-        Return AutoMLTextTrainingJob object.
-
-        WARNING: Text creation API is deprecated since September 15, 2024
-        (https://cloud.google.com/vertex-ai/docs/tutorials/text-classification-automl/overview).
-        """
-        return AutoMLTextTrainingJob(
-            display_name=display_name,
-            prediction_type=prediction_type,
-            multi_label=multi_label,
-            sentiment_max=sentiment_max,
-            project=project,
-            location=location,
-            credentials=self.get_credentials(),
-            labels=labels,
-            training_encryption_spec_key_name=training_encryption_spec_key_name,
-            model_encryption_spec_key_name=model_encryption_spec_key_name,
-        )
-
     def get_auto_ml_video_training_job(
         self,
         display_name: str,
@@ -1134,13 +1098,13 @@ class AutoMLHook(GoogleBaseHook, OperationHelper):
             raise AirflowException("AutoMLTextTrainingJob was not created")
 
         model = self._job.run(
-            dataset=dataset,  # type: ignore[arg-type]
-            training_fraction_split=training_fraction_split,  # type: ignore[call-arg]
-            validation_fraction_split=validation_fraction_split,  # type: ignore[call-arg]
+            dataset=dataset,
+            training_fraction_split=training_fraction_split,
+            validation_fraction_split=validation_fraction_split,
             test_fraction_split=test_fraction_split,
             training_filter_split=training_filter_split,
             validation_filter_split=validation_filter_split,
-            test_filter_split=test_filter_split,  # type: ignore[call-arg]
+            test_filter_split=test_filter_split,
             model_display_name=model_display_name,
             model_labels=model_labels,
             sync=sync,

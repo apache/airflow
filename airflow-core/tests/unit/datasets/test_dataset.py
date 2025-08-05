@@ -22,19 +22,21 @@ import pytest
 
 
 @pytest.mark.parametrize(
-    "module_path, attr_name, warning_message",
+    "module_path, attr_name, expected_value, warning_message",
     (
         (
             "airflow",
             "Dataset",
+            "airflow.sdk.definitions.asset.Asset",
             (
                 "Import 'Dataset' directly from the airflow module is deprecated and will be removed in the future. "
-                "Please import it from 'airflow.sdk.definitions.asset.Dataset'."
+                "Please import it from 'airflow.sdk.definitions.asset.Asset'."
             ),
         ),
         (
             "airflow.datasets",
             "Dataset",
+            "airflow.sdk.definitions.asset.Asset",
             (
                 "Import 'airflow.dataset.Dataset' is deprecated and "
                 "will be removed in the Airflow 3.2. Please import it from 'airflow.sdk.definitions.asset.Asset'."
@@ -43,6 +45,7 @@ import pytest
         (
             "airflow.datasets",
             "DatasetAlias",
+            "airflow.sdk.definitions.asset.AssetAlias",
             (
                 "Import 'airflow.dataset.DatasetAlias' is deprecated and "
                 "will be removed in the Airflow 3.2. Please import it from 'airflow.sdk.definitions.asset.AssetAlias'."
@@ -51,6 +54,7 @@ import pytest
         (
             "airflow.datasets",
             "expand_alias_to_datasets",
+            "airflow.models.asset.expand_alias_to_assets",
             (
                 "Import 'airflow.dataset.expand_alias_to_datasets' is deprecated and "
                 "will be removed in the Airflow 3.2. Please import it from 'airflow.models.asset.expand_alias_to_assets'."
@@ -59,6 +63,7 @@ import pytest
         (
             "airflow.datasets.metadata",
             "Metadata",
+            "airflow.sdk.definitions.asset.metadata.Metadata",
             (
                 "Import from the airflow.dataset module is deprecated and "
                 "will be removed in the Airflow 3.2. Please import it from "
@@ -67,12 +72,15 @@ import pytest
         ),
     ),
 )
-def test_backward_compat_import_before_airflow_3_2(module_path, attr_name, warning_message):
+def test_backward_compat_import_before_airflow_3_2(module_path, attr_name, expected_value, warning_message):
+    import importlib
+
     with pytest.warns() as record:
-        import importlib
-
         mod = importlib.import_module(module_path, __name__)
-        getattr(mod, attr_name)
-
+        attr = getattr(mod, attr_name)
+    assert f"{attr.__module__}.{attr.__name__}" == expected_value
     assert record[0].category is DeprecationWarning
     assert str(record[0].message) == warning_message
+
+
+# ruff: noqa: PT031

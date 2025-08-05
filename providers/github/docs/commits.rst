@@ -30,6 +30,6 @@ Package apache-airflow-providers-github
 
 
 This is detailed commit list of changes for versions provider package: ``github``.
-For high-level changelog, see :doc:`changelog <changelog>`.
+For high-level changelog, see :doc:`package information including changelog <index>`.
 
 .. airflow-providers-commits::

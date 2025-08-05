@@ -28,10 +28,18 @@ description: |
 # For providers until we think it should be released.
 state: ready
 
-source-date-epoch: 1745478857
+source-date-epoch: 1753690707
 
-# note that those versions are maintained by release manager - do not update them manually
+# Note that those versions are maintained by release manager - do not update them manually
+# with the exception of case where other provider in sources has >= new provider version.
+# In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
+# to be done in the same PR
 versions:
+  - 2.3.1
+  - 2.3.0
+  - 2.2.1
+  - 2.2.0
+  - 2.1.0
   - 2.0.2
   - 2.0.1
   - 2.0.0
@@ -52,10 +60,55 @@ versions:
   - 1.0.1
   - 1.0.0
 
+excluded-python-versions:
+  - "3.13"
+
 config:
   fab:
     description: This section contains configs specific to FAB provider.
     options:
+      navbar_color:
+        description: |
+          Define the color of navigation bar
+        version_added: 2.2.0
+        type: string
+        example: ~
+        default: "#fff"
+      navbar_text_color:
+        description: |
+          Define the color of text in the navigation bar
+        version_added: 2.2.0
+        type: string
+        example: ~
+        default: "#51504f"
+      navbar_hover_color:
+        description: |
+          Define the color of navigation bar links when hovered
+        version_added: 2.2.0
+        type: string
+        example: ~
+        default: "#eee"
+      navbar_text_hover_color:
+        description: |
+          Define the color of text in the navigation bar when hovered
+        version_added: 2.2.0
+        type: string
+        example: ~
+        default: "#51504f"
+      access_denied_message:
+        description: |
+          The message displayed when a user attempts to execute actions beyond their authorised privileges.
+        version_added: 2.1.0
+        type: string
+        example: ~
+        default: "Access is Denied"
+      expose_hostname:
+        description: |
+          Expose hostname in the web server
+        version_added: 2.1.0
+        type: string
+        example: ~
+        default: "False"
       auth_rate_limited:
         description: |
           Boolean for enabling rate limiting on authentication endpoints.

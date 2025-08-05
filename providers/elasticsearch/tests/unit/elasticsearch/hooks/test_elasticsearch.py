@@ -177,6 +177,10 @@ class TestElasticsearchSQLHook:
         self.spy_agency.assert_spy_called(self.cur.close)
         self.spy_agency.assert_spy_called(self.cur.execute)
 
+    def test_get_df_polars(self):
+        with pytest.raises(NotImplementedError):
+            self.db_hook.get_df("SQL", df_type="polars")
+
     def test_run(self):
         statement = "SELECT * FROM hollywood.actors"
 

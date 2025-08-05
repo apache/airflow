@@ -23,8 +23,9 @@
 
 Package ``apache-airflow-providers-apache-tinkerpop``
 
-Release: ``1.0.0``
+Release: ``1.0.2``
 
+Release Date: ``|PypiReleaseDate|``
 
 `Apache TinkerPop <https://tinkerpop.apache.org/>`__.
 Apache TinkerPop is a graph computing framework for both graph databases (OLTP) and graph analytic
@@ -38,7 +39,7 @@ This is a provider package for ``apache.tinkerpop`` provider. All classes for th
 are in ``airflow.providers.apache.tinkerpop`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-tinkerpop/1.0.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-tinkerpop/1.0.2/>`_.
 
 Installation
 ------------
@@ -47,7 +48,7 @@ You can install this package on top of an existing Airflow 2 installation (see `
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-apache-tinkerpop``
 
-The package supports the following python versions: 3.9,3.10,3.11,3.12
+The package supports the following python versions: 3.10,3.11,3.12,3.13
 
 Requirements
 ------------
@@ -60,4 +61,4 @@ PIP package         Version required
 ==================  ==================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-tinkerpop/1.0.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-tinkerpop/1.0.2/changelog.html>`_.

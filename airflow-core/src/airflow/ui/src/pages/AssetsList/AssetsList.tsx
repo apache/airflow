@@ -19,7 +19,9 @@
 import { Box, Heading, Link, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useSearchParams, Link as RouterLink } from "react-router-dom";
+import { useSessionStorage } from "usehooks-ts";
 
 import { useAssetServiceGetAssets } from "openapi/queries";
 import type { AssetResponse } from "openapi/requests/types.gen";
@@ -27,15 +29,15 @@ import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
+import Time from "src/components/Time";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { CreateAssetEvent } from "src/pages/Asset/CreateAssetEvent";
-import { pluralize } from "src/utils";
 
 import { DependencyPopover } from "./DependencyPopover";
 
 type AssetRow = { row: { original: AssetResponse } };
 
-const columns: Array<ColumnDef<AssetResponse>> = [
+const createColumns = (translate: (key: string) => string): Array<ColumnDef<AssetResponse>> => [
   {
     accessorKey: "name",
     cell: ({ row: { original } }: AssetRow) => (
@@ -43,21 +45,36 @@ const columns: Array<ColumnDef<AssetResponse>> = [
         <RouterLink to={`/assets/${original.id}`}>{original.name}</RouterLink>
       </Link>
     ),
-    header: () => "Name",
+    header: () => translate("name"),
+  },
+  {
+    accessorKey: "last_asset_event",
+    cell: ({ row: { original } }: AssetRow) => {
+      const assetEvent = original.last_asset_event;
+      const timestamp = assetEvent?.timestamp;
+
+      if (timestamp === null || timestamp === undefined) {
+        return undefined;
+      }
+
+      return <Time datetime={timestamp} />;
+    },
+    enableSorting: false,
+    header: () => translate("lastAssetEvent"),
   },
   {
     accessorKey: "group",
     enableSorting: false,
-    header: () => "Group",
+    header: () => translate("group"),
   },
   {
-    accessorKey: "consuming_dags",
+    accessorKey: "scheduled_dags",
     cell: ({ row: { original } }: AssetRow) =>
-      original.consuming_dags.length ? (
-        <DependencyPopover dependencies={original.consuming_dags} type="Dag" />
+      original.scheduled_dags.length ? (
+        <DependencyPopover dependencies={original.scheduled_dags} type="Dag" />
       ) : undefined,
     enableSorting: false,
-    header: () => "Consuming Dags",
+    header: () => translate("scheduledDags"),
   },
   {
     accessorKey: "producing_tasks",
@@ -66,7 +83,7 @@ const columns: Array<ColumnDef<AssetResponse>> = [
         <DependencyPopover dependencies={original.producing_tasks} type="Task" />
       ) : undefined,
     enableSorting: false,
-    header: () => "Producing Tasks",
+    header: () => translate("producingTasks"),
   },
   {
     accessorKey: "trigger",
@@ -79,14 +96,16 @@ const columns: Array<ColumnDef<AssetResponse>> = [
 const NAME_PATTERN_PARAM = SearchParamsKeys.NAME_PATTERN;
 
 export const AssetsList = () => {
+  const { t: translate } = useTranslation(["assets", "common"]);
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [namePattern, setNamePattern] = useState(searchParams.get(NAME_PATTERN_PARAM) ?? undefined);
+  const [savedSearchPattern, setSavedSearchPattern] = useSessionStorage("assets_search_temp", "");
+  const [namePattern, setNamePattern] = useState(searchParams.get(NAME_PATTERN_PARAM) ?? savedSearchPattern);
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
+  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : undefined;
 
   const { data, error, isLoading } = useAssetServiceGetAssets({
     limit: pagination.pageSize,
@@ -96,6 +115,7 @@ export const AssetsList = () => {
   });
 
   const handleSearchChange = (value: string) => {
+    setSavedSearchPattern(value);
     if (value) {
       searchParams.set(NAME_PATTERN_PARAM, value);
     } else {
@@ -114,23 +134,23 @@ export const AssetsList = () => {
       <VStack alignItems="none">
         <SearchBar
           buttonProps={{ disabled: true }}
-          defaultValue={namePattern ?? ""}
+          defaultValue={namePattern}
           onChange={handleSearchChange}
-          placeHolder="Search Assets"
+          placeHolder={translate("searchPlaceholder")}
         />
 
         <Heading py={3} size="md">
-          {pluralize("Asset", data?.total_entries)}
+          {data?.total_entries} {translate("common:asset", { count: data?.total_entries })}
         </Heading>
       </VStack>
       <Box overflow="auto">
         <DataTable
-          columns={columns}
+          columns={createColumns(translate)}
           data={data?.assets ?? []}
           errorMessage={<ErrorAlert error={error} />}
           initialState={tableURLState}
           isLoading={isLoading}
-          modelName="Asset"
+          modelName={translate("common:asset_one")}
           onStateChange={setTableURLState}
           total={data?.total_entries}
         />

@@ -22,9 +22,15 @@ description: |
     `Tableau <https://www.tableau.com/>`__
 
 state: ready
-source-date-epoch: 1743477901
-# note that those versions are maintained by release manager - do not update them manually
+source-date-epoch: 1753692036
+# Note that those versions are maintained by release manager - do not update them manually
+# with the exception of case where other provider in sources has >= new provider version.
+# In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
+# to be done in the same PR
 versions:
+  - 5.2.0
+  - 5.1.1
+  - 5.1.0
   - 5.0.2
   - 5.0.1
   - 5.0.0

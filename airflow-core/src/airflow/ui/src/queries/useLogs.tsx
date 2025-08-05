@@ -16,9 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { chakra } from "@chakra-ui/react";
+import { chakra, Box } from "@chakra-ui/react";
 import type { UseQueryOptions } from "@tanstack/react-query";
 import dayjs from "dayjs";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import innerText from "react-innertext";
 
 import { useTaskInstanceServiceGetLog } from "openapi/queries";
@@ -28,8 +30,12 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
 type Props = {
+  accept?: "*/*" | "application/json" | "application/x-ndjson";
   dagId: string;
+  expanded?: boolean;
   logLevelFilters?: Array<string>;
+  showSource?: boolean;
+  showTimestamp?: boolean;
   sourceFilters?: Array<string>;
   taskInstance?: TaskInstanceResponse;
   tryNumber?: number;
@@ -37,22 +43,32 @@ type Props = {
 
 type ParseLogsProps = {
   data: TaskInstancesLogResponse["content"];
+  expanded?: boolean;
   logLevelFilters?: Array<string>;
+  showSource?: boolean;
+  showTimestamp?: boolean;
   sourceFilters?: Array<string>;
   taskInstance?: TaskInstanceResponse;
+  translate: TFunction;
   tryNumber: number;
 };
 
-const parseLogs = ({ data, logLevelFilters, sourceFilters, taskInstance, tryNumber }: ParseLogsProps) => {
+const parseLogs = ({
+  data,
+  expanded,
+  logLevelFilters,
+  showSource,
+  showTimestamp,
+  sourceFilters,
+  taskInstance,
+  translate,
+  tryNumber,
+}: ParseLogsProps) => {
   let warning;
   let parsedLines;
-  let startGroup = false;
-  let groupLines: Array<JSX.Element | ""> = [];
-  let groupName = "";
   const sources: Array<string> = [];
 
-  // open the summary when hash is present since the link might have a hash linking to a line
-  const open = Boolean(location.hash);
+  const open = expanded ?? Boolean(globalThis.location.hash);
   const logLink = taskInstance ? `${getTaskInstanceLink(taskInstance)}?try_number=${tryNumber}` : "";
 
   try {
@@ -65,7 +81,16 @@ const parseLogs = ({ data, logLevelFilters, sourceFilters, taskInstance, tryNumb
         }
       }
 
-      return renderStructuredLog({ index, logLevelFilters, logLink, logMessage: datum, sourceFilters });
+      return renderStructuredLog({
+        index,
+        logLevelFilters,
+        logLink,
+        logMessage: datum,
+        showSource,
+        showTimestamp,
+        sourceFilters,
+        translate,
+      });
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "An error occurred.";
@@ -77,40 +102,72 @@ const parseLogs = ({ data, logLevelFilters, sourceFilters, taskInstance, tryNumb
     return { data, warning };
   }
 
-  // TODO: Add support for nested groups
+  parsedLines = (() => {
+    type Group = { level: number; lines: Array<JSX.Element | "">; name: string };
+    const groupStack: Array<Group> = [];
+    const result: Array<JSX.Element | ""> = [];
 
-  parsedLines = parsedLines.map((line) => {
-    const text = innerText(line);
+    parsedLines.forEach((line) => {
+      const text = innerText(line);
 
-    if (text.includes("::group::") && !startGroup) {
-      startGroup = true;
-      groupName = text.split("::group::")[1] as string;
-    } else if (text.includes("::endgroup::")) {
-      startGroup = false;
-      const group = (
-        <details key={groupName} open={open} style={{ width: "100%" }}>
-          <summary data-testid={`summary-${groupName}`}>
-            <chakra.span color="fg.info" cursor="pointer">
-              {groupName}
-            </chakra.span>
-          </summary>
-          {groupLines}
-        </details>
-      );
+      if (text.includes("::group::")) {
+        const groupName = text.split("::group::")[1] as string;
 
-      groupLines = [];
+        groupStack.push({ level: groupStack.length, lines: [], name: groupName });
 
-      return group;
+        return;
+      }
+
+      if (text.includes("::endgroup::")) {
+        const finishedGroup = groupStack.pop();
+
+        if (finishedGroup) {
+          const groupElement = (
+            <Box key={finishedGroup.name} mb={2} pl={finishedGroup.level * 2}>
+              <chakra.details open={open} w="100%">
+                <chakra.summary data-testid={`summary-${finishedGroup.name}`}>
+                  <chakra.span color="fg.info" cursor="pointer">
+                    {finishedGroup.name}
+                  </chakra.span>
+                </chakra.summary>
+                {finishedGroup.lines}
+              </chakra.details>
+            </Box>
+          );
+
+          const lastGroup = groupStack[groupStack.length - 1];
+
+          if (groupStack.length > 0 && lastGroup) {
+            lastGroup.lines.push(groupElement);
+          } else {
+            result.push(groupElement);
+          }
+        }
+
+        return;
+      }
+
+      if (groupStack.length > 0 && groupStack[groupStack.length - 1]) {
+        groupStack[groupStack.length - 1]?.lines.push(line);
+      } else {
+        result.push(line);
+      }
+    });
+
+    while (groupStack.length > 0) {
+      const unfinished = groupStack.pop();
+
+      if (unfinished) {
+        result.push(
+          <Box key={unfinished.name} mb={2} pl={unfinished.level * 2}>
+            {unfinished.lines}
+          </Box>,
+        );
+      }
     }
 
-    if (startGroup) {
-      groupLines.push(line);
-
-      return undefined;
-    } else {
-      return line;
-    }
-  });
+    return result;
+  })();
 
   return {
     parsedLogs: parsedLines,
@@ -120,13 +177,25 @@ const parseLogs = ({ data, logLevelFilters, sourceFilters, taskInstance, tryNumb
 };
 
 export const useLogs = (
-  { dagId, logLevelFilters, sourceFilters, taskInstance, tryNumber = 1 }: Props,
+  {
+    accept = "application/json",
+    dagId,
+    expanded,
+    logLevelFilters,
+    showSource,
+    showTimestamp,
+    sourceFilters,
+    taskInstance,
+    tryNumber = 1,
+  }: Props,
   options?: Omit<UseQueryOptions<TaskInstancesLogResponse>, "queryFn" | "queryKey">,
 ) => {
+  const { t: translate } = useTranslation("common");
   const refetchInterval = useAutoRefresh({ dagId });
 
   const { data, ...rest } = useTaskInstanceServiceGetLog(
     {
+      accept,
       dagId,
       dagRunId: taskInstance?.dag_run_id ?? "",
       mapIndex: taskInstance?.map_index ?? -1,
@@ -147,9 +216,13 @@ export const useLogs = (
 
   const parsedData = parseLogs({
     data: data?.content ?? [],
+    expanded,
     logLevelFilters,
+    showSource,
+    showTimestamp,
     sourceFilters,
     taskInstance,
+    translate,
     tryNumber,
   });
 

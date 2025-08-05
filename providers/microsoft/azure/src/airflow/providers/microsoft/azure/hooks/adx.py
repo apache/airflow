@@ -28,17 +28,17 @@ from __future__ import annotations
 
 import warnings
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from azure.kusto.data import ClientRequestProperties, KustoClient, KustoConnectionStringBuilder
 from azure.kusto.data.exceptions import KustoServiceError
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
     get_sync_default_azure_credential,
 )
+from airflow.providers.microsoft.azure.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from azure.kusto.data.response import KustoResponseDataSet
@@ -170,7 +170,7 @@ class AzureDataExplorerHook(BaseHook):
         if auth_method == "AAD_APP":
             tenant = get_required_param("tenant")
             kcsb = KustoConnectionStringBuilder.with_aad_application_key_authentication(
-                cluster, conn.login, conn.password, tenant
+                cluster, cast("str", conn.login), cast("str", conn.password), tenant
             )
         elif auth_method == "AAD_APP_CERT":
             certificate = get_required_param("certificate")
@@ -178,7 +178,7 @@ class AzureDataExplorerHook(BaseHook):
             tenant = get_required_param("tenant")
             kcsb = KustoConnectionStringBuilder.with_aad_application_certificate_authentication(
                 cluster,
-                conn.login,
+                cast("str", conn.login),
                 certificate,
                 thumbprint,
                 tenant,
@@ -186,7 +186,7 @@ class AzureDataExplorerHook(BaseHook):
         elif auth_method == "AAD_CREDS":
             tenant = get_required_param("tenant")
             kcsb = KustoConnectionStringBuilder.with_aad_user_password_authentication(
-                cluster, conn.login, conn.password, tenant
+                cluster, cast("str", conn.login), cast("str", conn.password), tenant
             )
         elif auth_method == "AAD_DEVICE":
             kcsb = KustoConnectionStringBuilder.with_aad_device_authentication(cluster)

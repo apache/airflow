@@ -27,7 +27,11 @@ from airflow.providers.amazon.aws.operators.cloud_formation import (
     CloudFormationCreateStackOperator,
     CloudFormationDeleteStackOperator,
 )
-from airflow.utils import timezone
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -102,6 +106,23 @@ class TestCloudFormationCreateStackOperator:
         )
 
         validate_template_fields(op)
+
+    def test_overwritten_conn_passed_to_hook(self):
+        OVERWRITTEN_CONN = "new-conn-id"
+        op = CloudFormationCreateStackOperator(
+            task_id="cf_create_stack_pass_conn",
+            stack_name="fake-stack",
+            cloudformation_parameters={},
+            aws_conn_id=OVERWRITTEN_CONN,
+        )
+        assert op.hook.aws_conn_id == OVERWRITTEN_CONN
+
+    def test_default_conn_passed_to_hook(self):
+        DEFAULT_CONN = "aws_default"
+        op = CloudFormationCreateStackOperator(
+            task_id="cf_create_stack_pass_default_conn", stack_name="fake-stack", cloudformation_parameters={}
+        )
+        assert op.hook.aws_conn_id == DEFAULT_CONN
 
 
 class TestCloudFormationDeleteStackOperator:

@@ -20,15 +20,16 @@ from __future__ import annotations
 from operator import attrgetter
 from typing import cast
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, status
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
+from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
+from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.tasks import TaskCollectionResponse, TaskResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.exceptions import TaskNotFound
-from airflow.models import DAG
 
 tasks_router = AirflowRouter(tags=["Task"], prefix="/dags/{dag_id}/tasks")
 
@@ -45,13 +46,12 @@ tasks_router = AirflowRouter(tags=["Task"], prefix="/dags/{dag_id}/tasks")
 )
 def get_tasks(
     dag_id: str,
-    request: Request,
+    dag_bag: DagBagDep,
+    session: SessionDep,
     order_by: str = "task_id",
 ) -> TaskCollectionResponse:
     """Get tasks for DAG."""
-    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
-    if not dag:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
     try:
         tasks = sorted(dag.tasks, key=attrgetter(order_by.lstrip("-")), reverse=(order_by[0:1] == "-"))
     except AttributeError as err:
@@ -72,11 +72,9 @@ def get_tasks(
     ),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK))],
 )
-def get_task(dag_id: str, task_id, request: Request) -> TaskResponse:
+def get_task(dag_id: str, task_id, session: SessionDep, dag_bag: DagBagDep) -> TaskResponse:
     """Get simplified representation of a task."""
-    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
-    if not dag:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
     try:
         task = dag.get_task(task_id=task_id)
     except TaskNotFound:

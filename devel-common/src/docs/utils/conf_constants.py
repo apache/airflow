@@ -45,6 +45,11 @@ AIRFLOW_CORE_DOCKER_COMPOSE_PATH = AIRFLOW_CORE_DOCS_PATH / "howto" / "docker-co
 AIRFLOW_CORE_SRC_PATH = AIRFLOW_CORE_ROOT_PATH / "src"
 AIRFLOW_FAVICON_PATH = AIRFLOW_CORE_SRC_PATH / "airflow" / "ui" / "public" / "pin_32.png"
 
+AIRFLOW_CTL_ROOT_PATH = AIRFLOW_REPO_ROOT_PATH / "airflow-ctl"
+AIRFLOW_CTL_DOCS_PATH = AIRFLOW_CTL_ROOT_PATH / "docs"
+AIRFLOW_CTL_DOC_STATIC_PATH = AIRFLOW_CTL_DOCS_PATH / "static"
+AIRFLOW_CTL_SRC_PATH = AIRFLOW_CTL_ROOT_PATH / "src"
+
 CHART_PATH = AIRFLOW_CORE_ROOT_PATH / "chart"
 CHART_DOC_PATH = AIRFLOW_CORE_DOCS_PATH / "docs"
 
@@ -333,6 +338,7 @@ BASIC_AUTOAPI_IGNORE_PATTERNS = [
     "*/tests/system/__init__.py",
     "*/tests/system/example_empty.py",
     "*/test_aws_auth_manager.py",
+    "*/check_translations_completeness.py",
 ]
 
 IGNORE_PATTERNS_RECOGNITION = re.compile(r"\[AutoAPI\] .* Ignoring \s (?P<path>/[\w/.]*)", re.VERBOSE)
@@ -340,7 +346,7 @@ IGNORE_PATTERNS_RECOGNITION = re.compile(r"\[AutoAPI\] .* Ignoring \s (?P<path>/
 
 # Make the "Ignoring /..." log messages slightly less verbose
 def filter_autoapi_ignore_entries(record: logging.LogRecord) -> bool:
-    matches = IGNORE_PATTERNS_RECOGNITION.search(record.msg)  # type: ignore
+    matches = IGNORE_PATTERNS_RECOGNITION.search(record.msg)
     if not matches:
         return True
     if matches["path"].endswith("__init__.py"):

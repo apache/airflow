@@ -27,6 +27,67 @@
 Changelog
 ---------
 
+1.7.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make Elasticsearch/OpensearchTaskHandler to render log well (#53639)``
+* ``Fix RuntimeError when using OpensearchTaskHandler as remote log handler (#53529)``
+* ``Resolve OOM When Reading Large Logs in Webserver (#49470)``
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup type ignores in opensearch provider where possible (#53283)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove direct scheduler BaseOperator refs (#52234)``
+* ``Make opensearch  provider compatible with mypy 1.16.1 (#53112)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Replace BaseHook to Task SDK for opensearch (#52851)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.7.1
+.....
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Disable UP038 ruff rule and revert mandatory 'X | Y' in insintance checks (#52644)``
+* ``Provider Migration: Update opensearch for Airflow 3.0 compatibility (#52609)``
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Clean up remaining DB-dependent tests from OpenSearch provider (#52235)``
+   * ``DEL: pytestmark in test_opensearch.py (#52213)``
+   * ``Updating opensearch systest to setup connections using ENV (#52077)``
+   * ``Introducing fixture to create 'Connections' without DB in provider tests (#51930)``
+
+1.7.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.10+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Misc
+~~~~
+
+* ``Remove AIRFLOW_2_10_PLUS conditions (#49877)``
+* ``Bump min Airflow version in providers to 2.10 (#49843)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Avoid committing history for providers (#49907)``
+
 1.6.3
 .....
 

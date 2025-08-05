@@ -20,7 +20,6 @@ import json
 import os
 import subprocess
 from functools import cache
-from io import StringIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any
@@ -29,22 +28,28 @@ import jmespath
 import jsonschema
 import requests
 import yaml
+from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.github import log_github_rate_limit_error
 from kubernetes.client.api_client import ApiClient
 
 api_client = ApiClient()
 
 CHART_DIR = Path(__file__).resolve().parents[3] / "chart"
 
-DEFAULT_KUBERNETES_VERSION = "1.29.1"
+DEFAULT_KUBERNETES_VERSION = "1.30.13"
 BASE_URL_SPEC = (
-    f"https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/"
+    f"https://api.github.com/repos/yannh/kubernetes-json-schema/contents/"
     f"v{DEFAULT_KUBERNETES_VERSION}-standalone-strict"
 )
 
+MY_DIR = Path(__file__).parent.resolve()
+
 crd_lookup = {
-    "keda.sh/v1alpha1::ScaledObject": "https://raw.githubusercontent.com/kedacore/keda/v2.0.0/config/crd/bases/keda.sh_scaledobjects.yaml",
+    # https://raw.githubusercontent.com/kedacore/keda/v2.0.0/config/crd/bases/keda.sh_scaledobjects.yaml
+    "keda.sh/v1alpha1::ScaledObject": f"{MY_DIR.as_posix()}/keda.sh_scaledobjects.yaml",
     # This object type was removed in k8s v1.22.0
-    "networking.k8s.io/v1beta1::Ingress": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.21.0/ingress-networking-v1beta1.json",
+    # Retrieved from https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.21.0/ingress-networking-v1beta1.json
+    "networking.k8s.io/v1beta1::Ingress": f"{MY_DIR.as_posix()}/ingress-networking-v1beta1.json",
 }
 
 
@@ -63,14 +68,20 @@ def get_schema_k8s(api_version, kind, kubernetes_version):
     else:
         url = f"{BASE_URL_SPEC}/{kind}-{api_version}.json"
 
-    headers = {}
+    headers = {
+        "Accept": "application/vnd.github.v3.raw",
+    }
     if GITHUB_TOKEN:
         headers["Authorization"] = f"Bearer {GITHUB_TOKEN}"
         headers["X-GitHub-Api-Version"] = "2022-11-28"
-    request = requests.get(url, headers=headers)
-    request.raise_for_status()
+    else:
+        get_console().print("[info] No GITHUB_TOKEN found. Using unauthenticated requests.")
+
+    response = requests.get(url, headers=headers)
+    log_github_rate_limit_error(response)
+    response.raise_for_status()
     schema = json.loads(
-        request.text.replace(
+        response.text.replace(
             "kubernetesjsonschema.dev", "raw.githubusercontent.com/yannh/kubernetes-json-schema/master"
         )
     )
@@ -79,16 +90,10 @@ def get_schema_k8s(api_version, kind, kubernetes_version):
 
 @cache
 def get_schema_crd(api_version, kind):
-    url = crd_lookup.get(f"{api_version}::{kind}")
-    if not url:
+    file = crd_lookup.get(f"{api_version}::{kind}")
+    if not file:
         return None
-    headers = {}
-    if GITHUB_TOKEN:
-        headers["Authorization"] = f"Bearer {GITHUB_TOKEN}"
-        headers["X-GitHub-Api-Version"] = "2022-11-28"
-    response = requests.get(url, headers=headers)
-    yaml_schema = response.content.decode("utf-8")
-    schema = yaml.safe_load(StringIO(yaml_schema))
+    schema = yaml.safe_load(Path(file).read_text())
     return schema
 
 

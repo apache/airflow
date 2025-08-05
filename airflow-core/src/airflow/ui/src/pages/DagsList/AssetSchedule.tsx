@@ -18,27 +18,31 @@
  */
 import { HStack, Text, Link } from "@chakra-ui/react";
 import dayjs from "dayjs";
+import { useTranslation } from "react-i18next";
 import { FiDatabase } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
 
 import { useAssetServiceNextRunAssets } from "openapi/queries";
-import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import { AssetExpression, type ExpressionType } from "src/components/AssetExpression";
 import type { NextRunEvent } from "src/components/AssetExpression/types";
 import { Button, Popover } from "src/components/ui";
 
 type Props = {
-  readonly dag: DAGWithLatestDagRunsResponse;
+  readonly assetExpression?: ExpressionType | null;
+  readonly dagId: string;
+  readonly latestRunAfter?: string;
+  readonly timetableSummary: string | null;
 };
 
-export const AssetSchedule = ({ dag }: Props) => {
-  const { data: nextRun, isLoading } = useAssetServiceNextRunAssets({ dagId: dag.dag_id });
+export const AssetSchedule = ({ assetExpression, dagId, latestRunAfter, timetableSummary }: Props) => {
+  const { t: translate } = useTranslation("dags");
+  const { data: nextRun, isLoading } = useAssetServiceNextRunAssets({ dagId });
 
   const nextRunEvents = (nextRun?.events ?? []) as Array<NextRunEvent>;
 
   const pendingEvents = nextRunEvents.filter((ev) => {
-    if (ev.lastUpdate !== null && dag.latest_dag_runs[0]?.run_after !== undefined) {
-      return dayjs(ev.lastUpdate).isAfter(dag.latest_dag_runs[0].run_after);
+    if (ev.lastUpdate !== null && latestRunAfter !== undefined) {
+      return dayjs(ev.lastUpdate).isAfter(latestRunAfter);
     }
 
     return false;
@@ -48,7 +52,7 @@ export const AssetSchedule = ({ dag }: Props) => {
     return (
       <HStack>
         <FiDatabase style={{ display: "inline" }} />
-        <Text>{dag.timetable_summary}</Text>
+        <Text>{timetableSummary}</Text>
       </HStack>
     );
   }
@@ -59,7 +63,7 @@ export const AssetSchedule = ({ dag }: Props) => {
     return (
       <HStack>
         <FiDatabase style={{ display: "inline" }} />
-        <Link asChild color="fg.info" display="block" py={2}>
+        <Link asChild color="fg.info" display="block" fontSize="sm">
           <RouterLink to={`/assets/${asset.id}`}>{asset.name ?? asset.uri}</RouterLink>
         </Link>
       </HStack>
@@ -72,14 +76,16 @@ export const AssetSchedule = ({ dag }: Props) => {
       <Popover.Trigger asChild>
         <Button loading={isLoading} paddingInline={0} size="sm" variant="ghost">
           <FiDatabase style={{ display: "inline" }} />
-          {pendingEvents.length}
-          {nextRunEvents.length > 1 ? ` of ${nextRunEvents.length} ` : " "}assets updated
+          {translate("assetSchedule", { count: pendingEvents.length, total: nextRunEvents.length })}
         </Button>
       </Popover.Trigger>
       <Popover.Content css={{ "--popover-bg": "colors.bg.emphasized" }} width="fit-content">
         <Popover.Arrow />
         <Popover.Body>
-          <AssetExpression events={pendingEvents} expression={dag.asset_expression as ExpressionType} />
+          <AssetExpression
+            events={pendingEvents}
+            expression={(nextRun?.asset_expression ?? assetExpression) as ExpressionType}
+          />
         </Popover.Body>
       </Popover.Content>
     </Popover.Root>

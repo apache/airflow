@@ -17,6 +17,76 @@
  under the License.
  -->
 
+# v3.0.2
+
+## Major changes:
+
+- Add `owner_links` field to DAGDetailsResponse ([#50557](https://github.com/apache/airflow/pull/50557))
+- Allow non-string valid JSON values in Variable import ([#49844](https://github.com/apache/airflow/pull/49844))
+- Add `bundle_version` to DagRun response ([#49726](https://github.com/apache/airflow/pull/49726))
+- Use `NonNegativeInt` for `backfill_id` ([#49691](https://github.com/apache/airflow/pull/49691))
+- Rename operation IDs for task instance endpoints to include map indexes ([#49608](https://github.com/apache/airflow/pull/49608))
+- Remove filtering by last dag run state in patch dags endpoint ([#51176](https://github.com/apache/airflow/pull/51176))
+- Make `dag_run` nullable in Details page ([#50719](https://github.com/apache/airflow/pull/50719))
+
+## Bug Fixes
+
+- Fix OpenAPI schema for `get_log` API ([#50547](https://github.com/apache/airflow/pull/50547))
+- Fix bulk action annotation ([#50852](https://github.com/apache/airflow/pull/50852))
+- Fix `patch_task_instance` endpoint ([#50550](https://github.com/apache/airflow/pull/50550))
+
+# v3.0.0
+
+This is the first release of the **Airflow 3.0.0** Python client. It introduces compatibility with the new [Airflow 3.0 REST API](https://airflow.apache.org/docs/apache-airflow/3.0.0/stable-rest-api-ref.html), and includes several **breaking changes** and behavior updates.
+
+Below is a list of important changes. Refer to individual endpoint documentation for full details.
+
+- API v1 (`/api/v1`) has been dropped and replaced with API v2(`/api/v2`).
+
+- **422 Validation Errors (instead of 400)**
+
+  The API now returns `422 Unprocessable Entity` for validation errors (e.g. bad payload, path params, or query params), instead of `400 Bad Request`.
+
+- **Partial response support removed (`fields` parameter)**
+
+  Endpoints like `GET /dags` no longer support the `fields` query param for partial responses. Full objects are returned by default. This feature may return in a future 3.x release.
+
+- Passing list in query parameters switched from ``form, non exploded`` to ``form, exploded`` i.e before ``?my_list=item1,item2`` now ``?my_list=item1&my_list=item2``
+
+- **`execution_date` has been removed**
+
+  The previously deprecated `execution_date` parameter and fields are now fully removed. Use `logical_date` instead.
+
+- **Datetime format updated to RFC3339-compliant**
+
+  Datetimes returned are now in [RFC3339](https://datatracker.ietf.org/doc/html/rfc3339) format (e.g. `2024-10-01T13:00:00Z`). Both `Z` and `+00:00` forms are accepted in inputs.
+  → This change comes from FastAPI & Pydantic v2 behavior.
+  [More info](https://github.com/fastapi/fastapi/discussions/7693#discussioncomment-5143311)
+
+- PATCH on ``DagRun`` and ``TaskInstance`` are more generic and allow in addition to update the resource state and the note content.
+
+  Therefore, the two legacy dedicated endpoints to update a ``DagRun`` note and ``TaskInstance`` note have been removed.
+
+  Same for the set task instance state, it is now handled by the broader PATCH on task instances.
+
+- ``assets/queuedEvent`` endpoints have moved to ``assets/queuedEvents`` for consistency.
+
+- **`dag_parsing` returns 409 for duplicates**
+
+  If a `DagPriorityParsingRequest` already exists, `POST /dag_parsing` now returns `409 Conflict` instead of `201 Created`.
+
+- **Default value change in `clearTaskInstances`**
+
+  The `reset_dag_runs` field now defaults to `true` instead of `false`.
+
+- **Pool name is no longer editable**
+
+  `PATCH /pools/{pool_name}` can no longer be used to rename a pool. Pool names are immutable via the API.
+
+- **`logical_date` is now a required nullable field**
+
+  When triggering a DAG run (`POST /dags/{dag_id}/dagRuns`), `logical_date` is now required but can explicitly be set to `null`.
+
 # v2.10.0
 
 ## Major changes:

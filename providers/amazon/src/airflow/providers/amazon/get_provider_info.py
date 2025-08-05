@@ -250,6 +250,7 @@ def get_provider_info():
                 "integration-name": "Amazon Systems Manager (SSM)",
                 "external-doc-url": "https://aws.amazon.com/systems-manager/",
                 "logo": "/docs/integration-logos/AWS-Systems-Manager_light-bg@4x.png",
+                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/ssm.rst"],
                 "tags": ["aws"],
             },
             {
@@ -445,6 +446,10 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.amazon.aws.operators.step_function"],
             },
             {
+                "integration-name": "Amazon Systems Manager (SSM)",
+                "python-modules": ["airflow.providers.amazon.aws.operators.ssm"],
+            },
+            {
                 "integration-name": "Amazon RDS",
                 "python-modules": ["airflow.providers.amazon.aws.operators.rds"],
             },
@@ -580,6 +585,10 @@ def get_provider_info():
             {
                 "integration-name": "AWS Step Functions",
                 "python-modules": ["airflow.providers.amazon.aws.sensors.step_function"],
+            },
+            {
+                "integration-name": "Amazon Systems Manager (SSM)",
+                "python-modules": ["airflow.providers.amazon.aws.sensors.ssm"],
             },
             {
                 "integration-name": "Amazon QuickSight",
@@ -845,6 +854,10 @@ def get_provider_info():
             {
                 "integration-name": "Amazon Simple Storage Service (S3)",
                 "python-modules": ["airflow.providers.amazon.aws.triggers.s3"],
+            },
+            {
+                "integration-name": "Amazon Systems Manager (SSM)",
+                "python-modules": ["airflow.providers.amazon.aws.triggers.ssm"],
             },
             {
                 "integration-name": "Amazon EMR",
@@ -1149,6 +1162,74 @@ def get_provider_info():
                         "type": "string",
                         "example": '{"Tags": [{"Key": "key", "Value": "value"}]}',
                         "default": None,
+                    },
+                },
+            },
+            "aws_lambda_executor": {
+                "description": "This section only applies if you are using the AwsLambdaExecutor in\nAirflow's ``[core.executor]`` configuration.\nFor more information see:\nhttps://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/lambda/client/invoke.html\nhttps://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html\nhttps://airflow.apache.org/docs/apache-airflow-providers-amazon/stable/executors/lambda-executor.html\n",
+                "options": {
+                    "conn_id": {
+                        "description": "The Airflow connection (i.e. credentials) used by the Lambda executor to make API calls.\n",
+                        "version_added": "9.9.0",
+                        "type": "string",
+                        "example": "aws_default",
+                        "default": "aws_default",
+                    },
+                    "region_name": {
+                        "description": "The name of the AWS Region where Amazon Lambda is configured.\n",
+                        "version_added": "9.9.0",
+                        "type": "string",
+                        "example": "us-east-1",
+                        "default": None,
+                    },
+                    "check_health_on_startup": {
+                        "description": "Whether or not to check the Lambda Executor health on startup.\n",
+                        "version_added": "9.9.0",
+                        "type": "boolean",
+                        "example": "True",
+                        "default": "True",
+                    },
+                    "max_run_task_attempts": {
+                        "description": "The maximum number of times the Lambda Executor should attempt to start an Airflow task.\n",
+                        "version_added": "9.9.0",
+                        "type": "integer",
+                        "example": "3",
+                        "default": "3",
+                    },
+                    "queue_url": {
+                        "description": "The URL of the SQS queue to use for the Lambda executor. Required.\nThe Lambda executor will poll this queue for results of the lambda function's Airflow Task.\n",
+                        "version_added": "9.9.0",
+                        "type": "string",
+                        "example": "airflow-lambda-executor-results-queue",
+                        "default": None,
+                    },
+                    "dead_letter_queue_url": {
+                        "description": "The URL of the SQS dead letter queue to use for the Lambda function. The Lambda executor\nwill poll this queue for timeout/exception results of the lambda function. Required\n",
+                        "version_added": "9.9.0",
+                        "type": "string",
+                        "example": "airflow-lambda-executor-dlq",
+                        "default": None,
+                    },
+                    "function_name": {
+                        "description": "The name of the Lambda function to invoke. Required.\n",
+                        "version_added": "9.9.0",
+                        "type": "string",
+                        "example": "airflow-lambda-executor-function",
+                        "default": None,
+                    },
+                    "qualifier": {
+                        "description": "The version or alias of the Lambda function to invoke. If not specified, the latest version is used.\n",
+                        "version_added": "9.9.0",
+                        "type": "string",
+                        "example": "1",
+                        "default": None,
+                    },
+                    "end_wait_timeout": {
+                        "description": "The number of seconds to wait for all lambda executor invocations to complete when terminating the\nexecutor/scheduler. Default of 0 means wait indefinitely.\n",
+                        "version_added": "9.9.0",
+                        "type": "integer",
+                        "example": "500",
+                        "default": "0",
                     },
                 },
             },

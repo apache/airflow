@@ -19,13 +19,14 @@ from __future__ import annotations
 
 from unittest import mock
 
-import pytest
 from azure.kusto.data._models import KustoResultTable
 
 from airflow.models import DAG
 from airflow.providers.microsoft.azure.hooks.adx import AzureDataExplorerHook
 from airflow.providers.microsoft.azure.operators.adx import AzureDataExplorerQueryOperator
 from airflow.utils.timezone import datetime
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 TEST_DAG_ID = "unit_tests"
 DEFAULT_DATE = datetime(2019, 1, 1)
@@ -81,19 +82,26 @@ class TestAzureDataExplorerQueryOperator:
         )
 
 
-@pytest.mark.db_test
 @mock.patch.object(AzureDataExplorerHook, "run_query", return_value=MockResponse())
 @mock.patch.object(AzureDataExplorerHook, "get_conn")
 def test_azure_data_explorer_query_operator_xcom_push_and_pull(
     mock_conn,
     mock_run_query,
     create_task_instance_of_operator,
+    request,
 ):
-    ti = create_task_instance_of_operator(
-        AzureDataExplorerQueryOperator,
-        dag_id="test_azure_data_explorer_query_operator_xcom_push_and_pull",
-        **MOCK_DATA,
-    )
-    ti.run()
+    if AIRFLOW_V_3_0_PLUS:
+        run_task = request.getfixturevalue("run_task")
+        task = AzureDataExplorerQueryOperator(**MOCK_DATA)
+        run_task(task=task)
 
-    assert ti.xcom_pull(task_ids=MOCK_DATA["task_id"]) == str(MOCK_RESULT)
+        assert run_task.xcom.get(key="return_value", task_id=task.task_id) == str(MOCK_RESULT)
+    else:
+        ti = create_task_instance_of_operator(
+            AzureDataExplorerQueryOperator,
+            dag_id="test_azure_data_explorer_query_operator_xcom_push_and_pull",
+            **MOCK_DATA,
+        )
+        ti.run()
+
+        assert ti.xcom_pull(task_ids=MOCK_DATA["task_id"]) == str(MOCK_RESULT)

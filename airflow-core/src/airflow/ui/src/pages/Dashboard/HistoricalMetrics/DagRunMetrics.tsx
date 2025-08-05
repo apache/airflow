@@ -18,6 +18,7 @@
  */
 import { Box, Separator, Heading, HStack, Stack } from "@chakra-ui/react";
 import type { DAGRunStates } from "openapi-gen/requests/types.gen";
+import { useTranslation } from "react-i18next";
 import { FiBarChart } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
 
@@ -34,32 +35,36 @@ type DagRunMetricsProps = {
 
 const DAGRUN_STATES: Array<keyof DAGRunStates> = ["queued", "running", "success", "failed"];
 
-export const DagRunMetrics = ({ dagRunStates, endDate, startDate, total }: DagRunMetricsProps) => (
-  <Box borderRadius={5} borderWidth={1} p={4}>
-    <HStack>
-      <RouterLink
-        to={`/dag_runs?start_date=${startDate}${endDate === undefined ? "" : `&end_date=${endDate}`}`}
-      >
-        <StateBadge colorPalette="blue" fontSize="md" variant="solid">
-          <FiBarChart />
-          {total}
-        </StateBadge>
-      </RouterLink>
-      <Heading size="md">Dag Runs</Heading>
-    </HStack>
-    <Separator my={2} />
-    <Stack gap={4}>
-      {DAGRUN_STATES.map((state) => (
-        <MetricSection
-          endDate={endDate}
-          key={state}
-          kind="dag_runs"
-          runs={dagRunStates[state]}
-          startDate={startDate}
-          state={state}
-          total={total}
-        />
-      ))}
-    </Stack>
-  </Box>
-);
+export const DagRunMetrics = ({ dagRunStates, endDate, startDate, total }: DagRunMetricsProps) => {
+  const { t: translate } = useTranslation();
+
+  return (
+    <Box borderRadius={5} borderWidth={1} p={4}>
+      <HStack>
+        <RouterLink
+          to={`/dag_runs?start_date=${startDate}${endDate === undefined ? "" : `&end_date=${endDate}`}`}
+        >
+          <StateBadge colorPalette="blue" fontSize="md" variant="solid">
+            <FiBarChart />
+            {total}
+          </StateBadge>
+        </RouterLink>
+        <Heading size="md">{translate("dagRun", { count: total })}</Heading>
+      </HStack>
+      <Separator my={3} />
+      <Stack gap={4}>
+        {DAGRUN_STATES.map((state) => (
+          <MetricSection
+            endDate={endDate}
+            key={state}
+            kind="dag_runs"
+            runs={dagRunStates[state]}
+            startDate={startDate}
+            state={state}
+            total={total}
+          />
+        ))}
+      </Stack>
+    </Box>
+  );
+};

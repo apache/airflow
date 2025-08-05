@@ -20,7 +20,9 @@ import contextlib
 import os
 import signal
 import sys
+from collections.abc import Generator
 from datetime import datetime
+from multiprocessing.pool import Pool
 from time import sleep
 
 import click
@@ -28,6 +30,7 @@ from click import IntRange
 
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.commands.common_options import (
+    option_allow_pre_releases,
     option_backend,
     option_clean_airflow_installation,
     option_core_integration,
@@ -42,6 +45,7 @@ from airflow_breeze.commands.common_options import (
     option_github_repository,
     option_image_name,
     option_include_success_outputs,
+    option_install_airflow_with_constraints,
     option_keep_env_variables,
     option_mount_sources,
     option_mysql_version,
@@ -55,18 +59,19 @@ from airflow_breeze.commands.common_options import (
     option_skip_cleanup,
     option_skip_db_tests,
     option_upgrade_boto,
+    option_upgrade_sqlalchemy,
     option_use_airflow_version,
     option_verbose,
 )
 from airflow_breeze.commands.common_package_installation_options import (
     option_airflow_constraints_reference,
-    option_install_airflow_with_constraints,
     option_providers_constraints_location,
     option_providers_skip_constraints,
     option_use_distributions_from_dist,
 )
 from airflow_breeze.commands.release_management_commands import option_distribution_format
 from airflow_breeze.global_constants import (
+    ALL_TEST_SUITES,
     ALL_TEST_TYPE,
     ALLOWED_TEST_TYPE_CHOICES,
     GroupOfTests,
@@ -91,7 +96,7 @@ from airflow_breeze.utils.parallel import (
     check_async_run_results,
     run_with_pool,
 )
-from airflow_breeze.utils.path_utils import FILES_PATH, cleanup_python_generated_files
+from airflow_breeze.utils.path_utils import AIRFLOW_CTL_ROOT_PATH, FILES_PATH, cleanup_python_generated_files
 from airflow_breeze.utils.run_tests import (
     file_name_from_test_type,
     generate_args_for_pytest,
@@ -102,8 +107,8 @@ from airflow_breeze.utils.selective_checks import ALL_CI_SELECTIVE_TEST_TYPES
 
 GRACE_CONTAINER_STOP_TIMEOUT = 10  # Timeout in seconds to wait for containers to get killed
 
-LOW_MEMORY_CONDITION = 8 * 1024 * 1024 * 1024
-DEFAULT_TOTAL_TEST_TIMEOUT = 6500  # 6500 seconds = 1h 48 minutes
+LOW_MEMORY_CONDITION = 8 * 1024 * 1024 * 1024  # 8 GB
+DEFAULT_TOTAL_TEST_TIMEOUT = 60 * 60  # 60 minutes
 
 logs_already_dumped = False
 
@@ -214,6 +219,7 @@ def _run_test(
         parallel_test_types_list=shell_params.parallel_test_types_list,
         keep_env_variables=shell_params.keep_env_variables,
         no_db_cleanup=shell_params.no_db_cleanup,
+        integration=shell_params.integration,
     )
     pytest_args.extend(extra_pytest_args)
     # Skip "FOLDER" in case "--ignore=FOLDER" is passed as an argument
@@ -266,7 +272,10 @@ def _run_test(
 def _get_project_names(shell_params: ShellParams) -> tuple[str, str]:
     """Return compose project name and project name."""
     project_name = file_name_from_test_type(shell_params.test_type)
-    compose_project_name = f"airflow-test-{project_name}"
+    if shell_params.test_type == ALL_TEST_TYPE:
+        compose_project_name = "airflow-test"
+    else:
+        compose_project_name = f"airflow-test-{project_name}"
     return compose_project_name, project_name
 
 
@@ -279,16 +288,18 @@ def _dump_container_logs(output: Output | None, shell_params: ShellParams):
         text=True,
     )
     container_ids = ps_result.stdout.splitlines()
-    get_console(output=output).print("[info]Wait 10 seconds for logs to find their way to stderr.\n")
+    get_console(output=output).print("[warning]Wait 10 seconds for logs to find their way to stderr.\n")
     sleep(10)
     compose_project_name, project_name = _get_project_names(shell_params)
-    get_console(output=output).print(f"[info]Dumping containers: {container_ids} for {project_name}.\n")
+    get_console(output=output).print(
+        f"[warning]Dumping container logs: {container_ids} for compose project {compose_project_name} (cp.\n"
+    )
     date_str = datetime.now().strftime("%Y_%d_%m_%H_%M_%S")
     for container_id in container_ids:
         if compose_project_name not in container_id:
             continue
         dump_path = FILES_PATH / f"container_logs_{container_id}_{date_str}.log"
-        get_console(output=output).print(f"[info]Dumping container {container_id} to {dump_path}\n")
+        get_console(output=output).print(f"[info]Dumping container log {container_id} to {dump_path}\n")
         with open(dump_path, "w") as outfile:
             run_command(
                 ["docker", "logs", "--details", "--timestamps", container_id],
@@ -308,6 +319,7 @@ def _run_tests_in_pool(
     skip_docker_compose_down: bool,
     test_timeout: int,
     tests_to_run: list[str],
+    handler: TimeoutHandler,
 ):
     if not tests_to_run:
         return
@@ -327,6 +339,7 @@ def _run_tests_in_pool(
         "CLI",
         "Serialization",
         "Always",
+        "Providers[celery]",
     ]
     sort_key = {item: i for i, item in enumerate(sorting_order)}
     # Put the test types in the order we want them to run
@@ -344,6 +357,7 @@ def _run_tests_in_pool(
                 lines_to_search=400,
             ),
         ) as (pool, outputs):
+            handler.set_pool(pool)
             results = [
                 pool.apply_async(
                     _run_test,
@@ -361,12 +375,13 @@ def _run_tests_in_pool(
     escaped_tests = [test.replace("[", "\\[") for test in tests_to_run]
     check_async_run_results(
         results=results,
-        success=f"Tests {' '.join(escaped_tests)} completed successfully",
+        success_message=f"Tests {' '.join(escaped_tests)} completed successfully",
         outputs=outputs,
         include_success_outputs=include_success_outputs,
         skip_cleanup=skip_cleanup,
         summarize_on_ci=SummarizeAfter.FAILURE,
         summary_start_regexp=r".*= FAILURES.*|.*= ERRORS.*",
+        terminated_on_timeout=handler.terminated_on_timeout_output_list[0],
     )
 
 
@@ -390,6 +405,7 @@ def run_tests_in_parallel(
     parallelism: int,
     skip_cleanup: bool,
     skip_docker_compose_down: bool,
+    handler: TimeoutHandler,
 ) -> None:
     get_console().print("\n[info]Summary of the tests to run\n")
     get_console().print(f"[info]Running tests in parallel with parallelism={parallelism}")
@@ -412,6 +428,7 @@ def run_tests_in_parallel(
         debug_resources=debug_resources,
         skip_cleanup=skip_cleanup,
         skip_docker_compose_down=skip_docker_compose_down,
+        handler=handler,
     )
 
 
@@ -515,6 +532,15 @@ option_test_type_providers_group = click.option(
     show_default=True,
     type=NotVerifiedBetterChoice(ALLOWED_TEST_TYPE_CHOICES[GroupOfTests.PROVIDERS]),
 )
+option_test_type = click.option(
+    "--test-type",
+    help="Type for shell tests to run - used when forcing "
+    "lowest dependencies to determine which distribution to force lowest dependencies for",
+    default=ALL_TEST_TYPE,
+    envvar="TEST_TYPE",
+    show_default=True,
+    type=NotVerifiedBetterChoice([*ALL_TEST_SUITES.keys(), *all_selective_core_test_types()]),
+)
 option_test_type_helm = click.option(
     "--test-type",
     help="Type of helm tests to run",
@@ -545,12 +571,6 @@ option_use_xdist = click.option(
     is_flag=True,
     envvar="USE_XDIST",
 )
-option_remove_arm_packages = click.option(
-    "--remove-arm-packages",
-    help="Removes arm packages from the image to test if ARM collection works",
-    is_flag=True,
-    envvar="REMOVE_ARM_PACKAGES",
-)
 option_force_sa_warnings = click.option(
     "--force-sa-warnings/--no-force-sa-warnings",
     help="Enable `sqlalchemy.exc.MovedIn20Warning` during the tests runs.",
@@ -567,6 +587,12 @@ option_total_test_timeout = click.option(
     default=DEFAULT_TOTAL_TEST_TIMEOUT,
     type=int,
     envvar="TOTAL_TEST_TIMEOUT",
+)
+option_skip_docker_compose_deletion = click.option(
+    "--skip-docker-compose-deletion",
+    help="Skip deletion of docker-compose instance after the test",
+    envvar="SKIP_DOCKER_COMPOSE_DELETION",
+    is_flag=True,
 )
 
 
@@ -604,7 +630,6 @@ option_total_test_timeout = click.option(
 @option_parallelism
 @option_postgres_version
 @option_python
-@option_remove_arm_packages
 @option_run_db_tests_only
 @option_run_in_parallel
 @option_skip_cleanup
@@ -614,7 +639,9 @@ option_total_test_timeout = click.option(
 @option_test_type_core_group
 @option_total_test_timeout
 @option_upgrade_boto
+@option_upgrade_sqlalchemy
 @option_use_airflow_version
+@option_allow_pre_releases
 @option_use_distributions_from_dist
 @option_use_xdist
 @option_verbose
@@ -668,7 +695,6 @@ def core_tests(**kwargs):
 @option_providers_constraints_location
 @option_providers_skip_constraints
 @option_python
-@option_remove_arm_packages
 @option_run_db_tests_only
 @option_run_in_parallel
 @option_skip_cleanup
@@ -679,7 +705,9 @@ def core_tests(**kwargs):
 @option_test_type_providers_group
 @option_total_test_timeout
 @option_upgrade_boto
+@option_upgrade_sqlalchemy
 @option_use_airflow_version
+@option_allow_pre_releases
 @option_use_distributions_from_dist
 @option_use_xdist
 @option_verbose
@@ -710,8 +738,10 @@ def providers_tests(**kwargs):
 @option_verbose
 @click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
 def task_sdk_tests(**kwargs):
+    """Run task SDK tests."""
     _run_test_command(
         test_group=GroupOfTests.TASK_SDK,
+        allow_pre_releases=False,
         airflow_constraints_reference="constraints-main",
         backend="none",
         clean_airflow_installation=False,
@@ -735,16 +765,70 @@ def task_sdk_tests(**kwargs):
         distribution_format="wheel",
         providers_constraints_location="",
         providers_skip_constraints=False,
-        remove_arm_packages=False,
         skip_cleanup=False,
         skip_providers="",
         test_type=ALL_TEST_TYPE,
         total_test_timeout=DEFAULT_TOTAL_TEST_TIMEOUT,
         upgrade_boto=False,
+        upgrade_sqlalchemy=False,
         use_airflow_version=None,
         use_distributions_from_dist=False,
         **kwargs,
     )
+
+
+@group_for_testing.command(
+    name="task-sdk-integration-tests",
+    context_settings=dict(
+        ignore_unknown_options=True,
+        allow_extra_args=True,
+    ),
+)
+@option_python
+@option_image_name
+@option_skip_docker_compose_deletion
+@option_github_repository
+@option_include_success_outputs
+@option_verbose
+@option_dry_run
+@click.option(
+    "--task-sdk-version",
+    help="Version of Task SDK to test",
+    default="1.1.0",
+    show_default=True,
+    envvar="TASK_SDK_VERSION",
+)
+@click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
+def task_sdk_integration_tests(
+    python: str,
+    image_name: str,
+    skip_docker_compose_deletion: bool,
+    github_repository: str,
+    include_success_outputs: bool,
+    task_sdk_version: str,
+    extra_pytest_args: tuple,
+):
+    """Run task SDK integration tests."""
+    perform_environment_checks()
+    if image_name is None:
+        build_params = BuildProdParams(python=python, github_repository=github_repository)
+        image_name = build_params.airflow_image_name
+
+    # Export the TASK_SDK_VERSION environment variable for the test
+    import os
+
+    os.environ["TASK_SDK_VERSION"] = task_sdk_version
+
+    get_console().print(f"[info]Running task SDK integration tests with PROD image: {image_name}[/]")
+    get_console().print(f"[info]Using Task SDK version: {task_sdk_version}[/]")
+    return_code, info = run_docker_compose_tests(
+        image_name=image_name,
+        include_success_outputs=include_success_outputs,
+        extra_pytest_args=extra_pytest_args,
+        skip_docker_compose_deletion=skip_docker_compose_deletion,
+        test_type="task-sdk-integration",
+    )
+    sys.exit(return_code)
 
 
 @group_for_testing.command(
@@ -755,55 +839,30 @@ def task_sdk_tests(**kwargs):
         allow_extra_args=False,
     ),
 )
-@option_collect_only
-@option_dry_run
-@option_enable_coverage
-@option_force_sa_warnings
-@option_forward_credentials
-@option_github_repository
-@option_keep_env_variables
-@option_mount_sources
+@option_parallelism
 @option_python
-@option_skip_docker_compose_down
-@option_test_timeout
+@option_dry_run
 @option_verbose
 @click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
-def airflow_ctl_tests(**kwargs):
-    _run_test_command(
-        test_group=GroupOfTests.CTL,
-        airflow_constraints_reference="constraints-main",
-        backend="none",
-        clean_airflow_installation=False,
-        debug_resources=False,
-        downgrade_pendulum=False,
-        downgrade_sqlalchemy=False,
-        db_reset=False,
-        include_success_outputs=False,
-        integration=(),
-        install_airflow_with_constraints=False,
-        run_db_tests_only=False,
-        run_in_parallel=False,
-        skip_db_tests=True,
-        use_xdist=True,
-        excluded_parallel_test_types="",
-        excluded_providers="",
-        force_lowest_dependencies=False,
-        no_db_cleanup=True,
-        parallel_test_types="",
-        parallelism=0,
-        distribution_format="wheel",
-        providers_constraints_location="",
-        providers_skip_constraints=False,
-        remove_arm_packages=False,
-        skip_cleanup=False,
-        skip_providers="",
-        test_type=ALL_TEST_TYPE,
-        total_test_timeout=DEFAULT_TOTAL_TEST_TIMEOUT,
-        upgrade_boto=False,
-        use_airflow_version=None,
-        use_distributions_from_dist=False,
-        **kwargs,
-    )
+def airflow_ctl_tests(python: str, parallelism: int, extra_pytest_args: tuple):
+    parallelism_args = ["-n", str(parallelism)] if parallelism > 1 else []
+    test_command = [
+        "uv",
+        "run",
+        "--python",
+        python,
+        "pytest",
+        "--color=yes",
+        *parallelism_args,
+        *extra_pytest_args,
+    ]
+    result = run_command(test_command, cwd=AIRFLOW_CTL_ROOT_PATH, check=False)
+    if result.returncode != 0:
+        get_console().print(
+            f"[error]Airflow CTL tests failed with return code {result.returncode}.[/]\n"
+            f"Command: {' '.join(test_command)}\n"
+        )
+        sys.exit(result.returncode)
 
 
 @group_for_testing.command(
@@ -989,6 +1048,7 @@ def integration_providers_tests(
 @option_mysql_version
 @option_no_db_cleanup
 @option_use_airflow_version
+@option_allow_pre_releases
 @option_airflow_constraints_reference
 @option_clean_airflow_installation
 @option_force_lowest_dependencies
@@ -1019,6 +1079,7 @@ def system_tests(
     skip_docker_compose_down: bool,
     test_timeout: int,
     use_airflow_version: str,
+    allow_pre_releases: bool,
     airflow_constraints_reference: str,
     clean_airflow_installation: bool,
     force_lowest_dependencies: bool,
@@ -1046,6 +1107,7 @@ def system_tests(
         run_tests=True,
         db_reset=db_reset,
         use_airflow_version=use_airflow_version,
+        allow_pre_releases=allow_pre_releases,
         airflow_constraints_reference=airflow_constraints_reference,
         clean_airflow_installation=clean_airflow_installation,
         force_lowest_dependencies=force_lowest_dependencies,
@@ -1205,43 +1267,29 @@ def python_api_client_tests(
     sys.exit(returncode)
 
 
-@contextlib.contextmanager
-def run_with_timeout(timeout: int, shell_params: ShellParams):
-    def timeout_handler(signum, frame):
-        get_console().print("[warning]Timeout reached. Killing the container(s)[/]:")
-        _print_all_containers()
-        if os.environ.get("CI") == "true":
-            get_console().print("[warning]Dumping container logs first[/]:")
-            _dump_container_logs(output=None, shell_params=shell_params)
-        list_of_containers = _get_running_containers().stdout.splitlines()
-        get_console().print("[warning]Attempting to send TERM signal to all remaining containers:")
-        get_console().print(list_of_containers)
-        _send_signal_to_containers(list_of_containers, "SIGTERM")
-        get_console().print(f"[warning]Waiting {GRACE_CONTAINER_STOP_TIMEOUT} seconds for containers to stop")
-        sleep(GRACE_CONTAINER_STOP_TIMEOUT)
-        containers_left = _get_running_containers().stdout.splitlines()
-        if containers_left:
-            get_console().print("[warning]Some containers are still running. Killing them with SIGKILL:")
-            get_console().print(containers_left)
-            _send_signal_to_containers(list_of_containers, "SIGKILL")
-            get_console().print(
-                f"[warning]Waiting {GRACE_CONTAINER_STOP_TIMEOUT} seconds for containers to stop"
-            )
-            sleep(GRACE_CONTAINER_STOP_TIMEOUT)
-            containers_left = _get_running_containers().stdout.splitlines()
-            if containers_left:
-                get_console().print("[error]Some containers are still running. Exiting anyway.")
-                get_console().print(containers_left)
-                sys.exit(1)
+class TimeoutHandler:
+    def __init__(self, shell_params: ShellParams, terminated_on_timeout_output_list: list[bool]):
+        # Initialize the timeout handler with shell parameters and a list to track terminated outputs
+        # The terminated_on_timeout_output_list list is used to signal to the outside world that the
+        # output has been terminate by setting the first element to True when the timeout is reached.
+        self.shell_params = shell_params
+        self.pool: Pool | None = None
+        self.terminated_on_timeout_output_list = terminated_on_timeout_output_list
+        self.terminated_on_timeout_output_list[0] = False
 
-    def _send_signal_to_containers(list_of_containers: list[str], signal: str):
+    def set_pool(self, pool: Pool):
+        self.pool = pool
+
+    @staticmethod
+    def _send_signal_to_containers(list_of_containers: list[str], signal_number: str):
         run_command(
-            ["docker", "kill", "--signal", signal, *list_of_containers],
+            ["docker", "kill", "--signal", signal_number, *list_of_containers],
             check=True,
             capture_output=False,
             text=True,
         )
 
+    @staticmethod
     def _get_running_containers() -> RunCommandResult:
         return run_command(
             ["docker", "ps", "-q"],
@@ -1250,16 +1298,59 @@ def run_with_timeout(timeout: int, shell_params: ShellParams):
             text=True,
         )
 
+    @staticmethod
     def _print_all_containers():
         run_command(
             ["docker", "ps"],
             check=True,
         )
 
-    signal.signal(signal.SIGALRM, timeout_handler)
+    def timeout_method(self, signum, frame):
+        get_console().print("[warning]Timeout reached.[/]")
+        if self.pool:
+            get_console().print("[warning]Terminating the pool[/]")
+            self.pool.close()
+            self.pool.terminate()
+            # No join here. The pool is joined already in the main function
+        get_console().print("[warning]Stopping all running containers[/]:")
+        self._print_all_containers()
+        if os.environ.get("CI") == "true":
+            get_console().print("[warning]Dumping container logs first[/]")
+            _dump_container_logs(output=None, shell_params=self.shell_params)
+        list_of_containers = self._get_running_containers().stdout.splitlines()
+        get_console().print("[warning]Attempting to send TERM signal to all remaining containers:")
+        get_console().print(list_of_containers)
+        self._send_signal_to_containers(list_of_containers, "SIGTERM")
+        get_console().print(f"[warning]Waiting {GRACE_CONTAINER_STOP_TIMEOUT} seconds for containers to stop")
+        sleep(GRACE_CONTAINER_STOP_TIMEOUT)
+        containers_left = self._get_running_containers().stdout.splitlines()
+        if containers_left:
+            get_console().print("[warning]Some containers are still running. Killing them with SIGKILL:")
+            get_console().print(containers_left)
+            self._send_signal_to_containers(list_of_containers, "SIGKILL")
+            get_console().print(
+                f"[warning]Waiting {GRACE_CONTAINER_STOP_TIMEOUT} seconds for containers to stop"
+            )
+            sleep(GRACE_CONTAINER_STOP_TIMEOUT)
+            containers_left = self._get_running_containers().stdout.splitlines()
+            if containers_left:
+                get_console().print(
+                    "[error]Some containers are still running. Marking stuff as terminated anyway."
+                )
+                get_console().print(containers_left)
+        get_console().print(
+            "[warning]All containers stopped. Marking the whole run as terminated on timeout[/]"
+        )
+        self.terminated_on_timeout_output_list[0] = True
+
+
+@contextlib.contextmanager
+def run_with_timeout(timeout: int, shell_params: ShellParams) -> Generator[TimeoutHandler, None, None]:
+    timeout_handler = TimeoutHandler(shell_params=shell_params, terminated_on_timeout_output_list=[False])
+    signal.signal(signal.SIGALRM, lambda signum, frame: timeout_handler.timeout_method(signum, frame))
     signal.alarm(timeout)
     try:
-        yield
+        yield timeout_handler
     finally:
         signal.alarm(0)
 
@@ -1268,6 +1359,7 @@ def _run_test_command(
     *,
     test_group: GroupOfTests,
     airflow_constraints_reference: str,
+    allow_pre_releases: bool,
     backend: str,
     collect_only: bool,
     clean_airflow_installation: bool,
@@ -1295,7 +1387,6 @@ def _run_test_command(
     providers_constraints_location: str,
     providers_skip_constraints: bool,
     python: str,
-    remove_arm_packages: bool,
     run_db_tests_only: bool,
     run_in_parallel: bool,
     skip_cleanup: bool,
@@ -1306,6 +1397,7 @@ def _run_test_command(
     test_type: str,
     total_test_timeout: int,
     upgrade_boto: bool,
+    upgrade_sqlalchemy: bool,
     use_airflow_version: str | None,
     use_distributions_from_dist: bool,
     use_xdist: bool,
@@ -1321,6 +1413,7 @@ def _run_test_command(
         test_list = [test for test in test_list if test not in excluded_test_list]
     shell_params = ShellParams(
         airflow_constraints_reference=airflow_constraints_reference,
+        allow_pre_releases=allow_pre_releases,
         backend=backend,
         collect_only=collect_only,
         clean_airflow_installation=clean_airflow_installation,
@@ -1346,12 +1439,12 @@ def _run_test_command(
         providers_constraints_location=providers_constraints_location,
         providers_skip_constraints=providers_skip_constraints,
         python=python,
-        remove_arm_packages=remove_arm_packages,
         run_db_tests_only=run_db_tests_only,
         skip_db_tests=skip_db_tests,
         test_type=test_type,
         test_group=test_group,
         upgrade_boto=upgrade_boto,
+        upgrade_sqlalchemy=upgrade_sqlalchemy,
         use_airflow_version=use_airflow_version,
         use_distributions_from_dist=use_distributions_from_dist,
         use_xdist=use_xdist,
@@ -1377,7 +1470,7 @@ def _run_test_command(
                 f"Your test type = {test_type}\n"
             )
             sys.exit(1)
-        with run_with_timeout(total_test_timeout, shell_params=shell_params):
+        with run_with_timeout(total_test_timeout, shell_params=shell_params) as handler:
             run_tests_in_parallel(
                 shell_params=shell_params,
                 extra_pytest_args=extra_pytest_args,
@@ -1387,6 +1480,7 @@ def _run_test_command(
                 skip_cleanup=skip_cleanup,
                 debug_resources=debug_resources,
                 skip_docker_compose_down=skip_docker_compose_down,
+                handler=handler,
             )
     else:
         if shell_params.test_type == ALL_TEST_TYPE:

@@ -207,6 +207,12 @@ const config = {
   optimization: {
     minimize: process.env.NODE_ENV === "production",
     minimizer: [new CssMinimizerPlugin({}), new TerserPlugin()],
+    moduleIds: 'deterministic',
+    chunkIds: 'deterministic',
+    runtimeChunk: 'single',
+    splitChunks: {
+      chunks: 'all',
+    },
   },
 };
 

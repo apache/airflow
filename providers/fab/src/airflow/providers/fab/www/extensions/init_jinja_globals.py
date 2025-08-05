@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 
-import pendulum
+from pendulum import local_timezone
 
 import airflow
 from airflow.api_fastapi.app import get_auth_manager
@@ -33,11 +33,14 @@ def init_jinja_globals(app, enable_plugins: bool):
     """Add extra globals variable to Jinja context."""
     server_timezone = conf.get("core", "default_timezone")
     if server_timezone == "system":
-        server_timezone = pendulum.local_timezone().name  # type: ignore[operator]
+        if callable(local_timezone):
+            server_timezone = local_timezone().name
+        else:
+            raise ValueError("`local_timezone` is not callable")
     elif server_timezone == "utc":
         server_timezone = "UTC"
 
-    expose_hostname = conf.getboolean("webserver", "EXPOSE_HOSTNAME")
+    expose_hostname = conf.getboolean("fab", "EXPOSE_HOSTNAME")
     hostname = get_hostname() if expose_hostname else "redact"
 
     try:
@@ -52,10 +55,10 @@ def init_jinja_globals(app, enable_plugins: bool):
         extra_globals = {
             "server_timezone": server_timezone,
             "hostname": hostname,
-            "navbar_color": conf.get("webserver", "NAVBAR_COLOR"),
-            "navbar_text_color": conf.get("webserver", "NAVBAR_TEXT_COLOR"),
-            "navbar_hover_color": conf.get("webserver", "NAVBAR_HOVER_COLOR"),
-            "navbar_text_hover_color": conf.get("webserver", "NAVBAR_TEXT_HOVER_COLOR"),
+            "navbar_color": conf.get("fab", "NAVBAR_COLOR"),
+            "navbar_text_color": conf.get("fab", "NAVBAR_TEXT_COLOR"),
+            "navbar_hover_color": conf.get("fab", "NAVBAR_HOVER_COLOR"),
+            "navbar_text_hover_color": conf.get("fab", "NAVBAR_TEXT_HOVER_COLOR"),
             "airflow_version": airflow_version,
             "git_version": git_version,
             "show_plugin_message": enable_plugins,

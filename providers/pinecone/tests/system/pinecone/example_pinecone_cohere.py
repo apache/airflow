@@ -20,7 +20,12 @@ import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.decorators import setup, task, teardown
+
+try:
+    from airflow.sdk import setup, task, teardown
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import setup, task, teardown  # type: ignore[attr-defined,no-redef]
 from airflow.providers.cohere.operators.embedding import CohereEmbeddingOperator
 from airflow.providers.pinecone.operators.pinecone import PineconeIngestOperator
 
@@ -44,7 +49,7 @@ with DAG(
 
         hook = PineconeHook()
         pod_spec = hook.get_pod_spec_obj()
-        hook.create_index(index_name=index_name, dimension=768, spec=pod_spec)
+        hook.create_index(index_name=index_name, dimension=1024, spec=pod_spec)
 
     embed_task = CohereEmbeddingOperator(
         task_id="embed_task",

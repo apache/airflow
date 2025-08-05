@@ -20,6 +20,151 @@
 Changelog
 ---------
 
+2.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove 'MENU' from 'ResourceMethod' in auth manager (#52731)``
+
+Misc
+~~~~
+
+* ``Fix FAB provider in unreachable code (#53436)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup mypy ignore for fab provider in init_jinja_globals (#53328)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Remove unused batch methods from auth manager (#52883)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 7 updates (#52807)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove extra slash from endpoint URL (#53755)``
+* ``Fix spelling of GitHub brand name (#53735)``
+* ``Clarify FAB auth provider versioning and webserver_config.py deprecation for Airflow 3.x (#53606)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Cleanup mypy ignore in fab provider where possible (#53282)``
+
+2.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``[AIP-68] Support pluginv2 views (#52582)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Set prefix to generate correctly the FAB Auth Manager API ref (#52329)``
+* ``Fix airflow pin for fab provider (#52351)``
+* ``Sanitize Username (#52419)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.9 (#52072)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 4 updates (#52108)``
+
+Doc-only
+~~~~~~~~
+
+* ``Enable LDAP users to generate an Airflow token with 'FabAuthManager' (#52295)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``remove pytest db_test marker where unnecessary (#52171)``
+
+2.2.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix: allow users with specific DAG permissions to access DAGs when no pecific DAG is requested (#51462)``
+* ``Fix fab asset compilation hashing script (#51446)``
+* ``Fix default setting for hash algorithm for FAB password hash (#51858)``
+
+Misc
+~~~~
+
+* ``Add back security api in FAB auth manager (#51578)``
+* ``Bump @babel/eslint-parser from 7.27.1 to 7.27.5 in /providers/fab/src/airflow/providers/fab/www in the fab-ui-package-updates group across 1 directory (#51375)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix docstring in 'FabAuthManager' (#51892)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare release for June 2025 provider wave (#51724)``
+
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'airflow db-manager' CLI for managing external databases (#50657)``
+* ``Add support for unknown OIDC providers (#50921)``
+* ``Move enable_swagger_ui config to api (#50896)``
+* ``Move secret_key config to api section (#50839)``
+* ``Move webserver config to fab provider (#50774)``
+* ``Move webserver config options to api (#50693)``
+
+Misc
+~~~~
+
+* ``Bump the fab-ui-package-updates group across 1 directory with 4 updates (#51312)``
+* ``Remove unused entries from 'DagAccessEntity' (#51174)``
+* ``Bump moment-timezone from 0.5.48 to 0.6.0 in /providers/fab/src/airflow/providers/fab/www in the fab-ui-package-updates group across 1 directory (#51087)``
+* ``Bump webpack from 5.99.8 to 5.99.9 in /providers/fab/src/airflow/providers/fab/www in the fab-ui-package-updates group across 1 directory (#50847)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#50783)``
+* ``Change v1 to v2 in generated OpenAPI schema files (#50705)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Compile FAB assets (#51113)``
+   * ``Stabilize FAB asset compilation (#50829)``
+   * ``Fixing fab assets generation (#50664)``
+
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add back ProxyFix Middleware for flask app builder (#49942)``
+* ``Move access_denied_message webserver config to fab (#50208)``
+* ``Move webserver expose_hostname config to fab (#50269)``
+
+Misc
+~~~~
+
+* ``Bump the fab-ui-package-updates group across 1 directory with 4 updates (#50312)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 4 updates (#50035)``
+* ``Upgrade 'flask-appbuilder' to 4.6.3 in FAB provider (#50513)``
+
+Doc-only
+~~~~~~~~
+
+* ``docs: Update oauth keycloak example with new security manager (#50284)``
+* ``docs: conditionally render section‐move links in sections‐and‐options include (#50582)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Avoid committing history for providers (#49907)``
+   * ``Fix main - Generate FAB assets (#50546)``
+   * ``Fix Fab docs (#50594)``
+
 2.0.2
 .....
 

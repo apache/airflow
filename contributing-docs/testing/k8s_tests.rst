@@ -47,7 +47,7 @@ per each combination of Python and Kubernetes version. This is used during CI wh
 tests against those different clusters - even in parallel.
 
 The cluster name follows the pattern ``airflow-python-X.Y-vA.B.C`` where X.Y is a major/minor Python version
-and A.B.C is Kubernetes version. Example cluster name:  ``airflow-python-3.9-v1.24.0``
+and A.B.C is Kubernetes version. Example cluster name:  ``airflow-python-3.10-v1.24.0``
 
 Most of the commands can be executed in parallel for multiple images/clusters by adding ``--run-in-parallel``
 to create clusters or deploy airflow. Similarly checking for status, dumping logs and deleting clusters
@@ -234,7 +234,7 @@ Should result in KinD creating the K8S cluster.
 
 .. code-block:: text
 
-    Config created in /Users/jarek/IdeaProjects/airflow/.build/.k8s-clusters/airflow-python-3.9-v1.24.2/.kindconfig.yaml:
+    Config created in /Users/jarek/IdeaProjects/airflow/.build/.k8s-clusters/airflow-python-3.10-v1.24.2/.kindconfig.yaml:
 
     kind: Cluster
     apiVersion: kind.x-k8s.io/v1alpha4
@@ -251,7 +251,7 @@ Should result in KinD creating the K8S cluster.
             listenAddress: "127.0.0.1"
             protocol: TCP
 
-    Creating cluster "airflow-python-3.9-v1.24.2" ...
+    Creating cluster "airflow-python-3.10-v1.24.2" ...
      ✓ Ensuring node image (kindest/node:v1.24.2) 🖼
      ✓ Preparing nodes 📦 📦
      ✓ Writing configuration 📜
@@ -259,10 +259,10 @@ Should result in KinD creating the K8S cluster.
      ✓ Installing CNI 🔌
      ✓ Installing StorageClass 💾
      ✓ Joining worker nodes 🚜
-    Set kubectl context to "kind-airflow-python-3.9-v1.24.2"
+    Set kubectl context to "kind-airflow-python-3.10-v1.24.2"
     You can now use your cluster with:
 
-    kubectl cluster-info --context kind-airflow-python-3.9-v1.24.2
+    kubectl cluster-info --context kind-airflow-python-3.10-v1.24.2
 
     Not sure what to do next? 😅  Check out https://kind.sigs.k8s.io/docs/user/quick-start/
 
@@ -270,9 +270,9 @@ Should result in KinD creating the K8S cluster.
     Connecting to localhost:18150. Num try: 1
     Error when connecting to localhost:18150 : ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
 
-    Airflow webserver is not available at port 18150. Run `breeze k8s deploy-airflow --python 3.9 --kubernetes-version v1.24.2` to (re)deploy airflow
+    Airflow webserver is not available at port 18150. Run `breeze k8s deploy-airflow --python 3.10 --kubernetes-version v1.24.2` to (re)deploy airflow
 
-    KinD cluster airflow-python-3.9-v1.24.2 created!
+    KinD cluster airflow-python-3.10-v1.24.2 created!
 
     NEXT STEP: You might now configure your cluster by:
 
@@ -287,20 +287,20 @@ Should result in KinD creating the K8S cluster.
 
 .. code-block:: text
 
-    Configuring airflow-python-3.9-v1.24.2 to be ready for Airflow deployment
-    Deleting K8S namespaces for kind-airflow-python-3.9-v1.24.2
+    Configuring airflow-python-3.10-v1.24.2 to be ready for Airflow deployment
+    Deleting K8S namespaces for kind-airflow-python-3.10-v1.24.2
     Error from server (NotFound): namespaces "airflow" not found
     Error from server (NotFound): namespaces "test-namespace" not found
     Creating namespaces
     namespace/airflow created
     namespace/test-namespace created
-    Created K8S namespaces for cluster kind-airflow-python-3.9-v1.24.2
+    Created K8S namespaces for cluster kind-airflow-python-3.10-v1.24.2
 
-    Deploying test resources for cluster kind-airflow-python-3.9-v1.24.2
+    Deploying test resources for cluster kind-airflow-python-3.10-v1.24.2
     persistentvolume/test-volume created
     persistentvolumeclaim/test-volume created
     service/airflow-webserver-node-port created
-    Deployed test resources for cluster kind-airflow-python-3.9-v1.24.2
+    Deployed test resources for cluster kind-airflow-python-3.10-v1.24.2
 
 
     NEXT STEP: You might now build your k8s image by:
@@ -318,45 +318,45 @@ Should show the status of current KinD cluster.
 .. code-block:: text
 
     ========================================================================================================================
-    Cluster: airflow-python-3.9-v1.24.2
+    Cluster: airflow-python-3.10-v1.24.2
 
-        * KUBECONFIG=/Users/jarek/IdeaProjects/airflow/.build/.k8s-clusters/airflow-python-3.9-v1.24.2/.kubeconfig
-        * KINDCONFIG=/Users/jarek/IdeaProjects/airflow/.build/.k8s-clusters/airflow-python-3.9-v1.24.2/.kindconfig.yaml
+        * KUBECONFIG=/Users/jarek/IdeaProjects/airflow/.build/.k8s-clusters/airflow-python-3.10-v1.24.2/.kubeconfig
+        * KINDCONFIG=/Users/jarek/IdeaProjects/airflow/.build/.k8s-clusters/airflow-python-3.10-v1.24.2/.kindconfig.yaml
 
-    Cluster info: airflow-python-3.9-v1.24.2
+    Cluster info: airflow-python-3.10-v1.24.2
 
     Kubernetes control plane is running at https://127.0.0.1:48366
     CoreDNS is running at https://127.0.0.1:48366/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
 
     To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
 
-    Storage class for airflow-python-3.9-v1.24.2
+    Storage class for airflow-python-3.10-v1.24.2
 
     NAME                 PROVISIONER             RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
     standard (default)   rancher.io/local-path   Delete          WaitForFirstConsumer   false                  83s
 
-    Running pods for airflow-python-3.9-v1.24.2
+    Running pods for airflow-python-3.10-v1.24.2
 
     NAME                                                               READY   STATUS    RESTARTS   AGE
     coredns-6d4b75cb6d-rwp9d                                           1/1     Running   0          71s
     coredns-6d4b75cb6d-vqnrc                                           1/1     Running   0          71s
-    etcd-airflow-python-3.9-v1.24.2-control-plane                      1/1     Running   0          84s
+    etcd-airflow-python-3.10-v1.24.2-control-plane                     1/1     Running   0          84s
     kindnet-ckc8l                                                      1/1     Running   0          69s
     kindnet-qqt8k                                                      1/1     Running   0          71s
-    kube-apiserver-airflow-python-3.9-v1.24.2-control-plane            1/1     Running   0          84s
-    kube-controller-manager-airflow-python-3.9-v1.24.2-control-plane   1/1     Running   0          84s
+    kube-apiserver-airflow-python-3.10-v1.24.2-control-plane           1/1     Running   0          84s
+    kube-controller-manager-airflow-python-3.10-v1.24.2-control-plane  1/1     Running   0          84s
     kube-proxy-6g7hn                                                   1/1     Running   0          69s
     kube-proxy-dwfvp                                                   1/1     Running   0          71s
-    kube-scheduler-airflow-python-3.9-v1.24.2-control-plane            1/1     Running   0          84s
+    kube-scheduler-airflow-python-3.10-v1.24.2-control-plane            1/1     Running   0          84s
 
     KinD Cluster API server URL: http://localhost:48366
     Connecting to localhost:18150. Num try: 1
     Error when connecting to localhost:18150 : ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
 
-    Airflow webserver is not available at port 18150. Run `breeze k8s deploy-airflow --python 3.9 --kubernetes-version v1.24.2` to (re)deploy airflow
+    Airflow webserver is not available at port 18150. Run `breeze k8s deploy-airflow --python 3.10 --kubernetes-version v1.24.2` to (re)deploy airflow
 
 
-    Cluster healthy: airflow-python-3.9-v1.24.2
+    Cluster healthy: airflow-python-3.10-v1.24.2
 
 5. Build the image base on PROD Airflow image. You need to build the PROD image first (the command will
    guide you if you did not) either by running the build separately or passing ``--rebuild-base-image``
@@ -366,7 +366,7 @@ Should show the status of current KinD cluster.
    Note, that this command by default uses ``--use-uv`` flag to use ``uv`` to build the image instead of
    ``pip``. This is much faster (50% faster) to rebuild the image and iterate with your code but if you
    built your PROD image without ``--use-uv`` flag the first build might be a bit longer. You can also switch
-   to using a ``pip`` based image by specifying ``--no-use-uv`` flag together with ``--rebuid-base-image``.
+   to using a ``pip`` based image by specifying ``--no-use-uv`` flag together with ``--rebuild-base-image``.
 
 .. code-block:: bash
 
@@ -374,15 +374,15 @@ Should show the status of current KinD cluster.
 
 .. code-block:: text
 
-    Building the K8S image for Python 3.9 using Airflow base image: ghcr.io/apache/airflow/main/prod/python3.9:latest
+    Building the K8S image for Python 3.10 using Airflow base image: ghcr.io/apache/airflow/main/prod/python3.10:latest
 
     [+] Building 0.1s (8/8) FINISHED
      => [internal] load build definition from Dockerfile                                                                                                                                                                                                                                           0.0s
      => => transferring dockerfile: 301B                                                                                                                                                                                                                                                           0.0s
      => [internal] load .dockerignore                                                                                                                                                                                                                                                              0.0s
      => => transferring context: 35B                                                                                                                                                                                                                                                               0.0s
-     => [internal] load metadata for ghcr.io/apache/airflow/main/prod/python3.9:latest                                                                                                                                                                                                             0.0s
-     => [1/3] FROM ghcr.io/apache/airflow/main/prod/python3.9:latest                                                                                                                                                                                                                               0.0s
+     => [internal] load metadata for ghcr.io/apache/airflow/main/prod/python3.10:latest                                                                                                                                                                                                             0.0s
+     => [1/3] FROM ghcr.io/apache/airflow/main/prod/python3.10:latest                                                                                                                                                                                                                               0.0s
      => [internal] load build context                                                                                                                                                                                                                                                              0.0s
      => => transferring context: 3.00kB                                                                                                                                                                                                                                                            0.0s
      => CACHED [2/3] COPY airflow/example_dags/ /opt/airflow/dags/                                                                                                                                                                                                                                 0.0s
@@ -390,7 +390,7 @@ Should show the status of current KinD cluster.
      => exporting to image                                                                                                                                                                                                                                                                         0.0s
      => => exporting layers                                                                                                                                                                                                                                                                        0.0s
      => => writing image sha256:c0bdd363c549c3b0731b8e8ce34153d081f239ee2b582355b7b3ffd5394c40bb                                                                                                                                                                                                   0.0s
-     => => naming to ghcr.io/apache/airflow/main/prod/python3.9-kubernetes:latest
+     => => naming to ghcr.io/apache/airflow/main/prod/python3.10-kubernetes:latest
 
     NEXT STEP: You might now upload your k8s image by:
 
@@ -410,9 +410,9 @@ Should show the status of current KinD cluster.
     Good version of kubectl installed: 1.25.0 in /Users/jarek/IdeaProjects/airflow/kubernetes-tests/.venv/bin
     Good version of helm installed: 3.9.2 in /Users/jarek/IdeaProjects/airflow/kubernetes-tests/.venv/bin
     Stable repo is already added
-    Uploading Airflow image ghcr.io/apache/airflow/main/prod/python3.9-kubernetes to cluster airflow-python-3.9-v1.24.2
-    Image: "ghcr.io/apache/airflow/main/prod/python3.9-kubernetes" with ID "sha256:fb6195f7c2c2ad97788a563a3fe9420bf3576c85575378d642cd7985aff97412" not yet present on node "airflow-python-3.9-v1.24.2-worker", loading...
-    Image: "ghcr.io/apache/airflow/main/prod/python3.9-kubernetes" with ID "sha256:fb6195f7c2c2ad97788a563a3fe9420bf3576c85575378d642cd7985aff97412" not yet present on node "airflow-python-3.9-v1.24.2-control-plane", loading...
+    Uploading Airflow image ghcr.io/apache/airflow/main/prod/python3.10-kubernetes to cluster airflow-python-3.10-v1.24.2
+    Image: "ghcr.io/apache/airflow/main/prod/python3.10-kubernetes" with ID "sha256:fb6195f7c2c2ad97788a563a3fe9420bf3576c85575378d642cd7985aff97412" not yet present on node "airflow-python-3.10-v1.24.2-worker", loading...
+    Image: "ghcr.io/apache/airflow/main/prod/python3.10-kubernetes" with ID "sha256:fb6195f7c2c2ad97788a563a3fe9420bf3576c85575378d642cd7985aff97412" not yet present on node "airflow-python-3.10-v1.24.2-control-plane", loading...
 
     NEXT STEP: You might now deploy Airflow by:
 
@@ -427,8 +427,8 @@ Should show the status of current KinD cluster.
 
 .. code-block:: text
 
-    Deploying Airflow for cluster airflow-python-3.9-v1.24.2
-    Deploying kind-airflow-python-3.9-v1.24.2 with Airflow Helm Chart.
+    Deploying Airflow for cluster airflow-python-3.10-v1.24.2
+    Deploying kind-airflow-python-3.10-v1.24.2 with Airflow Helm Chart.
     Copied chart sources to /private/var/folders/v3/gvj4_mw152q556w2rrh7m46w0000gn/T/chart_edu__kir/chart
     Deploying Airflow from /private/var/folders/v3/gvj4_mw152q556w2rrh7m46w0000gn/T/chart_edu__kir/chart
     NAME: airflow
@@ -469,13 +469,13 @@ Should show the status of current KinD cluster.
     unnecessary restarts of your Airflow components.
 
     Information on how to set a static webserver secret key can be found here:
-    https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#webserver-secret-key
-    Deployed kind-airflow-python-3.9-v1.24.2 with Airflow Helm Chart.
+    https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#api-secret-key
+    Deployed kind-airflow-python-3.10-v1.24.2 with Airflow Helm Chart.
 
-    Airflow for Python 3.9 and K8S version v1.24.2 has been successfully deployed.
+    Airflow for Python 3.10 and K8S version v1.24.2 has been successfully deployed.
 
-    The KinD cluster name: airflow-python-3.9-v1.24.2
-    The kubectl cluster name: kind-airflow-python-3.9-v1.24.2.
+    The KinD cluster name: airflow-python-3.10-v1.24.2
+    The kubectl cluster name: kind-airflow-python-3.10-v1.24.2.
 
 
     KinD Cluster API server URL: http://localhost:48366
@@ -519,7 +519,7 @@ The virtualenv required will be created automatically when the scripts are run.
     Good version of helm installed: 3.16.4 in /Users/jarek/IdeaProjects/airflow/kubernetes-tests/.venv/bin
     Stable repo is already added
 
-    Running tests with kind-airflow-python-3.9-v1.29.12 cluster.
+    Running tests with kind-airflow-python-3.10-v1.29.12 cluster.
      Command to run: uv run pytest kubernetes-tests/tests/
     Installed 74 packages in 179ms
     /Users/jarek/IdeaProjects/airflow/.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
@@ -553,7 +553,7 @@ Once you enter the environment, you receive this information:
 
     Entering interactive k8s shell.
 
-    (kind-airflow-python-3.9-v1.24.2:KubernetesExecutor)>
+    (kind-airflow-python-3.10-v1.24.2:KubernetesExecutor)>
 
 In a separate terminal you can open the k9s CLI:
 
@@ -603,7 +603,7 @@ environment variable copying it from the result of "breeze k8s tests":
 
     echo ${KUBECONFIG}
 
-    /home/jarek/code/airflow/.build/.k8s-clusters/airflow-python-3.9-v1.28.13/.kube/config
+    /home/jarek/code/airflow/.build/.k8s-clusters/airflow-python-3.10-v1.28.13/.kube/config
 
 .. image:: images/kubeconfig-env.png
     :align: center
@@ -671,9 +671,9 @@ Kind has also useful commands to inspect your running cluster:
 
 .. code-block:: text
 
-    Deleting KinD cluster airflow-python-3.9-v1.24.2!
-    Deleting cluster "airflow-python-3.9-v1.24.2" ...
-    KinD cluster airflow-python-3.9-v1.24.2 deleted!
+    Deleting KinD cluster airflow-python-3.10-v1.24.2!
+    Deleting cluster "airflow-python-3.10-v1.24.2" ...
+    KinD cluster airflow-python-3.10-v1.24.2 deleted!
 
 
 Running complete k8s tests

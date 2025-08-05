@@ -28,7 +28,7 @@ allow webserver users to view the config from within the UI:
 .. code-block:: yaml
 
    config:
-     webserver:
+     api:
        expose_config: 'True'  # by default this is 'False'
 
 Generally speaking, it is useful to familiarize oneself with the Airflow

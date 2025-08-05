@@ -1,0 +1,110 @@
+{
+  "allRuns": "Todas las Ejecuciones",
+  "blockingDeps": {
+    "dependency": "Dependencia",
+    "reason": "Razón",
+    "title": "Dependencias que bloquean la tarea de ser programada"
+  },
+  "code": {
+    "bundleUrl": "URL del Bundle",
+    "noCode": "No se encontró código",
+    "parsedAt": "Parseado en:"
+  },
+  "extraLinks": "Enlaces Extra",
+  "grid": {
+    "buttons": {
+      "resetToLatest": "Reiniciar a la última",
+      "toggleGroup": "Alternar grupo"
+    }
+  },
+  "header": {
+    "buttons": {
+      "dagDocs": "Documentacion del Dag"
+    }
+  },
+  "logs": {
+    "noTryNumber": "No hay número de intento",
+    "viewInExternal": "Ver logs en {{name}} (intento {{attempt}})"
+  },
+  "overview": {
+    "buttons": {
+      "failedRun_one": "Ejecución Fallida",
+      "failedRun_other": "Ejecuciones Fallidas",
+      "failedTask_one": "Tarea Fallida",
+      "failedTask_other": "Tareas Fallidas",
+      "failedTaskInstance_one": "Instancia de Tarea Fallida",
+      "failedTaskInstance_other": "Instancias de Tarea Fallidas"
+    },
+    "charts": {
+      "assetEvent_one": "Evento de Asset Creado",
+      "assetEvent_other": "Eventos de Asset Creados"
+    },
+    "failedLogs": {
+      "title": "Logs de Tareas Fallidas Recientes",
+      "viewFullLogs": "Ver logs completos"
+    }
+  },
+  "panel": {
+    "buttons": {
+      "options": "Opciones",
+      "showGraph": "Mostrar Gráfico",
+      "showGrid": "Mostrar Grilla"
+    },
+    "dagRuns": {
+      "label": "Número de Ejecuciones de Dag"
+    },
+    "dependencies": {
+      "label": "Dependencias",
+      "options": {
+        "allDagDependencies": "Todas las Dependencias de Dag",
+        "externalConditions": "Condiciones Externas",
+        "onlyTasks": "Solo tareas"
+      },
+      "placeholder": "Dependencias"
+    },
+    "graphDirection": {
+      "label": "Dirección del Gráfico"
+    }
+  },
+  "paramsFailed": "Error al cargar los parámetros",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "El Dag no pudo ser reparado. Puede haber solicitudes de reparsing pendientes por procesar.",
+        "title": "El Dag no pudo ser reparado"
+      },
+      "success": {
+        "description": "El Dag debería reparsearse pronto.",
+        "title": "Solicitud de reparsing enviada exitosamente"
+      }
+    }
+  },
+  "tabs": {
+    "assetEvents": "Eventos de Asset",
+    "auditLog": "Auditoría de Log",
+    "backfills": "Backfills",
+    "code": "Código",
+    "details": "Detalles",
+    "logs": "Logs",
+    "mappedTaskInstances_one": "Instancia de Tarea [{{count}}]",
+    "mappedTaskInstances_other": "Instancias de Tarea [{{count}}]",
+    "overview": "Resumen",
+    "renderedTemplates": "Plantillas Renderizadas",
+    "runs": "Ejecuciones",
+    "taskInstances": "Instancias de Tarea",
+    "tasks": "Tareas",
+    "xcom": "XCom"
+  },
+  "taskGroups": {
+    "collapseAll": "Colapsar todos los grupos de tareas",
+    "expandAll": "Expandir todos los grupos de tareas"
+  },
+  "taskLogs": {
+    "allLogLevels": "Todos los Niveles de Log",
+    "allSources": "Todos los Orígenes",
+    "fullscreen": {
+      "button": "Pantalla completa",
+      "tooltip": "Presiona {{hotkey}} para pantalla completa"
+    }
+  }
+}

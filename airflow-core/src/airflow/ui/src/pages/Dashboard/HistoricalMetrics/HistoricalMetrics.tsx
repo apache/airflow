@@ -19,6 +19,7 @@
 import { Box, VStack, SimpleGrid, GridItem, Flex, Heading } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { PiBooks } from "react-icons/pi";
 
 import { useAssetServiceGetAssetEvents, useDashboardServiceHistoricalMetrics } from "openapi/queries";
@@ -34,6 +35,7 @@ import { TaskInstanceMetrics } from "./TaskInstanceMetrics";
 const defaultHour = "24";
 
 export const HistoricalMetrics = () => {
+  const { t: translate } = useTranslation("dashboard");
   const now = dayjs();
   const [startDate, setStartDate] = useState(now.subtract(Number(defaultHour), "hour").toISOString());
   const [endDate, setEndDate] = useState(now.toISOString());
@@ -61,7 +63,7 @@ export const HistoricalMetrics = () => {
 
   const { data: assetEventsData, isLoading: isLoadingAssetEvents } = useAssetServiceGetAssetEvents({
     limit: 6,
-    orderBy: assetSortBy,
+    orderBy: [assetSortBy],
     timestampGte: startDate,
     timestampLte: endDate,
   });
@@ -71,7 +73,7 @@ export const HistoricalMetrics = () => {
       <Flex color="fg.muted" my={2}>
         <PiBooks />
         <Heading ml={1} size="xs">
-          History
+          {translate("history")}
         </Heading>
       </Flex>
       <ErrorAlert error={error} />
@@ -83,7 +85,7 @@ export const HistoricalMetrics = () => {
           setStartDate={setStartDate}
           startDate={startDate}
         />
-        <SimpleGrid columns={{ base: 10 }}>
+        <SimpleGrid columns={{ base: 10 }} gap={2}>
           <GridItem colSpan={{ base: 7 }}>
             {isLoading ? <MetricSectionSkeleton /> : undefined}
             {!isLoading && data !== undefined && (

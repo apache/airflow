@@ -22,9 +22,15 @@ description: |
     `IBM Cloudant <https://www.ibm.com/cloud/cloudant>`__
 
 state: ready
-source-date-epoch: 1743477795
-# note that those versions are maintained by release manager - do not update them manually
+source-date-epoch: 1753689851
+# Note that those versions are maintained by release manager - do not update them manually
+# with the exception of case where other provider in sources has >= new provider version.
+# In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
+# to be done in the same PR
 versions:
+  - 4.2.2
+  - 4.2.1
+  - 4.2.0
   - 4.1.1
   - 4.1.0
   - 4.0.3
@@ -49,13 +55,6 @@ versions:
   - 2.0.0
   - 1.0.1
   - 1.0.0
-
-excluded-python-versions:
-  # ibmcloudant transitively brings in urllib3 2.x, but the snowflake provider has a dependency that pins
-  # urllib3 to 1.x on Python 3.9; thus we exclude those Python versions from taking the update
-  # to ibmcloudant.
-  # See #21004, #41555, and https://github.com/snowflakedb/snowflake-connector-python/issues/2016
-  - "3.9"
 
 integrations:
   - integration-name: IBM Cloudant

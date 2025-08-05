@@ -23,9 +23,10 @@ import shutil
 from contextlib import nullcontext
 from copy import copy
 from unittest import mock
-from unittest.mock import ANY, MagicMock
+from unittest.mock import ANY, AsyncMock, MagicMock
 from uuid import uuid4
 
+import pendulum
 import pytest
 from kubernetes import client
 from kubernetes.client import V1EnvVar, V1PodSecurityContext, V1SecurityContext, models as k8s
@@ -54,7 +55,7 @@ def create_context(task) -> Context:
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
     dag = DAG(dag_id="dag", schedule=None)
-    logical_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=timezone.parse_timezone("Europe/Amsterdam"))
+    logical_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=pendulum.timezone("Europe/Amsterdam"))
 
     if AIRFLOW_V_3_0_PLUS:
         dag_run = DagRun(
@@ -75,7 +76,10 @@ def create_context(task) -> Context:
                 logical_date=logical_date,
             ),
         )
-    task_instance = TaskInstance(task=task)
+    if AIRFLOW_V_3_0_PLUS:
+        task_instance = TaskInstance(task=task, run_id=dag_run.run_id, dag_version_id=mock.MagicMock())
+    else:
+        task_instance = TaskInstance(task=task)
     task_instance.dag_run = dag_run
     task_instance.dag_id = dag.dag_id
     task_instance.try_number = 1
@@ -932,6 +936,8 @@ class TestKubernetesPodOperatorSystem:
     @mock.patch(f"{POD_MANAGER_CLASS}.await_xcom_sidecar_container_start")
     @mock.patch(f"{POD_MANAGER_CLASS}.extract_xcom")
     @mock.patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
+    @mock.patch(f"{POD_MANAGER_CLASS}.watch_pod_events", new=AsyncMock())
+    @mock.patch(f"{POD_MANAGER_CLASS}.await_pod_start", new=AsyncMock())
     @mock.patch(f"{POD_MANAGER_CLASS}.create_pod", new=MagicMock)
     @mock.patch(HOOK_CLASS)
     def test_pod_template_file(
@@ -1037,6 +1043,8 @@ class TestKubernetesPodOperatorSystem:
         assert expected_dict == actual_pod
 
     @mock.patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
+    @mock.patch(f"{POD_MANAGER_CLASS}.watch_pod_events", new=AsyncMock())
+    @mock.patch(f"{POD_MANAGER_CLASS}.await_pod_start", new=AsyncMock())
     @mock.patch(f"{POD_MANAGER_CLASS}.create_pod", new=MagicMock)
     @mock.patch(HOOK_CLASS)
     def test_pod_priority_class_name(self, hook_mock, await_pod_completion_mock):
@@ -1442,7 +1450,7 @@ def test_hide_sensitive_field_in_templated_fields_on_error(caplog, monkeypatch):
     task = KubernetesPodOperator(
         task_id="dry_run_demo",
         name="hello-dry-run",
-        image="python:3.9-slim-buster",
+        image="python:3.10-slim-buster",
         cmds=["printenv"],
         env_vars=[
             V1EnvVar(name="password", value="{{ password }}"),

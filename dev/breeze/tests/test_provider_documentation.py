@@ -33,6 +33,8 @@ from airflow_breeze.prepare_providers.provider_documentation import (
     _get_change_from_line,
     _get_changes_classified,
     _get_git_log_command,
+    classification_result,
+    get_most_impactful_change,
     get_version_tag,
 )
 
@@ -317,3 +319,162 @@ def test_version_bump_for_provider_documentation(initial_version, bump_index, ex
 
     result = bump_version(Version(initial_version), bump_index)
     assert str(result) == expected_version
+
+
+@pytest.mark.parametrize(
+    "changes, expected",
+    [
+        pytest.param([TypeOfChange.SKIP], TypeOfChange.SKIP, id="only-skip"),
+        pytest.param([TypeOfChange.DOCUMENTATION], TypeOfChange.DOCUMENTATION, id="only-doc"),
+        pytest.param([TypeOfChange.MISC], TypeOfChange.MISC, id="only-misc"),
+        pytest.param([TypeOfChange.BUGFIX], TypeOfChange.BUGFIX, id="only-bugfix"),
+        pytest.param(
+            [TypeOfChange.MIN_AIRFLOW_VERSION_BUMP],
+            TypeOfChange.MIN_AIRFLOW_VERSION_BUMP,
+            id="only-min-airflow-bump",
+        ),
+        pytest.param([TypeOfChange.FEATURE], TypeOfChange.FEATURE, id="only-feature"),
+        pytest.param([TypeOfChange.BREAKING_CHANGE], TypeOfChange.BREAKING_CHANGE, id="only-breaking"),
+        pytest.param(
+            [TypeOfChange.SKIP, TypeOfChange.DOCUMENTATION], TypeOfChange.DOCUMENTATION, id="doc-vs-skip"
+        ),
+        pytest.param([TypeOfChange.SKIP, TypeOfChange.MISC], TypeOfChange.MISC, id="misc-vs-skip"),
+        pytest.param([TypeOfChange.DOCUMENTATION, TypeOfChange.MISC], TypeOfChange.MISC, id="misc-vs-doc"),
+        pytest.param([TypeOfChange.MISC, TypeOfChange.BUGFIX], TypeOfChange.BUGFIX, id="bugfix-vs-misc"),
+        pytest.param(
+            [TypeOfChange.BUGFIX, TypeOfChange.MIN_AIRFLOW_VERSION_BUMP],
+            TypeOfChange.MIN_AIRFLOW_VERSION_BUMP,
+            id="bump-vs-bugfix",
+        ),
+        pytest.param(
+            [TypeOfChange.MIN_AIRFLOW_VERSION_BUMP, TypeOfChange.FEATURE],
+            TypeOfChange.FEATURE,
+            id="feature-vs-bump",
+        ),
+        pytest.param(
+            [TypeOfChange.FEATURE, TypeOfChange.BREAKING_CHANGE],
+            TypeOfChange.BREAKING_CHANGE,
+            id="breaking-vs-feature",
+        ),
+        # Bigger combos
+        pytest.param(
+            [
+                TypeOfChange.SKIP,
+                TypeOfChange.DOCUMENTATION,
+                TypeOfChange.MISC,
+                TypeOfChange.BUGFIX,
+                TypeOfChange.MIN_AIRFLOW_VERSION_BUMP,
+                TypeOfChange.FEATURE,
+                TypeOfChange.BREAKING_CHANGE,
+            ],
+            TypeOfChange.BREAKING_CHANGE,
+            id="full-spectrum",
+        ),
+        pytest.param(
+            [
+                TypeOfChange.DOCUMENTATION,
+                TypeOfChange.BUGFIX,
+                TypeOfChange.MIN_AIRFLOW_VERSION_BUMP,
+            ],
+            TypeOfChange.MIN_AIRFLOW_VERSION_BUMP,
+            id="version-bump-over-bugfix-doc",
+        ),
+        pytest.param(
+            [
+                TypeOfChange.DOCUMENTATION,
+                TypeOfChange.MISC,
+                TypeOfChange.SKIP,
+            ],
+            TypeOfChange.MISC,
+            id="misc-over-doc-skip",
+        ),
+    ],
+)
+def test_get_most_impactful_change(changes, expected):
+    assert get_most_impactful_change(changes) == expected
+
+
+@pytest.mark.parametrize(
+    "provider_id, changed_files, expected",
+    [
+        pytest.param("slack", ["providers/slack/docs/slack.rst"], "documentation", id="only_docs"),
+        pytest.param(
+            "flink", ["providers/apache/flink/docs/slack.rst"], "documentation", id="only_docs_longer_path"
+        ),
+        pytest.param(
+            "slack", ["providers/slack/tests/test_slack.py"], "test_or_example_only", id="only_tests"
+        ),
+        pytest.param(
+            "flink",
+            ["providers/apache/flink/tests/unit/apache/flink/sensors/test_flink_kubernetes.py"],
+            "test_or_example_only",
+            id="only_tests_longer_path",
+        ),
+        pytest.param(
+            "slack",
+            ["providers/slack/src/airflow/providers/slack/example_dags/example_notify.py"],
+            "test_or_example_only",
+            id="only_example_dags",
+        ),
+        pytest.param(
+            "slack",
+            [
+                "providers/slack/tests/test_slack.py",
+                "providers/slack/src/airflow/providers/slack/example_dags/example_notify.py",
+            ],
+            "test_or_example_only",
+            id="tests_and_example_dags",
+        ),
+        pytest.param(
+            "slack",
+            [
+                "providers/slack/tests/test_slack.py",
+                "providers/slack/docs/slack.rst",
+            ],
+            "documentation",
+            id="docs_and_tests",
+        ),
+        pytest.param(
+            "slack",
+            [
+                "providers/slack/src/airflow/providers/slack/hooks/slack.py",
+                "providers/slack/tests/test_slack.py",
+            ],
+            "other",
+            id="real_code_and_tests",
+        ),
+        pytest.param(
+            "slack",
+            [
+                "providers/slack/src/airflow/providers/slack/hooks/slack.py",
+                "providers/slack/tests/test_slack.py",
+                "providers/slack/docs/slack.rst",
+            ],
+            "other",
+            id="docs_and_real_code",
+        ),
+        pytest.param(
+            "google",
+            [
+                "providers/google/tests/some_test.py",
+                "providers/amazon/tests/test_something.py",
+            ],
+            "test_or_example_only",
+            id="tests_in_multiple_providers",
+        ),
+        pytest.param(
+            "amazon",
+            [
+                "providers/google/tests/some_test.py",
+                "providers/amazon/tests/test_something.py",
+            ],
+            "test_or_example_only",
+            id="tests_in_multiple_providers",
+        ),
+        pytest.param("slack", ["airflow/utils/db.py"], "other", id="non_provider_file"),
+        pytest.param("slack", [], "other", id="empty_commit"),
+    ],
+)
+def test_classify_provider_pr_files_logic(provider_id, changed_files, expected):
+    result = classification_result(provider_id, changed_files)
+    assert result == expected

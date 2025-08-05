@@ -76,7 +76,9 @@ apache-airflow-providers-apache-cassandra package
 `Apache Cassandra <https://cassandra.apache.org/>`__.
 
 
-Release: 3.7.2
+Release: 3.8.2
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------
@@ -94,11 +96,11 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider distribution is ``2.9.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
 
 ====================  ==================
 PIP package           Version required
 ====================  ==================
-``apache-airflow``    ``>=2.9.0``
+``apache-airflow``    ``>=2.10.0``
 ``cassandra-driver``  ``>=3.29.1``
 ====================  ==================

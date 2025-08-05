@@ -90,6 +90,16 @@ def lineage_parent_id(task_instance: TaskInstance):
 
 
 def lineage_root_parent_id(task_instance: TaskInstance):
+    """
+    Macro function which returns a unique identifier of given task that can be used to create root information for ParentRunFacet.
+
+    This identifier is composed of the namespace, dag name, and generated run id for given dag, structured
+    as '{namespace}/{job_name}/{run_id}'.
+
+    .. seealso::
+        For more information take a look at the guide:
+        :ref:`howto/macros:openlineage`
+    """
     return "/".join(
         (
             lineage_job_namespace(),
@@ -107,8 +117,20 @@ def lineage_root_run_id(task_instance: TaskInstance):
     return OpenLineageAdapter.build_dag_run_id(
         dag_id=task_instance.dag_id,
         logical_date=_get_logical_date(task_instance),
-        clear_number=task_instance.dag_run.clear_number,
+        clear_number=_get_dag_run_clear_number(task_instance),
     )
+
+
+def _get_dag_run_clear_number(task_instance: TaskInstance):
+    # todo: remove when min airflow version >= 3.0
+    if AIRFLOW_V_3_0_PLUS:
+        context = task_instance.get_template_context()
+        if hasattr(task_instance, "dag_run"):
+            dag_run = task_instance.dag_run
+        else:
+            dag_run = context["dag_run"]
+        return dag_run.clear_number
+    return task_instance.dag_run.clear_number
 
 
 def _get_logical_date(task_instance):
@@ -117,7 +139,7 @@ def _get_logical_date(task_instance):
         context = task_instance.get_template_context()
         if hasattr(task_instance, "dag_run"):
             dag_run = task_instance.dag_run
-        elif hasattr(context, "dag_run"):
+        else:
             dag_run = context["dag_run"]
         if hasattr(dag_run, "logical_date") and dag_run.logical_date:
             date = dag_run.logical_date

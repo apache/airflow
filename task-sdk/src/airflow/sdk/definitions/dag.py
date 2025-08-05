@@ -26,15 +26,13 @@ import sys
 import warnings
 import weakref
 from collections import abc
-from collections.abc import Collection, Iterable, MutableSet
+from collections.abc import Callable, Collection, Iterable, MutableSet
 from datetime import datetime, timedelta
 from inspect import signature
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     ClassVar,
-    Union,
     cast,
     overload,
 )
@@ -49,14 +47,15 @@ from airflow.exceptions import (
     DuplicateTaskIdFound,
     FailFastDagInvalidTriggerRule,
     ParamValidationError,
+    RemovedInAirflow4Warning,
     TaskNotFound,
 )
 from airflow.sdk.bases.operator import BaseOperator
-from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 from airflow.sdk.definitions._internal.node import validate_key
-from airflow.sdk.definitions._internal.types import NOTSET
+from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 from airflow.sdk.definitions.asset import AssetAll, BaseAsset
 from airflow.sdk.definitions.context import Context
+from airflow.sdk.definitions.deadline import DeadlineAlert
 from airflow.sdk.definitions.param import DagParam, ParamsDict
 from airflow.timetables.base import Timetable
 from airflow.timetables.simple import (
@@ -66,18 +65,21 @@ from airflow.timetables.simple import (
     OnceTimetable,
 )
 from airflow.utils.dag_cycle_tester import check_cycle
-from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
+    from re import Pattern
+    from typing import TypeAlias
+
     from pendulum.tz.timezone import FixedTimezone, Timezone
 
-    from airflow.decorators import TaskDecoratorCollection
-    from airflow.sdk.definitions.abstractoperator import Operator
+    from airflow.sdk.definitions.decorators import TaskDecoratorCollection
+    from airflow.sdk.definitions.edges import EdgeInfoType
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.typing_compat import Self
-    from airflow.utils.types import EdgeInfoType
 
+    Operator: TypeAlias = BaseOperator | MappedOperator
 
 log = logging.getLogger(__name__)
 
@@ -90,9 +92,9 @@ __all__ = [
 
 
 DagStateChangeCallback = Callable[[Context], None]
-ScheduleInterval = Union[None, str, timedelta, relativedelta]
+ScheduleInterval = None | str | timedelta | relativedelta
 
-ScheduleArg = Union[ScheduleInterval, Timetable, BaseAsset, Collection[BaseAsset]]
+ScheduleArg = ScheduleInterval | Timetable | BaseAsset | Collection[BaseAsset]
 
 
 _DAG_HASH_ATTRS = frozenset(
@@ -105,7 +107,7 @@ _DAG_HASH_ATTRS = frozenset(
         "template_searchpath",
         "last_loaded",
         "schedule",
-        # TODO: Task-SDK: we should be hashing on timetable now, not scheulde!
+        # TODO: Task-SDK: we should be hashing on timetable now, not schedule!
         # "timetable",
     }
 )
@@ -216,7 +218,7 @@ else:
 
 def _default_start_date(instance: DAG):
     # Find start date inside default_args for compat with Airflow 2.
-    from airflow.utils import timezone
+    from airflow.sdk import timezone
 
     if date := instance.default_args.get("start_date"):
         if not isinstance(date, datetime):
@@ -276,7 +278,7 @@ class DAG:
     :param schedule: If provided, this defines the rules according to which DAG
         runs are scheduled. Possible values include a cron expression string,
         timedelta object, Timetable, or list of Asset objects.
-        See also :doc:`/howto/timetable`.
+        See also :external:doc:`howto/timetable`.
     :param start_date: The timestamp from which the scheduler will
         attempt to backfill. If this is not provided, backfilling must be done
         manually with an explicit time range.
@@ -350,7 +352,7 @@ class DAG:
     :param tags: List of tags to help filtering DAGs in the UI.
     :param owner_links: Dict of owners and their links, that will be clickable on the DAGs view UI.
         Can be used as an HTTP link (for example the link to your Slack channel), or a mailto link.
-        e.g: {"dag_owner": "https://airflow.apache.org/"}
+        e.g: ``{"dag_owner": "https://airflow.apache.org/"}``
     :param auto_register: Automatically register this DAG when it is used in a ``with`` block
     :param fail_fast: Fails currently running tasks when task in DAG fails.
         **Warning**: A fail stop dag can only have tasks with the default trigger rule ("all_success").
@@ -404,7 +406,11 @@ class DAG:
         default=None,
         validator=attrs.validators.optional(attrs.validators.instance_of(timedelta)),
     )
-    sla_miss_callback: None = attrs.field(default=None)
+    deadline: DeadlineAlert | None = attrs.field(
+        default=None,
+        validator=attrs.validators.optional(attrs.validators.instance_of(DeadlineAlert)),
+    )
+
     catchup: bool = attrs.field(
         factory=_config_bool_factory("scheduler", "catchup_by_default"),
     )
@@ -451,7 +457,7 @@ class DAG:
     )
 
     def __attrs_post_init__(self):
-        from airflow.utils import timezone
+        from airflow.sdk import timezone
 
         # Apply the timezone we settled on to end_date if it wasn't supplied
         if isinstance(_end_date := self.default_args.get("end_date"), str):
@@ -463,6 +469,12 @@ class DAG:
             self.default_args["start_date"] = timezone.convert_to_utc(start_date)
         if end_date := self.default_args.get("end_date", None):
             self.default_args["end_date"] = timezone.convert_to_utc(end_date)
+        if self.access_control is not None:
+            warnings.warn(
+                "The airflow.security.permissions module is deprecated; please see https://airflow.apache.org/docs/apache-airflow/stable/security/deprecated_permissions.html",
+                RemovedInAirflow4Warning,
+                stacklevel=2,
+            )
 
     @params.validator
     def _validate_params(self, _, params: ParamsDict):
@@ -523,7 +535,7 @@ class DAG:
     def _extract_tz(instance):
         import pendulum
 
-        from airflow.utils import timezone
+        from airflow.sdk import timezone
 
         start_date = instance.start_date or instance.default_args.get("start_date")
 
@@ -544,15 +556,6 @@ class DAG:
     @has_on_failure_callback.default
     def _has_on_failure_callback(self) -> bool:
         return self.on_failure_callback is not None
-
-    @sla_miss_callback.validator
-    def _validate_sla_miss_callback(self, _, value):
-        if value is not None:
-            warnings.warn(
-                "The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in >=3.1",
-                stacklevel=2,
-            )
-        return value
 
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"
@@ -777,12 +780,20 @@ class DAG:
         :param include_direct_upstream: Include all tasks directly upstream of matched
             and downstream (if include_downstream = True) tasks
         """
-        from airflow.models.mappedoperator import MappedOperator
+        from typing import TypeGuard
+
+        from airflow.sdk.definitions.mappedoperator import MappedOperator
+        from airflow.serialization.serialized_objects import SerializedBaseOperator
+
+        def is_task(obj) -> TypeGuard[Operator]:
+            if isinstance(obj, SerializedBaseOperator):
+                return True  # TODO (GH-52141): Split DAG implementation to straight this up.
+            return isinstance(obj, (BaseOperator, MappedOperator))
 
         # deep-copying self.task_dict and self.task_group takes a long time, and we don't want all
         # the tasks anyway, so we copy the tasks manually later
         memo = {id(self.task_dict): None, id(self.task_group): None}
-        dag = copy.deepcopy(self, memo)  # type: ignore
+        dag = copy.deepcopy(self, memo)
 
         if isinstance(task_ids, str):
             matched_tasks = [t for t in self.tasks if task_ids in t.task_id]
@@ -813,7 +824,7 @@ class DAG:
         direct_upstreams: list[Operator] = []
         if include_direct_upstream:
             for t in itertools.chain(matched_tasks, also_include):
-                upstream = (u for u in t.upstream_list if isinstance(u, (BaseOperator, MappedOperator)))
+                upstream = (u for u in t.upstream_list if is_task(u))
                 direct_upstreams.extend(upstream)
 
         # Make sure to not recursively deepcopy the dag or task_group while copying the task.
@@ -846,7 +857,7 @@ class DAG:
             proxy = weakref.proxy(copied)
 
             for child in group.children.values():
-                if isinstance(child, AbstractOperator):
+                if is_task(child):
                     if child.task_id in dag.task_dict:
                         task = copied.children[child.task_id] = dag.task_dict[child.task_id]
                         task.task_group = proxy
@@ -899,7 +910,7 @@ class DAG:
 
     @property
     def task(self) -> TaskDecoratorCollection:
-        from airflow.decorators import task
+        from airflow.sdk.definitions.decorators import task
 
         return cast("TaskDecoratorCollection", functools.partial(task, dag=self))
 
@@ -941,8 +952,8 @@ class DAG:
         ) or task_id in self.task_group.used_group_ids:
             raise DuplicateTaskIdFound(f"Task id '{task_id}' has already been added to the DAG")
         self.task_dict[task_id] = task
-        # TODO: Task-SDK: this type ignore shouldn't be needed!
-        task.dag = self  # type: ignore[assignment]
+
+        task.dag = self
         # Add task_id to used_group_ids to prevent group_id and task_id collisions.
         self.task_group.used_group_ids.add(task_id)
 
@@ -1014,6 +1025,287 @@ class DAG:
                 f"Bad formatted links are: {wrong_links}"
             )
 
+    def test(
+        self,
+        run_after: datetime | None = None,
+        logical_date: datetime | None | ArgNotSet = NOTSET,
+        run_conf: dict[str, Any] | None = None,
+        conn_file_path: str | None = None,
+        variable_file_path: str | None = None,
+        use_executor: bool = False,
+        mark_success_pattern: Pattern | str | None = None,
+    ):
+        """
+        Execute one single DagRun for a given DAG and logical date.
+
+        :param run_after: the datetime before which to Dag cannot run.
+        :param logical_date: logical date for the DAG run
+        :param run_conf: configuration to pass to newly created dagrun
+        :param conn_file_path: file path to a connection file in either yaml or json
+        :param variable_file_path: file path to a variable file in either yaml or json
+        :param use_executor: if set, uses an executor to test the DAG
+        :param mark_success_pattern: regex of task_ids to mark as success instead of running
+        """
+        import re
+        import time
+        from contextlib import ExitStack
+
+        from airflow import settings
+        from airflow.configuration import secrets_backend_list
+        from airflow.models.dag import DAG as SchedulerDAG, _get_or_create_dagrun
+        from airflow.models.dagrun import DagRun
+        from airflow.sdk import timezone
+        from airflow.secrets.local_filesystem import LocalFilesystemBackend
+        from airflow.serialization.serialized_objects import SerializedDAG
+        from airflow.utils.state import DagRunState, State, TaskInstanceState
+        from airflow.utils.types import DagRunTriggeredByType, DagRunType
+
+        if TYPE_CHECKING:
+            from airflow.models.taskinstance import TaskInstance
+
+        def add_logger_if_needed(ti: TaskInstance):
+            """
+            Add a formatted logger to the task instance.
+
+            This allows all logs to surface to the command line, instead of into
+            a task file. Since this is a local test run, it is much better for
+            the user to see logs in the command line, rather than needing to
+            search for a log file.
+
+            :param ti: The task instance that will receive a logger.
+            """
+            format = logging.Formatter("[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s")
+            handler = logging.StreamHandler(sys.stdout)
+            handler.level = logging.INFO
+            handler.setFormatter(format)
+            # only add log handler once
+            if not any(isinstance(h, logging.StreamHandler) for h in ti.log.handlers):
+                log.debug("Adding Streamhandler to taskinstance %s", ti.task_id)
+                ti.log.addHandler(handler)
+
+        exit_stack = ExitStack()
+
+        if conn_file_path or variable_file_path:
+            local_secrets = LocalFilesystemBackend(
+                variables_file_path=variable_file_path, connections_file_path=conn_file_path
+            )
+            secrets_backend_list.insert(0, local_secrets)
+            exit_stack.callback(lambda: secrets_backend_list.pop(0))
+
+        session = settings.Session()
+
+        with exit_stack:
+            self.validate()
+
+            # Allow users to explicitly pass None. If it isn't set, we default to current time.
+            logical_date = logical_date if not isinstance(logical_date, ArgNotSet) else timezone.utcnow()
+
+            log.debug("Clearing existing task instances for logical date %s", logical_date)
+            # TODO: Replace with calling client.dag_run.clear in Execution API at some point
+            SchedulerDAG.clear_dags(
+                dags=[self],
+                start_date=logical_date,
+                end_date=logical_date,
+                dag_run_state=False,
+            )
+
+            log.debug("Getting dagrun for dag %s", self.dag_id)
+            logical_date = timezone.coerce_datetime(logical_date)
+            run_after = timezone.coerce_datetime(run_after) or timezone.coerce_datetime(timezone.utcnow())
+            data_interval = (
+                self.timetable.infer_manual_data_interval(run_after=logical_date) if logical_date else None
+            )
+            scheduler_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(self))  # type: ignore[arg-type]
+
+            dr: DagRun = _get_or_create_dagrun(
+                dag=scheduler_dag,
+                start_date=logical_date or run_after,
+                logical_date=logical_date,
+                data_interval=data_interval,
+                run_after=run_after,
+                run_id=DagRun.generate_run_id(
+                    run_type=DagRunType.MANUAL,
+                    logical_date=logical_date,
+                    run_after=run_after,
+                ),
+                session=session,
+                conf=run_conf,
+                triggered_by=DagRunTriggeredByType.TEST,
+                triggering_user_name="dag_test",
+            )
+            # Start a mock span so that one is present and not started downstream. We
+            # don't care about otel in dag.test and starting the span during dagrun update
+            # is not functioning properly in this context anyway.
+            dr.start_dr_spans_if_needed(tis=[])
+            dr.dag = self  # type: ignore[assignment]
+
+            tasks = self.task_dict
+            log.debug("starting dagrun")
+            # Instead of starting a scheduler, we run the minimal loop possible to check
+            # for task readiness and dependency management.
+            # Instead of starting a scheduler, we run the minimal loop possible to check
+            # for task readiness and dependency management.
+
+            # ``Dag.test()`` works in two different modes depending on ``use_executor``:
+            # - if ``use_executor`` is False, runs the task locally with no executor using ``_run_task``
+            # - if ``use_executor`` is True, sends the task instances to the executor with
+            #   ``BaseExecutor.queue_task_instance``
+            if use_executor:
+                from airflow.executors.base_executor import ExecutorLoader
+
+                executor = ExecutorLoader.get_default_executor()
+                executor.start()
+
+            while dr.state == DagRunState.RUNNING:
+                session.expire_all()
+                schedulable_tis, _ = dr.update_state(session=session)
+                for s in schedulable_tis:
+                    if s.state != TaskInstanceState.UP_FOR_RESCHEDULE:
+                        s.try_number += 1
+                    s.state = TaskInstanceState.SCHEDULED
+                    s.scheduled_dttm = timezone.utcnow()
+                session.commit()
+                # triggerer may mark tasks scheduled so we read from DB
+                all_tis = set(dr.get_task_instances(session=session))
+                scheduled_tis = {x for x in all_tis if x.state == TaskInstanceState.SCHEDULED}
+                ids_unrunnable = {x for x in all_tis if x.state not in State.finished} - scheduled_tis
+                if not scheduled_tis and ids_unrunnable:
+                    log.warning("No tasks to run. unrunnable tasks: %s", ids_unrunnable)
+                    time.sleep(1)
+
+                for ti in scheduled_tis:
+                    ti.task = tasks[ti.task_id]
+
+                    mark_success = (
+                        re.compile(mark_success_pattern).fullmatch(ti.task_id) is not None
+                        if mark_success_pattern is not None
+                        else False
+                    )
+
+                    if use_executor:
+                        if executor.has_task(ti):
+                            continue
+
+                        from pathlib import Path
+
+                        from airflow.executors import workloads
+                        from airflow.executors.base_executor import ExecutorLoader
+                        from airflow.executors.workloads import BundleInfo
+
+                        workload = workloads.ExecuteTask.make(
+                            ti,
+                            dag_rel_path=Path(self.fileloc),
+                            generator=executor.jwt_generator,
+                            # For the system test/debug purpose, we use the default bundle which uses
+                            # local file system. If it turns out to be a feature people want, we could
+                            # plumb the Bundle to use as a parameter to dag.test
+                            bundle_info=BundleInfo(name="dags-folder"),
+                        )
+                        executor.queue_workload(workload, session=session)
+                        ti.state = TaskInstanceState.QUEUED
+                        session.commit()
+                    else:
+                        # Run the task locally
+                        try:
+                            add_logger_if_needed(ti)
+                            if mark_success:
+                                ti.set_state(State.SUCCESS)
+                                log.info("[DAG TEST] Marking success for %s on %s", ti.task, ti.logical_date)
+                            else:
+                                _run_task(ti=ti, run_triggerer=True)
+                        except Exception:
+                            log.exception("Task failed; ti=%s", ti)
+                if use_executor:
+                    executor.heartbeat()
+                    from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+                    from airflow.models.dagbag import DBDagBag
+
+                    SchedulerJobRunner.process_executor_events(
+                        executor=executor, job_id=None, scheduler_dag_bag=DBDagBag(), session=session
+                    )
+            if use_executor:
+                executor.end()
+        return dr
+
+
+def _run_task(*, ti, run_triggerer=False):
+    """
+    Run a single task instance, and push result to Xcom for downstream tasks.
+
+    Bypasses a lot of extra steps used in `task.run` to keep our local running as fast as
+    possible.  This function is only meant for the `dag.test` function as a helper function.
+    """
+    from airflow.utils.module_loading import import_string
+    from airflow.utils.state import State
+
+    log.info("[DAG TEST] starting task_id=%s map_index=%s", ti.task_id, ti.map_index)
+    while True:
+        try:
+            log.info("[DAG TEST] running task %s", ti)
+
+            from airflow.sdk.api.datamodels._generated import TaskInstance as TaskInstanceSDK
+            from airflow.sdk.execution_time.comms import DeferTask
+            from airflow.sdk.execution_time.supervisor import run_task_in_process
+
+            # The API Server expects the task instance to be in QUEUED state before
+            # it is run.
+            ti.set_state(State.QUEUED)
+
+            taskrun_result = run_task_in_process(
+                ti=TaskInstanceSDK(
+                    id=ti.id,
+                    task_id=ti.task_id,
+                    dag_id=ti.task.dag_id,
+                    run_id=ti.run_id,
+                    try_number=ti.try_number,
+                    map_index=ti.map_index,
+                    dag_version_id=ti.dag_version_id,
+                ),
+                task=ti.task,
+            )
+
+            msg = taskrun_result.msg
+            ti.set_state(taskrun_result.ti.state)
+            ti.task = taskrun_result.ti.task
+
+            if ti.state == State.DEFERRED and isinstance(msg, DeferTask) and run_triggerer:
+                from airflow.utils.session import create_session
+
+                # API Server expects the task instance to be in QUEUED state before
+                # resuming from deferral.
+                ti.set_state(State.QUEUED)
+
+                log.info("[DAG TEST] running trigger in line")
+                trigger = import_string(msg.classpath)(**msg.trigger_kwargs)
+                event = _run_inline_trigger(trigger)
+                ti.next_method = msg.next_method
+                ti.next_kwargs = {"event": event.payload} if event else msg.next_kwargs
+                log.info("[DAG TEST] Trigger completed")
+
+                # Set the state to SCHEDULED so that the task can be resumed.
+                with create_session() as session:
+                    ti.state = State.SCHEDULED
+                    session.add(ti)
+
+            return taskrun_result
+        except Exception:
+            log.exception("[DAG TEST] Error running task %s", ti)
+            if ti.state not in State.finished:
+                ti.set_state(State.FAILED)
+                break
+            raise
+
+    log.info("[DAG TEST] end task task_id=%s map_index=%s", ti.task_id, ti.map_index)
+
+
+def _run_inline_trigger(trigger):
+    import asyncio
+
+    async def _run_inline_trigger_main():
+        return await anext(trigger.run(), None)
+
+    return asyncio.run(_run_inline_trigger_main())
+
 
 # Since we define all the attributes of the class with attrs, we can compute this statically at parse time
 DAG._DAG__serialized_fields = frozenset(a.name for a in attrs.fields(DAG)) - {  # type: ignore[attr-defined]
@@ -1065,6 +1357,7 @@ if TYPE_CHECKING:
         catchup: bool = ...,
         on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
+        deadline: DeadlineAlert | None = None,
         doc_md: str | None = None,
         params: ParamsDict | dict[str, Any] | None = None,
         access_control: dict[str, dict[str, Collection[str]]] | dict[str, Collection[str]] | None = None,
@@ -1093,6 +1386,8 @@ if TYPE_CHECKING:
 
 
 def dag(dag_id_or_func=None, __DAG_class=DAG, __warnings_stacklevel_delta=2, **decorator_kwargs):
+    from airflow.sdk.definitions._internal.decorators import fixup_decorator_warning_stack
+
     # TODO: Task-SDK: remove __DAG_class
     # __DAG_class is a temporary hack to allow the dag decorator in airflow.models.dag to continue to
     # return SchedulerDag objects

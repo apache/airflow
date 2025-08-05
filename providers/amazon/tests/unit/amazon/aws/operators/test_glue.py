@@ -155,6 +155,11 @@ class TestGlueJobOperator:
 
         assert defer.value.trigger.job_name == JOB_NAME
         assert defer.value.trigger.run_id == JOB_RUN_ID
+        assert defer.value.trigger.region_name == "us-west-2"
+        assert not defer.value.trigger.verbose
+        assert defer.value.trigger.waiter_delay == 60
+        assert defer.value.trigger.attempts == 75
+        assert defer.value.trigger.aws_conn_id == "aws_default"
 
     @mock.patch.object(GlueJobHook, "print_job_logs")
     @mock.patch.object(GlueJobHook, "get_job_state")
@@ -408,6 +413,25 @@ class TestGlueJobOperator:
         )
         validate_template_fields(operator)
 
+    def test_overwritten_conn_passed_to_hook(self):
+        OVERWRITTEN_CONN = "new-conn-id"
+        op = GlueJobOperator(
+            task_id=TASK_ID,
+            aws_conn_id=OVERWRITTEN_CONN,
+            iam_role_name="role_arn",
+            replace_script_file=True,
+        )
+        assert op.hook.aws_conn_id == OVERWRITTEN_CONN
+
+    def test_default_conn_passed_to_hook(self):
+        DEFAULT_CONN = "aws_default"
+        op = GlueJobOperator(
+            task_id=TASK_ID,
+            iam_role_name="role_arn",
+            replace_script_file=True,
+        )
+        assert op.hook.aws_conn_id == DEFAULT_CONN
+
 
 class TestGlueDataQualityOperator:
     RULE_SET_NAME = "TestRuleSet"
@@ -542,6 +566,23 @@ class TestGlueDataQualityOperator:
         )
         validate_template_fields(operator)
 
+    def test_overwritten_conn_passed_to_hook(self):
+        OVERWRITTEN_CONN = "new-conn-id"
+        op = GlueDataQualityOperator(
+            task_id="test_overwritten_conn_passed_to_hook",
+            name=self.RULE_SET_NAME,
+            ruleset=self.RULE_SET,
+            aws_conn_id=OVERWRITTEN_CONN,
+        )
+        assert op.hook.aws_conn_id == OVERWRITTEN_CONN
+
+    def test_default_conn_passed_to_hook(self):
+        DEFAULT_CONN = "aws_default"
+        op = GlueDataQualityOperator(
+            task_id="test_default_conn_passed_to_hook", name=self.RULE_SET_NAME, ruleset=self.RULE_SET
+        )
+        assert op.hook.aws_conn_id == DEFAULT_CONN
+
 
 class TestGlueDataQualityRuleSetEvaluationRunOperator:
     RUN_ID = "1234567890"
@@ -647,6 +688,29 @@ class TestGlueDataQualityRuleSetEvaluationRunOperator:
 
     def test_template_fields(self):
         validate_template_fields(self.operator)
+
+    def test_overwritten_conn_passed_to_hook(self):
+        OVERWRITTEN_CONN = "new-conn-id"
+        op = GlueDataQualityRuleSetEvaluationRunOperator(
+            task_id="test_overwritten_conn_passed_to_hook",
+            datasource=self.DATA_SOURCE,
+            role=self.ROLE,
+            rule_set_names=self.RULE_SET_NAMES,
+            show_results=False,
+            aws_conn_id=OVERWRITTEN_CONN,
+        )
+        assert op.hook.aws_conn_id == OVERWRITTEN_CONN
+
+    def test_default_conn_passed_to_hook(self):
+        DEFAULT_CONN = "aws_default"
+        op = GlueDataQualityRuleSetEvaluationRunOperator(
+            task_id="test_default_conn_passed_to_hook",
+            datasource=self.DATA_SOURCE,
+            role=self.ROLE,
+            rule_set_names=self.RULE_SET_NAMES,
+            show_results=False,
+        )
+        assert op.hook.aws_conn_id == DEFAULT_CONN
 
 
 class TestGlueDataQualityRuleRecommendationRunOperator:
@@ -756,3 +820,28 @@ class TestGlueDataQualityRuleRecommendationRunOperator:
 
     def test_template_fields(self):
         validate_template_fields(self.operator)
+
+    def test_overwritten_conn_passed_to_hook(self):
+        OVERWRITTEN_CONN = "new-conn-id"
+        op = GlueDataQualityRuleRecommendationRunOperator(
+            task_id="test_overwritten_conn_passed_to_hook",
+            datasource=self.DATA_SOURCE,
+            role=self.ROLE,
+            number_of_workers=10,
+            timeout=1000,
+            recommendation_run_kwargs={"CreatedRulesetName": "test-ruleset"},
+            aws_conn_id=OVERWRITTEN_CONN,
+        )
+        assert op.hook.aws_conn_id == OVERWRITTEN_CONN
+
+    def test_default_conn_passed_to_hook(self):
+        DEFAULT_CONN = "aws_default"
+        op = GlueDataQualityRuleRecommendationRunOperator(
+            task_id="test_default_conn_passed_to_hook",
+            datasource=self.DATA_SOURCE,
+            role=self.ROLE,
+            number_of_workers=10,
+            timeout=1000,
+            recommendation_run_kwargs={"CreatedRulesetName": "test-ruleset"},
+        )
+        assert op.hook.aws_conn_id == DEFAULT_CONN

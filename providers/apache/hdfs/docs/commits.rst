@@ -31,6 +31,6 @@ and `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-
 
 
 This is detailed commit list of changes for versions provider package: ``apache.hdfs``.
-For high-level changelog, see :doc:`changelog <changelog>`.
+For high-level changelog, see :doc:`package information including changelog <index>`.
 
 .. airflow-providers-commits::

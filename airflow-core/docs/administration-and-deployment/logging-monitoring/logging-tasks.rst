@@ -57,7 +57,7 @@ In addition, you can supply a remote location to store current logs and backups.
 Writing to task logs from your code
 -----------------------------------
 
-Airflow uses standard the Python `logging <https://docs.python.org/3/library/logging.html>`_ framework to
+Airflow uses the standard Python `logging <https://docs.python.org/3/library/logging.html>`_ framework to
 write logs, and for the duration of a task, the root logger is configured to write to the task's log.
 
 Most operators will write logs to the task log automatically. This is because they
@@ -89,7 +89,7 @@ Grouping of log lines
 
 Like CI pipelines also Airflow logs can be quite large and become hard to read. Sometimes therefore it is useful to group sections of log areas
 and provide folding of text areas to hide non relevant content. Airflow therefore implements a compatible log message grouping like
-`Github <https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#grouping-log-lines>`_ and
+`GitHub <https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#grouping-log-lines>`_ and
 `Azure DevOps <https://learn.microsoft.com/en-us/azure/devops/pipelines/scripts/logging-commands?view=azure-devops&tabs=powershell#formatting-commands>`_
 such that areas of text can be folded. The implemented scheme is compatible such that tools making output in CI can leverage the same experience
 in Airflow directly.
@@ -113,7 +113,7 @@ When displaying the logs in web UI, the display of logs will be condensed:
    [2024-03-08, 23:30:18 CET] {logging_mixin.py:188} ⯈ Non important details
    [2024-03-08, 23:30:18 CET] {logging_mixin.py:188} INFO - Here is again some standard text.
 
-If you click on the log text label, the detailed log lies will be displayed.
+If you click on the log text label, the detailed log lines will be displayed.
 
 .. code-block:: text
 
@@ -178,7 +178,7 @@ Most task handlers send logs upon completion of a task. In order to view logs in
 In triggerer, logs are served unless the service is started with option ``--skip-serve-logs``.
 
 The server is running on the port specified by ``worker_log_server_port`` option in ``[logging]`` section, and option ``triggerer_log_server_port`` for triggerer.  Defaults are 8793 and 8794, respectively.
-Communication between the webserver and the worker is signed with the key specified by ``secret_key`` option  in ``[webserver]`` section. You must ensure that the key matches so that communication can take place without problems.
+Communication between the webserver and the worker is signed with the key specified by ``secret_key`` option  in ``[api]`` section. You must ensure that the key matches so that communication can take place without problems.
 
 We are using `Gunicorn <https://gunicorn.org/>`__ as a WSGI server. Its configuration options can be overridden with the ``GUNICORN_CMD_ARGS`` env variable. For details, see `Gunicorn settings <https://docs.gunicorn.org/en/latest/settings.html#settings>`__.
 

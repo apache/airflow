@@ -18,11 +18,13 @@
  */
 import { Flex, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
+import { useDagServiceGetDagDetails } from "openapi/queries";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
-import { Button, Dialog } from "src/components/ui";
+import { Button, Dialog, Checkbox } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useClearDagRunDryRun } from "src/queries/useClearDagRunDryRun";
 import { useClearDagRun } from "src/queries/useClearRun";
@@ -35,10 +37,25 @@ type Props = {
 };
 
 const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
-  const [selectedOptions, setSelectedOptions] = useState<Array<string>>([]);
-
   const dagId = dagRun.dag_id;
   const dagRunId = dagRun.dag_run_id;
+  const { t: translate } = useTranslation();
+
+  const [note, setNote] = useState<string | null>(dagRun.note);
+  const [selectedOptions, setSelectedOptions] = useState<Array<string>>(["existingTasks"]);
+  const onlyFailed = selectedOptions.includes("onlyFailed");
+  const [runOnLatestVersion, setRunOnLatestVersion] = useState(false);
+
+  // Get current DAG's bundle version to compare with DAG run's bundle version
+  const { data: dagDetails } = useDagServiceGetDagDetails({
+    dagId,
+  });
+
+  const { data: affectedTasks = { task_instances: [], total_entries: 0 } } = useClearDagRunDryRun({
+    dagId,
+    dagRunId,
+    requestBody: { only_failed: onlyFailed, run_on_latest_version: runOnLatestVersion },
+  });
 
   const { isPending, mutate } = useClearDagRun({
     dagId,
@@ -46,27 +63,18 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
     onSuccessConfirm: onClose,
   });
 
-  const onlyFailed = selectedOptions.includes("onlyFailed");
-
-  const [note, setNote] = useState<string | null>(dagRun.note);
-  const { isPending: isPendingPatchDagRun, mutate: mutatePatchDagRun } = usePatchDagRun({ dagId, dagRunId });
-
-  const { data } = useClearDagRunDryRun({
+  const { isPending: isPendingPatchDagRun, mutate: mutatePatchDagRun } = usePatchDagRun({
     dagId,
     dagRunId,
-    options: {
-      enabled: open,
-      refetchOnMount: "always",
-    },
-    requestBody: {
-      only_failed: onlyFailed,
-    },
+    onSuccess: onClose,
   });
 
-  const affectedTasks = data ?? {
-    task_instances: [],
-    total_entries: 0,
-  };
+  // Check if bundle versions are different
+  const currentDagBundleVersion = dagDetails?.bundle_version;
+  const dagRunBundleVersion = dagRun.bundle_version;
+  const bundleVersionsDiffer = currentDagBundleVersion !== dagRunBundleVersion;
+  const shouldShowBundleVersionOption =
+    bundleVersionsDiffer && dagRunBundleVersion !== null && dagRunBundleVersion !== "";
 
   return (
     <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
@@ -74,7 +82,10 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
         <Dialog.Header>
           <VStack align="start" gap={4}>
             <Heading size="xl">
-              <strong>Clear DagRun: </strong> {dagRunId}
+              <strong>
+                {translate("dags:runAndTaskActions.clear.title", { type: translate("dagRun_one") })}:{" "}
+              </strong>{" "}
+              {dagRunId}
             </Heading>
           </VStack>
         </Dialog.Header>
@@ -87,18 +98,36 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
               defaultValues={["existingTasks"]}
               onChange={setSelectedOptions}
               options={[
-                { label: "Clear existing tasks", value: "existingTasks" },
-                { label: "Clear only failed tasks", value: "onlyFailed" },
+                {
+                  label: translate("dags:runAndTaskActions.options.existingTasks"),
+                  value: "existingTasks",
+                },
+                {
+                  label: translate("dags:runAndTaskActions.options.onlyFailed"),
+                  value: "onlyFailed",
+                },
                 {
                   disabled: true,
-                  label: "Queue up new tasks",
+                  label: translate("dags:runAndTaskActions.options.queueNew"),
                   value: "new_tasks",
                 },
               ]}
             />
           </Flex>
           <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
-          <Flex justifyContent="end" mt={3}>
+          <Flex
+            {...(shouldShowBundleVersionOption ? { alignItems: "center" } : {})}
+            justifyContent={shouldShowBundleVersionOption ? "space-between" : "end"}
+            mt={3}
+          >
+            {shouldShowBundleVersionOption ? (
+              <Checkbox
+                checked={runOnLatestVersion}
+                onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
+              >
+                {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
+              </Checkbox>
+            ) : undefined}
             <Button
               colorPalette="blue"
               disabled={affectedTasks.total_entries === 0}
@@ -107,7 +136,11 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
                 mutate({
                   dagId,
                   dagRunId,
-                  requestBody: { dry_run: false, only_failed: onlyFailed },
+                  requestBody: {
+                    dry_run: false,
+                    only_failed: onlyFailed,
+                    run_on_latest_version: runOnLatestVersion,
+                  },
                 });
                 if (note !== dagRun.note) {
                   mutatePatchDagRun({
@@ -118,7 +151,7 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
                 }
               }}
             >
-              <CgRedo /> Confirm
+              <CgRedo /> {translate("modal.confirm")}
             </Button>
           </Flex>
         </Dialog.Body>

@@ -25,7 +25,7 @@ dynamic = ["version"]
 description = "Apache Airflow API (Stable)"
 readme = "README.md"
 license-files.globs = ["LICENSE", "NOTICE"]
-requires-python = "~=3.9"
+requires-python = ">=3.10"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -42,7 +42,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
     "License :: OSI Approved :: Apache Software License",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -50,8 +49,9 @@ classifiers = [
 ]
 
 dependencies = [
+    "pydantic >= 2.11.0",
     "python-dateutil",
-    "urllib3 >= 1.25.3",
+    "urllib3 >= 2.1.0",
 ]
 
 [project.urls]
@@ -65,7 +65,6 @@ Homepage = "https://airflow.apache.org/"
 [tool.hatch.envs.test]
 dependencies = [
     "pytest-cov>=2.8.1",
-    "urllib3 >= 1.25.3",
 ]
 
 [tool.hatch.envs.test.scripts]
@@ -73,7 +72,7 @@ run-coverage = "pytest test"
 run = "run-coverage --no-cov"
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.9", "3.10", "3.11"]
+python = ["3.10", "3.11"]
 
 [tool.hatch.version]
 path = "./version.txt"
@@ -84,7 +83,7 @@ artifacts = [
     "/airflow_client",
     "/docs",
     "/test",
-    "v1.yaml",
+    "v2.yaml",
 ]
 include = [
     "version.txt",
@@ -97,7 +96,7 @@ artifacts = [
     "/airflow_client",
     "/docs",
     "/test",
-    "v1.yaml",
+    "v2.yaml",
 ]
 include = [
     "/airflow_client",

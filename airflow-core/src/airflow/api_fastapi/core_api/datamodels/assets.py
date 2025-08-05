@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import Field, field_validator
+from pydantic import AliasPath, Field, NonNegativeInt, field_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.sdk.execution_time.secrets_masker import redact
@@ -33,6 +33,15 @@ class DagScheduleAssetReference(StrictBaseModel):
     updated_at: datetime
 
 
+class TaskInletAssetReference(StrictBaseModel):
+    """Task inlet reference serializer for assets."""
+
+    dag_id: str
+    task_id: str
+    created_at: datetime
+    updated_at: datetime
+
+
 class TaskOutletAssetReference(StrictBaseModel):
     """Task outlet reference serializer for assets."""
 
@@ -40,6 +49,13 @@ class TaskOutletAssetReference(StrictBaseModel):
     task_id: str
     created_at: datetime
     updated_at: datetime
+
+
+class LastAssetEventResponse(BaseModel):
+    """Last asset event response serializer."""
+
+    id: NonNegativeInt | None = None
+    timestamp: datetime | None = None
 
 
 class AssetResponse(BaseModel):
@@ -52,9 +68,11 @@ class AssetResponse(BaseModel):
     extra: dict | None = None
     created_at: datetime
     updated_at: datetime
-    consuming_dags: list[DagScheduleAssetReference]
+    scheduled_dags: list[DagScheduleAssetReference]
     producing_tasks: list[TaskOutletAssetReference]
+    consuming_tasks: list[TaskInletAssetReference]
     aliases: list[AssetAliasResponse]
+    last_asset_event: LastAssetEventResponse | None = None
 
     @field_validator("extra", mode="after")
     @classmethod
@@ -132,6 +150,7 @@ class QueuedEventResponse(BaseModel):
     dag_id: str
     asset_id: int
     created_at: datetime
+    dag_display_name: str = Field(validation_alias=AliasPath("dag_model", "dag_display_name"))
 
 
 class QueuedEventCollectionResponse(BaseModel):

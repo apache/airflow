@@ -115,9 +115,7 @@ class WorkflowTrigger(BaseTrigger):
                 if failed_count > 0:
                     yield TriggerEvent({"status": "failed"})
                     return
-                else:
-                    yield TriggerEvent({"status": "success"})
-                    return
+
             if self.skipped_states:
                 skipped_count = await get_count_func(self.skipped_states)
                 if skipped_count > 0:
@@ -125,7 +123,7 @@ class WorkflowTrigger(BaseTrigger):
                     return
             allowed_count = await get_count_func(self.allowed_states)
 
-            if allowed_count == len(run_id_or_dates):  # type: ignore[arg-type]
+            if allowed_count == len(run_id_or_dates):
                 yield TriggerEvent({"status": "success"})
                 return
             self.log.info("Sleeping for %s seconds", self.poke_interval)
@@ -142,7 +140,7 @@ class WorkflowTrigger(BaseTrigger):
         }
         if self.external_task_ids:
             count = await sync_to_async(RuntimeTaskInstance.get_ti_count)(
-                task_ids=self.external_task_ids,  # type: ignore[arg-type]
+                task_ids=self.external_task_ids,
                 states=states,
                 **params,
             )
@@ -235,7 +233,7 @@ class DagStateTrigger(BaseTrigger):
             return
         else:
             while True:
-                num_dags = await self.count_dags()  # type: ignore[call-arg]
+                num_dags = await self.count_dags()
                 if num_dags == runs_ids_or_dates:
                     yield TriggerEvent(self.serialize())
                     return

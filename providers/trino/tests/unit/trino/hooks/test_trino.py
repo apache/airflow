@@ -109,7 +109,10 @@ class TestTrinoHookConn:
             extra=json.dumps(extras),
         )
         with pytest.raises(
-            AirflowException, match=re.escape("The 'kerberos' authorization type doesn't support password.")
+            AirflowException,
+            match=re.escape(
+                "Multiple authentication methods specified: password, kerberos. Only one is allowed."
+            ),
         ):
             TrinoHook().get_conn()
 
@@ -258,6 +261,22 @@ class TestTrinoHookConn:
         TrinoHook().get_conn()
         self.assert_connection_called_with(mock_connect, timezone="Asia/Jerusalem")
 
+    @patch(HOOK_GET_CONNECTION)
+    @patch(TRINO_DBAPI_CONNECT)
+    def test_get_conn_extra_credential(self, mock_connect, mock_get_connection):
+        extras = {"extra_credential": [["a.username", "bar"], ["a.password", "foo"]]}
+        self.set_get_connection_return_value(mock_get_connection, extra=json.dumps(extras))
+        TrinoHook().get_conn()
+        self.assert_connection_called_with(mock_connect, extra_credential=extras["extra_credential"])
+
+    @patch(HOOK_GET_CONNECTION)
+    @patch(TRINO_DBAPI_CONNECT)
+    def test_get_conn_roles(self, mock_connect, mock_get_connection):
+        extras = {"roles": {"catalog1": "trinoRoleA", "catalog2": "trinoRoleB"}}
+        self.set_get_connection_return_value(mock_get_connection, extra=json.dumps(extras))
+        TrinoHook().get_conn()
+        self.assert_connection_called_with(mock_connect, roles=extras["roles"])
+
     @staticmethod
     def set_get_connection_return_value(mock_get_connection, extra=None, password=None):
         mocked_connection = Connection(
@@ -274,6 +293,8 @@ class TestTrinoHookConn:
         session_properties=None,
         client_tags=None,
         timezone=None,
+        extra_credential=None,
+        roles=None,
     ):
         mock_connect.assert_called_once_with(
             catalog="hive",
@@ -290,6 +311,8 @@ class TestTrinoHookConn:
             session_properties=session_properties,
             client_tags=client_tags,
             timezone=timezone,
+            extra_credential=extra_credential,
+            roles=roles,
         )
 
 

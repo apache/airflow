@@ -16,14 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from collections.abc import Mapping, Sequence
 from functools import cached_property
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
-from typing_extensions import Literal
-
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.slack.hooks.slack import SlackHook
 from airflow.providers.slack.transfers.base_sql_to_slack import BaseSqlToSlackOperator
 from airflow.providers.slack.utils import parse_filename
@@ -93,7 +92,7 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
         slack_initial_comment: str | None = None,
         slack_title: str | None = None,
         slack_base_url: str | None = None,
-        slack_method_version: Literal["v1", "v2"] = "v2",
+        slack_method_version: Literal["v1", "v2"] | None = None,
         df_kwargs: dict | None = None,
         action_on_empty_df: Literal["send", "skip", "error"] = "send",
         **kwargs,
@@ -113,6 +112,13 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
             raise ValueError(f"Invalid `action_on_empty_df` value {action_on_empty_df!r}")
         self.action_on_empty_df = action_on_empty_df
 
+        if self.slack_method_version:
+            warnings.warn(
+                "The property `slack_method_version` is no longer required for `SqlToSlackApiFileOperator`, as slack_sdk is using the files_upload_v2 method by default.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+
     @cached_property
     def slack_hook(self):
         """Slack API Hook."""
@@ -123,12 +129,6 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
             proxy=self.slack_proxy,
             retry_handlers=self.slack_retry_handlers,
         )
-
-    @property
-    def _method_resolver(self):
-        if self.slack_method_version == "v1":
-            return self.slack_hook.send_file
-        return self.slack_hook.send_file_v1_to_v2
 
     def execute(self, context: Context) -> None:
         # Parse file format from filename
@@ -164,7 +164,7 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
                 # if SUPPORTED_FILE_FORMATS extended and no actual implementation for specific format.
                 raise AirflowException(f"Unexpected output file format: {output_file_format}")
 
-            self._method_resolver(
+            self.slack_hook.send_file_v1_to_v2(
                 channels=self.slack_channels,
                 file=output_file_name,
                 filename=self.slack_filename,

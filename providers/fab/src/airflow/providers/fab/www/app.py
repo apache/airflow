@@ -33,7 +33,7 @@ from airflow.logging_config import configure_logging
 from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
 from airflow.providers.fab.www.extensions.init_jinja_globals import init_jinja_globals
 from airflow.providers.fab.www.extensions.init_manifest_files import configure_manifest_files
-from airflow.providers.fab.www.extensions.init_security import init_api_auth, init_xframe_protection
+from airflow.providers.fab.www.extensions.init_security import init_api_auth
 from airflow.providers.fab.www.extensions.init_session import init_airflow_session_interface
 from airflow.providers.fab.www.extensions.init_views import (
     init_api_auth_provider,
@@ -56,10 +56,16 @@ def create_app(enable_plugins: bool):
     from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 
     flask_app = Flask(__name__)
-    flask_app.secret_key = conf.get("webserver", "SECRET_KEY")
+    flask_app.secret_key = conf.get("api", "SECRET_KEY")
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
     flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     flask_app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=get_session_lifetime_config())
+
+    flask_app.config["SESSION_COOKIE_HTTPONLY"] = True
+    if conf.has_option("fab", "COOKIE_SECURE"):
+        flask_app.config["SESSION_COOKIE_SECURE"] = conf.getboolean("fab", "COOKIE_SECURE")
+    if conf.has_option("fab", "COOKIE_SAMESITE"):
+        flask_app.config["SESSION_COOKIE_SAMESITE"] = conf.get("fab", "COOKIE_SAMESITE")
 
     webserver_config = conf.get_mandatory_value("fab", "config_file")
     # Enable customizations in webserver_config.py to be applied via Flask.current_app.
@@ -102,7 +108,6 @@ def create_app(enable_plugins: bool):
             init_api_auth_provider(flask_app)
             init_api_error_handlers(flask_app)
         init_jinja_globals(flask_app, enable_plugins=enable_plugins)
-        init_xframe_protection(flask_app)
         init_airflow_session_interface(flask_app)
         init_wsgi_middleware(flask_app)
     return flask_app

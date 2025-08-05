@@ -234,7 +234,7 @@ def change_config(
             touch_cache_file(colour_file)
             get_console().print("[info]Disable Colour[/]")
 
-    def get_supress_status(file: str):
+    def get_suppress_status(file: str):
         return "disabled" if check_if_cache_exists(file) else "enabled"
 
     def get_status(file: str):
@@ -248,11 +248,11 @@ def change_config(
     get_console().print(f"[info]* Postgres version: {postgres_version}[/]")
     get_console().print(f"[info]* MySQL version: {mysql_version}[/]")
     get_console().print()
-    get_console().print(f"[info]* ASCIIART: {get_supress_status(asciiart_file)}[/]")
-    get_console().print(f"[info]* Cheatsheet: {get_supress_status(cheatsheet_file)}[/]")
+    get_console().print(f"[info]* ASCIIART: {get_suppress_status(asciiart_file)}[/]")
+    get_console().print(f"[info]* Cheatsheet: {get_suppress_status(cheatsheet_file)}[/]")
     get_console().print()
     get_console().print()
-    get_console().print(f"[info]* Colour: {get_supress_status(colour_file)}[/]")
+    get_console().print(f"[info]* Colour: {get_suppress_status(colour_file)}[/]")
     get_console().print()
 
 
@@ -498,7 +498,6 @@ def regenerate_help_images_for_all_commands(commands: tuple[str, ...], check_onl
     env["PYTHONPATH"] = str(BREEZE_SOURCES_PATH)
     new_hash_dict = get_command_hash_dict()
     regenerate_all_commands = False
-    regenerate_all_commands = False
     commands_list = list(commands)
     if force:
         console.print("[info]Force regeneration all breeze command images")
@@ -563,6 +562,7 @@ DEVELOPER_COMMANDS = [
     "down",
     "exec",
     "shell",
+    "run",
     "compile-ui-assets",
     "cleanup",
     "generate-migration-file",

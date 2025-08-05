@@ -25,16 +25,17 @@ from urllib.parse import quote_plus, urlunsplit
 
 import pymongo
 from pymongo import MongoClient, ReplaceOne
+from pymongo.errors import CollectionInvalid
 
 from airflow.exceptions import AirflowConfigException
-from airflow.hooks.base import BaseHook
+from airflow.providers.mongo.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from types import TracebackType
+    from typing import Literal
 
     from pymongo.collection import Collection as MongoCollection
     from pymongo.command_cursor import CommandCursor
-    from typing_extensions import Literal
 
     from airflow.models import Connection
 
@@ -120,7 +121,7 @@ class MongoHook(BaseHook):
         self.mongo_conn_id = mongo_conn_id
 
         conn = self.get_connection(self.mongo_conn_id)
-        self._validate_connection(conn)
+        self._validate_connection(conn)  # type: ignore[arg-type]
         self.connection = conn
 
         self.extras = self.connection.extra_dejson.copy()
@@ -211,7 +212,11 @@ class MongoHook(BaseHook):
             netloc = f"{quote_plus(login)}:{quote_plus(password)}@{netloc}"
         if self.connection.port:
             netloc = f"{netloc}:{self.connection.port}"
-        path = f"/{self.connection.schema}"
+
+        if self.connection.schema:
+            path = f"/{self.connection.schema}"
+        else:
+            path = ""
         return urlunsplit((scheme, netloc, path, "", ""))
 
     def get_collection(self, mongo_collection: str, mongo_db: str | None = None) -> MongoCollection:
@@ -224,6 +229,37 @@ class MongoHook(BaseHook):
         mongo_conn: MongoClient = self.get_conn()
 
         return mongo_conn.get_database(mongo_db).get_collection(mongo_collection)
+
+    def create_collection(
+        self,
+        mongo_collection: str,
+        mongo_db: str | None = None,
+        return_if_exists: bool = True,
+        **create_kwargs: Any,
+    ) -> MongoCollection:
+        """
+        Create the collection (optionally a time‑series collection) and return it.
+
+        https://pymongo.readthedocs.io/en/stable/api/pymongo/database.html#pymongo.database.Database.create_collection
+
+        :param mongo_collection: Name of the collection.
+        :param mongo_db: Target database; defaults to the schema in the connection string.
+        :param return_if_exists: If True and the collection already exists, return it instead of raising.
+        :param create_kwargs: Additional keyword arguments forwarded to ``db.create_collection()``,
+                                  e.g. ``timeseries={...}``, ``capped=True``.
+        """
+        mongo_db = mongo_db or self.connection.schema
+        mongo_conn: MongoClient = self.get_conn()
+        db = mongo_conn.get_database(mongo_db)
+
+        try:
+            db.create_collection(mongo_collection, **create_kwargs)
+        except CollectionInvalid:
+            if not return_if_exists:
+                raise
+            # Collection already exists – fall through and fetch it.
+
+        return db.get_collection(mongo_collection)
 
     def aggregate(
         self, mongo_collection: str, aggregate_query: list, mongo_db: str | None = None, **kwargs

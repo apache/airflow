@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.9"
+# requires-python = ">=3.10"
 # dependencies = [
 #   "rich>=13.6.0",
 # ]
@@ -43,8 +43,9 @@ iml_xml_template = """<?xml version="1.0" encoding="UTF-8"?>
         <excludeFolder url="file://$MODULE_DIR$/tmp" />
         <excludeFolder url="file://$MODULE_DIR$/airflow-core/dist" />
         <excludeFolder url="file://$MODULE_DIR$/generated/" />
+        <excludeFolder url="file://$MODULE_DIR$/dev/breeze/.venv" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.9 (airflow)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 3.10 (airflow)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
   <component name="PyDocumentationSettings">
@@ -84,6 +85,7 @@ source_root_modules: list[str] = [
     "docker-tests",
     "kubernetes-tests",
     "helm-tests",
+    "task-sdk-tests",
 ]
 
 all_module_paths: list[str] = []
@@ -93,12 +95,14 @@ IDEA_FOLDER_PATH = ROOT_AIRFLOW_FOLDER_PATH / ".idea"
 AIRFLOW_IML_FILE = IDEA_FOLDER_PATH / "airflow.iml"
 MODULES_XML_FILE = IDEA_FOLDER_PATH / "modules.xml"
 
-ROOT_PROVIDERS_FOLDER_PATH = ROOT_AIRFLOW_FOLDER_PATH / "providers"
-
 
 def setup_idea():
     # Providers discovery
-    for pyproject_toml_file in ROOT_PROVIDERS_FOLDER_PATH.rglob("pyproject.toml"):
+    for pyproject_toml_file in ROOT_AIRFLOW_FOLDER_PATH.rglob("providers/**/pyproject.toml"):
+        relative_path = pyproject_toml_file.relative_to(ROOT_AIRFLOW_FOLDER_PATH).parent.as_posix()
+        source_root_modules.append(f"{relative_path}")
+    # Shared discovery
+    for pyproject_toml_file in ROOT_AIRFLOW_FOLDER_PATH.rglob("shared/*/pyproject.toml"):
         relative_path = pyproject_toml_file.relative_to(ROOT_AIRFLOW_FOLDER_PATH).parent.as_posix()
         source_root_modules.append(f"{relative_path}")
 

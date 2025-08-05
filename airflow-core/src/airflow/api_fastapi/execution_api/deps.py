@@ -20,7 +20,7 @@
 
 import sys
 import time
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 import svcs
@@ -55,8 +55,8 @@ class JWTBearer(HTTPBearer):
 
     def __init__(
         self,
-        path_param_name: Optional[str] = None,
-        required_claims: Optional[dict[str, Any]] = None,
+        path_param_name: str | None = None,
+        required_claims: dict[str, Any] | None = None,
     ):
         super().__init__(auto_error=False)
         self.path_param_name = path_param_name
@@ -66,7 +66,7 @@ class JWTBearer(HTTPBearer):
         self,
         request: Request,
         services=DepContainer,
-    ) -> Optional[TIToken]:
+    ) -> TIToken | None:
         creds = await super().__call__(request)
         if not creds:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing auth token")
@@ -95,6 +95,9 @@ class JWTBearer(HTTPBearer):
 
 
 JWTBearerDep: TIToken = Depends(JWTBearer())
+
+# This checks that the UUID in the url matches the one in the token for us.
+JWTBearerTIPathDep = Depends(JWTBearer(path_param_name="task_instance_id"))
 
 
 class JWTReissuer:

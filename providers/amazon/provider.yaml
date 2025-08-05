@@ -22,9 +22,16 @@ description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 state: ready
-source-date-epoch: 1744788746
-# note that those versions are maintained by release manager - do not update them manually
+source-date-epoch: 1753688567
+# Note that those versions are maintained by release manager - do not update them manually
+# with the exception of case where other provider in sources has >= new provider version.
+# In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
+# to be done in the same PR
 versions:
+  - 9.11.0
+  - 9.10.0
+  - 9.9.0
+  - 9.8.0
   - 9.7.0
   - 9.6.1
   - 9.6.0
@@ -275,6 +282,8 @@ integrations:
   - integration-name: Amazon Systems Manager (SSM)
     external-doc-url: https://aws.amazon.com/systems-manager/
     logo: /docs/integration-logos/AWS-Systems-Manager_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/ssm.rst
     tags: [aws]
   - integration-name: Amazon Web Services
     external-doc-url: https://aws.amazon.com/
@@ -424,6 +433,9 @@ operators:
   - integration-name: AWS Step Functions
     python-modules:
       - airflow.providers.amazon.aws.operators.step_function
+  - integration-name: Amazon Systems Manager (SSM)
+    python-modules:
+      - airflow.providers.amazon.aws.operators.ssm
   - integration-name: Amazon RDS
     python-modules:
       - airflow.providers.amazon.aws.operators.rds
@@ -525,6 +537,9 @@ sensors:
   - integration-name: AWS Step Functions
     python-modules:
       - airflow.providers.amazon.aws.sensors.step_function
+  - integration-name: Amazon Systems Manager (SSM)
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.ssm
   - integration-name: Amazon QuickSight
     python-modules:
       - airflow.providers.amazon.aws.sensors.quicksight
@@ -731,6 +746,9 @@ triggers:
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.triggers.s3
+  - integration-name: Amazon Systems Manager (SSM)
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.ssm
   - integration-name: Amazon EMR
     python-modules:
       - airflow.providers.amazon.aws.triggers.emr
@@ -999,6 +1017,82 @@ config:
         type: string
         example: '{"Tags": [{"Key": "key", "Value": "value"}]}'
         default: ~
+
+  aws_lambda_executor:
+    description: |
+      This section only applies if you are using the AwsLambdaExecutor in
+      Airflow's ``[core.executor]`` configuration.
+      For more information see:
+      https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/lambda/client/invoke.html
+      https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html
+      https://airflow.apache.org/docs/apache-airflow-providers-amazon/stable/executors/lambda-executor.html
+    options:
+      conn_id:
+        description: |
+          The Airflow connection (i.e. credentials) used by the Lambda executor to make API calls.
+        version_added: "9.9.0"
+        type: string
+        example: "aws_default"
+        default: "aws_default"
+      region_name:
+        description: |
+          The name of the AWS Region where Amazon Lambda is configured.
+        version_added: "9.9.0"
+        type: string
+        example: "us-east-1"
+        default: ~
+      check_health_on_startup:
+        description: |
+          Whether or not to check the Lambda Executor health on startup.
+        version_added: "9.9.0"
+        type: boolean
+        example: "True"
+        default: "True"
+      max_run_task_attempts:
+        description: |
+          The maximum number of times the Lambda Executor should attempt to start an Airflow task.
+        version_added: "9.9.0"
+        type: integer
+        example: "3"
+        default: "3"
+      queue_url:
+        description: |
+          The URL of the SQS queue to use for the Lambda executor. Required.
+          The Lambda executor will poll this queue for results of the lambda function's Airflow Task.
+        version_added: "9.9.0"
+        type: string
+        example: "airflow-lambda-executor-results-queue"
+        default: ~
+      dead_letter_queue_url:
+        description: |
+          The URL of the SQS dead letter queue to use for the Lambda function. The Lambda executor
+          will poll this queue for timeout/exception results of the lambda function. Required
+        version_added: "9.9.0"
+        type: string
+        example: "airflow-lambda-executor-dlq"
+        default: ~
+      function_name:
+        description: |
+          The name of the Lambda function to invoke. Required.
+        version_added: "9.9.0"
+        type: string
+        example: "airflow-lambda-executor-function"
+        default: ~
+      qualifier:
+        description: |
+          The version or alias of the Lambda function to invoke. If not specified, the latest version is used.
+        version_added: "9.9.0"
+        type: string
+        example: "1"
+        default: ~
+      end_wait_timeout:
+        description: |
+          The number of seconds to wait for all lambda executor invocations to complete when terminating the
+          executor/scheduler. Default of 0 means wait indefinitely.
+        version_added: "9.9.0"
+        type: integer
+        example: "500"
+        default: "0"
 
   aws_ecs_executor:
     description: |
