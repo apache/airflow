@@ -74,6 +74,62 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_WEBSITE,
 )
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.providers.fab.www.security.permissions import RESOURCE_HITL_DETAIL
+
+    HITL_ENDPOINT_TESTS = [
+        # With global permissions on Dags, but no permission on HITL Detail
+        (
+            "GET",
+            DagAccessEntity.HITL_DETAIL,
+            None,
+            [(ACTION_CAN_READ, RESOURCE_DAG)],
+            False,
+        ),
+        # With global permissions on Dags, but no permission on HITL Detail
+        (
+            "PUT",
+            DagAccessEntity.HITL_DETAIL,
+            None,
+            [(ACTION_CAN_READ, RESOURCE_DAG)],
+            False,
+        ),
+        # With global permissions on Dags, with read permission on HITL Detail
+        (
+            "GET",
+            DagAccessEntity.HITL_DETAIL,
+            None,
+            [(ACTION_CAN_READ, RESOURCE_DAG), (ACTION_CAN_READ, RESOURCE_HITL_DETAIL)],
+            True,
+        ),
+        # With global permissions on Dags, with read permission on HITL Detail, but wrong method
+        (
+            "PUT",
+            DagAccessEntity.HITL_DETAIL,
+            None,
+            [(ACTION_CAN_READ, RESOURCE_DAG), (ACTION_CAN_READ, RESOURCE_HITL_DETAIL)],
+            False,
+        ),
+        # With global permissions on Dags, with write permission on HITL Detail, but wrong method
+        (
+            "GET",
+            DagAccessEntity.HITL_DETAIL,
+            None,
+            [(ACTION_CAN_READ, RESOURCE_DAG), (ACTION_CAN_EDIT, RESOURCE_HITL_DETAIL)],
+            False,
+        ),
+        # With global permissions on Dags, with edit permission on HITL Detail
+        (
+            "PUT",
+            DagAccessEntity.HITL_DETAIL,
+            None,
+            [(ACTION_CAN_READ, RESOURCE_DAG), (ACTION_CAN_EDIT, RESOURCE_HITL_DETAIL)],
+            True,
+        ),
+    ]
+
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
 
@@ -447,6 +503,36 @@ class TestFabAuthManager:
     )
     @mock.patch.object(FabAuthManager, "get_authorized_dag_ids")
     def test_is_authorized_dag(
+        self,
+        mock_get_authorized_dag_ids,
+        method,
+        dag_access_entity,
+        dag_details,
+        user_permissions,
+        expected_result,
+        auth_manager_with_appbuilder,
+    ):
+        dag_permissions = [perm[1] for perm in user_permissions if perm[1].startswith("DAG:")]
+        dag_ids = {perm.replace("DAG:", "") for perm in dag_permissions}
+        mock_get_authorized_dag_ids.return_value = dag_ids
+
+        user = Mock()
+        user.perms = user_permissions
+        user.id = 1
+        result = auth_manager_with_appbuilder.is_authorized_dag(
+            method=method, access_entity=dag_access_entity, details=dag_details, user=user
+        )
+        assert result == expected_result
+
+    @pytest.mark.skipif(
+        AIRFLOW_V_3_1_PLUS is not True, reason="HITL test will be skipped if Airflow version < 3.1.0"
+    )
+    @pytest.mark.parametrize(
+        "method, dag_access_entity, dag_details, user_permissions, expected_result",
+        HITL_ENDPOINT_TESTS if AIRFLOW_V_3_1_PLUS else [],
+    )
+    @mock.patch.object(FabAuthManager, "get_authorized_dag_ids")
+    def test_is_authorized_dag_hitl_detail(
         self,
         mock_get_authorized_dag_ids,
         method,
