@@ -400,7 +400,8 @@ class TestTriggerRunner:
 
 
 @pytest.mark.asyncio
-async def test_trigger_create_race_condition_38599(session, supervisor_builder):
+@patch("airflow.jobs.triggerer_job_runner.DagBag")
+async def test_trigger_create_race_condition_38599(mock_dag_bag_cls, session, supervisor_builder):
     """
     This verifies the resolution of race condition documented in github issue #38599.
     More details in the issue description.
@@ -446,6 +447,8 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder):
     session.add(job2)
 
     session.commit()
+
+    mock_dag_bag(mock_dag_bag_cls, ti)
 
     supervisor1 = supervisor_builder(job1)
     supervisor2 = supervisor_builder(job2)
