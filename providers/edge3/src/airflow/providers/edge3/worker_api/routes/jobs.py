@@ -43,9 +43,9 @@ from airflow.stats import Stats
 from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import TaskInstanceState
 
-if AIRFLOW_V_3_1_PLUS:
+try:
     from airflow.sdk import timezone
-else:
+except ImportError:
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 jobs_router = AirflowRouter(tags=["Jobs"], prefix="/jobs")
