@@ -1948,7 +1948,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         session=session,
                         executor=executor,
                     )
-                session.commit()
+                    session.commit()
             except NotImplementedError:
                 continue
 
