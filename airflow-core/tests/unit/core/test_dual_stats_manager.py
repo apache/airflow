@@ -156,6 +156,23 @@ class TestDualStatsManager:
                 {"count": 1, "tags": {"test": True, "test_extra": True}},
                 id="all_params_provided",
             ),
+            pytest.param(
+                {"count": 1, "rate": 3},
+                {"test1": True, "test2": False},
+                {"test_extra1": True, "test_extra2": False, "test_extra3": True},
+                {
+                    "count": 1,
+                    "rate": 3,
+                    "tags": {
+                        "test1": True,
+                        "test2": False,
+                        "test_extra1": True,
+                        "test_extra2": False,
+                        "test_extra3": True,
+                    },
+                },
+                id="multiple_params",
+            ),
         ],
     )
     def test_get_args_dict_with_extra_tags_if_set(
@@ -194,6 +211,18 @@ class TestDualStatsManager:
                 {"test_extra": True},
                 {"test_extra": True},
                 id="only_extra",
+            ),
+            pytest.param(
+                {"test1": True, "test2": False},
+                {"test_extra1": True, "test_extra2": False, "test_extra3": True},
+                {
+                    "test1": True,
+                    "test2": False,
+                    "test_extra1": True,
+                    "test_extra2": False,
+                    "test_extra3": True,
+                },
+                id="multiple_params",
             ),
         ],
     )
