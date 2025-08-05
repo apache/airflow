@@ -43,9 +43,9 @@ from airflow.providers.edge3.worker_api.routes._v2_compat import (
 )
 from airflow.stats import Stats
 
-if AIRFLOW_V_3_1_PLUS:
+try:
     from airflow.sdk import timezone
-else:
+except ImportError:
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 worker_router = AirflowRouter(
