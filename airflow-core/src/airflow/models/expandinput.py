@@ -21,6 +21,7 @@ import functools
 import operator
 from collections.abc import Iterable, Sized
 from typing import TYPE_CHECKING, Any, ClassVar
+
 import attrs
 
 from airflow.utils.log.logging_mixin import LoggingMixin
