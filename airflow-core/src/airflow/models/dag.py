@@ -421,7 +421,6 @@ class DAG(TaskSDKDag, LoggingMixin):
     """
 
     partial: bool = False
-    last_loaded: datetime | None = attrs.field(factory=timezone.utcnow)
 
     # this will only be set at serialization time
     # it's only use is for determining the relative fileloc based only on the serialize dag
@@ -1024,7 +1023,7 @@ class DAG(TaskSDKDag, LoggingMixin):
                     if not dag_bag:
                         dag_bag = DBDagBag()
                     if not isinstance(dag_bag, DBDagBag):  # Compat: This used to take non-db object.
-                        external_dag = dag_bag.get_dag(tii.dag_id, session=session)
+                        external_dag = dag_bag.get_dag(tii.dag_id)
                     else:
                         external_dag = dag_bag.get_dag_for_run(tii.dag_run, session=session)
                     if not external_dag:
