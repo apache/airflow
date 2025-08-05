@@ -529,9 +529,9 @@ Dlp
 dlp
 DlpJob
 DlpServiceClient
-dlq
 DLQ
 Dlq
+dlq
 dms
 DNs
 dns
