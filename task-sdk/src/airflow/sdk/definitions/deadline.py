@@ -98,7 +98,7 @@ class DeadlineAlert:
             if require_awaitable and not (
                 inspect.iscoroutinefunction(callback) or hasattr(callback, "__await__")
             ):
-                raise AttributeError(f"fProvided callback {callback} is not awaitable.")
+                raise AttributeError(f"Provided callback {callback} is not awaitable.")
         except ImportError as e:
             # Logging here instead of failing because it is possible that the code for the callable
             # exists somewhere other than on the DAG processor. We are making a best effort to validate,
