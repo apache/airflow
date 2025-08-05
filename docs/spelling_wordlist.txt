@@ -530,6 +530,8 @@ dlp
 DlpJob
 DlpServiceClient
 dlq
+DLQ
+Dlq
 dms
 DNs
 dns
