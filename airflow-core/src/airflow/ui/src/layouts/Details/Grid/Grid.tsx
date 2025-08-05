@@ -138,7 +138,7 @@ export const Grid = ({ limit }: Props) => {
       onMouseDown={() => setGridFocus(true)}
       outline="none"
       position="relative"
-      pt={50}
+      pt={20}
       ref={gridRef}
       tabIndex={0}
       width="100%"
