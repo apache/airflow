@@ -31,6 +31,7 @@ from pydantic import (
 )
 
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.module_loading import import_string
 from airflow.utils.state import TaskInstanceState
 
 log = structlog.get_logger(logger_name=__name__)
@@ -40,15 +41,13 @@ def __getattr__(name: str):
     if name == "StartTriggerArgs":
         import warnings
 
-        from airflow.sdk.bases.trigger import StartTriggerArgs as SDKStartTriggerArgs
-
         warnings.warn(
             "airflow.triggers.base.StartTriggerArgs is deprecated. "
             "Use airflow.sdk.bases.trigger.StartTriggerArgs instead.",
             DeprecationWarning,
             stacklevel=2,
         )
-        return SDKStartTriggerArgs
+        return import_string(f"airflow.sdk.bases.trigger.{name}")
 
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
