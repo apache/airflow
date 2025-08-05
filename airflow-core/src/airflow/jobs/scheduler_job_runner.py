@@ -2008,9 +2008,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if task.on_failure_callback:
                     if inspect(ti).detached:
                         ti = session.merge(ti)
-                        self.log.warning(
-                            "The task instance %s was detached from the session. It has been re-attached.", ti
-                        )
                     request = TaskCallbackRequest(
                         filepath=ti.dag_model.relative_fileloc,
                         bundle_name=ti.dag_version.bundle_name,
