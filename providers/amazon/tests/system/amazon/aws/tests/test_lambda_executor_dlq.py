@@ -52,6 +52,7 @@ def verify_test_setup():
     return dlq_queue_name
 
 
+# Configuration to search for this poison pill has been done within the Lambda app.py handler code
 @task(executor_config={"poison_pill": True})
 def cause_lambda_failure():
     return "This task is designed to fail at Lambda service level, injected within the function handler"
@@ -66,36 +67,28 @@ def verify_dlq_activity(dlq_queue_name: str):
     for attempt in range(10):
         end_time = datetime.now(timezone.utc)
         start_time = end_time - timedelta(minutes=5)
-        try:
-            received_response = cloudwatch.get_metric_statistics(
-                Namespace="AWS/SQS",
-                MetricName="NumberOfMessagesDeleted",
-                Dimensions=[{"Name": "QueueName", "Value": dlq_queue_name}],
-                StartTime=start_time,
-                EndTime=end_time,
-                Period=300,
-                Statistics=["Sum"],
-            )
+        received_response = cloudwatch.get_metric_statistics(
+            Namespace="AWS/SQS",
+            MetricName="NumberOfMessagesDeleted",
+            Dimensions=[{"Name": "QueueName", "Value": dlq_queue_name}],
+            StartTime=start_time,
+            EndTime=end_time,
+            Period=300,
+            Statistics=["Sum"],
+        )
 
-            total_deleted = sum(point["Sum"] for point in received_response["Datapoints"])
+        total_deleted = sum(point["Sum"] for point in received_response["Datapoints"])
+        if total_deleted > 0:
             print(f"Messages deleted from DLQ: {total_deleted}")
-
-            if total_deleted > 0:
-                return "DLQ Processing Confirmed"
-            if attempt < 9:
-                time.sleep(30)
-        except Exception as e:
-            print(f"Error checking DLQ metrics: {e}")
+            return "DLQ Processing Confirmed"
+        print("No messages detected in DLQ yet")
+        if attempt < 9:
+            time.sleep(30)
     raise AssertionError("FAIL: No DLQ activity detected after 5 minutes of polling")
 
 
-default_args = {
-    "execution_timeout": timedelta(minutes=15),
-}
-
 with DAG(
     dag_id=DAG_ID,
-    default_args=default_args,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     tags=["test"],
@@ -116,6 +109,6 @@ with DAG(
 
     verify_task >> watcher()
 
-from tests_common.test_utils.system_tests import get_test_run
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
 test_run = get_test_run(dag)
