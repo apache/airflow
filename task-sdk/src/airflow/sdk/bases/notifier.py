@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from collections.abc import Generator, Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from airflow.sdk.definitions._internal.templater import Templater
 from airflow.utils.context import context_merge
@@ -35,25 +35,31 @@ class BaseNotifier(LoggingMixin, Templater):
     """
     BaseNotifier class for sending notifications.
 
-    This class can be used both synchronously and asynchronously.
-    Subclasses should implement the `notify_async` method for optimal performance.
+    It can be used asynchronously (preferred) if `async_notify`is implemented and/or
+    synchronously if `notify` is implemented.
+
+    Currently, the DAG/Task state change callbacks run on the DAG Processor and only support sync usage.
 
     Usage:
-        # Asynchronous usage (preferred)
-        await BaseNotifier(context=context)
+        # Asynchronous usage
+        notifier = Notifier()
+        notifier.context = context
+        await notifier
 
-        # Synchronous usage (fallback)
-        BaseNotifier(context=context)()
+        # Synchronous usage
+        notifier = Notifier()
+        notifier(context)
     """
 
     template_fields: Sequence[str] = ()
     template_ext: Sequence[str] = ()
 
+    # Context stored as attribute here because parameters can't be passed to __await__
+    context: Context
+
     def __init__(self):
         super().__init__()
         self.resolve_template_files()
-        # Context stored as attribute here because parameters can't be passed to __await__
-        self.context = {}
 
     def _update_context(self, context: Context) -> Context:
         """
@@ -135,11 +141,11 @@ class BaseNotifier(LoggingMixin, Templater):
             self.log.error("Failed to send notification (sync): %s", e)
             raise
 
-    def __await__(self) -> Generator[Any, Any, None]:
+    def __await__(self) -> Generator:
         """
         Make the notifier awaitable.
 
-        Context provided in the constructor is used.
+        Context must be provided as an attribute.
         """
         self._update_context(self.context)
         self.render_template_fields(self.context)
