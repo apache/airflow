@@ -31,16 +31,14 @@ import requests
 from requests.cookies import RequestsCookieJar
 from requests.structures import CaseInsensitiveDict
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.providers.http.hooks.http import HttpAsyncHook
-from airflow.providers.http.version_compat import AIRFLOW_V_3_0_PLUS
 
-if AIRFLOW_V_3_0_PLUS:
+try:
     from airflow.triggers.base import BaseEventTrigger, BaseTrigger, TriggerEvent
-else:
-    from airflow.triggers.base import (  # type: ignore
-        BaseTrigger as BaseEventTrigger,
-        TriggerEvent,
+except ImportError:
+    raise AirflowOptionalProviderFeatureException(
+        "HttpEventTrigger requires Airflow >= 3.0 due to Event-driven scheduling support."
     )
 
 if TYPE_CHECKING:

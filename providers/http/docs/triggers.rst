@@ -32,8 +32,7 @@ How It Works
 
 1. Periodically sends requests to an API.
 2. Uses the ``response_check`` callable to evaluate the API response.
-3. If ``response_check`` returns ``True``, a ``TriggerEvent`` is emitted. This will trigger DAGs
-using this ``AssetWatcher`` for scheduling.
+3. If ``response_check`` returns ``True``, a ``TriggerEvent`` is emitted. This will trigger DAGs using this ``AssetWatcher`` for scheduling.
 
 .. note::
     This trigger requires **Airflow >= 3.0** due to dependencies on:

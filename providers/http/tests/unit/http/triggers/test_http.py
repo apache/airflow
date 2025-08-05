@@ -30,8 +30,8 @@ from multidict import CIMultiDict, CIMultiDictProxy
 from requests.structures import CaseInsensitiveDict
 from yarl import URL
 
-from airflow.providers.http.triggers.http import HttpEventTrigger, HttpSensorTrigger, HttpTrigger
 from airflow.models import Connection
+from airflow.providers.http.triggers.http import HttpEventTrigger, HttpSensorTrigger, HttpTrigger
 from airflow.triggers.base import TriggerEvent
 
 HTTP_PATH = "airflow.providers.http.triggers.http.{}"
@@ -241,7 +241,7 @@ class TestHttpEventTrigger:
         Tests the HttpEventTrigger only fires once the job execution reaches a successful state.
         """
         mock_hook.return_value.run.return_value = self._mock_run_result(client_response)
-        event_trigger._run_response_check = mock.Mock(side_effect=[False, True])
+        event_trigger._run_response_check = mock.AsyncMock(side_effect=[False, True])
         response = await HttpEventTrigger._convert_response(client_response)
 
         generator = event_trigger.run()
@@ -271,7 +271,7 @@ class TestHttpEventTrigger:
         with pytest.raises(StopAsyncIteration):
             await generator.asend(None)
 
-        mock_logger.error.assert_called_once_with("status: error, message: Test exception")
+        mock_logger.error.assert_called_once_with("status: error, message: %s", "Test exception")
 
     @pytest.mark.asyncio
     async def test_convert_response(self, client_response):
