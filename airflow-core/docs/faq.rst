@@ -548,7 +548,7 @@ How can I test a connection or use a Canary Dag?
 ------------------------------------------------
 
 For security reasons, the test connection functionality is disabled by default across the Airflow UI,
-API and CLI. This can be modified by setting `ref:config:core__test_connection`.
+API and CLI. This can be modified by setting ref:`config:core__test_connection`.
 
 You can utilize a Dag to regularly test connections. This is referred to as a "Canary Dag" and can detect and
 alert on failures in external systems that your Dags depend on. You can create a simple Dag that tests connections
@@ -560,9 +560,11 @@ such as the following Airflow 3 example:
   from airflow.sdk import task
 
   with DAG(dag_id="canary", schedule="@daily", doc_md="Canary DAG to regularly test connections to systems."):
+
       @task(doc_md="Test a connection by its Connection ID.")
       def test_connection(conn_id):
           from airflow.hooks.base import BaseHook
+
           ok, status = BaseHook.get_hook(conn_id=conn_id).test_connection()
           if ok:
               return status
@@ -572,6 +574,4 @@ such as the following Airflow 3 example:
           # Add more connections here to create tasks to test them.
           "aws_default",
       ]:
-          test_connection.override(task_id="test_"+conn_id)(conn_id)
-
-
+          test_connection.override(task_id="test_" + conn_id)(conn_id)
