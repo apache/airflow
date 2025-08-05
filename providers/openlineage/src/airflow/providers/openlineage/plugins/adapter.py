@@ -159,30 +159,27 @@ class OpenLineageAdapter(LoggingMixin):
         transport_type = f"{self._client.transport.kind}".lower()
 
         try:
-            if AIRFLOW_V_3_1_PLUS:
-                from airflow.metrics.dual_stats_manager import DualStatsManager
+            with ExitStack() as stack:
+                if AIRFLOW_V_3_1_PLUS:
+                    from airflow.metrics.dual_stats_manager import DualStatsManager
 
-                # If enabled on the config, publish metrics twice,
-                # once with backward compatible name, and then with tags.
-                with DualStatsManager.timer(
-                    f"ol.emit.attempts.{event_type}.{transport_type}", "ol.emit.attempts"
-                ):
-                    self._client.emit(redacted_event)
-                    self.log.info(
-                        "Successfully emitted OpenLineage `%s` event of id `%s`",
-                        event_type.upper(),
-                        event.run.runId,
+                    # If enabled on the config, publish metrics twice,
+                    # once with backward compatible name, and then with tags.
+                    stack.enter_context(
+                        DualStatsManager.timer(
+                            f"ol.emit.attempts.{event_type}.{transport_type}", "ol.emit.attempts"
+                        )
                     )
-            else:
-                with ExitStack() as stack:
+                else:
                     stack.enter_context(Stats.timer(f"ol.emit.attempts.{event_type}.{transport_type}"))
                     stack.enter_context(Stats.timer("ol.emit.attempts"))
-                    self._client.emit(redacted_event)
-                    self.log.info(
-                        "Successfully emitted OpenLineage `%s` event of id `%s`",
-                        event_type.upper(),
-                        event.run.runId,
-                    )
+
+                self._client.emit(redacted_event)
+                self.log.info(
+                    "Successfully emitted OpenLineage `%s` event of id `%s`",
+                    event_type.upper(),
+                    event.run.runId,
+                )
         except Exception as e:
             Stats.incr("ol.emit.failed")
             self.log.warning(
