@@ -20,7 +20,7 @@ Redis Message Queue
 
 
 Redis Queue Provider
-====================
+--------------------
 
 Implemented by :class:`~airflow.providers.redis.queues.redis.RedisMessageQueueProvider`
 
