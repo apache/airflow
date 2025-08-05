@@ -947,7 +947,7 @@
                         "tag": {
                             "description": "The gitSync image tag.",
                             "type": "string",
-                            "default": "v4.3.0"
+                            "default": "v4.4.2"
                         },
                         "pullPolicy": {
                             "description": "The gitSync image pull policy.",
