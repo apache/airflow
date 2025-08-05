@@ -210,22 +210,115 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         if POD_REVOKED_KEY in pod.metadata.labels.keys():
             return
 
+        # Collect failure details for failed pods
+        failure_details = None
+        if status == "Failed":
+            try:
+                pod_status = getattr(pod.status, "phase", None)
+                pod_reason = getattr(pod.status, "reason", None)
+                pod_message = getattr(pod.status, "message", None)
+
+                # Container status analysis - check both init and main containers
+                container_info = {}
+
+                # Check init containers first (they run before main containers)
+                init_container_statuses = getattr(pod.status, "init_container_statuses", None)
+                if init_container_statuses:
+                    for cs in init_container_statuses:
+                        state_obj = cs.state
+                        if state_obj.terminated:
+                            terminated_reason = getattr(state_obj.terminated, "reason", None)
+                            exit_code = getattr(state_obj.terminated, "exit_code", 0)
+                            # Only treat as failure if exit code != 0 AND reason is not "Completed"
+                            if exit_code != 0 and terminated_reason != "Completed":
+                                # Init container failed
+                                container_info = {
+                                    "state": "terminated",
+                                    "reason": terminated_reason,
+                                    "message": getattr(state_obj.terminated, "message", None),
+                                    "exit_code": exit_code,
+                                    "container_type": "init",
+                                    "container_name": getattr(cs, "name", "unknown"),
+                                }
+                                break
+                        elif state_obj.waiting:
+                            container_info = {
+                                "state": "waiting",
+                                "reason": getattr(state_obj.waiting, "reason", None),
+                                "message": getattr(state_obj.waiting, "message", None),
+                                "container_type": "init",
+                                "container_name": getattr(cs, "name", "unknown"),
+                            }
+                            # Continue to look for terminated state in other init containers
+
+                # If no init container failure found, check main containers
+                if not container_info:
+                    container_statuses = getattr(pod.status, "container_statuses", None)
+                    if container_statuses:
+                        for cs in container_statuses:
+                            state_obj = cs.state
+                            # Prioritize terminated state for final failure details
+                            if state_obj.terminated:
+                                terminated_reason = getattr(state_obj.terminated, "reason", None)
+                                exit_code = getattr(state_obj.terminated, "exit_code", 0)
+                                # Only treat as failure if exit code != 0 AND reason is not "Completed"
+                                if exit_code != 0 and terminated_reason != "Completed":
+                                    container_info = {
+                                        "state": "terminated",
+                                        "reason": terminated_reason,
+                                        "message": getattr(state_obj.terminated, "message", None),
+                                        "exit_code": exit_code,
+                                        "container_type": "main",
+                                        "container_name": getattr(cs, "name", "unknown"),
+                                    }
+                                    break
+                            elif state_obj.waiting:
+                                container_info = {
+                                    "state": "waiting",
+                                    "reason": getattr(state_obj.waiting, "reason", None),
+                                    "message": getattr(state_obj.waiting, "message", None),
+                                    "container_type": "main",
+                                    "container_name": getattr(cs, "name", "unknown"),
+                                }
+                                # Continue to look for terminated state in other containers
+
+                failure_details = {
+                    "pod_status": pod_status,
+                    "pod_reason": pod_reason,
+                    "pod_message": pod_message,
+                    **container_info,
+                }
+            except Exception as e:
+                self.log.warning(
+                    "Failed to collect pod failure details for %s/%s: %s", namespace, pod_name, e
+                )
+
         annotations_string = annotations_for_logging_task_metadata(annotations)
         if event["type"] == "DELETED" and not pod.metadata.deletion_timestamp:
             # This will happen only when the task pods are adopted by another executor.
             # So, there is no change in the pod state.
             # However, need to free the executor slot from the current executor.
             self.log.info("Event: pod %s adopted, annotations: %s", pod_name, annotations_string)
-            self.watcher_queue.put((pod_name, namespace, ADOPTED, annotations, resource_version))
+            self.watcher_queue.put((pod_name, namespace, ADOPTED, annotations, resource_version, None))
         elif hasattr(pod.status, "reason") and pod.status.reason == "ProviderFailed":
             # Most likely this happens due to Kubernetes setup (virtual kubelet, virtual nodes, etc.)
-            self.log.error(
-                "Event: %s failed to start with reason ProviderFailed, annotations: %s",
+            key = annotations_to_key(annotations=annotations)
+            task_key_str = f"{key.dag_id}.{key.task_id}.{key.try_number}" if key else "unknown"
+            self.log.warning(
+                "Event: %s failed to start with reason ProviderFailed, task: %s, annotations: %s",
                 pod_name,
+                task_key_str,
                 annotations_string,
             )
             self.watcher_queue.put(
-                (pod_name, namespace, TaskInstanceState.FAILED, annotations, resource_version)
+                (
+                    pod_name,
+                    namespace,
+                    TaskInstanceState.FAILED,
+                    annotations,
+                    resource_version,
+                    failure_details,
+                )
             )
         elif status == "Pending":
             # deletion_timestamp is set by kube server when a graceful deletion is requested.
@@ -254,14 +347,26 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                                 and container_status_state["waiting"]["message"] == "pull QPS exceeded"
                             ):
                                 continue
-                            self.log.error(
-                                "Event: %s has container %s with fatal reason %s",
+                            key = annotations_to_key(annotations=annotations)
+                            task_key_str = (
+                                f"{key.dag_id}.{key.task_id}.{key.try_number}" if key else "unknown"
+                            )
+                            self.log.warning(
+                                "Event: %s has container %s with fatal reason %s, task: %s",
                                 pod_name,
                                 container_status["name"],
                                 container_status_state["waiting"]["reason"],
+                                task_key_str,
                             )
                             self.watcher_queue.put(
-                                (pod_name, namespace, TaskInstanceState.FAILED, annotations, resource_version)
+                                (
+                                    pod_name,
+                                    namespace,
+                                    TaskInstanceState.FAILED,
+                                    annotations,
+                                    resource_version,
+                                    failure_details,
+                                )
                             )
                             break
                 else:
@@ -269,13 +374,24 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             else:
                 self.log.debug("Event: %s Pending, annotations: %s", pod_name, annotations_string)
         elif status == "Failed":
-            self.log.error("Event: %s Failed, annotations: %s", pod_name, annotations_string)
+            key = annotations_to_key(annotations=annotations)
+            task_key_str = f"{key.dag_id}.{key.task_id}.{key.try_number}" if key else "unknown"
+            self.log.warning(
+                "Event: %s Failed, task: %s, annotations: %s", pod_name, task_key_str, annotations_string
+            )
             self.watcher_queue.put(
-                (pod_name, namespace, TaskInstanceState.FAILED, annotations, resource_version)
+                (
+                    pod_name,
+                    namespace,
+                    TaskInstanceState.FAILED,
+                    annotations,
+                    resource_version,
+                    failure_details,
+                )
             )
         elif status == "Succeeded":
             self.log.info("Event: %s Succeeded, annotations: %s", pod_name, annotations_string)
-            self.watcher_queue.put((pod_name, namespace, None, annotations, resource_version))
+            self.watcher_queue.put((pod_name, namespace, None, annotations, resource_version, None))
         elif status == "Running":
             # deletion_timestamp is set by kube server when a graceful deletion is requested.
             # since kube server have received request to delete pod set TI state failed
@@ -286,7 +402,14 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                     annotations_string,
                 )
                 self.watcher_queue.put(
-                    (pod_name, namespace, TaskInstanceState.FAILED, annotations, resource_version)
+                    (
+                        pod_name,
+                        namespace,
+                        TaskInstanceState.FAILED,
+                        annotations,
+                        resource_version,
+                        failure_details,
+                    )
                 )
             else:
                 self.log.info("Event: %s is Running, annotations: %s", pod_name, annotations_string)
@@ -504,7 +627,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
     def process_watcher_task(self, task: KubernetesWatchType) -> None:
         """Process the task by watcher."""
-        pod_name, namespace, state, annotations, resource_version = task
+        pod_name, namespace, state, annotations, resource_version, failure_details = task
         self.log.debug(
             "Attempting to finish pod; pod_name: %s; state: %s; annotations: %s",
             pod_name,
@@ -514,7 +637,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         key = annotations_to_key(annotations=annotations)
         if key:
             self.log.debug("finishing job %s - %s (%s)", key, state, pod_name)
-            self.result_queue.put((key, state, pod_name, namespace, resource_version))
+            self.result_queue.put((key, state, pod_name, namespace, resource_version, failure_details))
 
     def _flush_watcher_queue(self) -> None:
         self.log.debug("Executor shutting down, watcher_queue approx. size=%d", self.watcher_queue.qsize())
