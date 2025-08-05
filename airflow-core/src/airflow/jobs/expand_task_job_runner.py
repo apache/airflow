@@ -59,8 +59,7 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
 
             if dag_run.state == DagRunState.FAILED:
                 self.log.info(
-                    "DagRun %s for dag %s has failed, stopping expansion",
-                    dag_run.run_id, dag_run.dag_id
+                    "DagRun %s for dag %s has failed, stopping expansion", dag_run.run_id, dag_run.dag_id
                 )
 
                 raise AirflowException(
@@ -127,7 +126,7 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
 
             if len(task_instances_batch) == task_expansion_batch_size:
                 dag_run = DagRun.get_dag_run(
-                    dag_id = unmapped_ti.dag_id, run_id = dag_run.run_id, session = session
+                    dag_id=unmapped_ti.dag_id, run_id=dag_run.run_id, session=session
                 )
                 self._check_dag_run_state(dag_run)
                 self._persist_task_instances(dag_run, task_instances_batch, session=session)
@@ -173,15 +172,14 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
                         )
                         self.log.info("Unmapped task state on: %s", unmapped_ti.state)
                         are_dependencies_met = unmapped_ti.are_dependencies_met(
-                            dep_context = dep_context, session = session, verbose = True
+                            dep_context=dep_context, session=session, verbose=True
                         )
                         self.log.info("Are dependencies met on %s: %s", unmapped_ti, are_dependencies_met)
                         if are_dependencies_met:
                             self.expand_unmapped_task_instance(dag_run, unmapped_ti, session=session)
                     except Exception:
                         self.log.exception(
-                            "Unexpected error occurred during task expansion of %s",
-                            unmapped_ti
+                            "Unexpected error occurred during task expansion of %s", unmapped_ti
                         )
 
     def _execute(self) -> int | None:
