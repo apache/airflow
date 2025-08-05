@@ -23,17 +23,17 @@ from airflow.providers.redis.triggers.redis_await_message import AwaitMessageTri
 pytest.importorskip("airflow.providers.common.messaging.providers.base_provider.BaseMessageQueueProvider")
 
 
-class TestRedisMessageQueueProvider:
-    """Tests for RedisMessageQueueProvider."""
+class TestRedisPubSubMessageQueueProvider:
+    """Tests for RedisPubSubMessageQueueProvider."""
 
     def setup_method(self):
         """Set up the test environment."""
-        from airflow.providers.redis.queues.redis import RedisMessageQueueProvider
+        from airflow.providers.redis.queues.redis import RedisPubSubMessageQueueProvider
 
-        self.provider = RedisMessageQueueProvider()
+        self.provider = RedisPubSubMessageQueueProvider()
 
     def test_queue_create(self):
-        """Test the creation of the RedisMessageQueueProvider."""
+        """Test the creation of the RedisPubSubMessageQueueProvider."""
         from airflow.providers.common.messaging.providers.base_provider import BaseMessageQueueProvider
 
         assert isinstance(self.provider, BaseMessageQueueProvider)
@@ -41,8 +41,8 @@ class TestRedisMessageQueueProvider:
     @pytest.mark.parametrize(
         "queue_uri, expected_result",
         [
-            pytest.param("redis://localhost:6379/channel1", True, id="single_channel"),
-            pytest.param("redis://localhost:6379/channel1,channel2", True, id="multiple_channels"),
+            pytest.param("redis+pubsub://localhost:6379/channel1", True, id="single_channel"),
+            pytest.param("redis+pubsub://localhost:6379/channel1,channel2", True, id="multiple_channels"),
             pytest.param("http://example.com", False, id="http_url"),
             pytest.param("not-a-url", False, id="invalid_url"),
         ],
@@ -59,12 +59,12 @@ class TestRedisMessageQueueProvider:
         "queue_uri, extra_kwargs, expected_result",
         [
             pytest.param(
-                "redis://localhost:6379/channel1,channel2",
+                "redis+pubsub://localhost:6379/channel1,channel2",
                 {"channels": ["channel1", "channel2"]},
                 id="channels_from_uri",
             ),
             pytest.param(
-                "redis://localhost:6379/",
+                "redis+pubsub://localhost:6379/",
                 {"channels": ["channel1", "channel2"]},
                 {},
                 id="channels_from_kwargs",
@@ -80,10 +80,10 @@ class TestRedisMessageQueueProvider:
         "queue_uri, extra_kwargs, expected_error, error_match",
         [
             pytest.param(
-                "redis://localhost:6379/",
+                "redis+pubsub://localhost:6379/",
                 {},
                 ValueError,
-                "channels is required in RedisMessageQueueProvider kwargs or provide them in the queue URI",
+                "channels is required in RedisPubSubMessageQueueProvider kwargs or provide them in the queue URI",
                 id="missing_channels",
             ),
         ],

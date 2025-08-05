@@ -69,7 +69,7 @@ operators:
       - airflow.providers.redis.operators.redis_publish
 
 queues:
-  - airflow.providers.redis.queues.redis.RedisMessageQueueProvider
+  - airflow.providers.redis.queues.redis.RedisPubSubMessageQueueProvider
 
 sensors:
   - integration-name: Redis

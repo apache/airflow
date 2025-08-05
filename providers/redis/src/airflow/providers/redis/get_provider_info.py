@@ -40,7 +40,7 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.redis.operators.redis_publish"],
             }
         ],
-        "queues": ["airflow.providers.redis.queues.redis.RedisMessageQueueProvider"],
+        "queues": ["airflow.providers.redis.queues.redis.RedisPubSubMessageQueueProvider"],
         "sensors": [
             {
                 "integration-name": "Redis",

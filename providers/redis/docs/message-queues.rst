@@ -22,7 +22,7 @@ Redis Message Queue
 Redis Queue Provider
 --------------------
 
-Implemented by :class:`~airflow.providers.redis.queues.redis.RedisMessageQueueProvider`
+Implemented by :class:`~airflow.providers.redis.queues.redis.RedisPubSubMessageQueueProvider`
 
 
 The Redis Queue Provider is a message queue provider that uses

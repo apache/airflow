@@ -27,21 +27,21 @@ if TYPE_CHECKING:
     from airflow.triggers.base import BaseEventTrigger
 
 # [START queue_regexp]
-QUEUE_REGEXP = r"^redis://"
+QUEUE_REGEXP = r"^redis+pubsub://"
 # [END queue_regexp]
 
 
-class RedisMessageQueueProvider(BaseMessageQueueProvider):
+class RedisPubSubMessageQueueProvider(BaseMessageQueueProvider):
     """
     Configuration for Redis integration with common-messaging.
 
-    It uses the ``redis://`` URI scheme for identifying Redis queues.
+    It uses the ``redis+pubsub://`` URI scheme for identifying Redis queues.
 
     **URI Format**:
 
     .. code-block:: text
 
-        redis://<host>:<port>/<channel_list>
+        redis+pubsub://<host>:<port>/<channel_list>
 
     Where:
 
@@ -53,7 +53,7 @@ class RedisMessageQueueProvider(BaseMessageQueueProvider):
 
     .. code-block:: text
 
-        redis://localhost:6379/my_channel
+        redis+pubsub://localhost:6379/my_channel
 
     You can also provide ``channels`` directly in kwargs instead of in the URI.
 
@@ -61,7 +61,7 @@ class RedisMessageQueueProvider(BaseMessageQueueProvider):
 
         from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
 
-        trigger = MessageQueueTrigger(queue="redis://localhost:6379/test")
+        trigger = MessageQueueTrigger(queue="redis+pubsub://localhost:6379/test")
 
     For a complete example, see:
     :mod:`tests.system.redis.example_dag_message_queue_trigger`
@@ -85,7 +85,7 @@ class RedisMessageQueueProvider(BaseMessageQueueProvider):
 
         if not channels and "channels" not in kwargs:
             raise ValueError(
-                "channels is required in RedisMessageQueueProvider kwargs or provide them in the queue URI"
+                "channels is required in RedisPubSubMessageQueueProvider kwargs or provide them in the queue URI"
             )
 
         return {} if "channels" in kwargs else {"channels": channels}
