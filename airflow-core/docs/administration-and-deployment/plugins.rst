@@ -227,7 +227,8 @@ definitions in Airflow.
         "bundle_url": "https://example.com/static/js/my_react_app.js",
         # Destination of the react app. This is used to determine where the app will be loaded in the UI.
         # Supported locations are Literal["nav", "dag", "dag_run", "task", "task_instance"], default to "nav".
-        # It can also be put inside of an existing page, the supported views are ["dashboard", "dag_overview", "task_overview"]
+        # It can also be put inside of an existing page, the supported views are ["dashboard", "dag_overview", "task_overview"]. You can position
+        # element in the existing page via the css `order` rule which will determine the flex order.
         "destination": "dag_run",
         # Optional icon, url to an svg file.
         "icon": "https://example.com/icon.svg",

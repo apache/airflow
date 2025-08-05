@@ -10119,6 +10119,9 @@ components:
           - type: string
           - type: 'null'
           title: Category
+        href:
+          type: string
+          title: Href
         destination:
           type: string
           enum:
@@ -10129,9 +10132,6 @@ components:
           - task_instance
           title: Destination
           default: nav
-        href:
-          type: string
-          title: Href
       additionalProperties: true
       type: object
       required:
@@ -10869,6 +10869,9 @@ components:
           - type: string
           - type: 'null'
           title: Category
+        bundle_url:
+          type: string
+          title: Bundle Url
         destination:
           type: string
           enum:
@@ -10877,11 +10880,9 @@ components:
           - dag_run
           - task
           - task_instance
+          - dashboard
           title: Destination
           default: nav
-        bundle_url:
-          type: string
-          title: Bundle Url
       additionalProperties: true
       type: object
       required:
