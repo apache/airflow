@@ -31,11 +31,15 @@ if TYPE_CHECKING:
     # TaskInstance key, command, configuration, pod_template_file
     KubernetesJobType = tuple[TaskInstanceKey, CommandType, Any, str | None]
 
-    # key, pod state, pod_name, namespace, resource_version
-    KubernetesResultsType = tuple[TaskInstanceKey, TaskInstanceState | str | None, str, str, str]
+    # key, pod state, pod_name, namespace, resource_version, failure_details
+    KubernetesResultsType = tuple[
+        TaskInstanceKey, TaskInstanceState | str | None, str, str, str, dict[str, Any] | None
+    ]
 
-    # pod_name, namespace, pod state, annotations, resource_version
-    KubernetesWatchType = tuple[str, str, TaskInstanceState | str | None, dict[str, str], str]
+    # pod_name, namespace, pod state, annotations, resource_version, failure_details
+    KubernetesWatchType = tuple[
+        str, str, TaskInstanceState | str | None, dict[str, str], str, dict[str, Any] | None
+    ]
 
 ALL_NAMESPACES = "ALL_NAMESPACES"
 POD_EXECUTOR_DONE_KEY = "airflow_executor_done"
