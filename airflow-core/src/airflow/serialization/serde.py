@@ -120,6 +120,15 @@ def serialize(o: object, depth: int = 0) -> U | None:
     if o is None:
         return o
 
+    cls = type(o)
+    qn = qualname(o)
+    classname = None
+    # if there is a builtin serializer available use that, before primitive check because custom classes may subclass primitive types
+    if qn in _serializers:
+        data, serialized_classname, version, is_serialized = _serializers[qn].serialize(o)
+        if is_serialized:
+            return encode(classname or serialized_classname, version, serialize(data, depth + 1))
+
     # primitive types are returned as is
     if isinstance(o, _primitives):
         if isinstance(o, enum.Enum):
@@ -136,10 +145,6 @@ def serialize(o: object, depth: int = 0) -> U | None:
 
         return {str(k): serialize(v, depth + 1) for k, v in o.items()}
 
-    cls = type(o)
-    qn = qualname(o)
-    classname = None
-
     # Serialize namedtuple like tuples
     # We also override the classname returned by the builtin.py serializer. The classname
     # has to be "builtins.tuple", so that the deserializer can deserialize the object into tuple.
@@ -152,12 +157,6 @@ def serialize(o: object, depth: int = 0) -> U | None:
         qn = PYDANTIC_MODEL_QUALNAME
         # the actual Pydantic model class to encode
         classname = qualname(o)
-
-    # if there is a builtin serializer available use that
-    if qn in _serializers:
-        data, serialized_classname, version, is_serialized = _serializers[qn].serialize(o)
-        if is_serialized:
-            return encode(classname or serialized_classname, version, serialize(data, depth + 1))
 
     # custom serializers
     dct = {
