@@ -875,8 +875,8 @@ export type ExternalViewResponse = {
     icon_dark_mode?: string | null;
     url_route?: string | null;
     category?: string | null;
-    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance';
     href: string;
+    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance';
     [key: string]: unknown | string;
 };
 
@@ -1180,10 +1180,12 @@ export type ReactAppResponse = {
     icon_dark_mode?: string | null;
     url_route?: string | null;
     category?: string | null;
-    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance';
     bundle_url: string;
+    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'dashboard';
     [key: string]: unknown | string;
 };
+
+export type destination2 = 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'dashboard';
 
 /**
  * Internal enum for setting reprocess behavior in a backfill.
@@ -2297,6 +2299,8 @@ export type ListDagWarningsData = {
 export type ListDagWarningsResponse = DAGWarningCollectionResponse;
 
 export type GetDagsData = {
+    bundleName?: string | null;
+    bundleVersion?: string | null;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
@@ -2393,6 +2397,8 @@ export type GetDagTagsData = {
 export type GetDagTagsResponse = DAGTagCollectionResponse;
 
 export type GetDagsUiData = {
+    bundleName?: string | null;
+    bundleVersion?: string | null;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
