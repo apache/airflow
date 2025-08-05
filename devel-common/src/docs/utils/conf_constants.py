@@ -337,7 +337,6 @@ BASIC_AUTOAPI_IGNORE_PATTERNS = [
     "*/tests/__init__.py",
     "*/tests/system/__init__.py",
     "*/tests/system/example_empty.py",
-    "*/test_aws_auth_manager.py",
     "*/check_translations_completeness.py",
 ]
 
