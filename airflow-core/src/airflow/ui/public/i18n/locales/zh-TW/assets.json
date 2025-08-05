@@ -25,5 +25,6 @@
   "lastAssetEvent": "最後資源事件",
   "name": "名稱",
   "producingTasks": "生產任務",
+  "scheduledDags": "已排程的 Dags",
   "searchPlaceholder": "搜尋資源"
 }

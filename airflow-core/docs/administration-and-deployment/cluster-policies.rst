@@ -104,7 +104,7 @@ configure local settings.
     [project.entry-points.'airflow.policy']
     _ = 'my_airflow_plugin.policies'
 
-   The entrypoint group must be ``airflow.policy``, and the name is ignored. The value should be your module (or class) decorated with the ``@hookimpl`` marker.
+   The entrypoint group must be ``airflow.policy``, and the name must be unique per entry, otherwise duplicate entries will be ignored by pluggy. The value should be your module (or class) decorated with the ``@hookimpl`` marker.
 
    Once you have done that, and you have installed your distribution into your Airflow env, the policy functions will get called by the various Airflow components. (The exact call order is undefined, so don't rely on any particular calling order if you have multiple plugins).
 
