@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from airflow.triggers.base import BaseEventTrigger
 
 # [START queue_regexp]
-QUEUE_REGEXP = r"^redis+pubsub://"
+QUEUE_REGEXP = r"^redis\+pubsub://"
 # [END queue_regexp]
 
 

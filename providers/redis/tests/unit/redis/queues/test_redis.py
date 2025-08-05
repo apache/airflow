@@ -20,7 +20,7 @@ import pytest
 
 from airflow.providers.redis.triggers.redis_await_message import AwaitMessageTrigger
 
-pytest.importorskip("airflow.providers.common.messaging.providers.base_provider.BaseMessageQueueProvider")
+pytest.importorskip("airflow.providers.common.messaging.providers.base_provider")
 
 
 class TestRedisPubSubMessageQueueProvider:
@@ -61,6 +61,7 @@ class TestRedisPubSubMessageQueueProvider:
             pytest.param(
                 "redis+pubsub://localhost:6379/channel1,channel2",
                 {"channels": ["channel1", "channel2"]},
+                {},
                 id="channels_from_uri",
             ),
             pytest.param(
