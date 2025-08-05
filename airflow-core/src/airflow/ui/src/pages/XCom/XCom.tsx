@@ -121,14 +121,14 @@ export const XCom = () => {
 
   const { data, error, isFetching, isLoading } = useXcomServiceGetXcomEntries(
     {
-      dagId: filteredDagId !== null && filteredDagId !== "" ? "~" : dagId,
+      dagId,
       dagIdPattern: filteredDagId ?? undefined,
-      dagRunId: filteredRunId !== null && filteredRunId !== "" ? "~" : runId,
+      dagRunId: runId,
       limit: pagination.pageSize,
       mapIndex: mapIndex === "-1" ? undefined : parseInt(mapIndex, 10),
       offset: pagination.pageIndex * pagination.pageSize,
       runIdPattern: filteredRunId ?? undefined,
-      taskId: filteredTaskId !== null && filteredTaskId !== "" ? "~" : taskId,
+      taskId,
       taskIdPattern: filteredTaskId ?? undefined,
       xcomKeyPattern: filteredKey ?? undefined,
     },

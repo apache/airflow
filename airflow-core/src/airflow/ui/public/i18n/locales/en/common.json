@@ -91,7 +91,6 @@
     "any": "Any",
     "or": "OR"
   },
-  "filter": "Filter",
   "logicalDate": "Logical Date",
   "logout": "Logout",
   "logoutConfirmation": "You are about to logout from the application.",

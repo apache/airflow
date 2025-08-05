@@ -20,11 +20,10 @@
     },
     "filters": {
       "dagFilter": "Filter by Dag ID",
-      "keyFilter": "Filter by XCom key (use % for wildcards)",
+      "keyFilter": "Filter by XCom key",
       "runIdFilter": "Filter by Run ID",
       "taskIdFilter": "Filter by Task ID"
     },
-    "searchPlaceholder": "Search XCom keys...",
     "title": "XCom"
   }
 }

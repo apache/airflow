@@ -23,25 +23,20 @@ import { useSearchParams } from "react-router-dom";
 
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { SearchBar } from "src/components/SearchBar";
-import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { SearchParamsKeys } from "src/constants/searchParams";
 
-const {
-  DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
-  KEY_PATTERN: KEY_PATTERN_PARAM,
-  RUN_ID_PATTERN: RUN_ID_PATTERN_PARAM,
-  TASK_ID_PATTERN: TASK_ID_PATTERN_PARAM,
-}: SearchParamsKeysType = SearchParamsKeys;
+const FILTERS = [
+  { hotkeyDisabled: false, key: SearchParamsKeys.KEY_PATTERN, translationKey: "keyFilter" },
+  { hotkeyDisabled: true, key: SearchParamsKeys.DAG_ID_PATTERN, translationKey: "dagFilter" },
+  { hotkeyDisabled: true, key: SearchParamsKeys.RUN_ID_PATTERN, translationKey: "runIdFilter" },
+  { hotkeyDisabled: true, key: SearchParamsKeys.TASK_ID_PATTERN, translationKey: "taskIdFilter" },
+] as const;
 
 export const XComFilters = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const { t: translate } = useTranslation(["browse"]);
-
-  const keyPattern = searchParams.get(KEY_PATTERN_PARAM);
-  const dagIdPattern = searchParams.get(DAG_ID_PATTERN_PARAM);
-  const runIdPattern = searchParams.get(RUN_ID_PATTERN_PARAM);
-  const taskIdPattern = searchParams.get(TASK_ID_PATTERN_PARAM);
 
   const createFilterHandler = useCallback(
     (paramKey: string) => (value: string) => {
@@ -59,49 +54,19 @@ export const XComFilters = () => {
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
 
-  const handleKeyFilterChange = createFilterHandler(KEY_PATTERN_PARAM);
-  const handleDagIdFilterChange = createFilterHandler(DAG_ID_PATTERN_PARAM);
-  const handleRunIdFilterChange = createFilterHandler(RUN_ID_PATTERN_PARAM);
-  const handleTaskIdFilterChange = createFilterHandler(TASK_ID_PATTERN_PARAM);
-
   return (
     <HStack flexWrap="wrap" gap={4} paddingY="4px">
-      <Box minW="200px">
-        <SearchBar
-          defaultValue={keyPattern ?? ""}
-          hideAdvanced
-          hotkeyDisabled={false}
-          onChange={handleKeyFilterChange}
-          placeHolder={translate("xcom.filters.keyFilter")}
-        />
-      </Box>
-      <Box minW="200px">
-        <SearchBar
-          defaultValue={dagIdPattern ?? ""}
-          hideAdvanced
-          hotkeyDisabled={true}
-          onChange={handleDagIdFilterChange}
-          placeHolder={translate("xcom.filters.dagFilter")}
-        />
-      </Box>
-      <Box minW="200px">
-        <SearchBar
-          defaultValue={runIdPattern ?? ""}
-          hideAdvanced
-          hotkeyDisabled={true}
-          onChange={handleRunIdFilterChange}
-          placeHolder={translate("xcom.filters.runIdFilter")}
-        />
-      </Box>
-      <Box minW="200px">
-        <SearchBar
-          defaultValue={taskIdPattern ?? ""}
-          hideAdvanced
-          hotkeyDisabled={true}
-          onChange={handleTaskIdFilterChange}
-          placeHolder={translate("xcom.filters.taskIdFilter")}
-        />
-      </Box>
+      {FILTERS.map(({ hotkeyDisabled, key, translationKey }) => (
+        <Box key={key} minW="200px">
+          <SearchBar
+            defaultValue={searchParams.get(key) ?? ""}
+            hideAdvanced
+            hotkeyDisabled={hotkeyDisabled}
+            onChange={createFilterHandler(key)}
+            placeHolder={translate(`xcom.filters.${translationKey}`)}
+          />
+        </Box>
+      ))}
     </HStack>
   );
 };
