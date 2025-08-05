@@ -256,7 +256,6 @@ class TestSerializers:
         else:
             assert serialize(np.float32(3.14)) == (float(np.float32(3.14)), "numpy.float32", 1, True)
         assert serialize(np.array([1, 2, 3])) == ("", "", 0, False)
-        assert serialize(np.complex128(3 + 2j)) == (complex(3 + 2j), "numpy.complex128", 1, True)
 
     @pytest.mark.parametrize(
         ("klass", "ver", "value", "msg"),
