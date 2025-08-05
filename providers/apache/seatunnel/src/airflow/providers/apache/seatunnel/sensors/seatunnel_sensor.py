@@ -1,21 +1,3 @@
-#
-# Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license agreements.  See the NOTICE file
-# distributed with this work for additional information
-# regarding copyright ownership.  The ASF licenses this file
-# to you under the Apache License, Version 2.0 (the
-# "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations
-# under the License.
-
 from typing import Any, Dict, Optional, Callable
 
 from airflow.sensors.base import BaseSensorOperator
@@ -29,19 +11,19 @@ import requests
 class SeaTunnelJobSensor(BaseSensorOperator):
     """
     Sensor to wait for a SeaTunnel job to reach a specific state.
-
+    
     This sensor polls the SeaTunnel API to check the status of a specific job.
-
+    
     :param job_id: The SeaTunnel job ID to monitor.
     :param target_states: List of target states to wait for. Default is ['FINISHED'].
     :param seatunnel_conn_id: Connection ID to use.
     :param poke_interval: Time in seconds to wait between polls.
     :param timeout: Time in seconds to wait before timing out.
     """
-
+    
     template_fields = ('job_id', 'target_states')
     ui_color = '#1CB8FF'  # SeaTunnel blue color
-
+    
     def __init__(
         self,
         *,
@@ -54,55 +36,55 @@ class SeaTunnelJobSensor(BaseSensorOperator):
         self.job_id = job_id
         self.target_states = target_states or ['FINISHED']
         self.seatunnel_conn_id = seatunnel_conn_id
-
+    
     def poke(self, context: Dict[str, Any]) -> bool:
         """
         Poke function to check if the job has reached the target state.
-
+        
         :param context: Airflow context.
         :return: True if the job has reached the target state, False otherwise.
         """
         hook = SeaTunnelHook(seatunnel_conn_id=self.seatunnel_conn_id)
-
+        
         # Only supported on SeaTunnel Zeta engine with REST API enabled
         if hook.engine != "zeta":
             raise ValueError("SeaTunnelJobSensor only works with the 'zeta' engine.")
-
+        
         # Try multiple API URL formats in sequence based on the official documentation
         # According to SeaTunnel docs: /job-info/:jobId is the correct endpoint for job info
         api_urls = [
             f"http://{hook.host}:{hook.port}/job-info/{self.job_id}",        # Official V2 API
         ]
-
+        
         # Try each URL format
         for api_url in api_urls:
             self.log.info(f"Trying job status URL: {api_url}")
-
+            
             try:
                 response = requests.get(api_url, timeout=10)
                 self.log.info(f"Response status code: {response.status_code}")
-
+                
                 # If successful, use this URL and continue
                 if response.status_code == 200:
                     self.log.info(f"Successfully found API endpoint: {api_url}")
-
+                    
                     # Try to parse the JSON response
                     try:
                         job_data = response.json()
-
+                        
                         # Check if response has the expected job status field
                         if 'jobStatus' in job_data:
                             current_status = job_data.get('jobStatus')
                             self.log.info(f"Current status of job {self.job_id}: {current_status}")
-
+                            
                             # Check if the job has reached the target state
                             if current_status in self.target_states:
                                 return True
-
+                                
                             # Check if the job has failed or has been stopped
                             if current_status in ['FAILED', 'CANCELED']:
                                 raise Exception(f"SeaTunnel job {self.job_id} is in {current_status} state")
-
+                                
                             return False
                         else:
                             self.log.warning(f"Response does not contain 'jobStatus' field: {job_data}")
@@ -117,7 +99,7 @@ class SeaTunnelJobSensor(BaseSensorOperator):
                         self.log.debug(f"Error response: {response.text}")
             except requests.RequestException as e:
                 self.log.warning(f"Request failed for {api_url}: {str(e)}")
-
+        
         # If we've tried all URLs and none worked, log an error and return False
         self.log.error(f"Failed to find working API endpoint for job {self.job_id}")
-        return False
+        return False 
