@@ -55,6 +55,7 @@ const EditableMarkdownButton = ({
     <Box>
       <ActionButton
         actionName={placeholder}
+        colorPalette={Boolean(mdContent?.trim()) ? "yellow" : undefined}
         icon={icon}
         onClick={() => {
           if (!isOpen) {
@@ -63,6 +64,7 @@ const EditableMarkdownButton = ({
           setIsOpen(true);
         }}
         text={text}
+        variant={Boolean(mdContent?.trim()) ? "solid" : "outline"}
         withText={withText}
       />
       <Dialog.Root

@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Box } from "@chakra-ui/react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { FiMessageSquare } from "react-icons/fi";
 import { MdOutlineTask } from "react-icons/md";
@@ -63,6 +63,10 @@ export const Header = ({
   ];
 
   const [note, setNote] = useState<string | null>(taskInstance.note);
+
+  useEffect(() => {
+    setNote(taskInstance.note);
+  }, [taskInstance.note]);
 
   const dagId = taskInstance.dag_id;
   const dagRunId = taskInstance.dag_run_id;
