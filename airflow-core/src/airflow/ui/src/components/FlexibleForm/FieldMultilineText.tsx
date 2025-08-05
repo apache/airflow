@@ -23,7 +23,7 @@ import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 import type { FlexibleFormElementProps } from ".";
 
 export const FieldMultilineText = ({ name, onUpdate }: FlexibleFormElementProps) => {
-  const { paramsDict, setParamsDict } = useParamStore();
+  const { disabled, paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
   const handleChange = (value: string) => {
     if (paramsDict[name]) {
@@ -38,6 +38,7 @@ export const FieldMultilineText = ({ name, onUpdate }: FlexibleFormElementProps)
 
   return (
     <Textarea
+      disabled={disabled}
       id={`element_${name}`}
       name={`element_${name}`}
       onChange={(event) => handleChange(event.target.value)}

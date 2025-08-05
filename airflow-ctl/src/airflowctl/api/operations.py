@@ -197,7 +197,6 @@ class LoginOperations:
 
 
 # Operations
-# TODO: Get all with limit and offset to overcome default 100 limit for all list operations
 class AssetsOperations(BaseOperations):
     """Assets operations."""
 
@@ -494,7 +493,7 @@ class DagOperations(BaseOperations):
         except ServerResponseError as e:
             raise e
 
-    def list_import_error(self) -> ImportErrorCollectionResponse | ServerResponseError:
+    def list_import_errors(self) -> ImportErrorCollectionResponse | ServerResponseError:
         return super().execute_list(path="importErrors", data_model=ImportErrorCollectionResponse)
 
     def get_stats(self, dag_ids: list) -> DagStatsCollectionResponse | ServerResponseError:  # type: ignore
@@ -523,10 +522,10 @@ class DagOperations(BaseOperations):
 class DagRunOperations(BaseOperations):
     """Dag run operations."""
 
-    def get(self, dag_run_id: str) -> DAGRunResponse | ServerResponseError:
+    def get(self, dag_id: str, dag_run_id: str) -> DAGRunResponse | ServerResponseError:
         """Get a dag run."""
         try:
-            self.response = self.client.get(f"dag_runs/{dag_run_id}")
+            self.response = self.client.get(f"/dags/{dag_id}/dagRuns/{dag_run_id}")
             return DAGRunResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
@@ -545,16 +544,21 @@ class DagRunOperations(BaseOperations):
             "end_date": end_date,
             "state": state,
             "limit": limit,
+            "dag_id": dag_id,
         }
-        return super().execute_list(path="dag_runs", data_model=DAGRunCollectionResponse, params=params)
+        return super().execute_list(
+            path=f"/dags/{dag_id}/dagRuns", data_model=DAGRunCollectionResponse, params=params
+        )
 
-    def create(
+    def trigger(
         self, dag_id: str, trigger_dag_run: TriggerDAGRunPostBody
     ) -> DAGRunResponse | ServerResponseError:
         """Create a dag run."""
         try:
             # It is model_dump_json() because it has unparsable json datetime objects
-            self.response = self.client.post(f"dag_runs/{dag_id}", json=trigger_dag_run.model_dump_json())
+            self.response = self.client.post(
+                f"/dags/{dag_id}/dagRuns", json=trigger_dag_run.model_dump_json()
+            )
             return DAGRunResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e

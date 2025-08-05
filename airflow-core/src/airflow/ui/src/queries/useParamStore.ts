@@ -44,15 +44,18 @@ export const paramPlaceholder: ParamSpec = {
 
 type FormStore = {
   conf: string;
+  disabled: boolean;
   initialParamDict: ParamsSpec;
   paramsDict: ParamsSpec;
   setConf: (confString: string) => void;
+  setDisabled: (disabled: boolean) => void;
   setInitialParamDict: (newParamsDict: ParamsSpec) => void;
   setParamsDict: (newParamsDict: ParamsSpec) => void;
 };
 
 export const useParamStore = create<FormStore>((set) => ({
   conf: "{}",
+  disabled: false,
   initialParamDict: {},
   paramsDict: {},
 
@@ -82,6 +85,8 @@ export const useParamStore = create<FormStore>((set) => ({
 
       return { conf: confString, paramsDict: updatedParamsDict };
     }),
+
+  setDisabled: (disabled: boolean) => set(() => ({ disabled })),
 
   setInitialParamDict: (newParamsDict: ParamsSpec) => set(() => ({ initialParamDict: newParamsDict })),
 

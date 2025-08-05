@@ -58,7 +58,8 @@ requires-python = ">=3.10"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.10.0",
-    "paramiko>=2.9.0",
+    # TODO: Bump to >= 4.0.0 once https://github.com/apache/airflow/issues/54079 is handled
+    "paramiko>=2.9.0,<4.0.0",
     "sshtunnel>=0.3.2",
 ]
 

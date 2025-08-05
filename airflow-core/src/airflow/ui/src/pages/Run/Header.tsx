@@ -60,6 +60,11 @@ export const Header = ({
       });
     }
   }, [dagId, dagRun.note, dagRunId, mutate, note]);
+
+  const onOpen = () => {
+    setNote(dagRun.note ?? "");
+  };
+
   const containerRef = useRef<HTMLDivElement>();
   const containerWidth = useContainerWidth(containerRef);
 
@@ -74,6 +79,7 @@ export const Header = ({
               isPending={isPending}
               mdContent={note}
               onConfirm={onConfirm}
+              onOpen={onOpen}
               placeholder={translate("note.placeholder")}
               setMdContent={setNote}
               text={Boolean(dagRun.note) ? translate("note.label") : translate("note.add")}
