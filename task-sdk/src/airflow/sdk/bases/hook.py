@@ -19,7 +19,6 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from airflow.sdk.bases.operator import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
@@ -50,13 +49,6 @@ class BaseHook(LoggingMixin):
         self._logger_name = logger_name
 
     @classmethod
-    def _is_task_sdk_context(cls) -> bool:
-        """Check if we're in task SDK context."""
-        import sys
-
-        return hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS")
-
-    @classmethod
     def get_connection(cls, conn_id: str) -> Connection:
         """
         Get connection, given connection id.
@@ -64,7 +56,9 @@ class BaseHook(LoggingMixin):
         :param conn_id: connection id
         :return: connection
         """
-        if cls._is_task_sdk_context():
+        import sys
+
+        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
             from airflow.sdk.definitions.connection import Connection
 
             conn = Connection.get(conn_id)
@@ -78,15 +72,17 @@ class BaseHook(LoggingMixin):
         return conn
 
     @classmethod
-    async def async_get_connection(cls, conn_id: str) -> Connection:
+    async def aget_connection(cls, conn_id: str) -> Connection:
         """
         Get connection (async), given connection id.
 
         :param conn_id: connection id
         :return: connection
         """
-        if not cls._is_task_sdk_context():
-            raise AirflowException("This method currently only supports getting connections through Task SDK")
+        import sys
+
+        if not hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
+            raise RuntimeError("This method currently only supports getting connections through Task SDK")
 
         from airflow.sdk.definitions.connection import Connection
 
