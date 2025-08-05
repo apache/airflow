@@ -42,7 +42,7 @@ from airflow.jobs.triggerer_job_runner import (
     TriggerRunnerSupervisor,
     messages,
 )
-from airflow.models import DagModel, DagRun, TaskInstance, Trigger
+from airflow.models import DagModel, DagRun, TaskInstance, Trigger, DagBag
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
@@ -117,6 +117,15 @@ def create_trigger_in_db(session, trigger, operator=None):
     session.add(task_instance)
     session.commit()
     return dag_model, run, trigger_orm, task_instance
+
+
+def mock_dag_bag(mock_dag_bag_cls, task_instance: TaskInstance):
+    mock_dag = MagicMock(spec=DAG)
+    mock_dag.get_task.return_value = task_instance.task
+
+    mock_dag_bag = MagicMock(spec=DagBag)
+    mock_dag_bag.get_dag.return_value = mock_dag
+    mock_dag_bag_cls.return_value = mock_dag_bag
 
 
 def test_is_needed(session):
@@ -197,7 +206,8 @@ def supervisor_builder(mocker, session):
     return builder
 
 
-def test_trigger_lifecycle(spy_agency: SpyAgency, session):
+@patch("airflow.jobs.triggerer_job_runner.DagBag")
+def test_trigger_lifecycle(mock_dag_bag_cls, spy_agency: SpyAgency, session):
     """
     Checks that the triggerer will correctly see a new Trigger in the database
     and send it to the trigger runner, and then delete it when it vanishes.
@@ -206,6 +216,8 @@ def test_trigger_lifecycle(spy_agency: SpyAgency, session):
     # (we want to avoid it firing and deleting itself)
     trigger = TimeDeltaTrigger(datetime.timedelta(days=7))
     dag_model, run, trigger_orm, task_instance = create_trigger_in_db(session, trigger)
+    mock_dag_bag(mock_dag_bag_cls, task_instance)
+
     # Make a TriggererJobRunner and have it retrieve DB tasks
     trigger_runner_supervisor = TriggerRunnerSupervisor.start(job=Job(id=12345), capacity=10)
 
