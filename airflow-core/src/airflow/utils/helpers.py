@@ -21,7 +21,7 @@ import copy
 import itertools
 import re
 import signal
-from collections.abc import Callable, Generator, Iterable, Mapping, MutableMapping
+from collections.abc import Callable, Generator, Iterable, MutableMapping
 from functools import cache
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 from urllib.parse import urljoin
@@ -317,27 +317,12 @@ def prune_dict(val: Any, mode="strict"):
     return val
 
 
-def prevent_duplicates(kwargs1: dict[str, Any], kwargs2: Mapping[str, Any], *, fail_reason: str) -> None:
-    """
-    Ensure *kwargs1* and *kwargs2* do not contain common keys.
-
-    :raises TypeError: If common keys are found.
-    """
-    duplicated_keys = set(kwargs1).intersection(kwargs2)
-    if not duplicated_keys:
-        return
-    if len(duplicated_keys) == 1:
-        raise TypeError(f"{fail_reason} argument: {duplicated_keys.pop()}")
-    duplicated_keys_display = ", ".join(sorted(duplicated_keys))
-    raise TypeError(f"{fail_reason} arguments: {duplicated_keys_display}")
-
-
 def __getattr__(name: str):
     """Provide backward compatibility for moved functions in this module."""
     if name == "render_template_as_native":
         import warnings
 
-        from airflow.sdk.definitions.context import render_template_as_native as sdk_render_template_as_native
+        from airflow.sdk.definitions.context import render_template_as_native
 
         warnings.warn(
             "airflow.utils.helpers.render_template_as_native is deprecated. "
@@ -345,6 +330,19 @@ def __getattr__(name: str):
             DeprecationWarning,
             stacklevel=2,
         )
-        return sdk_render_template_as_native
+        return render_template_as_native
+
+    if name == "prevent_duplicates":
+        import warnings
+
+        from airflow.sdk.definitions.mappedoperator import prevent_duplicates
+
+        warnings.warn(
+            "airflow.utils.helpers.prevent_duplicates is deprecated. "
+            "Use airflow.sdk.definitions.mappedoperator.prevent_duplicates instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return prevent_duplicates
 
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
