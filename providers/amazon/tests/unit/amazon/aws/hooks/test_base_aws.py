@@ -48,8 +48,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import (
     resolve_session_factory,
 )
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
-from airflow.sdk.exceptions import ErrorType
-from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse
+from airflow.sdk.execution_time.comms import ConnectionResult
 
 from tests_common.test_utils.config import conf_vars
 
@@ -433,8 +432,7 @@ class TestAwsBaseHook:
         assert user_agent_tags["Caller"] == found_classes[-1]
 
     @mock.patch.object(AwsEcsExecutor, "_load_run_kwargs")
-    def test_user_agent_caller_target_executor_found(self, mock_load_run_kwargs, mock_supervisor_comms):
-        mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
+    def test_user_agent_caller_target_executor_found(self, mock_load_run_kwargs, sdk_connection_not_found):
         with conf_vars(
             {
                 ("aws_ecs_executor", "cluster"): "foo",

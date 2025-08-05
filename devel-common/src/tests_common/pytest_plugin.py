@@ -2070,6 +2070,35 @@ def mock_supervisor_comms(monkeypatch):
 
 
 @pytest.fixture
+def sdk_connection_not_found(mock_supervisor_comms):
+    """
+    Fixture that mocks supervisor comms to return CONNECTION_NOT_FOUND error.
+
+    This eliminates the need to manually set up the mock in every test that
+    needs a connection not found message through supervisor comms.
+
+    Example:
+        @pytest.mark.db_test
+        def test_invalid_location(self, sdk_connection_not_found):
+            # Test logic that expects CONNECTION_NOT_FOUND error
+            with pytest.raises(AirflowException):
+                operator.execute(context)
+    """
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+    if not AIRFLOW_V_3_0_PLUS:
+        yield None
+        return
+
+    from airflow.sdk.exceptions import ErrorType
+    from airflow.sdk.execution_time.comms import ErrorResponse
+
+    mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
+
+    yield mock_supervisor_comms
+
+
+@pytest.fixture
 def mocked_parse(spy_agency):
     """
     Fixture to set up an inline DAG and use it in a stubbed `parse` function.

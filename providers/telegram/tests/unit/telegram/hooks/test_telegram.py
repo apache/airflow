@@ -26,8 +26,6 @@ import tenacity
 import airflow
 from airflow.models import Connection
 from airflow.providers.telegram.hooks.telegram import TelegramHook
-from airflow.sdk.exceptions import ErrorType
-from airflow.sdk.execution_time.comms import ErrorResponse
 
 TELEGRAM_TOKEN = "dummy token"
 
@@ -73,8 +71,7 @@ class TestTelegramHook:
         assert not hook.chat_id
 
     @pytest.mark.db_test
-    def test_should_raise_exception_if_conn_id_doesnt_exist(self, mock_supervisor_comms):
-        mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
+    def test_should_raise_exception_if_conn_id_doesnt_exist(self, sdk_connection_not_found):
         with pytest.raises(airflow.exceptions.AirflowNotFoundException) as ctx:
             TelegramHook(telegram_conn_id="telegram-webhook-non-existent")
 

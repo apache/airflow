@@ -35,8 +35,6 @@ from airflow.providers.amazon.aws.sensors.eks import (
     EksFargateProfileStateSensor,
     EksNodegroupStateSensor,
 )
-from airflow.sdk.exceptions import ErrorType
-from airflow.sdk.execution_time.comms import ErrorResponse
 
 CLUSTER_NAME = "test_cluster"
 FARGATE_PROFILE_NAME = "test_profile"
@@ -108,8 +106,7 @@ class TestEksClusterStateSensor:
         mock_get_cluster_state.assert_called_once_with(clusterName=CLUSTER_NAME)
 
     @pytest.mark.db_test
-    def test_region_argument(self, mock_supervisor_comms):
-        mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
+    def test_region_argument(self, sdk_connection_not_found):
         with pytest.warns(AirflowProviderDeprecationWarning) as w:
             w.sensor = EksClusterStateSensor(
                 task_id=TASK_ID,

@@ -24,9 +24,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from airflow.sdk.exceptions import ErrorType
-from airflow.sdk.execution_time.comms import ErrorResponse
-
 try:
     import importlib.util
 
@@ -1170,7 +1167,7 @@ class TestSqlBranch:
         with pytest.raises(AirflowException):
             op.execute({})
 
-    def test_invalid_conn(self, mock_supervisor_comms):
+    def test_invalid_conn(self, sdk_connection_not_found):
         """Check if BranchSQLOperator throws an exception for invalid connection"""
         op = BranchSQLOperator(
             task_id="make_choice",
@@ -1180,11 +1177,10 @@ class TestSqlBranch:
             follow_task_ids_if_false=["branch_2"],
             dag=self.dag,
         )
-        mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
         with pytest.raises(AirflowException):
             op.execute({})
 
-    def test_invalid_follow_task_true(self, mock_supervisor_comms):
+    def test_invalid_follow_task_true(self, sdk_connection_not_found):
         """Check if BranchSQLOperator throws an exception for invalid connection"""
         op = BranchSQLOperator(
             task_id="make_choice",
@@ -1194,11 +1190,10 @@ class TestSqlBranch:
             follow_task_ids_if_false=["branch_2"],
             dag=self.dag,
         )
-        mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
         with pytest.raises(AirflowException):
             op.execute({})
 
-    def test_invalid_follow_task_false(self, mock_supervisor_comms):
+    def test_invalid_follow_task_false(self, sdk_connection_not_found):
         """Check if BranchSQLOperator throws an exception for invalid connection"""
         op = BranchSQLOperator(
             task_id="make_choice",
@@ -1208,7 +1203,6 @@ class TestSqlBranch:
             follow_task_ids_if_false=[],
             dag=self.dag,
         )
-        mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
         with pytest.raises(AirflowException):
             op.execute({})
 

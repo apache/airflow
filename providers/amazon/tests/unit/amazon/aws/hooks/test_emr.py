@@ -29,8 +29,6 @@ from moto import mock_aws
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
-from airflow.sdk.exceptions import ErrorType
-from airflow.sdk.execution_time.comms import ErrorResponse
 
 
 class TestEmrHook:
@@ -197,9 +195,8 @@ class TestEmrHook:
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_conn")
-    def test_missing_emr_conn_id(self, mock_boto3_client, mock_supervisor_comms):
+    def test_missing_emr_conn_id(self, mock_boto3_client, sdk_connection_not_found):
         """Test not exists ``emr_conn_id``."""
-        mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
         mock_run_job_flow = mock.MagicMock()
         mock_boto3_client.return_value.run_job_flow = mock_run_job_flow
         job_flow_overrides = {"foo": "bar"}

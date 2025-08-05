@@ -1003,8 +1003,7 @@ class TestAsyncKubernetesHook:
         assert kube_client is None
 
     @pytest.mark.asyncio
-    async def test_load_config_with_several_params(self, mock_supervisor_comms):
-        mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
+    async def test_load_config_with_several_params(self, sdk_connection_not_found):
         hook = AsyncKubernetesHook(
             conn_id=CONN_ID,
             in_cluster=True,
