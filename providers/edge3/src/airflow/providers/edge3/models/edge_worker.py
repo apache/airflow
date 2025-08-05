@@ -35,9 +35,9 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
-if AIRFLOW_V_3_1_PLUS:
+try:
     from airflow.sdk import timezone
-else:
+except ImportError:
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
