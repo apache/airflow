@@ -141,20 +141,21 @@ class ConnectionBody(StrictBaseModel):
     @classmethod
     def validate_extra(cls, v: str | None) -> str | None:
         """
-        Validate that `extra` is a JSON-encoded Python dict.
+        Validate that `extra` field is a JSON-encoded Python dict.
 
-        If `extra` is not a valid JSON, it will be returned as is.
+        If `extra` field is not a valid JSON, it will be returned as is.
         """
         if v is None:
             return v
+        if v == "":
+            return "{}"  # Backward compatibility: treat "" as empty JSON object
         try:
             extra_dict = json.loads(v)
             if not isinstance(extra_dict, dict):
-                raise ValueError("Extra must be a valid JSON object (e.g., {'key': 'value'})")
+                raise ValueError("The `extra` field must be a valid JSON object (e.g., {'key': 'value'})")
         except json.JSONDecodeError:
-            # If it's not a valid JSON, we can't redact it, so return as is
             raise ValueError(
-                "Extra must be a valid JSON object (e.g., {'key': 'value'}), "
-                "but encountered non-JSON in extra field"
+                "The `extra` field must be a valid JSON object (e.g., {'key': 'value'}), "
+                "but encountered non-JSON in `extra` field"
             )
         return v
