@@ -132,9 +132,10 @@ class BaseNotifier(LoggingMixin, Templater):
         try:
             self.notify(context)
         except Exception as e:
-            self.log.exception("Failed to send (blocking) notification: %s", e)
+            self.log.error("Failed to send notification (sync): %s", e)
+            raise
 
-    def __await__(self) -> Generator[Any, None, None]:
+    def __await__(self) -> Generator[Any, Any, None]:
         """
         Make the notifier awaitable.
 
@@ -145,10 +146,5 @@ class BaseNotifier(LoggingMixin, Templater):
         try:
             return self.async_notify(self.context).__await__()
         except Exception as e:
-            self.log.exception("Failed to send (async) notification: %s", e)
-
-            # Return an empty completed generator to ensure we always return a generator
-            async def empty_generator():
-                return None
-
-            return empty_generator().__await__()
+            self.log.error("Failed to send notification (async): %s", e)
+            raise
