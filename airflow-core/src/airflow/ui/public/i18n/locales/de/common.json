@@ -60,6 +60,7 @@
   },
   "dagRun_one": "Dag Lauf",
   "dagRun_other": "Dag Läufe",
+  "dagRunId": "Dag Lauf ID",
   "dagWarnings": "Dag Warnungen und Fehler",
   "defaultToGraphView": "Graph-Ansicht als Standard",
   "defaultToGridView": "Gitter-Ansicht als Standard",
