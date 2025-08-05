@@ -336,6 +336,7 @@ BASIC_AUTOAPI_IGNORE_PATTERNS = [
     "*/conftest.py",
     "*/tests/__init__.py",
     "*/tests/system/__init__.py",
+    "*/tests/system/*/tests/*",
     "*/tests/system/example_empty.py",
     "*/check_translations_completeness.py",
 ]

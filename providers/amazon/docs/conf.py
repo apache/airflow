@@ -25,5 +25,3 @@ import os
 os.environ["AIRFLOW_PACKAGE_NAME"] = "apache-airflow-providers-amazon"
 
 from docs.provider_conf import *  # noqa: F403
-
-exclude_patterns.append("_api/tests/system/amazon/*")  # noqa: F405
