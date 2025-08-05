@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-05T09:31:16.468860
+# This constraints file was automatically generated on 2025-08-05T16:28:45.406746
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -140,7 +140,7 @@ celery==5.5.3
 certifi==2025.8.3
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.38.1
+cfn-lint==1.38.2
 chardet==5.2.0
 charset-normalizer==3.4.2
 checksumdir==1.2.0
@@ -628,7 +628,7 @@ threadpoolctl==3.6.0
 thrift-sasl==0.4.3
 thrift==0.16.0
 tiktoken==0.9.0
-time-machine==2.16.0
+time-machine==2.17.0
 tinycss2==1.4.0
 tokenizers==0.21.4
 tomli_w==1.2.0
@@ -678,7 +678,7 @@ uvloop==0.21.0
 validators==0.35.0
 vertica-python==1.4.0
 vine==5.1.0
-virtualenv==20.33.0
+virtualenv==20.33.1
 watchfiles==1.1.0
 watchtower==3.4.0
 wcwidth==0.2.13
