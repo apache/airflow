@@ -408,14 +408,14 @@ class TestXComsSetEndpoint:
 
         assert response.status_code == 201
 
-        stored_value = session.scalars(
+        stored_value = session.execute(
             XComModel.get_many(
                 key="xcom_1",
                 dag_ids=ti.dag_id,
                 task_ids=ti.task_id,
                 run_id=ti.run_id,
                 session=session,
-            )
+            ).with_only_columns(XComModel.value)
         ).first()
         deserialized_value = XComModel.deserialize_value(stored_value)
 

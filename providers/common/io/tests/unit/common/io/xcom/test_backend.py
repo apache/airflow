@@ -138,19 +138,15 @@ class TestXComObjectStorageBackend:
                 run_id=task_instance.run_id,
             )
 
-            res = (
-                session.execute(
-                    XComModel.get_many(
-                        key=XCOM_RETURN_KEY,
-                        dag_ids=task_instance.dag_id,
-                        task_ids=task_instance.task_id,
-                        run_id=task_instance.run_id,
-                        session=session,
-                    ).with_only_columns(XComModel.value)
-                )
-                .mappings()
-                .first()
-            )
+            res = session.execute(
+                XComModel.get_many(
+                    key=XCOM_RETURN_KEY,
+                    dag_ids=task_instance.dag_id,
+                    task_ids=task_instance.task_id,
+                    run_id=task_instance.run_id,
+                    session=session,
+                ).with_only_columns(XComModel.value)
+            ).first()
             data = XComModel.deserialize_value(res)
         else:
             res = (
@@ -189,7 +185,7 @@ class TestXComObjectStorageBackend:
                 session=session,
             )
             assert str(p) == XComModel.deserialize_value(
-                session.execute(qry.with_only_columns(XComModel.value)).mappings().first()
+                session.execute(qry.with_only_columns(XComModel.value)).first()
             )
         else:
             qry = XCom.get_many(
@@ -230,19 +226,15 @@ class TestXComObjectStorageBackend:
                 run_id=task_instance.run_id,
             )
 
-            res = (
-                session.execute(
-                    XComModel.get_many(
-                        key=XCOM_RETURN_KEY,
-                        dag_ids=task_instance.dag_id,
-                        task_ids=task_instance.task_id,
-                        run_id=task_instance.run_id,
-                        session=session,
-                    ).with_only_columns(XComModel.value)
-                )
-                .mappings()
-                .first()
-            )
+            res = session.execute(
+                XComModel.get_many(
+                    key=XCOM_RETURN_KEY,
+                    dag_ids=task_instance.dag_id,
+                    task_ids=task_instance.task_id,
+                    run_id=task_instance.run_id,
+                    session=session,
+                ).with_only_columns(XComModel.value)
+            ).first()
             data = XComModel.deserialize_value(res)
         else:
             res = (
@@ -285,19 +277,15 @@ class TestXComObjectStorageBackend:
                 run_id=task_instance.run_id,
                 map_index=task_instance.map_index,
             )
-            value = (
-                session.execute(
-                    XComModel.get_many(
-                        key=XCOM_RETURN_KEY,
-                        dag_ids=task_instance.dag_id,
-                        task_ids=task_instance.task_id,
-                        run_id=task_instance.run_id,
-                        session=session,
-                    ).with_only_columns(XComModel.value)
-                )
-                .mappings()
-                .first()
-            )
+            value = session.execute(
+                XComModel.get_many(
+                    key=XCOM_RETURN_KEY,
+                    dag_ids=task_instance.dag_id,
+                    task_ids=task_instance.task_id,
+                    run_id=task_instance.run_id,
+                    session=session,
+                ).with_only_columns(XComModel.value)
+            ).first()
         else:
             XCom.clear(
                 dag_id=task_instance.dag_id,
@@ -339,19 +327,15 @@ class TestXComObjectStorageBackend:
                 run_id=task_instance.run_id,
             )
 
-            res = (
-                session.execute(
-                    XComModel.get_many(
-                        key=XCOM_RETURN_KEY,
-                        dag_ids=task_instance.dag_id,
-                        task_ids=task_instance.task_id,
-                        run_id=task_instance.run_id,
-                        session=session,
-                    ).with_only_columns(XComModel.value)
-                )
-                .mappings()
-                .first()
-            )
+            res = session.execute(
+                XComModel.get_many(
+                    key=XCOM_RETURN_KEY,
+                    dag_ids=task_instance.dag_id,
+                    task_ids=task_instance.task_id,
+                    run_id=task_instance.run_id,
+                    session=session,
+                ).with_only_columns(XComModel.value)
+            ).first()
             data = XComModel.deserialize_value(res)
         else:
             res = (

@@ -212,7 +212,7 @@ def get_mapped_xcom_by_index(
     else:
         xcom_query = xcom_query.order_by(XComModel.map_index.desc()).offset(-1 - offset)
 
-    if (result := session.scalars(xcom_query.limit(1)).first()) is None:
+    if (result := session.scalars(xcom_query).first()) is None:
         message = (
             f"XCom with {key=} {offset=} not found for task {task_id!r} in DAG run {run_id!r} of {dag_id!r}"
         )
@@ -309,7 +309,7 @@ def get_mapped_xcom_by_slice(
             else:
                 query = query.slice(-stop, -start)
 
-    values = [row.value for row in session.scalars(query.with_only_columns(XComModel.value))]
+    values = [row.value for row in session.execute(query.with_only_columns(XComModel.value)).all()]
     if step != 1:
         values = values[::step]
     return XComSequenceSliceResponse(values)
