@@ -1074,22 +1074,22 @@ export const prefetchUseXcomServiceGetXcomEntry = (queryClient: QueryClient, { d
 * @param data.dagId
 * @param data.dagRunId
 * @param data.taskId
-* @param data.xcomKey
 * @param data.mapIndex
 * @param data.limit
 * @param data.offset
+* @param data.xcomKeyPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @returns XComCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseXcomServiceGetXcomEntries = (queryClient: QueryClient, { dagId, dagRunId, limit, mapIndex, offset, taskId, xcomKey }: {
+export const prefetchUseXcomServiceGetXcomEntries = (queryClient: QueryClient, { dagId, dagRunId, limit, mapIndex, offset, taskId, xcomKeyPattern }: {
   dagId: string;
   dagRunId: string;
   limit?: number;
   mapIndex?: number;
   offset?: number;
   taskId: string;
-  xcomKey?: string;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseXcomServiceGetXcomEntriesKeyFn({ dagId, dagRunId, limit, mapIndex, offset, taskId, xcomKey }), queryFn: () => XcomService.getXcomEntries({ dagId, dagRunId, limit, mapIndex, offset, taskId, xcomKey }) });
+  xcomKeyPattern?: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseXcomServiceGetXcomEntriesKeyFn({ dagId, dagRunId, limit, mapIndex, offset, taskId, xcomKeyPattern }), queryFn: () => XcomService.getXcomEntries({ dagId, dagRunId, limit, mapIndex, offset, taskId, xcomKeyPattern }) });
 /**
 * Get Tasks
 * Get tasks for DAG.

@@ -4606,14 +4606,6 @@ paths:
         schema:
           type: string
           title: Task Id
-      - name: xcom_key
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Xcom Key
       - name: map_index
         in: query
         required: false
@@ -4639,6 +4631,18 @@ paths:
           minimum: 0
           default: 0
           title: Offset
+      - name: xcom_key_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Xcom Key Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       responses:
         '200':
           description: Successful Response

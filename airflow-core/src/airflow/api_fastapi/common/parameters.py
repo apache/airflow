@@ -57,6 +57,7 @@ from airflow.models.hitl import HITLDetail
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.variable import Variable
+from airflow.models.xcom import XComModel
 from airflow.typing_compat import Self
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -722,6 +723,11 @@ QueryTIDagVersionFilter = Annotated[
             default_factory=list,
         )
     ),
+]
+
+# XCom
+QueryXComKeyPatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(XComModel.key, "xcom_key_pattern"))
 ]
 
 # Assets

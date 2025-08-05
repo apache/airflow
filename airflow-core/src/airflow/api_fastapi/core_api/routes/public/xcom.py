@@ -26,7 +26,7 @@ from sqlalchemy.orm import joinedload
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
-from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
+from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, QueryXComKeyPatternSearch
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.xcom import (
     XComCollectionResponse,
@@ -127,7 +127,7 @@ def get_xcom_entries(
     offset: QueryOffset,
     readable_xcom_filter: ReadableXComFilterDep,
     session: SessionDep,
-    xcom_key: Annotated[str | None, Query()] = None,
+    xcom_key_pattern: QueryXComKeyPatternSearch,
     map_index: Annotated[int | None, Query(ge=-1)] = None,
 ) -> XComCollectionResponse:
     """
@@ -148,12 +148,10 @@ def get_xcom_entries(
         query = query.where(DR.run_id == dag_run_id)
     if map_index is not None:
         query = query.where(XComModel.map_index == map_index)
-    if xcom_key is not None:
-        query = query.where(XComModel.key == xcom_key)
 
     query, total_entries = paginated_select(
         statement=query,
-        filters=[readable_xcom_filter],
+        filters=[readable_xcom_filter, xcom_key_pattern],
         offset=offset,
         limit=limit,
         session=session,

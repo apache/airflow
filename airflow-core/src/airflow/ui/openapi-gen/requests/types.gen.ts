@@ -2805,7 +2805,10 @@ export type GetXcomEntriesData = {
     mapIndex?: number | null;
     offset?: number;
     taskId: string;
-    xcomKey?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    xcomKeyPattern?: string | null;
 };
 
 export type GetXcomEntriesResponse = XComCollectionResponse;

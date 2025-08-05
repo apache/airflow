@@ -3004,10 +3004,10 @@ export class XcomService {
      * @param data.dagId
      * @param data.dagRunId
      * @param data.taskId
-     * @param data.xcomKey
      * @param data.mapIndex
      * @param data.limit
      * @param data.offset
+     * @param data.xcomKeyPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns XComCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -3021,10 +3021,10 @@ export class XcomService {
                 task_id: data.taskId
             },
             query: {
-                xcom_key: data.xcomKey,
                 map_index: data.mapIndex,
                 limit: data.limit,
-                offset: data.offset
+                offset: data.offset,
+                xcom_key_pattern: data.xcomKeyPattern
             },
             errors: {
                 400: 'Bad Request',
