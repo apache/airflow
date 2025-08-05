@@ -42,7 +42,10 @@ except ImportError:
         timeout: datetime.timedelta | None = None
 
 
-from airflow.utils import timezone
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     try:

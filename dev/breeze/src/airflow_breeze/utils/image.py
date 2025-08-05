@@ -89,7 +89,7 @@ def run_pull_in_parallel(
             ]
     check_async_run_results(
         results=results,
-        success="All images pulled",
+        success_message="All images pulled",
         outputs=outputs,
         include_success_outputs=include_success_outputs,
         skip_cleanup=skip_cleanup,

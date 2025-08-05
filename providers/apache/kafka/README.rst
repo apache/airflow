@@ -23,8 +23,9 @@
 
 Package ``apache-airflow-providers-apache-kafka``
 
-Release: ``1.10.0``
+Release: ``1.10.1``
 
+Release Date: ``|PypiReleaseDate|``
 
 `Apache Kafka  <https://kafka.apache.org/>`__
 
@@ -36,7 +37,7 @@ This is a provider package for ``apache.kafka`` provider. All classes for this p
 are in ``airflow.providers.apache.kafka`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.10.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.10.1/>`_.
 
 Installation
 ------------
@@ -68,14 +69,15 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-apache-kafka[google]
+    pip install apache-airflow-providers-apache-kafka[common.messaging]
 
 
-====================================================================================================  ==========
-Dependent package                                                                                     Extra
-====================================================================================================  ==========
-`apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_  ``google``
-====================================================================================================  ==========
+========================================================================================================================  ====================
+Dependent package                                                                                                         Extra
+========================================================================================================================  ====================
+`apache-airflow-providers-common-messaging <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging>`_  ``common.messaging``
+`apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_                      ``google``
+========================================================================================================================  ====================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.10.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.10.1/changelog.html>`_.

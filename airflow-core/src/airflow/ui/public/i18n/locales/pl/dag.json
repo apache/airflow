@@ -19,11 +19,12 @@
   },
   "header": {
     "buttons": {
+      "advanced": "Zaawansowane",
       "dagDocs": "Dokumentacja Daga"
     }
   },
   "logs": {
-    "allLevels": "Wszystkie poziomy logów",
+    "allLevels": "Wszystkie poziomy logowania",
     "allSources": "Wszystkie źródła",
     "critical": "CRITICAL",
     "debug": "DEBUG",
@@ -34,6 +35,7 @@
     },
     "info": "INFO",
     "noTryNumber": "Brak numeru próby",
+    "settings": "Ustawienia logowania",
     "viewInExternal": "Zobacz logi w {{name}} (próba {{attempt}})",
     "warning": "WARNING"
   },

@@ -1132,7 +1132,14 @@ class ActivitySubprocess(WatchedSubprocess):
                 resp = xcom
         elif isinstance(msg, GetXComSequenceSlice):
             xcoms = self.client.xcoms.get_sequence_slice(
-                msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.start, msg.stop, msg.step
+                msg.dag_id,
+                msg.run_id,
+                msg.task_id,
+                msg.key,
+                msg.start,
+                msg.stop,
+                msg.step,
+                msg.include_prior_dates,
             )
             resp = XComSequenceSliceResult.from_response(xcoms)
         elif isinstance(msg, DeferTask):
@@ -1416,11 +1423,11 @@ class InProcessTestSupervisor(ActivitySubprocess):
         api = in_process_api_server()
         if dag is not None:
             from airflow.api_fastapi.common.dagbag import dag_bag_from_app
-            from airflow.jobs.scheduler_job_runner import SchedulerDagBag
+            from airflow.models.dagbag import DBDagBag
 
-            # This is needed since the Execution API server uses the SchedulerDagBag in its "state".
+            # This is needed since the Execution API server uses the DBDagBag in its "state".
             # This `app.state.dag_bag` is used to get some DAG properties like `fail_fast`.
-            dag_bag = SchedulerDagBag()
+            dag_bag = DBDagBag()
 
             api.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag
 

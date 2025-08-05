@@ -22,7 +22,6 @@ from typing import Annotated
 
 from fastapi import Depends, status
 from sqlalchemy import and_, func, select
-from sqlalchemy.orm import load_only
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import (
@@ -33,6 +32,8 @@ from airflow.api_fastapi.common.db.dags import generate_dag_with_latest_run_quer
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
     FilterParam,
+    QueryBundleNameFilter,
+    QueryBundleVersionFilter,
     QueryDagDisplayNamePatternSearch,
     QueryDagIdPatternSearch,
     QueryExcludeStaleFilter,
@@ -87,6 +88,8 @@ def get_dags(
     exclude_stale: QueryExcludeStaleFilter,
     paused: QueryPausedFilter,
     last_dag_run_state: QueryLastDagRunStateFilter,
+    bundle_name: QueryBundleNameFilter,
+    bundle_version: QueryBundleVersionFilter,
     order_by: Annotated[
         SortParam,
         Depends(
@@ -124,6 +127,8 @@ def get_dags(
             last_dag_run_state,
             is_favorite,
             readable_dags_filter,
+            bundle_name,
+            bundle_version,
         ],
         order_by=order_by,
         offset=offset,
@@ -202,29 +207,25 @@ def get_dags(
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN))],
 )
-def get_latest_run_info(dag_id: str, session: SessionDep) -> list[DAGRunLightResponse]:
+def get_latest_run_info(dag_id: str, session: SessionDep) -> DAGRunLightResponse | None:
     """Get latest run."""
     if dag_id == "~":
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
             "`~` was supplied as dag_id, but querying multiple dags is not supported.",
         )
-    query = (
-        select(DagRun)
+    return session.execute(
+        select(
+            DagRun.id,
+            DagRun.dag_id,
+            DagRun.run_id,
+            DagRun.end_date,
+            DagRun.logical_date,
+            DagRun.run_after,
+            DagRun.start_date,
+            DagRun.state,
+        )
         .where(DagRun.dag_id == dag_id)
         .order_by(DagRun.run_after.desc())
         .limit(1)
-        .options(
-            load_only(
-                DagRun.dag_id,
-                DagRun.run_id,
-                DagRun.end_date,
-                DagRun.logical_date,
-                DagRun.run_after,
-                DagRun.start_date,
-                DagRun.state,
-            )
-        )
-    )
-    dag_runs = session.scalars(query)
-    return dag_runs
+    ).one_or_none()

@@ -18,7 +18,7 @@
 Concepts
 ========
 
-This section covers the fundamental concepts that DAG authors need to understand when working with the Task SDK.
+This section covers the fundamental concepts that Dag authors need to understand when working with the Task SDK.
 
 .. note::
 
@@ -32,7 +32,7 @@ Terminology
 Task Lifecycle
 --------------
 
-Understanding the task lifecycle helps DAG authors write more effective tasks and debug issues:
+Understanding the task lifecycle helps Dag authors write more effective tasks and debug issues:
 
 - **Scheduled**: The Airflow scheduler enqueues the task instance. The Executor assigns a workload token used for subsequent API authentication and validation with the Airflow API Server.
 - **Queued**: Workers poll the queue to retrieve and reserve queued task instances.

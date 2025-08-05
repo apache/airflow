@@ -37,6 +37,7 @@ from sqlalchemy import (
     Column,
     String,
 )
+from sqlalchemy.orm import joinedload
 from tabulate import tabulate
 
 from airflow import settings
@@ -52,6 +53,7 @@ from airflow.exceptions import (
 )
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base, StringID
+from airflow.models.dag_version import DagVersion
 from airflow.stats import Stats
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.docs import get_docs_url
@@ -71,6 +73,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from airflow.models import DagRun
     from airflow.models.dag import DAG
     from airflow.models.dagwarning import DagWarning
     from airflow.utils.types import ArgNotSet
@@ -710,6 +713,66 @@ class DagBag(LoggingMixin):
             self.dag_warnings,
             session=session,
         )
+
+
+class DBDagBag:
+    """
+    Internal class for retrieving and caching dags in the scheduler.
+
+    :meta private:
+    """
+
+    def __init__(self, load_op_links: bool = True):
+        self._dags: dict[str, DAG] = {}  # dag_version_id to dag
+        self.load_op_links = load_op_links
+
+    def _get_dag(self, version_id: str, session: Session) -> DAG | None:
+        if dag := self._dags.get(version_id):
+            return dag
+        dag_version = session.get(DagVersion, version_id, options=[joinedload(DagVersion.serialized_dag)])
+        if not dag_version:
+            return None
+        serdag = dag_version.serialized_dag
+        if not serdag:
+            return None
+        serdag.load_op_links = self.load_op_links
+        dag = serdag.dag
+        if not dag:
+            return None
+        self._dags[version_id] = dag
+        return dag
+
+    @staticmethod
+    def _version_from_dag_run(dag_run, session):
+        if not dag_run.bundle_version:
+            dag_version = DagVersion.get_latest_version(dag_id=dag_run.dag_id, session=session)
+            if dag_version:
+                return dag_version
+
+        return dag_run.created_dag_version
+
+    def get_dag_for_run(self, dag_run: DagRun, session: Session) -> DAG | None:
+        version = self._version_from_dag_run(dag_run=dag_run, session=session)
+        if not version:
+            return None
+        return self._get_dag(version_id=version.id, session=session)
+
+    def get_latest_version_of_dag(self, dag_id: str, session: Session) -> DAG | None:
+        """
+        Get the latest version of a DAG by its ID.
+
+        This method retrieves the latest version of the DAG with the given ID.
+        """
+        from airflow.models.serialized_dag import SerializedDagModel
+
+        serdag = SerializedDagModel.get(dag_id, session=session)
+        if not serdag:
+            return None
+        serdag.load_op_links = self.load_op_links
+        dag = serdag.dag
+
+        self._dags[serdag.dag_version.id] = dag
+        return dag
 
 
 def generate_md5_hash(context):

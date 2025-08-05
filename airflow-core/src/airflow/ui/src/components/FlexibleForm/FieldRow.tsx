@@ -19,9 +19,8 @@
 import { Field, Stack } from "@chakra-ui/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 
+import ReactMarkdown from "src/components/ReactMarkdown";
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
@@ -66,7 +65,7 @@ export const FieldRow = ({ name, onUpdate: rowOnUpdate }: FlexibleFormElementPro
         {param.description === null ? (
           param.schema.description_md === undefined ? undefined : (
             <Field.HelperText>
-              <Markdown remarkPlugins={[remarkGfm]}>{param.schema.description_md}</Markdown>
+              <ReactMarkdown>{param.schema.description_md}</ReactMarkdown>
             </Field.HelperText>
           )
         ) : (

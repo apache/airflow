@@ -30,7 +30,11 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.variable import Variable
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor, S3KeysUnchangedSensor
-from airflow.utils import timezone
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
