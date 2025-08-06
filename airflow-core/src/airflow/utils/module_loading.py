@@ -53,6 +53,7 @@ def import_string(dotted_path: str):
 
     Raise ImportError if the import failed.
     """
+    # TODO: Add support for nested classes. Currently, it only works for top-level classes.
     try:
         module_path, class_name = dotted_path.rsplit(".", 1)
     except ValueError:
