@@ -138,7 +138,7 @@ Parameters
 Important Notes
 ---------------
 
-1. The ``response_check_path`` must contain the path to an asynchronous callable. Synchronous callables will raise an exception.
-2. A ``response_check_path`` value is required.
+1. A ``response_check_path`` value is required.
+2. The ``response_check_path`` must contain the path to an asynchronous callable. Synchronous callables will raise an exception.
 3. This trigger does not automatically record the previous API response.
 4. The previous response may have to be persisted manually though ``Variable.set()`` in the ``response_check_path`` callable to prevent the trigger from emitting events repeatedly for the same API response.
