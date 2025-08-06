@@ -128,7 +128,7 @@ class SambaHook(BaseHook):
         file_attributes=None,
         file_type="file",
     ):
-        self._open_file(
+        return self._open_file(
             path,
             mode,
             buffering,
