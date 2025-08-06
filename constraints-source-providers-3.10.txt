@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-06T02:23:28.049804
+# This constraints file was automatically generated on 2025-08-06T13:54:45.840832
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -238,14 +238,14 @@ google-cloud-bigquery-storage==2.32.0
 google-cloud-bigquery==3.35.1
 google-cloud-bigtable==2.31.0
 google-cloud-build==3.31.3
-google-cloud-compute==1.33.0
+google-cloud-compute==1.34.0
 google-cloud-container==2.59.0
 google-cloud-core==2.4.3
 google-cloud-datacatalog==3.27.1
 google-cloud-dataflow-client==0.9.0
 google-cloud-dataform==0.6.2
 google-cloud-dataplex==2.11.0
-google-cloud-dataproc-metastore==1.18.3
+google-cloud-dataproc-metastore==1.19.0
 google-cloud-dataproc==5.21.0
 google-cloud-dlp==3.31.0
 google-cloud-kms==3.5.1
@@ -497,7 +497,7 @@ pyexasol==0.27.0
 pygraphviz==1.14
 pyiceberg==0.9.1
 pykerberos==1.2.4
-pymongo==4.13.2
+pymongo==4.14.0
 pymssql==2.3.7
 pyodbc==5.2.0
 pyodps==0.12.4.1
@@ -644,7 +644,7 @@ towncrier==24.8.0
 tqdm==4.67.1
 traitlets==5.14.3
 trino==0.335.0
-trove-classifiers==2025.5.9.12
+trove-classifiers==2025.8.6.13
 twine==6.1.0
 typer==0.16.0
 types-Deprecated==1.2.15.20250304
@@ -688,7 +688,7 @@ virtualenv==20.33.1
 watchfiles==1.1.0
 watchtower==3.4.0
 wcwidth==0.2.13
-weaviate-client==4.16.5
+weaviate-client==4.16.6
 webencodings==0.5.1
 websocket-client==1.8.0
 websockets==15.0.1
@@ -700,7 +700,7 @@ yamllint==1.37.1
 yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.20.1
-ydb-dbapi==0.1.12
+ydb-dbapi==0.1.13
 ydb==3.21.7
 zeep==4.3.1
 zenpy==2.0.56
