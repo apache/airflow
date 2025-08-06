@@ -47,7 +47,11 @@ from airflow.api_fastapi.core_api.datamodels.hitl import (
     UpdateHITLDetailPayload,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
+from airflow.api_fastapi.core_api.security import (
+    GetUserDep,
+    ReadableHITLFilterDep,
+    requires_access_dag,
+)
 from airflow.models.hitl import HITLDetail as HITLDetailModel
 from airflow.models.taskinstance import TaskInstance as TI
 
@@ -274,7 +278,7 @@ def get_mapped_ti_hitl_detail(
 @hitl_router.get(
     "/",
     status_code=status.HTTP_200_OK,
-    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
+    # No authorization access is performed on the API level because `ReadableHITLFilterDep` filters Dags accessible by the user only
 )
 def get_hitl_details(
     limit: QueryLimit,
@@ -300,7 +304,7 @@ def get_hitl_details(
     ],
     session: SessionDep,
     # ti related filter
-    readable_ti_filter: ReadableTIFilterDep,
+    readable_ti_filter: ReadableHITLFilterDep,
     dag_id_pattern: QueryHITLDetailDagIdPatternSearch,
     dag_run_id: QueryHITLDetailDagRunIdFilter,
     task_id: QueryHITLDetailTaskIdPatternSearch,

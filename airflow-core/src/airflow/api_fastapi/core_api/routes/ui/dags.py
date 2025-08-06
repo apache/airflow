@@ -68,10 +68,7 @@ dags_router = AirflowRouter(prefix="/dags", tags=["DAG"])
 @dags_router.get(
     "",
     response_model_exclude_none=True,
-    dependencies=[
-        Depends(requires_access_dag(method="GET")),
-        Depends(requires_access_dag("GET", DagAccessEntity.RUN)),
-    ],
+    # No authorization access is performed on the API level because `ReadableDagsFilterDep` filters Dags accessible by the user only
     operation_id="get_dags_ui",
 )
 def get_dags(

@@ -305,7 +305,7 @@ def clear_dag_run(
 @dag_run_router.get(
     "",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
-    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN))],
+    # No authorization access is performed on the API level because `ReadableDagRunsFilterDep` filters Dags accessible by the user only
 )
 def get_dag_runs(
     dag_id: str,
@@ -502,7 +502,7 @@ def wait_dag_run_until_finished(
 @dag_run_router.post(
     "/list",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
-    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN))],
+    # No authorization access is performed on the API level because `ReadableDagRunsFilterDep` filters Dags accessible by the user only
 )
 def get_list_dag_runs_batch(
     dag_id: Literal["~"],

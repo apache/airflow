@@ -21,7 +21,7 @@ import ast
 import os
 from typing import cast
 
-from fastapi import Depends, HTTPException, status
+from fastapi import HTTPException, status
 
 from airflow import settings
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -32,7 +32,6 @@ from airflow.api_fastapi.core_api.datamodels.dag_report import (
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
     ReadableDagsFilterDep,
-    requires_access_dag,
 )
 from airflow.models.dagbag import DagBag
 
@@ -46,7 +45,7 @@ dag_report_router = AirflowRouter(tags=["DagReport"], prefix="/dagReports")
             status.HTTP_400_BAD_REQUEST,
         ]
     ),
-    dependencies=[Depends(requires_access_dag(method="GET"))],
+    # No authorization access is performed on the API level because `ReadableDagsFilterDep` filters Dags accessible by the user only
 )
 def get_dag_reports(
     subdir: str,

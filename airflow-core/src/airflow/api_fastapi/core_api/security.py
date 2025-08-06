@@ -156,12 +156,14 @@ class PermittedTagFilter(PermittedDagFilter):
 
 
 def permitted_dag_filter_factory(
-    method: ResourceMethod, filter_class=PermittedDagFilter
+    method: ResourceMethod, access_entity: DagAccessEntity | None = None, filter_class=PermittedDagFilter
 ) -> Callable[[Request, BaseUser], PermittedDagFilter]:
     """
     Create a callable for Depends in FastAPI that returns a filter of the permitted dags for the user.
 
-    :param method: whether filter readable or writable.
+    :param method: the method to filter on
+    :param access_entity: the Dag sub entity to filter on. If not provided, filter on Dag level.
+    :param filter_class: the class to filter on. If not provided, filter on Dag level
     :return: The callable that can be used as Depends in FastAPI.
     """
 
@@ -170,7 +172,9 @@ def permitted_dag_filter_factory(
         user: GetUserDep,
     ) -> PermittedDagFilter:
         auth_manager: BaseAuthManager = request.app.state.auth_manager
-        authorized_dags: set[str] = auth_manager.get_authorized_dag_ids(user=user, method=method)
+        authorized_dags: set[str] = auth_manager.get_authorized_dag_ids(
+            user=user, method=method, access_entity=access_entity
+        )
         return filter_class(authorized_dags)
 
     return depends_permitted_dags_filter
@@ -179,20 +183,27 @@ def permitted_dag_filter_factory(
 EditableDagsFilterDep = Annotated[PermittedDagFilter, Depends(permitted_dag_filter_factory("PUT"))]
 ReadableDagsFilterDep = Annotated[PermittedDagFilter, Depends(permitted_dag_filter_factory("GET"))]
 ReadableDagRunsFilterDep = Annotated[
-    PermittedDagRunFilter, Depends(permitted_dag_filter_factory("GET", PermittedDagRunFilter))
+    PermittedDagRunFilter,
+    Depends(permitted_dag_filter_factory("GET", DagAccessEntity.RUN, PermittedDagRunFilter)),
 ]
 ReadableDagWarningsFilterDep = Annotated[
-    PermittedDagWarningFilter, Depends(permitted_dag_filter_factory("GET", PermittedDagWarningFilter))
+    PermittedDagWarningFilter,
+    Depends(permitted_dag_filter_factory("GET", DagAccessEntity.WARNING, PermittedDagWarningFilter)),
+]
+ReadableHITLFilterDep = Annotated[
+    PermittedTIFilter,
+    Depends(permitted_dag_filter_factory("GET", DagAccessEntity.HITL_DETAIL, PermittedTIFilter)),
 ]
 ReadableTIFilterDep = Annotated[
-    PermittedTIFilter, Depends(permitted_dag_filter_factory("GET", PermittedTIFilter))
+    PermittedTIFilter,
+    Depends(permitted_dag_filter_factory("GET", DagAccessEntity.TASK_INSTANCE, PermittedTIFilter)),
 ]
 ReadableXComFilterDep = Annotated[
-    PermittedXComFilter, Depends(permitted_dag_filter_factory("GET", PermittedXComFilter))
+    PermittedXComFilter,
+    Depends(permitted_dag_filter_factory("GET", DagAccessEntity.XCOM, PermittedXComFilter)),
 ]
-
 ReadableTagsFilterDep = Annotated[
-    PermittedTagFilter, Depends(permitted_dag_filter_factory("GET", PermittedTagFilter))
+    PermittedTagFilter, Depends(permitted_dag_filter_factory("GET", None, PermittedTagFilter))
 ]
 
 

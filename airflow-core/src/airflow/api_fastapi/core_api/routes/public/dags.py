@@ -266,7 +266,8 @@ def patch_dag(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
-    dependencies=[Depends(requires_access_dag(method="PUT")), Depends(action_logging())],
+    # No authorization access is performed on the API level because `EditableDagsFilterDep` filters Dags accessible by the user only
+    dependencies=[Depends(action_logging())],
 )
 def patch_dags(
     patch_body: DAGPatchBody,

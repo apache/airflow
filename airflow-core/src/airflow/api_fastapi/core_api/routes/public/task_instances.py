@@ -497,7 +497,7 @@ def get_task_instances(
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[
         Depends(action_logging()),
-        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE)),
+        # No authorization access is performed on the API level because `ReadableTIFilterDep` filters Dags accessible by the user only
     ],
 )
 def get_task_instances_batch(

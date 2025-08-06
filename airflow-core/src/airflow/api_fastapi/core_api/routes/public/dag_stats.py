@@ -21,7 +21,6 @@ from typing import Annotated
 
 from fastapi import Depends, status
 
-from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import (
     SessionDep,
     paginated_select,
@@ -39,7 +38,7 @@ from airflow.api_fastapi.core_api.datamodels.dag_stats import (
     DagStatsStateResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import ReadableDagRunsFilterDep, requires_access_dag
+from airflow.api_fastapi.core_api.security import ReadableDagRunsFilterDep
 from airflow.models.dagrun import DagRun
 from airflow.utils.state import DagRunState
 
@@ -54,7 +53,7 @@ dag_stats_router = AirflowRouter(tags=["DagStats"], prefix="/dagStats")
             status.HTTP_404_NOT_FOUND,
         ]
     ),
-    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN))],
+    # No authorization access is performed on the API level because `ReadableDagRunsFilterDep` filters Dags accessible by the user only
 )
 def get_dag_stats(
     readable_dag_runs_filter: ReadableDagRunsFilterDep,

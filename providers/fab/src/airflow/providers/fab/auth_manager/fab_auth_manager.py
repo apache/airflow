@@ -427,6 +427,7 @@ class FabAuthManager(BaseAuthManager[User]):
         *,
         user: User,
         method: ResourceMethod = "GET",
+        access_entity: DagAccessEntity | None = None,
         session: Session = NEW_SESSION,
     ) -> set[str]:
         if self._is_authorized(method=method, resource_type=RESOURCE_DAG, user=user):
@@ -434,6 +435,16 @@ class FabAuthManager(BaseAuthManager[User]):
             return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
         if isinstance(user, AnonymousUser):
             return set()
+        if access_entity:
+            resource_types = self._get_fab_resource_types(access_entity)
+            if not all(
+                self._is_authorized(method=method, resource_type=resource_type, user=user)
+                for resource_type in resource_types
+            ):
+                # If `access_entity` is provided and the user is not authorized to access this given `access_entity`, return empty set
+                return set()
+
+        dag_method: ResourceMethod = "GET" if method == "GET" else "PUT"
         user_query = session.scalar(
             select(User)
             .options(
@@ -452,15 +463,13 @@ class FabAuthManager(BaseAuthManager[User]):
                 action = permission.action.name
                 if (
                     action in map_fab_action_name_to_method_name
-                    and map_fab_action_name_to_method_name[action] == method
+                    and map_fab_action_name_to_method_name[action] == dag_method
                 ):
                     resource = permission.resource.name
                     if resource == permissions.RESOURCE_DAG:
                         return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
                     if resource.startswith(permissions.RESOURCE_DAG_PREFIX):
                         resources.add(resource[len(permissions.RESOURCE_DAG_PREFIX) :])
-                    else:
-                        resources.add(resource)
         return set(session.scalars(select(DagModel.dag_id).where(DagModel.dag_id.in_(resources))))
 
     @cached_property

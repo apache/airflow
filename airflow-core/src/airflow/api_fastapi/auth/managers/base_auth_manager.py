@@ -344,6 +344,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         *,
         user: T,
         method: ResourceMethod = "GET",
+        access_entity: DagAccessEntity | None = None,
         session: Session = NEW_SESSION,
     ) -> set[str]:
         """
@@ -355,10 +356,13 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
 
         :param user: the user
         :param method: the method to filter on
+        :param access_entity: the kind of DAG information the user wants to access.
         :param session: the session
         """
         dag_ids = {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
-        return self.filter_authorized_dag_ids(dag_ids=dag_ids, method=method, user=user)
+        return self.filter_authorized_dag_ids(
+            dag_ids=dag_ids, method=method, access_entity=access_entity, user=user
+        )
 
     def filter_authorized_dag_ids(
         self,
@@ -366,6 +370,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         dag_ids: set[str],
         user: T,
         method: ResourceMethod = "GET",
+        access_entity: DagAccessEntity | None = None,
     ) -> set[str]:
         """
         Filter DAGs the user has access to.
@@ -373,10 +378,14 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         :param dag_ids: the list of DAG ids
         :param user: the user
         :param method: the method to filter on
+        :param access_entity: the kind of DAG information the authorization request is about.
+            If not provided, the authorization request is about the DAG itself
         """
 
         def _is_authorized_dag_id(method: ResourceMethod, dag_id: str):
-            return self.is_authorized_dag(method=method, details=DagDetails(id=dag_id), user=user)
+            return self.is_authorized_dag(
+                method=method, details=DagDetails(id=dag_id), access_entity=access_entity, user=user
+            )
 
         return {dag_id for dag_id in dag_ids if _is_authorized_dag_id(method, dag_id)}
 

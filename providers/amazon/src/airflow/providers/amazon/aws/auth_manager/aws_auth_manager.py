@@ -273,14 +273,25 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         dag_ids: set[str],
         user: AwsAuthManagerUser,
         method: ResourceMethod = "GET",
+        access_entity: DagAccessEntity | None = None,
     ):
         requests: dict[str, dict[ResourceMethod, IsAuthorizedRequest]] = defaultdict(dict)
         requests_list: list[IsAuthorizedRequest] = []
         for dag_id in dag_ids:
+            context = (
+                None
+                if access_entity is None
+                else {
+                    "dag_entity": {
+                        "string": access_entity.value,
+                    },
+                }
+            )
             request: IsAuthorizedRequest = {
                 "method": method,
                 "entity_type": AvpEntities.DAG,
                 "entity_id": dag_id,
+                "context": context,
             }
             requests[dag_id][method] = request
             requests_list.append(request)

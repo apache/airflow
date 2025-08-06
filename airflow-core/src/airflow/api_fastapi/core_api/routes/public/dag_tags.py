@@ -34,13 +34,16 @@ from airflow.api_fastapi.common.parameters import (
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.dag_tags import DAGTagCollectionResponse
-from airflow.api_fastapi.core_api.security import ReadableTagsFilterDep, requires_access_dag
+from airflow.api_fastapi.core_api.security import ReadableTagsFilterDep
 from airflow.models.dag import DagTag
 
 dag_tags_router = AirflowRouter(tags=["DAG"], prefix="/dagTags")
 
 
-@dag_tags_router.get("", dependencies=[Depends(requires_access_dag(method="GET"))])
+@dag_tags_router.get(
+    "",
+    # No authorization access is performed on the API level because `ReadableTagsFilterDep` filters Dags accessible by the user only
+)
 def get_dag_tags(
     limit: QueryLimit,
     offset: QueryOffset,
