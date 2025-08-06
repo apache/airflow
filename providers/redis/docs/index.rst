@@ -36,6 +36,7 @@
 
     Connection types <connections>
     Logging <logging/index>
+    Message Queues <message-queues>
     Triggers <triggers>
 
 .. toctree::
