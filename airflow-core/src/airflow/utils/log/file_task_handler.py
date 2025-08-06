@@ -867,13 +867,13 @@ class FileTaskHandler(logging.Handler):
 
     def _read_from_logs_server(
         self,
-        ti: TaskInstance,
+        ti: TaskInstance | TaskInstanceHistory,
         worker_log_rel_path: str,
     ) -> LogResponse:
         sources: LogSourceInfo = []
         log_streams: list[RawLogStream] = []
         try:
-            log_type = LogType.TRIGGER if ti.triggerer_job else LogType.WORKER
+            log_type = LogType.TRIGGER if getattr(ti, "triggerer_job", False) else LogType.WORKER
             url, rel_path = self._get_log_retrieval_url(ti, worker_log_rel_path, log_type=log_type)
             response = _fetch_logs_from_service(url, rel_path)
             if response.status_code == 403:
