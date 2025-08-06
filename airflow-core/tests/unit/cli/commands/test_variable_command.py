@@ -120,7 +120,6 @@ class TestCliVariables:
 
         # Assert value
         assert Variable.get("dict", deserialize_json=True) == {"foo": "oops"}
-        assert Variable.get("list", deserialize_json=True) == ["oops"]
         assert Variable.get("str") == "hello string"  # cannot json.loads(str)
         assert Variable.get("int", deserialize_json=True) == 42
         assert Variable.get("float", deserialize_json=True) == 42.0
@@ -162,7 +161,7 @@ class TestCliVariables:
 
     def test_variables_import(self):
         """Test variables_import command"""
-        with pytest.raises(SystemExit, match=r"Invalid variables file"):
+        with pytest.raises(SystemExit, match=r"Unsupported file format"):
             variable_command.variables_import(self.parser.parse_args(["variables", "import", os.devnull]))
 
     def test_variables_export(self):
@@ -171,8 +170,8 @@ class TestCliVariables:
 
     def test_variables_isolation(self, tmp_path):
         """Test isolation of variables"""
-        path1 = tmp_path / "testfile1"
-        path2 = tmp_path / "testfile2"
+        path1 = tmp_path / "testfile1.json"
+        path2 = tmp_path / "testfile2.json"
 
         # First export
         variable_command.variables_set(self.parser.parse_args(["variables", "set", "foo", '{"foo":"bar"}']))
