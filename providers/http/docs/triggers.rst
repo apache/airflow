@@ -83,9 +83,9 @@ Here's an example of using the HttpEventTrigger in an AssetWatcher to monitor th
     trigger = HttpEventTrigger(
         endpoint="repos/apache/airflow/releases/latest",
         method="GET",
-        http_conn_id="http_default",
+        http_conn_id="http_default",  # HTTP connection with https://api.github.com/ as the Host
         headers=headers,
-        response_check_path="dags.check_airflow_releases.check_github_api_response",
+        response_check_path="dags.check_airflow_releases.check_github_api_response",  # Path to the check_github_api_response callable
     )
 
     asset = Asset(
