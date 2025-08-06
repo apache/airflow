@@ -35,6 +35,35 @@
 Changelog
 ---------
 
+1.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat(htil): add 'notifiers' to HITLOperator (#54128)``
+* ``feat(hitl): add HITLBranchOperator (#53960)``
+* ``feat(HITL): improve hitl trigger logging message (#53850)``
+* ``feat(hitl): add "timedout" column to HITLTriggerEventSuccessPayload (#53852)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Restore 'execute_complete' functionality 'TimeSensor' when 'deferrable=True' (#53669)``
+* ``Fix several deprecation warnings related to airflow.sdk (#53791)``
+
+Misc
+~~~~
+
+* ``refactor(hitl): replace timezone usage with airflow.sdk.timezone (#53962)``
+* ``refactor(HITL): make default options class variables to avoid typo (#53849)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Documentation for Human-in-the-loop operator (#53694)``
+   * ``Correct HITL version warnings to avoid confusion (#53876)``
+   * ``Move functions in 'airflow.utils.decorator' to more appropriate places (#53420)``
+
 1.5.0
 .....
 
