@@ -79,7 +79,7 @@ from airflow.triggers import base as events
 from airflow.utils.helpers import log_filename_template_renderer
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
-from airflow.utils.session import create_session, provide_session
+from airflow.utils.session import provide_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -607,10 +607,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 trigger.task_instance.refresh_from_task(task)
                 context = trigger.task_instance.get_template_context()
                 task.render_template_fields(context=context)
-                with create_session() as session:
-                    trigger.kwargs = task.expand_start_trigger_args(
-                        context=context, session=session
-                    ).trigger_kwargs
+                trigger.kwargs = task.expand_start_trigger_args(context=context).trigger_kwargs
             return trigger
 
         def create_workload(trigger: Trigger) -> workloads.RunTrigger:
