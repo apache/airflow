@@ -103,6 +103,7 @@
     "mappedTaskInstances_other": "任務實例 [{{count}}]",
     "overview": "總覽",
     "renderedTemplates": "渲染後的範本",
+    "requiredActions": "待回應的任務實例",
     "runs": "執行紀錄",
     "taskInstances": "任務實例",
     "tasks": "任務",
