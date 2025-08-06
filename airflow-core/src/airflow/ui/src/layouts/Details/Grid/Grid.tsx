@@ -27,6 +27,7 @@ import { Link, useParams } from "react-router-dom";
 import type { GridRunsResponse } from "openapi/requests";
 import { useOpenGroups } from "src/context/openGroups";
 import { useNavigation } from "src/hooks/navigation";
+import { useGraphStructureSync } from "src/hooks/useGraphStructureSync";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { useGridStructure } from "src/queries/useGridStructure.ts";
 import { isStatePending } from "src/utils";
@@ -68,6 +69,8 @@ export const Grid = ({ limit }: Props) => {
   const { dagId = "", runId = "" } = useParams();
 
   const { data: gridRuns, isLoading } = useGridRuns({ limit });
+
+  useGraphStructureSync();
 
   // Check if the selected dag run is inside of the grid response, if not, we'll update the grid filters
   // Eventually we should redo the api endpoint to make this work better
