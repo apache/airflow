@@ -20,7 +20,6 @@
     },
     "filters": {
       "dagFilter": "Filter by Dag ID",
-      "dateTimeRanges": "Date & Time Filters",
       "keyFilter": "Filter by XCom key",
       "logicalDateFrom": "Logical Date From",
       "logicalDateTo": "Logical Date To",
