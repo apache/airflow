@@ -19,5 +19,6 @@
     "rejectionReceived": "Ablehnung erhalten",
     "responseReceived": "Antwort erhalten",
     "responseRequired": "Antwort erforderlich"
-  }
+  },
+  "subject": "Betreff"
 }

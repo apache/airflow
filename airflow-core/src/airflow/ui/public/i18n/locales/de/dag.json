@@ -39,6 +39,11 @@
     "viewInExternal": "Protokoll in {{name}} (Versuch {{attempt}}) ansehen",
     "warning": "WARNING"
   },
+  "navigation": {
+    "jump": "Springen: Umschalttaste+{{arrow}}",
+    "navigation": "Navigation: {{arrow}}",
+    "toggleGroup": "Gruppen umschalten: Leertaste"
+  },
   "overview": {
     "buttons": {
       "failedRun_one": "Fehlgeschlagener Lauf",
