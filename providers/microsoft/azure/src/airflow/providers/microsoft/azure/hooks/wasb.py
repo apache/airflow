@@ -56,7 +56,6 @@ from airflow.providers.microsoft.azure.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from azure.core.credentials import TokenCredential
-    from azure.core.credentials_async import AsyncTokenCredential
     from azure.storage.blob._models import BlobProperties
     from azure.storage.blob.aio._list_blobs_helper import BlobPrefix
 
@@ -615,9 +614,8 @@ class WasbAsyncHook(WasbHook):
         tenant = self._get_field(extra, "tenant_id")
         if tenant:
             # use Active Directory auth
-            app_id: str = conn.login or ""
-            app_secret: str = conn.password or ""
-
+            app_id: str = conn.login
+            app_secret: str = conn.password
             token_credential = AsyncClientSecretCredential(
                 tenant, app_id, app_secret, **client_secret_auth_config
             )
@@ -654,7 +652,6 @@ class WasbAsyncHook(WasbHook):
             return self.blob_service_client
 
         # Fall back to old auth (password) or use managed identity if not provided.
-        credential: str | AsyncTokenCredential | None
         credential = conn.password
         if not credential:
             # Check for account_key in extra fields before falling back to DefaultAzureCredential
@@ -684,9 +681,6 @@ class WasbAsyncHook(WasbHook):
         :param container_name: the name of the blob container
         :param blob_name: the name of the blob. This needs not be existing
         """
-        if self.blob_service_client is None:
-            raise AirflowException("BlobServiceClient is not initialized")
-
         return self.blob_service_client.get_blob_client(container=container_name, blob=blob_name)
 
     async def check_for_blob_async(self, container_name: str, blob_name: str, **kwargs: Any) -> bool:
@@ -710,9 +704,6 @@ class WasbAsyncHook(WasbHook):
 
         :param container_name: the name of the container
         """
-        if self.blob_service_client is None:
-            raise AirflowException("BlobServiceClient is not initialized")
-
         return self.blob_service_client.get_container_client(container_name)
 
     async def get_blobs_list_async(
