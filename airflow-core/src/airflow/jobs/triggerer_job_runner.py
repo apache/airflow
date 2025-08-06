@@ -607,7 +607,9 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 trigger.task_instance.refresh_from_task(task)
                 context = trigger.task_instance.get_template_context()
                 task.render_template_fields(context=context)
-                trigger.kwargs = task.expand_start_trigger_args(context=context).trigger_kwargs
+                start_trigger_args = task.expand_start_trigger_args(context=context)
+                if start_trigger_args:
+                    trigger.kwargs = start_trigger_args.trigger_kwargs
             return trigger
 
         def create_workload(trigger: Trigger) -> workloads.RunTrigger:
