@@ -1983,7 +1983,7 @@ scheduler:
       type: float
       example: ~
       default: "5"
-    scheduler_task_selector_strategy:
+    task_selector_strategy:
       description: |
         .. note:: |experimental|
 
