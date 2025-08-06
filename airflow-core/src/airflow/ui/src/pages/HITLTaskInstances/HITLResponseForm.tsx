@@ -90,6 +90,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
         defaultValue={[hitlDetail.subject]}
         mb={4}
         mt={4}
+        overflow="visible"
         size="lg"
         variant="enclosed"
       >
@@ -113,7 +114,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
             hitlDetail.options.map((option) => (
               <Button
                 colorPalette={isHighlightOption(option, hitlDetail) ? "blue" : "gray"}
-                disabled={(hitlDetail.response_received ?? errors) || isSubmitting}
+                disabled={errors || isSubmitting || hitlDetail.response_received}
                 key={option}
                 onClick={() => handleSubmit(option)}
                 variant={isHighlightOption(option, hitlDetail) ? "solid" : "subtle"}
