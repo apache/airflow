@@ -47,7 +47,12 @@ POOL3_DESCRIPTION = "Some Description"
 def _create_pools(session) -> None:
     pool1 = Pool(pool=POOL1_NAME, slots=POOL1_SLOT, include_deferred=POOL1_INCLUDE_DEFERRED)
     pool2 = Pool(pool=POOL2_NAME, slots=POOL2_SLOT, include_deferred=POOL2_INCLUDE_DEFERRED)
-    pool3 = Pool(pool=POOL3_NAME, slots=POOL3_SLOT, include_deferred=POOL3_INCLUDE_DEFERRED, description=POOL3_DESCRIPTION)
+    pool3 = Pool(
+        pool=POOL3_NAME,
+        slots=POOL3_SLOT,
+        include_deferred=POOL3_INCLUDE_DEFERRED,
+        description=POOL3_DESCRIPTION,
+    )
     session.add_all([pool1, pool2, pool3])
 
 
