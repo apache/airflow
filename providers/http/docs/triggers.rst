@@ -22,7 +22,7 @@ HTTP Event Trigger
 .. _howto/trigger:HttpEventTrigger:
 
 The ``HttpEventTrigger`` is an event-based trigger that monitors whether responses
-from an api meet the conditions set by the user in the ``response_check`` callable.
+from an API meet the conditions set by the user in the ``response_check`` callable.
 
 It is especially useful for **Airflow 3.0+** in combination with the ``AssetWatcher`` system,
 enabling event-driven DAGs based on API responses.
@@ -30,19 +30,22 @@ enabling event-driven DAGs based on API responses.
 How It Works
 ------------
 
-1. Periodically sends requests to an API.
-2. Uses the ``response_check`` callable to evaluate the API response.
-3. If ``response_check`` returns ``True``, a ``TriggerEvent`` is emitted. This will trigger DAGs using this ``AssetWatcher`` for scheduling.
+1. Sends requests to an API.
+2. Uses the callable at ``response_check_path`` to evaluate the API response.
+3. If the callable returns ``True``, a ``TriggerEvent`` is emitted. This will trigger DAGs using this ``AssetWatcher`` for scheduling.
 
 .. note::
-    This trigger requires **Airflow >= 3.0** due to dependencies on:
-    - ``AssetWatcher``
-    - Event-driven scheduling infrastructure
+   This trigger requires **Airflow >= 3.0** due to dependencies on ``AssetWatcher`` and event-driven scheduling infrastructure.
 
 Usage Example with AssetWatcher
 -------------------------------
 
-Here's a basic example using the trigger inside an AssetWatcher:
+Here's an example of using the HttpEventTrigger in an AssetWatcher to monitor the GitHub API for new Airflow releases.
+
+.. exampleinclude:: /../../http/tests/system/http/example_http_event_trigger_dag.py
+    :language: python
+    :start-after: [START howto_http_event_trigger]
+    :end-before: [END howto_http_event_trigger]
 
 Parameters
 ----------
@@ -68,7 +71,15 @@ Parameters
 
 ``extra_options``
     Additional kwargs to pass when creating a request.
-    For example, ``run(json=obj)`` is passed as ``aiohttp.ClientSession().get(json=obj)``.
 
 ``response_check_path``
-    Path to method that evaluates whether the API response passes the conditions set by the user to trigger DAGs
+    Path to callable that evaluates whether the API response passes the conditions set by the user to trigger DAGs
+
+
+Important Notes
+---------------
+
+1. The ``response_check_path`` must contain the path to an asynchronous callable. Synchronous callables will raise an exception.
+2. If no ``response_check_path`` is provided, the trigger will emit an event for every API response without any checks. This could trigger a high number of concurrent DAG runs, which could lock the Airflow database.
+3. This trigger does not automatically record the previous API response.
+4. The previous response may have to be persisted manually though ``Variable.set()`` in the ``response_check_path`` callable to prevent the trigger from emitting events repeatedly for the same API response.
