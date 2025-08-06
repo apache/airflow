@@ -38,7 +38,6 @@ from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel, DagRun
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.sdk import task
@@ -56,6 +55,11 @@ from tests_common.test_utils.db import (
     parse_and_sync_to_db,
 )
 from unit.models import TEST_DAGS_FOLDER
+
+try:
+    from airflow.sdk import BaseOperator
+except ImportError:
+    from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
 
 DEFAULT_DATE = timezone.make_aware(datetime(2015, 1, 1), timezone=timezone.utc)
 if pendulum.__version__.startswith("3"):
@@ -843,7 +847,7 @@ class TestCliDags:
         )
         from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
 
-        with mock.patch.object(AfterWorkdayTimetable, "get_next_workday", side_effect=[DEFAULT_DATE]):
+        with mock.patch.object(AfterWorkdayTimetable, "get_next_workday", return_value=DEFAULT_DATE):
             dag_command.dag_test(cli_args)
         assert "data_interval" in mock__get_or_create_dagrun.call_args.kwargs
 

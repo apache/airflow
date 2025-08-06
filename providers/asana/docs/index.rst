@@ -77,7 +77,9 @@ apache-airflow-providers-asana package
 `Asana <https://asana.com/>`__
 
 
-Release: 2.10.1
+Release: 2.10.2
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------

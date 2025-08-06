@@ -25,6 +25,7 @@ Package ``apache-airflow-providers-edge3``
 
 Release: ``1.1.2``
 
+Release Date: ``|PypiReleaseDate|``
 
 Handle edge workers on remote sites via HTTP(s) connection and orchestrates work over distributed sites.
 
@@ -69,25 +70,6 @@ PIP package         Version required
 ``pydantic``        ``>=2.11.0``
 ``retryhttp``       ``>=1.2.0,!=1.3.0``
 ==================  ===================
-
-Cross provider package dependencies
------------------------------------
-
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified providers in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-edge3[fab]
-
-
-==============================================================================================  =======
-Dependent package                                                                               Extra
-==============================================================================================  =======
-`apache-airflow-providers-fab <https://airflow.apache.org/docs/apache-airflow-providers-fab>`_  ``fab``
-==============================================================================================  =======
 
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-edge3/1.1.2/changelog.html>`_.

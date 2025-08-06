@@ -25,7 +25,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.session import Session
 
-from airflow.api_fastapi.common.dagbag import DagBagDep
+from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.datamodels.common import (
     BulkActionNotOnExistence,
@@ -56,9 +56,7 @@ def _patch_ti_validate_request(
     map_index: int | None = -1,
     update_mask: list[str] | None = Query(None),
 ) -> tuple[DAG, list[TI], dict]:
-    dag = dag_bag.get_dag(dag_id)
-    if not dag:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG {dag_id} not found")
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
 
     if not dag.has_task(task_id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Task '{task_id}' not found in DAG '{dag_id}'")

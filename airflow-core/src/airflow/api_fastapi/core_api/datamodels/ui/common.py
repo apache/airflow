@@ -93,12 +93,3 @@ class BaseGraphResponse(BaseModel, Generic[E, N]):
 
     edges: list[E]
     nodes: list[N]
-
-
-class LatestRunResponse(BaseModel):
-    """Base Node serializer for responses."""
-
-    id: int
-    dag_id: str
-    run_id: str
-    run_after: datetime

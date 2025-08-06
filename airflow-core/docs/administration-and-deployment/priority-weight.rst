@@ -21,7 +21,8 @@ Priority Weights
 ================
 
 ``priority_weight`` defines priorities in the executor queue. The default ``priority_weight`` is ``1``, and can be
-bumped to any integer. Moreover, each task has a true ``priority_weight`` that is calculated based on its
+bumped to any integer; larger numbers mean higher priority.
+Moreover, each task has a true ``priority_weight`` that is calculated based on its
 ``weight_rule`` which defines the weighting method used for the effective total priority weight of the task.
 
 Below are the weighting methods. By default, Airflow's weighting method is ``downstream``.

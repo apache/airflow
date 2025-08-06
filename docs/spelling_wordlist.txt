@@ -1159,6 +1159,7 @@ mssql
 mTLS
 mtls
 muldelete
+multi-cloud
 multimodal
 Multinamespace
 mutex
@@ -1982,6 +1983,7 @@ views
 virtualenv
 virtualenvs
 virtualized
+Vite
 vm
 VolumeKmsKeyId
 VolumeMount
