@@ -54,6 +54,7 @@ Here's an example of using the HttpEventTrigger in an AssetWatcher to monitor th
     from airflow.providers.http.triggers.http import HttpEventTrigger
     from airflow.sdk import Asset, AssetWatcher, Variable, dag, task
 
+    # This token must be generated through GitHub and added as an environment variable
     token = os.getenv("GITHUB_TOKEN")
 
     headers = {
