@@ -172,6 +172,39 @@ cookie named ``_token`` before redirecting to the Airflow UI. The Airflow UI wil
 .. note::
     Do not set the cookie parameter ``httponly`` to ``True``. Airflow UI needs to access the JWT token from the cookie.
 
+Refreshing JWT Token
+''''''''''''''''''''
+The refresh token endpoint is ``POST /auth/token/refresh`` with the current JWT token in the cookie or acquired from the API.
+This endpoint is used to refresh the JWT token when it is about to expire.
+The auth manager should implement this endpoint to allow the Airflow UI/API to refresh the JWT token.
+If the auth manager does not implement this endpoint, the Airflow UI/API will not be able to refresh the JWT token.
+The user will be logged out when the JWT token expires in that case, and they will have to log in again.
+
+This procedure is following the same pattern as the initial token generation endpoints and login/logout logic.
+A typical implementation of the refresh token endpoint would look like this:
+
+
+.. code-block:: python
+
+    @router.post("/auth/token/refresh")
+    def refresh_token(
+        request: Request,
+        user: T = Depends(get_current_user),
+    ) -> TokenResponse:
+        """
+        Refresh the JWT token for the current user.
+        """
+        # Generate a new token for the user
+        new_token = auth_manager.generate_token(user)  # Or similar with calling the client from auth manager
+
+        # Set the new token in the cookie
+        secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
+        response = RedirectResponse(url="/")
+        response.set_cookie(COOKIE_NAME_JWT_TOKEN, new_token, secure=secure)
+
+        return response
+.. note::
+    Do not set the cookie parameter ``httponly`` to ``True``. Airflow UI needs to access the JWT token from the cookie.
 
 Optional methods recommended to override for optimization
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
