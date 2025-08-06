@@ -18,6 +18,17 @@
       "key": "鍵",
       "value": "值"
     },
+    "filters": {
+      "dagFilter": "依 Dag ID 過濾",
+      "dateTimeRanges": "日期時間過濾器",
+      "keyFilter": "依 XCom 鍵過濾",
+      "logicalDateFrom": "邏輯日期起始",
+      "logicalDateTo": "邏輯日期結束",
+      "runAfterFrom": "運行時間起始",
+      "runAfterTo": "運行時間結束",
+      "runIdFilter": "依運行 ID 過濾",
+      "taskIdFilter": "依任務 ID 過濾"
+    },
     "title": "XCom"
   }
 }

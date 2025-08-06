@@ -33,6 +33,8 @@ from airflow.api_fastapi.common.parameters import (
     QueryXComKeyPatternSearch,
     QueryXComRunIdPatternSearch,
     QueryXComTaskIdPatternSearch,
+    RangeFilter,
+    datetime_range_filter_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.xcom import (
@@ -138,6 +140,8 @@ def get_xcom_entries(
     dag_id_pattern: QueryXComDagIdPatternSearch,
     run_id_pattern: QueryXComRunIdPatternSearch,
     task_id_pattern: QueryXComTaskIdPatternSearch,
+    logical_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", DR))],
+    run_after_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", DR))],
     map_index: Annotated[int | None, Query(ge=-1)] = None,
 ) -> XComCollectionResponse:
     """
@@ -169,6 +173,8 @@ def get_xcom_entries(
             dag_id_pattern,
             run_id_pattern,
             task_id_pattern,
+            logical_date_range,
+            run_after_range,
         ],
         offset=offset,
         limit=limit,

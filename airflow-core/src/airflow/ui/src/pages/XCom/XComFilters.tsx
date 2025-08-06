@@ -16,12 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack } from "@chakra-ui/react";
+import { Box, HStack, Text, VStack } from "@chakra-ui/react";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
+import { DateTimeInput } from "src/components/DateTimeInput";
 import { SearchBar } from "src/components/SearchBar";
 import { SearchParamsKeys } from "src/constants/searchParams";
 
@@ -54,19 +55,78 @@ export const XComFilters = () => {
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
 
+  const createDateTimeFilterHandler = useCallback(
+    (paramKey: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
+      const { value } = event.target;
+
+      if (value === "") {
+        searchParams.delete(paramKey);
+      } else {
+        searchParams.set(paramKey, value);
+      }
+      setTableURLState({
+        pagination: { ...pagination, pageIndex: 0 },
+        sorting,
+      });
+      setSearchParams(searchParams);
+    },
+    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
+  );
+
   return (
-    <HStack flexWrap="wrap" gap={4} paddingY="4px">
-      {FILTERS.map(({ hotkeyDisabled, key, translationKey }) => (
-        <Box key={key} minW="200px">
-          <SearchBar
-            defaultValue={searchParams.get(key) ?? ""}
-            hideAdvanced
-            hotkeyDisabled={hotkeyDisabled}
-            onChange={createFilterHandler(key)}
-            placeHolder={translate(`xcom.filters.${translationKey}`)}
+    <VStack align="start" gap={4} paddingY="4px">
+      <HStack flexWrap="wrap" gap={4}>
+        {FILTERS.map(({ hotkeyDisabled, key, translationKey }) => (
+          <Box key={key} minW="200px">
+            <Text fontSize="xs" marginBottom={1}>
+              &nbsp;
+            </Text>
+            <SearchBar
+              defaultValue={searchParams.get(key) ?? ""}
+              hideAdvanced
+              hotkeyDisabled={hotkeyDisabled}
+              onChange={createFilterHandler(key)}
+              placeHolder={translate(`xcom.filters.${translationKey}`)}
+            />
+          </Box>
+        ))}
+        <Box minW="200px">
+          <Text fontSize="xs" marginBottom={1}>
+            {translate("xcom.filters.logicalDateFrom")}
+          </Text>
+          <DateTimeInput
+            onChange={createDateTimeFilterHandler(SearchParamsKeys.LOGICAL_DATE_GTE as string)}
+            value={searchParams.get(SearchParamsKeys.LOGICAL_DATE_GTE) ?? ""}
           />
         </Box>
-      ))}
-    </HStack>
+        <Box minW="200px">
+          <Text fontSize="xs" marginBottom={1}>
+            {translate("xcom.filters.logicalDateTo")}
+          </Text>
+          <DateTimeInput
+            onChange={createDateTimeFilterHandler(SearchParamsKeys.LOGICAL_DATE_LTE as string)}
+            value={searchParams.get(SearchParamsKeys.LOGICAL_DATE_LTE) ?? ""}
+          />
+        </Box>
+        <Box minW="200px">
+          <Text fontSize="xs" marginBottom={1}>
+            {translate("xcom.filters.runAfterFrom")}
+          </Text>
+          <DateTimeInput
+            onChange={createDateTimeFilterHandler(SearchParamsKeys.RUN_AFTER_GTE as string)}
+            value={searchParams.get(SearchParamsKeys.RUN_AFTER_GTE) ?? ""}
+          />
+        </Box>
+        <Box minW="200px">
+          <Text fontSize="xs" marginBottom={1}>
+            {translate("xcom.filters.runAfterTo")}
+          </Text>
+          <DateTimeInput
+            onChange={createDateTimeFilterHandler(SearchParamsKeys.RUN_AFTER_LTE as string)}
+            value={searchParams.get(SearchParamsKeys.RUN_AFTER_LTE) ?? ""}
+          />
+        </Box>
+      </HStack>
+    </VStack>
   );
 };

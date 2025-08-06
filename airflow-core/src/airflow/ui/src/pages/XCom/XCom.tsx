@@ -119,22 +119,33 @@ export const XCom = () => {
   const filteredRunId = searchParams.get(RUN_ID_PATTERN_PARAM);
   const filteredTaskId = searchParams.get(TASK_ID_PATTERN_PARAM);
 
-  const { data, error, isFetching, isLoading } = useXcomServiceGetXcomEntries(
-    {
-      dagId,
-      dagIdPattern: filteredDagId ?? undefined,
-      dagRunId: runId,
-      limit: pagination.pageSize,
-      mapIndex: mapIndex === "-1" ? undefined : parseInt(mapIndex, 10),
-      offset: pagination.pageIndex * pagination.pageSize,
-      runIdPattern: filteredRunId ?? undefined,
-      taskId,
-      taskIdPattern: filteredTaskId ?? undefined,
-      xcomKeyPattern: filteredKey ?? undefined,
-    },
-    undefined,
-    { enabled: !isNaN(pagination.pageSize) },
-  );
+  const { LOGICAL_DATE_GTE, LOGICAL_DATE_LTE, RUN_AFTER_GTE, RUN_AFTER_LTE } = SearchParamsKeys;
+
+  const logicalDateGte = searchParams.get(LOGICAL_DATE_GTE);
+  const logicalDateLte = searchParams.get(LOGICAL_DATE_LTE);
+  const runAfterGte = searchParams.get(RUN_AFTER_GTE);
+  const runAfterLte = searchParams.get(RUN_AFTER_LTE);
+
+  const apiParams = {
+    dagId,
+    dagIdPattern: filteredDagId ?? undefined,
+    dagRunId: runId,
+    limit: pagination.pageSize,
+    logicalDateGte: logicalDateGte ?? undefined,
+    logicalDateLte: logicalDateLte ?? undefined,
+    mapIndex: mapIndex === "-1" ? undefined : parseInt(mapIndex, 10),
+    offset: pagination.pageIndex * pagination.pageSize,
+    runAfterGte: runAfterGte ?? undefined,
+    runAfterLte: runAfterLte ?? undefined,
+    runIdPattern: filteredRunId ?? undefined,
+    taskId,
+    taskIdPattern: filteredTaskId ?? undefined,
+    xcomKeyPattern: filteredKey ?? undefined,
+  };
+
+  const { data, error, isFetching, isLoading } = useXcomServiceGetXcomEntries(apiParams, undefined, {
+    enabled: !isNaN(pagination.pageSize),
+  });
 
   return (
     <Box>

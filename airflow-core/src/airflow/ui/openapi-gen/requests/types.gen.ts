@@ -2806,8 +2806,12 @@ export type GetXcomEntriesData = {
     dagIdPattern?: string | null;
     dagRunId: string;
     limit?: number;
+    logicalDateGte?: string | null;
+    logicalDateLte?: string | null;
     mapIndex?: number | null;
     offset?: number;
+    runAfterGte?: string | null;
+    runAfterLte?: string | null;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
