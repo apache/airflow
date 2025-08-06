@@ -59,7 +59,7 @@ requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=2.10.0",
     "apache-airflow-providers-common-compat>=1.6.0",
-    "apache-airflow-providers-common-sql>=1.21.0",
+    "apache-airflow-providers-common-sql>=1.27.5",
     'pandas>=2.1.2; python_version <"3.13"',
     'pandas>=2.2.3; python_version >="3.13"',
     "pyarrow>=16.1.0; python_version < '3.13'",
