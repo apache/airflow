@@ -72,7 +72,6 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
         """
         Expands the task using the provided expand_input.
         """
-
         if dag_run and task_instances:
             self.log.info("Persisting %d new task instances", len(task_instances))
             dag_run.task_instances.extend(task_instances)
