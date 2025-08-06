@@ -253,8 +253,6 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
     :param headers: Additional headers to be passed through as a dict.
     :param data: Payload to be uploaded or request parameters.
     :param extra_options: Additional kwargs to pass when creating a request.
-        For example, ``run(json=obj)`` is passed as
-        ``aiohttp.ClientSession().get(json=obj)``.
     :param response_check_path: Path to the function that evaluates whether the API response
         passes the conditions set by the user to fire the trigger. The method must be asynchronous.
     """
