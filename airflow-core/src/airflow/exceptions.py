@@ -343,8 +343,16 @@ class AirflowFileParseException(AirflowException):
         return result
 
 
+class AirflowUnsupportedFileTypeException(AirflowException):
+    """Raise when a file type is not supported."""
+
+
 class ConnectionNotUnique(AirflowException):
     """Raise when multiple values are found for the same connection ID."""
+
+
+class VariableNotUnique(AirflowException):
+    """Raise when multiple values are found for the same variable name."""
 
 
 class DownstreamTasksSkipped(AirflowException):
