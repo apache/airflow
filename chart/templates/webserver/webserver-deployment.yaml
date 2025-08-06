@@ -200,6 +200,9 @@ spec:
             {{- if .Values.logs.persistence.enabled }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
+              {{- if .Values.logs.persistence.subPath }}
+              subPath: {{ .Values.logs.persistence.subPath }}
+              {{- end }}
             {{- end }}
             {{- if .Values.volumeMounts }}
               {{- toYaml .Values.volumeMounts | nindent 12 }}
