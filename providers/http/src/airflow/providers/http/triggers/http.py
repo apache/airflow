@@ -244,6 +244,8 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
     """
     HttpEventTrigger for event-based DAG scheduling when the API response satisfies the response check.
 
+    :param response_check_path: Path to the function that evaluates whether the API response
+        passes the conditions set by the user to fire the trigger. The method must be asynchronous.
     :param http_conn_id: http connection id that has the base
         API url i.e https://www.google.com/ and optional authentication credentials. Default
         headers can also be specified in the Extra field in json format.
@@ -253,12 +255,11 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
     :param headers: Additional headers to be passed through as a dict.
     :param data: Payload to be uploaded or request parameters.
     :param extra_options: Additional kwargs to pass when creating a request.
-    :param response_check_path: Path to the function that evaluates whether the API response
-        passes the conditions set by the user to fire the trigger. The method must be asynchronous.
     """
 
     def __init__(
         self,
+        response_check_path: str,
         http_conn_id: str = "http_default",
         auth_type: Any = None,
         method: str = "GET",
@@ -266,7 +267,6 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
         headers: dict[str, str] | None = None,
         data: dict[str, Any] | str | None = None,
         extra_options: dict[str, Any] | None = None,
-        response_check_path: str | None = None,
     ):
         super().__init__(http_conn_id, auth_type, method, endpoint, headers, data, extra_options)
         self.response_check_path = response_check_path
@@ -293,7 +293,7 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
         try:
             while True:
                 response = await super()._get_response(hook)
-                if not self.response_check_path or await self._run_response_check(response):
+                if await self._run_response_check(response):
                     break
             yield TriggerEvent(
                 {
