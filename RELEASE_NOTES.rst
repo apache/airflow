@@ -24,7 +24,7 @@
 
 .. towncrier release notes start
 
-Airflow 3.0.4 (2025-08-07)
+Airflow 3.0.4 (2025-08-08)
 --------------------------
 
 Significant Changes
@@ -61,6 +61,7 @@ Bug Fixes
 - Serialize NaN and infinity values to string (#53835) (#53844)
 - Make log redaction safer in edge case when redaction has an error (#54046) (#54048)
 - Flexible form use ReactMarkdown instead of default Markdown component (#54032) (#54040)
+- Fix inconsistent casing in UI of decorated tasks (#54056) (#54092)
 
 Miscellaneous
 """""""""""""
@@ -83,6 +84,7 @@ Doc Only Changes
 - Update public interface documentation to reflect airflow.sdk and AIP-72 changes (#52197) (#53117)
 - Update BaseOperator documentation string for clarity (#53403) (#53404)
 - Remove extra slash from endpoint URL formatting (#53755) (#53764)
+- Clarify our security model for sensitive connection information (#54088) (#54100)
 
 Airflow 3.0.3 (2025-07-14)
 --------------------------
