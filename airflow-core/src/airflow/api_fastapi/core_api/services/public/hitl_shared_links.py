@@ -28,6 +28,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from airflow._shared.timezones.timezone import utcnow
 from airflow.api_fastapi.core_api.datamodels.hitl import (
     HITLDetailResponse,
     UpdateHITLDetailPayload,
@@ -37,7 +38,6 @@ from airflow.api_fastapi.core_api.services.public.hitl import (
 )
 from airflow.configuration import conf
 from airflow.models.taskinstance import TaskInstance
-from airflow.utils import timezone
 
 log = structlog.get_logger(__name__)
 
@@ -133,7 +133,7 @@ def generate_shared_link_token(
     if expiration_hours is None:
         expiration_hours = conf.getint("api", "hitl_shared_link_expiration_hours", fallback=24)
 
-    expires_at = timezone.utcnow() + timedelta(hours=expiration_hours)
+    expires_at = utcnow() + timedelta(hours=expiration_hours)
 
     # Get the task instance to use its UUID
     task_instance = _get_task_instance(
@@ -197,7 +197,7 @@ def validate_shared_link_token(token: str) -> dict[str, Any]:
 
         # Check expiration
         expires_at = datetime.fromisoformat(token_data["expires_at"])
-        if timezone.utcnow() > expires_at:
+        if utcnow() > expires_at:
             raise ValueError("Token has expired")
 
         return token_data

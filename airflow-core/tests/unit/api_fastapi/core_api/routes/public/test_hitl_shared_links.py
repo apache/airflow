@@ -27,7 +27,7 @@ import pytest
 from fastapi import status
 
 from airflow.api_fastapi.core_api.datamodels.hitl import HITLDetailResponse
-from airflow.utils import timezone
+from airflow.sdk import timezone
 
 from tests.test_utils.config import conf_vars
 

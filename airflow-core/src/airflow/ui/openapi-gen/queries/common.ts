@@ -651,7 +651,6 @@ export const UseHumanInTheLoopServiceGetMappedTiHitlDetailKeyFn = ({ dagId, dagR
 export type HumanInTheLoopServiceGetHitlDetailsDefaultResponse = Awaited<ReturnType<typeof HumanInTheLoopService.getHitlDetails>>;
 export type HumanInTheLoopServiceGetHitlDetailsQueryResult<TData = HumanInTheLoopServiceGetHitlDetailsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useHumanInTheLoopServiceGetHitlDetailsKey = "HumanInTheLoopServiceGetHitlDetails";
-<<<<<<< HEAD
 export const UseHumanInTheLoopServiceGetHitlDetailsKeyFn = ({ bodySearch, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, taskIdPattern, userId }: {
   bodySearch?: string;
   dagIdPattern?: string;
@@ -665,8 +664,6 @@ export const UseHumanInTheLoopServiceGetHitlDetailsKeyFn = ({ bodySearch, dagIdP
   taskIdPattern?: string;
   userId?: string[];
 } = {}, queryKey?: Array<unknown>) => [useHumanInTheLoopServiceGetHitlDetailsKey, ...(queryKey ?? [{ bodySearch, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, taskIdPattern, userId }])];
-=======
-export const UseHumanInTheLoopServiceGetHitlDetailsKeyFn = (queryKey?: Array<unknown>) => [useHumanInTheLoopServiceGetHitlDetailsKey, ...(queryKey ?? [])];
 export type HitlSharedLinksServiceRedirectSharedLinkDefaultResponse = Awaited<ReturnType<typeof HitlSharedLinksService.redirectSharedLink>>;
 export type HitlSharedLinksServiceRedirectSharedLinkQueryResult<TData = HitlSharedLinksServiceRedirectSharedLinkDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useHitlSharedLinksServiceRedirectSharedLinkKey = "HitlSharedLinksServiceRedirectSharedLink";
@@ -679,7 +676,6 @@ export const useHitlSharedLinksServiceExecuteSharedLinkActionKey = "HitlSharedLi
 export const UseHitlSharedLinksServiceExecuteSharedLinkActionKeyFn = ({ token }: {
   token: string;
 }, queryKey?: Array<unknown>) => [useHitlSharedLinksServiceExecuteSharedLinkActionKey, ...(queryKey ?? [{ token }])];
->>>>>>> 36b2f34710 (Implement shared-link for HITL)
 export type MonitorServiceGetHealthDefaultResponse = Awaited<ReturnType<typeof MonitorService.getHealth>>;
 export type MonitorServiceGetHealthQueryResult<TData = MonitorServiceGetHealthDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useMonitorServiceGetHealthKey = "MonitorServiceGetHealth";

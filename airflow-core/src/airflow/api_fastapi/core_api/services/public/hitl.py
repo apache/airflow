@@ -23,6 +23,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from airflow._shared.timezones.timezone import utcnow
 from airflow.api_fastapi.core_api.datamodels.hitl import (
     HITLDetail,
     HITLDetailResponse,
@@ -30,7 +31,6 @@ from airflow.api_fastapi.core_api.datamodels.hitl import (
 )
 from airflow.models.hitl import HITLDetail as HITLDetailModel
 from airflow.models.taskinstance import TaskInstance
-from airflow.utils import timezone
 
 log = structlog.get_logger(__name__)
 
@@ -167,7 +167,7 @@ def service_update_hitl_detail(
 
     # Update the HITL detail
     hitl_detail.user_id = user or "shared_link_user"
-    hitl_detail.response_at = timezone.utcnow()
+    hitl_detail.response_at = utcnow()
     hitl_detail.chosen_options = update_hitl_detail_payload.chosen_options
     hitl_detail.params_input = update_hitl_detail_payload.params_input
     # response_received is a computed property based on response_at, so we don't set it directly
