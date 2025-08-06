@@ -15,6 +15,7 @@
   "backfill_other": "回填",
   "browse": {
     "auditLog": "審計日誌",
+    "requiredActions": "待回應的任務實例",
     "xcoms": "XComs"
   },
   "collapseDetailsPanel": "收起詳細資訊",
