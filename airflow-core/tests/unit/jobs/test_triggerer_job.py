@@ -428,7 +428,7 @@ async def test_trigger_create_race_condition_38599(mock_dag_bag_cls, session, su
     dm = DagModel(dag_id="test-dag")
     session.add(dm)
     SerializedDagModel.write_dag(dag, bundle_name="testing")
-    dag_run = DagRun(dag.dag_id, run_id="abc", run_type="none", run_after=timezone.utcnow())
+    dag_run = DagRun(dag.dag_id, run_id="abc", run_type="manual", start_date=timezone.utcnow(), run_after=timezone.utcnow())
     dag_version = DagVersion.get_latest_version(dag.dag_id)
     task = PythonOperator(task_id="dummy-task", python_callable=print)
     task.dag = dag
