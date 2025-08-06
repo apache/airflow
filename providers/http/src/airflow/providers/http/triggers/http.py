@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any
 
 import aiohttp
 import requests
+from asgiref.sync import sync_to_async
 from requests.cookies import RequestsCookieJar
 from requests.structures import CaseInsensitiveDict
 
@@ -304,17 +305,17 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
         except Exception as e:
             self.log.error("status: error, message: %s", str(e))
 
-    def _import_from_response_check_path(self):
+    async def _import_from_response_check_path(self):
         """Import the response check callable from the path provided by the user."""
         module_path, func_name = self.response_check_path.rsplit(".", 1)
         if module_path in sys.modules:
-            module = importlib.reload(sys.modules[module_path])
-        module = importlib.import_module(module_path)
+            module = await sync_to_async(importlib.reload)(sys.modules[module_path])
+        module = await sync_to_async(importlib.import_module)(module_path)
         return getattr(module, func_name)
 
     async def _run_response_check(self, response) -> bool:
         """Run the response_check callable provided by the user."""
-        response_check = await asyncio.to_thread(self._import_from_response_check_path)
+        response_check = await self._import_from_response_check_path()
         if not inspect.iscoroutinefunction(response_check):
             raise AirflowException("The response_check callable is not asynchronous.")
         check = await response_check(response)
