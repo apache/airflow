@@ -344,7 +344,7 @@ class TestSmtpHook:
         final_mock.sendmail.assert_called_once_with(from_addr="from", to_addrs=["to"], msg="msg")
         assert final_mock.close.called
 
-    @patch("airflow.models.connection.Connection")
+    @patch("airflow.sdk.definitions.connection.Connection")
     @patch("smtplib.SMTP_SSL")
     @patch("ssl.create_default_context")
     def test_send_mime_custom_timeout_retrylimit(
@@ -362,7 +362,7 @@ class TestSmtpHook:
             port=465,
             extra=json.dumps(dict(from_email="from", timeout=custom_timeout, retry_limit=custom_retry_limit)),
         )
-        connection_mock.get_connection_from_secrets.return_value = fake_conn
+        connection_mock.get.return_value = fake_conn
         with SmtpHook() as smtp_hook:
             with pytest.raises(smtplib.SMTPServerDisconnected):
                 smtp_hook.send_email_smtp(to="to", subject="subject", html_content="content")
