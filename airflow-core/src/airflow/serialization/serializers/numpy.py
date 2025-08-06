@@ -32,6 +32,7 @@ serializers = [
     "numpy.uint32",
     "numpy.uint64",
     "numpy.float64",
+    "numpy.float32",
     "numpy.float16",
     "numpy.complex128",
     "numpy.complex64",

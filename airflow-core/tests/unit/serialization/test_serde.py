@@ -63,19 +63,31 @@ def recalculate_patterns():
         _match_regexp.cache_clear()
 
 
-def generate_serializers_importable_and_str_test_cases():
-    """Generate test cases for `test_serializers_importable_and_str` by collecting all serializer import strings defined in modules under `airflow.serialization.serializers`"""
+def generate_serializers_importable_tests():
+    """
+    Generate test cases for `test_serializers_importable_and_str`.
+
+    The function iterates through all the modules defined under `airflow.serialization.serializers`. It loads
+    the import strings defined in the `serializers` from each module, and create a test case to verify that the
+    serializer is importable.
+    """
     import airflow.serialization.serializers
 
     NUMPY_VERSION = version.parse(metadata.version("numpy"))
-    serializer_collection = []
+
+    serializer_tests = []
 
     for _, name, _ in iter_namespace(airflow.serialization.serializers):
+        ############################################################
+        # Handle compatibility / optional dependency at module level
+        ############################################################
+        # https://github.com/apache/airflow/pull/37320
         if name == "airflow.serialization.serializers.iceberg":
             try:
                 import pyiceberg  # noqa: F401
             except ImportError:
                 continue
+        # https://github.com/apache/airflow/pull/38074
         if name == "airflow.serialization.serializers.deltalake":
             try:
                 import deltalake  # noqa: F401
@@ -83,6 +95,9 @@ def generate_serializers_importable_and_str_test_cases():
                 continue
         mod = import_module(name)
         for s in getattr(mod, "serializers", list()):
+            ############################################################
+            # Handle compatibility issue at serializer level
+            ############################################################
             if s == "numpy.bool" and NUMPY_VERSION.major < 2:
                 reason = textwrap.dedent(f"""\
                     Current NumPy version: {NUMPY_VERSION}
@@ -100,10 +115,13 @@ def generate_serializers_importable_and_str_test_cases():
                     regardless of the installed NumPy version. Therefore, when NumPy <= 1.26 is installed,
                     importing `numpy.bool` will raise an ImportError.
                 """)
-                serializer_collection.append(pytest.param(name, s, marks=pytest.mark.xfail(reason=reason)))
+                serializer_tests.append(pytest.param(name, s, marks=pytest.mark.skip(reason=reason)))
             else:
-                serializer_collection.append((name, s))
-    return serializer_collection
+                serializer_tests.append(pytest.param(name, s))
+    return serializer_tests
+
+
+SERIALIZER_TESTS = generate_serializers_importable_tests()
 
 
 class Z:
@@ -431,15 +449,15 @@ class TestSerDe:
         obj = deserialize(serialize(asset))
         assert asset.uri == obj.uri
 
-    @pytest.mark.parametrize("module_name, s", generate_serializers_importable_and_str_test_cases())
-    def test_serializers_importable_and_str(self, module_name, s):
+    @pytest.mark.parametrize("name, s", SERIALIZER_TESTS)
+    def test_serializers_importable_and_str(self, name, s):
         """Test if all distributed serializers are lazy loading and can be imported"""
         if not isinstance(s, str):
             raise TypeError(f"{s} is not of type str. This is required for lazy loading")
         try:
             import_string(s)
         except ImportError:
-            raise AttributeError(f"{s} cannot be imported (located in {module_name})")
+            raise AttributeError(f"{s} cannot be imported (located in {name})")
 
     def test_stringify(self):
         i = V(W(10), ["l1", "l2"], (1, 2), 10)
