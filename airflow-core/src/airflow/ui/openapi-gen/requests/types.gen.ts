@@ -1443,8 +1443,8 @@ export type TriggerDAGRunPostBody = {
     logical_date: string | null;
     run_after?: string | null;
     conf?: {
-        [key: string]: unknown;
-    };
+    [key: string]: unknown;
+} | null;
     note?: string | null;
 };
 

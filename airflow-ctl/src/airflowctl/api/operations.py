@@ -554,11 +554,10 @@ class DagRunOperations(BaseOperations):
         self, dag_id: str, trigger_dag_run: TriggerDAGRunPostBody
     ) -> DAGRunResponse | ServerResponseError:
         """Create a dag run."""
+        if trigger_dag_run.conf is None:
+            trigger_dag_run.conf = {}
         try:
-            # It is model_dump_json() because it has unparsable json datetime objects
-            self.response = self.client.post(
-                f"/dags/{dag_id}/dagRuns", json=trigger_dag_run.model_dump_json()
-            )
+            self.response = self.client.post(f"dags/{dag_id}/dagRuns", json=trigger_dag_run.model_dump())
             return DAGRunResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
