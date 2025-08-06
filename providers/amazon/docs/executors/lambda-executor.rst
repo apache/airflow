@@ -88,6 +88,9 @@ In the case of conflicts, the order of precedence from lowest to highest is:
    environment variables. These are checked with Airflow's config
    precedence.
 
+.. note::
+   ``executor_config`` is an optional parameter that can be provided to operators. It is a dictionary type and in the context of the Lambda Executor it is passed to each Lambda invocation as part of the payload. This allows you to pass additional context to the Lambda function for any particular task execution. The Lambda function can then access this configuration via the ``executor_config`` key in the payload within the Lambda handler code.
+
 Required config options:
 ~~~~~~~~~~~~~~~~~~~~~~~~
 

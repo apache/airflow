@@ -185,7 +185,7 @@ packages = []
     "apache-airflow-providers-common-io>=1.4.2"
 ]
 "common.messaging" = [
-    "apache-airflow-providers-common-messaging>=1.0.1" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
+    "apache-airflow-providers-common-messaging>=1.0.3" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
 ]
 "common.sql" = [
     "apache-airflow-providers-common-sql>=1.18.0"
@@ -420,7 +420,7 @@ packages = []
     "apache-airflow-providers-cohere>=1.4.0",
     "apache-airflow-providers-common-compat>=1.2.1",
     "apache-airflow-providers-common-io>=1.4.2",
-    "apache-airflow-providers-common-messaging>=1.0.1", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
+    "apache-airflow-providers-common-messaging>=1.0.3", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-common-sql>=1.18.0",
     "apache-airflow-providers-databricks>=6.11.0",
     "apache-airflow-providers-datadog>=3.8.0",
@@ -754,6 +754,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 "kubernetes-tests/*" = ["D", "TID253", "S101", "TRY002"]
 "helm-tests/*" = ["D", "TID253", "S101", "TRY002"]
 "providers/**/tests/*" = ["D", "TID253", "S101", "TRY002"]
+"performance/tests/*" = ["S101"]
 
 # All of the modules which have an extra license header (i.e. that we copy from another project) need to
 # ignore E402 -- module level import not at top level

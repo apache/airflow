@@ -24,7 +24,7 @@ from sqlalchemy import and_, select
 from sqlalchemy.orm import joinedload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
-from airflow.api_fastapi.common.dagbag import DagBagDep
+from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run_or_latest_version
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     QueryLimit,
@@ -214,12 +214,7 @@ def create_xcom_entry(
 
     dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
     # Validate DAG ID
-    if dag_run:
-        dag = dag_bag.get_dag_for_run(dag_run, session)
-    else:
-        dag = dag_bag.get_latest_version_of_dag(dag_id, session)
-    if not dag:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with ID: `{dag_id}` was not found")
+    dag = get_dag_for_run_or_latest_version(dag_bag, dag_run, dag_id, session)
 
     # Validate Task ID
     try:

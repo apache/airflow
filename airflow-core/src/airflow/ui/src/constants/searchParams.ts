@@ -43,6 +43,7 @@ export enum SearchParamsKeys {
   TAGS = "tags",
   TAGS_MATCH_MODE = "tags_match_mode",
   TASK_ID_PATTERN = "task_id_pattern",
+  TRIGGERING_USER_NAME_PATTERN = "triggering_user_name_pattern",
   TRY_NUMBER = "try_number",
   VERSION_NUMBER = "version_number",
 }
