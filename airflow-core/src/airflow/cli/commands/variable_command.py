@@ -89,11 +89,7 @@ def variables_import(args, session):
 
     try:
         var_json = load_variables(args.file)
-    except AirflowUnsupportedFileTypeException as e:
-        raise SystemExit(str(e))
-    except AirflowFileParseException as e:
-        raise SystemExit(str(e))
-    except VariableNotUnique as e:
+    except (AirflowUnsupportedFileTypeException, AirflowFileParseException, VariableNotUnique) as e:
         raise SystemExit(str(e))
     except FileNotFoundError:
         raise SystemExit("Missing variables file.")
