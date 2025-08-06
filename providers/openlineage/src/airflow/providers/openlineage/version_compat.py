@@ -39,7 +39,9 @@ if AIRFLOW_V_3_0_PLUS:
 else:
     from airflow.models import BaseOperator
 
-__all__ = [
-    "AIRFLOW_V_3_0_PLUS",
-    "BaseOperator",
-]
+try:
+    from airflow.sdk.execution_time.timeout import timeout
+except ImportError:
+    from airflow.utils.timeout import timeout  # type: ignore[assignment]
+
+__all__ = ["AIRFLOW_V_3_0_PLUS", "BaseOperator", "timeout"]
