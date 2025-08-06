@@ -227,11 +227,22 @@ class TestSerializers:
         with pytest.raises(TypeError, match=msg):
             deserialize(klass, version, payload)
 
-    def test_numpy(self):
-        i = np.int16(10)
-        e = serialize(i)
+    @pytest.mark.parametrize(
+        "value",
+        [
+            np.int8(1),
+            np.int16(2),
+            np.int64(4),
+            np.float16(4.5),
+            np.float64(123.11241231351),
+        ],
+    )
+    def test_numpy(self, value):
+        e = serialize(value)
+        assert isinstance(e, dict)
         d = deserialize(e)
-        assert i == d
+        assert value == d
+        assert type(value) is type(d)
 
     def test_numpy_serializers(self):
         from airflow.serialization.serializers.numpy import serialize

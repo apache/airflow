@@ -140,7 +140,7 @@ dependencies = [
     "apache-airflow-providers-standard"
 ]
 "common.messaging" = [
-    "apache-airflow-providers-common-messaging>=1.0.1"
+    "apache-airflow-providers-common-messaging>=1.0.3"
 ]
 
 [dependency-groups]

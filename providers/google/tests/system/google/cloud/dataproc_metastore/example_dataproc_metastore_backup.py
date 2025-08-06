@@ -45,8 +45,8 @@ ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 
 SERVICE_ID = f"{DAG_ID}-service-{ENV_ID}".replace("_", "-")
 BACKUP_ID = f"{DAG_ID}-backup-{ENV_ID}".replace("_", "-")
-REGION = "europe-west1"
-TIMEOUT = 1200
+REGION = "europe-west3"
+TIMEOUT = 2400
 # Service definition
 SERVICE = {
     "name": "test-service",
