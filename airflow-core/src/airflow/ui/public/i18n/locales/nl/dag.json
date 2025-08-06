@@ -3,7 +3,7 @@
   "blockingDeps": {
     "dependency": "Afhankelijkheid",
     "reason": "Reden",
-    "title": "Afhakelijkheden die de Task bokkeren om ingeplanned te worden"
+    "title": "Afhankelijkheden die de Task blokkeren om ingepland te worden"
   },
   "code": {
     "bundleUrl": "Bundle URL",
@@ -79,11 +79,11 @@
       "label": "Richting van de grafiek"
     }
   },
-  "paramsFailed": "Mislukt om parmeters op te laden",
+  "paramsFailed": "Mislukt om parameters te laden",
   "parse": {
     "toaster": {
       "error": {
-        "description": "Dag parsing verzoek mislukt. Er kunnen nog parse verzoeken afgehandeld moeten worden.",
+        "description": "Dag parsing verzoek mislukt. Er kunnen nog wachtende parse verzoeken afgehandeld worden.",
         "title": "Mislukt om de Dag te reparsen"
       },
       "success": {

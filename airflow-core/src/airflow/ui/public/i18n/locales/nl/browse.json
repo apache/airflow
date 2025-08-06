@@ -1,8 +1,8 @@
 {
   "auditLog": {
     "actions": {
-      "collapseAllExtra": "All extra json inklappen",
-      "expandAllExtra": "Alle extra json uitklappen"
+      "collapseAllExtra": "All extra JSON inklappen",
+      "expandAllExtra": "Alle extra JSON uitklappen"
     },
     "columns": {
       "event": "Event",

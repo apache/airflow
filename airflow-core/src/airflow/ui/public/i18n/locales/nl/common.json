@@ -18,7 +18,7 @@
     "requiredActions": "Vereiste acties",
     "xcoms": "XComs"
   },
-  "collapseDetailsPanel": "Details paneel inklappen",
+  "collapseDetailsPanel": "Details inklappen",
   "createdAssetEvent_one": "Asset Event aangemaakt",
   "createdAssetEvent_other": "Asset Events aangemaakt",
   "dag_one": "Dag",
@@ -38,7 +38,7 @@
     "latestRun": "Laatste Run",
     "maxActiveRuns": "Maximaal aantal actieve Runs",
     "maxActiveTasks": "Maximaal aantal actieve Tasks",
-    "maxConsecutiveFailedDagRuns": "Maximaal aantal gelijktijdig mislukte Dag Runs",
+    "maxConsecutiveFailedDagRuns": "Maximaal aantal opeenvolgend mislukte Dag Runs",
     "nextRun": "Volgende Run",
     "owner": "Eigenaar",
     "params": "Parameters",
@@ -155,7 +155,7 @@
     "users": "Gebruikers"
   },
   "selectLanguage": "Selecteer taal",
-  "showDetailsPanel": "Details Paneel weergeven",
+  "showDetailsPanel": "Details weergeven",
   "source": {
     "hide": "Verberg bron",
     "hotkey": "s",

@@ -139,19 +139,19 @@
     },
     "import": {
       "button": "Importeer",
-      "conflictResolution": "Select Variable Conflict Resolution",
-      "errorParsingJsonFile": "Error Parsing JSON File: Upload a JSON file containing variables (e.g., {\"key\": \"value\", ...}).",
+      "conflictResolution": "Selecteer variable conflict oplossing",
+      "errorParsingJsonFile": "Fout bij parsen van JSON bestand: Upload een JSON bestand met variablen (bijv., {\"key\": \"value\", ...}).",
       "options": {
         "fail": {
           "description": "Misluk de import als bestaande variabelen gedetecteerd zijn.",
           "title": "Mislukken"
         },
         "overwrite": {
-          "description": "Overschrijf variableen in het geval van een conflict.",
+          "description": "Overschrijf variabelen in het geval van een conflict.",
           "title": "Overschrijven"
         },
         "skip": {
-          "description": "Sla bestaande variabelen over als deze al bestaan.",
+          "description": "Sla al bestaande variabelen over.",
           "title": "Overslaan"
         }
       },

@@ -26,24 +26,24 @@
     "tooltip": "Backfill benodigd een planning",
     "unpause": "Hervat {{dag_display_name}} na een trigger",
     "validation": {
-      "datesRequired": "Data interval startdatuem en einddatum moeten beide gegeven zijn.",
+      "datesRequired": "Data interval startdatum en einddatum moeten beide gegeven zijn.",
       "startBeforeEnd": "Data interval startdatum moet eerder of gelijk aan de data interval einddatum zijn."
     }
   },
   "banner": {
-    "backfillInProgress": "Backfill in uitvoegin",
+    "backfillInProgress": "Backfill in uitvoering",
     "cancel": "Annuleer backfill",
     "pause": "Pauzeer backfill",
     "unpause": "Backfill hervatten"
   },
   "clipboard": {
-    "copy": "kopieer"
+    "copy": "Kopieer"
   },
   "close": "Sluiten",
   "configForm": {
     "advancedOptions": "Geavanceerde opties",
     "configJson": "Configuratie JSON",
-    "invalidJson": "ONgeldig JSON formaat: {{errorMessage}}"
+    "invalidJson": "Ongeldig JSON formaat: {{errorMessage}}"
   },
   "dagWarnings": {
     "error_one": "1 fout",
@@ -77,9 +77,9 @@
     "validationErrorRequired": "Dit veld is verplicht"
   },
   "graph": {
-    "directionDown": " Boven naar beneden",
+    "directionDown": "Boven naar beneden",
     "directionLeft": "Rechts naar links",
-    "directionRight": "Links naar",
+    "directionRight": "Links naar rechts",
     "directionUp": "Beneden naar boven",
     "downloadImage": "Download afbeelding van de grafiek",
     "downloadImageError": "Mislukt om de afbeelding van de grafiek te downloaden.",
@@ -105,7 +105,7 @@
     "button": "Trigger",
     "loading": "DAG informatie aan het laden...",
     "loadingFailed": "Mislukt om DAG informatie te laden. Probeer het opnieuw.",
-    "runIdHelp": "Optineel - wordt gegenereerd indien niet opgegeven",
+    "runIdHelp": "Optioneel - wordt gegenereerd indien niet opgegeven",
     "selectDescription": "Trigger een enkele run van deze Dag",
     "selectLabel": "Enkele Run",
     "title": "Trigger Dag",

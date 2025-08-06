@@ -31,7 +31,7 @@
     },
     "clear": {
       "button": "Wis {{type}}",
-      "buttonTooltip": "Druk op shift+c om te wissen",
+      "buttonTooltip": "Druk op Shift+C om te wissen",
       "error": "Mislukt om {{type}} te wissen",
       "title": "Wis {{type}}"
     },
@@ -44,15 +44,15 @@
       },
       "error": "Fout bij het verwijderen van {{type}}",
       "success": {
-        "description": "Het verzoekmom {{type}} te verwijderen was successful.",
-        "title": "{{type}} successvol verwijderd"
+        "description": "Het verzoek om {{type}} te verwijderen was succesvol.",
+        "title": "{{type}} succesvol verwijderd"
       }
     },
     "markAs": {
-      "button": "Makeer {{type}} als...",
+      "button": "Makeer {{type}} als ...",
       "buttonTooltip": {
-        "failed": "Druk op shift+f om te markeren als mislukt",
-        "success": "Druk op shift+s om te markeren als succesvol"
+        "failed": "Druk op Shift+F om te markeren als mislukt",
+        "success": "Druk op Shift+S om te markeren als succesvol"
       },
       "title": "Markeer {{type}} als {{state}}"
     },
