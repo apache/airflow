@@ -16,47 +16,54 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
-import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
-import { usePluginServiceGetPlugins } from "openapi/queries";
-import { ProgressBar } from "src/components/ui";
+import type { ExternalViewResponse } from "openapi/requests/types.gen";
 
-import { ErrorPage } from "./Error";
+export const Iframe = ({
+  externalView,
+  sandbox = "allow-forms",
+}: {
+  readonly externalView: ExternalViewResponse;
+  readonly sandbox?: string;
+}) => {
+  const { dagId, mapIndex, runId, taskId } = useParams();
 
-export const Iframe = ({ sandbox = "allow-same-origin allow-forms" }: { readonly sandbox: string }) => {
-  const { t: translate } = useTranslation();
-  const { page } = useParams();
-  const { data: pluginData, isLoading } = usePluginServiceGetPlugins();
+  // Build the href URL with context parameters if the view has a destination
+  let src = externalView.href;
 
-  const iframeView =
-    page === "legacy-fab-views"
-      ? { href: "/pluginsv2/", name: translate("nav.legacyFabViews") }
-      : pluginData?.plugins
-          .flatMap((plugin) => plugin.external_views)
-          .find((view) => (view.url_route ?? view.name.toLowerCase().replace(" ", "-")) === page);
-
-  if (!iframeView) {
-    if (isLoading) {
-      return (
-        <Box flexGrow={1}>
-          <ProgressBar />
-        </Box>
-      );
+  if (externalView.destination !== undefined && externalView.destination !== "nav") {
+    // Check if the href contains placeholders that need to be replaced
+    if (dagId !== undefined) {
+      src = src.replaceAll("{DAG_ID}", dagId);
     }
+    if (runId !== undefined) {
+      src = src.replaceAll("{RUN_ID}", runId);
+    }
+    if (taskId !== undefined) {
+      src = src.replaceAll("{TASK_ID}", taskId);
+    }
+    if (mapIndex !== undefined) {
+      src = src.replaceAll("{MAP_INDEX}", mapIndex);
+    }
+  }
 
-    return <ErrorPage />;
+  if (src.startsWith("http://") || src.startsWith("https://")) {
+    // URL is absolute
+    src = new URL(src).toString();
   }
 
   return (
-    <Box flexGrow={1} m={-3}>
-      <iframe
-        sandbox={sandbox}
-        src={iframeView.href}
-        style={{ height: "100%", width: "100%" }}
-        title={iframeView.name}
-      />
-    </Box>
+    <iframe
+      sandbox={sandbox}
+      src={src}
+      style={{
+        border: "none",
+        display: "block",
+        height: "100%",
+        width: "100%",
+      }}
+      title={externalView.name}
+    />
   );
 };

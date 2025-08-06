@@ -36,6 +36,8 @@
 
     Connection types <connections>
     Logging <logging/index>
+    Message Queues <message-queues>
+    Triggers <triggers>
 
 .. toctree::
     :hidden:
@@ -77,7 +79,9 @@ apache-airflow-providers-redis package
 `Redis <https://redis.io/>`__
 
 
-Release: 4.1.1
+Release: 4.2.0
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------

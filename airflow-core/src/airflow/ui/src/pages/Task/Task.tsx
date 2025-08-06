@@ -18,11 +18,13 @@
  */
 import { ReactFlowProvider } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
+import { FiUser } from "react-icons/fi";
 import { LuChartColumn } from "react-icons/lu";
 import { MdOutlineEventNote, MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
-import { useDagServiceGetDagDetails, useTaskServiceGetTask } from "openapi/queries";
+import { useTaskServiceGetTask, useHumanInTheLoopServiceGetHitlDetails } from "openapi/queries";
+import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { useGridStructure } from "src/queries/useGridStructure.ts";
 import { getGroupTask } from "src/utils/groupTask";
@@ -32,15 +34,18 @@ import { Header } from "./Header";
 
 export const Task = () => {
   const { t: translate } = useTranslation("dag");
-  const { dagId = "", groupId, taskId } = useParams();
+  const { dagId = "", groupId, runId, taskId } = useParams();
+
+  // Get external views with task destination
+  const externalTabs = usePluginTabs("task");
 
   const tabs = [
     { icon: <LuChartColumn />, label: translate("tabs.overview"), value: "" },
     { icon: <MdOutlineTask />, label: translate("tabs.taskInstances"), value: "task_instances" },
+    { icon: <FiUser />, label: translate("tabs.requiredActions"), value: "required_actions" },
     { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
+    ...externalTabs,
   ];
-
-  const displayTabs = groupId === undefined ? tabs : tabs.filter((tab) => tab.value !== "events");
 
   const {
     data: task,
@@ -54,22 +59,34 @@ export const Task = () => {
 
   const groupTask = getGroupTask(dagStructure, groupId);
 
-  const {
-    data: dag,
-    error: dagError,
-    isLoading: isDagLoading,
-  } = useDagServiceGetDagDetails({
-    dagId,
-  });
+  // Check if this task has any HITL details
+  const { data: hitlData } = useHumanInTheLoopServiceGetHitlDetails(
+    {
+      dagIdPattern: dagId,
+      dagRunId: runId,
+    },
+    undefined,
+    {
+      enabled: Boolean(dagId && (groupId !== undefined || taskId !== undefined)),
+    },
+  );
+
+  const hasHitlForTask =
+    (hitlData?.hitl_details.filter((hitl) => hitl.task_instance.task_id === taskId).length ?? 0) > 0;
+
+  const displayTabs = (groupId === undefined ? tabs : tabs.filter((tab) => tab.value !== "events")).filter(
+    (tab) => {
+      if (tab.value === "required_actions" && !hasHitlForTask) {
+        return false;
+      }
+
+      return true;
+    },
+  );
 
   return (
     <ReactFlowProvider>
-      <DetailsLayout
-        dag={dag}
-        error={error ?? dagError}
-        isLoading={isLoading || isDagLoading}
-        tabs={displayTabs}
-      >
+      <DetailsLayout error={error} isLoading={isLoading} tabs={displayTabs}>
         {task === undefined ? undefined : <Header task={task} />}
         {groupTask ? <GroupTaskHeader title={groupTask.label} /> : undefined}
       </DetailsLayout>

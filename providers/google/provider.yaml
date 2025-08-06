@@ -29,12 +29,13 @@ description: |
     - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 state: ready
-source-date-epoch: 1751473525
+source-date-epoch: 1753692233
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 17.0.0
   - 16.1.0
   - 16.0.0
   - 15.1.0
@@ -202,12 +203,6 @@ integrations:
   - integration-name: Google Cloud Key Management Service (KMS)
     external-doc-url: https://cloud.google.com/security-key-management/
     logo: /docs/integration-logos/Key-Management-Service.png
-    tags: [gcp]
-  - integration-name: Google Cloud Life Sciences
-    external-doc-url: https://cloud.google.com/life-sciences/
-    how-to-guide:
-      - /docs/apache-airflow-providers-google/operators/cloud/life_sciences.rst
-    logo: /docs/integration-logos/Google-Cloud-Life-Sciences.png
     tags: [gcp]
   - integration-name: Google Cloud Managed Service for Apache Kafka
     external-doc-url: https://cloud.google.com/managed-service-for-apache-kafka/docs/
@@ -451,6 +446,12 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/looker.rst
     tags: [gcp]
+  - integration-name: Google Cloud Logging Sink
+    external-doc-url: https://cloud.google.com/logging
+    logo: /docs/integration-logos/Cloud-Logging-Sink.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/cloud_logging_sink.rst
+    tags: [gcp]
 
 operators:
   - integration-name: Google Ads
@@ -528,9 +529,6 @@ operators:
   - integration-name: Google Kubernetes Engine
     python-modules:
       - airflow.providers.google.cloud.operators.kubernetes_engine
-  - integration-name: Google Cloud Life Sciences
-    python-modules:
-      - airflow.providers.google.cloud.operators.life_sciences
   - integration-name: Google Machine Learning Engine
     python-modules:
       - airflow.providers.google.cloud.operators.mlengine
@@ -597,6 +595,7 @@ operators:
       - airflow.providers.google.cloud.operators.vertex_ai.auto_ml
       - airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job
       - airflow.providers.google.cloud.operators.vertex_ai.endpoint_service
+      - airflow.providers.google.cloud.operators.vertex_ai.experiment_service
       - airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_job
       - airflow.providers.google.cloud.operators.vertex_ai.model_service
       - airflow.providers.google.cloud.operators.vertex_ai.pipeline_job
@@ -615,6 +614,9 @@ operators:
   - integration-name: Google Cloud Managed Service for Apache Kafka
     python-modules:
       - airflow.providers.google.cloud.operators.managed_kafka
+  - integration-name: Google Cloud Logging Sink
+    python-modules:
+      - airflow.providers.google.cloud.operators.cloud_logging_sink
 
 sensors:
   - integration-name: Google BigQuery
@@ -790,9 +792,6 @@ hooks:
   - integration-name: Google Kubernetes Engine
     python-modules:
       - airflow.providers.google.cloud.hooks.kubernetes_engine
-  - integration-name: Google Cloud Life Sciences
-    python-modules:
-      - airflow.providers.google.cloud.hooks.life_sciences
   - integration-name: Google Machine Learning Engine
     python-modules:
       - airflow.providers.google.cloud.hooks.mlengine
@@ -876,6 +875,7 @@ hooks:
       - airflow.providers.google.cloud.hooks.vertex_ai.auto_ml
       - airflow.providers.google.cloud.hooks.vertex_ai.batch_prediction_job
       - airflow.providers.google.cloud.hooks.vertex_ai.endpoint_service
+      - airflow.providers.google.cloud.hooks.vertex_ai.experiment_service
       - airflow.providers.google.cloud.hooks.vertex_ai.hyperparameter_tuning_job
       - airflow.providers.google.cloud.hooks.vertex_ai.model_service
       - airflow.providers.google.cloud.hooks.vertex_ai.pipeline_job
@@ -895,6 +895,10 @@ hooks:
   - integration-name: Google Cloud Managed Service for Apache Kafka
     python-modules:
       - airflow.providers.google.cloud.hooks.managed_kafka
+  - integration-name: Google Cloud Logging
+    python-modules:
+      - airflow.providers.google.cloud.hooks.cloud_logging
+
 
 triggers:
   - integration-name: Google BigQuery Data Transfer Service
@@ -1199,7 +1203,6 @@ extra-links:
   - airflow.providers.google.cloud.links.cloud_build.CloudBuildListLink
   - airflow.providers.google.cloud.links.cloud_build.CloudBuildTriggersListLink
   - airflow.providers.google.cloud.links.cloud_build.CloudBuildTriggerDetailsLink
-  - airflow.providers.google.cloud.links.life_sciences.LifeSciencesLink
   - airflow.providers.google.cloud.links.cloud_functions.CloudFunctionsDetailsLink
   - airflow.providers.google.cloud.links.cloud_functions.CloudFunctionsListLink
   - airflow.providers.google.cloud.links.cloud_storage_transfer.CloudStorageTransferListLink

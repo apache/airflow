@@ -62,7 +62,7 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.providers.standard.operators.branch import BaseBranchOperator
     from airflow.providers.standard.utils.skipmixin import SkipMixin
 else:
-    from airflow.models.skipmixin import SkipMixin  # type: ignore[no-redef]
+    from airflow.models.skipmixin import SkipMixin
     from airflow.operators.branch import BaseBranchOperator  # type: ignore[no-redef]
 
 
@@ -330,7 +330,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
                 self.skip(
                     dag_run=context["dag_run"],
                     tasks=to_skip,
-                    execution_date=cast("DateTime", dag_run.logical_date),  # type: ignore[call-arg, union-attr]
+                    execution_date=cast("DateTime", dag_run.logical_date),  # type: ignore[call-arg]
                     map_index=context["ti"].map_index,
                 )
 
@@ -861,6 +861,15 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             self.log.info("New Python virtual environment created in %s", venv_path)
             return venv_path
 
+    def _cleanup_python_pycache_dir(self, cache_dir_path: Path) -> None:
+        try:
+            shutil.rmtree(cache_dir_path)
+            self.log.debug("The directory %s has been deleted.", cache_dir_path)
+        except FileNotFoundError:
+            self.log.warning("Fail to delete %s. The directory does not exist.", cache_dir_path)
+        except PermissionError:
+            self.log.warning("Permission denied to delete the directory %s.", cache_dir_path)
+
     def _retrieve_index_urls_from_connection_ids(self):
         """Retrieve index URLs from Package Index connections."""
         if self.index_urls is None:
@@ -880,9 +889,13 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
 
         with TemporaryDirectory(prefix="venv") as tmp_dir:
             tmp_path = Path(tmp_dir)
+            tmp_dir, temp_venv_dir = tmp_path.relative_to(tmp_path.anchor).parts
+            custom_pycache_prefix = Path(sys.pycache_prefix or "")
+            venv_python_cache_dir = Path.cwd() / custom_pycache_prefix / tmp_dir / temp_venv_dir
             self._prepare_venv(tmp_path)
             python_path = tmp_path / "bin" / "python"
             result = self._execute_python_callable_in_subprocess(python_path)
+            self._cleanup_python_pycache_dir(venv_python_cache_dir)
             return result
 
     def _iter_serializable_context_keys(self):

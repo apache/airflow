@@ -22,12 +22,12 @@ import pytest
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
+from airflow.providers.amazon.version_compat import BaseHook
 
 try:
-    from airflow.sdk import BaseHook
+    from airflow.sdk import timezone
 except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
-from airflow.utils import timezone
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 TEST_CONN = "aws_test_conn"
 

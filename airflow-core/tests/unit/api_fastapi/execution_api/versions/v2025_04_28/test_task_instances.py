@@ -21,8 +21,9 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.api_fastapi.common.dagbag import create_dag_bag, dag_bag_from_app
-from airflow.utils import timezone
+from airflow._shared.timezones import timezone
+from airflow.api_fastapi.common.dagbag import dag_bag_from_app
+from airflow.models.dagbag import DBDagBag
 from airflow.utils.state import State
 
 from tests_common.test_utils.db import clear_db_assets, clear_db_runs
@@ -63,8 +64,15 @@ class TestTIUpdateState:
                 id="list of ints",
             ),
             pytest.param(
+                [
+                    ("task_a", None),
+                ],
+                {"task_a": None},
+                id="task has no upstreams",
+            ),
+            pytest.param(
                 [("task_a", None), ("task_b", [6, 7]), ("task_c", 2)],
-                {"task_a": -1, "task_b": 6, "task_c": 2},
+                {"task_a": None, "task_b": 6, "task_c": 2},
                 id="mixed types",
             ),
         ],
@@ -99,9 +107,7 @@ class TestTIUpdateState:
             start_date=instant,
         )
 
-        dag = ti.task.dag
-        dagbag = create_dag_bag()
-        dagbag.dags = {dag.dag_id: dag}
+        dagbag = DBDagBag()
         execution_app = get_execution_app(ver_client)
         execution_app.dependency_overrides[dag_bag_from_app] = lambda: dagbag
         session.commit()

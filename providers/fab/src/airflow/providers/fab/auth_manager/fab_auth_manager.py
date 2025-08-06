@@ -34,6 +34,12 @@ from starlette.middleware.wsgi import WSGIMiddleware
 from airflow import __version__ as airflow_version
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
+
+try:
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ExtendedResourceMethod
+except ImportError:
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod as ExtendedResourceMethod
+
 from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
     BackfillDetails,
@@ -60,6 +66,7 @@ from airflow.providers.fab.auth_manager.cli_commands.definition import (
 )
 from airflow.providers.fab.auth_manager.models import Permission, Role, User
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
+from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.fab.www.app import create_app
 from airflow.providers.fab.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
 from airflow.providers.fab.www.extensions.init_views import (
@@ -152,6 +159,7 @@ _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE = {
 _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE = {
     MenuItem.ASSETS: RESOURCE_ASSET,
     MenuItem.AUDIT_LOG: RESOURCE_AUDIT_LOG,
+    MenuItem.CONFIG: RESOURCE_CONFIG,
     MenuItem.CONNECTIONS: RESOURCE_CONNECTION,
     MenuItem.DAGS: RESOURCE_DAG,
     MenuItem.DOCS: RESOURCE_DOCS,
@@ -161,6 +169,13 @@ _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE = {
     MenuItem.VARIABLES: RESOURCE_VARIABLE,
     MenuItem.XCOMS: RESOURCE_XCOM,
 }
+
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.providers.fab.www.security.permissions import RESOURCE_HITL_DETAIL
+
+    _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE[MenuItem.REQUIRED_ACTIONS] = RESOURCE_HITL_DETAIL
+    _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE[DagAccessEntity.HITL_DETAIL] = (RESOURCE_HITL_DETAIL,)
 
 
 class FabAuthManager(BaseAuthManager[User]):
@@ -382,7 +397,7 @@ class FabAuthManager(BaseAuthManager[User]):
 
     def is_authorized_view(self, *, access_view: AccessView, user: User) -> bool:
         # "Docs" are only links in the menu, there is no page associated
-        method: ResourceMethod = "MENU" if access_view == AccessView.DOCS else "GET"
+        method: ExtendedResourceMethod = "MENU" if access_view == AccessView.DOCS else "GET"
         return self._is_authorized(
             method=method,
             resource_type=_MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[access_view],
@@ -523,7 +538,7 @@ class FabAuthManager(BaseAuthManager[User]):
     def _is_authorized(
         self,
         *,
-        method: ResourceMethod,
+        method: ExtendedResourceMethod,
         resource_type: str,
         user: User,
     ) -> bool:
@@ -594,7 +609,7 @@ class FabAuthManager(BaseAuthManager[User]):
         return len(authorized_dags) > 0
 
     @staticmethod
-    def _get_fab_action(method: ResourceMethod) -> str:
+    def _get_fab_action(method: ExtendedResourceMethod) -> str:
         """
         Convert the method to a FAB action.
 

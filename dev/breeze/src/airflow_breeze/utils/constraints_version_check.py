@@ -26,6 +26,7 @@ import urllib.request
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 from urllib.error import HTTPError, URLError
 
 from rich.console import Console
@@ -43,6 +44,9 @@ from airflow_breeze.utils.shared_options import get_verbose
 
 console = Console(color_system="standard")
 
+if TYPE_CHECKING:
+    from packaging.version import Version
+
 
 def parse_constraints_generation_date(lines):
     for line in lines[:5]:
@@ -58,7 +62,24 @@ def parse_constraints_generation_date(lines):
     return None
 
 
-def count_versions_between(releases, current_version, latest_version):
+def is_valid_version(version_str: str, latest_version: Version) -> bool:
+    """Check if the version string is a valid one.
+
+    The version should not ve pre-release or dev release and should be below the latest version"""
+    from packaging import version
+
+    try:
+        parsed_version = version.parse(version_str)
+        return (
+            not parsed_version.is_prerelease
+            and not parsed_version.is_devrelease
+            and parsed_version <= latest_version
+        )
+    except version.InvalidVersion:
+        return False
+
+
+def count_versions_between(releases: dict[str, Any], current_version: str, latest_version: str):
     from packaging import version
 
     current = version.parse(current_version)
@@ -67,12 +88,14 @@ def count_versions_between(releases, current_version, latest_version):
     if current == latest:
         return 0
 
-    valid_versions = [
+    versions_between = [
         v
         for v in releases.keys()
-        if releases[v] and not version.parse(v).is_prerelease and current < version.parse(v) <= latest
+        if releases[v]
+        and is_valid_version(version_str=v, latest_version=latest)
+        and current < version.parse(v) <= latest
     ]
-    return max(len(valid_versions), 1) if current < latest else 0
+    return len(versions_between)
 
 
 def get_status_emoji(constraint_date, latest_date, is_latest_version):
@@ -130,22 +153,33 @@ def get_first_newer_release_date_str(releases, current_version):
 
     try:
         current = version.parse(current_version)
-        newer_versions = [
-            version.parse(v)
-            for v in releases
-            if version.parse(v) > current and releases[v] and not version.parse(v).is_prerelease
-        ]
+
+        # Filter and parse versions, excluding pre-releases and invalid versions
+        valid_versions = []
+        for v in releases:
+            try:
+                parsed_v = version.parse(v)
+                if not parsed_v.is_prerelease and releases[v]:  # Check if release data exists
+                    valid_versions.append(parsed_v)
+            except version.InvalidVersion:
+                continue
+
+        # Find newer versions
+        newer_versions = [v for v in valid_versions if v > current]
+
         if not newer_versions:
             return None
-    except version.InvalidVersion:
+
+        # Get the immediate next version
+        first_newer_version = str(min(newer_versions))
+        upload_time_str = releases[first_newer_version][0]["upload_time_iso_8601"]
+        return datetime.fromisoformat(upload_time_str.replace("Z", "+00:00")).strftime("%Y-%m-%d")
+
+    except version.InvalidVersion as e:
         get_console().print(
-            f"[yellow]Warning: Invalid version format for {current_version}. Skipping date check.[/]"
+            f"[yellow]Warning: Invalid version format for {current_version}. Skipping date check. Error: {str(e)}[/]"
         )
         return None
-
-    first_newer_version = min(newer_versions)
-    upload_time_str = releases[str(first_newer_version)][0]["upload_time_iso_8601"]
-    return datetime.fromisoformat(upload_time_str.replace("Z", "+00:00")).strftime("%Y-%m-%d")
 
 
 def constraints_version_check(

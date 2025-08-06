@@ -21,6 +21,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams, Link as RouterLink } from "react-router-dom";
+import { useSessionStorage } from "usehooks-ts";
 
 import { useAssetServiceGetAssets } from "openapi/queries";
 import type { AssetResponse } from "openapi/requests/types.gen";
@@ -98,12 +99,13 @@ export const AssetsList = () => {
   const { t: translate } = useTranslation(["assets", "common"]);
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [namePattern, setNamePattern] = useState(searchParams.get(NAME_PATTERN_PARAM) ?? undefined);
+  const [savedSearchPattern, setSavedSearchPattern] = useSessionStorage("assets_search_temp", "");
+  const [namePattern, setNamePattern] = useState(searchParams.get(NAME_PATTERN_PARAM) ?? savedSearchPattern);
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
+  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : undefined;
 
   const { data, error, isLoading } = useAssetServiceGetAssets({
     limit: pagination.pageSize,
@@ -113,6 +115,7 @@ export const AssetsList = () => {
   });
 
   const handleSearchChange = (value: string) => {
+    setSavedSearchPattern(value);
     if (value) {
       searchParams.set(NAME_PATTERN_PARAM, value);
     } else {
@@ -131,7 +134,7 @@ export const AssetsList = () => {
       <VStack alignItems="none">
         <SearchBar
           buttonProps={{ disabled: true }}
-          defaultValue={namePattern ?? ""}
+          defaultValue={namePattern}
           onChange={handleSearchChange}
           placeHolder={translate("searchPlaceholder")}
         />

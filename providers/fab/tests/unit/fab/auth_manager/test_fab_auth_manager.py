@@ -20,7 +20,7 @@ from contextlib import contextmanager, suppress
 from itertools import chain
 from typing import TYPE_CHECKING
 from unittest import mock
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock
 
 import pytest
 from flask import Flask, g
@@ -30,6 +30,7 @@ from airflow.api_fastapi.common.types import MenuItem
 from airflow.exceptions import AirflowConfigException
 from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.utils.db import resetdb
 
 from tests_common.test_utils.config import conf_vars
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
@@ -72,6 +73,62 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_VARIABLE,
     RESOURCE_WEBSITE,
 )
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.providers.fab.www.security.permissions import RESOURCE_HITL_DETAIL
+
+    HITL_ENDPOINT_TESTS = [
+        # With global permissions on Dags, but no permission on HITL Detail
+        (
+            "GET",
+            DagAccessEntity.HITL_DETAIL,
+            None,
+            [(ACTION_CAN_READ, RESOURCE_DAG)],
+            False,
+        ),
+        # With global permissions on Dags, but no permission on HITL Detail
+        (
+            "PUT",
+            DagAccessEntity.HITL_DETAIL,
+            None,
+            [(ACTION_CAN_READ, RESOURCE_DAG)],
+            False,
+        ),
+        # With global permissions on Dags, with read permission on HITL Detail
+        (
+            "GET",
+            DagAccessEntity.HITL_DETAIL,
+            None,
+            [(ACTION_CAN_READ, RESOURCE_DAG), (ACTION_CAN_READ, RESOURCE_HITL_DETAIL)],
+            True,
+        ),
+        # With global permissions on Dags, with read permission on HITL Detail, but wrong method
+        (
+            "PUT",
+            DagAccessEntity.HITL_DETAIL,
+            None,
+            [(ACTION_CAN_READ, RESOURCE_DAG), (ACTION_CAN_READ, RESOURCE_HITL_DETAIL)],
+            False,
+        ),
+        # With global permissions on Dags, with write permission on HITL Detail, but wrong method
+        (
+            "GET",
+            DagAccessEntity.HITL_DETAIL,
+            None,
+            [(ACTION_CAN_READ, RESOURCE_DAG), (ACTION_CAN_EDIT, RESOURCE_HITL_DETAIL)],
+            False,
+        ),
+        # With global permissions on Dags, with edit permission on HITL Detail
+        (
+            "PUT",
+            DagAccessEntity.HITL_DETAIL,
+            None,
+            [(ACTION_CAN_READ, RESOURCE_DAG), (ACTION_CAN_EDIT, RESOURCE_HITL_DETAIL)],
+            True,
+        ),
+    ]
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
@@ -467,6 +524,36 @@ class TestFabAuthManager:
         )
         assert result == expected_result
 
+    @pytest.mark.skipif(
+        AIRFLOW_V_3_1_PLUS is not True, reason="HITL test will be skipped if Airflow version < 3.1.0"
+    )
+    @pytest.mark.parametrize(
+        "method, dag_access_entity, dag_details, user_permissions, expected_result",
+        HITL_ENDPOINT_TESTS if AIRFLOW_V_3_1_PLUS else [],
+    )
+    @mock.patch.object(FabAuthManager, "get_authorized_dag_ids")
+    def test_is_authorized_dag_hitl_detail(
+        self,
+        mock_get_authorized_dag_ids,
+        method,
+        dag_access_entity,
+        dag_details,
+        user_permissions,
+        expected_result,
+        auth_manager_with_appbuilder,
+    ):
+        dag_permissions = [perm[1] for perm in user_permissions if perm[1].startswith("DAG:")]
+        dag_ids = {perm.replace("DAG:", "") for perm in dag_permissions}
+        mock_get_authorized_dag_ids.return_value = dag_ids
+
+        user = Mock()
+        user.perms = user_permissions
+        user.id = 1
+        result = auth_manager_with_appbuilder.is_authorized_dag(
+            method=method, access_entity=dag_access_entity, details=dag_details, user=user
+        )
+        assert result == expected_result
+
     @pytest.mark.parametrize(
         "access_view, user_permissions, expected_result",
         [
@@ -730,3 +817,32 @@ class TestFabAuthManager:
     def test_get_db_manager(self, auth_manager):
         result = auth_manager.get_db_manager()
         assert result == "airflow.providers.fab.auth_manager.models.db.FABDBManager"
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize("skip_init", [False, True])
+@conf_vars(
+    {("database", "external_db_managers"): "airflow.providers.fab.auth_manager.models.db.FABDBManager"}
+)
+@mock.patch("airflow.providers.fab.auth_manager.models.db.FABDBManager")
+@mock.patch("airflow.utils.db.create_global_lock", new=MagicMock)
+@mock.patch("airflow.utils.db.drop_airflow_models")
+@mock.patch("airflow.utils.db.drop_airflow_moved_tables")
+@mock.patch("airflow.utils.db.initdb")
+@mock.patch("airflow.settings.engine.connect")
+def test_resetdb(
+    mock_connect,
+    mock_init,
+    mock_drop_moved,
+    mock_drop_airflow,
+    mock_fabdb_manager,
+    skip_init,
+):
+    session_mock = MagicMock()
+    resetdb(session_mock, skip_init=skip_init)
+    mock_drop_airflow.assert_called_once_with(mock_connect.return_value)
+    mock_drop_moved.assert_called_once_with(mock_connect.return_value)
+    if skip_init:
+        mock_init.assert_not_called()
+    else:
+        mock_init.assert_called_once_with(session=session_mock)

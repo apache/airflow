@@ -30,7 +30,6 @@ from sqlalchemy.orm import Session
 from airflow.cli.cli_config import GroupCommand
 from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
-from airflow.models.abstractoperator import DEFAULT_QUEUE
 from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 from airflow.providers.edge3.cli.edge_command import EDGE_COMMANDS
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
@@ -55,6 +54,7 @@ if TYPE_CHECKING:
     TaskTuple = tuple[TaskInstanceKey, CommandType, str | None, Any | None]
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
+DEFAULT_QUEUE: str = conf.get_mandatory_value("operators", "default_queue")
 
 
 class EdgeExecutor(BaseExecutor):
@@ -140,19 +140,39 @@ class EdgeExecutor(BaseExecutor):
         del self.edge_queued_tasks[key]
 
         self.validate_airflow_tasks_run_command(command)  # type: ignore[attr-defined]
-        session.add(
-            EdgeJobModel(
+
+        # Check if job already exists with same dag_id, task_id, run_id, map_index, try_number
+        existing_job = (
+            session.query(EdgeJobModel)
+            .filter_by(
                 dag_id=key.dag_id,
                 task_id=key.task_id,
                 run_id=key.run_id,
                 map_index=key.map_index,
                 try_number=key.try_number,
-                state=TaskInstanceState.QUEUED,
-                queue=queue or DEFAULT_QUEUE,
-                concurrency_slots=task_instance.pool_slots,
-                command=str(command),
             )
+            .first()
         )
+
+        if existing_job:
+            existing_job.state = TaskInstanceState.QUEUED
+            existing_job.queue = queue or DEFAULT_QUEUE
+            existing_job.concurrency_slots = task_instance.pool_slots
+            existing_job.command = str(command)
+        else:
+            session.add(
+                EdgeJobModel(
+                    dag_id=key.dag_id,
+                    task_id=key.task_id,
+                    run_id=key.run_id,
+                    map_index=key.map_index,
+                    try_number=key.try_number,
+                    state=TaskInstanceState.QUEUED,
+                    queue=queue or DEFAULT_QUEUE,
+                    concurrency_slots=task_instance.pool_slots,
+                    command=str(command),
+                )
+            )
 
     @provide_session
     def queue_workload(
@@ -168,19 +188,39 @@ class EdgeExecutor(BaseExecutor):
 
         task_instance = workload.ti
         key = task_instance.key
-        session.add(
-            EdgeJobModel(
+
+        # Check if job already exists with same dag_id, task_id, run_id, map_index, try_number
+        existing_job = (
+            session.query(EdgeJobModel)
+            .filter_by(
                 dag_id=key.dag_id,
                 task_id=key.task_id,
                 run_id=key.run_id,
                 map_index=key.map_index,
                 try_number=key.try_number,
-                state=TaskInstanceState.QUEUED,
-                queue=task_instance.queue,
-                concurrency_slots=task_instance.pool_slots,
-                command=workload.model_dump_json(),
             )
+            .first()
         )
+
+        if existing_job:
+            existing_job.state = TaskInstanceState.QUEUED
+            existing_job.queue = task_instance.queue
+            existing_job.concurrency_slots = task_instance.pool_slots
+            existing_job.command = workload.model_dump_json()
+        else:
+            session.add(
+                EdgeJobModel(
+                    dag_id=key.dag_id,
+                    task_id=key.task_id,
+                    run_id=key.run_id,
+                    map_index=key.map_index,
+                    try_number=key.try_number,
+                    state=TaskInstanceState.QUEUED,
+                    queue=task_instance.queue,
+                    concurrency_slots=task_instance.pool_slots,
+                    command=workload.model_dump_json(),
+                )
+            )
 
     def _check_worker_liveness(self, session: Session) -> bool:
         """Reset worker state if heartbeat timed out."""

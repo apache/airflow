@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-redis"
-version = "4.1.1"
+version = "4.2.0"
 description = "Provider package apache-airflow-providers-redis for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -47,9 +47,10 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
 ]
-requires-python = "~=3.10"
+requires-python = ">=3.10"
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
@@ -61,11 +62,19 @@ dependencies = [
     "redis>=4.5.2,!=4.5.5,!=5.0.2",
 ]
 
+# The optional dependencies should be modified in place in the generated file
+# Any change in the dependencies is preserved when the file is regenerated
+[project.optional-dependencies]
+"common.messaging" = [
+    "apache-airflow-providers-common-messaging>=1.0.3"
+]
+
 [dependency-groups]
 dev = [
     "apache-airflow",
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
+    "apache-airflow-providers-common-messaging",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
 ]
 
@@ -95,8 +104,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-redis/4.1.1"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-redis/4.1.1/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-redis/4.2.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-redis/4.2.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

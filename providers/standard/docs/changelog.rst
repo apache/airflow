@@ -35,6 +35,65 @@
 Changelog
 ---------
 
+1.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add venv pycache clean up for the PythonVirtualenvOperator (#53390)``
+* ``Add Human-in-the-loop logic to core Airflow and implement 'HITLOperator', 'ApprovalOperator', 'HITLEntryOperator' in standard provider (#52868)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix key error in _handle_execution_date_fn for ExternalTaskSensor (#53728)``
+* ``fix: Type mismatch for DateInterval in latest only operator (#53541)``
+* ``fix(hitl): Fix HITLEntryOperator "options" and "defaults" handling (#53184)``
+* ``fix(hitl): handle hitl details when task instance is retried (#53824)``
+
+Misc
+~~~~
+
+* ``Fix unreachable code mypy warnings in standard provider (#53431)``
+* ``Align main branch after standard provider 1.4.1 release (#53511)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup mypy ignore in standard provider where possible (#53308)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove direct scheduler BaseOperator refs (#52234)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Move 'BaseHook' imports to version_compat for standard provider (#52766)``
+* ``Deprecate and move 'airflow.utils.task_group' to SDK (#53450)``
+* ``Deprecate decorators from Core (#53629)``
+* ``Replace usages of XCOM_RETURN_KEY in providers to not be from utils (#53170)``
+* ``Remove 'set_current_context' from 'airflow.models.taskinstance' (#53036)``
+* ``Replace direct BaseOperator import with version_compat import (#53847)``
+* ``Fix typo in serialized_params (#53848)``
+
+Doc-only
+~~~~~~~~
+
+* ``docs: Correct TaskFlow capitalization in documentation (#51794)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Set up process for sharing code between different components (#53149)``
+   * ``Replace 'mock.patch("utcnow")' with time_machine. (#53642)``
+   * ``Add run_on_latest_version support for backfill and clear operations (#52177)``
+   * ``docs(hitl): add example dag for all HITLOperator (#53360)``
+   * ``Prepare release for Standard Provider 1.4.1``
+   * ``Make dag_version_id in TI non-nullable (#50825)``
+   * ``Fix example dag example_external_task_parent_deferrable.py imports (#52956)``
+
+1.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix sensor skipping in Airflow 3.x branching operators (#53455)``
+
 1.4.0
 .....
 
@@ -314,7 +373,7 @@ Misc
 * ``AIP-72: Move non-user facing code to '_internal' (#45515)``
 * ``AIP-72: Add support for 'get_current_context' in Task SDK (#45486)``
 * ``Move Literal alias into TYPE_CHECKING block (#45345)``
-* ``AIP-72: Add Taskflow API support & template rendering in Task SDK (#45444)``
+* ``AIP-72: Add TaskFlow API support & template rendering in Task SDK (#45444)``
 * ``Remove tuple_in_condition helpers (#45201)``
 
 .. Below changes are excluded from the changelog. Move them to

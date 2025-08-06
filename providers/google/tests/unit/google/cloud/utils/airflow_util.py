@@ -20,12 +20,15 @@ from typing import TYPE_CHECKING
 from unittest import mock
 
 import pendulum
+from uuid6 import uuid7
 
 from airflow.models import DAG, Connection
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.providers.google.version_compat import BaseOperator
@@ -39,7 +42,9 @@ def get_dag_run(dag_id: str = "test_dag_id", run_id: str = "test_dag_id") -> Dag
 
 
 def get_task_instance(task: BaseOperator) -> TaskInstance:
-    return TaskInstance(task, timezone.datetime(2022, 1, 1))
+    if AIRFLOW_V_3_0_PLUS:
+        return TaskInstance(task=task, run_id=None, dag_version_id=uuid7())
+    return TaskInstance(task=task, run_id=None)  # type: ignore
 
 
 def get_conn() -> Connection:

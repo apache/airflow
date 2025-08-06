@@ -23,9 +23,26 @@
 
 ``apache-airflow-providers-trino``
 
-
 Changelog
 ---------
+
+.. warning::
+    Make sure the connection you use to authenticate with Trino, has only one authentication method set (e.g password, jwt) otherwise the task will fail.
+
+6.3.2
+.....
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup type ignores in trino provider where possible (#53253)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
 
 6.3.1
 .....

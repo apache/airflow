@@ -21,11 +21,7 @@ import subprocess
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
-
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.apache.spark.version_compat import BaseHook
 
 if TYPE_CHECKING:
     try:
@@ -208,7 +204,7 @@ class SparkSqlHook(BaseHook):
             spark_sql_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, **kwargs
         )
 
-        for line in iter(self._sp.stdout):  # type: ignore
+        for line in iter(self._sp.stdout):
             self.log.info(line)
 
         returncode = self._sp.wait()

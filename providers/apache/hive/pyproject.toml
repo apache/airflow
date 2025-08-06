@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-apache-hive"
-version = "9.1.1"
+version = "9.1.2"
 description = "Provider package apache-airflow-providers-apache-hive for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -47,9 +47,10 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
 ]
-requires-python = "~=3.10"
+requires-python = ">=3.10"
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
@@ -59,6 +60,8 @@ dependencies = [
     "apache-airflow>=2.10.0",
     "apache-airflow-providers-common-sql>=1.26.0",
     "hmsclient>=0.1.0",
+    'pandas>=2.1.2; python_version <"3.13"',
+    'pandas>=2.2.3; python_version >="3.13"',
     "pyhive[hive_pure_sasl]>=0.7.0",
     "thrift>=0.11.0",
     "jmespath>=0.7.0",
@@ -131,8 +134,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-hive/9.1.1"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-hive/9.1.1/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-hive/9.1.2"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-hive/9.1.2/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

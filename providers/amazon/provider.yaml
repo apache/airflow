@@ -22,13 +22,14 @@ description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 state: ready
-source-date-epoch: 1751472351
+source-date-epoch: 1753688567
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
-  - 9.9.1
+  - 9.11.0
+  - 9.10.0
   - 9.9.0
   - 9.8.0
   - 9.7.0
@@ -281,6 +282,8 @@ integrations:
   - integration-name: Amazon Systems Manager (SSM)
     external-doc-url: https://aws.amazon.com/systems-manager/
     logo: /docs/integration-logos/AWS-Systems-Manager_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/ssm.rst
     tags: [aws]
   - integration-name: Amazon Web Services
     external-doc-url: https://aws.amazon.com/
@@ -430,6 +433,9 @@ operators:
   - integration-name: AWS Step Functions
     python-modules:
       - airflow.providers.amazon.aws.operators.step_function
+  - integration-name: Amazon Systems Manager (SSM)
+    python-modules:
+      - airflow.providers.amazon.aws.operators.ssm
   - integration-name: Amazon RDS
     python-modules:
       - airflow.providers.amazon.aws.operators.rds
@@ -531,6 +537,9 @@ sensors:
   - integration-name: AWS Step Functions
     python-modules:
       - airflow.providers.amazon.aws.sensors.step_function
+  - integration-name: Amazon Systems Manager (SSM)
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.ssm
   - integration-name: Amazon QuickSight
     python-modules:
       - airflow.providers.amazon.aws.sensors.quicksight
@@ -737,6 +746,9 @@ triggers:
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.triggers.s3
+  - integration-name: Amazon Systems Manager (SSM)
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.ssm
   - integration-name: Amazon EMR
     python-modules:
       - airflow.providers.amazon.aws.triggers.emr

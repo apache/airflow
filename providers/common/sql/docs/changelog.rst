@@ -25,6 +25,26 @@
 Changelog
 ---------
 
+1.27.4
+......
+
+Misc
+~~~~
+
+* ``Fix unreachable code mypy warnings in teradata provider (#53488)``
+* ``Add sql extras to pandas in the providers where sqlalchemy is needed (#53535)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup type ignores (#53297)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Move all BaseHook usages to version_compat in Common SQL (#52800)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add run_on_latest_version support for backfill and clear operations (#52177)``
+   * ``Make dag_version_id in TI non-nullable (#50825)``
+
 1.27.3
 ......
 

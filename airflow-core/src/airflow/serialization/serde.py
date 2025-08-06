@@ -32,6 +32,7 @@ import attr
 
 import airflow.serialization.serializers
 from airflow.configuration import conf
+from airflow.serialization.typing import is_pydantic_model
 from airflow.stats import Stats
 from airflow.utils.module_loading import import_string, iter_namespace, qualname
 
@@ -52,6 +53,7 @@ OLD_TYPE = "__type"
 OLD_SOURCE = "__source"
 OLD_DATA = "__var"
 OLD_DICT = "dict"
+PYDANTIC_MODEL_QUALNAME = "pydantic.main.BaseModel"
 
 DEFAULT_VERSION = 0
 
@@ -118,13 +120,6 @@ def serialize(o: object, depth: int = 0) -> U | None:
     if o is None:
         return o
 
-    # primitive types are returned as is
-    if isinstance(o, _primitives):
-        if isinstance(o, enum.Enum):
-            return o.value
-
-        return o
-
     if isinstance(o, list):
         return [serialize(d, depth + 1) for d in o]
 
@@ -145,11 +140,24 @@ def serialize(o: object, depth: int = 0) -> U | None:
         qn = "builtins.tuple"
         classname = qn
 
+    if is_pydantic_model(o):
+        # to match the generic Pydantic serializer and deserializer in _serializers and _deserializers
+        qn = PYDANTIC_MODEL_QUALNAME
+        # the actual Pydantic model class to encode
+        classname = qualname(o)
+
     # if there is a builtin serializer available use that
     if qn in _serializers:
         data, serialized_classname, version, is_serialized = _serializers[qn].serialize(o)
         if is_serialized:
             return encode(classname or serialized_classname, version, serialize(data, depth + 1))
+
+    # primitive types are returned as is
+    if isinstance(o, _primitives):
+        if isinstance(o, enum.Enum):
+            return o.value
+
+        return o
 
     # custom serializers
     dct = {
@@ -256,7 +264,10 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
 
     # registered deserializer
     if classname in _deserializers:
-        return _deserializers[classname].deserialize(classname, version, deserialize(value))
+        return _deserializers[classname].deserialize(cls, version, deserialize(value))
+    if is_pydantic_model(cls):
+        if PYDANTIC_MODEL_QUALNAME in _deserializers:
+            return _deserializers[PYDANTIC_MODEL_QUALNAME].deserialize(cls, version, deserialize(value))
 
     # class has deserialization function
     if hasattr(cls, "deserialize"):
@@ -273,7 +284,12 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
                 class_version,
             )
 
-        return cls(**deserialize(value))
+        deserialize_value = deserialize(value)
+        if not isinstance(deserialize_value, dict):
+            raise TypeError(
+                f"deserialized value for {classname} is not a dict, got {type(deserialize_value)}"
+            )
+        return cls(**deserialize_value)  # type: ignore[operator]
 
     # no deserializer available
     raise TypeError(f"No deserializer found for {classname}")

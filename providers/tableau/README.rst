@@ -23,8 +23,9 @@
 
 Package ``apache-airflow-providers-tableau``
 
-Release: ``5.1.1``
+Release: ``5.2.0``
 
+Release Date: ``|PypiReleaseDate|``
 
 `Tableau <https://www.tableau.com/>`__
 
@@ -36,7 +37,7 @@ This is a provider package for ``tableau`` provider. All classes for this provid
 are in ``airflow.providers.tableau`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-tableau/5.1.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-tableau/5.2.0/>`_.
 
 Installation
 ------------
@@ -45,7 +46,7 @@ You can install this package on top of an existing Airflow 2 installation (see `
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-tableau``
 
-The package supports the following python versions: 3.10,3.11,3.12
+The package supports the following python versions: 3.10,3.11,3.12,3.13
 
 Requirements
 ------------
@@ -54,8 +55,8 @@ Requirements
 PIP package              Version required
 =======================  ==================
 ``apache-airflow``       ``>=2.10.0``
-``tableauserverclient``  ``>=0.25``
+``tableauserverclient``  ``>=0.27``
 =======================  ==================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-tableau/5.1.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-tableau/5.2.0/changelog.html>`_.

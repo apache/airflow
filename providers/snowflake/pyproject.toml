@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-snowflake"
-version = "6.5.0"
+version = "6.5.1"
 description = "Provider package apache-airflow-providers-snowflake for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -47,9 +47,10 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
 ]
-requires-python = "~=3.10"
+requires-python = ">=3.10"
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
@@ -61,11 +62,14 @@ dependencies = [
     "apache-airflow-providers-common-sql>=1.21.0",
     'pandas>=2.1.2; python_version <"3.13"',
     'pandas>=2.2.3; python_version >="3.13"',
-    "pyarrow>=16.1.0",
+    "pyarrow>=16.1.0; python_version < '3.13'",
+    "pyarrow>=18.0.0; python_version >= '3.13'",
     "snowflake-connector-python>=3.7.1",
     "snowflake-sqlalchemy>=1.4.0",
     "snowflake-snowpark-python>=1.17.0;python_version<'3.12'",
-    "snowflake-snowpark-python>=1.27.0;python_version>='3.12'",
+    # The "<9999" is a hint to the pip resolver to resolve this requirement early,
+    # can be removed when the pip resolver is improved
+    "snowflake-snowpark-python>=1.27.0,<9999;python_version>='3.12' and python_version<'3.13'",
 ]
 
 # The optional dependencies should be modified in place in the generated file
@@ -113,8 +117,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.5.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.5.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.5.1"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.5.1/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

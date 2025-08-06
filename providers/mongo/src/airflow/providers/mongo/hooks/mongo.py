@@ -28,11 +28,7 @@ from pymongo import MongoClient, ReplaceOne
 from pymongo.errors import CollectionInvalid
 
 from airflow.exceptions import AirflowConfigException
-
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.mongo.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from types import TracebackType
@@ -216,7 +212,11 @@ class MongoHook(BaseHook):
             netloc = f"{quote_plus(login)}:{quote_plus(password)}@{netloc}"
         if self.connection.port:
             netloc = f"{netloc}:{self.connection.port}"
-        path = f"/{self.connection.schema}"
+
+        if self.connection.schema:
+            path = f"/{self.connection.schema}"
+        else:
+            path = ""
         return urlunsplit((scheme, netloc, path, "", ""))
 
     def get_collection(self, mongo_collection: str, mongo_db: str | None = None) -> MongoCollection:

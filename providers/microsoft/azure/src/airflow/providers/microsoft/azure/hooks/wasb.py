@@ -52,15 +52,13 @@ from airflow.providers.microsoft.azure.utils import (
     get_sync_default_azure_credential,
     parse_blob_account_url,
 )
-
-try:
-    from airflow.sdk import BaseHook
-except ImportError:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+from airflow.providers.microsoft.azure.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from azure.core.credentials import TokenCredential
+    from azure.core.credentials_async import AsyncTokenCredential
     from azure.storage.blob._models import BlobProperties
+    from azure.storage.blob.aio._list_blobs_helper import BlobPrefix
 
 AsyncCredentials = AsyncClientSecretCredential | AsyncDefaultAzureCredential
 
@@ -223,7 +221,7 @@ class WasbHook(BaseHook):
         )
 
     # TODO: rework the interface as it might also return AsyncContainerClient
-    def _get_container_client(self, container_name: str) -> ContainerClient:  # type: ignore[override]
+    def _get_container_client(self, container_name: str) -> ContainerClient:
         """
         Instantiate a container client.
 
@@ -617,15 +615,16 @@ class WasbAsyncHook(WasbHook):
         tenant = self._get_field(extra, "tenant_id")
         if tenant:
             # use Active Directory auth
-            app_id = conn.login
-            app_secret = conn.password
+            app_id = conn.login or ""
+            app_secret = conn.password or ""
+
             token_credential = AsyncClientSecretCredential(
                 tenant, app_id, app_secret, **client_secret_auth_config
             )
             self.blob_service_client = AsyncBlobServiceClient(
                 account_url=account_url,
                 credential=token_credential,
-                **extra,  # type:ignore[arg-type]
+                **extra,
             )
             return self.blob_service_client
 
@@ -655,6 +654,7 @@ class WasbAsyncHook(WasbHook):
             return self.blob_service_client
 
         # Fall back to old auth (password) or use managed identity if not provided.
+        credential: str | AsyncTokenCredential | None
         credential = conn.password
         if not credential:
             # Check for account_key in extra fields before falling back to DefaultAzureCredential
@@ -684,6 +684,9 @@ class WasbAsyncHook(WasbHook):
         :param container_name: the name of the blob container
         :param blob_name: the name of the blob. This needs not be existing
         """
+        if self.blob_service_client is None:
+            raise AirflowException("BlobServiceClient is not initialized")
+
         return self.blob_service_client.get_blob_client(container=container_name, blob=blob_name)
 
     async def check_for_blob_async(self, container_name: str, blob_name: str, **kwargs: Any) -> bool:
@@ -707,6 +710,9 @@ class WasbAsyncHook(WasbHook):
 
         :param container_name: the name of the container
         """
+        if self.blob_service_client is None:
+            raise AirflowException("BlobServiceClient is not initialized")
+
         return self.blob_service_client.get_container_client(container_name)
 
     async def get_blobs_list_async(
@@ -716,7 +722,7 @@ class WasbAsyncHook(WasbHook):
         include: list[str] | None = None,
         delimiter: str = "/",
         **kwargs: Any,
-    ) -> list[BlobProperties]:
+    ) -> list[BlobProperties | BlobPrefix]:
         """
         List blobs in a given container.
 
@@ -729,7 +735,7 @@ class WasbAsyncHook(WasbHook):
         :param delimiter: filters objects based on the delimiter (for e.g '.csv')
         """
         container = self._get_container_client(container_name)
-        blob_list: list[BlobProperties] = []
+        blob_list: list[BlobProperties | BlobPrefix] = []
         blobs = container.walk_blobs(name_starts_with=prefix, include=include, delimiter=delimiter, **kwargs)
         async for blob in blobs:
             blob_list.append(blob)

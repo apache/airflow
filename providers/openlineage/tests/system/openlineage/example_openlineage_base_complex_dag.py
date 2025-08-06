@@ -35,11 +35,16 @@ from typing import Any
 
 from airflow import DAG
 from airflow.models import Variable
+from airflow.models.baseoperator import BaseOperator
 from airflow.providers.common.compat.assets import Asset
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.utils.task_group import TaskGroup
+
+try:
+    from airflow.sdk import TaskGroup
+except ImportError:
+    from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
 
 from system.openlineage.expected_events import AIRFLOW_VERSION, get_expected_event_file_path
 from system.openlineage.operator import OpenLineageTestOperator
@@ -68,6 +73,15 @@ class SomeCustomOperator(BashOperator):
         super().__init__(**kwargs)
 
 
+class CustomMappedOperator(BaseOperator):
+    def __init__(self, value, **kwargs):
+        super().__init__(**kwargs)
+        self.value = value
+
+    def execute(self, context):
+        return self.value + 1
+
+
 DAG_ID = "openlineage_base_complex_dag"
 
 with DAG(
@@ -87,32 +101,49 @@ with DAG(
         bash_command="exit 0;",
         owner="owner'2",
         execution_timeout=timedelta(seconds=456),
+        doc_rst="RST doc",
     )
     task_2 = PythonOperator(
         task_id="task_2",
         python_callable=do_nothing,
         inlets=[Asset(uri="s3://bucket2/dir2/file2.txt")],
         max_retry_delay=42,
+        doc="text doc",
+        doc_md="should be skipped",
+        doc_json="should be skipped",
+        doc_yaml="should be skipped",
+        doc_rst="should be skipped",
     )
-    task_3 = EmptyOperator(task_id="task_3", outlets=[Asset(uri="s3://bucket/dir/file.txt")])
+    task_3 = EmptyOperator(
+        task_id="task_3",
+        outlets=[Asset(uri="s3://bucket/dir/file.txt")],
+        doc_md="MD doc",
+        doc_json="should be skipped",
+        doc_yaml="should be skipped",
+        doc_rst="should be skipped",
+    )
     task_4 = SomeCustomOperator(
         task_id="task_4",
         bash_command="exit 0;",
         owner="owner3",
         max_active_tis_per_dag=7,
         max_active_tis_per_dagrun=2,
+        doc_json="JSON doc",
+        doc_yaml="should be skipped",
+        doc_rst="should be skipped",
     )
 
     with TaskGroup("section_1", prefix_group_id=True) as tg:
-        task_5 = PythonOperator(task_id="task_5", python_callable=lambda: 1)
+        task_5 = CustomMappedOperator.partial(task_id="task_5", doc_md="md doc").expand(value=[1])
         with TaskGroup("section_2", parent_group=tg, tooltip="group_tooltip") as tg2:
-            if AIRFLOW_VERSION.major == 3:
-                add_args: dict[str, Any] = {
-                    "run_as_user": "some_user"
-                }  # Random user break task execution on AF2
-            else:
-                add_args = {"sla": timedelta(seconds=123)}  # type: ignore[dict-item] # SLA is not present in AF3 yet
-            task_6 = EmptyOperator(task_id="task_6", on_success_callback=lambda x: print(1), **add_args)
+            add_args: dict[str, Any] = {"sla": timedelta(seconds=123)} if AIRFLOW_VERSION.major == 2 else {}
+            task_6 = EmptyOperator(
+                task_id="task_6",
+                on_success_callback=lambda x: print(1),
+                doc_yaml="YAML doc",
+                doc_rst="should be skipped",
+                **add_args,
+            )
             with TaskGroup("section_3", parent_group=tg2):
                 task_7 = PythonOperator(task_id="task_7", python_callable=lambda: 1)
 
