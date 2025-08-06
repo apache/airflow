@@ -24,7 +24,7 @@ import enum
 from collections.abc import Collection, Iterable, Sequence
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import CheckConstraint, Column, ForeignKeyConstraint, Integer, String, func, or_, select
+from sqlalchemy import CheckConstraint, Column, ForeignKeyConstraint, Integer, String, func, or_, select, update
 
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.models.dag_version import DagVersion
@@ -275,3 +275,17 @@ class TaskMap(TaskInstanceDependencies):
             return all_expanded_tis, total_expanded_ti_count - 1
 
         raise NotMapped
+
+
+def update_task_map_length(task: TaskInstance, session):
+    length = task.map_index + 1
+    session.execute(
+        update(TaskMap)
+        .where(
+            TaskMap.dag_id == task.dag_id,
+            TaskMap.task_id == task.task_id,
+            TaskMap.run_id == task.run_id,
+            TaskMap.map_index == -1,
+        )
+        .values(length=length)
+    )

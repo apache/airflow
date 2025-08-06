@@ -74,6 +74,7 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
         """
         if dag_run and task_instances:
             self.log.info("Persisting %d new task instances", len(task_instances))
+            update_task_map_length(task=task_instances[-1], session=session)
             dag_run.task_instances.extend(task_instances)
             session.merge(dag_run)
             session.commit()
