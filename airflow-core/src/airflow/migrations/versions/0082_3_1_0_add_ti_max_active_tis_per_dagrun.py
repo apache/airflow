@@ -20,8 +20,8 @@
 Add max_active_tis_per_dag and max_active_tis_per_dagrun to task_instance table.
 
 Revision ID: 2f49f2dae90c
-Revises: 3bda03debd04
-Create Date: 2025-07-28 16:39:01.181132
+Revises: 808787349f22
+Create Date: 2025-08-06 12:44:00.000000
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "2f49f2dae90c"
-down_revision = "3bda03debd04"
+down_revision = "808787349f22"
 branch_labels = None
 depends_on = None
 airflow_version = "3.1.0"

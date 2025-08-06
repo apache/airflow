@@ -174,10 +174,6 @@ class XComNotFound(AirflowException):
         )
 
 
-class AirflowDagCycleException(AirflowException):
-    """Raise when there is a cycle in DAG definition."""
-
-
 class AirflowDagDuplicatedIdException(AirflowException):
     """Raise when a DAG's ID is already used by another DAG."""
 
@@ -511,3 +507,21 @@ class DeserializingResultError(ValueError):
 
 class UnknownExecutorException(ValueError):
     """Raised when an attempt is made to load an executor which is not configured."""
+
+
+def __getattr__(name: str):
+    """Provide backward compatibility for moved exceptions."""
+    if name == "AirflowDagCycleException":
+        import warnings
+
+        from airflow.sdk.exceptions import AirflowDagCycleException
+
+        warnings.warn(
+            "airflow.exceptions.AirflowDagCycleException is deprecated. "
+            "Use airflow.sdk.exceptions.AirflowDagCycleException instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return AirflowDagCycleException
+
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
