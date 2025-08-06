@@ -24,12 +24,13 @@ from collections import namedtuple
 from collections.abc import Iterable, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Literal, cast
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.version_compat import BaseHook, BaseOperator
 
 if TYPE_CHECKING:
     import pandas as pd
+    import polars as pl
 
     from airflow.providers.common.sql.hooks.sql import DbApiHook
     from airflow.utils.context import Context
@@ -69,7 +70,8 @@ class SqlToS3Operator(BaseOperator):
     :param sql_hook_params: Extra config params to be passed to the underlying hook.
         Should match the desired hook constructor params.
     :param parameters: (optional) the parameters to render the SQL query with.
-    :param read_pd_kwargs: arguments to include in DataFrame when ``pd.read_sql()`` is called.
+    :param read_kwargs: arguments to include in DataFrame when reading from SQL (supports both pandas and polars).
+    :param df_type: the type of DataFrame to use ('pandas' or 'polars'). Defaults to 'pandas'.
     :param aws_conn_id: reference to a specific S3 connection
     :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
@@ -98,7 +100,7 @@ class SqlToS3Operator(BaseOperator):
     template_fields_renderers = {
         "query": "sql",
         "pd_kwargs": "json",
-        "read_pd_kwargs": "json",
+        "read_kwargs": "json",
     }
 
     def __init__(
@@ -110,7 +112,9 @@ class SqlToS3Operator(BaseOperator):
         sql_conn_id: str,
         sql_hook_params: dict | None = None,
         parameters: None | Mapping[str, Any] | list | tuple = None,
+        read_kwargs: dict | None = None,
         read_pd_kwargs: dict | None = None,
+        df_type: Literal["pandas", "polars"] = "pandas",
         replace: bool = False,
         aws_conn_id: str | None = "aws_default",
         verify: bool | str | None = None,
@@ -130,10 +134,25 @@ class SqlToS3Operator(BaseOperator):
         self.replace = replace
         self.pd_kwargs = pd_kwargs or {}
         self.parameters = parameters
-        self.read_pd_kwargs = read_pd_kwargs or {}
         self.max_rows_per_file = max_rows_per_file
         self.groupby_kwargs = groupby_kwargs or {}
         self.sql_hook_params = sql_hook_params
+        self.df_type = df_type
+        if read_pd_kwargs is not None and read_kwargs is not None:
+            raise AirflowException(
+                "Cannot specify both 'read_kwargs' and 'read_pd_kwargs'. Use 'read_kwargs' instead."
+            )
+        if read_pd_kwargs is not None:
+            import warnings
+
+            warnings.warn(
+                "The 'read_pd_kwargs' parameter is deprecated. Use 'read_kwargs' instead.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            self.read_kwargs = read_pd_kwargs or {}
+        else:
+            self.read_kwargs = read_kwargs or {}
 
         if "path_or_buf" in self.pd_kwargs:
             raise AirflowException("The argument path_or_buf is not allowed, please remove it")
@@ -190,11 +209,12 @@ class SqlToS3Operator(BaseOperator):
         sql_hook = self._get_hook()
         s3_conn = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         data_df = sql_hook.get_df(
-            sql=self.query, parameters=self.parameters, df_type="pandas", **self.read_pd_kwargs
+            sql=self.query, parameters=self.parameters, df_type=self.df_type, **self.read_kwargs
         )
         self.log.info("Data from SQL obtained")
-        if ("dtype_backend", "pyarrow") not in self.read_pd_kwargs.items():
-            self._fix_dtypes(data_df, self.file_format)
+        # Only apply dtype fixes to pandas DataFrames since Polars doesn't have the same NaN/None inconsistencies as panda
+        if ("dtype_backend", "pyarrow") not in self.read_kwargs.items() and self.df_type == "pandas":
+            self._fix_dtypes(data_df, self.file_format)  # type: ignore[arg-type]
         file_options = FILE_OPTIONS_MAP[self.file_format]
 
         for group_name, df in self._partition_dataframe(df=data_df):
@@ -220,17 +240,23 @@ class SqlToS3Operator(BaseOperator):
                 file_obj=buf, key=object_key, bucket_name=self.s3_bucket, replace=self.replace
             )
 
-    def _partition_dataframe(self, df: pd.DataFrame) -> Iterable[tuple[str, pd.DataFrame]]:
+    def _partition_dataframe(self, df: pd.DataFrame | pl.DataFrame) -> Iterable[tuple[str, pd.DataFrame]]:
         """Partition dataframe using pandas groupby() method."""
         try:
             import secrets
             import string
 
             import numpy as np
+            import polars as pl
         except ImportError:
             pass
+
+        if isinstance(df, pl.DataFrame):
+            df = df.to_pandas()
+
         # if max_rows_per_file argument is specified, a temporary column with a random unusual name will be
         # added to the dataframe. This column is used to dispatch the dataframe into smaller ones using groupby()
+
         random_column_name = ""
         if self.max_rows_per_file and not self.groupby_kwargs:
             random_column_name = "".join(secrets.choice(string.ascii_letters) for _ in range(20))

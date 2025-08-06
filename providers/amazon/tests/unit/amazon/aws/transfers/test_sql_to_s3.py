@@ -24,7 +24,7 @@ from unittest import mock
 import pandas as pd
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.amazon.aws.transfers.sql_to_s3 import SqlToS3Operator
 
@@ -50,7 +50,7 @@ class TestSqlToS3Operator:
             aws_conn_id="aws_conn_id",
             task_id="task_id",
             replace=True,
-            read_pd_kwargs={"dtype_backend": dtype_backend},
+            read_kwargs={"dtype_backend": dtype_backend},
             pd_kwargs={"index": False, "header": False},
             dag=None,
         )
@@ -87,7 +87,7 @@ class TestSqlToS3Operator:
             sql_conn_id="mysql_conn_id",
             aws_conn_id="aws_conn_id",
             task_id="task_id",
-            read_pd_kwargs={"dtype_backend": dtype_backend},
+            read_kwargs={"dtype_backend": dtype_backend},
             file_format="parquet",
             replace=True,
             dag=None,
@@ -220,7 +220,7 @@ class TestSqlToS3Operator:
             sql_conn_id="mysql_conn_id",
             aws_conn_id="aws_conn_id",
             task_id="task_id",
-            read_pd_kwargs={"dtype_backend": "pyarrow"},
+            read_kwargs={"dtype_backend": "pyarrow"},
             file_format="parquet",
             replace=True,
             dag=None,
@@ -407,3 +407,177 @@ class TestSqlToS3Operator:
         )
         hook = op._get_hook()
         assert hook.log_sql == op.sql_hook_params["log_sql"]
+
+    @pytest.mark.parametrize(
+        "df_type_param,expected_df_type",
+        [
+            pytest.param("polars", "polars", id="with-polars"),
+            pytest.param("pandas", "pandas", id="with-pandas"),
+            pytest.param(None, "pandas", id="with-default"),
+        ],
+    )
+    @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.S3Hook")
+    def test_execute_with_df_type(self, mock_s3_hook, df_type_param, expected_df_type):
+        query = "query"
+        s3_bucket = "bucket"
+        s3_key = "key"
+
+        mock_dbapi_hook = mock.Mock()
+        test_df = pd.DataFrame({"a": "1", "b": "2"}, index=[0, 1])
+        get_df_mock = mock_dbapi_hook.return_value.get_df
+        get_df_mock.return_value = test_df
+
+        kwargs = {
+            "query": query,
+            "s3_bucket": s3_bucket,
+            "s3_key": s3_key,
+            "sql_conn_id": "mysql_conn_id",
+            "aws_conn_id": "aws_conn_id",
+            "task_id": "task_id",
+            "replace": True,
+            "dag": None,
+        }
+        if df_type_param is not None:
+            kwargs["df_type"] = df_type_param
+
+        op = SqlToS3Operator(**kwargs)
+        op._get_hook = mock_dbapi_hook
+        op.execute(None)
+
+        mock_s3_hook.assert_called_once_with(aws_conn_id="aws_conn_id", verify=None)
+        get_df_mock.assert_called_once_with(sql=query, parameters=None, df_type=expected_df_type)
+        file_obj = mock_s3_hook.return_value.load_file_obj.call_args[1]["file_obj"]
+        assert isinstance(file_obj, io.BytesIO)
+        mock_s3_hook.return_value.load_file_obj.assert_called_once_with(
+            file_obj=file_obj, key=s3_key, bucket_name=s3_bucket, replace=True
+        )
+
+    @pytest.mark.parametrize(
+        "df_type,input_df_creator",
+        [
+            pytest.param(
+                "pandas",
+                lambda: pd.DataFrame({"category": ["A", "A", "B", "B"], "value": [1, 2, 3, 4]}),
+                id="with-pandas-dataframe",
+            ),
+            pytest.param(
+                "polars",
+                lambda: pytest.importorskip("polars").DataFrame(
+                    {"category": ["A", "A", "B", "B"], "value": [1, 2, 3, 4]}
+                ),
+                id="with-polars-dataframe",
+            ),
+        ],
+    )
+    def test_partition_dataframe(self, df_type, input_df_creator):
+        """Test that _partition_dataframe works with both pandas and polars DataFrames."""
+        op = SqlToS3Operator(
+            query="query",
+            s3_bucket="bucket",
+            s3_key="key",
+            sql_conn_id="mysql_conn_id",
+            task_id="task_id",
+            df_type=df_type,
+            groupby_kwargs={"by": "category"},
+        )
+
+        input_df = input_df_creator()
+        partitions = list(op._partition_dataframe(input_df))
+
+        assert len(partitions) == 2
+        for group_name, df in partitions:
+            assert isinstance(df, pd.DataFrame)
+            assert group_name in ["A", "B"]
+
+    @pytest.mark.parametrize(
+        "kwargs,expected_warning,expected_error,expected_read_kwargs",
+        [
+            pytest.param(
+                {"read_pd_kwargs": {"dtype_backend": "pyarrow"}},
+                "The 'read_pd_kwargs' parameter is deprecated",
+                None,
+                {"dtype_backend": "pyarrow"},
+                id="deprecated-read-pd-kwargs-warning",
+            ),
+            pytest.param(
+                {
+                    "read_kwargs": {"dtype_backend": "pyarrow"},
+                    "read_pd_kwargs": {"dtype_backend": "numpy_nullable"},
+                },
+                None,
+                "Cannot specify both 'read_kwargs' and 'read_pd_kwargs'",
+                None,
+                id="read-kwargs-conflict-error",
+            ),
+            pytest.param(
+                {"max_rows_per_file": 2, "groupby_kwargs": {"by": "category"}},
+                None,
+                "can not be both specified",
+                None,
+                id="max-rows-groupby-conflict-error",
+            ),
+        ],
+    )
+    def test_parameter_validation(self, kwargs, expected_warning, expected_error, expected_read_kwargs):
+        """Test parameter validation and deprecation warnings."""
+        base_kwargs = {
+            "query": "query",
+            "s3_bucket": "bucket",
+            "s3_key": "key",
+            "sql_conn_id": "mysql_conn_id",
+            "task_id": "task_id",
+        }
+        base_kwargs.update(kwargs)
+
+        if expected_error:
+            with pytest.raises(AirflowException, match=expected_error):
+                SqlToS3Operator(**base_kwargs)
+        elif expected_warning:
+            with pytest.warns(AirflowProviderDeprecationWarning, match=expected_warning):
+                op = SqlToS3Operator(**base_kwargs)
+            if expected_read_kwargs:
+                assert op.read_kwargs == expected_read_kwargs
+        else:
+            op = SqlToS3Operator(**base_kwargs)
+            if expected_read_kwargs:
+                assert op.read_kwargs == expected_read_kwargs
+
+    @pytest.mark.parametrize(
+        "df_type,should_call_fix_dtypes",
+        [
+            pytest.param("pandas", True, id="pandas-calls-fix-dtypes"),
+            pytest.param("polars", False, id="polars-skips-fix-dtypes"),
+        ],
+    )
+    @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.S3Hook")
+    def test_fix_dtypes_behavior_by_df_type(self, mock_s3_hook, df_type, should_call_fix_dtypes):
+        """Test that _fix_dtypes is called/not called based on df_type."""
+        query = "query"
+        s3_bucket = "bucket"
+        s3_key = "key"
+
+        mock_dbapi_hook = mock.Mock()
+        test_df = pd.DataFrame({"a": "1", "b": "2"}, index=[0, 1])
+        get_df_mock = mock_dbapi_hook.return_value.get_df
+        get_df_mock.return_value = test_df
+
+        op = SqlToS3Operator(
+            query=query,
+            s3_bucket=s3_bucket,
+            s3_key=s3_key,
+            sql_conn_id="mysql_conn_id",
+            aws_conn_id="aws_conn_id",
+            task_id="task_id",
+            df_type=df_type,
+            replace=True,
+            dag=None,
+        )
+        op._get_hook = mock_dbapi_hook
+
+        with mock.patch.object(SqlToS3Operator, "_fix_dtypes") as mock_fix_dtypes:
+            op.execute(None)
+
+        if should_call_fix_dtypes:
+            mock_fix_dtypes.assert_called_once()
+        else:
+            mock_fix_dtypes.assert_not_called()
