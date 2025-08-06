@@ -591,7 +591,7 @@ class WasbAsyncHook(WasbHook):
         """Initialize the hook instance."""
         self.conn_id = wasb_conn_id
         self.public_read = public_read
-        self.blob_service_client: AsyncBlobServiceClient | None = None  # type: ignore
+        self.blob_service_client: AsyncBlobServiceClient = None  # type: ignore
 
     async def get_async_conn(self) -> AsyncBlobServiceClient:
         """Return the Async BlobServiceClient object."""
