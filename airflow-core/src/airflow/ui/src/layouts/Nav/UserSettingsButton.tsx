@@ -35,7 +35,7 @@ import TimezoneModal from "./TimezoneModal";
 
 type UserSettingsButtonProps = {
   readonly externalViews: Array<AppBuilderMenuItemResponse>;
-}
+};
 
 export const UserSettingsButton = ({ externalViews }: UserSettingsButtonProps) => {
   const { t: translate } = useTranslation();

@@ -22,8 +22,8 @@ import { FiChevronRight } from "react-icons/fi";
 import { LuPlug } from "react-icons/lu";
 
 import { useConfigServiceGetConfigs } from "openapi/queries";
-import { StateBadge } from "src/components/StateBadge";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { StateBadge } from "src/components/StateBadge";
 import { getPluginImportErrors } from "src/utils/types";
 
 import { PluginImportErrorsModal } from "./PluginImportErrorsModal";
@@ -37,7 +37,7 @@ export const PluginImportErrors = ({ iconOnly = false }: { readonly iconOnly?: b
     return <Skeleton height="20px" width="100px" />;
   }
 
-  if (error) {
+  if (error !== undefined) {
     return <ErrorAlert error={error} />;
   }
 

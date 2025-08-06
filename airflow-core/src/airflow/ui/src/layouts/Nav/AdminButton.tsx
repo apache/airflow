@@ -64,7 +64,7 @@ export const AdminButton = ({
   type CombinedView = {
     href: string;
     title: string;
-  }
+  };
 
   // Combine static links and external views
   const allViews: Array<CombinedView> = [

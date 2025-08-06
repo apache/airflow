@@ -58,7 +58,7 @@ export const BrowseButton = ({
     ));
 
   if (!menuItems.length && !externalViews.length) {
-    return null;
+    return undefined;
   }
 
   return (
