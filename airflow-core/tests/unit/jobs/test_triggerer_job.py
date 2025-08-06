@@ -428,7 +428,9 @@ async def test_trigger_create_race_condition_38599(mock_dag_bag_cls, session, su
     dm = DagModel(dag_id="test-dag")
     session.add(dm)
     SerializedDagModel.write_dag(dag, bundle_name="testing")
-    dag_run = DagRun(dag.dag_id, run_id="abc", run_type="manual", start_date=timezone.utcnow(), run_after=timezone.utcnow())
+    dag_run = DagRun(
+        dag.dag_id, run_id="abc", run_type="manual", start_date=timezone.utcnow(), run_after=timezone.utcnow()
+    )
     dag_version = DagVersion.get_latest_version(dag.dag_id)
     task = PythonOperator(task_id="dummy-task", python_callable=print)
     task.dag = dag
@@ -888,7 +890,9 @@ class CustomTriggerDagRun(BaseTrigger):
 @pytest.mark.asyncio
 @pytest.mark.execution_timeout(10)
 @patch("airflow.jobs.triggerer_job_runner.DagBag")
-async def test_trigger_can_fetch_trigger_dag_run_count_and_state_in_deferrable(mock_dag_bag_cls, session, dag_maker):
+async def test_trigger_can_fetch_trigger_dag_run_count_and_state_in_deferrable(
+    mock_dag_bag_cls, session, dag_maker
+):
     """Checks that the trigger will successfully fetch the count of trigger DAG runs."""
     # Create the test DAG and task
     with dag_maker(dag_id="trigger_can_fetch_trigger_dag_run_count_and_state_in_deferrable", session=session):
