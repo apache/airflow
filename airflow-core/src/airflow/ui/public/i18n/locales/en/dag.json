@@ -39,6 +39,11 @@
     "viewInExternal": "View logs in {{name}} (attempt {{attempt}})",
     "warning": "WARNING"
   },
+  "navigation": {
+    "jump": "Jump: Shift+{{arrow}}",
+    "navigation": "Navigation: {{arrow}}",
+    "toggleGroup": "Toggle group: Space"
+  },
   "overview": {
     "buttons": {
       "failedRun_one": "Failed Run",
