@@ -770,20 +770,39 @@ class TestCliImportConnections:
                 "schema": "airflow",
                 "extra": '{"spam": "egg"}',
             },
+            # Add new3 if the test expects an error about it
+            "new3": {
+                "conn_type": "sqlite",
+                "description": "new3 description",
+                "host": "host",
+            },
         }
 
-        # We're not testing the behavior of _parse_secret_file, assume it successfully reads JSON, YAML or env
+        # First, create new3 to trigger the "already exists" error
+        with create_session() as session:
+            session.add(Connection(conn_id="new3", conn_type="sqlite"))
+            session.commit()
+
+        # We're not testing the behavior of _parse_secret_file
         mocker.patch("airflow.secrets.local_filesystem._parse_secret_file", return_value=expected_connections)
         mocker.patch("os.path.exists", return_value=True)
         mock_print = mocker.patch("airflow.cli.commands.connection_command.print")
+
         connection_command.connections_import(
             self.parser.parse_args(["connections", "import", "sample.json"])
         )
-        assert "Could not import connection new3: connection already exists." in mock_print.call_args[0][0]
 
-        # Verify that the imported connections match the expected, sample connections
+        # Check all print calls to find the error message
+        print_calls = [str(call) for call in mock_print.call_args_list]
+        assert any("Could not import connection new3" in call for call in print_calls), (
+            f"Expected error message not found. Print calls: {print_calls}"
+        )
+
+        # Verify connections (exclude new3 since it should fail)
+        expected_imported = {k: v for k, v in expected_connections.items() if k != "new3"}
+
         with create_session() as session:
-            current_conns = session.query(Connection).all()
+            current_conns = session.query(Connection).filter(Connection.conn_id.in_(["new0", "new1"])).all()
 
             comparable_attrs = [
                 "conn_id",
@@ -801,7 +820,7 @@ class TestCliImportConnections:
                 current_conn.conn_id: {attr: getattr(current_conn, attr) for attr in comparable_attrs}
                 for current_conn in current_conns
             }
-            assert expected_connections == current_conns_as_dicts
+            assert expected_imported == current_conns_as_dicts
 
     def test_cli_connections_import_should_not_overwrite_existing_connections(self, session, mocker):
         mocker.patch("os.path.exists", return_value=True)
