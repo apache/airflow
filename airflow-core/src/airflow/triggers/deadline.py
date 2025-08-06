@@ -22,7 +22,7 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from airflow.utils.module_loading import import_string
+from airflow.utils.module_loading import import_string, qualname
 
 log = logging.getLogger(__name__)
 
@@ -40,8 +40,8 @@ class DeadlineCallbackTrigger(BaseTrigger):
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
-            f"{type(self).__module__}.{type(self).__qualname__}",
-            {"callback_path": self.callback_path, "callback_kwargs": self.callback_kwargs},
+            qualname(self),
+            {attr: getattr(self, attr) for attr in ("callback_path", "callback_kwargs")},
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
