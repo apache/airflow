@@ -5,6 +5,32 @@
     "reason": "Reason",
     "title": "Dependencies Blocking Task From Getting Scheduled"
   },
+  "calendar": {
+    "activityTitle": "DAG Run Activity - {{year}}",
+    "dagId": "Calendar for DAG: {{dagId}}",
+    "dagRuns": "DAG runs: {{count}}",
+    "daily": "Daily",
+    "error": "Error loading calendar data",
+    "hourly": "Hourly",
+    "less": "Less",
+    "loading": "Loading...",
+    "more": "More",
+    "next": "Next",
+    "noData": "No data available",
+    "previous": "Previous",
+    "runCount": "{{count}} run",
+    "runCount_other": "{{count}} runs",
+    "state": {
+      "failed": "Failed",
+      "planned": "Planned",
+      "queued": "Queued",
+      "running": "Running",
+      "success": "Success"
+    },
+    "summary": "Recent Activity Summary:",
+    "tooltip": "{{date}}: {{count}} run{{plural}} {{state}}",
+    "totalEntries": "Total entries: {{count}}"
+  },
   "code": {
     "bundleUrl": "Bundle Url",
     "noCode": "No Code Found",
@@ -96,6 +122,7 @@
     "assetEvents": "Asset Events",
     "auditLog": "Audit Log",
     "backfills": "Backfills",
+    "calendar": "Calendar",
     "code": "Code",
     "details": "Details",
     "logs": "Logs",
