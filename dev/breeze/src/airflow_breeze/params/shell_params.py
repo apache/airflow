@@ -47,6 +47,7 @@ from airflow_breeze.global_constants import (
     CELERY_BROKER_URLS_MAP,
     CELERY_EXECUTOR,
     DEFAULT_CELERY_BROKER,
+    DEFAULT_TEMPLATE_SEARCHPATH,
     DEFAULT_UV_HTTP_TIMEOUT,
     DOCKER_DEFAULT_PLATFORM,
     DRILL_HOST_PORT,
@@ -230,6 +231,7 @@ class ShellParams:
     verbose_commands: bool = False
     version_suffix: str = ""
     warn_image_upgrade_needed: bool = False
+    template_searchpath: str = DEFAULT_TEMPLATE_SEARCHPATH
 
     def clone_with_test(self, test_type: str) -> ShellParams:
         new_params = deepcopy(self)
@@ -542,6 +544,7 @@ class ShellParams:
         _set_var(_env, "AIRFLOW__CELERY__BROKER_URL", self.airflow_celery_broker_url)
         _set_var(_env, "AIRFLOW__CORE__AUTH_MANAGER", self.auth_manager_path)
         _set_var(_env, "AIRFLOW__CORE__EXECUTOR", self.executor)
+        _set_var(_env, "AIRFLOW__CORE__TEMPLATE_SEARCHPATH", self.template_searchpath)
         if self.auth_manager == SIMPLE_AUTH_MANAGER:
             _set_var(_env, "AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS", "admin:admin,viewer:viewer")
         _set_var(

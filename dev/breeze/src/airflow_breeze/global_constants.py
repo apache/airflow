@@ -794,3 +794,7 @@ class GithubEvents(Enum):
 @clearable_cache
 def github_events() -> list[str]:
     return [e.value for e in GithubEvents]
+
+
+# Define the default template path
+DEFAULT_TEMPLATE_SEARCHPATH = "/opt/airflow/dags/include"
