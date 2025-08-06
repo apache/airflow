@@ -382,7 +382,6 @@ class AwsEcsExecutor(BaseExecutor):
             cmd = ecs_task.command
             queue = ecs_task.queue
             exec_config = ecs_task.executor_config
-            self.log.info("ECS task executor config: %s", exec_config)
             attempt_number = ecs_task.attempt_number
             failure_reasons = []
             if timezone.utcnow() < ecs_task.next_attempt_time:
@@ -390,14 +389,11 @@ class AwsEcsExecutor(BaseExecutor):
                 continue
             try:
                 run_task_response = self._run_task(task_key, cmd, queue, exec_config)
-                self.log.info("ECS task %s has succeeded.", task_key)
             except NoCredentialsError:
                 self.pending_tasks.append(ecs_task)
-                self.log.info("ECS task %s has no credentials error.", task_key)
                 raise
             except ClientError as e:
                 error_code = e.response["Error"]["Code"]
-                self.log.info("ECS task %s has client error", task_key)
                 if error_code in INVALID_CREDENTIALS_EXCEPTIONS:
                     self.pending_tasks.append(ecs_task)
                     raise
@@ -407,13 +403,11 @@ class AwsEcsExecutor(BaseExecutor):
                 # wrong.  For any possible failure we want to add the exception reasons to the
                 # failure list so that it is logged to the user and most importantly the task is
                 # added back to the pending list to be retried later.
-                self.log.info("ECS task %s has ran into an exception. Reason: %s", task_key, str(e))
                 failure_reasons.append(str(e))
             else:
                 # We got a response back, check if there were failures. If so, add them to the
                 # failures list so that it is logged to the user and most importantly the task
                 # is added back to the pending list to be retried later.
-                self.log.info("ECS task %s has failed, but response was seen.", task_key)
                 if run_task_response["failures"]:
                     failure_reasons.extend([f["reason"] for f in run_task_response["failures"]])
 

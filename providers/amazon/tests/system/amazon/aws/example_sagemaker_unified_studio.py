@@ -38,6 +38,7 @@ else:
         from airflow.models.baseoperator import chain
         from airflow.models.dag import DAG
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+
 """
 Prerequisites: The account which runs this test must manually have the following:
 1. An IAM IDC organization set up in the testing region with a user initialized
@@ -150,12 +151,10 @@ with DAG(
                 "containerOverrides": [
                     {
                         "environment": [
-                            {
-                                "name": key,
-                                "value": value
-                            } for key, value in mock_mwaa_environment_params.items()
+                            {"name": key, "value": value}
+                            for key, value in mock_mwaa_environment_params.items()
                         ],
-                        "name": "ECSExecutorContainer" # Necessary parameter
+                        "name": "ECSExecutorContainer",  # Necessary parameter
                     }
                 ]
             }
