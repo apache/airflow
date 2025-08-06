@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { UseQueryResult } from "@tanstack/react-query";
-import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GridService, HitlSharedLinksService, HumanInTheLoopService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GridService, HumanInTheLoopService, HumanInTheLoopSharedLinksService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 export type AssetServiceGetAssetsDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssets>>;
 export type AssetServiceGetAssetsQueryResult<TData = AssetServiceGetAssetsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
@@ -675,18 +675,12 @@ export const UseHumanInTheLoopServiceGetHitlDetailsKeyFn = ({ bodySearch, dagId,
   taskIdPattern?: string;
   userId?: string[];
 } = {}, queryKey?: Array<unknown>) => [useHumanInTheLoopServiceGetHitlDetailsKey, ...(queryKey ?? [{ bodySearch, dagId, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, taskId, taskIdPattern, userId }])];
-export type HitlSharedLinksServiceRedirectSharedLinkDefaultResponse = Awaited<ReturnType<typeof HitlSharedLinksService.redirectSharedLink>>;
-export type HitlSharedLinksServiceRedirectSharedLinkQueryResult<TData = HitlSharedLinksServiceRedirectSharedLinkDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
-export const useHitlSharedLinksServiceRedirectSharedLinkKey = "HitlSharedLinksServiceRedirectSharedLink";
-export const UseHitlSharedLinksServiceRedirectSharedLinkKeyFn = ({ token }: {
+export type HumanInTheLoopSharedLinksServiceRedirectSharedLinkDefaultResponse = Awaited<ReturnType<typeof HumanInTheLoopSharedLinksService.redirectSharedLink>>;
+export type HumanInTheLoopSharedLinksServiceRedirectSharedLinkQueryResult<TData = HumanInTheLoopSharedLinksServiceRedirectSharedLinkDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useHumanInTheLoopSharedLinksServiceRedirectSharedLinkKey = "HumanInTheLoopSharedLinksServiceRedirectSharedLink";
+export const UseHumanInTheLoopSharedLinksServiceRedirectSharedLinkKeyFn = ({ token }: {
   token: string;
-}, queryKey?: Array<unknown>) => [useHitlSharedLinksServiceRedirectSharedLinkKey, ...(queryKey ?? [{ token }])];
-export type HitlSharedLinksServiceExecuteSharedLinkActionDefaultResponse = Awaited<ReturnType<typeof HitlSharedLinksService.executeSharedLinkAction>>;
-export type HitlSharedLinksServiceExecuteSharedLinkActionQueryResult<TData = HitlSharedLinksServiceExecuteSharedLinkActionDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
-export const useHitlSharedLinksServiceExecuteSharedLinkActionKey = "HitlSharedLinksServiceExecuteSharedLinkAction";
-export const UseHitlSharedLinksServiceExecuteSharedLinkActionKeyFn = ({ token }: {
-  token: string;
-}, queryKey?: Array<unknown>) => [useHitlSharedLinksServiceExecuteSharedLinkActionKey, ...(queryKey ?? [{ token }])];
+}, queryKey?: Array<unknown>) => [useHumanInTheLoopSharedLinksServiceRedirectSharedLinkKey, ...(queryKey ?? [{ token }])];
 export type MonitorServiceGetHealthDefaultResponse = Awaited<ReturnType<typeof MonitorService.getHealth>>;
 export type MonitorServiceGetHealthQueryResult<TData = MonitorServiceGetHealthDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useMonitorServiceGetHealthKey = "MonitorServiceGetHealth";
@@ -800,8 +794,9 @@ export type TaskInstanceServicePostClearTaskInstancesMutationResult = Awaited<Re
 export type PoolServicePostPoolMutationResult = Awaited<ReturnType<typeof PoolService.postPool>>;
 export type XcomServiceCreateXcomEntryMutationResult = Awaited<ReturnType<typeof XcomService.createXcomEntry>>;
 export type VariableServicePostVariableMutationResult = Awaited<ReturnType<typeof VariableService.postVariable>>;
-export type HitlSharedLinksServiceGenerateSharedLinkMutationResult = Awaited<ReturnType<typeof HitlSharedLinksService.generateSharedLink>>;
-export type HitlSharedLinksServiceGenerateMappedTiSharedLinkMutationResult = Awaited<ReturnType<typeof HitlSharedLinksService.generateMappedTiSharedLink>>;
+export type HumanInTheLoopSharedLinksServiceGenerateSharedLinkMutationResult = Awaited<ReturnType<typeof HumanInTheLoopSharedLinksService.generateSharedLink>>;
+export type HumanInTheLoopSharedLinksServiceGenerateMappedTiSharedLinkMutationResult = Awaited<ReturnType<typeof HumanInTheLoopSharedLinksService.generateMappedTiSharedLink>>;
+export type HumanInTheLoopSharedLinksServiceUpdateHitlDetailThroughSharedLinkMutationResult = Awaited<ReturnType<typeof HumanInTheLoopSharedLinksService.updateHitlDetailThroughSharedLink>>;
 export type BackfillServicePauseBackfillMutationResult = Awaited<ReturnType<typeof BackfillService.pauseBackfill>>;
 export type BackfillServiceUnpauseBackfillMutationResult = Awaited<ReturnType<typeof BackfillService.unpauseBackfill>>;
 export type BackfillServiceCancelBackfillMutationResult = Awaited<ReturnType<typeof BackfillService.cancelBackfill>>;

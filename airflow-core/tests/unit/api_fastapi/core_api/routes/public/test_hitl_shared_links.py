@@ -23,312 +23,386 @@ from unittest.mock import ANY
 
 import pytest
 from fastapi import status
+from sqlalchemy import select
 
-from airflow.api_fastapi.core_api.datamodels.hitl import HITLDetailResponse
-from airflow.utils import timezone
+from airflow._shared.timezones.timezone import convert_to_utc
+from airflow.api_fastapi.core_api.services.public.hitl_shared_links import (
+    HITLSharedLinkConfig,
+    HITLSharedLinkData,
+    decode_shared_data,
+)
+from airflow.models.hitl import HITL_LINK_TYPE, HITLDetail
+from airflow.models.taskinstance import TaskInstance as TI
 
-from tests.test_utils.config import conf_vars
+from tests_common.pytest_plugin import time_machine
+from tests_common.test_utils.config import conf_vars
+
+if TYPE_CHECKING:
+    from fastapi.testclient import TestClient
+    from sqlalchemy.orm import Session
+
+    from tests_common.pytest_plugin import CreateTaskInstance, TaskInstance
+
+pytestmark = pytest.mark.db_test
+
+TEST_SERVER_PREFIX = "http://testserver/api/v2"
+
+DAG_ID = "test_hitl_shared_link_dag"
+DAG_RUN_ID = "run_id"
+TASK_ID = "sample_hitl_task"
+
+CURRENT_TIME = convert_to_utc(datetime.datetime(2025, 8, 14, 0, 0, 0))
+ONE_DAY_BEFORE_CURRENT = CURRENT_TIME - datetime.timedelta(days=1)
+ONE_DAY_AFTER_CURRENT = CURRENT_TIME + datetime.timedelta(days=1)
 
 
-class TestHITLSharedLinksAPI:
-    """Test HITL shared links API endpoints."""
+@pytest.fixture
+def enabled():
+    with conf_vars({("api", "hitl_enable_shared_links"): True}):
+        yield
 
-    @pytest.fixture(autouse=True)
-    def setup(self):
-        """Set up test environment."""
-        with conf_vars({("api", "hitl_enable_shared_links"): "True"}):
-            yield
 
-    def test_generate_shared_link_disabled(self, client):
-        """Test that shared link generation is disabled when not configured."""
-        with conf_vars({("api", "hitl_enable_shared_links"): "False"}):
-            response = client.post(
-                "/api/v2/hitl-shared-links/generate/test_dag/test_run/test_task?try_number=1",
-                json={"link_type": "direct_action", "action": "approve"},
-            )
-            assert response.status_code == status.HTTP_403_FORBIDDEN
-            assert "not enabled" in response.json()["detail"]
+@pytest.fixture
+def sample_ti(create_task_instance: CreateTaskInstance, session: Session) -> TaskInstance:
+    ti = create_task_instance(dag_id=DAG_ID, run_id=DAG_RUN_ID, task_id=TASK_ID, session=session)
+    session.commit()
+    return ti
 
-    def test_generate_direct_action_link(self, client):
-        """Test generating a direct action shared link."""
-        with patch(
-            "airflow.api_fastapi.core_api.routes.public.hitl_shared_links.service_generate_shared_link"
-        ) as mock_generate:
-            mock_generate.return_value = {
-                "url": "http://localhost:8080/api/v2/hitl-shared-links/execute?token=test_token",
-                "expires_at": "2025-01-01T12:00:00Z",
-                "link_type": "direct_action",
-                "action": "approve",
-                "dag_id": "test_dag",
-                "dag_run_id": "test_run",
-                "task_id": "test_task",
-                "try_number": 1,
-                "map_index": None,
-                "task_instance_uuid": "test-uuid-123",
-            }
 
-            response = client.post(
-                "/api/v2/hitl-shared-links/generate/test_dag/test_run/test_task?try_number=1",
-                json={
-                    "link_type": "direct_action",
-                    "action": "approve",
-                    "chosen_options": ["Approve"],
-                    "params_input": {"comment": "Approved"},
-                },
-            )
+@pytest.mark.parametrize("map_index", [None, -1])
+class TestGenerateSharedLink:
+    """Tests for /hitlSharedLinks/generate endpoints"""
 
-            assert response.status_code == status.HTTP_201_CREATED
-            data = response.json()
-            assert data["link_type"] == "direct_action"
-            assert data["action"] == "approve"
-            assert "execute?token=" in data["url"]
-            assert data["task_instance_uuid"] == "test-uuid-123"
+    def gen_endpoint(self, map_index: int | None) -> str:
+        base = f"/hitlSharedLinks/generate/{DAG_ID}/{DAG_RUN_ID}/{TASK_ID}"
+        return base if map_index is None else f"{base}/{map_index}"
 
-    def test_generate_ui_redirect_link(self, client):
-        """Test generating a UI redirect shared link."""
-        with patch(
-            "airflow.api_fastapi.core_api.routes.public.hitl_shared_links.service_generate_shared_link"
-        ) as mock_generate:
-            mock_generate.return_value = {
-                "url": "http://localhost:8080/api/v2/hitl-shared-links/redirect?token=test_token",
-                "expires_at": "2025-01-01T12:00:00Z",
-                "link_type": "ui_redirect",
-                "action": None,
-                "dag_id": "test_dag",
-                "dag_run_id": "test_run",
-                "task_id": "test_task",
-                "try_number": 1,
-                "map_index": None,
-                "task_instance_uuid": "test-uuid-456",
-            }
+    @pytest.mark.parametrize(
+        "link_type, chosen_options_in_payload, params_input_payload",
+        (("redirect", None, None), ("respond", ["option 1"], None)),
+    )
+    @time_machine.travel(CURRENT_TIME, tick=False)
+    def test_should_respond_201(
+        self,
+        test_client: TestClient,
+        sample_ti: TaskInstance,
+        link_type: HITL_LINK_TYPE,
+        chosen_options_in_payload: list[str] | None,
+        params_input_payload: dict[str, Any] | None,
+        map_index: int | None,
+    ) -> None:
+        endpoint = self.gen_endpoint(map_index)
+        secret_key = test_client.app.state.secret_key  # type: ignore[attr-defined]
 
-            response = client.post(
-                "/api/v2/hitl-shared-links/generate/test_dag/test_run/test_task?try_number=1",
-                json={"link_type": "ui_redirect"},
-            )
+        expected_data = HITLSharedLinkData(
+            ti_id=sample_ti.id,
+            dag_id=DAG_ID,
+            dag_run_id=DAG_RUN_ID,
+            task_id=TASK_ID,
+            map_index=map_index,
+            shared_link_config=HITLSharedLinkConfig(
+                link_type=link_type,
+                expires_at=ONE_DAY_AFTER_CURRENT.isoformat(),
+                chosen_options=chosen_options_in_payload or [],
+                params_input=params_input_payload or {},
+            ),
+        )
 
-            assert response.status_code == status.HTTP_201_CREATED
-            data = response.json()
-            assert data["link_type"] == "ui_redirect"
-            assert data["action"] is None
-            assert "redirect?token=" in data["url"]
-            assert data["task_instance_uuid"] == "test-uuid-456"
+        resp = test_client.post(
+            endpoint,
+            json={
+                "link_type": link_type,
+                "expires_at": None,
+                "chosen_options": chosen_options_in_payload,
+                "params_input": params_input_payload,
+            },
+        )
+        assert resp.status_code == status.HTTP_201_CREATED
+        url = resp.json()["url"]
+        token = url.split("/")[-1]
+        assert url.startswith(f"{TEST_SERVER_PREFIX}/hitlSharedLinks/{link_type}/")
+        assert decode_shared_data(secret_key=secret_key, token=token) == expected_data
 
-    def test_generate_mapped_ti_shared_link(self, client):
-        """Test generating a shared link for mapped task instances."""
-        with patch(
-            "airflow.api_fastapi.core_api.routes.public.hitl_shared_links.service_generate_shared_link"
-        ) as mock_generate:
-            mock_generate.return_value = {
-                "url": "http://localhost:8080/api/v2/hitl-shared-links/execute?token=test_token",
-                "expires_at": "2025-01-01T12:00:00Z",
-                "link_type": "direct_action",
-                "action": "approve",
-                "dag_id": "test_dag",
-                "dag_run_id": "test_run",
-                "task_id": "test_task",
-                "try_number": 1,
-                "map_index": 0,
-                "task_instance_uuid": "test-uuid-789",
-            }
+    @pytest.mark.parametrize(
+        "invalid_payload",
+        [
+            {"link_type": "respond", "expires_at": None, "chosen_options": None, "params_input": None},
+            {
+                "link_type": "redirect",
+                "expires_at": None,
+                "chosen_options": ["option 1"],
+                "params_input": None,
+            },
+            {
+                "link_type": "redirect",
+                "expires_at": None,
+                "chosen_options": None,
+                "params_input": {"test": "test"},
+            },
+            {
+                "link_type": "redirect",
+                "expires_at": ONE_DAY_BEFORE_CURRENT.isoformat(),
+                "chosen_options": None,
+                "params_input": None,
+            },
+        ],
+    )
+    def test_should_respond_400_with_invalid_payload(
+        self,
+        test_client: TestClient,
+        invalid_payload: dict[str, Any],
+        map_index: int | None,
+    ) -> None:
+        resp = test_client.post(self.gen_endpoint(map_index), json=invalid_payload)
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
 
-            response = client.post(
-                "/api/v2/hitl-shared-links/generate/test_dag/test_run/test_task/0?try_number=1",
-                json={
-                    "link_type": "direct_action",
-                    "action": "approve",
-                    "chosen_options": ["Approve"],
-                },
-            )
+    @pytest.mark.usefixtures("sample_ti")
+    def test_should_respond_401(self, unauthenticated_test_client: TestClient, map_index: int | None) -> None:
+        resp = unauthenticated_test_client.post(
+            self.gen_endpoint(map_index),
+            json={"link_type": "redirect", "expires_at": None, "chosen_options": None, "params_input": None},
+        )
+        assert resp.status_code == status.HTTP_401_UNAUTHORIZED
 
-            assert response.status_code == status.HTTP_201_CREATED
-            data = response.json()
-            assert data["map_index"] == 0
-            assert data["task_instance_uuid"] == "test-uuid-789"
+    @pytest.mark.usefixtures("sample_ti")
+    def test_should_respond_403(self, unauthorized_test_client: TestClient, map_index: int | None) -> None:
+        resp = unauthorized_test_client.post(
+            self.gen_endpoint(map_index),
+            json={"link_type": "redirect", "expires_at": None, "chosen_options": None, "params_input": None},
+        )
+        assert resp.status_code == status.HTTP_403_FORBIDDEN
 
-    def test_execute_shared_link_action(self, client):
-        """Test executing an action via shared link."""
-        # Create a valid token
-        token_data = {
-            "task_instance_uuid": "test-uuid-123",
-            "type": "direct_action",
-            "dag_id": "test_dag",
-            "dag_run_id": "test_run",
-            "task_id": "test_task",
-            "try_number": 1,
-            "map_index": None,
-            "action": "approve",
-            "chosen_options": ["Approve"],
-            "params_input": {"comment": "Approved"},
-            "expires_at": (timezone.utcnow() + timedelta(hours=1)).isoformat(),
-        }
-        token = base64.urlsafe_b64encode(json.dumps(token_data).encode()).decode()
+    def test_should_respond_404(self, test_client: TestClient, map_index: int | None) -> None:
+        resp = test_client.post(
+            self.gen_endpoint(map_index),
+            json={"link_type": "redirect", "expires_at": None, "chosen_options": None, "params_input": None},
+        )
+        assert resp.status_code == status.HTTP_404_NOT_FOUND
 
-        with patch(
-            "airflow.api_fastapi.core_api.routes.public.hitl_shared_links.service_execute_shared_link_action"
-        ) as mock_execute:
-            mock_execute.return_value = HITLDetailResponse(
-                user_id="shared_link_user",
-                response_at=timezone.utcnow(),
-                chosen_options=["Approve"],
-                params_input={"comment": "Approved"},
-            )
+    def test_should_respond_422_with_invalid_payload(
+        self, test_client: TestClient, map_index: int | None
+    ) -> None:
+        resp = test_client.post(
+            self.gen_endpoint(map_index),
+            json={
+                "link_type": "no_such_type",
+                "expires_at": None,
+                "chosen_options": None,
+                "params_input": None,
+            },
+        )
+        assert resp.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
-            response = client.get(f"/api/v2/hitl-shared-links/execute?token={token}")
 
-            assert response.status_code == status.HTTP_200_OK
-            data = response.json()
-            assert data["chosen_options"] == ["Approve"]
+class TestHitlSharedLinkRedirect:
+    @pytest.fixture
+    def redirect_token(self, test_client: TestClient, sample_ti: TaskInstance) -> str:
+        """Generate a redirect token"""
+        resp = test_client.post(
+            f"/hitlSharedLinks/generate/{DAG_ID}/{DAG_RUN_ID}/{TASK_ID}",
+            json={
+                "link_type": "redirect",
+                "expires_at": None,
+                "chosen_options": None,
+                "params_input": None,
+            },
+        )
+        url = resp.json()["url"]
+        return url.split("/")[-1]
 
-    def test_execute_shared_link_action_invalid_token(self, client):
-        """Test executing an action with invalid token."""
-        response = client.get("/api/v2/hitl-shared-links/execute?token=invalid_token")
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
+    @pytest.mark.usefixtures("sample_ti")
+    def test_should_respond_307(self, test_client: TestClient, redirect_token: str) -> None:
+        resp = test_client.get(
+            f"/hitlSharedLinks/redirect/{redirect_token}",
+            follow_redirects=False,
+        )
+        assert resp.status_code == status.HTTP_307_TEMPORARY_REDIRECT
+        assert (
+            resp.headers["location"]
+            == f"http://testserver/dags/{DAG_ID}/runs/{DAG_RUN_ID}/tasks/{TASK_ID}/required_actions"
+        )
 
-    def test_execute_shared_link_action_expired_token(self, client):
-        """Test executing an action with expired token."""
-        # Create an expired token
-        token_data = {
-            "task_instance_uuid": "test-uuid-123",
-            "type": "direct_action",
-            "dag_id": "test_dag",
-            "dag_run_id": "test_run",
-            "task_id": "test_task",
-            "try_number": 1,
-            "map_index": None,
-            "action": "approve",
-            "chosen_options": ["Approve"],
-            "params_input": {},
-            "expires_at": (timezone.utcnow() - timedelta(hours=1)).isoformat(),
-        }
-        token = base64.urlsafe_b64encode(json.dumps(token_data).encode()).decode()
-
-        response = client.get(f"/api/v2/hitl-shared-links/execute?token={token}")
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert "expired" in response.json()["detail"]
-
-    def test_execute_shared_link_action_wrong_type(self, client):
-        """Test executing an action with wrong link type."""
-        # Create a token with wrong type
-        token_data = {
-            "task_instance_uuid": "test-uuid-123",
-            "type": "ui_redirect",
-            "dag_id": "test_dag",
-            "dag_run_id": "test_run",
-            "task_id": "test_task",
-            "try_number": 1,
-            "map_index": None,
-            "action": "approve",
-            "chosen_options": ["Approve"],
-            "params_input": {},
-            "expires_at": (timezone.utcnow() + timedelta(hours=1)).isoformat(),
-        }
-        token = base64.urlsafe_b64encode(json.dumps(token_data).encode()).decode()
-
-        response = client.get(f"/api/v2/hitl-shared-links/execute?token={token}")
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert "not a direct_action link" in response.json()["detail"]
-
-    def test_redirect_shared_link(self, client):
-        """Test redirecting to Airflow UI via shared link."""
-        # Create a valid token
-        token_data = {
-            "task_instance_uuid": "test-uuid-456",
-            "type": "ui_redirect",
-            "dag_id": "test_dag",
-            "dag_run_id": "test_run",
-            "task_id": "test_task",
-            "try_number": 1,
-            "map_index": None,
-            "action": None,
-            "chosen_options": None,
-            "params_input": None,
-            "expires_at": (timezone.utcnow() + timedelta(hours=1)).isoformat(),
-        }
-        token = base64.urlsafe_b64encode(json.dumps(token_data).encode()).decode()
-
-        with patch(
-            "airflow.api_fastapi.core_api.routes.public.hitl_shared_links.service_redirect_shared_link"
-        ) as mock_redirect:
-            mock_redirect.return_value = (
-                "http://localhost:8080/dags/test_dag/grid?task_id=test_task&dag_run_id=test_run"
-            )
-
-            response = client.get(f"/api/v2/hitl-shared-links/redirect?token={token}")
-
-            assert response.status_code == status.HTTP_307_TEMPORARY_REDIRECT
-            assert (
-                response.headers["location"]
-                == "http://localhost:8080/dags/test_dag/grid?task_id=test_task&dag_run_id=test_run"
-            )
-
-    def test_redirect_shared_link_with_map_index(self, client):
-        """Test redirecting to Airflow UI for mapped task instances."""
-        # Create a valid token with map_index
-        token_data = {
-            "task_instance_uuid": "test-uuid-789",
-            "type": "ui_redirect",
-            "dag_id": "test_dag",
-            "dag_run_id": "test_run",
-            "task_id": "test_task",
-            "try_number": 1,
-            "map_index": 0,
-            "action": None,
-            "chosen_options": None,
-            "params_input": None,
-            "expires_at": (timezone.utcnow() + timedelta(hours=1)).isoformat(),
-        }
-        token = base64.urlsafe_b64encode(json.dumps(token_data).encode()).decode()
-
-        with patch(
-            "airflow.api_fastapi.core_api.routes.public.hitl_shared_links.service_redirect_shared_link"
-        ) as mock_redirect:
-            mock_redirect.return_value = (
-                "http://localhost:8080/dags/test_dag/grid?task_id=test_task&dag_run_id=test_run&map_index=0"
-            )
-
-            response = client.get(f"/api/v2/hitl-shared-links/redirect?token={token}")
-
-            assert response.status_code == status.HTTP_307_TEMPORARY_REDIRECT
-            assert "map_index=0" in response.headers["location"]
-
-    def test_redirect_shared_link_invalid_token(self, client):
-        """Test redirecting with invalid token."""
-        response = client.get("/api/v2/hitl-shared-links/redirect?token=invalid_token")
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
-
-    def test_redirect_shared_link_wrong_type(self, client):
-        """Test redirecting with wrong link type."""
-        # Create a token with wrong type
-        token_data = {
-            "task_instance_uuid": "test-uuid-123",
-            "type": "direct_action",
-            "dag_id": "test_dag",
-            "dag_run_id": "test_run",
-            "task_id": "test_task",
-            "try_number": 1,
-            "map_index": None,
-            "action": "approve",
-            "chosen_options": ["Approve"],
+        # decode token to verify correctness
+        shared_data = decode_shared_data(
+            secret_key=test_client.app.state.secret_key,  # type: ignore[attr-defined]
+            token=redirect_token,
+        )
+        assert shared_data["dag_id"] == DAG_ID
+        assert shared_data["dag_run_id"] == DAG_RUN_ID
+        assert shared_data["task_id"] == TASK_ID
+        assert shared_data["shared_link_config"] == {
+            "link_type": "redirect",
+            "chosen_options": [],
             "params_input": {},
             "expires_at": ANY,
         }
-        token = base64.urlsafe_b64encode(json.dumps(token_data).encode()).decode()
 
-        response = client.get(f"/api/v2/hitl-shared-links/redirect?token={token}")
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert "not a ui_redirect link" in response.json()["detail"]
+    def test_should_respond_400_with_wrong_secret_key(
+        self, test_client: TestClient, redirect_token: str
+    ) -> None:
+        # wrong secret key with the right length
+        # random generated
+        test_client.app.state.secret_key = "WuS1iXVNE19OxzHzVL03_3DLRiB5W4r74uxIrl0iZfs"  # type: ignore[attr-defined]
 
-    def test_redirect_shared_link_disabled(self, client):
-        """Test that redirect is disabled when feature is not enabled."""
-        with conf_vars({("api", "hitl_enable_shared_links"): "False"}):
-            response = client.get("/api/v2/hitl-shared-links/redirect?token=test_token")
-            assert response.status_code == status.HTTP_403_FORBIDDEN
-            assert "not enabled" in response.json()["detail"]
+        resp = test_client.get(
+            f"/hitlSharedLinks/redirect/{redirect_token}",
+            follow_redirects=False,
+        )
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert resp.json() == {"detail": "AESGCM key must be 128, 192, or 256 bits."}
 
-    def test_execute_shared_link_action_disabled(self, client):
-        """Test that execute is disabled when feature is not enabled."""
-        with conf_vars({("api", "hitl_enable_shared_links"): "False"}):
-            response = client.get("/api/v2/hitl-shared-links/execute?token=test_token")
-            assert response.status_code == status.HTTP_403_FORBIDDEN
-            assert "not enabled" in response.json()["detail"]
+    def test_should_respond_400_without_ti(
+        self,
+        test_client: TestClient,
+        redirect_token: str,
+        session: Session,
+        sample_ti: TaskInstance,
+        create_task_instance: CreateTaskInstance,
+    ) -> None:
+        session.delete(sample_ti.dag_run)
+        session.delete(sample_ti)
+        session.commit()
+
+        create_task_instance(dag_id=DAG_ID, run_id=DAG_RUN_ID, task_id=TASK_ID, session=session)
+        session.commit()
+
+        resp = test_client.get(
+            f"/hitlSharedLinks/redirect/{redirect_token}",
+            follow_redirects=False,
+        )
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert resp.json() == {"detail": "task instance id does not match"}
+
+    def test_should_respond_400_with_invalid_token(self, test_client: TestClient) -> None:
+        resp = test_client.get("/hitlSharedLinks/redirect/invalidtoken")
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert resp.json() == {"detail": "Token too short"}
+
+    @pytest.mark.usefixtures("sample_ti")
+    def test_should_respond_400_with_invalid_link_type(self, test_client: TestClient) -> None:
+        resp = test_client.post(
+            f"/hitlSharedLinks/generate/{DAG_ID}/{DAG_RUN_ID}/{TASK_ID}",
+            json={
+                "link_type": "respond",
+                "expires_at": None,
+                "chosen_options": ["option 1"],
+                "params_input": None,
+            },
+        )
+        url = resp.json()["url"]
+        token = url.split("/")[-1]
+
+        resp = test_client.get(
+            f"/hitlSharedLinks/redirect/{token}",
+            follow_redirects=False,
+        )
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert resp.json() == {"detail": "Unexpected link_type 'respond'"}
+
+
+class TestHitlSharedLinkRespond:
+    @pytest.fixture
+    def sample_hitl_detail(self, sample_ti: TaskInstance, session: Session) -> HITLDetail:
+        hitl_detail_model = HITLDetail(
+            ti_id=sample_ti.id,
+            options=["Approve", "Reject"],
+            subject="This is subject",
+            body="this is body",
+            defaults=["Approve"],
+            multiple=False,
+            params={"input_1": 1},
+        )
+        session.add(hitl_detail_model)
+        session.commit()
+
+        return hitl_detail_model
+
+    @pytest.fixture
+    def respond_token(self, test_client: TestClient, sample_ti: TaskInstance) -> str:
+        """Generate a respond token"""
+
+        resp = test_client.post(
+            f"/hitlSharedLinks/generate/{DAG_ID}/{DAG_RUN_ID}/{TASK_ID}",
+            json={
+                "link_type": "respond",
+                "expires_at": None,
+                "chosen_options": ["Reject"],
+                "params_input": {"input_1": 42},
+            },
+        )
+        url = resp.json()["url"]
+        return url.split("/")[-1]
+
+    @pytest.mark.usefixtures("sample_hitl_detail")
+    def test_should_respond_200(
+        self,
+        test_client: TestClient,
+        respond_token: str,
+        sample_ti: TaskInstance,
+        session: Session,
+    ) -> None:
+        resp = test_client.post(f"/hitlSharedLinks/respond/{respond_token}")
+        assert resp.status_code == status.HTTP_200_OK
+
+        # decode token to verify correctness
+        shared_data = decode_shared_data(
+            secret_key=test_client.app.state.secret_key,  # type: ignore[attr-defined]
+            token=respond_token,
+        )
+        assert shared_data["dag_id"] == DAG_ID
+        assert shared_data["dag_run_id"] == DAG_RUN_ID
+        assert shared_data["task_id"] == TASK_ID
+        assert shared_data["shared_link_config"] == {
+            "chosen_options": ["Reject"],
+            "expires_at": ANY,
+            "link_type": "respond",
+            "params_input": {"input_1": 42},
+        }
+        session.commit()
+
+        hitl_detail = session.scalar(select(HITLDetail).where(TI.id == sample_ti.id))
+
+        assert hitl_detail.response_at is not None
+        assert hitl_detail.user_id == "test"
+        assert hitl_detail.chosen_options == ["Reject"]
+        assert hitl_detail.params_input == {"input_1": 42}
+
+    def test_should_respond_400_with_wrong_secret_key(
+        self, test_client: TestClient, respond_token: str
+    ) -> None:
+        test_client.app.state.secret_key = "WuS1iXVNE19OxzHzVL03_3DLRiB5W4r74uxIrl0iZfs"  # type: ignore[attr-defined]
+
+        resp = test_client.post(
+            f"/hitlSharedLinks/respond/{respond_token}",
+            json={"chosen_options": ["option 1"], "params_input": {"input": 42}},
+        )
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_should_respond_400_with_invalid_token(self, test_client: TestClient) -> None:
+        resp = test_client.post(
+            "/hitlSharedLinks/respond/invalidtoken",
+            json={"chosen_options": ["option 1"], "params_input": {"input": 42}},
+        )
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+
+    @pytest.mark.usefixtures("sample_ti")
+    def test_should_respond_400_with_invalid_link_type(self, test_client: TestClient) -> None:
+        # generate redirect token instead of respond
+        resp = test_client.post(
+            f"/hitlSharedLinks/generate/{DAG_ID}/{DAG_RUN_ID}/{TASK_ID}",
+            json={
+                "link_type": "redirect",
+                "expires_at": None,
+                "chosen_options": None,
+                "params_input": None,
+            },
+        )
+        url = resp.json()["url"]
+        token = url.split("/")[-1]
+
+        resp = test_client.post(
+            f"/hitlSharedLinks/respond/{token}",
+            json={"chosen_options": [], "params_input": {}},
+        )
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert resp.json() == {"detail": "Unexpected link_type 'redirect'"}

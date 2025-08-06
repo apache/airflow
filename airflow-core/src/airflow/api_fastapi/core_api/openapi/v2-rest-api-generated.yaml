@@ -7825,51 +7825,43 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/hitl-shared-links/generate/{dag_id}/{dag_run_id}/{task_id}:
+  /api/v2/hitlSharedLinks/generate/{dag_id}/{dag_run_id}/{task_id}:
     post:
       tags:
-      - HITLSharedLinks
+      - HumanInTheLoopSharedLinks
       summary: Generate Shared Link
-      description: 'Generate a shared link for HITL tasks.
+      description: 'Generate a shared link for a Human-in-the-loop task instance.
 
 
-        This endpoint generates a secure, time-limited shared link that allows external
-        users
+        This endpoint generates a secure, time-limited shared link that allows users
 
-        to interact with HITL tasks without requiring full Airflow authentication.
-        The link
+        to interact with the Human-in-the-loop task instance. The link
 
-        can be configured for either direct action execution or UI redirection.
+        can be configured for either respond directly or UI redirection.
 
 
-        :param dag_id: The DAG identifier
+        :param dag_id: The dag identifier
 
-        :param dag_run_id: The DAG run identifier
+        :param dag_run_id: The dag run identifier
 
         :param task_id: The task identifier
 
-        :param try_number: The try number for the task
-
-        :param request: Request containing link configuration
-
-        :param user: The authenticated user creating the shared link
-
-        :param session: Database session for data persistence
+        :param generate_shared_link_request: Request containing link configuration
 
         :param http_request: HTTP request for base URL extraction
 
-        :param map_index: The map index for mapped tasks
+        :param session: Database session for data persistence
 
-
-        :raises HTTPException: 403 if HITL shared links are not enabled
-
-        :raises HTTPException: 404 if the task instance does not exist
 
         :raises HTTPException: 400 if link generation fails due to invalid parameters
 
+        :raises HTTPException: 403 if Human-in-the-loop link sharing feature is not
+        enabled
 
-        :return: GenerateSharedLinkResponse containing the generated link URL and
-        metadata'
+        :raises HTTPException: 404 if the task instance does not exist
+
+
+        :return: SharedLinkResponse containing the generated link URL and metadata'
       operationId: generate_shared_link
       security:
       - OAuth2PasswordBearer: []
@@ -7893,20 +7885,6 @@ paths:
         schema:
           type: string
           title: Task Id
-      - name: try_number
-        in: query
-        required: true
-        schema:
-          type: integer
-          title: Try Number
-      - name: map_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Map Index
       requestBody:
         required: true
         content:
@@ -7919,7 +7897,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GenerateSharedLinkResponse'
+                $ref: '#/components/schemas/SharedLinkResponse'
         '401':
           content:
             application/json:
@@ -7950,54 +7928,43 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/hitl-shared-links/generate/{dag_id}/{dag_run_id}/{task_id}/{map_index}:
+  /api/v2/hitlSharedLinks/generate/{dag_id}/{dag_run_id}/{task_id}/{map_index}:
     post:
       tags:
-      - HITLSharedLinks
+      - HumanInTheLoopSharedLinks
       summary: Generate Mapped Ti Shared Link
-      description: 'Generate a shared link for mapped HITL tasks.
+      description: 'Generate a shared link for a mapped Human-in-the-loop task instance.
 
 
-        This endpoint generates a secure, time-limited shared link for mapped task
-        instances,
+        This endpoint generates a secure, time-limited shared link that allows users
 
-        allowing external users to interact with specific mapped HITL tasks without
-        requiring
+        to interact with the mapped Human-in-the-loop task instance. The link
 
-        full Airflow authentication. The link can be configured for either direct
-        action
-
-        execution or UI redirection.
+        can be configured for either respond directly or UI redirection.
 
 
-        :param dag_id: The DAG identifier
+        :param dag_id: The dag identifier
 
-        :param dag_run_id: The DAG run identifier
+        :param dag_run_id: The dag run identifier
 
         :param task_id: The task identifier
 
-        :param map_index: The map index for the mapped task instance
+        :param generate_shared_link_request: Request containing link configuration
 
-        :param try_number: The try number for the task
-
-        :param request: Request containing link configuration
-
-        :param user: The authenticated user creating the shared link
+        :param request: HTTP request for base URL extraction
 
         :param session: Database session for data persistence
 
-        :param http_request: HTTP request for base URL extraction
-
-
-        :raises HTTPException: 403 if HITL shared links are not enabled
-
-        :raises HTTPException: 404 if the task instance does not exist
 
         :raises HTTPException: 400 if link generation fails due to invalid parameters
 
+        :raises HTTPException: 403 if Human-in-the-loop link sharing feature is not
+        enabled
 
-        :return: GenerateSharedLinkResponse containing the generated link URL and
-        metadata'
+        :raises HTTPException: 404 if the task instance does not exist
+
+
+        :return: SharedLinkResponse containing the generated link URL and metadata'
       operationId: generate_mapped_ti_shared_link
       security:
       - OAuth2PasswordBearer: []
@@ -8027,12 +7994,6 @@ paths:
         schema:
           type: integer
           title: Map Index
-      - name: try_number
-        in: query
-        required: true
-        schema:
-          type: integer
-          title: Try Number
       requestBody:
         required: true
         content:
@@ -8045,7 +8006,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GenerateSharedLinkResponse'
+                $ref: '#/components/schemas/SharedLinkResponse'
         '401':
           content:
             application/json:
@@ -8076,19 +8037,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/hitl-shared-links/redirect:
+  /api/v2/hitlSharedLinks/redirect/{token}:
     get:
       tags:
-      - HITLSharedLinks
+      - HumanInTheLoopSharedLinks
       summary: Redirect Shared Link
-      description: 'Redirect to Airflow UI for HITL task interaction via shared link.
+      description: 'Redirect to Airflow UI for Human-in-the-loop task instance interaction
+        via shared link.
 
 
-        This endpoint redirects external users to the Airflow UI where they can interact
+        This endpoint redirects users to the Airflow UI where they can interact
 
-        with HITL tasks through a secure shared link. The link must be a ui_redirect-type
+        with Human-in-the-loop task instances through a secure shared link. The link
+        must be a "redirect" type
 
-        link, which provides access to the full Airflow interface for decision-making.
+        link, which provides access to the Airflow interface for decision-making.
 
 
         :param token: Base64-encoded token containing link metadata and expiration
@@ -8096,18 +8059,18 @@ paths:
         :param http_request: HTTP request for base URL extraction
 
 
+        :raises HTTPException: 400 if token is invalid or link has expired
+
         :raises HTTPException: 403 if HITL shared links are not enabled
 
         :raises HTTPException: 404 if the task instance does not exist
-
-        :raises HTTPException: 400 if token is invalid or link has expired
 
 
         :return: RedirectResponse to Airflow UI'
       operationId: redirect_shared_link
       parameters:
       - name: token
-        in: query
+        in: path
         required: true
         schema:
           type: string
@@ -8148,25 +8111,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/hitl-shared-links/execute:
-    get:
+  /api/v2/hitlSharedLinks/respond/{token}:
+    post:
       tags:
-      - HITLSharedLinks
-      summary: Execute Shared Link Action
-      description: 'Execute an action via shared link by making PATCH request to existing
-        HITL endpoint.
+      - HumanInTheLoopSharedLinks
+      summary: Update Hitl Detail Through Shared Link
+      description: 'Respond to a Human-in-the-loop task instance with predefined content.
 
 
-        This endpoint allows external users to execute HITL task actions through a
-        secure
+        This endpoint allows users to respond Human-in-the-loop task instances with
+        predefined content
 
-        shared link. The link must be a direct_action-type link, which enables direct
-        execution
-
-        of predefined actions (e.g., approve, reject) by making a PATCH request to
-        the existing
-
-        HITL endpoint without requiring full Airflow authentication.
+        through a secure shared link. The link must be a "direct_action" type link.
 
 
         :param token: Base64-encoded token containing link metadata and action data
@@ -8174,18 +8130,21 @@ paths:
         :param session: Database session for data persistence
 
 
+        :raises HTTPException: 400 if token is invalid or link has expired
+
         :raises HTTPException: 403 if HITL shared links are not enabled
 
         :raises HTTPException: 404 if the task instance or HITL detail does not exist
 
-        :raises HTTPException: 400 if token is invalid or link has expired
-
 
         :return: HITLDetailResponse containing the execution result'
-      operationId: execute_shared_link_action
+      operationId: update_hitl_detail_through_shared_link
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: token
-        in: query
+        in: path
         required: true
         schema:
           type: string
@@ -10713,17 +10672,12 @@ components:
       properties:
         link_type:
           type: string
+          enum:
+          - redirect
+          - respond
           title: Link Type
-          description: 'Type of link to generate: ''ui_redirect'' for UI interaction
-            or ''direct_action'' for direct execution'
-          default: direct_action
-        action:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Action
-          description: Optional action to perform when link is accessed (e.g., 'approve',
-            'reject'). Required for direct_action links.
+          description: 'Type of link to generate: ''redirect'' for redirecting to
+            corresponding page or ''respond'' for respond directly.'
         chosen_options:
           anyOf:
           - items:
@@ -10731,73 +10685,26 @@ components:
             type: array
           - type: 'null'
           title: Chosen Options
-          description: Chosen options for direct_action links
+          description: Chosen options for 'respond' links.
         params_input:
           anyOf:
           - additionalProperties: true
             type: object
           - type: 'null'
           title: Params Input
-          description: Parameters input for direct_action links
-        expiration_hours:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Expiration Hours
-          description: Custom expiration time in hours
-      type: object
-      title: GenerateSharedLinkRequest
-      description: Request model for generating HITL shared links.
-    GenerateSharedLinkResponse:
-      properties:
-        url:
-          type: string
-          title: Url
+          description: Parameters input for 'respond' links.
         expires_at:
-          type: string
-          title: Expires At
-        link_type:
-          type: string
-          title: Link Type
-        action:
           anyOf:
           - type: string
+            format: date-time
           - type: 'null'
-          title: Action
-        dag_id:
-          type: string
-          title: Dag Id
-        dag_run_id:
-          type: string
-          title: Dag Run Id
-        task_id:
-          type: string
-          title: Task Id
-        try_number:
-          type: integer
-          title: Try Number
-        map_index:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Map Index
-        task_instance_uuid:
-          type: string
-          title: Task Instance Uuid
+          title: Expires At
+          description: Time that the link should expire at.
       type: object
       required:
-      - url
-      - expires_at
       - link_type
-      - action
-      - dag_id
-      - dag_run_id
-      - task_id
-      - try_number
-      - map_index
-      - task_instance_uuid
-      title: GenerateSharedLinkResponse
-      description: Response model for generated HITL shared links.
+      title: GenerateSharedLinkRequest
+      description: Request model for generating Human-in-the-loop shared links.
     HITLDetail:
       properties:
         task_instance:
@@ -10857,17 +10764,6 @@ components:
           type: boolean
           title: Response Received
           default: false
-        link_url:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Link Url
-        expires_at:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Expires At
       type: object
       required:
       - task_instance
@@ -10885,17 +10781,6 @@ components:
         total_entries:
           type: integer
           title: Total Entries
-        chosen_options:
-          anyOf:
-          - items:
-              type: string
-            type: array
-          - type: 'null'
-          title: Chosen Options
-        params_input:
-          additionalProperties: true
-          type: object
-          title: Params Input
       type: object
       required:
       - hitl_details
@@ -10921,31 +10806,6 @@ components:
           additionalProperties: true
           type: object
           title: Params Input
-        task_instance_id:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Task Instance Id
-        link_url:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Link Url
-        expires_at:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Expires At
-        action:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Action
-        link_type:
-          type: string
-          title: Link Type
-          default: direct_action
       type: object
       required:
       - user_id
@@ -11575,6 +11435,19 @@ components:
       - latest_scheduler_heartbeat
       title: SchedulerInfoResponse
       description: Scheduler info serializer for responses.
+    SharedLinkResponse:
+      properties:
+        url:
+          type: string
+          maxLength: 2083
+          minLength: 1
+          format: uri
+          title: Url
+      type: object
+      required:
+      - url
+      title: SharedLinkResponse
+      description: Response model for generated Human-in-the-loop shared links.
     StructuredLogMessage:
       properties:
         timestamp:
@@ -12499,11 +12372,6 @@ components:
           additionalProperties: true
           type: object
           title: Params Input
-        try_number:
-          type: integer
-          title: Try Number
-          description: Try number for the task
-          default: 1
       type: object
       required:
       - chosen_options

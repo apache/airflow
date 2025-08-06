@@ -3370,21 +3370,9 @@ export const $GenerateSharedLinkRequest = {
     properties: {
         link_type: {
             type: 'string',
+            enum: ['redirect', 'respond'],
             title: 'Link Type',
-            description: "Type of link to generate: 'ui_redirect' for UI interaction or 'direct_action' for direct execution",
-            default: 'direct_action'
-        },
-        action: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Action',
-            description: "Optional action to perform when link is accessed (e.g., 'approve', 'reject'). Required for direct_action links."
+            description: "Type of link to generate: 'redirect' for redirecting to corresponding page or 'respond' for respond directly."
         },
         chosen_options: {
             anyOf: [
@@ -3399,7 +3387,7 @@ export const $GenerateSharedLinkRequest = {
                 }
             ],
             title: 'Chosen Options',
-            description: 'Chosen options for direct_action links'
+            description: "Chosen options for 'respond' links."
         },
         params_input: {
             anyOf: [
@@ -3412,87 +3400,26 @@ export const $GenerateSharedLinkRequest = {
                 }
             ],
             title: 'Params Input',
-            description: 'Parameters input for direct_action links'
-        },
-        expiration_hours: {
-            anyOf: [
-                {
-                    type: 'integer'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Expiration Hours',
-            description: 'Custom expiration time in hours'
-        }
-    },
-    type: 'object',
-    title: 'GenerateSharedLinkRequest',
-    description: 'Request model for generating HITL shared links.'
-} as const;
-
-export const $GenerateSharedLinkResponse = {
-    properties: {
-        url: {
-            type: 'string',
-            title: 'Url'
+            description: "Parameters input for 'respond' links."
         },
         expires_at: {
-            type: 'string',
-            title: 'Expires At'
-        },
-        link_type: {
-            type: 'string',
-            title: 'Link Type'
-        },
-        action: {
             anyOf: [
                 {
-                    type: 'string'
+                    type: 'string',
+                    format: 'date-time'
                 },
                 {
                     type: 'null'
                 }
             ],
-            title: 'Action'
-        },
-        dag_id: {
-            type: 'string',
-            title: 'Dag Id'
-        },
-        dag_run_id: {
-            type: 'string',
-            title: 'Dag Run Id'
-        },
-        task_id: {
-            type: 'string',
-            title: 'Task Id'
-        },
-        try_number: {
-            type: 'integer',
-            title: 'Try Number'
-        },
-        map_index: {
-            anyOf: [
-                {
-                    type: 'integer'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Map Index'
-        },
-        task_instance_uuid: {
-            type: 'string',
-            title: 'Task Instance Uuid'
+            title: 'Expires At',
+            description: 'Time that the link should expire at.'
         }
     },
     type: 'object',
-    required: ['url', 'expires_at', 'link_type', 'action', 'dag_id', 'dag_run_id', 'task_id', 'try_number', 'map_index', 'task_instance_uuid'],
-    title: 'GenerateSharedLinkResponse',
-    description: 'Response model for generated HITL shared links.'
+    required: ['link_type'],
+    title: 'GenerateSharedLinkRequest',
+    description: 'Request model for generating Human-in-the-loop shared links.'
 } as const;
 
 export const $HITLDetail = {
@@ -3593,29 +3520,6 @@ export const $HITLDetail = {
             type: 'boolean',
             title: 'Response Received',
             default: false
-        },
-        link_url: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Link Url'
-        },
-        expires_at: {
-            anyOf: [
-                {
-                    type: 'string',
-                    format: 'date-time'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Expires At'
         }
     },
     type: 'object',
@@ -3636,25 +3540,6 @@ export const $HITLDetailCollection = {
         total_entries: {
             type: 'integer',
             title: 'Total Entries'
-        },
-        chosen_options: {
-            anyOf: [
-                {
-                    items: {
-                        type: 'string'
-                    },
-                    type: 'array'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Chosen Options'
-        },
-        params_input: {
-            additionalProperties: true,
-            type: 'object',
-            title: 'Params Input'
         }
     },
     type: 'object',
@@ -3686,56 +3571,6 @@ export const $HITLDetailResponse = {
             additionalProperties: true,
             type: 'object',
             title: 'Params Input'
-        },
-        task_instance_id: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Task Instance Id'
-        },
-        link_url: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Link Url'
-        },
-        expires_at: {
-            anyOf: [
-                {
-                    type: 'string',
-                    format: 'date-time'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Expires At'
-        },
-        action: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Action'
-        },
-        link_type: {
-            type: 'string',
-            title: 'Link Type',
-            default: 'direct_action'
         }
     },
     type: 'object',
@@ -4612,6 +4447,22 @@ export const $SchedulerInfoResponse = {
     required: ['status', 'latest_scheduler_heartbeat'],
     title: 'SchedulerInfoResponse',
     description: 'Scheduler info serializer for responses.'
+} as const;
+
+export const $SharedLinkResponse = {
+    properties: {
+        url: {
+            type: 'string',
+            maxLength: 2083,
+            minLength: 1,
+            format: 'uri',
+            title: 'Url'
+        }
+    },
+    type: 'object',
+    required: ['url'],
+    title: 'SharedLinkResponse',
+    description: 'Response model for generated Human-in-the-loop shared links.'
 } as const;
 
 export const $StructuredLogMessage = {
@@ -6060,12 +5911,6 @@ export const $UpdateHITLDetailPayload = {
             additionalProperties: true,
             type: 'object',
             title: 'Params Input'
-        },
-        try_number: {
-            type: 'integer',
-            title: 'Try Number',
-            description: 'Try number for the task',
-            default: 1
         }
     },
     type: 'object',

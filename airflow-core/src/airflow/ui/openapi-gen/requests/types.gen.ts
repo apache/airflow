@@ -914,48 +914,33 @@ export type FastAPIRootMiddlewareResponse = {
 };
 
 /**
- * Request model for generating HITL shared links.
+ * Request model for generating Human-in-the-loop shared links.
  */
 export type GenerateSharedLinkRequest = {
     /**
-     * Type of link to generate: 'ui_redirect' for UI interaction or 'direct_action' for direct execution
+     * Type of link to generate: 'redirect' for redirecting to corresponding page or 'respond' for respond directly.
      */
-    link_type?: string;
+    link_type: 'redirect' | 'respond';
     /**
-     * Optional action to perform when link is accessed (e.g., 'approve', 'reject'). Required for direct_action links.
-     */
-    action?: string | null;
-    /**
-     * Chosen options for direct_action links
+     * Chosen options for 'respond' links.
      */
     chosen_options?: Array<(string)> | null;
     /**
-     * Parameters input for direct_action links
+     * Parameters input for 'respond' links.
      */
     params_input?: {
     [key: string]: unknown;
 } | null;
     /**
-     * Custom expiration time in hours
+     * Time that the link should expire at.
      */
-    expiration_hours?: number | null;
+    expires_at?: string | null;
 };
 
 /**
- * Response model for generated HITL shared links.
+ * Type of link to generate: 'redirect' for redirecting to corresponding page or 'respond' for respond directly.
  */
-export type GenerateSharedLinkResponse = {
-    url: string;
-    expires_at: string;
-    link_type: string;
-    action: string | null;
-    dag_id: string;
-    dag_run_id: string;
-    task_id: string;
-    try_number: number;
-    map_index: number | null;
-    task_instance_uuid: string;
-};
+export type link_type = 'redirect' | 'respond';
 
 /**
  * Schema for Human-in-the-loop detail.
@@ -977,8 +962,6 @@ export type HITLDetail = {
         [key: string]: unknown;
     };
     response_received?: boolean;
-    link_url?: string | null;
-    expires_at?: string | null;
 };
 
 /**
@@ -987,10 +970,6 @@ export type HITLDetail = {
 export type HITLDetailCollection = {
     hitl_details: Array<HITLDetail>;
     total_entries: number;
-    chosen_options?: Array<(string)> | null;
-    params_input?: {
-        [key: string]: unknown;
-    };
 };
 
 /**
@@ -1003,11 +982,6 @@ export type HITLDetailResponse = {
     params_input?: {
         [key: string]: unknown;
     };
-    task_instance_id?: string | null;
-    link_url?: string | null;
-    expires_at?: string | null;
-    action?: string | null;
-    link_type?: string;
 };
 
 /**
@@ -1257,6 +1231,13 @@ export type ReprocessBehavior = 'failed' | 'completed' | 'none';
 export type SchedulerInfoResponse = {
     status: string | null;
     latest_scheduler_heartbeat: string | null;
+};
+
+/**
+ * Response model for generated Human-in-the-loop shared links.
+ */
+export type SharedLinkResponse = {
+    url: string;
 };
 
 /**
@@ -1532,10 +1513,6 @@ export type UpdateHITLDetailPayload = {
     params_input?: {
         [key: string]: unknown;
     };
-    /**
-     * Try number for the task
-     */
-    try_number?: number;
 };
 
 export type ValidationError = {
@@ -3063,13 +3040,11 @@ export type GetHitlDetailsResponse = HITLDetailCollection;
 export type GenerateSharedLinkData = {
     dagId: string;
     dagRunId: string;
-    mapIndex?: number | null;
     requestBody: GenerateSharedLinkRequest;
     taskId: string;
-    tryNumber: number;
 };
 
-export type GenerateSharedLinkResponse2 = GenerateSharedLinkResponse;
+export type GenerateSharedLinkResponse = SharedLinkResponse;
 
 export type GenerateMappedTiSharedLinkData = {
     dagId: string;
@@ -3077,10 +3052,9 @@ export type GenerateMappedTiSharedLinkData = {
     mapIndex: number;
     requestBody: GenerateSharedLinkRequest;
     taskId: string;
-    tryNumber: number;
 };
 
-export type GenerateMappedTiSharedLinkResponse = GenerateSharedLinkResponse;
+export type GenerateMappedTiSharedLinkResponse = SharedLinkResponse;
 
 export type RedirectSharedLinkData = {
     token: string;
@@ -3088,11 +3062,11 @@ export type RedirectSharedLinkData = {
 
 export type RedirectSharedLinkResponse = unknown;
 
-export type ExecuteSharedLinkActionData = {
+export type UpdateHitlDetailThroughSharedLinkData = {
     token: string;
 };
 
-export type ExecuteSharedLinkActionResponse = HITLDetailResponse;
+export type UpdateHitlDetailThroughSharedLinkResponse = HITLDetailResponse;
 
 export type GetHealthResponse = HealthInfoResponse;
 
@@ -6194,14 +6168,14 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/hitl-shared-links/generate/{dag_id}/{dag_run_id}/{task_id}': {
+    '/api/v2/hitlSharedLinks/generate/{dag_id}/{dag_run_id}/{task_id}': {
         post: {
             req: GenerateSharedLinkData;
             res: {
                 /**
                  * Successful Response
                  */
-                201: GenerateSharedLinkResponse;
+                201: SharedLinkResponse;
                 /**
                  * Bad Request
                  */
@@ -6225,14 +6199,14 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/hitl-shared-links/generate/{dag_id}/{dag_run_id}/{task_id}/{map_index}': {
+    '/api/v2/hitlSharedLinks/generate/{dag_id}/{dag_run_id}/{task_id}/{map_index}': {
         post: {
             req: GenerateMappedTiSharedLinkData;
             res: {
                 /**
                  * Successful Response
                  */
-                201: GenerateSharedLinkResponse;
+                201: SharedLinkResponse;
                 /**
                  * Bad Request
                  */
@@ -6256,7 +6230,7 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/hitl-shared-links/redirect': {
+    '/api/v2/hitlSharedLinks/redirect/{token}': {
         get: {
             req: RedirectSharedLinkData;
             res: {
@@ -6287,9 +6261,9 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/hitl-shared-links/execute': {
-        get: {
-            req: ExecuteSharedLinkActionData;
+    '/api/v2/hitlSharedLinks/respond/{token}': {
+        post: {
+            req: UpdateHitlDetailThroughSharedLinkData;
             res: {
                 /**
                  * Successful Response

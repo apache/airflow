@@ -3,7 +3,7 @@
 import type { CancelablePromise } from './core/CancelablePromise';
 import { OpenAPI } from './core/OpenAPI';
 import { request as __request } from './core/request';
-import type { GetAssetsData, GetAssetsResponse, GetAssetAliasesData, GetAssetAliasesResponse, GetAssetAliasData, GetAssetAliasResponse, GetAssetEventsData, GetAssetEventsResponse, CreateAssetEventData, CreateAssetEventResponse, MaterializeAssetData, MaterializeAssetResponse, GetAssetQueuedEventsData, GetAssetQueuedEventsResponse, DeleteAssetQueuedEventsData, DeleteAssetQueuedEventsResponse, GetAssetData, GetAssetResponse, GetDagAssetQueuedEventsData, GetDagAssetQueuedEventsResponse, DeleteDagAssetQueuedEventsData, DeleteDagAssetQueuedEventsResponse, GetDagAssetQueuedEventData, GetDagAssetQueuedEventResponse, DeleteDagAssetQueuedEventData, DeleteDagAssetQueuedEventResponse, NextRunAssetsData, NextRunAssetsResponse, ListBackfillsData, ListBackfillsResponse, CreateBackfillData, CreateBackfillResponse, GetBackfillData, GetBackfillResponse, PauseBackfillData, PauseBackfillResponse, UnpauseBackfillData, UnpauseBackfillResponse, CancelBackfillData, CancelBackfillResponse, CreateBackfillDryRunData, CreateBackfillDryRunResponse, ListBackfillsUiData, ListBackfillsUiResponse, DeleteConnectionData, DeleteConnectionResponse, GetConnectionData, GetConnectionResponse, PatchConnectionData, PatchConnectionResponse, GetConnectionsData, GetConnectionsResponse, PostConnectionData, PostConnectionResponse, BulkConnectionsData, BulkConnectionsResponse, TestConnectionData, TestConnectionResponse, CreateDefaultConnectionsResponse, HookMetaDataResponse, GetDagRunData, GetDagRunResponse, DeleteDagRunData, DeleteDagRunResponse, PatchDagRunData, PatchDagRunResponse, GetUpstreamAssetEventsData, GetUpstreamAssetEventsResponse, ClearDagRunData, ClearDagRunResponse, GetDagRunsData, GetDagRunsResponse, TriggerDagRunData, TriggerDagRunResponse, WaitDagRunUntilFinishedData, WaitDagRunUntilFinishedResponse, GetListDagRunsBatchData, GetListDagRunsBatchResponse, GetDagSourceData, GetDagSourceResponse, GetDagStatsData, GetDagStatsResponse, GetDagReportsData, GetDagReportsResponse, GetConfigData, GetConfigResponse, GetConfigValueData, GetConfigValueResponse, GetConfigsResponse, ListDagWarningsData, ListDagWarningsResponse, GetDagsData, GetDagsResponse, PatchDagsData, PatchDagsResponse, GetDagData, GetDagResponse, PatchDagData, PatchDagResponse, DeleteDagData, DeleteDagResponse, GetDagDetailsData, GetDagDetailsResponse, FavoriteDagData, FavoriteDagResponse, UnfavoriteDagData, UnfavoriteDagResponse, GetDagTagsData, GetDagTagsResponse, GetDagsUiData, GetDagsUiResponse, GetLatestRunInfoData, GetLatestRunInfoResponse, GetEventLogData, GetEventLogResponse, GetEventLogsData, GetEventLogsResponse, GetExtraLinksData, GetExtraLinksResponse, GetTaskInstanceData, GetTaskInstanceResponse, PatchTaskInstanceData, PatchTaskInstanceResponse, DeleteTaskInstanceData, DeleteTaskInstanceResponse, GetMappedTaskInstancesData, GetMappedTaskInstancesResponse, GetTaskInstanceDependenciesByMapIndexData, GetTaskInstanceDependenciesByMapIndexResponse, GetTaskInstanceDependenciesData, GetTaskInstanceDependenciesResponse, GetTaskInstanceTriesData, GetTaskInstanceTriesResponse, GetMappedTaskInstanceTriesData, GetMappedTaskInstanceTriesResponse, GetMappedTaskInstanceData, GetMappedTaskInstanceResponse, PatchTaskInstanceByMapIndexData, PatchTaskInstanceByMapIndexResponse, GetTaskInstancesData, GetTaskInstancesResponse, BulkTaskInstancesData, BulkTaskInstancesResponse, GetTaskInstancesBatchData, GetTaskInstancesBatchResponse, GetTaskInstanceTryDetailsData, GetTaskInstanceTryDetailsResponse, GetMappedTaskInstanceTryDetailsData, GetMappedTaskInstanceTryDetailsResponse, PostClearTaskInstancesData, PostClearTaskInstancesResponse, PatchTaskInstanceDryRunByMapIndexData, PatchTaskInstanceDryRunByMapIndexResponse, PatchTaskInstanceDryRunData, PatchTaskInstanceDryRunResponse, GetLogData, GetLogResponse, GetExternalLogUrlData, GetExternalLogUrlResponse, GetImportErrorData, GetImportErrorResponse, GetImportErrorsData, GetImportErrorsResponse, GetJobsData, GetJobsResponse, GetPluginsData, GetPluginsResponse, ImportErrorsResponse, DeletePoolData, DeletePoolResponse, GetPoolData, GetPoolResponse, PatchPoolData, PatchPoolResponse, GetPoolsData, GetPoolsResponse, PostPoolData, PostPoolResponse, BulkPoolsData, BulkPoolsResponse, GetProvidersData, GetProvidersResponse, GetXcomEntryData, GetXcomEntryResponse, UpdateXcomEntryData, UpdateXcomEntryResponse, GetXcomEntriesData, GetXcomEntriesResponse, CreateXcomEntryData, CreateXcomEntryResponse, GetTasksData, GetTasksResponse, GetTaskData, GetTaskResponse, DeleteVariableData, DeleteVariableResponse, GetVariableData, GetVariableResponse, PatchVariableData, PatchVariableResponse, GetVariablesData, GetVariablesResponse, PostVariableData, PostVariableResponse, BulkVariablesData, BulkVariablesResponse, ReparseDagFileData, ReparseDagFileResponse, GetDagVersionData, GetDagVersionResponse, GetDagVersionsData, GetDagVersionsResponse, UpdateHitlDetailData, UpdateHitlDetailResponse, GetHitlDetailData, GetHitlDetailResponse, UpdateMappedTiHitlDetailData, UpdateMappedTiHitlDetailResponse, GetMappedTiHitlDetailData, GetMappedTiHitlDetailResponse, GetHitlDetailsData, GetHitlDetailsResponse, GenerateSharedLinkData, GenerateSharedLinkResponse2, GenerateMappedTiSharedLinkData, GenerateMappedTiSharedLinkResponse, RedirectSharedLinkData, RedirectSharedLinkResponse, ExecuteSharedLinkActionData, ExecuteSharedLinkActionResponse, GetHealthResponse, GetVersionResponse, LoginData, LoginResponse, LogoutData, LogoutResponse, RefreshData, RefreshResponse, GetAuthMenusResponse, GetDependenciesData, GetDependenciesResponse, HistoricalMetricsData, HistoricalMetricsResponse, DagStatsResponse2, StructureDataData, StructureDataResponse2, GetDagStructureData, GetDagStructureResponse, GetGridRunsData, GetGridRunsResponse, GetGridTiSummariesData, GetGridTiSummariesResponse, GetCalendarData, GetCalendarResponse } from './types.gen';
+import type { GetAssetsData, GetAssetsResponse, GetAssetAliasesData, GetAssetAliasesResponse, GetAssetAliasData, GetAssetAliasResponse, GetAssetEventsData, GetAssetEventsResponse, CreateAssetEventData, CreateAssetEventResponse, MaterializeAssetData, MaterializeAssetResponse, GetAssetQueuedEventsData, GetAssetQueuedEventsResponse, DeleteAssetQueuedEventsData, DeleteAssetQueuedEventsResponse, GetAssetData, GetAssetResponse, GetDagAssetQueuedEventsData, GetDagAssetQueuedEventsResponse, DeleteDagAssetQueuedEventsData, DeleteDagAssetQueuedEventsResponse, GetDagAssetQueuedEventData, GetDagAssetQueuedEventResponse, DeleteDagAssetQueuedEventData, DeleteDagAssetQueuedEventResponse, NextRunAssetsData, NextRunAssetsResponse, ListBackfillsData, ListBackfillsResponse, CreateBackfillData, CreateBackfillResponse, GetBackfillData, GetBackfillResponse, PauseBackfillData, PauseBackfillResponse, UnpauseBackfillData, UnpauseBackfillResponse, CancelBackfillData, CancelBackfillResponse, CreateBackfillDryRunData, CreateBackfillDryRunResponse, ListBackfillsUiData, ListBackfillsUiResponse, DeleteConnectionData, DeleteConnectionResponse, GetConnectionData, GetConnectionResponse, PatchConnectionData, PatchConnectionResponse, GetConnectionsData, GetConnectionsResponse, PostConnectionData, PostConnectionResponse, BulkConnectionsData, BulkConnectionsResponse, TestConnectionData, TestConnectionResponse, CreateDefaultConnectionsResponse, HookMetaDataResponse, GetDagRunData, GetDagRunResponse, DeleteDagRunData, DeleteDagRunResponse, PatchDagRunData, PatchDagRunResponse, GetUpstreamAssetEventsData, GetUpstreamAssetEventsResponse, ClearDagRunData, ClearDagRunResponse, GetDagRunsData, GetDagRunsResponse, TriggerDagRunData, TriggerDagRunResponse, WaitDagRunUntilFinishedData, WaitDagRunUntilFinishedResponse, GetListDagRunsBatchData, GetListDagRunsBatchResponse, GetDagSourceData, GetDagSourceResponse, GetDagStatsData, GetDagStatsResponse, GetDagReportsData, GetDagReportsResponse, GetConfigData, GetConfigResponse, GetConfigValueData, GetConfigValueResponse, GetConfigsResponse, ListDagWarningsData, ListDagWarningsResponse, GetDagsData, GetDagsResponse, PatchDagsData, PatchDagsResponse, GetDagData, GetDagResponse, PatchDagData, PatchDagResponse, DeleteDagData, DeleteDagResponse, GetDagDetailsData, GetDagDetailsResponse, FavoriteDagData, FavoriteDagResponse, UnfavoriteDagData, UnfavoriteDagResponse, GetDagTagsData, GetDagTagsResponse, GetDagsUiData, GetDagsUiResponse, GetLatestRunInfoData, GetLatestRunInfoResponse, GetEventLogData, GetEventLogResponse, GetEventLogsData, GetEventLogsResponse, GetExtraLinksData, GetExtraLinksResponse, GetTaskInstanceData, GetTaskInstanceResponse, PatchTaskInstanceData, PatchTaskInstanceResponse, DeleteTaskInstanceData, DeleteTaskInstanceResponse, GetMappedTaskInstancesData, GetMappedTaskInstancesResponse, GetTaskInstanceDependenciesByMapIndexData, GetTaskInstanceDependenciesByMapIndexResponse, GetTaskInstanceDependenciesData, GetTaskInstanceDependenciesResponse, GetTaskInstanceTriesData, GetTaskInstanceTriesResponse, GetMappedTaskInstanceTriesData, GetMappedTaskInstanceTriesResponse, GetMappedTaskInstanceData, GetMappedTaskInstanceResponse, PatchTaskInstanceByMapIndexData, PatchTaskInstanceByMapIndexResponse, GetTaskInstancesData, GetTaskInstancesResponse, BulkTaskInstancesData, BulkTaskInstancesResponse, GetTaskInstancesBatchData, GetTaskInstancesBatchResponse, GetTaskInstanceTryDetailsData, GetTaskInstanceTryDetailsResponse, GetMappedTaskInstanceTryDetailsData, GetMappedTaskInstanceTryDetailsResponse, PostClearTaskInstancesData, PostClearTaskInstancesResponse, PatchTaskInstanceDryRunByMapIndexData, PatchTaskInstanceDryRunByMapIndexResponse, PatchTaskInstanceDryRunData, PatchTaskInstanceDryRunResponse, GetLogData, GetLogResponse, GetExternalLogUrlData, GetExternalLogUrlResponse, GetImportErrorData, GetImportErrorResponse, GetImportErrorsData, GetImportErrorsResponse, GetJobsData, GetJobsResponse, GetPluginsData, GetPluginsResponse, ImportErrorsResponse, DeletePoolData, DeletePoolResponse, GetPoolData, GetPoolResponse, PatchPoolData, PatchPoolResponse, GetPoolsData, GetPoolsResponse, PostPoolData, PostPoolResponse, BulkPoolsData, BulkPoolsResponse, GetProvidersData, GetProvidersResponse, GetXcomEntryData, GetXcomEntryResponse, UpdateXcomEntryData, UpdateXcomEntryResponse, GetXcomEntriesData, GetXcomEntriesResponse, CreateXcomEntryData, CreateXcomEntryResponse, GetTasksData, GetTasksResponse, GetTaskData, GetTaskResponse, DeleteVariableData, DeleteVariableResponse, GetVariableData, GetVariableResponse, PatchVariableData, PatchVariableResponse, GetVariablesData, GetVariablesResponse, PostVariableData, PostVariableResponse, BulkVariablesData, BulkVariablesResponse, ReparseDagFileData, ReparseDagFileResponse, GetDagVersionData, GetDagVersionResponse, GetDagVersionsData, GetDagVersionsResponse, UpdateHitlDetailData, UpdateHitlDetailResponse, GetHitlDetailData, GetHitlDetailResponse, UpdateMappedTiHitlDetailData, UpdateMappedTiHitlDetailResponse, GetMappedTiHitlDetailData, GetMappedTiHitlDetailResponse, GetHitlDetailsData, GetHitlDetailsResponse, GenerateSharedLinkData, GenerateSharedLinkResponse, GenerateMappedTiSharedLinkData, GenerateMappedTiSharedLinkResponse, RedirectSharedLinkData, RedirectSharedLinkResponse, UpdateHitlDetailThroughSharedLinkData, UpdateHitlDetailThroughSharedLinkResponse, GetHealthResponse, GetVersionResponse, LoginData, LoginResponse, LogoutData, LogoutResponse, RefreshData, RefreshResponse, GetAuthMenusResponse, GetDependenciesData, GetDependenciesResponse, HistoricalMetricsData, HistoricalMetricsResponse, DagStatsResponse2, StructureDataData, StructureDataResponse2, GetDagStructureData, GetDagStructureResponse, GetGridRunsData, GetGridRunsResponse, GetGridTiSummariesData, GetGridTiSummariesResponse, GetCalendarData, GetCalendarResponse } from './types.gen';
 
 export class AssetService {
     /**
@@ -3507,7 +3507,7 @@ export class HumanInTheLoopService {
     
     /**
      * Get Mapped Ti Hitl Detail
-     * Get a Human-in-the-loop detail of a specific task instance.
+     * Get a Human-in-the-loop detail of a specific mapped task instance.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
@@ -3584,52 +3584,43 @@ export class HumanInTheLoopService {
     
 }
 
-export class HitlSharedLinksService {
+export class HumanInTheLoopSharedLinksService {
     /**
      * Generate Shared Link
-     * Generate a shared link for HITL tasks.
+     * Generate a shared link for a Human-in-the-loop task instance.
      *
-     * This endpoint generates a secure, time-limited shared link that allows external users
-     * to interact with HITL tasks without requiring full Airflow authentication. The link
-     * can be configured for either direct action execution or UI redirection.
+     * This endpoint generates a secure, time-limited shared link that allows users
+     * to interact with the Human-in-the-loop task instance. The link
+     * can be configured for either respond directly or UI redirection.
      *
-     * :param dag_id: The DAG identifier
-     * :param dag_run_id: The DAG run identifier
+     * :param dag_id: The dag identifier
+     * :param dag_run_id: The dag run identifier
      * :param task_id: The task identifier
-     * :param try_number: The try number for the task
-     * :param request: Request containing link configuration
-     * :param user: The authenticated user creating the shared link
-     * :param session: Database session for data persistence
+     * :param generate_shared_link_request: Request containing link configuration
      * :param http_request: HTTP request for base URL extraction
-     * :param map_index: The map index for mapped tasks
+     * :param session: Database session for data persistence
      *
-     * :raises HTTPException: 403 if HITL shared links are not enabled
-     * :raises HTTPException: 404 if the task instance does not exist
      * :raises HTTPException: 400 if link generation fails due to invalid parameters
+     * :raises HTTPException: 403 if Human-in-the-loop link sharing feature is not enabled
+     * :raises HTTPException: 404 if the task instance does not exist
      *
-     * :return: GenerateSharedLinkResponse containing the generated link URL and metadata
+     * :return: SharedLinkResponse containing the generated link URL and metadata
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
      * @param data.taskId
-     * @param data.tryNumber
      * @param data.requestBody
-     * @param data.mapIndex
-     * @returns GenerateSharedLinkResponse Successful Response
+     * @returns SharedLinkResponse Successful Response
      * @throws ApiError
      */
-    public static generateSharedLink(data: GenerateSharedLinkData): CancelablePromise<GenerateSharedLinkResponse2> {
+    public static generateSharedLink(data: GenerateSharedLinkData): CancelablePromise<GenerateSharedLinkResponse> {
         return __request(OpenAPI, {
             method: 'POST',
-            url: '/api/v2/hitl-shared-links/generate/{dag_id}/{dag_run_id}/{task_id}',
+            url: '/api/v2/hitlSharedLinks/generate/{dag_id}/{dag_run_id}/{task_id}',
             path: {
                 dag_id: data.dagId,
                 dag_run_id: data.dagRunId,
                 task_id: data.taskId
-            },
-            query: {
-                try_number: data.tryNumber,
-                map_index: data.mapIndex
             },
             body: data.requestBody,
             mediaType: 'application/json',
@@ -3645,50 +3636,42 @@ export class HitlSharedLinksService {
     
     /**
      * Generate Mapped Ti Shared Link
-     * Generate a shared link for mapped HITL tasks.
+     * Generate a shared link for a mapped Human-in-the-loop task instance.
      *
-     * This endpoint generates a secure, time-limited shared link for mapped task instances,
-     * allowing external users to interact with specific mapped HITL tasks without requiring
-     * full Airflow authentication. The link can be configured for either direct action
-     * execution or UI redirection.
+     * This endpoint generates a secure, time-limited shared link that allows users
+     * to interact with the mapped Human-in-the-loop task instance. The link
+     * can be configured for either respond directly or UI redirection.
      *
-     * :param dag_id: The DAG identifier
-     * :param dag_run_id: The DAG run identifier
+     * :param dag_id: The dag identifier
+     * :param dag_run_id: The dag run identifier
      * :param task_id: The task identifier
-     * :param map_index: The map index for the mapped task instance
-     * :param try_number: The try number for the task
-     * :param request: Request containing link configuration
-     * :param user: The authenticated user creating the shared link
+     * :param generate_shared_link_request: Request containing link configuration
+     * :param request: HTTP request for base URL extraction
      * :param session: Database session for data persistence
-     * :param http_request: HTTP request for base URL extraction
      *
-     * :raises HTTPException: 403 if HITL shared links are not enabled
-     * :raises HTTPException: 404 if the task instance does not exist
      * :raises HTTPException: 400 if link generation fails due to invalid parameters
+     * :raises HTTPException: 403 if Human-in-the-loop link sharing feature is not enabled
+     * :raises HTTPException: 404 if the task instance does not exist
      *
-     * :return: GenerateSharedLinkResponse containing the generated link URL and metadata
+     * :return: SharedLinkResponse containing the generated link URL and metadata
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
      * @param data.taskId
      * @param data.mapIndex
-     * @param data.tryNumber
      * @param data.requestBody
-     * @returns GenerateSharedLinkResponse Successful Response
+     * @returns SharedLinkResponse Successful Response
      * @throws ApiError
      */
     public static generateMappedTiSharedLink(data: GenerateMappedTiSharedLinkData): CancelablePromise<GenerateMappedTiSharedLinkResponse> {
         return __request(OpenAPI, {
             method: 'POST',
-            url: '/api/v2/hitl-shared-links/generate/{dag_id}/{dag_run_id}/{task_id}/{map_index}',
+            url: '/api/v2/hitlSharedLinks/generate/{dag_id}/{dag_run_id}/{task_id}/{map_index}',
             path: {
                 dag_id: data.dagId,
                 dag_run_id: data.dagRunId,
                 task_id: data.taskId,
                 map_index: data.mapIndex
-            },
-            query: {
-                try_number: data.tryNumber
             },
             body: data.requestBody,
             mediaType: 'application/json',
@@ -3704,18 +3687,18 @@ export class HitlSharedLinksService {
     
     /**
      * Redirect Shared Link
-     * Redirect to Airflow UI for HITL task interaction via shared link.
+     * Redirect to Airflow UI for Human-in-the-loop task instance interaction via shared link.
      *
-     * This endpoint redirects external users to the Airflow UI where they can interact
-     * with HITL tasks through a secure shared link. The link must be a ui_redirect-type
-     * link, which provides access to the full Airflow interface for decision-making.
+     * This endpoint redirects users to the Airflow UI where they can interact
+     * with Human-in-the-loop task instances through a secure shared link. The link must be a "redirect" type
+     * link, which provides access to the Airflow interface for decision-making.
      *
      * :param token: Base64-encoded token containing link metadata and expiration
      * :param http_request: HTTP request for base URL extraction
      *
+     * :raises HTTPException: 400 if token is invalid or link has expired
      * :raises HTTPException: 403 if HITL shared links are not enabled
      * :raises HTTPException: 404 if the task instance does not exist
-     * :raises HTTPException: 400 if token is invalid or link has expired
      *
      * :return: RedirectResponse to Airflow UI
      * @param data The data for the request.
@@ -3726,8 +3709,8 @@ export class HitlSharedLinksService {
     public static redirectSharedLink(data: RedirectSharedLinkData): CancelablePromise<RedirectSharedLinkResponse> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/api/v2/hitl-shared-links/redirect',
-            query: {
+            url: '/api/v2/hitlSharedLinks/redirect/{token}',
+            path: {
                 token: data.token
             },
             errors: {
@@ -3741,20 +3724,18 @@ export class HitlSharedLinksService {
     }
     
     /**
-     * Execute Shared Link Action
-     * Execute an action via shared link by making PATCH request to existing HITL endpoint.
+     * Update Hitl Detail Through Shared Link
+     * Respond to a Human-in-the-loop task instance with predefined content.
      *
-     * This endpoint allows external users to execute HITL task actions through a secure
-     * shared link. The link must be a direct_action-type link, which enables direct execution
-     * of predefined actions (e.g., approve, reject) by making a PATCH request to the existing
-     * HITL endpoint without requiring full Airflow authentication.
+     * This endpoint allows users to respond Human-in-the-loop task instances with predefined content
+     * through a secure shared link. The link must be a "direct_action" type link.
      *
      * :param token: Base64-encoded token containing link metadata and action data
      * :param session: Database session for data persistence
      *
+     * :raises HTTPException: 400 if token is invalid or link has expired
      * :raises HTTPException: 403 if HITL shared links are not enabled
      * :raises HTTPException: 404 if the task instance or HITL detail does not exist
-     * :raises HTTPException: 400 if token is invalid or link has expired
      *
      * :return: HITLDetailResponse containing the execution result
      * @param data The data for the request.
@@ -3762,11 +3743,11 @@ export class HitlSharedLinksService {
      * @returns HITLDetailResponse Successful Response
      * @throws ApiError
      */
-    public static executeSharedLinkAction(data: ExecuteSharedLinkActionData): CancelablePromise<ExecuteSharedLinkActionResponse> {
+    public static updateHitlDetailThroughSharedLink(data: UpdateHitlDetailThroughSharedLinkData): CancelablePromise<UpdateHitlDetailThroughSharedLinkResponse> {
         return __request(OpenAPI, {
-            method: 'GET',
-            url: '/api/v2/hitl-shared-links/execute',
-            query: {
+            method: 'POST',
+            url: '/api/v2/hitlSharedLinks/respond/{token}',
+            path: {
                 token: data.token
             },
             errors: {

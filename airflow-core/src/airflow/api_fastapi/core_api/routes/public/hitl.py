@@ -19,11 +19,10 @@ from __future__ import annotations
 from typing import Annotated
 
 import structlog
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, status
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
-from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
@@ -50,121 +49,16 @@ from airflow.api_fastapi.core_api.datamodels.hitl import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
+from airflow.api_fastapi.core_api.services.public.hitl import (
+    get_hitl_detail_from_ti_keys,
+    update_hitl_detail_through_payload,
+)
 from airflow.models.hitl import HITLDetail as HITLDetailModel
 from airflow.models.taskinstance import TaskInstance as TI
 
 hitl_router = AirflowRouter(tags=["HumanInTheLoop"], prefix="/hitlDetails")
 
 log = structlog.get_logger(__name__)
-
-
-def _get_task_instance(
-    dag_id: str,
-    dag_run_id: str,
-    task_id: str,
-    session: SessionDep,
-    map_index: int | None = None,
-) -> TI:
-    query = select(TI).where(
-        TI.dag_id == dag_id,
-        TI.run_id == dag_run_id,
-        TI.task_id == task_id,
-    )
-
-    if map_index is not None:
-        query = query.where(TI.map_index == map_index)
-
-    task_instance = session.scalar(query)
-    if task_instance is None:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
-        )
-    if map_index is None and task_instance.map_index != -1:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND, "Task instance is mapped, add the map_index value to the URL"
-        )
-
-    return task_instance
-
-
-def _update_hitl_detail(
-    dag_id: str,
-    dag_run_id: str,
-    task_id: str,
-    update_hitl_detail_payload: UpdateHITLDetailPayload,
-    user: GetUserDep,
-    session: SessionDep,
-    map_index: int | None = None,
-) -> HITLDetailResponse:
-    task_instance = _get_task_instance(
-        dag_id=dag_id,
-        dag_run_id=dag_run_id,
-        task_id=task_id,
-        session=session,
-        map_index=map_index,
-    )
-    ti_id_str = str(task_instance.id)
-    hitl_detail_model = session.scalar(select(HITLDetailModel).where(HITLDetailModel.ti_id == ti_id_str))
-    if not hitl_detail_model:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            f"Human-in-the-loop detail does not exist for Task Instance with id {ti_id_str}",
-        )
-
-    if hitl_detail_model.response_received:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            f"Human-in-the-loop detail has already been updated for Task Instance with id {ti_id_str} "
-            "and is not allowed to write again.",
-        )
-
-    hitl_detail_model.user_id = user.get_id()
-    hitl_detail_model.response_at = timezone.utcnow()
-    hitl_detail_model.chosen_options = update_hitl_detail_payload.chosen_options
-    hitl_detail_model.params_input = update_hitl_detail_payload.params_input
-    session.add(hitl_detail_model)
-    session.commit()
-    return HITLDetailResponse.model_validate(hitl_detail_model)
-
-
-def _get_hitl_detail(
-    dag_id: str,
-    dag_run_id: str,
-    task_id: str,
-    session: SessionDep,
-    map_index: int | None = None,
-) -> HITLDetail:
-    """Get a Human-in-the-loop detail of a specific task instance."""
-    task_instance = _get_task_instance(
-        dag_id=dag_id,
-        dag_run_id=dag_run_id,
-        task_id=task_id,
-        session=session,
-        map_index=map_index,
-    )
-    if task_instance is None:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
-        )
-
-    ti_id_str = str(task_instance.id)
-    hitl_detail_model = session.scalar(
-        select(HITLDetailModel)
-        .where(HITLDetailModel.ti_id == ti_id_str)
-        .options(joinedload(HITLDetailModel.task_instance))
-    )
-    if not hitl_detail_model:
-        log.error("Human-in-the-loop detail not found")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": "Human-in-the-loop detail not found",
-            },
-        )
-    return HITLDetail.model_validate(hitl_detail_model)
 
 
 @hitl_router.patch(
@@ -186,7 +80,7 @@ def update_hitl_detail(
     session: SessionDep,
 ) -> HITLDetailResponse:
     """Update a Human-in-the-loop detail."""
-    return _update_hitl_detail(
+    return update_hitl_detail_through_payload(
         dag_id=dag_id,
         dag_run_id=dag_run_id,
         task_id=task_id,
@@ -217,7 +111,7 @@ def update_mapped_ti_hitl_detail(
     map_index: int,
 ) -> HITLDetailResponse:
     """Update a Human-in-the-loop detail."""
-    return _update_hitl_detail(
+    return update_hitl_detail_through_payload(
         dag_id=dag_id,
         dag_run_id=dag_run_id,
         task_id=task_id,
@@ -241,7 +135,7 @@ def get_hitl_detail(
     session: SessionDep,
 ) -> HITLDetail:
     """Get a Human-in-the-loop detail of a specific task instance."""
-    return _get_hitl_detail(
+    return get_hitl_detail_from_ti_keys(
         dag_id=dag_id,
         dag_run_id=dag_run_id,
         task_id=task_id,
@@ -264,7 +158,7 @@ def get_mapped_ti_hitl_detail(
     map_index: int,
 ) -> HITLDetail:
     """Get a Human-in-the-loop detail of a specific task instance."""
-    return _get_hitl_detail(
+    return get_hitl_detail_from_ti_keys(
         dag_id=dag_id,
         dag_run_id=dag_run_id,
         task_id=task_id,

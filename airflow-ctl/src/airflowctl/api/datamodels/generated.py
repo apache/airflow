@@ -9,7 +9,7 @@ from enum import Enum
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel
+from pydantic import AnyUrl, BaseModel, ConfigDict, Field, RootModel
 
 
 class AppBuilderMenuItemResponse(BaseModel):
@@ -577,52 +577,37 @@ class FastAPIRootMiddlewareResponse(BaseModel):
     name: Annotated[str, Field(title="Name")]
 
 
+class LinkType(str, Enum):
+    """
+    Type of link to generate: 'redirect' for redirecting to corresponding page or 'respond' for respond directly.
+    """
+
+    REDIRECT = "redirect"
+    RESPOND = "respond"
+
+
 class GenerateSharedLinkRequest(BaseModel):
     """
-    Request model for generating HITL shared links.
+    Request model for generating Human-in-the-loop shared links.
     """
 
     link_type: Annotated[
-        str | None,
+        LinkType,
         Field(
-            description="Type of link to generate: 'ui_redirect' for UI interaction or 'direct_action' for direct execution",
+            description="Type of link to generate: 'redirect' for redirecting to corresponding page or 'respond' for respond directly.",
             title="Link Type",
         ),
-    ] = "direct_action"
-    action: Annotated[
-        str | None,
-        Field(
-            description="Optional action to perform when link is accessed (e.g., 'approve', 'reject'). Required for direct_action links.",
-            title="Action",
-        ),
-    ] = None
+    ]
     chosen_options: Annotated[
-        list[str] | None, Field(description="Chosen options for direct_action links", title="Chosen Options")
+        list[str] | None, Field(description="Chosen options for 'respond' links.", title="Chosen Options")
     ] = None
     params_input: Annotated[
         dict[str, Any] | None,
-        Field(description="Parameters input for direct_action links", title="Params Input"),
+        Field(description="Parameters input for 'respond' links.", title="Params Input"),
     ] = None
-    expiration_hours: Annotated[
-        int | None, Field(description="Custom expiration time in hours", title="Expiration Hours")
+    expires_at: Annotated[
+        datetime | None, Field(description="Time that the link should expire at.", title="Expires At")
     ] = None
-
-
-class GenerateSharedLinkResponse(BaseModel):
-    """
-    Response model for generated HITL shared links.
-    """
-
-    url: Annotated[str, Field(title="Url")]
-    expires_at: Annotated[str, Field(title="Expires At")]
-    link_type: Annotated[str, Field(title="Link Type")]
-    action: Annotated[str | None, Field(title="Action")] = None
-    dag_id: Annotated[str, Field(title="Dag Id")]
-    dag_run_id: Annotated[str, Field(title="Dag Run Id")]
-    task_id: Annotated[str, Field(title="Task Id")]
-    try_number: Annotated[int, Field(title="Try Number")]
-    map_index: Annotated[int | None, Field(title="Map Index")] = None
-    task_instance_uuid: Annotated[str, Field(title="Task Instance Uuid")]
 
 
 class HITLDetailResponse(BaseModel):
@@ -634,11 +619,6 @@ class HITLDetailResponse(BaseModel):
     response_at: Annotated[datetime, Field(title="Response At")]
     chosen_options: Annotated[list[str], Field(min_length=1, title="Chosen Options")]
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
-    task_instance_id: Annotated[str | None, Field(title="Task Instance Id")] = None
-    link_url: Annotated[str | None, Field(title="Link Url")] = None
-    expires_at: Annotated[datetime | None, Field(title="Expires At")] = None
-    action: Annotated[str | None, Field(title="Action")] = None
-    link_type: Annotated[str | None, Field(title="Link Type")] = "direct_action"
 
 
 class HTTPExceptionResponse(BaseModel):
@@ -818,6 +798,14 @@ class SchedulerInfoResponse(BaseModel):
     latest_scheduler_heartbeat: Annotated[str | None, Field(title="Latest Scheduler Heartbeat")] = None
 
 
+class SharedLinkResponse(BaseModel):
+    """
+    Response model for generated Human-in-the-loop shared links.
+    """
+
+    url: Annotated[AnyUrl, Field(title="Url")]
+
+
 class StructuredLogMessage(BaseModel):
     """
     An individual log message.
@@ -983,7 +971,6 @@ class UpdateHITLDetailPayload(BaseModel):
 
     chosen_options: Annotated[list[str], Field(min_length=1, title="Chosen Options")]
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
-    try_number: Annotated[int | None, Field(description="Try number for the task", title="Try Number")] = 1
 
 
 class ValidationError(BaseModel):
@@ -1884,8 +1871,6 @@ class HITLDetail(BaseModel):
     chosen_options: Annotated[list[str] | None, Field(title="Chosen Options")] = None
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
     response_received: Annotated[bool | None, Field(title="Response Received")] = False
-    link_url: Annotated[str | None, Field(title="Link Url")] = None
-    expires_at: Annotated[datetime | None, Field(title="Expires At")] = None
 
 
 class HITLDetailCollection(BaseModel):
@@ -1895,8 +1880,6 @@ class HITLDetailCollection(BaseModel):
 
     hitl_details: Annotated[list[HITLDetail], Field(title="Hitl Details")]
     total_entries: Annotated[int, Field(title="Total Entries")]
-    chosen_options: Annotated[list[str] | None, Field(title="Chosen Options")] = None
-    params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
 
 
 class PluginCollectionResponse(BaseModel):

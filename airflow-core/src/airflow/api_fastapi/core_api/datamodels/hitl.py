@@ -27,36 +27,11 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import TaskInstanceR
 from airflow.sdk import Param
 
 
-class HITLSharedLinkFields(BaseModel):
-    """Common shared link fields for HITL models."""
-
-    link_type: str = Field(
-        default="direct_action",
-        description="Type of link to generate: 'ui_redirect' for UI interaction or 'direct_action' for direct execution",
-    )
-    action: str | None = Field(
-        default=None,
-        description="Optional action to perform when link is accessed (e.g., 'approve', 'reject'). Required for direct_action links.",
-    )
-
-
-class HITLSharedLinkPayload(HITLSharedLinkFields, BaseModel):
-    """Payload data for HITL shared links containing task and link metadata."""
-
-    dag_id: str
-    dag_run_id: str
-    task_id: str
-    try_number: int
-    map_index: int | None = None
-    expires_at: str
-
-
 class UpdateHITLDetailPayload(BaseModel):
     """Schema for updating the content of a Human-in-the-loop detail."""
 
     chosen_options: list[str] = Field(min_length=1)
     params_input: Mapping = Field(default_factory=dict)
-    try_number: int = Field(default=1, description="Try number for the task")
 
 
 class HITLDetailResponse(BaseModel):
@@ -66,12 +41,6 @@ class HITLDetailResponse(BaseModel):
     response_at: datetime
     chosen_options: list[str] = Field(min_length=1)
     params_input: Mapping = Field(default_factory=dict)
-    # Shared link response fields (added)
-    task_instance_id: str | None = None
-    link_url: str | None = None
-    expires_at: datetime | None = None
-    action: str | None = None
-    link_type: str = "direct_action"
 
 
 class HITLDetail(BaseModel):
@@ -94,8 +63,6 @@ class HITLDetail(BaseModel):
     params_input: dict[str, Any] = Field(default_factory=dict)
 
     response_received: bool = False
-    link_url: str | None = None  # Added
-    expires_at: datetime | None = None  # Added
 
     @field_validator("params", mode="before")
     @classmethod
@@ -109,7 +76,3 @@ class HITLDetailCollection(BaseModel):
 
     hitl_details: list[HITLDetail]
     total_entries: int
-
-    # Shared link action request fields
-    chosen_options: list[str] | None = None
-    params_input: Mapping = Field(default_factory=dict)

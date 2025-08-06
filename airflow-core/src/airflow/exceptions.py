@@ -517,6 +517,13 @@ class UnknownExecutorException(ValueError):
     """Raised when an attempt is made to load an executor which is not configured."""
 
 
+class HITLSharedLinkTimeout(BaseException):
+    """Raised when a human-in-the-loop shared link expired."""
+
+    def __str__(self):
+        return "This Human in the loop link has expired."
+
+
 def __getattr__(name: str):
     """Provide backward compatibility for moved exceptions."""
     if name == "AirflowDagCycleException":
