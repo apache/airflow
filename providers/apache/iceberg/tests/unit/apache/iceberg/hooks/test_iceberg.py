@@ -17,31 +17,32 @@
 
 from __future__ import annotations
 
-from unittest.mock import Mock, patch
-
 import requests_mock
 
+from airflow.models import Connection
 from airflow.providers.apache.iceberg.hooks.iceberg import IcebergHook
 
 
-def test_iceberg_hook():
+def test_iceberg_hook(create_connection_without_db):
     access_token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSU"
-    with patch("airflow.models.Connection.get_connection_from_secrets") as mock_get_connection:
-        mock_conn = Mock()
-        mock_conn.conn_id = "iceberg_default"
-        mock_conn.host = "https://api.iceberg.io/ws/v1"
-        mock_conn.extra_dejson = {}
-        mock_get_connection.return_value = mock_conn
-        with requests_mock.Mocker() as m:
-            m.post(
-                "https://api.iceberg.io/ws/v1/oauth/tokens",
-                json={
-                    "access_token": access_token,
-                    "token_type": "Bearer",
-                    "expires_in": 86400,
-                    "warehouse_id": "fadc4c31-e81f-48cd-9ce8-64cd5ce3fa5d",
-                    "region": "us-west-2",
-                    "catalog_url": "warehouses/fadc4c31-e81f-48cd-9ce8-64cd5ce3fa5d",
-                },
-            )
-            assert IcebergHook().get_conn() == access_token
+    create_connection_without_db(
+        Connection(
+            conn_id="iceberg_default",
+            conn_type="iceberg",
+            host="https://api.iceberg.io/ws/v1",
+            extra='{"region": "us-west-2", "catalog_url": "warehouses/fadc4c31-e81f-48cd-9ce8-64cd5ce3fa5d"}',
+        )
+    )
+    with requests_mock.Mocker() as m:
+        m.post(
+            "https://api.iceberg.io/ws/v1/oauth/tokens",
+            json={
+                "access_token": access_token,
+                "token_type": "Bearer",
+                "expires_in": 86400,
+                "warehouse_id": "fadc4c31-e81f-48cd-9ce8-64cd5ce3fa5d",
+                "region": "us-west-2",
+                "catalog_url": "warehouses/fadc4c31-e81f-48cd-9ce8-64cd5ce3fa5d",
+            },
+        )
+        assert IcebergHook().get_conn() == access_token
