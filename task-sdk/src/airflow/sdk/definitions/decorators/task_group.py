@@ -40,10 +40,9 @@ from airflow.sdk.definitions._internal.expandinput import (
     MappedArgument,
 )
 from airflow.sdk.definitions._internal.node import DAGNode
-from airflow.sdk.definitions.mappedoperator import ensure_xcomarg_return_value
+from airflow.sdk.definitions.mappedoperator import ensure_xcomarg_return_value, prevent_duplicates
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.sdk.definitions.xcom_arg import XComArg
-from airflow.utils.helpers import prevent_duplicates
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions._internal.expandinput import (
