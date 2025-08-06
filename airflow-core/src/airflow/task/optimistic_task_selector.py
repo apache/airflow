@@ -365,7 +365,7 @@ class OptimisticTaskSelector(TaskSelectorStrategy, LoggingMixin):
         # Many dags don't have a task_concurrency, so where we can avoid loading the full
         # If the dag is missing, fail the task and continue to the next task.
         serialized_dag = (
-            select(TaskInstance, DagVersion, SerializedDagModel)
+            select(TaskInstance)
             .where(TaskInstance.id == task_instance.id)
             .join(DagVersion, DagVersion.id == task_instance.dag_version_id)
             .join(SerializedDagModel, SerializedDagModel.dag_version_id == DagVersion.id)
@@ -431,13 +431,11 @@ class OptimisticTaskSelector(TaskSelectorStrategy, LoggingMixin):
                 "Not executing %s since the task concurrency per DAG run for this task has been reached.",
                 task_instance,
             )
-            starved_tasks_task_dagrun_concurrency.add(
-                (
-                    task_instance.dag_id,
-                    task_instance.run_id,
-                    task_instance.task_id,
-                )
-            )
+            starved_tasks_task_dagrun_concurrency.add((
+                task_instance.dag_id,
+                task_instance.run_id,
+                task_instance.task_id,
+            ))
             return False
 
         return True
