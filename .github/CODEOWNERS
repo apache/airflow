@@ -92,6 +92,7 @@ airflow-core/src/airflow/ui/public/i18n/locales/fr/ @pierrejeambrun @vincbeck
 # Dev tools
 /.github/workflows/ @potiuk @ashb @gopidesupavan
 /dev/ @potiuk @ashb @jedcunningham @gopidesupavan @amoghrajesh
+/dev/react-plugin-tools/ @pierrejeambrun @bbovenzi
 /docker-tests/ @potiuk @ashb @gopidesupavan @jason810496
 /kubernetes-tests/ @potiuk @ashb @gopidesupavan @jason810496
 /helm-tests/ @dstandish @jedcunningham
