@@ -174,7 +174,8 @@ cookie named ``_token`` before redirecting to the Airflow UI. The Airflow UI wil
 
 Refreshing JWT Token
 ''''''''''''''''''''
-The refresh token endpoint is ``POST /auth/token/refresh`` with the current JWT token in the cookie or acquired from the API.
+The refresh token ``<METHOD> <PATH>`` is ``POST /auth/token/refresh``. It returns a new JWT token in the cookie where updated token is stored.
+It requires the user to be authenticated, and it is usually called by the Airflow UI/API when the JWT token is about to expire.
 This endpoint is used to refresh the JWT token when it is about to expire.
 The auth manager should implement this endpoint to allow the Airflow UI/API to refresh the JWT token.
 If the auth manager does not implement this endpoint, the Airflow UI/API will not be able to refresh the JWT token.
