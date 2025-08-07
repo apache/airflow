@@ -19,8 +19,6 @@ from __future__ import annotations
 
 import json
 import os
-from contextlib import redirect_stdout
-from io import StringIO
 
 import pytest
 from sqlalchemy import select
@@ -71,15 +69,15 @@ class TestCliVariables:
         with pytest.raises(KeyError):
             Variable.get("foo1")
 
-    def test_variables_get(self):
+    def test_variables_get(self, stdout_capture):
         Variable.set("foo", {"foo": "bar"}, serialize_json=True)
 
-        with redirect_stdout(StringIO()) as stdout:
+        with stdout_capture as stdout:
             variable_command.variables_get(self.parser.parse_args(["variables", "get", "foo"]))
             assert stdout.getvalue() == '{\n  "foo": "bar"\n}\n'
 
-    def test_get_variable_default_value(self):
-        with redirect_stdout(StringIO()) as stdout:
+    def test_get_variable_default_value(self, stdout_capture):
+        with stdout_capture as stdout:
             variable_command.variables_get(
                 self.parser.parse_args(["variables", "get", "baz", "--default", "bar"])
             )
@@ -192,7 +190,7 @@ class TestCliVariables:
         assert path1.read_text() == path2.read_text()
 
     def test_variables_import_and_export_with_description(self, tmp_path):
-        """Test variables_import with file-description parameted"""
+        """Test variables_import with file-description parameter"""
         variables_types_file = tmp_path / "variables_types.json"
         variable_command.variables_set(
             self.parser.parse_args(["variables", "set", "foo", "bar", "--description", "Foo var description"])

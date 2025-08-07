@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,17 +17,39 @@
 # under the License.
 from __future__ import annotations
 
-import airflow.cli.commands.version_command
-from airflow.cli import cli_parser
-from airflow.version import version
+import pytest
+
+from tests_common.test_utils.stream_capture_manager import (
+    CombinedCaptureManager,
+    StderrCaptureManager,
+    StdoutCaptureManager,
+    StreamCaptureManager,
+)
 
 
-class TestCliVersion:
-    @classmethod
-    def setup_class(cls):
-        cls.parser = cli_parser.get_parser()
+@pytest.fixture
+def stdout_capture():
+    """Fixture that captures stdout only."""
+    return StdoutCaptureManager()
 
-    def test_cli_version(self, stdout_capture):
-        with stdout_capture as stdout:
-            airflow.cli.commands.version_command.version(self.parser.parse_args(["version"]))
-        assert version in stdout.getvalue()
+
+@pytest.fixture
+def stderr_capture():
+    """Fixture that captures stderr only."""
+    return StderrCaptureManager()
+
+
+@pytest.fixture
+def stream_capture():
+    """Fixture that returns a configurable stream capture manager."""
+
+    def _capture(stdout=True, stderr=False):
+        return StreamCaptureManager(capture_stdout=stdout, capture_stderr=stderr)
+
+    return _capture
+
+
+@pytest.fixture
+def combined_capture():
+    """Fixture that captures both stdout and stderr."""
+    return CombinedCaptureManager()
