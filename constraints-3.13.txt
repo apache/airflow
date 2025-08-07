@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-07T13:57:19.950081
+# This constraints file was automatically generated on 2025-08-07T19:48:40.334108
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -424,7 +424,7 @@ neo4j==5.28.2
 nest-asyncio==1.6.0
 numpy==2.3.2
 oauthlib==3.3.1
-openai==1.99.1
+openai==1.99.2
 openlineage-integration-common==1.36.0
 openlineage-python==1.36.0
 openlineage_sql==1.36.0
@@ -535,7 +535,7 @@ ruamel.yaml.clib==0.2.12
 ruamel.yaml==0.18.14
 s3fs==2025.7.0
 s3transfer==0.13.1
-sagemaker_studio==1.0.20
+sagemaker_studio==1.0.21
 scikit-learn==1.7.1
 scipy==1.16.1
 scramp==1.4.6
@@ -601,7 +601,7 @@ universal_pathlib==0.2.6
 uritemplate==4.2.0
 urllib3==2.5.0
 uuid6==2025.0.1
-uv==0.8.5
+uv==0.8.6
 uvicorn==0.35.0
 uvloop==0.21.0
 validators==0.35.0

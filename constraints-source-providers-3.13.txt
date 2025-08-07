@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-07T13:53:55.489798
+# This constraints file was automatically generated on 2025-08-07T19:45:10.985439
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -398,7 +398,7 @@ nh3==0.3.0
 nodeenv==1.9.1
 numpy==2.2.6
 oauthlib==3.3.1
-openai==1.99.1
+openai==1.99.2
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
 openlineage-integration-common==1.36.0
@@ -487,7 +487,7 @@ pyproject_hooks==1.2.0
 pypsrp==0.8.1
 pyspark==4.0.0
 pyspnego==0.11.2
-pytest-asyncio==0.25.0
+pytest-asyncio==1.1.0
 pytest-cov==6.2.1
 pytest-custom-exit-code==0.3.0
 pytest-icdiff==0.9
@@ -545,7 +545,7 @@ ruamel.yaml==0.18.14
 ruff==0.12.7
 s3fs==2025.7.0
 s3transfer==0.13.1
-sagemaker_studio==1.0.20
+sagemaker_studio==1.0.21
 scikit-learn==1.7.1
 scipy==1.16.1
 scramp==1.4.6
