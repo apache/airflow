@@ -76,7 +76,7 @@ apache-airflow-providers-airbyte package
 `Airbyte <https://airbyte.com/>`__
 
 
-Release: 5.2.2
+Release: 5.2.3
 
 Release Date: ``|PypiReleaseDate|``
 

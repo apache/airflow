@@ -15,6 +15,17 @@
     specific language governing permissions and limitations
     under the License.
 
+0.0.6
+.....
+
+Misc
+~~~~
+
+* ``Refactor bundle view_url to not instaniate bundle on server components (#52876)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 0.0.5
 .....
 
