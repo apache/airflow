@@ -16,8 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Input, Field } from "@chakra-ui/react";
-import { Select as ReactSelect, type MultiValue } from "chakra-react-select";
+import { Box, HStack, Input } from "@chakra-ui/react";
 import { useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 
@@ -25,14 +24,13 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { SearchParamsKeys } from "src/constants/searchParams";
 
 import { ResetButton } from "./ResetButton";
-import { eventTypeOptions } from "./eventTypeOptions";
 import { getFilterCount, formatDateTimeLocalValue } from "./filterUtils";
 
 const {
   AFTER: AFTER_PARAM,
   BEFORE: BEFORE_PARAM,
   DAG_ID: DAG_ID_PARAM,
-  INCLUDED_EVENTS: INCLUDED_EVENTS_PARAM,
+  EVENT_TYPE: EVENT_TYPE_PARAM,
   MAP_INDEX: MAP_INDEX_PARAM,
   RUN_ID: RUN_ID_PARAM,
   TASK_ID: TASK_ID_PARAM,
@@ -57,8 +55,7 @@ export const EventsFilters = () => {
   const afterFilter = searchParams.get(AFTER_PARAM) ?? "";
   const beforeFilter = searchParams.get(BEFORE_PARAM) ?? "";
   const dagIdFilter = searchParams.get(DAG_ID_PARAM) ?? "";
-  const includedEvents = searchParams.getAll(INCLUDED_EVENTS_PARAM);
-
+  const eventTypeFilter = searchParams.get(EVENT_TYPE_PARAM) ?? "";
   const mapIndexFilter = searchParams.get(MAP_INDEX_PARAM) ?? "";
   const runIdFilter = searchParams.get(RUN_ID_PARAM) ?? "";
   const taskIdFilter = searchParams.get(TASK_ID_PARAM) ?? "";
@@ -105,30 +102,11 @@ export const EventsFilters = () => {
     [resetPagination, searchParams, setSearchParams],
   );
 
-  const handleEventTypeChange = useCallback(
-    (selectedEvents: MultiValue<{ label: string; value: string }>) => {
-      // Clear existing included events
-      searchParams.delete(INCLUDED_EVENTS_PARAM);
-
-      // Add each selected event type (excluding "all")
-      selectedEvents.forEach(({ value }) => {
-        if (value !== "all") {
-          searchParams.append(INCLUDED_EVENTS_PARAM, value);
-        }
-      });
-
-      resetPagination();
-      setSearchParams(searchParams);
-    },
-    [resetPagination, searchParams, setSearchParams],
-  );
-
   const handleClearFilters = useCallback(() => {
     searchParams.delete(AFTER_PARAM);
     searchParams.delete(BEFORE_PARAM);
     searchParams.delete(DAG_ID_PARAM);
-    searchParams.delete(INCLUDED_EVENTS_PARAM);
-
+    searchParams.delete(EVENT_TYPE_PARAM);
     searchParams.delete(MAP_INDEX_PARAM);
     searchParams.delete(RUN_ID_PARAM);
     searchParams.delete(TASK_ID_PARAM);
@@ -143,8 +121,7 @@ export const EventsFilters = () => {
     after: afterFilter,
     before: beforeFilter,
     dagId: dagIdFilter,
-    eventType: includedEvents,
-
+    eventType: eventTypeFilter,
     mapIndex: mapIndexFilter,
     runId: runIdFilter,
     taskId: taskIdFilter,
@@ -174,46 +151,13 @@ export const EventsFilters = () => {
         />
 
         {/* Event Type Filter */}
-        <Field.Root>
-          <ReactSelect
-            aria-label="Filter by event type"
-            chakraStyles={{
-              clearIndicator: (provided) => ({
-                ...provided,
-                color: "gray.fg",
-              }),
-              container: (provided) => ({
-                ...provided,
-                maxWidth: "300px",
-                minWidth: "200px",
-              }),
-              control: (provided) => ({
-                ...provided,
-                colorPalette: "blue",
-                fontSize: "sm",
-                minHeight: "32px", // sm size
-              }),
-              menu: (provided) => ({
-                ...provided,
-                zIndex: 1000,
-              }),
-            }}
-            isClearable
-            isMulti
-            noOptionsMessage={() => "No event types found"}
-            onChange={handleEventTypeChange}
-            options={eventTypeOptions.map((option) => ({
-              label: option.label,
-              value: option.value,
-            }))}
-            placeholder="Event types"
-            value={includedEvents.map((event) => {
-              const option = eventTypeOptions.find((opt) => opt.value === event);
-
-              return option ? { label: option.label, value: option.value } : { label: event, value: event };
-            })}
-          />
-        </Field.Root>
+        <Input
+          onChange={handleInputChange(EVENT_TYPE_PARAM)}
+          placeholder="Event type"
+          size="sm"
+          value={eventTypeFilter}
+          width="150px"
+        />
 
         {/* User Filter */}
         <Input

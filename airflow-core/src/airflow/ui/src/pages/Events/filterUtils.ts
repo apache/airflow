@@ -20,7 +20,7 @@ export type FilterOptions = {
   after: string | null;
   before: string | null;
   dagId: string | null;
-  eventType: ReadonlyArray<string>;
+  eventType: string | null;
   mapIndex: string | null;
   runId: string | null;
   taskId: string | null;
@@ -50,7 +50,7 @@ export const getFilterCount = ({
   if (Boolean(dagId)) {
     count += 1;
   }
-  if (eventType.length > 0) {
+  if (Boolean(eventType)) {
     count += 1;
   }
 
