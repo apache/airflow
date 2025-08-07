@@ -1,0 +1,167 @@
+/*!
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+import { Box, Text } from "@chakra-ui/react";
+import dayjs from "dayjs";
+
+import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
+import { Tooltip } from "src/components/ui";
+
+type Props = {
+  readonly cellSize: number;
+  readonly currentYear: number;
+  readonly data: Array<CalendarTimeRangeResponse>;
+  readonly selectedYear: number;
+};
+
+const getColor = (count: number) => {
+  if (count === 0) {
+    return "#ebedf0";
+  }
+  if (count <= 2) {
+    return "#C6F6D5";
+  }
+  if (count <= 5) {
+    return "#68D391";
+  }
+
+  return "#22543D";
+};
+
+export const DailyCalendarView = ({ cellSize, currentYear, data, selectedYear }: Props) => {
+  const isCurrentYear = selectedYear === currentYear;
+
+  const generateDailyData = () => {
+    const weeks: Array<Array<{ count: number; date: string }>> = [];
+    const startOfYear = dayjs().year(selectedYear).startOf("year");
+    const endOfYear = dayjs().year(selectedYear).endOf("year");
+
+    let currentDate = startOfYear.startOf("week");
+    const endDate = endOfYear.endOf("week");
+
+    while (currentDate.isBefore(endDate) || currentDate.isSame(endDate, "day")) {
+      const week = [];
+
+      for (let dayIndex = 0; dayIndex < 7; dayIndex += 1) {
+        const dateStr = currentDate.format("YYYY-MM-DD");
+        const runs = data.filter((run) => run.date.startsWith(dateStr));
+        const count = runs.reduce((sum, run) => sum + run.count, 0);
+
+        week.push({ count, date: dateStr });
+        currentDate = currentDate.add(1, "day");
+      }
+      weeks.push(week);
+    }
+
+    return weeks;
+  };
+
+  const dailyData = generateDailyData();
+
+  return (
+    <Box mb={4}>
+      <Box display="flex" mb={2}>
+        <Box width="50px" />
+        <Box display="flex" gap={1}>
+          {dailyData.map((week, index) => (
+            <Box key={`month-${week[0]?.date ?? index}`} position="relative" width={`${cellSize}px`}>
+              {Boolean(week[0] && dayjs(week[0].date).date() <= 7) && (
+                <Text color="gray.500" fontSize="xs" left="0" position="absolute" top="-20px">
+                  {dayjs(week[0]?.date).format("MMM")}
+                </Text>
+              )}
+            </Box>
+          ))}
+        </Box>
+      </Box>
+      <Box display="flex" gap={2}>
+        <Box display="flex" flexDirection="column" gap={1}>
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+            <Box
+              alignItems="center"
+              color="gray.500"
+              display="flex"
+              fontSize="xs"
+              height={`${cellSize}px`}
+              justifyContent="flex-end"
+              key={day}
+              pr={2}
+              width="40px"
+            >
+              {day}
+            </Box>
+          ))}
+        </Box>
+        <Box display="flex" gap={1}>
+          {dailyData.map((week, weekIndex) => (
+            <Box display="flex" flexDirection="column" gap={1} key={`week-${week[0]?.date ?? weekIndex}`}>
+              {week.map((day) => {
+                const dayDate = dayjs(day.date);
+                const isInSelectedYear = dayDate.year() === selectedYear;
+
+                if (!isCurrentYear && !isInSelectedYear) {
+                  return (
+                    <Box
+                      bg="gray.100"
+                      borderRadius="2px"
+                      height={`${cellSize}px`}
+                      key={day.date}
+                      width={`${cellSize}px`}
+                    />
+                  );
+                }
+
+                return (
+                  <Tooltip content={`${day.date}: ${day.count} runs`} key={day.date} openDelay={600}>
+                    <Box
+                      _hover={isInSelectedYear ? { transform: "scale(1.1)" } : undefined}
+                      bg={isInSelectedYear ? getColor(day.count) : "colorMode.background"}
+                      borderRadius="2px"
+                      cursor={isInSelectedYear ? "pointer" : "default"}
+                      height={`${cellSize}px`}
+                      width={`${cellSize}px`}
+                    />
+                  </Tooltip>
+                );
+              })}
+            </Box>
+          ))}
+        </Box>
+      </Box>
+    </Box>
+  );
+};

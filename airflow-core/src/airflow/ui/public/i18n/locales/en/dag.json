@@ -6,30 +6,17 @@
     "title": "Dependencies Blocking Task From Getting Scheduled"
   },
   "calendar": {
-    "activityTitle": "DAG Run Activity - {{year}}",
-    "dagId": "Calendar for DAG: {{dagId}}",
-    "dagRuns": "DAG runs: {{count}}",
+    "cellSize": "Cell Size",
     "daily": "Daily",
+    "decreaseSize": "Decrease size",
     "error": "Error loading calendar data",
     "hourly": "Hourly",
+    "increaseSize": "Increase size",
     "less": "Less",
     "loading": "Loading...",
     "more": "More",
-    "next": "Next",
     "noData": "No data available",
-    "previous": "Previous",
-    "runCount": "{{count}} run",
-    "runCount_other": "{{count}} runs",
-    "state": {
-      "failed": "Failed",
-      "planned": "Planned",
-      "queued": "Queued",
-      "running": "Running",
-      "success": "Success"
-    },
-    "summary": "Recent Activity Summary:",
-    "tooltip": "{{date}}: {{count}} run{{plural}} {{state}}",
-    "totalEntries": "Total entries: {{count}}"
+    "week": "Week"
   },
   "code": {
     "bundleUrl": "Bundle Url",

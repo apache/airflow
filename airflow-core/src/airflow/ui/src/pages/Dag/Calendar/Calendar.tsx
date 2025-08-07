@@ -16,59 +16,77 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Text, VStack } from "@chakra-ui/react";
+import { Box, HStack, Text, IconButton, Button, Skeleton } from "@chakra-ui/react";
+import dayjs from "dayjs";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { FiMinus, FiPlus, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { useParams } from "react-router-dom";
+import { useLocalStorage } from "usehooks-ts";
 
 import { useCalendarServiceGetCalendar } from "openapi/queries";
-import { Tooltip } from "src/components/ui";
+import { ErrorAlert } from "src/components/ErrorAlert";
+
+import { DailyCalendarView } from "./DailyCalendarView";
+import { HourlyCalendarView } from "./HourlyCalendarView";
 
 const getColor = (count: number) => {
   if (count === 0) {
     return "#ebedf0";
   }
   if (count <= 2) {
-    return "#9be9a8";
+    return "#C6F6D5";
   }
   if (count <= 5) {
-    return "#40c463";
-  }
-  if (count <= 8) {
-    return "#30a14e";
+    return "#68D391";
   }
 
-  return "#216e39";
+  return "#22543D";
 };
 
 export const Calendar = () => {
   const { dagId = "" } = useParams();
   const { t: translate } = useTranslation("dag");
+  const [cellSize, setCellSize] = useLocalStorage("calendar-cell-size", 18);
+  const [selectedYear, setSelectedYear] = useState(dayjs().year());
+  const [selectedMonth, setSelectedMonth] = useState(dayjs().month());
+  const [granularity, setGranularity] = useLocalStorage<"daily" | "hourly">("calendar-granularity", "daily");
+
+  const currentYear = dayjs().year();
+  const currentMonth = dayjs().month();
+
+  const getDateRange = () => {
+    if (granularity === "daily") {
+      return {
+        logicalDateGte: `${selectedYear}-01-01T00:00:00Z`,
+        logicalDateLte: `${selectedYear}-12-31T23:59:59Z`,
+      };
+    } else {
+      const monthStart = dayjs().year(selectedYear).month(selectedMonth).startOf("month");
+      const monthEnd = dayjs().year(selectedYear).month(selectedMonth).endOf("month");
+
+      return {
+        logicalDateGte: monthStart.format("YYYY-MM-DD[T]HH:mm:ss[Z]"),
+        logicalDateLte: monthEnd.format("YYYY-MM-DD[T]HH:mm:ss[Z]"),
+      };
+    }
+  };
 
   const { data, error, isLoading } = useCalendarServiceGetCalendar(
     {
       dagId,
-      granularity: "daily",
-      logicalDateGte: `${new Date().getFullYear()}-01-01T00:00:00Z`,
-      logicalDateLte: `${new Date().getFullYear()}-12-31T23:59:59Z`,
+      granularity,
+      ...getDateRange(),
     },
     undefined,
-    {
-      enabled: Boolean(dagId),
-    },
+    { enabled: Boolean(dagId) },
   );
 
   if (isLoading) {
     return (
-      <Box p={4}>
-        <Text>{translate("calendar.loading", "Loading...")}</Text>
-      </Box>
-    );
-  }
-
-  if (Boolean(error)) {
-    return (
-      <Box p={4}>
-        <Text color="red.500">{translate("calendar.error", "Error loading calendar data")}</Text>
+      <Box p={6}>
+        <Skeleton height="40px" mb={4} width="200px" />
+        <Skeleton height="300px" width="100%" />
       </Box>
     );
   }
@@ -76,209 +94,183 @@ export const Calendar = () => {
   if (!data) {
     return (
       <Box p={4}>
-        <Text>{translate("calendar.noData", "No data available")}</Text>
+        <Text>{translate("calendar.noData")}</Text>
       </Box>
     );
   }
 
-  const generateCalendarGrid = () => {
-    const currentYear = new Date().getFullYear();
-    const startDate = new Date(currentYear, 0, 1);
-    const endDate = new Date(currentYear, 11, 31);
-
-    const weeks = [];
-    const iterDate = new Date(startDate);
-
-    const dayOfWeek = iterDate.getDay();
-
-    iterDate.setDate(iterDate.getDate() - dayOfWeek);
-
-    const currentIterDate = new Date(iterDate);
-    const endTime = endDate.getTime();
-
-    while (currentIterDate.getTime() <= endTime) {
-      const week = [];
-
-      for (let dayIndex = 0; dayIndex < 7; dayIndex += 1) {
-        const [dateStr] = currentIterDate.toISOString().split("T");
-        const dayData = data.dag_runs.find((run) => run.date.split("T")[0] === dateStr);
-
-        week.push({
-          count: dayData?.count ?? 0,
-          date: dateStr,
-          isCurrentYear: currentIterDate.getFullYear() === currentYear,
-          state: dayData?.state ?? "none",
-        });
-
-        currentIterDate.setDate(currentIterDate.getDate() + 1);
-      }
-      weeks.push(week);
-    }
-
-    return weeks;
-  };
-
-  const calendarWeeks = generateCalendarGrid();
-
-  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const legendCounts = [0, 1, 3, 6, 10];
-
   return (
     <Box p={6}>
-      <VStack align="stretch" gap={6}>
-        <Box>
-          <Text fontSize="2xl" fontWeight="bold" mb={2}>
-            {translate("calendar.dagId", { dagId })}
-          </Text>
-          <HStack gap={4}>
-            <Text color="gray.600">
-              {translate("calendar.totalEntries", "Total entries: {{count}}", {
-                count: data.total_entries || 0,
-              })}
-            </Text>
-            <Text color="gray.600">
-              {translate("calendar.dagRuns", "DAG runs: {{count}}", { count: data.dag_runs.length })}
-            </Text>
+      <ErrorAlert error={error} />
+      <HStack justify="space-between" mb={6}>
+        <HStack gap={4}>
+          {granularity === "daily" ? (
+            <HStack gap={2}>
+              <IconButton
+                aria-label="Previous year"
+                onClick={() => setSelectedYear(selectedYear - 1)}
+                size="sm"
+                variant="ghost"
+              >
+                <FiChevronLeft />
+              </IconButton>
+              <Text
+                _hover={{ textDecoration: "underline" }}
+                color={selectedYear === currentYear ? "blue.500" : "inherit"}
+                cursor="pointer"
+                fontSize="xl"
+                fontWeight="bold"
+                minWidth="120px"
+                onClick={() => setSelectedYear(currentYear)}
+                textAlign="center"
+              >
+                {selectedYear}
+              </Text>
+              <IconButton
+                aria-label="Next year"
+                onClick={() => setSelectedYear(selectedYear + 1)}
+                size="sm"
+                variant="ghost"
+              >
+                <FiChevronRight />
+              </IconButton>
+            </HStack>
+          ) : (
+            <HStack gap={2}>
+              <IconButton
+                aria-label="Previous month"
+                onClick={() => {
+                  if (selectedMonth === 0) {
+                    setSelectedMonth(11);
+                    setSelectedYear(selectedYear - 1);
+                  } else {
+                    setSelectedMonth(selectedMonth - 1);
+                  }
+                }}
+                size="sm"
+                variant="ghost"
+              >
+                <FiChevronLeft />
+              </IconButton>
+              <Text
+                _hover={{ textDecoration: "underline" }}
+                color={
+                  selectedYear === currentYear && selectedMonth === currentMonth ? "blue.500" : "inherit"
+                }
+                cursor="pointer"
+                fontSize="xl"
+                fontWeight="bold"
+                minWidth="120px"
+                onClick={() => {
+                  setSelectedYear(currentYear);
+                  setSelectedMonth(currentMonth);
+                }}
+                textAlign="center"
+              >
+                {dayjs().year(selectedYear).month(selectedMonth).format("MMM YYYY")}
+              </Text>
+              <IconButton
+                aria-label="Next month"
+                onClick={() => {
+                  if (selectedMonth === 11) {
+                    setSelectedMonth(0);
+                    setSelectedYear(selectedYear + 1);
+                  } else {
+                    setSelectedMonth(selectedMonth + 1);
+                  }
+                }}
+                size="sm"
+                variant="ghost"
+              >
+                <FiChevronRight />
+              </IconButton>
+            </HStack>
+          )}
+
+          <HStack gap={0}>
+            <Button
+              colorScheme={granularity === "daily" ? "blue" : "gray"}
+              onClick={() => setGranularity("daily")}
+              size="sm"
+              variant={granularity === "daily" ? "solid" : "ghost"}
+            >
+              {translate("calendar.daily")}
+            </Button>
+            <Button
+              colorScheme={granularity === "hourly" ? "blue" : "gray"}
+              onClick={() => setGranularity("hourly")}
+              size="sm"
+              variant={granularity === "hourly" ? "solid" : "ghost"}
+            >
+              {translate("calendar.hourly")}
+            </Button>
           </HStack>
-        </Box>
+        </HStack>
 
-        <Box>
-          <Text fontSize="lg" fontWeight="semibold" mb={4}>
-            {translate("calendar.activityTitle", "DAG Run Activity - {{year}}", {
-              year: new Date().getFullYear(),
-            })}
+        <HStack gap={2}>
+          <Text color="gray.600" fontSize="sm">
+            {translate("calendar.cellSize")}:
           </Text>
-
-          <Box mb={2}>
-            <HStack gap="0" justify="flex-start">
-              {monthNames.map((month, monthIndex) => (
-                <Box color="gray.500" fontSize="xs" key={month} textAlign="left" width="52px">
-                  {monthIndex === 0 || monthIndex % 2 === 0 ? month : ""}
-                </Box>
-              ))}
-            </HStack>
-          </Box>
-
-          <Box display="flex" gap="3px">
-            <Box display="flex" flexDirection="column" gap="3px" mr={2}>
-              {dayNames.map((day, dayIndex) => (
-                <Box
-                  alignItems="center"
-                  color="gray.500"
-                  display="flex"
-                  fontSize="xs"
-                  height="11px"
-                  key={day}
-                >
-                  {dayIndex % 2 === 1 ? day : ""}
-                </Box>
-              ))}
-            </Box>
-
-            <Box display="flex" gap="3px">
-              {calendarWeeks.map((week) => (
-                <Box
-                  display="flex"
-                  flexDirection="column"
-                  gap="3px"
-                  key={`week-${week[0]?.date ?? "unknown"}`}
-                >
-                  {week.map((day) => (
-                    <Tooltip
-                      content={
-                        day.isCurrentYear
-                          ? translate("calendar.tooltip", "{{date}}: {{count}} run{{plural}} {{state}}", {
-                              count: day.count,
-                              date: day.date,
-                              plural: day.count === 1 ? "" : "s",
-                              state: day.state === "none" ? "" : `(${day.state})`,
-                            })
-                          : day.date
-                      }
-                      key={day.date}
-                    >
-                      <Box
-                        _hover={{
-                          ring: 2,
-                          ringColor: "blue.400",
-                          transform: "scale(1.2)",
-                        }}
-                        bg={day.isCurrentYear ? getColor(day.count) : "#f1f5f9"}
-                        borderRadius="2px"
-                        cursor="pointer"
-                        height="11px"
-                        opacity={day.isCurrentYear ? 1 : 0.3}
-                        transition="all 0.15s"
-                        width="11px"
-                      />
-                    </Tooltip>
-                  ))}
-                </Box>
-              ))}
-            </Box>
-          </Box>
-
-          <Box mt={4}>
-            <HStack color="gray.600" fontSize="xs" gap={2}>
-              <Text>{translate("calendar.less", "Less")}</Text>
-              <HStack gap="3px">
-                {legendCounts.map((count) => (
-                  <Box bg={getColor(count)} borderRadius="2px" height="11px" key={count} width="11px" />
-                ))}
-              </HStack>
-              <Text>{translate("calendar.more", "More")}</Text>
-            </HStack>
-          </Box>
-        </Box>
-
-        <Box bg="gray.50" borderRadius="md" p={4}>
-          <Text fontWeight="bold" mb={3}>
-            {translate("calendar.summary", "Recent Activity Summary:")}
+          <IconButton
+            aria-label={translate("calendar.decreaseSize")}
+            disabled={cellSize <= 8}
+            onClick={() => setCellSize(Math.max(8, cellSize - 1))}
+            size="sm"
+            variant="ghost"
+          >
+            <FiMinus />
+          </IconButton>
+          <Text fontSize="sm" minWidth="40px" textAlign="center">
+            {cellSize}
+            {translate("calendar.px", "px")}
           </Text>
-          <VStack align="stretch" gap={1}>
-            {data.dag_runs.slice(0, 10).map((run) => (
-              <HStack fontSize="sm" justify="space-between" key={`${run.date}-${run.state}-${run.count}`}>
-                <Text>{run.date}</Text>
-                <HStack gap={2}>
-                  <Text fontWeight="medium">{translate("calendar.runCount", { count: run.count })}</Text>
-                  <Box
-                    bg={
-                      run.state === "success"
-                        ? "green.100"
-                        : run.state === "failed"
-                          ? "red.100"
-                          : run.state === "running"
-                            ? "blue.100"
-                            : run.state === "queued"
-                              ? "orange.100"
-                              : "gray.100"
-                    }
-                    borderRadius="sm"
-                    color={
-                      run.state === "success"
-                        ? "green.800"
-                        : run.state === "failed"
-                          ? "red.800"
-                          : run.state === "running"
-                            ? "blue.800"
-                            : run.state === "queued"
-                              ? "orange.800"
-                              : "gray.800"
-                    }
-                    fontSize="xs"
-                    fontWeight="medium"
-                    px={2}
-                    py={1}
-                  >
-                    {translate(`calendar.state.${run.state}`, run.state)}
-                  </Box>
-                </HStack>
-              </HStack>
-            ))}
-          </VStack>
-        </Box>
-      </VStack>
+          <IconButton
+            aria-label={translate("calendar.increaseSize")}
+            disabled={cellSize >= 20}
+            onClick={() => setCellSize(Math.min(20, cellSize + 1))}
+            size="sm"
+            variant="ghost"
+          >
+            <FiPlus />
+          </IconButton>
+        </HStack>
+      </HStack>
+
+      {granularity === "daily" ? (
+        <DailyCalendarView
+          cellSize={cellSize}
+          currentYear={currentYear}
+          data={data.dag_runs}
+          selectedYear={selectedYear}
+        />
+      ) : (
+        <HourlyCalendarView
+          cellSize={cellSize}
+          data={data.dag_runs}
+          selectedMonth={selectedMonth}
+          selectedYear={selectedYear}
+        />
+      )}
+
+      <HStack gap={2}>
+        <Text color="gray.600" fontSize="sm">
+          {translate("calendar.less")}
+        </Text>
+        <HStack gap={1}>
+          {[0, 1, 3, 6].map((count) => (
+            <Box
+              bg={getColor(count)}
+              borderRadius="2px"
+              height={`${cellSize}px`}
+              key={count}
+              width={`${cellSize}px`}
+            />
+          ))}
+        </HStack>
+        <Text color="gray.600" fontSize="sm">
+          {translate("calendar.more")}
+        </Text>
+      </HStack>
     </Box>
   );
 };
