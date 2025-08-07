@@ -21,7 +21,7 @@
       "paused": "Pausiert"
     },
     "runIdPatternFilter": "Dag Läufe suchen",
-    "triggeringUserNameFilter": "Angestoßen von Benutzer suchen"
+    "triggeringUserNameFilter": "Suche Läufe ausgelöst von..."
   },
   "ownerLink": "Besitzer Verlinkungen zu {{owner}}",
   "runAndTaskActions": {

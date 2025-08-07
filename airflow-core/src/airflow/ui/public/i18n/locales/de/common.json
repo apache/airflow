@@ -56,7 +56,7 @@
     "runAfter": "Gelaufen ab",
     "runType": "Typ des Laufs",
     "sourceAssetEvent": "Ursprung des Datenset (Asset) Ereignisses",
-    "triggeredBy": "Angestoßen von",
+    "triggeredBy": "Ausgelöst durch",
     "triggeringUser": "Benutzer der ausgelöst hat"
   },
   "dagRun_one": "Dag Lauf",
@@ -134,7 +134,7 @@
   },
   "runId": "Lauf Id",
   "runTypes": {
-    "asset_triggered": "Durch Datenset (Asset) angestoßen",
+    "asset_triggered": "Durch Datenset (Asset) ausgelöst",
     "backfill": "Nachträglich Aufgefüllt",
     "manual": "Manuell",
     "scheduled": "Geplant"
@@ -290,7 +290,7 @@
     }
   },
   "total": "Gesamt {{state}}",
-  "triggered": "Angestoßen",
+  "triggered": "Ausgelöst",
   "tryNumber": "Versuch Nummer",
   "user": "Benutzer",
   "wrap": {
