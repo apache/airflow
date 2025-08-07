@@ -1801,10 +1801,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             try:
                 for ti in stuck_tis:
                     executor.revoke_task(ti=ti)
-                    self._maybe_requeue_stuck_ti(
-                        ti=ti,
-                        session=session,
-                    )
+                    self._maybe_requeue_stuck_ti(ti=ti, session=session, executor=executor)
             except NotImplementedError:
                 # this block only gets entered if the executor has not implemented `revoke_task`.
                 # in which case, we try the fallback logic
@@ -1824,7 +1821,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
         )
 
-    def _maybe_requeue_stuck_ti(self, *, ti, session):
+    def _maybe_requeue_stuck_ti(self, *, ti, session, executor):
         """
         Requeue task if it has not been attempted too many times.
 
@@ -1856,7 +1853,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     extra=f"Task was requeued more than {self._num_stuck_queued_retries} times and will be failed.",
                 )
             )
-            ti.set_state(TaskInstanceState.FAILED, session=session)
+            executor.fail(ti.key)
 
     @deprecated(
         reason="This is backcompat layer for older executor interface. Should be removed in 3.0",
