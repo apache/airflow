@@ -42,6 +42,10 @@ class TestJenkinsOperator:
             "url": "http://aaa.fake-url.com/congratulation/its-a-job",
         }
         jenkins_mock.build_job_url.return_value = "http://www.jenkins.url/somewhere/in/the/universe"
+        jenkins_mock.get_queue_item.side_effect = [
+            {},
+            {"executable": {"number": "1"}},
+        ]
 
         hook_mock = Mock(spec=JenkinsHook)
         hook_mock.get_jenkins_server.return_value = jenkins_mock
@@ -56,11 +60,12 @@ class TestJenkinsOperator:
                 "airflow.providers.jenkins.operators.jenkins_job_trigger.jenkins_request_with_headers"
             ) as mock_make_request,
         ):
-            mock_make_request.side_effect = [
-                {"body": "", "headers": {"Location": "http://what-a-strange.url/18"}},
-                {"body": '{"executable":{"number":"1"}}', "headers": {}},
-            ]
+            mock_make_request.return_value = {
+                "body": "",
+                "headers": {"Location": "http://what-a-strange.url/queue/item/18/"},
+            }
             hook_mocked.return_value = hook_mock
+
             operator = JenkinsJobTriggerOperator(
                 dag=None,
                 jenkins_connection_id="fake_jenkins_connection",
@@ -85,6 +90,10 @@ class TestJenkinsOperator:
             {"result": "SUCCESS", "url": "http://aaa.fake-url.com/congratulation/its-a-job"},
         ]
         jenkins_mock.build_job_url.return_value = "http://www.jenkins.url/somewhere/in/the/universe"
+        jenkins_mock.get_queue_item.side_effect = [
+            {},
+            {"executable": {"number": "1"}},
+        ]
 
         hook_mock = Mock(spec=JenkinsHook)
         hook_mock.get_jenkins_server.return_value = jenkins_mock
@@ -99,10 +108,10 @@ class TestJenkinsOperator:
                 "airflow.providers.jenkins.operators.jenkins_job_trigger.jenkins_request_with_headers"
             ) as mock_make_request,
         ):
-            mock_make_request.side_effect = [
-                {"body": "", "headers": {"Location": "http://what-a-strange.url/18"}},
-                {"body": '{"executable":{"number":"1"}}', "headers": {}},
-            ]
+            mock_make_request.return_value = {
+                "body": "",
+                "headers": {"Location": "http://what-a-strange.url/queue/item/18/"},
+            }
             hook_mocked.return_value = hook_mock
             operator = JenkinsJobTriggerOperator(
                 dag=None,
@@ -126,6 +135,10 @@ class TestJenkinsOperator:
             "url": "http://aaa.fake-url.com/congratulation/its-a-job",
         }
         jenkins_mock.build_job_url.return_value = "http://www.jenkins.url/somewhere/in/the/universe"
+        jenkins_mock.get_queue_item.side_effect = [
+            {},
+            {"executable": {"number": "1"}},
+        ]
 
         hook_mock = Mock(spec=JenkinsHook)
         hook_mock.get_jenkins_server.return_value = jenkins_mock
@@ -140,10 +153,10 @@ class TestJenkinsOperator:
                 "airflow.providers.jenkins.operators.jenkins_job_trigger.jenkins_request_with_headers"
             ) as mock_make_request,
         ):
-            mock_make_request.side_effect = [
-                {"body": "", "headers": {"Location": "http://what-a-strange.url/18"}},
-                {"body": '{"executable":{"number":"1"}}', "headers": {}},
-            ]
+            mock_make_request.return_value = {
+                "body": "",
+                "headers": {"Location": "http://what-a-strange.url/queue/item/18/"},
+            }
             hook_mocked.return_value = hook_mock
             operator = JenkinsJobTriggerOperator(
                 dag=None,
@@ -187,6 +200,10 @@ class TestJenkinsOperator:
             "url": "http://aaa.fake-url.com/congratulation/its-a-job",
         }
         jenkins_mock.build_job_url.return_value = "http://www.jenkins.url/somewhere/in/the/universe"
+        jenkins_mock.get_queue_item.side_effect = [
+            {},
+            {"executable": {"number": "1"}},
+        ]
 
         hook_mock = Mock(spec=JenkinsHook)
         hook_mock.get_jenkins_server.return_value = jenkins_mock
@@ -201,10 +218,10 @@ class TestJenkinsOperator:
                 "airflow.providers.jenkins.operators.jenkins_job_trigger.jenkins_request_with_headers",
             ) as mock_make_request,
         ):
-            mock_make_request.side_effect = [
-                {"body": "", "headers": {"Location": "http://what-a-strange.url/18"}},
-                {"body": '{"executable":{"number":"1"}}', "headers": {}},
-            ]
+            mock_make_request.return_value = {
+                "body": "",
+                "headers": {"Location": "http://what-a-strange.url/queue/item/18/"},
+            }
             hook_mocked.return_value = hook_mock
             operator = JenkinsJobTriggerOperator(
                 dag=None,
@@ -254,6 +271,10 @@ class TestJenkinsOperator:
             "url": "http://aaa.fake-url.com/congratulation/its-a-job",
         }
         jenkins_mock.build_job_url.return_value = "http://www.jenkins.url/somewhere/in/the/universe"
+        jenkins_mock.get_queue_item.side_effect = [
+            {},
+            {"executable": {"number": "1"}},
+        ]
 
         hook_mock = Mock(spec=JenkinsHook)
         hook_mock.get_jenkins_server.return_value = jenkins_mock
@@ -268,10 +289,10 @@ class TestJenkinsOperator:
                 "airflow.providers.jenkins.operators.jenkins_job_trigger.jenkins_request_with_headers"
             ) as mock_make_request,
         ):
-            mock_make_request.side_effect = [
-                {"body": "", "headers": {"Location": "http://what-a-strange.url/18"}},
-                {"body": '{"executable":{"number":"1"}}', "headers": {}},
-            ]
+            mock_make_request.return_value = {
+                "body": "",
+                "headers": {"Location": "http://what-a-strange.url/queue/item/18/"},
+            }
             hook_mocked.return_value = hook_mock
             operator = JenkinsJobTriggerOperator(
                 dag=None,
