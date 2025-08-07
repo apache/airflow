@@ -952,13 +952,13 @@ class TestElasticsearchRemoteLogIO:
     FILENAME_TEMPLATE = "{try_number}.log"
 
     @pytest.fixture(autouse=True)
-    def setup_tests(self, ti, elasticsearch_8_url):
-        self.elasticsearch_8_url = elasticsearch_8_url
+    def setup_tests(self, ti, es_8_container_url):
+        self.elasticsearch_8_url = es_8_container_url
         self.elasticsearch_io = ElasticsearchRemoteLogIO(
             write_to_es=True,
             write_stdout=True,
             delete_local_copy=True,
-            host=elasticsearch_8_url,
+            host=es_8_container_url,
             base_log_folder=Path(""),
         )
 
