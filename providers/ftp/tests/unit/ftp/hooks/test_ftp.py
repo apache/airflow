@@ -240,7 +240,7 @@ class TestIntegrationFTPHook:
 
         hook = FTPHook("ftp_encoding")
         hook.get_conn()
-        mock_ftp.assert_called_with(encoding="cp1251")
+        assert mock_ftp.mock_calls[0] == mock.call(encoding="cp1251")
 
     @mock.patch("ftplib.FTP_TLS")
     def test_ftps_encoding_extra(self, mock_ftp_tls):
