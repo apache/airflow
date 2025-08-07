@@ -26,6 +26,18 @@
 Changelog
 ---------
 
+2.6.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Allow secrets redact function to have different redaction than '***' (#53977)``
+* ``Fix several deprecation warnings related to airflow.sdk (#53791)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.6.0
 .....
 
