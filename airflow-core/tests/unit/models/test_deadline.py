@@ -100,7 +100,18 @@ class TestDeadline:
     def teardown_method():
         _clean_db()
 
-    def test_add_deadline(self, dagrun, deadline_orm, session):
+    def test_add_deadline(self, dagrun, session):
+        assert session.query(Deadline).count() == 0
+        deadline_orm = Deadline(
+            deadline_time=DEFAULT_DATE,
+            callback=AsyncCallback(TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
+            dag_id=DAG_ID,
+            dagrun_id=dagrun.id,
+        )
+
+        session.add(deadline_orm)
+        session.flush()
+
         assert session.query(Deadline).count() == 1
 
         result = session.scalars(select(Deadline)).first()
