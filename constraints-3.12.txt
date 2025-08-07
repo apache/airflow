@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-07T07:52:27.592013
+# This constraints file was automatically generated on 2025-08-07T13:59:24.432304
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -346,7 +346,7 @@ google-genai==1.29.0
 google-resumable-media==2.7.2
 googleapis-common-protos==1.70.0
 graphviz==0.21
-greenlet==3.2.3
+greenlet==3.2.4
 gremlinpython==3.7.3
 grpc-google-iam-v1==0.14.2
 grpc-interceptor==0.15.4
@@ -494,7 +494,7 @@ pinotdb==5.7.0
 platformdirs==4.3.8
 pluggy==1.6.0
 ply==3.11
-polars==1.32.1
+polars==1.32.2
 portalocker==3.2.0
 presto-python-client==0.8.4
 prison==0.2.1
@@ -567,7 +567,7 @@ rich-argparse==1.7.1
 rich-toolkit==0.14.9
 rich==13.9.4
 rignore==0.6.4
-rpds-py==0.26.0
+rpds-py==0.27.0
 rsa==4.9.1
 ruamel.yaml.clib==0.2.12
 ruamel.yaml==0.18.14

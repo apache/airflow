@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-07T07:48:56.175426
+# This constraints file was automatically generated on 2025-08-07T13:55:49.520136
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -273,7 +273,7 @@ google-resumable-media==2.7.2
 googleapis-common-protos==1.70.0
 graphql-core==3.2.6
 graphviz==0.20.3
-greenlet==3.2.3
+greenlet==3.2.4
 gremlinpython==3.7.3
 grpc-google-iam-v1==0.14.2
 grpc-interceptor==0.15.4
@@ -456,7 +456,7 @@ platformdirs==4.3.8
 pluggy==1.6.0
 ply==3.11
 plyvel==1.5.1
-polars==1.32.1
+polars==1.32.2
 portalocker==3.2.0
 pprintpp==0.4.0
 pre-commit-uv==4.1.4
@@ -556,7 +556,7 @@ rich-toolkit==0.14.9
 rich==13.9.4
 rignore==0.6.4
 roman-numerals-py==3.1.0
-rpds-py==0.26.0
+rpds-py==0.27.0
 rsa==4.9.1
 ruamel.yaml.clib==0.2.12
 ruamel.yaml==0.18.14
