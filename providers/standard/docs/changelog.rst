@@ -58,6 +58,11 @@ Misc
 * ``refactor(hitl): replace timezone usage with airflow.sdk.timezone (#53962)``
 * ``refactor(HITL): make default options class variables to avoid typo (#53849)``
 
+Doc-only
+~~~~~~~~
+
+* ``Fix BranchPythonOperator doc (#54205)``
+
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Documentation for Human-in-the-loop operator (#53694)``
