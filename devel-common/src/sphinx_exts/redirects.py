@@ -62,7 +62,13 @@ def generate_redirects(app):
             to_path_prefix = f"..{os.path.sep}" * (len(from_path.split(os.path.sep)) - 1)
             # The redirect path needs to move back to the root of the apache-airflow docs directory
             # or the root of the docs directory altogether for provider distributions.
-            if "../" and "providers" in to_path:
+            if (
+                from_path.startswith("_api/airflow/")
+                and "_api/airflow/providers" not in from_path
+                and "providers" in to_path
+            ):
+                to_path_prefix = f"..{os.path.sep}" * (len(from_path.split(os.path.sep)) - 1)
+            elif "../" and "providers" in to_path:
                 to_path_prefix = f"..{os.path.sep}" * (len(from_path.split(os.path.sep)))
             else:
                 to_path_prefix = f"..{os.path.sep}" * (len(from_path.split(os.path.sep)) - 1)
