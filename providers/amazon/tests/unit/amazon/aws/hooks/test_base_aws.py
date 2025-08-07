@@ -48,7 +48,6 @@ from airflow.providers.amazon.aws.hooks.base_aws import (
     resolve_session_factory,
 )
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
-from airflow.sdk.execution_time.comms import ConnectionResult
 
 from tests_common.test_utils.config import conf_vars
 
@@ -459,6 +458,8 @@ class TestAwsBaseHook:
     def test_user_agent_dag_run_key_is_hashed_correctly(
         self, _, env_var, expected_version, mock_supervisor_comms
     ):
+        from airflow.sdk.execution_time.comms import ConnectionResult
+
         mock_supervisor_comms.send.return_value = ConnectionResult(
             conn_id="aws_default",
             conn_type="aws",

@@ -35,8 +35,6 @@ from kubernetes.config import ConfigException
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook, KubernetesHook
-from airflow.sdk.exceptions import ErrorType
-from airflow.sdk.execution_time.comms import ErrorResponse
 
 from tests_common.test_utils.db import clear_test_connections
 from tests_common.test_utils.providers import get_provider_min_airflow_version
@@ -443,6 +441,9 @@ class TestKubernetesHook:
         # prove to ourselves that the default conn doesn't exist
         k8s_conn_exists = os.environ.get(f"AIRFLOW_CONN_{DEFAULT_CONN_ID.upper()}")
         assert k8s_conn_exists is None
+
+        from airflow.sdk.exceptions import ErrorType
+        from airflow.sdk.execution_time.comms import ErrorResponse
 
         mock_supervisor_comms.send.side_effect = [ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)] * 2
         # verify K8sHook still works
