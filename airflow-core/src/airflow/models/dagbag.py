@@ -47,7 +47,6 @@ from airflow.exceptions import (
     AirflowClusterPolicyError,
     AirflowClusterPolicySkipDag,
     AirflowClusterPolicyViolation,
-    AirflowDagCycleException,
     AirflowDagDuplicatedIdException,
     AirflowException,
 )
@@ -115,6 +114,10 @@ class FileLoadStat(NamedTuple):
     task_num: int
     dags: str
     warning_num: int
+
+
+class AirflowDagCycleException(AirflowException):
+    """Raise when there is a cycle in DAG definition."""
 
 
 class DagBag(LoggingMixin):
