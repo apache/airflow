@@ -531,6 +531,11 @@ class TestWasbHook:
         mock_instance = mocked_blob_service_client.return_value.get_blob_client
         mock_instance.assert_called_once_with(container="mycontainer", blob="myblob")
 
+    def test_set_blob_client(self, mocked_blob_service_client):
+        hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
+        hook.blob_service_client = mocked_blob_service_client
+        assert hook.blob_service_client is mocked_blob_service_client
+
     def test_create_container(self, mocked_blob_service_client):
         hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
         hook.create_container(container_name="mycontainer")
