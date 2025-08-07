@@ -25,7 +25,7 @@ requires = [
     "pluggy==1.6.0",
     "smmap==5.0.2",
     "tomli==2.2.1; python_version < '3.11'",
-    "trove-classifiers==2025.5.9.12",
+    "trove-classifiers==2025.8.6.13",
 ]
 build-backend = "hatchling.build"
 
@@ -67,7 +67,7 @@ classifiers = [
 version = "3.1.0"
 
 dependencies = [
-    "apache-airflow-task-sdk<1.2.0,>=1.0.0",
+    "apache-airflow-task-sdk<1.2.0,>=1.0.4",
     "apache-airflow-core==3.1.0",
     "natsort>=8.4.0",
 ]
