@@ -44,7 +44,6 @@ Here's an example of using the HttpEventTrigger in an AssetWatcher to monitor th
 
 .. code-block:: python
 
-    from __future__ import annotations
 
     import datetime
     import os
