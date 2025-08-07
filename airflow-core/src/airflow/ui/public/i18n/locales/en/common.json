@@ -15,6 +15,7 @@
   "backfill_other": "Backfills",
   "browse": {
     "auditLog": "Audit Log",
+    "requiredActions": "Required Actions",
     "xcoms": "XComs"
   },
   "collapseDetailsPanel": "Collapse Details Panel",

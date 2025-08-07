@@ -468,6 +468,7 @@ def test_get_user_roles_for_anonymous_user(app, security_manager):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_HITL_DETAIL),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PASSWORD),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PASSWORD),

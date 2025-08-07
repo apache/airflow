@@ -71,7 +71,7 @@ from airflow.sdk import TaskGroup, setup, task as task_decorator, teardown
 from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
 from airflow.sdk.definitions._internal.templater import NativeEnvironment, SandboxedEnvironment
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
-from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
+from airflow.sdk.definitions.deadline import AsyncCallback, DeadlineAlert, DeadlineReference
 from airflow.sdk.definitions.param import Param
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.simple import (
@@ -111,6 +111,11 @@ pytestmark = pytest.mark.db_test
 TEST_DATE = datetime_tz(2015, 1, 2, 0, 0)
 
 repo_root = Path(__file__).parents[2]
+
+
+async def empty_callback_for_deadline():
+    """Used in a number of tests to confirm that Deadlines and DeadlineAlerts function correctly."""
+    pass
 
 
 @pytest.fixture
@@ -2091,7 +2096,7 @@ my_postgres_conn:
             deadline=DeadlineAlert(
                 reference=reference_type,
                 interval=interval,
-                callback=print,
+                callback=AsyncCallback(empty_callback_for_deadline),
             ),
         ) as dag:
             ...

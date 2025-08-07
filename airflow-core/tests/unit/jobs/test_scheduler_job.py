@@ -50,6 +50,7 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.executor_utils import ExecutorName
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+from airflow.models import Deadline
 from airflow.models.asset import (
     AssetActive,
     AssetAliasModel,
@@ -64,6 +65,7 @@ from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
+from airflow.models.deadline import DeadlineCallbackState
 from airflow.models.log import Log
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
@@ -89,6 +91,7 @@ from tests_common.test_utils.db import (
     clear_db_backfills,
     clear_db_dag_bundles,
     clear_db_dags,
+    clear_db_deadline,
     clear_db_import_errors,
     clear_db_jobs,
     clear_db_pools,
@@ -191,6 +194,7 @@ class TestSchedulerJob:
         clear_db_import_errors()
         clear_db_jobs()
         clear_db_assets()
+        clear_db_deadline()
 
     @pytest.fixture(autouse=True)
     def per_test(self) -> Generator:
@@ -6693,6 +6697,44 @@ class TestSchedulerJob:
             dag_run=dag_run,
             last_ti=dag_run.get_task_instance(task_id="test_task"),
         )
+
+    @mock.patch("airflow.models.Deadline.handle_miss")
+    def test_process_expired_deadlines(self, mock_handle_miss, session):
+        """Verify all expired and unhandled deadlines (and only those) are processed by the scheduler."""
+        scheduler_job = Job(executor=MockExecutor())
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=1)
+
+        past_date = timezone.utcnow() - timedelta(minutes=5)
+        future_date = timezone.utcnow() + timedelta(minutes=5)
+        callback_path = "builtins.print"
+
+        handled_deadlines = []
+        for state in DeadlineCallbackState:
+            deadline = Deadline(deadline_time=past_date, callback=callback_path)
+            deadline.callback_state = state
+            handled_deadlines.append(deadline)
+        expired_deadline1 = Deadline(deadline_time=past_date, callback=callback_path)
+        expired_deadline2 = Deadline(deadline_time=past_date, callback=callback_path)
+        future_deadline = Deadline(deadline_time=future_date, callback=callback_path)
+
+        session.add_all([expired_deadline1, expired_deadline2, future_deadline] + handled_deadlines)
+        session.flush()
+
+        self.job_runner._execute()
+
+        # Assert that all deadlines which are both expired and unhandled get processed.
+        assert mock_handle_miss.call_count == 2
+
+    @mock.patch("airflow.models.Deadline.handle_miss")
+    def test_process_expired_deadlines_no_deadlines_found(self, mock_handle_miss, session):
+        """Test handling when there are no deadlines to process."""
+        scheduler_job = Job(executor=MockExecutor())
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=1)
+
+        self.job_runner._execute()
+
+        # The handler should not be called, but no exceptions should be raised either.`
+        mock_handle_miss.assert_not_called()
 
 
 @pytest.mark.need_serialized_dag

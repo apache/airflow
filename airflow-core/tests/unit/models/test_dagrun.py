@@ -44,7 +44,7 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator, ShortCircuitOperator
 from airflow.sdk import BaseOperator, setup, task, task_group, teardown
-from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
+from airflow.sdk.definitions.deadline import AsyncCallback, DeadlineAlert, DeadlineReference
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
 from airflow.triggers.base import StartTriggerArgs
@@ -69,7 +69,7 @@ TI = TaskInstance
 DEFAULT_DATE = pendulum.instance(_DEFAULT_DATE)
 
 
-def test_callback_for_deadline():
+async def empty_callback_for_deadline():
     """Used in a number of tests to confirm that Deadlines and DeadlineAlerts function correctly."""
     pass
 
@@ -1318,7 +1318,7 @@ class TestDagRun:
             deadline=DeadlineAlert(
                 reference=DeadlineReference.FIXED_DATETIME(future_date),
                 interval=datetime.timedelta(hours=1),
-                callback=test_callback_for_deadline,
+                callback=AsyncCallback(empty_callback_for_deadline),
             ),
         ) as dag:
             ...

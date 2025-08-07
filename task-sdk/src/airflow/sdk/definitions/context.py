@@ -17,10 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+import copy
 import os
-from typing import TYPE_CHECKING, Any, NamedTuple, TypedDict
+from collections.abc import MutableMapping
+from typing import TYPE_CHECKING, Any, NamedTuple, TypedDict, cast
 
 if TYPE_CHECKING:
+    import jinja2
     from pendulum import DateTime
 
     from airflow.models.operator import Operator
@@ -136,3 +139,45 @@ def get_parsing_context() -> AirflowParsingContext:
         dag_id=os.environ.get(_AIRFLOW_PARSING_CONTEXT_DAG_ID),
         task_id=os.environ.get(_AIRFLOW_PARSING_CONTEXT_TASK_ID),
     )
+
+
+# The 'template' argument is typed as Any because the jinja2.Template is too
+# dynamic to be effectively type-checked.
+def render_template(template: Any, context: MutableMapping[str, Any], *, native: bool) -> Any:
+    """
+    Render a Jinja2 template with given Airflow context.
+
+    The default implementation of ``jinja2.Template.render()`` converts the
+    input context into dict eagerly many times, which triggers deprecation
+    messages in our custom context class. This takes the implementation apart
+    and retain the context mapping without resolving instead.
+
+    :param template: A Jinja2 template to render.
+    :param context: The Airflow task context to render the template with.
+    :param native: If set to *True*, render the template into a native type. A
+        DAG can enable this with ``render_template_as_native_obj=True``.
+    :returns: The render result.
+    """
+    context = copy.copy(context)
+    env = template.environment
+    if template.globals:
+        context.update((k, v) for k, v in template.globals.items() if k not in context)
+    try:
+        nodes = template.root_render_func(env.context_class(env, context, template.name, template.blocks))
+    except Exception:
+        env.handle_exception()  # Rewrite traceback to point to the template.
+    if native:
+        import jinja2.nativetypes
+
+        return jinja2.nativetypes.native_concat(nodes)
+    return "".join(nodes)
+
+
+def render_template_as_native(template: jinja2.Template, context: Context) -> Any:
+    """Shorthand to ``render_template(native=True)`` with better typing support."""
+    return render_template(template, cast("MutableMapping[str, Any]", context), native=True)
+
+
+def render_template_to_string(template: jinja2.Template, context: Context) -> str:
+    """Shorthand to ``render_template(native=False)`` with better typing support."""
+    return render_template(template, cast("MutableMapping[str, Any]", context), native=False)

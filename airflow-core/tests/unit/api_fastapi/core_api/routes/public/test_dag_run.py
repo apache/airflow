@@ -110,7 +110,8 @@ def setup(request, dag_maker, session=None):
         triggered_by=DAG1_RUN1_TRIGGERED_BY,
         logical_date=LOGICAL_DATE1,
     )
-
+    # Set triggering_user_name for testing
+    dag_run1.triggering_user_name = "alice_admin"
     dag_run1.note = (DAG1_RUN1_NOTE, "not_test")
 
     for i, task in enumerate([task1, task2], start=1):
@@ -127,6 +128,8 @@ def setup(request, dag_maker, session=None):
         triggered_by=DAG1_RUN2_TRIGGERED_BY,
         logical_date=LOGICAL_DATE2,
     )
+    # Set triggering_user_name for testing
+    dag_run2.triggering_user_name = "bob_service"
 
     ti1 = dag_run2.get_task_instance(task_id=task1.task_id)
     ti1.task = task1
@@ -139,20 +142,25 @@ def setup(request, dag_maker, session=None):
     with dag_maker(DAG2_ID, schedule=None, start_date=START_DATE2, params=DAG2_PARAM, serialized=True):
         EmptyOperator(task_id="task_2")
 
-    dag_maker.create_dagrun(
+    dag_run3 = dag_maker.create_dagrun(
         run_id=DAG2_RUN1_ID,
         state=DAG2_RUN1_STATE,
         run_type=DAG2_RUN1_RUN_TYPE,
         triggered_by=DAG2_RUN1_TRIGGERED_BY,
         logical_date=LOGICAL_DATE3,
     )
-    dag_maker.create_dagrun(
+    # Set triggering_user_name for testing
+    dag_run3.triggering_user_name = "service_account"
+
+    dag_run4 = dag_maker.create_dagrun(
         run_id=DAG2_RUN2_ID,
         state=DAG2_RUN2_STATE,
         run_type=DAG2_RUN2_RUN_TYPE,
         triggered_by=DAG2_RUN2_TRIGGERED_BY,
         logical_date=LOGICAL_DATE4,
     )
+    # Leave triggering_user_name as None for testing
+    dag_run4.triggering_user_name = None
 
     dag_maker.sync_dagbag_to_db()
     dag_maker.dag_model.has_task_concurrency_limits = True
@@ -484,6 +492,21 @@ class TestGetDagRuns:
                 DAG1_ID,
                 {
                     "run_id_pattern": DAG1_RUN1_ID,
+                    "state": DagRunState.SUCCESS.value,
+                },
+                [DAG1_RUN1_ID],
+            ),
+            # Test triggering_user_name_pattern filter
+            (DAG1_ID, {"triggering_user_name_pattern": "alice_admin"}, [DAG1_RUN1_ID]),
+            (DAG1_ID, {"triggering_user_name_pattern": "bob_service"}, [DAG1_RUN2_ID]),
+            (DAG2_ID, {"triggering_user_name_pattern": "service_account"}, [DAG2_RUN1_ID]),
+            ("~", {"triggering_user_name_pattern": "alice%"}, [DAG1_RUN1_ID]),
+            ("~", {"triggering_user_name_pattern": "%service%"}, [DAG1_RUN2_ID, DAG2_RUN1_ID]),
+            ("~", {"triggering_user_name_pattern": "nonexistent"}, []),
+            (
+                DAG1_ID,
+                {
+                    "triggering_user_name_pattern": "alice%",
                     "state": DagRunState.SUCCESS.value,
                 },
                 [DAG1_RUN1_ID],
