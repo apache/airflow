@@ -35,15 +35,12 @@ from requests.structures import CaseInsensitiveDict
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpAsyncHook
 from airflow.providers.http.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.triggers.base import BaseEventTrigger, BaseTrigger, TriggerEvent
+    from airflow.triggers.base import BaseEventTrigger
 else:
-    from airflow.triggers.base import (  # type: ignore
-        BaseTrigger,
-        BaseTrigger as BaseEventTrigger,
-        TriggerEvent,
-    )
+    from airflow.triggers.base import BaseTrigger as BaseEventTrigger  # type: ignore
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
