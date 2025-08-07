@@ -31,11 +31,11 @@ Here's the list of all the Database Migrations that are executed via when you ru
  .. All table elements are scraped from migration files
  .. Beginning of auto-generated table
 
-+-------------------------+--------------+---------------+------------------------+
-| Revision ID             | Revises ID   | Fab Version   | Description            |
-+=========================+==============+===============+========================+
-| ``6709f7a774b9`` (head) | ``None``     | ``1.4.0``     | placeholder migration. |
-+-------------------------+--------------+---------------+------------------------+
++-------------------------+--------------+---------------+-----------------------------------------+
+| Revision ID             | Revises ID   | Fab Version   | Description                             |
++=========================+==============+===============+=========================================+
+| ``6709f7a774b9`` (head) | ``None``     | ``1.4.0``     | Create User and Role tables if missing. |
++-------------------------+--------------+---------------+-----------------------------------------+
 
  .. End of auto-generated table
 
