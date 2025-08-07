@@ -35,7 +35,8 @@
       "connectionTypeRequired": "נדרש סוג חיבור",
       "extraFields": "שדות נוספים",
       "extraFieldsJson": "שדות נוספים JSON",
-      "helperText": "סוג החיבור המבוקש חסר? וודא שהתקנת את חבילת ה-Airflow Providers המתאימה",
+      "helperText": "סוג החיבור המבוקש חסר? וודא שהתקנת את חבילת העזר המתאימה",
+      "helperTextForRedactedFields": "שדות שהושחרו ('***') יישארו ללא שינוי אם לא בוצע בהם עדכון",
       "selectConnectionType": "בחר סוג חיבור",
       "standardFields": "שדות סטנדרטיים"
     },
