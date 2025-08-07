@@ -188,9 +188,7 @@ class XComModel(TaskInstanceDependencies):
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
 
-        dag_run_id = session.execute(
-            select(DagRun.id).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
-        ).scalar()
+        dag_run_id = session.scalar(select(DagRun.id).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id))
         if dag_run_id is None:
             raise ValueError(f"DAG run not found on DAG {dag_id!r} with ID {run_id!r}")
 

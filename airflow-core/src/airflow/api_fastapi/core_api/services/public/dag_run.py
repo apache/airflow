@@ -48,9 +48,7 @@ class DagRunWaiter:
         async with create_session_async() as session:
             return await session.scalar(select(DagRun).filter_by(dag_id=self.dag_id, run_id=self.run_id))
 
-    def _serialize_xcoms(
-        self,
-    ) -> dict[str, Any]:
+    def _serialize_xcoms(self) -> dict[str, Any]:
         with create_session() as session:
             xcom_query = XComModel.get_many(
                 run_id=self.run_id,

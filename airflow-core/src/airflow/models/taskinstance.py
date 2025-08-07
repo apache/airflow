@@ -658,7 +658,7 @@ class TaskInstance(Base, LoggingMixin):
     ) -> TaskInstance | None:
         query = (
             select(TaskInstance)
-            .options(lazyload(TaskInstance.dag_run))
+            .options(lazyload(TaskInstance.dag_run))  # lazy load dag run to avoid locking it
             .filter_by(
                 dag_id=dag_id,
                 run_id=run_id,
@@ -1955,7 +1955,6 @@ class TaskInstance(Base, LoggingMixin):
         # call XCom.deserialize_value() manually.
 
         # We are only pulling one single task.
-
         if (task_ids is None or isinstance(task_ids, str)) and not isinstance(map_indexes, Iterable):
             first = session.execute(
                 query.with_only_columns(
@@ -2015,7 +2014,7 @@ class TaskInstance(Base, LoggingMixin):
             num_running_task_instances_query = num_running_task_instances_query.where(
                 TaskInstance.run_id == self.run_id
             )
-        return session.execute(num_running_task_instances_query).scalar()
+        return session.scalar(num_running_task_instances_query)
 
     @staticmethod
     def filter_for_tis(tis: Iterable[TaskInstance | TaskInstanceKey]) -> BooleanClauseList | None:

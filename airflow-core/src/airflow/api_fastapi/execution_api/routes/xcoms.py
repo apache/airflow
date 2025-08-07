@@ -167,7 +167,7 @@ def get_xcom(
     # retrieves the raw serialized value from the database. By not relying on `XCom.get_many` or `XCom.get_one`
     # (which automatically deserializes using the backend), we avoid potential
     # performance hits from retrieving large data files into the API server.
-    result = session.scalars(xcom_query.limit(1)).first()
+    result = session.scalars(xcom_query).first()
     if result is None:
         if params.offset is None:
             message = (
