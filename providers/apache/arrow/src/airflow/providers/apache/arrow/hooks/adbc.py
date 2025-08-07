@@ -18,18 +18,17 @@
 from __future__ import annotations
 
 import functools
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Callable, Mapping
 from contextlib import closing
 from functools import cached_property
 from typing import Any
 from urllib.parse import quote
 
-import pyarrow
-from adbc_driver_manager.dbapi import connect, Connection
-from airflow.providers.common.sql.dialects.dialect import Dialect
+from adbc_driver_manager.dbapi import Connection, connect
+from pyarrow import Table
 
-from airflow.providers.common.sql.hooks.sql import DbApiHook
-from providers.apache.arrow.src.airflow.providers.apache.arrow.dialects.adbc import AdbcDialect
+from airflow.providers.common.sql.dialects.dialect import Dialect
+from airflow.providers.common.sql.hooks.sql import DbApiHook, T
 
 
 def fetch_all_handler(cursor) -> list[tuple] | None:
@@ -40,7 +39,7 @@ def fetch_all_handler(cursor) -> list[tuple] | None:
             "handlers that are specifically designed for your database."
         )
     if cursor.description is not None:
-        return cursor.fetch_arrow_table()
+        return cursor.fetch_arrow_table().to_pylist()
     return None
 
 
@@ -72,7 +71,7 @@ class AdbcHook(DbApiHook):
 
         import importlib_resources
 
-        driver = self.driver_name
+        driver = self.driver
 
         if driver:
             # Wheels bundle the shared library
@@ -141,7 +140,7 @@ class AdbcHook(DbApiHook):
         return uri
 
     @cached_property
-    def driver_name(self) -> str:
+    def driver(self) -> str:
         return f"adbc_driver_{self.dialect_name}"
 
     @cached_property
@@ -160,10 +159,6 @@ class AdbcHook(DbApiHook):
     def dialect_name(self) -> str:
         return self.connection_extra_lower["dialect"]
 
-    @cached_property
-    def dialect(self) -> Dialect:
-        return AdbcDialect(self)
-
     def get_conn(self) -> Connection:
         return connect(
             driver=self._driver_path(),
@@ -177,14 +172,16 @@ class AdbcHook(DbApiHook):
         self,
         sql: str | list[str],
         parameters: Iterable | Mapping[str, Any] | None = None,
+        handler: Callable[[Any], T] = fetch_all_handler,
     ) -> Any:
         """
         Execute the sql and return a set of records.
 
         :param sql: the sql statement to be executed (str) or a list of sql statements to execute
         :param parameters: The parameters to render the SQL query with.
+        :param handler: The result handler which is called with the result of each statement.
         """
-        return self.run(sql=sql, parameters=parameters, handler=fetch_all_handler)
+        return self.run(sql=sql, parameters=parameters, handler=handler)
 
     def insert_rows(
         self,
@@ -222,15 +219,21 @@ class AdbcHook(DbApiHook):
         with self._create_autocommit_connection(autocommit) as conn:
             conn.commit()
 
-            table_name, schema = Dialect.extract_schema_from_table(table)
-
-            if not target_fields:
-                target_fields = self.dialect.get_column_names(table=table)
+            table_name, schema_name = Dialect.extract_schema_from_table(table)
 
             self.log.info("target fields: %s", target_fields)
 
-            data = list(zip(*rows))
-
             with closing(conn.cursor()) as cur:
-                cur.adbc_ingest(table_name=table_name, db_schema_name=schema, data=pyarrow.table(data=data, names=target_fields))
-        self.log.info("Done loading. Loaded a total of %s rows into %s", len(data), table)
+                schema = conn.adbc_get_table_schema(
+                    table_name=table_name,
+                    db_schema_filter=schema_name,
+                )
+                data = Table.from_arrays(list(zip(*rows)), schema=schema)
+                cur.adbc_ingest(
+                    table_name=table_name,
+                    db_schema_name=schema_name,
+                    data=data,
+                    mode="append",
+                )
+
+            self.log.info("Done loading. Loaded a total of %s rows into %s", data.num_rows, table)
