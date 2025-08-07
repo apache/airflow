@@ -397,7 +397,7 @@ def test_get_most_impactful_change(changes, expected):
 @pytest.mark.parametrize(
     "provider_id, changed_files, expected",
     [
-        # pytest.param("slack", ["providers/slack/docs/slack.rst"], "documentation", id="only_docs"),
+        pytest.param("slack", ["providers/slack/docs/slack.rst"], "documentation", id="only_docs"),
         pytest.param(
             "apache.flink",
             ["providers/apache/flink/docs/slack.rst"],
