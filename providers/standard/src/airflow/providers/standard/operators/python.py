@@ -889,9 +889,9 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
 
         with TemporaryDirectory(prefix="venv") as tmp_dir:
             tmp_path = Path(tmp_dir)
-            tmp_dir, temp_venv_dir = tmp_path.relative_to(tmp_path.anchor).parts
             custom_pycache_prefix = Path(sys.pycache_prefix or "")
-            venv_python_cache_dir = Path.cwd() / custom_pycache_prefix / tmp_dir / temp_venv_dir
+            r_path = tmp_path.relative_to(tmp_path.anchor)
+            venv_python_cache_dir = Path.cwd() / custom_pycache_prefix / r_path
             self._prepare_venv(tmp_path)
             python_path = tmp_path / "bin" / "python"
             result = self._execute_python_callable_in_subprocess(python_path)
