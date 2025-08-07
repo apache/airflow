@@ -1080,10 +1080,9 @@ class TestElasticsearchRemoteLogIO:
 
     # @patch.object(ElasticsearchRemoteLogIO, "_get_index_patterns", return_value="invalid")
     @patch("elasticsearch.Elasticsearch.count", return_value={"count": 0})
-    def test_read_with_missing_log(self, mocked_count, mocked_get_index_patterns, ti):
+    def test_read_with_missing_log(self, mocked_count, ti):
         log_source_info, log_messages = self.elasticsearch_io.read("", ti)
         log_id = f"{ti.dag_id}-{ti.task_id}-{ti.run_id}-{ti.map_index}-{ti.try_number}"
         assert log_source_info == []
         assert f"*** Log {log_id} not found in Elasticsearch" in log_messages[0]
-        mocked_get_index_patterns.assert_called_once_with(ti)
         mocked_count.assert_called_once()
