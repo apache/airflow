@@ -24,6 +24,8 @@ from typing import TYPE_CHECKING, Any
 from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.helpers import prune_dict
+from asyncio import Lock
+from contextlib import asynccontextmanager
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
@@ -105,6 +107,8 @@ class AwsBaseWaiterTrigger(BaseTrigger):
         self.region_name = region_name
         self.verify = verify
         self.botocore_config = botocore_config
+        self._pool_lock = Lock(),
+        self._client_pool: dict[str, tuple[Any, float]] = {}
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         # here we put together the "common" params,
@@ -140,9 +144,21 @@ class AwsBaseWaiterTrigger(BaseTrigger):
     def hook(self) -> AwsGenericHook:
         """Override in subclasses to return the right hook."""
 
-    async def run(self) -> AsyncIterator[TriggerEvent]:
+    @asynccontextmanager
+    async def get_managed_client(self):
         hook = self.hook()
-        async with await hook.get_async_conn() as client:
+        key = hook.aws_conn_id
+
+        async with self._pool_lock:
+            if key not in self._client_pool:
+                self._client_pool[key] = await hook.get_async_conn()
+
+            yield self._client_pool[key]
+            # Can implement TTL logic here to clean-up stale clients
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        async with self.get_managed_client() as client:
+            hook = self.hook()
             waiter = hook.get_waiter(
                 self.waiter_name,
                 deferrable=True,
