@@ -22,12 +22,38 @@ import json
 from collections.abc import Iterator
 
 import requests
+import os
 
 K8S_DEFINITIONS = (
     "https://raw.githubusercontent.com/yannh/kubernetes-json-schema"
     "/master/v1.29.0-standalone-strict/_definitions.json"
 )
+
+K8S_GITHUB_API_DEFINITIONS_URL = "https://api.github.com/repos/yannh/kubernetes-json-schema/contents/v1.29.0-standalone-strict/_definitions.json?ref=master"
+
 VALUES_SCHEMA_FILE = "chart/values.schema.json"
+
+def fetch_raw_url(link: str, fallback_link: str) -> str:
+    """
+    Fetch the image url from GitHub
+    """
+    token = os.environ.get("GITHUB_TOKEN")
+    headers = {}
+    if token:
+        headers["Authorization"] = f"token {token}"
+    else:
+        print("Warning: GITHUB_TOKEN not found, making unauthenticated request")
+    
+    response = requests.get(link, headers=headers)
+    if response.status_code == 200:
+        content = response.json()
+        if "download_url" in content:
+            return content["download_url"]
+        else:
+            return fallback_link
+    else:
+        print(f"Failed to fetch URL: {link} {response.status_code} - {response.text}")
+        return fallback_link
 
 
 with open(VALUES_SCHEMA_FILE) as f:
@@ -57,7 +83,8 @@ def get_remote_schema(url: str) -> dict:
 schema["definitions"] = {k: v for k, v in schema.get("definitions", {}).items() if not k.startswith("io.k8s")}
 
 # Get the k8s defs
-defs = get_remote_schema(K8S_DEFINITIONS)
+k8s_defs_url = fetch_raw_url(K8S_GITHUB_API_DEFINITIONS_URL, K8S_DEFINITIONS)
+defs = get_remote_schema(k8s_defs_url)
 
 # first find refs in our schema
 refs = set(find_refs(schema["properties"]))
