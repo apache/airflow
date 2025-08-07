@@ -18,6 +18,17 @@
 ``apache-airflow-providers-apache-tinkerpop``
 
 
+1.0.3
+.....
+
+Misc
+~~~~
+
+* ``Bump gremlinpython to 3.7.3 (#54109)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.0.2
 .....
 
