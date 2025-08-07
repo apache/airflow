@@ -160,7 +160,10 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
 
         query = (
             select(TI)
-            .join(DR, TI.run_id == DR.run_id)
+            .join(DR, and_(
+                TI.dag_id == DR.dag_id,
+                TI.run_id == DR.run_id)
+            )
             .join(base_query, TI.id == base_query.c.id)
         )
 
