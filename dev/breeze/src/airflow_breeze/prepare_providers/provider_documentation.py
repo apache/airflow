@@ -196,6 +196,7 @@ TYPE_OF_CHANGE_DESCRIPTION = {
 
 
 def classification_result(provider_id, changed_files):
+    provider_id = provider_id.replace(".", "/")
     changed_files = list(filter(lambda f: provider_id in f, changed_files))
 
     if not changed_files:
