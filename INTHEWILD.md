@@ -489,6 +489,7 @@ Currently, **officially** using Airflow:
 1. [T2 Systems](http://t2systems.com) [[@unclaimedpants](https://github.com/unclaimedpants)]
 1. [Tails.com](https://tails.com/) [[@alanmcruickshank](https://github.com/alanmcruickshank)]
 1. [Talkdesk](https://www.talkdesk.com)
+1. [Tapestry](https://www.tapestry.com) [[@faheem-khau9](https://github.com/faheem-khau9)]
 1. [Tapsi](https://tapsi.ir/)
 1. [TEK](https://www.tek.fi/en) [[@telac](https://github.com/telac)]
 1. [Tekmetric](https://www.tekmetric.com/)
@@ -579,4 +580,3 @@ Currently, **officially** using Airflow:
 1. [Zynga](https://www.zynga.com)
 1. [Ørsted](https://orsted.com/en) [[@arjunanan6](https://github.com/arjunanan6)]
 1. [好大夫在线](https://www.haodf.com/) [[@leiguorui](https://github.com/leiguorui)]
-1. [Tapestry](https://www.tapestry.com) [[@faheem-khau9](https://github.com/faheem-khau9)]
