@@ -51,7 +51,7 @@ perspective (you want a worker running from a specific location where required
 infrastructure is available).
 
 When using EdgeExecutor in addition to other executors and EdgeExecutor not being the default executor
-(that is to say the first one in the list of executors), be reminded to also define EdgeExecutor 
+(that is to say the first one in the list of executors), be reminded to also define EdgeExecutor
 as the executor at task or dag level in addition to the queues you are targeting.
 
 
