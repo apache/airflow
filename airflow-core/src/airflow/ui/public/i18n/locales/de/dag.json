@@ -108,7 +108,7 @@
     "mappedTaskInstances_other": "Task Instanzen [{{count}}]",
     "overview": "Übersicht",
     "renderedTemplates": "Ausgefüllte Vorlagen",
-    "requiredActions": "Erforderliche Interaktionen",
+    "requiredActions": "Interaktionen",
     "runs": "Läufe",
     "taskInstances": "Task Instanzen",
     "tasks": "Tasks",
