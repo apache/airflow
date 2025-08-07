@@ -317,7 +317,9 @@ class TestCliDags:
         assert "Ignoring the following invalid columns: ['invalid_col']" in out
 
     @conf_vars({("core", "load_examples"): "false"})
-    def test_cli_list_dags_prints_import_errors(self, configure_testing_dag_bundle, get_test_dag, stderr_capture):
+    def test_cli_list_dags_prints_import_errors(
+        self, configure_testing_dag_bundle, get_test_dag, stderr_capture
+    ):
         path_to_parse = TEST_DAGS_FOLDER / "test_invalid_cron.py"
         get_test_dag("test_invalid_cron")
 
@@ -331,7 +333,9 @@ class TestCliDags:
         assert "Failed to load all files." in out
 
     @conf_vars({("core", "load_examples"): "false"})
-    def test_cli_list_dags_prints_local_import_errors(self, configure_testing_dag_bundle, get_test_dag, stderr_capture):
+    def test_cli_list_dags_prints_local_import_errors(
+        self, configure_testing_dag_bundle, get_test_dag, stderr_capture
+    ):
         # Clear the database
         clear_db_dags()
         path_to_parse = TEST_DAGS_FOLDER / "test_invalid_cron.py"
