@@ -81,8 +81,7 @@ def dagrun(session, dag_maker):
 def deadline_orm(dagrun, session):
     deadline = Deadline(
         deadline_time=DEFAULT_DATE,
-        callback=TEST_CALLBACK_PATH,
-        callback_kwargs=TEST_CALLBACK_KWARGS,
+        callback=AsyncCallback(TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
         dag_id=DAG_ID,
         dagrun_id=dagrun.id,
     )
@@ -244,6 +243,7 @@ class TestDeadline:
     def test_handle_miss_creates_trigger(self, dagrun, deadline_orm, session):
         """Test that handle_miss creates a trigger with correct parameters."""
         deadline_orm.handle_miss(session)
+        session.flush()
 
         # Check trigger was created
         trigger = session.query(Trigger).first()
