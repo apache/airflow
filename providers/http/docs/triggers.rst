@@ -24,7 +24,7 @@ HTTP Event Trigger
 The ``HttpEventTrigger`` is an event-based trigger that monitors whether responses
 from an API meet the conditions set by the user in the ``response_check`` callable.
 
-It is especially useful for **Airflow 3.0+** in combination with the ``AssetWatcher`` system,
+It is designed for **Airflow 3.0+** to be used in combination with the ``AssetWatcher`` system,
 enabling event-driven DAGs based on API responses.
 
 How It Works
