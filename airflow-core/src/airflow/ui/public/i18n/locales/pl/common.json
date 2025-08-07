@@ -7,24 +7,36 @@
     "Providers": "Providery",
     "Variables": "Zmienne"
   },
+  "asset_few": "Zasoby",
+  "asset_many": "Zasobów",
   "asset_one": "Zasób",
   "asset_other": "Zasoby",
+  "assetEvent_few": "Zdarzenia zasobów",
+  "assetEvent_many": "Zdarzeń zasobów",
   "assetEvent_one": "Zdarzenie Zasobu",
   "assetEvent_other": "Zdarzenia Zasobów",
+  "backfill_few": "Wypełnienia wsteczne",
+  "backfill_many": "Wypełnień wstecznych",
   "backfill_one": "Wypełnienie wsteczne",
   "backfill_other": "Wypełnienia wsteczne",
   "browse": {
     "auditLog": "Log audytu",
+    "requiredActions": "Wymagane akcje",
     "xcoms": "XComy"
   },
+  "collapseDetailsPanel": "Zwiń panel szczegółów",
+  "createdAssetEvent_few": "Utworzone zdarzenia zasobów",
+  "createdAssetEvent_many": "Utworzonych zdarzeń zasobów",
   "createdAssetEvent_one": "Utworzone zdarzenie zasobu",
   "createdAssetEvent_other": "Utworzone zdarzenia zasobów",
+  "dag_few": "Dagi",
+  "dag_many": "Dagów",
   "dag_one": "Dag",
   "dag_other": "Dagi",
   "dagDetails": {
     "catchup": "Nadrabianie zaległości",
     "concurrency": "Współbieżność",
-    "dagRunTimeout": "Limit czasu wykonania Daga",
+    "dagRunTimeout": "Limit czasu wykonania",
     "defaultArgs": "Domyślne argumenty",
     "description": "Opis",
     "documentation": "Dokumentacja Daga",
@@ -37,7 +49,7 @@
     "maxActiveRuns": "Maksymalna liczba aktywnych wykonań",
     "maxActiveTasks": "Maksymalna liczba aktywnych zadań",
     "maxConsecutiveFailedDagRuns": "Maksymalna liczba kolejnych nieudanych wykonań Daga",
-    "nextRun": "Następne Wykonanie Daga",
+    "nextRun": "Następne Wykonanie",
     "owner": "Właściciel",
     "params": "Parametry",
     "schedule": "Harmonogram",
@@ -54,16 +66,20 @@
     "runAfter": "Wykonaj po",
     "runType": "Typ wykonania",
     "sourceAssetEvent": "Zdarzenie źródłowego zasobu",
-    "triggeredBy": "Uruchomiony przez"
+    "triggeredBy": "Uruchomiony jako",
+    "triggeringUser": "Użytkownik który uruchomił"
   },
-  "dagRun_one": "Wykonanie Daga",
-  "dagRun_other": "Wykonania Dagów",
+  "dagRun_few": "Wykonania",
+  "dagRun_many": "Wykonań",
+  "dagRun_one": "Wykonanie",
+  "dagRun_other": "Wykonania",
+  "dagRunId": "Identyfikator wykonania",
   "dagWarnings": "Ostrzeżenia/Błędy Daga",
   "defaultToGraphView": "Domyślnie widok grafu",
   "defaultToGridView": "Domyślnie widok siatki",
   "direction": "Kierunek",
   "docs": {
-    "documentation": "Documentacja",
+    "documentation": "Dokumentacja",
     "githubRepo": "Repozytorium GitHub",
     "restApiReference": "Dokuentacja REST API"
   },
@@ -75,6 +91,12 @@
     "home": "Strona główna",
     "notFound": "Nie znaleziono strony",
     "title": "Błąd"
+  },
+  "expand": {
+    "collapse": "Zwiń",
+    "expand": "Rozwiń",
+    "hotkey": "e",
+    "tooltip": "Wybierz {{hotkey}} aby przełączyć rozwijanie"
   },
   "expression": {
     "all": "Wszystkie",
@@ -101,13 +123,14 @@
     "dags": "Dagi",
     "docs": "Pomoc",
     "home": "Pulpit",
+    "legacyFabViews": "Widoki Fab z Airflow 2",
     "plugins": "Wtyczki",
     "security": "Dostęp"
   },
   "noItemsFound": "Nie znaleziono modelu {{modelName}}",
   "note": {
     "add": "Dodać notatkę",
-    "dagRun": "Notatki wykonania Daga",
+    "dagRun": "Notatki wykonania",
     "label": "Notatka",
     "placeholder": "Dodaj notatkę...",
     "taskInstance": "Notatka instancji zadania"
@@ -115,6 +138,8 @@
   "pools": {
     "deferred": "Odłożone",
     "open": "Otwarte",
+    "pools_few": "Pule",
+    "pools_many": "Puli",
     "pools_one": "Pula",
     "pools_other": "Pule",
     "queued": "W kolejce",
@@ -128,6 +153,13 @@
     "manual": "Ręcznie",
     "scheduled": "Według harmonogramu"
   },
+  "scroll": {
+    "direction": {
+      "bottom": "dół",
+      "top": "góra"
+    },
+    "tooltip": "Naciśnij {{hotkey}}, aby przewinąć do {{direction}}"
+  },
   "seconds": "{{count}}s",
   "security": {
     "actions": "Akcje",
@@ -137,6 +169,14 @@
     "users": "Użytkownicy"
   },
   "selectLanguage": "Wybierz język",
+  "showDetailsPanel": "Pokaż panel szczegółów",
+  "source": {
+    "hide": "Ukryj źródła",
+    "hotkey": "s",
+    "show": "Pokaż źródła"
+  },
+  "sourceAssetEvent_few": "Zdarzenia źródłowych zasobów",
+  "sourceAssetEvent_many": "Zdarzeń źródłowych zasobów",
   "sourceAssetEvent_one": "Zdarzenie źródłowego zasobu",
   "sourceAssetEvent_other": "Zdarzenia źródłowych zasobów",
   "startDate": "Data rozpoczęcia",
@@ -164,6 +204,8 @@
     "createdAt": "Utworzono o",
     "filterByTag": "Filtruj Dagi według tagu",
     "filterColumns": "Filtruj kolumny tabeli",
+    "filterReset_few": "Resetuj filtry",
+    "filterReset_many": "Resetuj filtry",
     "filterReset_one": "Resetuj filtr",
     "filterReset_other": "Resetuj filtry",
     "from": "Od",
@@ -182,6 +224,8 @@
     "operator": "Operator",
     "triggerRule": "Reguła zależności"
   },
+  "task_few": "Zadania",
+  "task_many": "Zadań",
   "task_one": "Zadanie",
   "task_other": "Zadania",
   "taskId": "Identifikator Zadania",
@@ -208,6 +252,8 @@
     },
     "unixname": "Nazwa użytkownika systemu Unix"
   },
+  "taskInstance_few": "Instancje Zadań",
+  "taskInstance_many": "Instancji Zadań",
   "taskInstance_one": "Instancja Zadania",
   "taskInstance_other": "Instancje Zadań",
   "timeRange": {
@@ -215,6 +261,11 @@
     "last24Hours": "Ostatnie 24 godziny",
     "lastHour": "Ostatnia godzina",
     "pastWeek": "Poprzedni tydzień"
+  },
+  "timestamp": {
+    "hide": "Ukryj znaczniki czasu",
+    "hotkey": "t",
+    "show": "Pokaż znaczniki czasu"
   },
   "timezone": "Strefa czasowa",
   "timezoneModal": {
@@ -260,10 +311,12 @@
       }
     }
   },
+  "total": "Wszystkie {{state}}",
   "triggered": "Uruchomiony",
   "tryNumber": "Numer próby",
   "user": "Profil",
   "wrap": {
+    "hotkey": "w",
     "tooltip": "Wybierz {{hotkey}} aby przełączyć zawijanie",
     "unwrap": "Wyłącz zawijanie",
     "wrap": "Włącz zawijanie"

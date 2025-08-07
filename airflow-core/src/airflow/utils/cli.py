@@ -29,15 +29,17 @@ import threading
 import traceback
 import warnings
 from argparse import Namespace
+from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, TypeVar, cast
+from typing import TYPE_CHECKING, TypeVar, cast
 
 from airflow import settings
+from airflow._shared.timezones import timezone
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowException
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.sdk.execution_time.secrets_masker import should_hide_value_for_key
-from airflow.utils import cli_action_loggers, timezone
+from airflow.utils import cli_action_loggers
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.platform import getuser, is_terminal_support_colors
 
@@ -291,12 +293,16 @@ def get_dag(
         if from_db:
             raise AirflowException(f"Dag {dag_id!r} could not be found in DagBag read from database.")
         manager = DagBundlesManager()
+        manager.sync_bundles_to_db()
         all_bundles = list(manager.get_all_dag_bundles())
         for bundle in all_bundles:
+            bundle.initialize()
+
             with _airflow_parsing_context_manager(dag_id=dag_id):
                 dag_bag = DagBag(
                     dag_folder=dagfile_path or bundle.path, bundle_path=bundle.path, include_examples=False
                 )
+                dag_bag.sync_to_db(bundle.name, bundle.version)
             dag = dag_bag.dags.get(dag_id)
             if dag:
                 break

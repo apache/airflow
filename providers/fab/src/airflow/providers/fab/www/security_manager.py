@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 from flask import g
 from flask_limiter import Limiter

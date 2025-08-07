@@ -25,12 +25,7 @@ from typing import TYPE_CHECKING, Any
 from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.bases.sensor import BaseSensorOperator
-else:
-    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
+from airflow.providers.standard.version_compat import BaseSensorOperator
 
 try:
     from airflow.triggers.base import StartTriggerArgs
@@ -47,7 +42,10 @@ except ImportError:
         timeout: datetime.timedelta | None = None
 
 
-from airflow.utils import timezone
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     try:
@@ -121,9 +119,11 @@ class TimeSensor(BaseSensorOperator):
                 ),
                 method_name="execute_complete",
             )
+        else:
+            super().execute(context)
 
-    def execute_complete(self, context: Context) -> None:
-        return
+    def execute_complete(self, context: Context, event: Any = None) -> None:
+        return None
 
     def poke(self, context: Context) -> bool:
         self.log.info("Checking if the time (%s) has come", self.target_datetime)

@@ -71,7 +71,9 @@ apache-airflow-providers-tableau package
 `Tableau <https://www.tableau.com/>`__
 
 
-Release: 5.1.0
+Release: 5.2.0
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------
@@ -95,5 +97,5 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package              Version required
 =======================  ==================
 ``apache-airflow``       ``>=2.10.0``
-``tableauserverclient``  ``>=0.25``
+``tableauserverclient``  ``>=0.27``
 =======================  ==================

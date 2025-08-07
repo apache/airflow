@@ -29,7 +29,7 @@ on:  # yamllint disable-line rule:truthy
         default: false
       limitPythonVersions:
         type: string
-        description: 'Force python versions (e.g. "3.9 3.10")'
+        description: 'Force python versions (e.g. "3.10 3.11")'
         default: ''
 permissions:
   contents: read
@@ -96,8 +96,6 @@ jobs:
         run: uv run scripts/ci/airflow_version_check.py "${AIRFLOW_VERSION}" >> "${GITHUB_OUTPUT}"
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        with:
-          use-uv: "true"
       - name: Selective checks
         id: selective-checks
         env:

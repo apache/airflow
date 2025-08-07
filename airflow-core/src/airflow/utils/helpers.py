@@ -21,9 +21,9 @@ import copy
 import itertools
 import re
 import signal
-from collections.abc import Generator, Iterable, Mapping, MutableMapping
+from collections.abc import Callable, Generator, Iterable, MutableMapping
 from functools import cache
-from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 from urllib.parse import urljoin
 
 from lazy_object_proxy import Proxy
@@ -244,11 +244,6 @@ def render_template_to_string(template: jinja2.Template, context: Context) -> st
     return render_template(template, cast("MutableMapping[str, Any]", context), native=False)
 
 
-def render_template_as_native(template: jinja2.Template, context: Context) -> Any:
-    """Shorthand to ``render_template(native=True)`` with better typing support."""
-    return render_template(template, cast("MutableMapping[str, Any]", context), native=True)
-
-
 def exactly_one(*args) -> bool:
     """
     Return True if exactly one of args is "truthy", and False otherwise.
@@ -322,16 +317,32 @@ def prune_dict(val: Any, mode="strict"):
     return val
 
 
-def prevent_duplicates(kwargs1: dict[str, Any], kwargs2: Mapping[str, Any], *, fail_reason: str) -> None:
-    """
-    Ensure *kwargs1* and *kwargs2* do not contain common keys.
+def __getattr__(name: str):
+    """Provide backward compatibility for moved functions in this module."""
+    if name == "render_template_as_native":
+        import warnings
 
-    :raises TypeError: If common keys are found.
-    """
-    duplicated_keys = set(kwargs1).intersection(kwargs2)
-    if not duplicated_keys:
-        return
-    if len(duplicated_keys) == 1:
-        raise TypeError(f"{fail_reason} argument: {duplicated_keys.pop()}")
-    duplicated_keys_display = ", ".join(sorted(duplicated_keys))
-    raise TypeError(f"{fail_reason} arguments: {duplicated_keys_display}")
+        from airflow.sdk.definitions.context import render_template_as_native
+
+        warnings.warn(
+            "airflow.utils.helpers.render_template_as_native is deprecated. "
+            "Use airflow.sdk.definitions.context.render_template_as_native instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return render_template_as_native
+
+    if name == "prevent_duplicates":
+        import warnings
+
+        from airflow.sdk.definitions.mappedoperator import prevent_duplicates
+
+        warnings.warn(
+            "airflow.utils.helpers.prevent_duplicates is deprecated. "
+            "Use airflow.sdk.definitions.mappedoperator.prevent_duplicates instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return prevent_duplicates
+
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

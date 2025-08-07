@@ -21,13 +21,14 @@ import itertools
 import re
 import textwrap
 import warnings
-from collections.abc import Collection, Iterator, Mapping, Sequence
+from collections.abc import Callable, Collection, Iterator, Mapping, Sequence
 from functools import cached_property, update_wrapper
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Generic, Protocol, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, Protocol, TypeVar, cast, overload
 
 import attr
 import typing_extensions
 
+from airflow.sdk import timezone
 from airflow.sdk.bases.operator import (
     BaseOperator,
     coerce_resources,
@@ -36,6 +37,7 @@ from airflow.sdk.bases.operator import (
     parse_retries,
 )
 from airflow.sdk.definitions._internal.contextmanager import DagContext, TaskGroupContext
+from airflow.sdk.definitions._internal.decorators import remove_task_decorator
 from airflow.sdk.definitions._internal.expandinput import (
     EXPAND_INPUT_EMPTY,
     DictOfListsExpandInput,
@@ -44,13 +46,13 @@ from airflow.sdk.definitions._internal.expandinput import (
 )
 from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.asset import Asset
-from airflow.sdk.definitions.mappedoperator import MappedOperator, ensure_xcomarg_return_value
+from airflow.sdk.definitions.mappedoperator import (
+    MappedOperator,
+    ensure_xcomarg_return_value,
+    prevent_duplicates,
+)
 from airflow.sdk.definitions.xcom_arg import XComArg
-from airflow.typing_compat import ParamSpec
-from airflow.utils import timezone
 from airflow.utils.context import KNOWN_CONTEXT_KEYS
-from airflow.utils.decorators import remove_task_decorator
-from airflow.utils.helpers import prevent_duplicates
 from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
@@ -249,10 +251,9 @@ class DecoratedOperator(BaseOperator):
             if isinstance(arg, Asset):
                 self.inlets.append(arg)
         return_value = super().execute(context)
-        # TODO(potiuk) - this xcom push is temporary and should be fixed
-        return self._handle_output(return_value=return_value, context=context, xcom_push=self.xcom_push)  # type: ignore[attr-defined]
+        return self._handle_output(return_value=return_value)
 
-    def _handle_output(self, return_value: Any, context: Context, xcom_push: Callable):
+    def _handle_output(self, return_value: Any):
         """
         Handle logic for whether a decorator needs to push a single return value or multiple return values.
 
@@ -485,7 +486,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             ("resources", coerce_resources),
         ):
             if (v := partial_kwargs.get(fld, NOTSET)) is not NOTSET:
-                partial_kwargs[fld] = convert(v)  # type: ignore[operator]
+                partial_kwargs[fld] = convert(v)
 
         partial_kwargs.setdefault("executor_config", {})
         partial_kwargs.setdefault("op_args", [])

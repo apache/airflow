@@ -23,15 +23,17 @@ import os
 import selectors
 import time
 from collections.abc import AsyncIterator
+from socket import socket
 from typing import TYPE_CHECKING, Any
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pendulum
 import pytest
 from asgiref.sync import sync_to_async
+from structlog.typing import FilteringBoundLogger
 
+from airflow._shared.timezones import timezone
 from airflow.executors import workloads
-from airflow.hooks.base import BaseHook
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import (
     TriggerCommsDecoder,
@@ -44,14 +46,16 @@ from airflow.models import DagModel, DagRun, TaskInstance, Trigger
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
+from airflow.models.dag_version import DagVersion
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.variable import Variable
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
+from airflow.sdk import BaseHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
-from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
@@ -72,17 +76,17 @@ pytestmark = pytest.mark.db_test
 @pytest.fixture(autouse=True)
 def clean_database():
     """Fixture that cleans the database before and after every test."""
+    clear_db_connections()
     clear_db_runs()
     clear_db_dags()
     clear_db_xcom()
     clear_db_variables()
-    clear_db_connections()
     yield  # Test runs here
+    clear_db_connections()
     clear_db_runs()
     clear_db_dags()
     clear_db_xcom()
     clear_db_variables()
-    clear_db_connections()
 
 
 def create_trigger_in_db(session, trigger, operator=None):
@@ -103,10 +107,12 @@ def create_trigger_in_db(session, trigger, operator=None):
     else:
         operator = BaseOperator(task_id="test_ti", dag=dag)
     session.add(dag_model)
+    SerializedDagModel.write_dag(dag, bundle_name="testing")
     session.add(run)
     session.add(trigger_orm)
     session.flush()
-    task_instance = TaskInstance(operator, run_id=run.run_id)
+    dag_version = DagVersion.get_latest_version(dag.dag_id)
+    task_instance = TaskInstance(operator, run_id=run.run_id, dag_version_id=dag_version.id)
     task_instance.trigger_id = trigger_orm.id
     session.add(task_instance)
     session.commit()
@@ -166,12 +172,17 @@ def supervisor_builder(mocker, session):
             session.flush()
 
         process = mocker.Mock(spec=psutil.Process, pid=10 * job.id + 1)
+        # Create a mock stdin that has both write and sendall methods
+        mock_stdin = mocker.Mock(spec=socket)
+        mock_stdin.write = mocker.Mock()
+        mock_stdin.sendall = mocker.Mock()
+
         proc = TriggerRunnerSupervisor(
-            process_log=mocker.Mock(),
+            process_log=mocker.Mock(spec=FilteringBoundLogger),
             id=job.id,
             job=job,
             pid=process.pid,
-            stdin=mocker.Mock(),
+            stdin=mock_stdin,
             process=process,
             capacity=10,
         )
@@ -248,8 +259,10 @@ class TestTriggerRunner:
     @pytest.mark.asyncio
     async def test_run_inline_trigger_canceled(self, session) -> None:
         trigger_runner = TriggerRunner()
-        trigger_runner.triggers = {1: {"task": MagicMock(), "name": "mock_name", "events": 0}}
-        mock_trigger = MagicMock()
+        trigger_runner.triggers = {
+            1: {"task": MagicMock(spec=asyncio.Task), "name": "mock_name", "events": 0}
+        }
+        mock_trigger = MagicMock(spec=BaseTrigger)
         mock_trigger.timeout_after = None
         mock_trigger.run.side_effect = asyncio.CancelledError()
 
@@ -259,8 +272,10 @@ class TestTriggerRunner:
     @pytest.mark.asyncio
     async def test_run_inline_trigger_timeout(self, session, cap_structlog) -> None:
         trigger_runner = TriggerRunner()
-        trigger_runner.triggers = {1: {"task": MagicMock(), "name": "mock_name", "events": 0}}
-        mock_trigger = MagicMock()
+        trigger_runner.triggers = {
+            1: {"task": MagicMock(spec=asyncio.Task), "name": "mock_name", "events": 0}
+        }
+        mock_trigger = MagicMock(spec=BaseTrigger)
         mock_trigger.timeout_after = timezone.utcnow() - datetime.timedelta(hours=1)
         mock_trigger.run.side_effect = asyncio.CancelledError()
 
@@ -326,6 +341,51 @@ class TestTriggerRunner:
         assert trigger_id == 1
         assert traceback[-1] == "ModuleNotFoundError: No module named 'fake'\n"
 
+    @pytest.mark.asyncio
+    async def test_trigger_kwargs_serialization_cleanup(self, session):
+        """
+        Test that trigger kwargs are properly cleaned of serialization artifacts
+        (__var, __type keys).
+        """
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        kw = {"simple": "test", "tuple": (), "dict": {}, "list": []}
+
+        serialized_kwargs = BaseSerialization.serialize(kw)
+
+        trigger_orm = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs=serialized_kwargs)
+        session.add(trigger_orm)
+        session.commit()
+
+        stored_kwargs = trigger_orm.kwargs
+        assert stored_kwargs == {
+            "Encoding.TYPE": "dict",
+            "Encoding.VAR": {
+                "dict": {"Encoding.TYPE": "dict", "Encoding.VAR": {}},
+                "list": [],
+                "simple": "test",
+                "tuple": {"Encoding.TYPE": "tuple", "Encoding.VAR": []},
+            },
+        }
+
+        runner = TriggerRunner()
+        runner.to_create.append(
+            workloads.RunTrigger.model_construct(
+                id=trigger_orm.id,
+                ti=None,
+                classpath=trigger_orm.classpath,
+                encrypted_kwargs=trigger_orm.encrypted_kwargs,
+            )
+        )
+
+        await runner.create_triggers()
+        assert trigger_orm.id in runner.triggers
+        trigger_instance = runner.triggers[trigger_orm.id]["task"]
+
+        # The test passes if no exceptions were raised during trigger creation
+        trigger_instance.cancel()
+        await runner.cleanup_finished_triggers()
+
 
 @pytest.mark.asyncio
 async def test_trigger_create_race_condition_38599(session, supervisor_builder):
@@ -351,17 +411,20 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder):
     trigger_orm = Trigger.from_object(trigger)
     session.add(trigger_orm)
     session.flush()
-
-    dag = DagModel(dag_id="test-dag")
+    dag = DAG(dag_id="test-dag")
+    dm = DagModel(dag_id="test-dag")
+    session.add(dm)
+    SerializedDagModel.write_dag(dag, bundle_name="testing")
     dag_run = DagRun(dag.dag_id, run_id="abc", run_type="none", run_after=timezone.utcnow())
+    dag_version = DagVersion.get_latest_version(dag.dag_id)
     ti = TaskInstance(
         PythonOperator(task_id="dummy-task", python_callable=print),
         run_id=dag_run.run_id,
         state=TaskInstanceState.DEFERRED,
+        dag_version_id=dag_version.id,
     )
     ti.dag_id = dag.dag_id
     ti.trigger_id = trigger_orm.id
-    session.add(dag)
     session.add(dag_run)
     session.add(ti)
 
@@ -585,19 +648,64 @@ class CustomTrigger(BaseTrigger):
         conn = await sync_to_async(BaseHook.get_connection)("test_connection")
         self.log.info("Loaded conn %s", conn.conn_id)
 
-        variable = await sync_to_async(Variable.get)("test_variable")
-        self.log.info("Loaded variable %s", variable)
+        get_variable_value = await sync_to_async(Variable.get)("test_get_variable")
+        self.log.info("Loaded variable %s", get_variable_value)
 
-        xcom = await sync_to_async(XCom.get_one)(
-            key="test_xcom",
+        get_xcom_value = await sync_to_async(XCom.get_one)(
+            key="test_get_xcom",
             dag_id=self.dag_id,
             run_id=self.run_id,
             task_id=self.task_id,
             map_index=self.map_index,
         )
-        self.log.info("Loaded XCom %s", xcom)
+        self.log.info("Loaded XCom %s", get_xcom_value)
 
-        yield TriggerEvent({"connection": attrs.asdict(conn), "variable": variable, "xcom": xcom})
+        set_variable_key = "test_set_variable"
+        set_variable_value = "set_value"
+        await sync_to_async(Variable.set)(key=set_variable_key, value=set_variable_value)
+        self.log.info("Set variable with key %s and value %s", set_variable_key, set_variable_value)
+
+        set_xcom_key = "test_set_xcom"
+        set_xcom_value = "set_xcom"
+        await sync_to_async(XCom.set)(
+            key=set_xcom_key,
+            dag_id=self.dag_id,
+            run_id=self.run_id,
+            task_id=self.task_id,
+            map_index=self.map_index,
+            value=set_xcom_value,
+        )
+        self.log.info("Set xcom with key %s and value %s", set_xcom_key, set_xcom_value)
+
+        delete_variable_key = "test_delete_variable"
+        await sync_to_async(Variable.delete)(delete_variable_key)
+        self.log.info("Deleted variable with key %s", delete_variable_key)
+
+        delete_xcom_key = "test_delete_xcom"
+        await sync_to_async(XCom.delete)(
+            key=delete_xcom_key,
+            dag_id=self.dag_id,
+            run_id=self.run_id,
+            task_id=self.task_id,
+            map_index=self.map_index,
+        )
+        self.log.info("Delete xcom with key %s", delete_xcom_key)
+
+        yield TriggerEvent(
+            {
+                "connection": attrs.asdict(conn),
+                "variable": {
+                    "get_variable": get_variable_value,
+                    "set_variable": set_variable_value,
+                    "delete_variable": delete_variable_key,
+                },
+                "xcom": {
+                    "get_xcom": get_xcom_value,
+                    "set_xcom": set_xcom_value,
+                    "delete_xcom": delete_xcom_key,
+                },
+            }
+        )
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
@@ -624,8 +732,8 @@ class DummyTriggerRunnerSupervisor(TriggerRunnerSupervisor):
 
 @pytest.mark.asyncio
 @pytest.mark.execution_timeout(20)
-async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_maker):
-    """Checks that the trigger will successfully access Variables, Connections and XComs."""
+async def test_trigger_can_call_variables_connections_and_xcoms_methods(session, dag_maker):
+    """Checks that the trigger will successfully call Variables, Connections and XComs methods."""
     # Create the test DAG and task
     with dag_maker(dag_id="trigger_accessing_variable_connection_and_xcom", session=session):
         EmptyOperator(task_id="dummy1")
@@ -641,14 +749,29 @@ async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_m
         kwargs={"dag_id": dr.dag_id, "run_id": dr.run_id, "task_id": task_instance.task_id, "map_index": -1},
     )
     session.add(trigger_orm)
-    session.commit()
+    session.flush()
     task_instance.trigger_id = trigger_orm.id
 
     # Create the appropriate Connection, Variable and XCom
-    connection = Connection(conn_id="test_connection", conn_type="http")
-    variable = Variable(key="test_variable", val="some_variable_value")
+    connection = Connection(
+        conn_id="test_connection",
+        conn_type="http",
+        schema="https",
+        login="user",
+        password="pass",
+        extra={"key": "value"},
+        port=443,
+        host="example.com",
+    )
+    get_variable = Variable(key="test_get_variable", val="some_variable_value")
+    delete_variable = Variable(key="test_delete_variable", val="delete_value")
+
+    session.add(connection)
+    session.add(get_variable)
+    session.add(delete_variable)
+
     XComModel.set(
-        key="test_xcom",
+        key="test_get_xcom",
         value="some_xcom_value",
         task_id=task_instance.task_id,
         dag_id=dr.dag_id,
@@ -656,8 +779,16 @@ async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_m
         map_index=-1,
         session=session,
     )
-    session.add(connection)
-    session.add(variable)
+
+    XComModel.set(
+        key="test_delete_xcom",
+        value="some_xcom_value",
+        task_id=task_instance.task_id,
+        dag_id=dr.dag_id,
+        run_id=dr.run_id,
+        map_index=-1,
+        session=session,
+    )
 
     job = Job()
     session.add(job)
@@ -669,23 +800,32 @@ async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_m
     task_instance.refresh_from_db()
     assert task_instance.state == TaskInstanceState.SCHEDULED
     assert task_instance.next_method != "__fail__"
-    assert task_instance.next_kwargs == {
+    expected_event = {
         "event": {
             "connection": {
                 "conn_id": "test_connection",
                 "conn_type": "http",
                 "description": None,
-                "host": None,
-                "schema": None,
-                "login": None,
-                "password": None,
-                "port": None,
-                "extra": None,
+                "host": "example.com",
+                "schema": "https",
+                "login": "user",
+                "password": "pass",
+                "port": 443,
+                "extra": '{"key": "value"}',
             },
-            "variable": "some_variable_value",
-            "xcom": '"some_xcom_value"',
+            "variable": {
+                "get_variable": "some_variable_value",
+                "set_variable": "set_value",
+                "delete_variable": "test_delete_variable",
+            },
+            "xcom": {
+                "get_xcom": '"some_xcom_value"',
+                "set_xcom": "set_xcom",
+                "delete_xcom": "test_delete_xcom",
+            },
         }
     }
+    assert task_instance.next_kwargs == expected_event
 
 
 class CustomTriggerDagRun(BaseTrigger):

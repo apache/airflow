@@ -53,6 +53,7 @@ from airflow.providers.databricks.hooks.databricks_base import (
     TOKEN_REFRESH_LEAD_TIME,
     BearerAuth,
 )
+from airflow.providers.databricks.utils import databricks as utils
 
 TASK_ID = "databricks-operator"
 DEFAULT_CONN_ID = "databricks_default"
@@ -129,6 +130,10 @@ LIST_SPARK_VERSIONS_RESPONSE = {
     "versions": [
         {"key": "8.2.x-scala2.12", "name": "8.2 (includes Apache Spark 3.1.1, Scala 2.12)"},
     ]
+}
+ACCESS_CONTROL_DICT = {
+    "user_name": "jsmith@example.com",
+    "permission_level": "CAN_MANAGE",
 }
 
 
@@ -436,7 +441,7 @@ class TestDatabricksHook:
     def test_do_api_call_patch(self, mock_requests):
         mock_requests.patch.return_value.json.return_value = {"cluster_name": "new_name"}
         data = {"cluster_name": "new_name"}
-        patched_cluster_name = self.hook._do_api_call(("PATCH", "api/2.1/jobs/runs/submit"), data)
+        patched_cluster_name = self.hook._do_api_call(("PATCH", "2.1/jobs/runs/submit"), data)
 
         assert patched_cluster_name["cluster_name"] == "new_name"
         mock_requests.patch.assert_called_once_with(
@@ -1248,6 +1253,24 @@ class TestDatabricksHook:
             timeout=self.hook.timeout_seconds,
         )
 
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_update_job_permission(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.patch.return_value.json.return_value = {}
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.patch.return_value).status_code = status_code_mock
+
+        self.hook.update_job_permission(1, ACCESS_CONTROL_DICT)
+
+        mock_requests.patch.assert_called_once_with(
+            f"https://{HOST}/api/2.0/permissions/jobs/1",
+            json=utils.normalise_json_content(ACCESS_CONTROL_DICT),
+            params=None,
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
 
 @pytest.mark.db_test
 class TestDatabricksHookToken:
@@ -1365,7 +1388,7 @@ class TestDatabricksHookConnSettings(TestDatabricksHookToken):
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
     def test_do_api_call_respects_schema(self, mock_requests):
         mock_requests.get.return_value.json.return_value = {"foo": "bar"}
-        ret_val = self.hook._do_api_call(("GET", "api/2.1/foo/bar"))
+        ret_val = self.hook._do_api_call(("GET", "2.1/foo/bar"))
 
         assert ret_val == {"foo": "bar"}
         mock_requests.get.assert_called_once()
@@ -1376,7 +1399,7 @@ class TestDatabricksHookConnSettings(TestDatabricksHookToken):
     async def test_async_do_api_call_respects_schema(self, mock_get):
         mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value={"bar": "baz"})
         async with self.hook:
-            run_page_url = await self.hook._a_do_api_call(("GET", "api/2.1/foo/bar"))
+            run_page_url = await self.hook._a_do_api_call(("GET", "2.1/foo/bar"))
 
         assert run_page_url == {"bar": "baz"}
         mock_get.assert_called_once()
@@ -1390,7 +1413,7 @@ class TestDatabricksHookConnSettings(TestDatabricksHookToken):
         response.mock_add_spec(aiohttp.ClientResponse, spec_set=True)
         response.json = AsyncMock(return_value={"bar": "baz"})
         async with self.hook:
-            run_page_url = await self.hook._a_do_api_call(("GET", "api/2.1/foo/bar"))
+            run_page_url = await self.hook._a_do_api_call(("GET", "2.1/foo/bar"))
 
         assert run_page_url == {"bar": "baz"}
         mock_get.assert_called_once()
@@ -1779,7 +1802,7 @@ class TestDatabricksHookAsyncMethods:
         )
         data = {"cluster_name": "new_name"}
         async with self.hook:
-            patched_cluster_name = await self.hook._a_do_api_call(("PATCH", "api/2.1/jobs/runs/submit"), data)
+            patched_cluster_name = await self.hook._a_do_api_call(("PATCH", "2.1/jobs/runs/submit"), data)
 
         assert patched_cluster_name["cluster_name"] == "new_name"
         mock_patch.assert_called_once_with(
@@ -1907,7 +1930,7 @@ class TestDatabricksHookAsyncAadToken:
 @pytest.mark.db_test
 class TestDatabricksHookAsyncAadTokenOtherClouds:
     """
-    Tests for DatabricksHook using async methodswhen auth is done with AAD token
+    Tests for DatabricksHook using async methods when auth is done with AAD token
     for SP as user inside workspace and using non-global Azure cloud (China, GovCloud, Germany)
     """
 
@@ -1934,12 +1957,18 @@ class TestDatabricksHookAsyncAadTokenOtherClouds:
         self.hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
 
     @pytest.mark.asyncio
+    @mock.patch("azure.identity.aio.ClientSecretCredential")
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get")
-    @mock.patch("azure.identity.aio.ClientSecretCredential.__init__")
-    @mock.patch("azure.identity.aio.ClientSecretCredential.get_token")
-    async def test_get_run_state(self, mock_azure_identity_get_token, mock_azure_identity, mock_get):
-        mock_azure_identity.return_value = None
-        mock_azure_identity_get_token.return_value = create_aad_token_for_resource()
+    async def test_get_run_state(self, mock_get, mock_client_secret_credential_class):
+        mock_credential = mock.Mock()
+        mock_credential.get_token = AsyncMock(return_value=create_aad_token_for_resource())
+
+        mock_context_manager = mock.AsyncMock()
+        mock_context_manager.__aenter__.return_value = mock_credential
+        mock_context_manager.__aexit__.return_value = AsyncMock()
+
+        mock_client_secret_credential_class.return_value = mock_context_manager
+
         mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=GET_RUN_RESPONSE)
 
         async with self.hook:
@@ -1947,12 +1976,11 @@ class TestDatabricksHookAsyncAadTokenOtherClouds:
 
         assert run_state == RunState(LIFE_CYCLE_STATE, RESULT_STATE, STATE_MESSAGE)
 
-        azure_identity_args = mock_azure_identity.call_args.kwargs
-        assert azure_identity_args["tenant_id"] == self.tenant_id
-        assert azure_identity_args["client_id"] == self.client_id
+        credential_call_kwargs = mock_client_secret_credential_class.call_args.kwargs
+        assert credential_call_kwargs["tenant_id"] == self.tenant_id
+        assert credential_call_kwargs["client_id"] == self.client_id
 
-        get_token_args = mock_azure_identity_get_token.call_args_list
-        assert get_token_args == [mock.call(f"{DEFAULT_DATABRICKS_SCOPE}/.default")]
+        mock_credential.get_token.assert_called_once_with(f"{DEFAULT_DATABRICKS_SCOPE}/.default")
 
         mock_get.assert_called_once_with(
             get_run_endpoint(HOST),
@@ -1992,11 +2020,21 @@ class TestDatabricksHookAsyncAadTokenSpOutside:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get")
-    @mock.patch("azure.identity.aio.ClientSecretCredential.__init__")
-    @mock.patch("azure.identity.aio.ClientSecretCredential.get_token")
-    async def test_get_run_state(self, mock_azure_identity_get_token, mock_azure_identity, mock_get):
-        mock_azure_identity.return_value = None
-        mock_azure_identity_get_token.return_value = create_aad_token_for_resource()
+    @mock.patch("azure.identity.aio.ClientSecretCredential")
+    async def test_get_run_state(self, mock_client_secret_credential_class, mock_get):
+        mock_credential = mock.Mock()
+        mock_credential.get_token = AsyncMock(
+            side_effect=[
+                create_aad_token_for_resource(),
+                create_aad_token_for_resource(),
+            ]
+        )
+
+        mock_cm = mock.AsyncMock()
+        mock_cm.__aenter__.return_value = mock_credential
+        mock_cm.__aexit__.return_value = AsyncMock()
+        mock_client_secret_credential_class.return_value = mock_cm
+
         mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=GET_RUN_RESPONSE)
 
         async with self.hook:
@@ -2004,12 +2042,11 @@ class TestDatabricksHookAsyncAadTokenSpOutside:
 
         assert run_state == RunState(LIFE_CYCLE_STATE, RESULT_STATE, STATE_MESSAGE)
 
-        azure_identity_args = mock_azure_identity.call_args.kwargs
-        assert azure_identity_args["tenant_id"] == self.tenant_id
-        assert azure_identity_args["client_id"] == self.client_id
+        credential_call_kwargs = mock_client_secret_credential_class.call_args.kwargs
+        assert credential_call_kwargs["tenant_id"] == self.tenant_id
+        assert credential_call_kwargs["client_id"] == self.client_id
 
-        get_token_args = mock_azure_identity_get_token.call_args_list
-        assert get_token_args == [
+        assert mock_credential.get_token.await_args_list == [
             mock.call(f"{AZURE_MANAGEMENT_ENDPOINT}/.default"),
             mock.call(f"{DEFAULT_DATABRICKS_SCOPE}/.default"),
         ]

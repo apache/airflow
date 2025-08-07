@@ -642,9 +642,11 @@ class TestHttpHook:
             }
         )()
 
-        actual = _process_extra_options_from_connection(conn=conn, extra_options=extra_options)
+        actual_conn_extra, actual_merged_extra = _process_extra_options_from_connection(
+            conn=conn, extra_options=extra_options
+        )
 
-        assert extra_options == {
+        assert actual_merged_extra == {
             "cert": "cert.crt",
             "stream": True,
             "proxy": proxy,
@@ -654,7 +656,8 @@ class TestHttpHook:
             "max_redirects": 3,
             "trust_env": False,
         }
-        assert actual == {"bearer": "test"}
+        assert actual_conn_extra == {"bearer": "test"}
+        assert extra_options == {}
 
 
 class TestHttpAsyncHook:

@@ -19,15 +19,15 @@ from __future__ import annotations
 
 import ast
 import re
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, NoReturn, SupportsAbs
+from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, SupportsAbs
 
 from airflow.exceptions import AirflowException, AirflowFailException
-from airflow.hooks.base import BaseHook
-from airflow.models import BaseOperator, SkipMixin
+from airflow.models import SkipMixin
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, return_single_query_results
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.common.sql.version_compat import BaseHook, BaseOperator
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
@@ -863,6 +863,7 @@ class SQLValueCheckOperator(BaseSQLOperator):
         tolerance: Any = None,
         conn_id: str | None = None,
         database: str | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
         **kwargs,
     ):
         super().__init__(conn_id=conn_id, database=database, **kwargs)
@@ -871,6 +872,7 @@ class SQLValueCheckOperator(BaseSQLOperator):
         tol = _convert_to_float_if_possible(tolerance)
         self.tol = tol if isinstance(tol, float) else None
         self.has_tolerance = self.tol is not None
+        self.parameters = parameters
 
     def check_value(self, records):
         if not records:
@@ -903,7 +905,7 @@ class SQLValueCheckOperator(BaseSQLOperator):
 
     def execute(self, context: Context):
         self.log.info("Executing SQL check: %s", self.sql)
-        records = self.get_db_hook().get_first(self.sql)
+        records = self.get_db_hook().get_first(self.sql, self.parameters)
         self.check_value(records)
 
     def _to_float(self, records):
@@ -1247,7 +1249,7 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
             )
 
         # TODO(potiuk) remove the type ignore once we solve provider <-> Task SDK relationship
-        self.skip_all_except(context["ti"], follow_branch)  # type: ignore[arg-type]
+        self.skip_all_except(context["ti"], follow_branch)
 
 
 def _initialize_partition_clause(clause: str | None) -> str | None:

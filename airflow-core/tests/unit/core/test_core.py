@@ -23,13 +23,11 @@ from time import sleep
 
 import pytest
 
+from airflow._shared.timezones.timezone import datetime
 from airflow.exceptions import AirflowTaskTimeout
-from airflow.models import TaskInstance
 from airflow.models.baseoperator import BaseOperator
-from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
@@ -49,8 +47,15 @@ class TestCore:
         self.clean_db()
 
     def test_dryrun(self, dag_maker):
+        class TemplateFieldOperator(BaseOperator):
+            template_fields = ["bash_command"]
+
+            def __init__(self, bash_command, **kwargs):
+                self.bash_command = bash_command
+                super().__init__(**kwargs)
+
         with dag_maker():
-            op = BashOperator(task_id="test_dryrun", bash_command="echo success")
+            op = TemplateFieldOperator(task_id="test_dryrun", bash_command="echo success")
         dag_maker.create_dagrun()
         op.dry_run()
 
@@ -81,9 +86,8 @@ class TestCore:
                 execution_timeout=timedelta(seconds=1),
                 python_callable=sleep_and_catch_other_exceptions,
             )
-        dag_maker.create_dagrun()
         with pytest.raises(AirflowTaskTimeout):
-            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            dag_maker.run_ti(op.task_id)
 
     def test_dag_params_and_task_params(self, dag_maker):
         # This test case guards how params of DAG and Operator work together.
@@ -91,7 +95,6 @@ class TestCore:
         #   it is guaranteed to be available eventually.
         # - If any key exists in both DAG's params and Operator's params,
         #   the latter has precedence.
-        TI = TaskInstance
 
         with dag_maker(
             schedule=timedelta(weeks=1),
@@ -106,12 +109,9 @@ class TestCore:
         dr = dag_maker.create_dagrun(
             run_type=DagRunType.SCHEDULED,
         )
-        task1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        task2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        ti1 = TI(task=task1, run_id=dr.run_id)
-        ti2 = TI(task=task2, run_id=dr.run_id)
-        ti1.refresh_from_db()
-        ti2.refresh_from_db()
+        ti1 = dag_maker.run_ti(task1.task_id, dr)
+        ti2 = dag_maker.run_ti(task2.task_id, dr)
+
         context1 = ti1.get_template_context()
         context2 = ti2.get_template_context()
 

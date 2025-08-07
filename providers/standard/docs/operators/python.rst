@@ -196,6 +196,13 @@ If you want to use additional task specific private python repositories to setup
 pip install configurations. Passed index urls replace the standard system configured index url settings.
 To prevent adding secrets to the private repository in your DAG code you can use the Airflow
 :doc:`apache-airflow:authoring-and-scheduling/connections`. For this purpose the connection type ``Package Index (Python)`` can be used.
+In the ``Package Index (Python)`` connection type you can specify the index URL and credentials for the private repository.
+After creating a ``Package Index (Python)`` connection, you can provide the connection ID to the ``PythonVirtualenvOperator`` using the ``index_urls_from_connection_ids`` parameter.
+The ``PythonVirtualenvOperator`` will automatically append the index URLs from the connection to the ``index_urls`` parameter of the pip installer including the provided credentials.
+
+The first ``index_url`` in the list will be used as main index URL (``index-url`` for pip or ``default-index`` for uv) of the virtual environment setup.
+Additional URLs will be added as extra index URLs. If you provide both parameters ``index_urls`` and ``index_urls_from_connection_ids``, the first URL in
+the ``index_urls`` will be used as the main index URL and the rest will be added as extra index URLs.
 
 In the special case you want to prevent remote calls for setup of a virtual environment, pass the ``index_urls`` as empty list as ``index_urls=[]`` which
 forced pip installer to use the ``--no-index`` option.
@@ -291,16 +298,16 @@ Templating
 Jinja templating can be used in same way as described for the :ref:`howto/operator:PythonOperator`.
 
 
-.. _howto/operator:PythonBranchOperator:
+.. _howto/operator:BranchPythonOperator:
 
-PythonBranchOperator
+BranchPythonOperator
 ====================
 
-Use the :class:`~airflow.providers.standard.operators.python.PythonBranchOperator` to execute Python :ref:`branching <concepts:branching>`
+Use the :class:`~airflow.providers.standard.operators.python.BranchPythonOperator` to execute Python :ref:`branching <concepts:branching>`
 tasks.
 
 .. tip::
-    The ``@task.branch`` decorator is recommended over the classic ``PythonBranchOperator``
+    The ``@task.branch`` decorator is recommended over the classic ``BranchPythonOperator``
     to execute Python code.
 
 .. tab-set::
@@ -314,7 +321,7 @@ tasks.
             :start-after: [START howto_operator_branch_python]
             :end-before: [END howto_operator_branch_python]
 
-    .. tab-item:: PythonBranchOperator
+    .. tab-item:: BranchPythonOperator
         :sync: operator
 
         .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_branch_operator.py
@@ -334,7 +341,7 @@ BranchPythonVirtualenvOperator
 ==============================
 
 Use the :class:`~airflow.providers.standard.operators.python.BranchPythonVirtualenvOperator` decorator to execute Python :ref:`branching <concepts:branching>`
-tasks and is a hybrid of the :class:`~airflow.providers.standard.operators.python.PythonBranchOperator` with execution in a virtual environment.
+tasks and is a hybrid of the :class:`~airflow.providers.standard.operators.python.BranchPythonOperator` with execution in a virtual environment.
 
 .. tip::
     The ``@task.branch_virtualenv`` decorator is recommended over the classic
@@ -371,7 +378,7 @@ BranchExternalPythonOperator
 ============================
 
 Use the :class:`~airflow.providers.standard.operators.python.BranchExternalPythonOperator` to execute Python :ref:`branching <concepts:branching>`
-tasks and is a hybrid of the :class:`~airflow.providers.standard.operators.python.PythonBranchOperator` with execution in an
+tasks and is a hybrid of the :class:`~airflow.providers.standard.operators.python.BranchPythonOperator` with execution in an
 external Python environment.
 
 .. tip::

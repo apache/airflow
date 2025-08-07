@@ -21,15 +21,23 @@ from datetime import datetime
 
 import boto3
 
-from airflow.decorators import task
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateBucketOperator,
     S3CreateObjectOperator,
     S3DeleteBucketOperator,
 )
 from airflow.providers.amazon.aws.transfers.s3_to_dynamodb import S3ToDynamoDBOperator
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import DAG, chain, task
+else:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
+    from airflow.models.baseoperator import chain  # type: ignore[attr-defined,no-redef]
+    from airflow.models.dag import DAG  # type: ignore[attr-defined,no-redef,assignment]
+
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
@@ -79,7 +87,7 @@ def wait_for_bucket(s3_bucket_name):
 def delete_dynamodb_table(table_name: str):
     boto3.resource("dynamodb").Table(table_name).delete()
     boto3.client("dynamodb").get_waiter("table_not_exists").wait(
-        TableName=table_name, WaiterConfig={"Delay": 10, "MaxAttempts": 10}
+        TableName=table_name, WaiterConfig={"Delay": 10, "MaxAttempts": 30}
     )
 
 

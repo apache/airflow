@@ -26,7 +26,7 @@ from airflow.providers.apache.tinkerpop.hooks.gremlin import GremlinHook
 AIRFLOW_CONN_GREMLIN_DEFAULT = "ws://mylogin:mysecret@gremlin:8182/gremlin"
 
 
-@pytest.mark.integration("gremlin")
+@pytest.mark.integration("tinkerpop")
 class TestGremlinHook:
     def setup_method(self):
         os.environ["AIRFLOW_CONN_GREMLIN_DEFAULT"] = AIRFLOW_CONN_GREMLIN_DEFAULT

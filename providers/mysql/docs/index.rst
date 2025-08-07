@@ -77,7 +77,9 @@ apache-airflow-providers-mysql package
 `MySQL <https://www.mysql.com/>`__
 
 
-Release: 6.3.1
+Release: 6.3.3
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------
@@ -137,5 +139,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-mysql 6.3.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.3.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.3.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.3.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-mysql 6.3.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.3.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.3.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.3.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-mysql 6.3.3 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.3.3.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.3.3.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.3.3.tar.gz.sha512>`__)
+* `The apache-airflow-providers-mysql 6.3.3 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.3.3-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.3.3-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.3.3-py3-none-any.whl.sha512>`__)

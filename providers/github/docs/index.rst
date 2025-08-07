@@ -77,7 +77,9 @@ apache-airflow-providers-github package
 `GitHub <https://www.github.com/>`__
 
 
-Release: 2.9.0
+Release: 2.9.2
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------

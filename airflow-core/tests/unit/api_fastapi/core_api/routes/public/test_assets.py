@@ -23,6 +23,7 @@ from unittest import mock
 import pytest
 import time_machine
 
+from airflow._shared.timezones import timezone
 from airflow.models import DagModel
 from airflow.models.asset import (
     AssetActive,
@@ -35,7 +36,6 @@ from airflow.models.asset import (
 )
 from airflow.models.dagrun import DagRun
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
@@ -1210,6 +1210,7 @@ class TestPostAssetMaterialize(TestAssets):
             "run_type": "manual",
             "state": "queued",
             "triggered_by": "rest_api",
+            "triggering_user_name": "test",
             "conf": {},
             "note": None,
         }

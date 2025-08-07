@@ -19,7 +19,7 @@
 import { Box } from "@chakra-ui/react";
 import { useParams, useSearchParams } from "react-router-dom";
 
-import type { GridTaskInstanceSummary } from "openapi/requests/types.gen";
+import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 
 import { GridTI } from "./GridTI";
 import type { GridTask } from "./utils";
@@ -27,16 +27,18 @@ import type { GridTask } from "./utils";
 type Props = {
   readonly depth?: number;
   readonly nodes: Array<GridTask>;
+  readonly onCellClick?: () => void;
   readonly runId: string;
-  readonly taskInstances: Array<GridTaskInstanceSummary>;
+  readonly taskInstances: Array<LightGridTaskInstanceSummary>;
 };
 
-export const TaskInstancesColumn = ({ nodes, runId, taskInstances }: Props) => {
+export const TaskInstancesColumn = ({ nodes, onCellClick, runId, taskInstances }: Props) => {
   const { dagId = "" } = useParams();
   const [searchParams] = useSearchParams();
   const search = searchParams.toString();
 
   return nodes.map((node) => {
+    // todo: how does this work with mapped? same task id for multiple tis
     const taskInstance = taskInstances.find((ti) => ti.task_id === node.id);
 
     if (!taskInstance) {
@@ -46,13 +48,14 @@ export const TaskInstancesColumn = ({ nodes, runId, taskInstances }: Props) => {
     return (
       <GridTI
         dagId={dagId}
+        instance={taskInstance}
         isGroup={node.isGroup}
         isMapped={node.is_mapped}
         key={node.id}
         label={node.label}
+        onClick={onCellClick}
         runId={runId}
         search={search}
-        state={taskInstance.state}
         taskId={node.id}
       />
     );

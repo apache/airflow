@@ -23,7 +23,7 @@ import json
 from collections import defaultdict
 from collections.abc import Iterator
 from datetime import datetime
-from typing import TYPE_CHECKING, Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any, cast
 from uuid import UUID
 
 import attrs
@@ -37,7 +37,8 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import select
 from structlog.contextvars import bind_contextvars
 
-from airflow.api_fastapi.common.dagbag import DagBagDep
+from airflow._shared.timezones import timezone
+from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
@@ -58,7 +59,6 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
 from airflow.api_fastapi.execution_api.deps import JWTBearerTIPathDep
 from airflow.exceptions import TaskNotFound
 from airflow.models.asset import AssetActive
-from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_tasks
 from airflow.models.taskreschedule import TaskReschedule
@@ -67,14 +67,13 @@ from airflow.models.xcom import XComModel
 from airflow.sdk.definitions._internal.expandinput import NotFullyPopulated
 from airflow.sdk.definitions.asset import Asset, AssetUniqueKey
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup
-from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
 
 if TYPE_CHECKING:
     from sqlalchemy.sql.dml import Update
 
+    from airflow.models.expandinput import SchedulerExpandInput
     from airflow.sdk.types import Operator
-
 
 router = VersionedAPIRouter()
 
@@ -254,7 +253,7 @@ def ti_run(
             or 0
         )
 
-        if dag := dag_bag.get_dag(ti.dag_id):
+        if dag := dag_bag.get_dag_for_run(dag_run=dr, session=session):
             upstream_map_indexes = dict(
                 _get_upstream_map_indexes(dag.get_task(ti.task_id), ti.map_index, ti.run_id, session)
             )
@@ -308,9 +307,9 @@ def _get_upstream_map_indexes(
                 mapped_ti_count = upstream_mapped_group.get_parse_time_mapped_ti_count()
             except NotFullyPopulated:
                 # for cases that needs to resolve xcom to get the correct count
-                mapped_ti_count = upstream_mapped_group._expand_input.get_total_map_length(
-                    run_id, session=session
-                )
+                mapped_ti_count = cast(
+                    "SchedulerExpandInput", upstream_mapped_group._expand_input
+                ).get_total_map_length(run_id, session=session)
             map_indexes = list(range(mapped_ti_count)) if mapped_ti_count is not None else None
 
         yield upstream_task.task_id, map_indexes
@@ -417,7 +416,8 @@ def ti_update_state(
 
 
 def _handle_fail_fast_for_dag(ti: TI, dag_id: str, session: SessionDep, dag_bag: DagBagDep) -> None:
-    ser_dag = dag_bag.get_dag(dag_id)
+    dr = ti.dag_run
+    ser_dag = dag_bag.get_dag_for_run(dag_run=dr, session=session)
     if ser_dag and getattr(ser_dag, "fail_fast", False):
         task_dict = getattr(ser_dag, "task_dict")
         task_teardown_map = {k: v.is_teardown for k, v in task_dict.items()}
@@ -735,6 +735,7 @@ def get_previous_successful_dagrun(
 def get_task_instance_count(
     dag_id: str,
     session: SessionDep,
+    dag_bag: DagBagDep,
     map_index: Annotated[int | None, Query()] = None,
     task_ids: Annotated[list[str] | None, Query()] = None,
     task_group_id: Annotated[str | None, Query()] = None,
@@ -758,7 +759,7 @@ def get_task_instance_count(
         query = query.where(TI.run_id.in_(run_ids))
 
     if task_group_id:
-        group_tasks = _get_group_tasks(dag_id, task_group_id, session, logical_dates, run_ids)
+        group_tasks = _get_group_tasks(dag_id, task_group_id, session, dag_bag, logical_dates, run_ids)
 
         # Get unique (task_id, map_index) pairs
 
@@ -786,7 +787,6 @@ def get_task_instance_count(
             query = query.where(TI.state.in_(states))
 
     count = session.scalar(query)
-
     return count or 0
 
 
@@ -794,6 +794,7 @@ def get_task_instance_count(
 def get_task_instance_states(
     dag_id: str,
     session: SessionDep,
+    dag_bag: DagBagDep,
     map_index: Annotated[int | None, Query()] = None,
     task_ids: Annotated[list[str] | None, Query()] = None,
     task_group_id: Annotated[str | None, Query()] = None,
@@ -817,7 +818,7 @@ def get_task_instance_states(
     results = session.scalars(query).all()
 
     if task_group_id:
-        group_tasks = _get_group_tasks(dag_id, task_group_id, session, logical_dates, run_ids)
+        group_tasks = _get_group_tasks(dag_id, task_group_id, session, dag_bag, logical_dates, run_ids)
 
         results = results + group_tasks if task_ids else group_tasks
 
@@ -847,18 +848,11 @@ def _is_eligible_to_retry(state: str, try_number: int, max_tries: int) -> bool:
     return max_tries != 0 and try_number <= max_tries
 
 
-def _get_group_tasks(dag_id: str, task_group_id: str, session: SessionDep, logical_dates=None, run_ids=None):
+def _get_group_tasks(
+    dag_id: str, task_group_id: str, session: SessionDep, dag_bag: DagBagDep, logical_dates=None, run_ids=None
+):
     # Get all tasks in the task group
-    dag = DagBag(read_dags_from_db=True).get_dag(dag_id, session)
-    if not dag:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": f"DAG {dag_id} not found",
-            },
-        )
-
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session, include_reason=True)
     task_group = dag.task_group_dict.get(task_group_id)
     if not task_group:
         raise HTTPException(
@@ -910,7 +904,8 @@ def validate_inlets_and_outlets(
         )
 
     if not ti.task:
-        dag = dag_bag.get_dag(ti.dag_id)
+        dr = ti.dag_run
+        dag = dag_bag.get_dag_for_run(dag_run=dr, session=session)
         if dag:
             with contextlib.suppress(TaskNotFound):
                 ti.task = dag.get_task(ti.task_id)

@@ -336,8 +336,8 @@ BASIC_AUTOAPI_IGNORE_PATTERNS = [
     "*/conftest.py",
     "*/tests/__init__.py",
     "*/tests/system/__init__.py",
+    "*/tests/system/*/tests/*",
     "*/tests/system/example_empty.py",
-    "*/test_aws_auth_manager.py",
     "*/check_translations_completeness.py",
 ]
 
@@ -346,7 +346,7 @@ IGNORE_PATTERNS_RECOGNITION = re.compile(r"\[AutoAPI\] .* Ignoring \s (?P<path>/
 
 # Make the "Ignoring /..." log messages slightly less verbose
 def filter_autoapi_ignore_entries(record: logging.LogRecord) -> bool:
-    matches = IGNORE_PATTERNS_RECOGNITION.search(record.msg)  # type: ignore
+    matches = IGNORE_PATTERNS_RECOGNITION.search(record.msg)
     if not matches:
         return True
     if matches["path"].endswith("__init__.py"):

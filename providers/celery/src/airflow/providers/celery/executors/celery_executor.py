@@ -30,7 +30,6 @@ import math
 import operator
 import time
 from collections import Counter
-from collections.abc import Sequence
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import cpu_count
 from typing import TYPE_CHECKING, Any
@@ -474,7 +473,6 @@ class CeleryExecutor(BaseExecutor):
 
         celery_tasks = {}
         not_adopted_tis = []
-
         for ti in tis:
             if ti.external_executor_id is not None:
                 celery_tasks[ti.external_executor_id] = (AsyncResult(ti.external_executor_id), ti)

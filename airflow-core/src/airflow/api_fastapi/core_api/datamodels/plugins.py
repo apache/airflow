@@ -69,18 +69,37 @@ class AppBuilderMenuItemResponse(BaseModel):
     category: str | None = None
 
 
-class ExternalViewResponse(BaseModel):
-    """Serializer for IFrame Plugin responses."""
+BaseDestinationLiteral = Literal["nav", "dag", "dag_run", "task", "task_instance"]
+
+
+class BaseUIResponse(BaseModel):
+    """Base serializer for UI Plugin responses."""
 
     model_config = ConfigDict(extra="allow")
 
     name: str
-    href: str
     icon: str | None = None
     icon_dark_mode: str | None = None
     url_route: str | None = None
     category: str | None = None
-    destination: Literal["nav", "dag", "dag_run", "task", "task_instance"] = "nav"
+
+
+class ExternalViewResponse(BaseUIResponse):
+    """Serializer for External View Plugin responses."""
+
+    model_config = ConfigDict(extra="allow")
+
+    href: str
+    destination: BaseDestinationLiteral = "nav"
+
+
+class ReactAppResponse(BaseUIResponse):
+    """Serializer for React App Plugin responses."""
+
+    model_config = ConfigDict(extra="allow")
+
+    bundle_url: str
+    destination: Literal[BaseDestinationLiteral, "dashboard"] = "nav"
 
 
 class PluginResponse(BaseModel):
@@ -94,6 +113,7 @@ class PluginResponse(BaseModel):
     external_views: list[ExternalViewResponse] = Field(
         description="Aggregate all external views. Both 'external_views' and 'appbuilder_menu_items' are included here."
     )
+    react_apps: list[ReactAppResponse]
     appbuilder_views: list[AppBuilderViewResponse]
     appbuilder_menu_items: list[AppBuilderMenuItemResponse] = Field(
         deprecated="Kept for backward compatibility, use `external_views` instead.",
@@ -114,7 +134,7 @@ class PluginResponse(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def convert_external_views(cls, data: Any) -> Any:
-        data["external_views"] = [*data["external_views"], *data.get("appbuilder_menu_items", [])]
+        data["external_views"] = [*data["external_views"], *data["appbuilder_menu_items"]]
         return data
 
 

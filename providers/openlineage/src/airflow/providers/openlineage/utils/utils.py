@@ -20,10 +20,11 @@ from __future__ import annotations
 import datetime
 import json
 import logging
+from collections.abc import Callable
 from contextlib import suppress
 from functools import wraps
 from importlib import metadata
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 import attrs
 from openlineage.client.facet_v2 import parent_run
@@ -51,10 +52,14 @@ from airflow.providers.openlineage.utils.selective_enable import (
     is_dag_lineage_enabled,
     is_task_lineage_enabled,
 )
-from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS, get_base_airflow_version_tuple
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.module_loading import import_string
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseSensorOperator
+else:
+    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
 
 if not AIRFLOW_V_3_0_PLUS:
     from airflow.utils.session import NEW_SESSION, provide_session
@@ -65,8 +70,7 @@ if TYPE_CHECKING:
 
     from airflow.models import TaskInstance
     from airflow.providers.common.compat.assets import Asset
-    from airflow.sdk import DAG
-    from airflow.sdk.bases.operator import BaseOperator
+    from airflow.sdk import DAG, BaseOperator
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.execution_time.secrets_masker import (
         Redactable,
@@ -74,11 +78,11 @@ if TYPE_CHECKING:
         SecretsMasker,
         should_hide_value_for_key,
     )
+    from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
     from airflow.utils.state import DagRunState, TaskInstanceState
 else:
     try:
-        from airflow.sdk import DAG
-        from airflow.sdk.bases.operator import BaseOperator
+        from airflow.sdk import DAG, BaseOperator
         from airflow.sdk.definitions.mappedoperator import MappedOperator
     except ImportError:
         from airflow.models import DAG, BaseOperator, MappedOperator
@@ -109,6 +113,7 @@ else:
 
 log = logging.getLogger(__name__)
 _NOMINAL_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
+_MAX_DOC_BYTES = 64 * 1024  # 64 kilobytes
 
 
 def try_import_from_string(string: str) -> Any:
@@ -122,7 +127,33 @@ def get_operator_class(task: BaseOperator) -> type:
     return task.__class__
 
 
-def get_job_name(task: TaskInstance) -> str:
+def get_operator_provider_version(operator: BaseOperator | MappedOperator) -> str | None:
+    """Get the provider package version for the given operator."""
+    try:
+        class_path = get_fully_qualified_class_name(operator)
+
+        if not class_path.startswith("airflow.providers."):
+            return None
+
+        from airflow.providers_manager import ProvidersManager
+
+        providers_manager = ProvidersManager()
+
+        for package_name, provider_info in providers_manager.providers.items():
+            if package_name.startswith("apache-airflow-providers-"):
+                provider_module_path = package_name.replace(
+                    "apache-airflow-providers-", "airflow.providers."
+                ).replace("-", ".")
+                if class_path.startswith(provider_module_path + "."):
+                    return provider_info.version
+
+        return None
+
+    except Exception:
+        return None
+
+
+def get_job_name(task: TaskInstance | RuntimeTaskInstance) -> str:
     return f"{task.dag_id}.{task.task_id}"
 
 
@@ -145,6 +176,80 @@ def get_task_parent_run_facet(
             ),
         )
     }
+
+
+def _truncate_string_to_byte_size(s: str, max_size: int = _MAX_DOC_BYTES) -> str:
+    """
+    Truncate a string to a maximum UTF-8 byte size, ensuring valid encoding.
+
+    This is used to safely limit the size of string content (e.g., for OpenLineage events)
+    without breaking multibyte characters. If truncation occurs, the result is a valid
+    UTF-8 string with any partial characters at the end removed.
+
+    Args:
+        s (str): The input string to truncate.
+        max_size (int): Maximum allowed size in bytes after UTF-8 encoding.
+
+    Returns:
+        str: A UTF-8-safe truncated string within the specified byte limit.
+    """
+    encoded = s.encode("utf-8")
+    if len(encoded) <= max_size:
+        return s
+    log.debug(
+        "Truncating long string content for OpenLineage event. "
+        "Original size: %d bytes, truncated to: %d bytes (UTF-8 safe).",
+        len(encoded),
+        max_size,
+    )
+    truncated = encoded[:max_size]
+    # Make sure we don't cut a multibyte character in half
+    return truncated.decode("utf-8", errors="ignore")
+
+
+def get_task_documentation(operator: BaseOperator | MappedOperator | None) -> tuple[str | None, str | None]:
+    """Get task documentation and mime type, truncated to _MAX_DOC_BYTES bytes length, if present."""
+    if not operator:
+        return None, None
+
+    doc, mime_type = None, None
+    if operator.doc:
+        doc = operator.doc
+        mime_type = "text/plain"
+    elif operator.doc_md:
+        doc = operator.doc_md
+        mime_type = "text/markdown"
+    elif operator.doc_json:
+        doc = operator.doc_json
+        mime_type = "application/json"
+    elif operator.doc_yaml:
+        doc = operator.doc_yaml
+        mime_type = "application/x-yaml"
+    elif operator.doc_rst:
+        doc = operator.doc_rst
+        mime_type = "text/x-rst"
+
+    if doc:
+        return _truncate_string_to_byte_size(doc), mime_type
+    return None, None
+
+
+def get_dag_documentation(dag: DAG | None) -> tuple[str | None, str | None]:
+    """Get dag documentation and mime type, truncated to _MAX_DOC_BYTES bytes length, if present."""
+    if not dag:
+        return None, None
+
+    doc, mime_type = None, None
+    if dag.doc_md:
+        doc = dag.doc_md
+        mime_type = "text/markdown"
+    elif dag.description:
+        doc = dag.description
+        mime_type = "text/plain"
+
+    if doc:
+        return _truncate_string_to_byte_size(doc), mime_type
+    return None, None
 
 
 def get_airflow_mapped_task_facet(task_instance: TaskInstance) -> dict[str, Any]:
@@ -203,7 +308,7 @@ def get_user_provided_run_facets(ti: TaskInstance, ti_state: TaskInstanceState) 
 def get_fully_qualified_class_name(operator: BaseOperator | MappedOperator) -> str:
     if isinstance(operator, (MappedOperator, SerializedBaseOperator)):
         # as in airflow.api_connexion.schemas.common_schema.ClassReferenceSchema
-        return operator._task_module + "." + operator._task_type  # type: ignore
+        return operator._task_module + "." + operator._task_type
     op_class = get_operator_class(operator)
     return op_class.__module__ + "." + op_class.__name__
 
@@ -505,6 +610,7 @@ class TaskInfo(InfoJsonEncodable):
         ),
         "inlets": lambda task: [AssetInfo(i) for i in task.inlets if isinstance(i, Asset)],
         "outlets": lambda task: [AssetInfo(o) for o in task.outlets if isinstance(o, Asset)],
+        "operator_provider_version": lambda task: get_operator_provider_version(task),
     }
 
 
@@ -672,6 +778,7 @@ def _emits_ol_events(task: BaseOperator | MappedOperator) -> bool:
             not getattr(task, "on_execute_callback", None),
             not getattr(task, "on_success_callback", None),
             not task.outlets,
+            not (task.inlets and get_base_airflow_version_tuple() >= (3, 0, 2)),  # Added in 3.0.2 #50773
         )
     )
 
@@ -723,7 +830,7 @@ class OpenLineageRedactor(SecretsMasker):
         instance.replacer = other.replacer
         return instance
 
-    def _redact(self, item: Redactable, name: str | None, depth: int, max_depth: int) -> Redacted:
+    def _redact(self, item: Redactable, name: str | None, depth: int, max_depth: int, **kwargs) -> Redacted:  # type: ignore[override]
         if AIRFLOW_V_3_0_PLUS:
             # Keep compatibility for Airflow 2.x, remove when Airflow 3.0 is the minimum version
             class AirflowContextDeprecationWarning(UserWarning):
@@ -779,7 +886,7 @@ class OpenLineageRedactor(SecretsMasker):
                                 ),
                             )
                     return item
-                return super()._redact(item, name, depth, max_depth)
+                return super()._redact(item, name, depth, max_depth, **kwargs)
         except Exception as exc:
             log.warning("Unable to redact %r. Error was: %s: %s", item, type(exc).__name__, exc)
         return item
@@ -839,7 +946,7 @@ def translate_airflow_asset(asset: Asset, lineage_context) -> OpenLineageDataset
         from airflow.sdk.definitions.asset import _get_normalized_scheme
     else:
         try:
-            from airflow.datasets import _get_normalized_scheme  # type: ignore[no-redef, attr-defined]
+            from airflow.datasets import _get_normalized_scheme  # type: ignore[no-redef]
         except ImportError:
             return None
 

@@ -22,19 +22,33 @@ import Backend from "i18next-http-backend";
 import { initReactI18next } from "react-i18next";
 
 export const supportedLanguages = [
-  { code: "ar", flag: "🇸🇦", name: "العربية" },
-  { code: "de", flag: "🇩🇪", name: "Deutsch" },
-  { code: "en", flag: "🇺🇸", name: "English" },
-  { code: "he", flag: "🇮🇱", name: "עברית" },
-  { code: "ko", flag: "🇰🇷", name: "한국어" },
-  { code: "nl", flag: "🇳🇱", name: "Nederlands" },
-  { code: "pl", flag: "🇵🇱", name: "Polski" },
-  { code: "zh-TW", flag: "🇹🇼", name: "繁體中文" },
-  { code: "fr", flag: "🇫🇷", name: "Français" },
+  { code: "en", name: "English" },
+  { code: "ar", name: "العربية" },
+  { code: "de", name: "Deutsch" },
+  { code: "es", name: "Español" },
+  { code: "fr", name: "Français" },
+  { code: "he", name: "עברית" },
+  { code: "ko", name: "한국어" },
+  { code: "nl", name: "Nederlands" },
+  { code: "pl", name: "Polski" },
+  { code: "zh-TW", name: "繁體中文" },
 ] as const;
 
 export const defaultLanguage = "en";
-export const namespaces = ["common", "dashboard", "dags", "admin", "browse", "assets", "components"] as const;
+export const namespaces = [
+  "common",
+  "dashboard",
+  "dags",
+  "admin",
+  "browse",
+  "assets",
+  "components",
+  "hitl",
+] as const;
+
+const baseHref = document.querySelector("head > base")?.getAttribute("href") ?? "";
+const baseUrl = new URL(baseHref, globalThis.location.origin);
+const basePath = new URL(baseUrl).pathname.replace(/\/$/u, "");
 
 void i18n
   .use(Backend)
@@ -42,7 +56,7 @@ void i18n
   .use(initReactI18next)
   .init({
     backend: {
-      loadPath: "/static/i18n/locales/{{lng}}/{{ns}}.json",
+      loadPath: `${basePath}/static/i18n/locales/{{lng}}/{{ns}}.json`,
     },
     defaultNS: "common",
     detection: {

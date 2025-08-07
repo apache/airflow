@@ -16,16 +16,17 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
 import logging
+from abc import ABC
+from collections.abc import Callable
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Callable
+from typing import Any, cast
 
-from airflow.models.deadline import ReferenceModels
+from airflow.models.deadline import DeadlineReferenceType, ReferenceModels
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
+from airflow.serialization.serde import deserialize, serialize
 from airflow.utils.module_loading import import_string, is_valid_dotpath
-
-if TYPE_CHECKING:
-    from airflow.models.deadline import DeadlineReferenceType
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +42,6 @@ class DeadlineAlertFields:
     REFERENCE = "reference"
     INTERVAL = "interval"
     CALLBACK = "callback"
-    CALLBACK_KWARGS = "callback_kwargs"
 
 
 class DeadlineAlert:
@@ -51,13 +51,11 @@ class DeadlineAlert:
         self,
         reference: DeadlineReferenceType,
         interval: timedelta,
-        callback: Callable | str,
-        callback_kwargs: dict | None = None,
+        callback: Callback,
     ):
         self.reference = reference
         self.interval = interval
-        self.callback_kwargs = callback_kwargs or {}
-        self.callback = self.get_callback_path(callback)
+        self.callback = callback
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, DeadlineAlert):
@@ -66,7 +64,6 @@ class DeadlineAlert:
             isinstance(self.reference, type(other.reference))
             and self.interval == other.interval
             and self.callback == other.callback
-            and self.callback_kwargs == other.callback_kwargs
         )
 
     def __hash__(self) -> int:
@@ -75,41 +72,8 @@ class DeadlineAlert:
                 type(self.reference).__name__,
                 self.interval,
                 self.callback,
-                tuple(sorted(self.callback_kwargs.items())) if self.callback_kwargs else None,
             )
         )
-
-    @staticmethod
-    def get_callback_path(_callback: str | Callable) -> str:
-        """Convert callback to a string path that can be used to import it later."""
-        if callable(_callback):
-            # TODO:  This implementation doesn't support using a lambda function as a callback.
-            #        We should consider that in the future, but the addition is non-trivial.
-            # Get the reference path to the callable in the form `airflow.models.deadline.get_from_db`
-            return f"{_callback.__module__}.{_callback.__qualname__}"
-
-        if not isinstance(_callback, str) or not is_valid_dotpath(_callback.strip()):
-            raise ImportError(f"`{_callback}` doesn't look like a valid dot path.")
-
-        stripped_callback = _callback.strip()
-
-        try:
-            # The provided callback is a string which appears to be a valid dotpath, attempt to import it.
-            callback = import_string(stripped_callback)
-            if not callable(callback):
-                # The input is a string which can be imported, but is not callable.
-                raise AttributeError(f"Provided callback {callback} is not callable.")
-        except ImportError as e:
-            # Logging here instead of failing because it is possible that the code for the callable
-            # exists somewhere other than on the DAG processor. We are making a best effort to validate,
-            # but can't rule out that it may be available at runtime even if it can not be imported here.
-            logger.debug(
-                "Callback %s is formatted like a callable dotpath, but could not be imported.\n%s",
-                stripped_callback,
-                e,
-            )
-
-        return stripped_callback
 
     def serialize_deadline_alert(self):
         """Return the data in a format that BaseSerialization can handle."""
@@ -118,8 +82,7 @@ class DeadlineAlert:
             Encoding.VAR: {
                 DeadlineAlertFields.REFERENCE: self.reference.serialize_reference(),
                 DeadlineAlertFields.INTERVAL: self.interval.total_seconds(),
-                DeadlineAlertFields.CALLBACK: self.callback,  # Already stored as a string path
-                DeadlineAlertFields.CALLBACK_KWARGS: self.callback_kwargs,
+                DeadlineAlertFields.CALLBACK: serialize(self.callback),
             },
         }
 
@@ -137,9 +100,141 @@ class DeadlineAlert:
         return cls(
             reference=reference,
             interval=timedelta(seconds=data[DeadlineAlertFields.INTERVAL]),
-            callback=data[DeadlineAlertFields.CALLBACK],  # Keep as string path
-            callback_kwargs=data[DeadlineAlertFields.CALLBACK_KWARGS],
+            callback=cast("Callback", deserialize(data[DeadlineAlertFields.CALLBACK])),
         )
+
+
+class Callback(ABC):
+    """
+    Base class for Deadline Alert callbacks.
+
+    Callbacks are used to execute custom logic when a deadline is missed.
+
+    The `callback_callable` can be a Python callable type or a string containing the path to the callable that
+    can be used to import the callable. It must be a top-level callable in a module present on the host where
+    it will run.
+
+    It will be called with Airflow context and specified kwargs when a deadline is missed.
+    """
+
+    path: str
+    kwargs: dict | None
+
+    def __init__(self, callback_callable: Callable | str, kwargs: dict | None = None):
+        self.path = self.get_callback_path(callback_callable)
+        self.kwargs = kwargs
+
+    @classmethod
+    def get_callback_path(cls, _callback: str | Callable) -> str:
+        """Convert callback to a string path that can be used to import it later."""
+        if callable(_callback):
+            cls.verify_callable(_callback)
+
+            # TODO:  This implementation doesn't support using a lambda function as a callback.
+            #        We should consider that in the future, but the addition is non-trivial.
+            # Get the reference path to the callable in the form `airflow.models.deadline.get_from_db`
+            return f"{_callback.__module__}.{_callback.__qualname__}"
+
+        if not isinstance(_callback, str) or not is_valid_dotpath(_callback.strip()):
+            raise ImportError(f"`{_callback}` doesn't look like a valid dot path.")
+
+        stripped_callback = _callback.strip()
+
+        try:
+            # The provided callback is a string which appears to be a valid dotpath, attempt to import it.
+            callback = import_string(stripped_callback)
+            if not callable(callback):
+                # The input is a string which can be imported, but is not callable.
+                raise AttributeError(f"Provided callback {callback} is not callable.")
+
+            cls.verify_callable(callback)
+
+        except ImportError as e:
+            # Logging here instead of failing because it is possible that the code for the callable
+            # exists somewhere other than on the DAG processor. We are making a best effort to validate,
+            # but can't rule out that it may be available at runtime even if it can not be imported here.
+            logger.debug(
+                "Callback %s is formatted like a callable dotpath, but could not be imported.\n%s",
+                stripped_callback,
+                e,
+            )
+
+        return stripped_callback
+
+    @classmethod
+    def verify_callable(cls, callback: Callable):
+        """For additional verification of the callable during initialization in subclasses."""
+        pass  # No verification needed in the base class
+
+    @classmethod
+    def deserialize(cls, data: dict, version):
+        path = data.pop("path")
+        return cls(callback_callable=path, **data)
+
+    @classmethod
+    def serialized_fields(cls) -> tuple[str, ...]:
+        return ("path", "kwargs")
+
+    def serialize(self) -> dict[str, Any]:
+        return {f: getattr(self, f) for f in self.serialized_fields()}
+
+    def __eq__(self, other):
+        if type(self) is not type(other):
+            return NotImplemented
+        return self.serialize() == other.serialize()
+
+    def __hash__(self):
+        serialized = self.serialize()
+        hashable_items = []
+        for k, v in serialized.items():
+            if isinstance(v, dict) and v:
+                hashable_items.append((k, tuple(sorted(v.items()))))
+            else:
+                hashable_items.append((k, v))
+        return hash(tuple(sorted(hashable_items)))
+
+
+class AsyncCallback(Callback):
+    """
+    Asynchronous callback that runs in the triggerer.
+
+    The `callback_callable` can be a Python callable type or a string containing the path to the callable that
+    can be used to import the callable. It must be a top-level awaitable callable in a module present on the
+    triggerer.
+
+    It will be called with Airflow context and specified kwargs when a deadline is missed.
+    """
+
+    def __init__(self, callback_callable: Callable | str, kwargs: dict | None = None):
+        super().__init__(callback_callable=callback_callable, kwargs=kwargs)
+
+    @classmethod
+    def verify_callable(cls, callback: Callable):
+        if not (inspect.iscoroutinefunction(callback) or hasattr(callback, "__await__")):
+            raise AttributeError(f"Provided callback {callback} is not awaitable.")
+
+
+class SyncCallback(Callback):
+    """
+    Synchronous callback that runs in the specified or default executor.
+
+    The `callback_callable` can be a Python callable type or a string containing the path to the callable that
+    can be used to import the callable. It must be a top-level callable in a module present on the executor.
+
+    It will be called with Airflow context and specified kwargs when a deadline is missed.
+    """
+
+    executor: str | None
+
+    def __init__(
+        self, callback_callable: Callable | str, kwargs: dict | None = None, executor: str | None = None
+    ):
+        super().__init__(callback_callable=callback_callable, kwargs=kwargs)
+        self.executor = executor
+
+    @classmethod
+    def serialized_fields(cls) -> tuple[str, ...]:
+        return super().serialized_fields() + ("executor",)
 
 
 class DeadlineReference:
@@ -179,6 +274,21 @@ class DeadlineReference:
            deadline.evaluate_with()
     """
 
+    class TYPES:
+        """Collection of DeadlineReference types for type checking."""
+
+        # Deadlines that should be created when the DagRun is created.
+        DAGRUN_CREATED = (
+            ReferenceModels.DagRunLogicalDateDeadline,
+            ReferenceModels.FixedDatetimeDeadline,
+        )
+
+        # Deadlines that should be created when the DagRun is queued.
+        DAGRUN_QUEUED = (ReferenceModels.DagRunQueuedAtDeadline,)
+
+        # All DagRun-related deadline types.
+        DAGRUN = DAGRUN_CREATED + DAGRUN_QUEUED
+
     from airflow.models.deadline import ReferenceModels
 
     DAGRUN_LOGICAL_DATE: DeadlineReferenceType = ReferenceModels.DagRunLogicalDateDeadline()
@@ -187,3 +297,13 @@ class DeadlineReference:
     @classmethod
     def FIXED_DATETIME(cls, datetime: datetime) -> DeadlineReferenceType:
         return cls.ReferenceModels.FixedDatetimeDeadline(datetime)
+
+    # TODO: Remove this once other deadline types exist.
+    #   This is a temporary reference type used only in tests to verify that
+    #   dag.has_dagrun_deadline() returns false if the dag has a non-dagrun deadline type.
+    #   It should be replaced with a real non-dagrun deadline type when one is available.
+    _TEMPORARY_TEST_REFERENCE = type(
+        "TemporaryTestDeadlineForTypeChecking",
+        (DeadlineReferenceType,),
+        {"_evaluate_with": lambda self, **kwargs: datetime.now()},
+    )()

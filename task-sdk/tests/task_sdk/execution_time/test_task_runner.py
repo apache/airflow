@@ -34,7 +34,6 @@ import pytest
 from task_sdk import FAKE_BUNDLE
 from uuid6 import uuid7
 
-from airflow.decorators import task as task_decorator
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -46,16 +45,25 @@ from airflow.exceptions import (
 from airflow.listeners import hookimpl
 from airflow.listeners.listener import get_listener_manager
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk import DAG, BaseOperator, Connection, dag as dag_decorator, get_current_context
+from airflow.sdk import (
+    DAG,
+    BaseOperator,
+    Connection,
+    dag as dag_decorator,
+    get_current_context,
+    task as task_decorator,
+    timezone,
+)
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
     AssetResponse,
+    DagRun,
     DagRunState,
     TaskInstance,
     TaskInstanceState,
 )
 from airflow.sdk.bases.xcom import BaseXCom
-from airflow.sdk.definitions._internal.types import SET_DURING_EXECUTION
+from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION, ArgNotSet
 from airflow.sdk.definitions.asset import Asset, AssetAlias, Dataset, Model
 from airflow.sdk.definitions.param import DagParam
 from airflow.sdk.exceptions import ErrorType
@@ -71,12 +79,14 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetDagRunState,
     GetDRCount,
+    GetPreviousDagRun,
     GetTaskStates,
     GetTICount,
     GetVariable,
     GetXCom,
     GetXComSequenceSlice,
     OKResponse,
+    PreviousDagRunResult,
     PrevSuccessfulDagRunResult,
     SetRenderedFields,
     SetXCom,
@@ -112,8 +122,6 @@ from airflow.sdk.execution_time.task_runner import (
     startup,
 )
 from airflow.sdk.execution_time.xcom import XCom
-from airflow.utils import timezone
-from airflow.utils.types import NOTSET, ArgNotSet
 
 from tests_common.test_utils.mock_operators import AirflowLink
 
@@ -145,6 +153,7 @@ def test_parse(test_dags_dir: Path, make_ti_context):
             dag_id="super_basic",
             run_id="c",
             try_number=1,
+            dag_version_id=uuid7(),
         ),
         dag_rel_path="super_basic.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
@@ -200,6 +209,7 @@ def test_parse_not_found(test_dags_dir: Path, make_ti_context, dag_id, task_id, 
             dag_id=dag_id,
             run_id="c",
             try_number=1,
+            dag_version_id=uuid7(),
         ),
         dag_rel_path="super_basic.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
@@ -253,6 +263,7 @@ def test_parse_module_in_bundle_root(tmp_path: Path, make_ti_context):
             dag_id="dag_name",
             run_id="c",
             try_number=1,
+            dag_version_id=uuid7(),
         ),
         dag_rel_path="path_test.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
@@ -504,6 +515,7 @@ def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comm
             dag_id="basic_templated_dag",
             run_id="c",
             try_number=1,
+            dag_version_id=uuid7(),
         ),
         bundle_info=FAKE_BUNDLE,
         dag_rel_path="",
@@ -617,6 +629,7 @@ def test_startup_and_run_dag_with_rtif(
             dag_id="basic_dag",
             run_id="c",
             try_number=1,
+            dag_version_id=uuid7(),
         ),
         dag_rel_path="",
         bundle_info=FAKE_BUNDLE,
@@ -663,6 +676,7 @@ def test_task_run_with_user_impersonation(
             dag_id="basic_dag",
             run_id="c",
             try_number=1,
+            dag_version_id=uuid7(),
         ),
         dag_rel_path="",
         bundle_info=FAKE_BUNDLE,
@@ -709,6 +723,7 @@ def test_task_run_with_user_impersonation_default_user(
             dag_id="basic_dag",
             run_id="c",
             try_number=1,
+            dag_version_id=uuid7(),
         ),
         dag_rel_path="",
         bundle_info=FAKE_BUNDLE,
@@ -842,7 +857,9 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
     task_id = "conditional_task"
 
     what = StartupDetails(
-        ti=TaskInstance(id=uuid7(), task_id=task_id, dag_id=dag_id, run_id="c", try_number=1),
+        ti=TaskInstance(
+            id=uuid7(), task_id=task_id, dag_id=dag_id, run_id="c", try_number=1, dag_version_id=uuid7()
+        ),
         dag_rel_path="dag_parsing_context.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
         ti_context=make_ti_context(dag_id=dag_id, run_id="c"),
@@ -1085,6 +1102,7 @@ class TestRuntimeTaskInstance:
             dag_id=dag_id,
             run_id="test_run",
             try_number=1,
+            dag_version_id=uuid7(),
         )
         start_date = timezone.datetime(2025, 1, 1)
 
@@ -1120,7 +1138,6 @@ class TestRuntimeTaskInstance:
 
     def test_get_context_with_ti_context_from_server(self, create_runtime_ti, mock_supervisor_comms):
         """Test the context keys are added when sent from API server (mocked)"""
-        from airflow.utils import timezone
 
         task = BaseOperator(task_id="hello")
 
@@ -1355,6 +1372,7 @@ class TestRuntimeTaskInstance:
             pytest.param("hello", id="string_value"),
             pytest.param("'hello'", id="quoted_string_value"),
             pytest.param({"key": "value"}, id="json_value"),
+            pytest.param([], id="empty_list_no_xcoms_found"),
             pytest.param((1, 2, 3), id="tuple_int_value"),
             pytest.param([1, 2, 3], id="list_int_value"),
             pytest.param(42, id="int_value"),
@@ -1377,6 +1395,9 @@ class TestRuntimeTaskInstance:
         """
         map_indexes_kwarg = {} if map_indexes is NOTSET else {"map_indexes": map_indexes}
         task_ids_kwarg = {} if task_ids is NOTSET else {"task_ids": task_ids}
+        from airflow.serialization.serde import deserialize
+
+        spy_agency.spy_on(deserialize)
 
         class CustomOperator(BaseOperator):
             def execute(self, context):
@@ -1402,6 +1423,7 @@ class TestRuntimeTaskInstance:
         mock_supervisor_comms.send.side_effect = mock_send_side_effect
 
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+        spy_agency.assert_spy_called_with(deserialize, ser_value)
 
         if not isinstance(task_ids, Iterable) or isinstance(task_ids, str):
             task_ids = [task_ids]
@@ -1506,6 +1528,54 @@ class TestRuntimeTaskInstance:
             else:
                 assert mock_get_one.called
                 assert not mock_get_all.called
+
+    @pytest.mark.parametrize(
+        "api_return_value",
+        [
+            pytest.param(("data", "test_value"), id="api returns tuple"),
+            pytest.param({"data": "test_value"}, id="api returns dict"),
+            pytest.param(None, id="api returns None, no xcom found"),
+        ],
+    )
+    def test_xcom_pull_with_no_map_index(
+        self,
+        api_return_value,
+        create_runtime_ti,
+        mock_supervisor_comms,
+    ):
+        """
+        Test xcom_pull when map_indexes is not specified, so that XCom.get_all is called.
+        The test also tests if the response is deserialized and returned.
+        """
+        test_task_id = "pull_task"
+        task = BaseOperator(task_id=test_task_id)
+        runtime_ti = create_runtime_ti(task=task)
+
+        ser_value = BaseXCom.serialize_value(api_return_value)
+
+        def mock_send_side_effect(*args, **kwargs):
+            msg = kwargs.get("msg") or args[0]
+            if isinstance(msg, GetXComSequenceSlice):
+                return XComSequenceSliceResult(root=[ser_value])
+            return XComResult(key="test_key", value=None)
+
+        mock_supervisor_comms.send.side_effect = mock_send_side_effect
+        result = runtime_ti.xcom_pull(key="test_key", task_ids="task_a")
+
+        # if the API returns a tuple or dict, the below assertion assures that the value is deserialized correctly by XCom.get_all
+        assert result == api_return_value
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=GetXComSequenceSlice(
+                key="test_key",
+                dag_id=runtime_ti.dag_id,
+                run_id=runtime_ti.run_id,
+                task_id="task_a",
+                start=None,
+                stop=None,
+                step=None,
+            ),
+        )
 
     def test_get_param_from_context(
         self, mocked_parse, make_ti_context, mock_supervisor_comms, create_runtime_ti
@@ -1749,6 +1819,66 @@ class TestRuntimeTaskInstance:
         )
         assert states == {"run1": {"task1": "running"}}
 
+    def test_get_previous_dagrun_basic(self, create_runtime_ti, mock_supervisor_comms):
+        """Test that get_previous_dagrun sends the correct request without state filter."""
+
+        task = BaseOperator(task_id="hello")
+        dag_id = "test_dag"
+        runtime_ti = create_runtime_ti(task=task, dag_id=dag_id, logical_date=timezone.datetime(2025, 1, 2))
+
+        dag_run_data = DagRun(
+            dag_id=dag_id,
+            run_id="prev_run",
+            logical_date=timezone.datetime(2025, 1, 1),
+            start_date=timezone.datetime(2025, 1, 1),
+            run_after=timezone.datetime(2025, 1, 1),
+            run_type="scheduled",
+            state="success",
+            consumed_asset_events=[],
+        )
+
+        mock_supervisor_comms.send.return_value = PreviousDagRunResult(dag_run=dag_run_data)
+
+        dr = runtime_ti.get_previous_dagrun()
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=GetPreviousDagRun(dag_id="test_dag", logical_date=timezone.datetime(2025, 1, 2), state=None),
+        )
+        assert dr.dag_id == "test_dag"
+        assert dr.run_id == "prev_run"
+        assert dr.state == "success"
+
+    def test_get_previous_dagrun_with_state(self, create_runtime_ti, mock_supervisor_comms):
+        """Test that get_previous_dagrun sends the correct request with state filter."""
+
+        task = BaseOperator(task_id="hello")
+        dag_id = "test_dag"
+        runtime_ti = create_runtime_ti(task=task, dag_id=dag_id, logical_date=timezone.datetime(2025, 1, 2))
+
+        dag_run_data = DagRun(
+            dag_id=dag_id,
+            run_id="prev_success_run",
+            logical_date=timezone.datetime(2025, 1, 1),
+            start_date=timezone.datetime(2025, 1, 1),
+            run_after=timezone.datetime(2025, 1, 1),
+            run_type="scheduled",
+            state="success",
+            consumed_asset_events=[],
+        )
+
+        mock_supervisor_comms.send.return_value = PreviousDagRunResult(dag_run=dag_run_data)
+
+        dr = runtime_ti.get_previous_dagrun(state="success")
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=GetPreviousDagRun(
+                dag_id="test_dag", logical_date=timezone.datetime(2025, 1, 2), state="success"
+            ),
+        )
+        assert dr.dag_id == "test_dag"
+        assert dr.run_id == "prev_success_run"
+        assert dr.state == "success"
+
 
 class TestXComAfterTaskExecution:
     @pytest.mark.parametrize(
@@ -1785,7 +1915,9 @@ class TestXComAfterTaskExecution:
         spy_agency.assert_spy_called(_push_xcom_if_needed)
 
         if should_push_xcom:
-            spy_agency.assert_spy_called_with(_xcom_push, runtime_ti, "return_value", expected_xcom_value)
+            spy_agency.assert_spy_called_with(
+                _xcom_push, runtime_ti, BaseXCom.XCOM_RETURN_KEY, expected_xcom_value
+            )
         else:
             spy_agency.assert_spy_not_called(_xcom_push)
 
@@ -1809,7 +1941,7 @@ class TestXComAfterTaskExecution:
         expected_calls = [
             ("key1", "value1"),
             ("key2", "value2"),
-            ("return_value", result),
+            (BaseXCom.XCOM_RETURN_KEY, result),
         ]
         spy_agency.assert_spy_call_count(_xcom_push, len(expected_calls))
         for key, value in expected_calls:
@@ -1831,9 +1963,9 @@ class TestXComAfterTaskExecution:
         runtime_ti = create_runtime_ti(task=task)
 
         with mock.patch.object(XCom, "set") as mock_xcom_set:
-            _xcom_push(runtime_ti, "return_value", result, 7)
+            _xcom_push(runtime_ti, BaseXCom.XCOM_RETURN_KEY, result, 7)
             mock_xcom_set.assert_called_once_with(
-                key="return_value",
+                key=BaseXCom.XCOM_RETURN_KEY,
                 value=result,
                 dag_id=runtime_ti.dag_id,
                 task_id=runtime_ti.task_id,
@@ -1901,7 +2033,7 @@ class TestXComAfterTaskExecution:
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
         mock_xcom_backend.set.assert_called_once_with(
-            key="return_value",
+            key=BaseXCom.XCOM_RETURN_KEY,
             value="pushing to xcom backend!",
             dag_id="test_dag",
             task_id="pull_task",
@@ -1933,8 +2065,7 @@ class TestXComAfterTaskExecution:
 
         class CustomOperator(BaseOperator):
             def execute(self, context):
-                value = context["ti"].xcom_pull(task_ids="pull_task", key="key")
-                print(f"Pulled XCom Value: {value}")
+                context["ti"].xcom_pull(task_ids="pull_task", key="key")
 
         task = CustomOperator(task_id="pull_task")
         runtime_ti = create_runtime_ti(task=task)
@@ -1945,6 +2076,7 @@ class TestXComAfterTaskExecution:
             dag_id="test_dag",
             task_id="pull_task",
             run_id="test_run",
+            include_prior_dates=False,
         )
 
         assert not any(
@@ -1959,6 +2091,81 @@ class TestXComAfterTaskExecution:
                 ),
             )
             for x in mock_supervisor_comms.send.call_args_list
+        )
+
+    def test_get_all_uses_custom_deserialize_value(self, mock_supervisor_comms):
+        """
+        Tests that XCom.get_all() calls the custom deserialize_value method.
+        """
+
+        class CustomXCom(BaseXCom):
+            @classmethod
+            def deserialize_value(cls, result):
+                """Custom deserialization that adds a prefix to show it was called."""
+                original_value = super().deserialize_value(result)
+                return f"from custom xcom deserialize:{original_value}"
+
+        serialized_values = ["value1", "value2", "value3"]
+        mock_supervisor_comms.send.return_value = XComSequenceSliceResult(root=serialized_values)
+
+        result = CustomXCom.get_all(key="test_key", dag_id="test_dag", task_id="test_task", run_id="test_run")
+
+        expected = [
+            "from custom xcom deserialize:value1",
+            "from custom xcom deserialize:value2",
+            "from custom xcom deserialize:value3",
+        ]
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("include_prior_dates", "expected_value"),
+        [
+            pytest.param(True, True, id="include_prior_dates_true"),
+            pytest.param(False, False, id="include_prior_dates_false"),
+            pytest.param(None, False, id="include_prior_dates_default"),
+        ],
+    )
+    def test_xcom_pull_with_include_prior_dates(
+        self,
+        create_runtime_ti,
+        mock_supervisor_comms,
+        include_prior_dates,
+        expected_value,
+    ):
+        """Test that xcom_pull with include_prior_dates parameter correctly behaves as we expect."""
+        task = BaseOperator(task_id="pull_task")
+        runtime_ti = create_runtime_ti(task=task)
+
+        value = {"previous_run_data": "test_value"}
+        ser_value = BaseXCom.serialize_value(value)
+
+        def mock_send_side_effect(*args, **kwargs):
+            msg = kwargs.get("msg") or args[0]
+            if isinstance(msg, GetXComSequenceSlice):
+                assert msg.include_prior_dates is expected_value, (
+                    f"include_prior_dates should be {expected_value} in GetXComSequenceSlice"
+                )
+                return XComSequenceSliceResult(root=[ser_value])
+            return XComResult(key="test_key", value=None)
+
+        mock_supervisor_comms.send.side_effect = mock_send_side_effect
+        kwargs = {"key": "test_key", "task_ids": "previous_task"}
+        if include_prior_dates is not None:
+            kwargs["include_prior_dates"] = include_prior_dates
+        result = runtime_ti.xcom_pull(**kwargs)
+        assert result == value
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=GetXComSequenceSlice(
+                key="test_key",
+                dag_id=runtime_ti.dag_id,
+                run_id=runtime_ti.run_id,
+                task_id="previous_task",
+                start=None,
+                stop=None,
+                step=None,
+                include_prior_dates=expected_value,
+            ),
         )
 
 
@@ -2196,6 +2403,7 @@ class TestTaskRunnerCallsListeners:
                 dag_id="basic_dag",
                 run_id="c",
                 try_number=1,
+                dag_version_id=uuid7(),
             ),
             dag_rel_path="",
             bundle_info=FAKE_BUNDLE,
@@ -2234,6 +2442,7 @@ class TestTaskRunnerCallsListeners:
             dag_id=dag.dag_id,
             run_id="test_run",
             try_number=1,
+            dag_version_id=uuid7(),
         )
 
         runtime_ti = RuntimeTaskInstance.model_construct(
@@ -2272,6 +2481,7 @@ class TestTaskRunnerCallsListeners:
             dag_id=dag.dag_id,
             run_id="test_run",
             try_number=1,
+            dag_version_id=uuid7(),
         )
 
         runtime_ti = RuntimeTaskInstance.model_construct(

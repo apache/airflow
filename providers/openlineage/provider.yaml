@@ -22,12 +22,15 @@ description: |
   `OpenLineage <https://openlineage.io/>`__
 
 state: ready
-source-date-epoch: 1749896859
+source-date-epoch: 1754503416
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 2.6.1
+  - 2.6.0
+  - 2.5.0
   - 2.4.0
   - 2.3.0
   - 2.2.0
@@ -66,6 +69,11 @@ integrations:
     external-doc-url: https://openlineage.io
     logo: /docs/integration-logos/openlineage.svg
     tags: [protocol]
+
+operators:
+  - integration-name: OpenLineage
+    python-modules:
+      - airflow.providers.openlineage.operators.empty
 
 plugins:
   - name: openlineage

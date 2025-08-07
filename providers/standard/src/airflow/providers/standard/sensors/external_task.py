@@ -19,8 +19,8 @@ from __future__ import annotations
 import datetime
 import os
 import warnings
-from collections.abc import Collection, Iterable
-from typing import TYPE_CHECKING, Any, Callable, ClassVar
+from collections.abc import Callable, Collection, Iterable
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowSkipException
@@ -39,14 +39,16 @@ from airflow.providers.standard.exceptions import (
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.external_task import WorkflowTrigger
 from airflow.providers.standard.utils.sensor_helper import _get_count, _get_external_task_group_task_ids
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.standard.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    BaseOperator,
+    BaseOperatorLink,
+    BaseSensorOperator,
+)
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.state import State, TaskInstanceState
 
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.bases.sensor import BaseSensorOperator
-else:
-    from airflow.sensors.base import BaseSensorOperator  # type:ignore[no-redef]
+if not AIRFLOW_V_3_0_PLUS:
     from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
@@ -54,19 +56,10 @@ if TYPE_CHECKING:
 
     from airflow.models.taskinstancekey import TaskInstanceKey
 
-    try:
-        from airflow.sdk import BaseOperator
+    if AIRFLOW_V_3_0_PLUS:
         from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.models.baseoperator import BaseOperator
+    else:
         from airflow.utils.context import Context
-
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperatorLink
-else:
-    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
 
 
 class ExternalDagLink(BaseOperatorLink):
@@ -259,20 +252,15 @@ class ExternalTaskSensor(BaseSensorOperator):
         self.poll_interval = poll_interval
 
     def _get_dttm_filter(self, context):
-        logical_date = context.get("logical_date")
-        if AIRFLOW_V_3_0_PLUS:
-            if logical_date is None:
-                dag_run = context.get("dag_run")
-                if TYPE_CHECKING:
-                    assert dag_run
+        logical_date = self._get_logical_date(context)
 
-                logical_date = dag_run.run_after
         if self.execution_delta:
             dttm = logical_date - self.execution_delta
         elif self.execution_date_fn:
             dttm = self._handle_execution_date_fn(context=context)
         else:
             dttm = logical_date
+
         return dttm if isinstance(dttm, list) else [dttm]
 
     def poke(self, context: Context) -> bool:
@@ -529,6 +517,28 @@ class ExternalTaskSensor(BaseSensorOperator):
             dttm_filter, self.external_task_group_id, self.external_dag_id, session
         )
 
+    def _get_logical_date(self, context) -> datetime.datetime:
+        """
+        Handle backwards- and forwards-compatible retrieval of the date.
+
+        to pass as the positional argument to execution_date_fn.
+        """
+        # Airflow 3.x: contexts define "logical_date" (or fall back to dag_run.run_after).
+        if AIRFLOW_V_3_0_PLUS:
+            logical_date = context.get("logical_date")
+            dag_run = context.get("dag_run")
+            if not (logical_date or (dag_run and dag_run.run_after)):
+                raise ValueError(
+                    "Either `logical_date` or `dag_run.run_after` must be provided in the context"
+                )
+            return logical_date or dag_run.run_after
+
+        # Airflow 2.x and earlier: contexts used "execution_date"
+        execution_date = context.get("execution_date")
+        if not execution_date:
+            raise ValueError("Either `execution_date` must be provided in the context`")
+        return execution_date
+
     def _handle_execution_date_fn(self, context) -> Any:
         """
         Handle backward compatibility.
@@ -541,7 +551,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         from airflow.utils.operator_helpers import make_kwargs_callable
 
         # Remove "logical_date" because it is already a mandatory positional argument
-        logical_date = context["logical_date"]
+        logical_date = self._get_logical_date(context)
         kwargs = {k: v for k, v in context.items() if k not in {"execution_date", "logical_date"}}
         # Add "context" in the kwargs for backward compatibility (because context used to be
         # an acceptable argument of execution_date_fn)

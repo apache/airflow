@@ -27,6 +27,47 @@
 Changelog
 ---------
 
+9.1.4
+.....
+
+Misc
+~~~~
+
+* ``Remove deprecated method check send_file usage from slack operators (#54061)``
+* ``Bump slack-sdk to 3.36.0 (#54080)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+9.1.3
+.....
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Moving BaseHook usages to version_compat for slack (#52949)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+9.1.2
+.....
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Replace models.BaseOperator to Task SDK one for Slack Provider (#52347)``
+* ``Upgrade ruff to latest version (0.12.1) (#52562)``
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 9.1.1
 .....
 

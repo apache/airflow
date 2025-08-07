@@ -28,7 +28,7 @@ from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 def debug_pyproject_tomls(pyproject_toml_paths: list[Path]) -> None:
     if get_verbose() or get_dry_run():
         for pyproject_toml_path in pyproject_toml_paths:
-            with ci_group(f"Updated {pyproject_toml_path} content", message_type=MessageType.INFO):
+            with ci_group(f"Updated {pyproject_toml_path} content", MessageType.INFO):
                 # Format the content to make it more readable with rich
                 syntax = Syntax(pyproject_toml_path.read_text(), "toml", theme="ansi_dark", line_numbers=True)
                 get_console().print(syntax)

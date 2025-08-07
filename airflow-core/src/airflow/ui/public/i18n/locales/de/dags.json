@@ -6,14 +6,21 @@
       "warning": "Diese Aktion löscht alle Metadaten zu diesem Dag mit allen Läufen und Task Instanzen."
     }
   },
+  "favoriteDag": "Dag als Favorit hinzufügen",
   "filters": {
     "allRunTypes": "Alle Arten von Läufen",
     "allStates": "Alle Stati",
+    "favorite": {
+      "all": "Alle",
+      "favorite": "Favorisierte",
+      "unfavorite": "Nicht favorisierte"
+    },
     "paused": {
       "active": "Aktiv",
       "all": "Alle",
       "paused": "Pausiert"
-    }
+    },
+    "runIdPatternFilter": "Dag Läufe suchen"
   },
   "ownerLink": "Besitzer Verlinkungen zu {{owner}}",
   "runAndTaskActions": {
@@ -55,6 +62,7 @@
       "onlyFailed": "Nur fehlgeschlagene Tasks bereinigen",
       "past": "Vergangene",
       "queueNew": "Neue Tasks einplanen",
+      "runOnLatestVersion": "Mit neuester Bundle-Version ausführen",
       "upstream": "Vorangegangene"
     }
   },
@@ -83,5 +91,6 @@
       "desc": "Sortiert nach nächstem Laufdatum (Letzter-Erster)"
     },
     "placeholder": "Sortieren nach"
-  }
+  },
+  "unfavoriteDag": "Von den Favoriten entfernen"
 }

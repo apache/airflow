@@ -37,7 +37,7 @@ from typing import TYPE_CHECKING
 
 import google.auth.transport
 from google.auth import credentials as google_auth_credentials, environment_vars, exceptions
-from google.oauth2 import credentials as oauth2_credentials, service_account  # type: ignore[attr-defined]
+from google.oauth2 import credentials as oauth2_credentials, service_account
 
 if TYPE_CHECKING:
     import google.oauth2
@@ -147,7 +147,7 @@ def _get_gcloud_sdk_credentials(
     target_audience: str | None,
 ) -> google_auth_credentials.Credentials | None:
     """Get the credentials and project ID from the Cloud SDK."""
-    from google.auth import _cloud_sdk  # type: ignore[attr-defined]
+    from google.auth import _cloud_sdk
 
     # Check if application default credentials exist.
     credentials_filename = _cloud_sdk.get_application_default_credentials_path()

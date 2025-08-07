@@ -24,9 +24,10 @@ import os
 import re
 import sys
 import warnings
+from collections.abc import Callable
 from functools import cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, BinaryIO, Callable, Generic, TextIO, TypeVar, cast
+from typing import TYPE_CHECKING, Any, BinaryIO, Generic, TextIO, TypeVar, cast
 
 import msgspec
 import structlog
@@ -521,6 +522,16 @@ def load_remote_log_handler() -> RemoteLogIO | None:
     import airflow.logging_config
 
     return airflow.logging_config.REMOTE_TASK_LOG
+
+
+def load_remote_conn_id() -> str | None:
+    import airflow.logging_config
+    from airflow.configuration import conf
+
+    if conn_id := conf.get("logging", "remote_log_conn_id", fallback=None):
+        return conn_id
+
+    return airflow.logging_config.DEFAULT_REMOTE_CONN_ID
 
 
 def relative_path_from_logger(logger) -> Path | None:

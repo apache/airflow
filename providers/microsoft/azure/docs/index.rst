@@ -82,7 +82,9 @@ apache-airflow-providers-microsoft-azure package
 `Microsoft Azure <https://azure.microsoft.com/>`__
 
 
-Release: 12.4.1
+Release: 12.6.1
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------
@@ -115,7 +117,7 @@ PIP package                               Version required
 ``azure-keyvault-secrets``                ``>=4.1.0``
 ``azure-mgmt-datalake-store``             ``>=0.5.0``
 ``azure-mgmt-resource``                   ``>=2.2.0``
-``azure-storage-blob``                    ``>=12.14.0``
+``azure-storage-blob``                    ``>=12.26.0``
 ``azure-mgmt-storage``                    ``>=16.0.0``
 ``azure-storage-file-share``              ``>=12.7.0``
 ``azure-servicebus``                      ``>=7.12.1``
@@ -129,11 +131,11 @@ PIP package                               Version required
 ``azure-mgmt-containerinstance``          ``>=10.1.0``
 ``flask-appbuilder``                      ``>=4.0.0``
 ``msgraph-core``                          ``>=1.3.3``
-``microsoft-kiota-http``                  ``>=1.9.0,<2.0.0``
-``microsoft-kiota-serialization-json``    ``>=1.9.0``
-``microsoft-kiota-serialization-text``    ``>=1.9.0``
-``microsoft-kiota-abstractions``          ``>=1.9.0,<2.0.0``
-``microsoft-kiota-authentication-azure``  ``>=1.9.0,<2.0.0``
+``microsoft-kiota-http``                  ``>=1.9.4,<2.0.0``
+``microsoft-kiota-serialization-json``    ``>=1.9.4``
+``microsoft-kiota-serialization-text``    ``>=1.9.4``
+``microsoft-kiota-abstractions``          ``>=1.9.4,<2.0.0``
+``microsoft-kiota-authentication-azure``  ``>=1.9.4,<2.0.0``
 ``msal-extensions``                       ``>=1.1.0``
 ``portalocker``                           ``>=2.8.1``
 ========================================  ===================
@@ -166,5 +168,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-microsoft-azure 12.4.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.4.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.4.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.4.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-microsoft-azure 12.4.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.4.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.4.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.4.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-microsoft-azure 12.6.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.6.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.6.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.6.1.tar.gz.sha512>`__)
+* `The apache-airflow-providers-microsoft-azure 12.6.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.6.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.6.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.6.1-py3-none-any.whl.sha512>`__)
