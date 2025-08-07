@@ -23,6 +23,7 @@ import os
 import re
 import shutil
 import tempfile
+import uuid
 from io import StringIO
 from pathlib import Path
 from unittest import mock
@@ -952,7 +953,6 @@ class TestElasticsearchRemoteLogIO:
 
     @pytest.fixture(autouse=True)
     def setup_tests(self, ti, elasticsearch_8_url):
-        es_client = elasticsearch.Elasticsearch(elasticsearch_8_url)
         self.elasticsearch_8_url = elasticsearch_8_url
         self.elasticsearch_io = ElasticsearchRemoteLogIO(
             write_to_es=True,
@@ -960,7 +960,6 @@ class TestElasticsearchRemoteLogIO:
             delete_local_copy=True,
             host=elasticsearch_8_url,
             base_log_folder=Path(""),
-            client=es_client,
         )
 
     @pytest.fixture
@@ -1004,7 +1003,14 @@ class TestElasticsearchRemoteLogIO:
         clear_db_dags()
 
     @pytest.fixture
-    def write_to_es(self, tmp_json_file, ti):
+    def unique_index(self):
+        """Generate a unique index name for each test."""
+        return f"airflow-logs-{uuid.uuid4()}"
+
+    @pytest.fixture
+    def write_to_es(self, tmp_json_file, ti, unique_index):
+        self.elasticsearch_io.target_index = unique_index
+        self.elasticsearch_io.index_pattern = unique_index
         self.elasticsearch_io.upload(tmp_json_file, ti)
         self.elasticsearch_io.client.indices.refresh(index="_all")
 
@@ -1024,6 +1030,7 @@ class TestElasticsearchRemoteLogIO:
             assert hit["_source"]["offset"] == offset
             assert hit["_source"]["log_id"] == expected_log_id
             offset += 1
+        self.elasticsearch_io.client.indices.delete(index="airflow-logs")
 
     def test_write_to_stdout(self, tmp_json_file, ti, capsys):
         self.elasticsearch_io.write_to_es = False
@@ -1044,7 +1051,6 @@ class TestElasticsearchRemoteLogIO:
         ):
             self.elasticsearch_io.upload(Path("/invalid/path"), ti)
 
-            # ✅ Assert these methods are NOT called
             mock_parse.assert_not_called()
             mock_write.assert_not_called()
 
@@ -1058,7 +1064,7 @@ class TestElasticsearchRemoteLogIO:
             assert "offset" in json_log_line
 
     @patch(
-        "providers.elasticsearch.src.airflow.providers.elasticsearch.log.es_task_handler.TASK_LOG_FIELDS",
+        "airflow.providers.elasticsearch.log.es_task_handler.TASK_LOG_FIELDS",
         ["message"],
     )
     def test_read_es_log(self, write_to_es, ti):
@@ -1072,8 +1078,12 @@ class TestElasticsearchRemoteLogIO:
             assert "message" in json_log
             assert json_log["message"] == msg
 
-    def test_read_with_missing_log(self, ti):
+    # @patch.object(ElasticsearchRemoteLogIO, "_get_index_patterns", return_value="invalid")
+    @patch("elasticsearch.Elasticsearch.count", return_value={"count": 0})
+    def test_read_with_missing_log(self, mocked_count, mocked_get_index_patterns, ti):
         log_source_info, log_messages = self.elasticsearch_io.read("", ti)
         log_id = f"{ti.dag_id}-{ti.task_id}-{ti.run_id}-{ti.map_index}-{ti.try_number}"
         assert log_source_info == []
         assert f"*** Log {log_id} not found in Elasticsearch" in log_messages[0]
+        mocked_get_index_patterns.assert_called_once_with(ti)
+        mocked_count.assert_called_once()
