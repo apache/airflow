@@ -521,6 +521,16 @@ class TestS3ToRedshiftTransfer:
                 conn_type="redshift",
             )
         )
+        create_connection_without_db(
+            Connection(
+                schema="database",
+                port=5439,
+                host="cluster.id.region.redshift.amazonaws.com",
+                extra={},
+                conn_id="aws_conn_id",
+                conn_type="aws",
+            )
+        )
         access_key = "aws_access_key_id"
         secret_key = "aws_secret_access_key"
         mock_session.return_value = Session(access_key, secret_key)
@@ -740,6 +750,16 @@ class TestS3ToRedshiftTransfer:
             Connection(
                 conn_id="redshift_conn_id",
                 conn_type="redshift",
+                schema="database",
+                port=5439,
+                host="cluster.id.region.redshift.amazonaws.com",
+                extra={},
+            )
+        )
+        create_connection_without_db(
+            Connection(
+                conn_id="aws_conn_id",
+                conn_type="aws",
                 schema="database",
                 port=5439,
                 host="cluster.id.region.redshift.amazonaws.com",
