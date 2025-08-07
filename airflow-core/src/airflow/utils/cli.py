@@ -46,7 +46,7 @@ from airflow.utils.platform import getuser, is_terminal_support_colors
 T = TypeVar("T", bound=Callable)
 
 if TYPE_CHECKING:
-    from airflow.models.dag import DAG
+    from airflow.sdk import DAG
 
 logger = logging.getLogger(__name__)
 
