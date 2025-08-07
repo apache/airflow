@@ -306,7 +306,7 @@ class TestTIRunState:
         Test that upstream_map_indexes are correctly computed for tasks in nested mapped task groups.
         """
         with dag_maker("test_nested_mapped_tg", serialized=True):
-            
+
             @task
             def alter_input(inp: str) -> str:
                 return f"{inp}_Altered"
@@ -320,14 +320,14 @@ class TestTIRunState:
                 altered_input = alter_input(orig_input)
                 print_task(orig_input, altered_input)
 
-            @task_group  
+            @task_group
             def expandable_task_group(param: str) -> None:
                 inner_task_group(param)
 
             expandable_task_group.expand(param=["One", "Two", "Three"])
 
         dr = dag_maker.create_dagrun()
-        
+
         # Set all alter_input tasks to success so print_task can run
         for ti in dr.get_task_instances():
             if "alter_input" in ti.task_id and ti.map_index >= 0:
@@ -346,19 +346,20 @@ class TestTIRunState:
             },
             ("expandable_task_group.inner_task_group.print_task", 2): {
                 "expandable_task_group.inner_task_group.alter_input": 2
-            }
+            },
         }
 
         # Get only the expanded print_task instances (not the template)
-        print_task_tis = [ti for ti in dr.get_task_instances() 
-                        if "print_task" in ti.task_id and ti.map_index >= 0]
-        
+        print_task_tis = [
+            ti for ti in dr.get_task_instances() if "print_task" in ti.task_id and ti.map_index >= 0
+        ]
+
         # Test each print_task instance
         for ti in print_task_tis:
             response = client.patch(
                 f"/execution/task-instances/{ti.id}/run",
                 json={
-                    "state": "running", 
+                    "state": "running",
                     "hostname": "random-hostname",
                     "unixname": "random-unixname",
                     "pid": 100,
@@ -369,7 +370,7 @@ class TestTIRunState:
             assert response.status_code == 200
             upstream_map_indexes = response.json()["upstream_map_indexes"]
             expected = expected_upstream_map_indexes[(ti.task_id, ti.map_index)]
-            
+
             assert upstream_map_indexes == expected, (
                 f"Task {ti.task_id}[{ti.map_index}] should have upstream_map_indexes {expected}, "
                 f"but got {upstream_map_indexes}"
