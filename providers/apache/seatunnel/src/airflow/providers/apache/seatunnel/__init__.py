@@ -25,15 +25,35 @@ from __future__ import annotations
 
 import packaging.version
 
-from airflow import __version__ as airflow_version
+try:
+    from airflow import __version__ as airflow_version
+except ImportError:
+    # Fallback for development/testing environments
+    airflow_version = "2.3.0"
 
 __all__ = ["__version__"]
 
 __version__ = "0.1.0"
 
 if packaging.version.parse(packaging.version.parse(airflow_version).base_version) < packaging.version.parse(
-    "3.0.0"
+    "2.3.0"
 ):
     raise RuntimeError(
-        f"The package `apache-airflow-providers-apache-seatunnel:{__version__}` needs Apache Airflow 3.0.0+"
+        f"The package `apache-airflow-providers-apache-seatunnel:{__version__}` needs Apache Airflow 2.3.0+"
     )
+
+
+def get_provider_info():
+    return {
+        "package-name": "apache-airflow-providers-apache-seatunnel",
+        "name": "Apache SeaTunnel Provider",
+        "description": "Apache Airflow provider for Apache SeaTunnel",
+        "connection-types": [
+            {
+                "connection-type": "apache_seatunnel",
+                "hook-class-name": "airflow.providers.apache.seatunnel.hooks.seatunnel_hook.SeaTunnelHook",
+            }
+        ],
+        "extra-links": [],
+        "version": __version__,
+    }

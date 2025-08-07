@@ -60,7 +60,7 @@ You can use the `SeaTunnelOperator` to run a SeaTunnel job:
 ```python
 from airflow import DAG
 from airflow.utils.dates import days_ago
-from airflow_seatunnel_provider.operators.seatunnel_operator import SeaTunnelOperator
+from airflow.providers.apache.seatunnel.operators.seatunnel_operator import SeaTunnelOperator
 
 default_args = {
     'owner': 'airflow',
@@ -117,7 +117,7 @@ sink {
 You can use the `SeaTunnelJobSensor` to monitor the status of a SeaTunnel job:
 
 ```python
-from airflow_seatunnel_provider.sensors.seatunnel_sensor import SeaTunnelJobSensor
+from airflow.providers.apache.seatunnel.sensors.seatunnel_sensor import SeaTunnelJobSensor
 
 # Monitor a SeaTunnel job
 monitor_job = SeaTunnelJobSensor(

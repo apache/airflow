@@ -1,3 +1,3 @@
-from airflow_seatunnel_provider.hooks.seatunnel_hook import SeaTunnelHook
+from airflow.providers.apache.seatunnel.hooks.seatunnel_hook import SeaTunnelHook
 
 __all__ = ["SeaTunnelHook"]

@@ -3,7 +3,7 @@ requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "airflow-provider-seatunnel"
+name = "apache-airflow-providers-apache-seatunnel"
 version = "0.1.0"
 authors = [
     {name = "Apache SeaTunnel Community", email = "dev@seatunnel.apache.org"},
@@ -23,15 +23,15 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "apache-airflow>=2.3.0",
+    "apache-airflow>=3.0.0",
     "requests>=2.25.0",
 ]
 
 [tool.setuptools]
-packages = ["airflow_seatunnel_provider"]
+packages = ["airflow.providers.apache.seatunnel"]
 
 [tool.setuptools.package-dir]
-"" = "."
+"" = "src"
 
 [project.urls]
 "Homepage" = "https://seatunnel.apache.org/"
@@ -39,4 +39,4 @@ packages = ["airflow_seatunnel_provider"]
 "Source Code" = "https://github.com/apache/seatunnel"
 
 [project.entry-points."apache_airflow_provider"]
-provider_info = "airflow_seatunnel_provider:get_provider_info"
+provider_info = "airflow.providers.apache.seatunnel:get_provider_info"

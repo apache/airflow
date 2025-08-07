@@ -2,7 +2,7 @@ from typing import Any, Dict, Optional, Callable
 
 from airflow.sensors.base import BaseSensorOperator
 
-from airflow_seatunnel_provider.hooks.seatunnel_hook import SeaTunnelHook
+from airflow.providers.apache.seatunnel.hooks.seatunnel_hook import SeaTunnelHook
 import time
 import json
 import requests
