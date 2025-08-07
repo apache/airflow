@@ -1245,3 +1245,15 @@ class TestBulkConnections(TestConnectionEndpoint):
     def test_should_respond_403(self, unauthorized_test_client):
         response = unauthorized_test_client.patch("/connections", json={})
         assert response.status_code == 403
+
+
+class TestPostConnectionExtraBackwardCompatibility(TestConnectionEndpoint):
+    def test_post_should_accept_empty_string_as_extra(self, test_client, session):
+        body = {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "extra": ""}
+
+        response = test_client.post("/connections", json=body)
+        assert response.status_code == 201
+
+        connection = session.query(Connection).filter_by(conn_id=TEST_CONN_ID).first()
+        assert connection is not None
+        assert connection.extra == "{}"  # Backward compatibility: treat "" as empty JSON object
