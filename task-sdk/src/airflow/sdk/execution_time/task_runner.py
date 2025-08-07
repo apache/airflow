@@ -594,7 +594,7 @@ def get_log_url_from_ti(ti: RuntimeTaskInstance) -> str:
     try_number = (
         f"?try_number={try_number_value}" if try_number_value is not None and try_number_value > 0 else ""
     )
-    _log_uri = f"{base_url}dags/{ti.dag_id}/runs/{run_id}/tasks/{ti.task_id}{map_index}{try_number}"
+    _log_uri = f"{base_url}/dags/{ti.dag_id}/runs/{run_id}/tasks/{ti.task_id}{map_index}{try_number}"
     return _log_uri
 
 
