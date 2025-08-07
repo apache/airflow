@@ -167,13 +167,12 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
 
         query = (
             select(TI)
-            .join(DR, and_(
-                TI.dag_id == DR.dag_id,
-                TI.run_id == DR.run_id)
-            )
             .join(base_query, TI.id == base_query.c.id)
         )
 
+        for limit in limits:
+            if limit.limit_join_model is not None:
+                query = query.join(limit.limit_join_model)
         for limit in limits:
             query = query.outerjoin(
                 limit.running_now_join,
@@ -184,10 +183,6 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
                     )
                 ),
             )
-
-            if limit.limit_join_model is not None:
-                query = query.join(limit.limit_join_model)
-
             query = query.where(
                 and_(
                     func.coalesce(getattr(base_query.c, limit.window.name), text("0"))
