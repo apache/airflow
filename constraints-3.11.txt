@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-07T12:01:58.158627
+# This constraints file was automatically generated on 2025-08-07T17:44:21.290636
 # via `uv pip install --resolution highest` for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -391,7 +391,7 @@ google-resumable-media==2.7.2
 googleapis-common-protos==1.70.0
 graphql-core==3.2.6
 graphviz==0.21
-greenlet==3.2.3
+greenlet==3.2.4
 grpc-google-iam-v1==0.14.2
 grpc-interceptor==0.15.4
 grpcio-gcp==0.2.2
@@ -527,7 +527,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.3.1
 objsize==0.7.1
-openai==1.99.1
+openai==1.99.2
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
 opencensus-context==0.1.3
@@ -796,7 +796,7 @@ uritemplate==4.2.0
 urllib3==2.5.0
 userpath==1.9.2
 uuid6==2025.0.1
-uv==0.8.5
+uv==0.8.6
 uvicorn==0.35.0
 uvloop==0.21.0
 validators==0.35.0
@@ -818,7 +818,7 @@ yamllint==1.37.1
 yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.20.1
-ydb-dbapi==0.1.13
+ydb-dbapi==0.1.14
 ydb==3.21.7
 zeep==4.3.1
 zenpy==2.0.56
