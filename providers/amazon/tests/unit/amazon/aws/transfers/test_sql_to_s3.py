@@ -504,10 +504,10 @@ class TestSqlToS3Operator:
                     "read_kwargs": {"dtype_backend": "pyarrow"},
                     "read_pd_kwargs": {"dtype_backend": "numpy_nullable"},
                 },
+                "The 'read_pd_kwargs' parameter is deprecated",
                 None,
-                "Cannot specify both 'read_kwargs' and 'read_pd_kwargs'",
-                None,
-                id="read-kwargs-conflict-error",
+                {"dtype_backend": "pyarrow"},
+                id="read-kwargs-priority-over-deprecated",
             ),
             pytest.param(
                 {"max_rows_per_file": 2, "groupby_kwargs": {"by": "category"}},
@@ -525,10 +525,10 @@ class TestSqlToS3Operator:
             ),
             pytest.param(
                 {"df_kwargs": {"index": False}, "pd_kwargs": {"header": False}},
+                "The 'pd_kwargs' parameter is deprecated",
                 None,
-                "Cannot specify both 'df_kwargs' and 'pd_kwargs'",
                 None,
-                id="df-kwargs-conflict-error",
+                id="df-kwargs-priority-over-deprecated",
             ),
         ],
     )
@@ -595,3 +595,61 @@ class TestSqlToS3Operator:
             mock_fix_dtypes.assert_called_once()
         else:
             mock_fix_dtypes.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "kwargs,expected_warning,expected_read_kwargs,expected_df_kwargs",
+        [
+            pytest.param(
+                {
+                    "read_kwargs": {"dtype_backend": "pyarrow"},
+                    "read_pd_kwargs": {"dtype_backend": "numpy_nullable"},
+                },
+                "The 'read_pd_kwargs' parameter is deprecated",
+                {"dtype_backend": "pyarrow"},
+                {},
+                id="read-kwargs-priority-over-deprecated",
+            ),
+            pytest.param(
+                {"read_pd_kwargs": {"dtype_backend": "numpy_nullable"}},
+                "The 'read_pd_kwargs' parameter is deprecated",
+                {"dtype_backend": "numpy_nullable"},
+                {},
+                id="read-pd-kwargs-used-when-read-kwargs-none",
+            ),
+            pytest.param(
+                {
+                    "df_kwargs": {"index": False},
+                    "pd_kwargs": {"header": False},
+                },
+                "The 'pd_kwargs' parameter is deprecated",
+                {},
+                {"index": False},
+                id="df-kwargs-priority-over-deprecated",
+            ),
+            pytest.param(
+                {"pd_kwargs": {"header": False}},
+                "The 'pd_kwargs' parameter is deprecated",
+                {},
+                {"header": False},
+                id="pd-kwargs-used-when-df-kwargs-none",
+            ),
+        ],
+    )
+    def test_deprecated_kwargs_priority_behavior(
+        self, kwargs, expected_warning, expected_read_kwargs, expected_df_kwargs
+    ):
+        """Test priority behavior and deprecation warnings for deprecated parameters."""
+        base_kwargs = {
+            "query": "query",
+            "s3_bucket": "bucket",
+            "s3_key": "key",
+            "sql_conn_id": "mysql_conn_id",
+            "task_id": "task_id",
+        }
+        base_kwargs.update(kwargs)
+
+        with pytest.warns(AirflowProviderDeprecationWarning, match=expected_warning):
+            op = SqlToS3Operator(**base_kwargs)
+
+        assert op.read_kwargs == expected_read_kwargs
+        assert op.df_kwargs == expected_df_kwargs

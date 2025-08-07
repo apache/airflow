@@ -20,6 +20,7 @@ from __future__ import annotations
 import enum
 import gzip
 import io
+import warnings
 from collections import namedtuple
 from collections.abc import Iterable, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Literal, cast
@@ -139,38 +140,23 @@ class SqlToS3Operator(BaseOperator):
         self.groupby_kwargs = groupby_kwargs or {}
         self.sql_hook_params = sql_hook_params
         self.df_type = df_type
-        if read_pd_kwargs is not None and read_kwargs is not None:
-            raise AirflowException(
-                "Cannot specify both 'read_kwargs' and 'read_pd_kwargs'. Use 'read_kwargs' instead."
-            )
-        if read_pd_kwargs is not None:
-            import warnings
 
+        if read_pd_kwargs is not None:
             warnings.warn(
                 "The 'read_pd_kwargs' parameter is deprecated. Use 'read_kwargs' instead.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            self.read_kwargs = read_pd_kwargs or {}
-        else:
-            self.read_kwargs = read_kwargs or {}
+        self.read_kwargs = read_kwargs if read_kwargs is not None else read_pd_kwargs or {}
 
-        # Handle df_kwargs and pd_kwargs backward compatibility
-        if pd_kwargs is not None and df_kwargs is not None:
-            raise AirflowException(
-                "Cannot specify both 'df_kwargs' and 'pd_kwargs'. Use 'df_kwargs' instead."
-            )
         if pd_kwargs is not None:
-            import warnings
-
             warnings.warn(
                 "The 'pd_kwargs' parameter is deprecated. Use 'df_kwargs' instead.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            self.df_kwargs = pd_kwargs or {}
-        else:
-            self.df_kwargs = df_kwargs or {}
+
+        self.df_kwargs = df_kwargs if df_kwargs is not None else pd_kwargs or {}
 
         if "path_or_buf" in self.df_kwargs:
             raise AirflowException("The argument path_or_buf is not allowed, please remove it")
