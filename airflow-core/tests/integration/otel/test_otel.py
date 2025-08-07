@@ -22,6 +22,7 @@ import os
 import signal
 import subprocess
 import time
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -29,9 +30,8 @@ from airflow._shared.timezones import timezone
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.executors import executor_loader
 from airflow.executors.executor_utils import ExecutorName
-from airflow.models import DAG, DagBag, DagRun
+from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import TaskInstance
 from airflow.utils.session import create_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import State
@@ -46,6 +46,9 @@ from tests_common.test_utils.otel_utils import (
     get_parent_child_dict,
 )
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if TYPE_CHECKING:
+    from airflow.sdk import DAG
 
 log = logging.getLogger("integration.otel.test_otel")
 
@@ -658,22 +661,27 @@ class TestOtelIntegration:
         with create_session() as session:
             for dag_id in dag_ids:
                 dag = dag_bag.get_dag(dag_id)
-                dag_dict[dag_id] = dag
-
                 assert dag is not None, f"DAG with ID {dag_id} not found."
+
+                dag_dict[dag_id] = dag
 
                 # Sync the DAG to the database.
                 if AIRFLOW_V_3_0_PLUS:
+                    from airflow.models.dag import DAG as DBDAG
                     from airflow.models.dagbundle import DagBundleModel
+                    from airflow.serialization.serialized_objects import SerializedDAG
 
                     if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
                         session.add(DagBundleModel(name="testing"))
                         session.commit()
-                    dag.bulk_write_to_db(
-                        bundle_name="testing", bundle_version=None, dags=[dag], session=session
+                    DBDAG.bulk_write_to_db(
+                        bundle_name="testing",
+                        bundle_version=None,
+                        dags=[SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))],
+                        session=session,
                     )
                 else:
-                    dag.sync_to_db(session=session)
+                    dag.sync_to_db(session=session)  # type: ignore[attr-defined]
                 # Manually serialize the dag and write it to the db to avoid a db error.
                 SerializedDagModel.write_dag(dag, bundle_name="testing", session=session)
 

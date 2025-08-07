@@ -1159,7 +1159,7 @@ class DAG:
             data_interval = (
                 self.timetable.infer_manual_data_interval(run_after=logical_date) if logical_date else None
             )
-            scheduler_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(self))  # type: ignore[arg-type]
+            scheduler_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(self))
 
             dr: DagRun = _get_or_create_dagrun(
                 dag=scheduler_dag,
