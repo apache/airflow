@@ -7717,40 +7717,33 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/hitl-shared-links/generate/{dag_id}/{dag_run_id}/{task_id}:
+  /api/v2/hitlSharedLinks/generate/{dag_id}/{dag_run_id}/{task_id}:
     post:
       tags:
-      - HITLSharedLinks
+      - HumanInTheLoopSharedLinks
       summary: Generate Shared Link
-      description: 'Generate a shared link for HITL tasks.
+      description: 'Generate a shared link for a Human-in-the-look task instance.
 
 
         This endpoint generates a secure, time-limited shared link that allows external
         users
 
-        to interact with HITL tasks without requiring full Airflow authentication.
-        The link
+        to interact with the Human-in-the-look task instance. The link
 
         can be configured for either direct action execution or UI redirection.
 
 
-        :param dag_id: The DAG identifier
+        :param dag_id: The dag identifier
 
-        :param dag_run_id: The DAG run identifier
+        :param dag_run_id: The dag run identifier
 
         :param task_id: The task identifier
 
-        :param try_number: The try number for the task
-
         :param request: Request containing link configuration
-
-        :param user: The authenticated user creating the shared link
-
-        :param session: Database session for data persistence
 
         :param http_request: HTTP request for base URL extraction
 
-        :param map_index: The map index for mapped tasks
+        :param session: Database session for data persistence
 
 
         :raises HTTPException: 403 if HITL shared links are not enabled
@@ -7785,20 +7778,6 @@ paths:
         schema:
           type: string
           title: Task Id
-      - name: try_number
-        in: query
-        required: true
-        schema:
-          type: integer
-          title: Try Number
-      - name: map_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Map Index
       requestBody:
         required: true
         content:
@@ -7842,10 +7821,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/hitl-shared-links/generate/{dag_id}/{dag_run_id}/{task_id}/{map_index}:
+  /api/v2/hitlSharedLinks/generate/{dag_id}/{dag_run_id}/{task_id}/{map_index}:
     post:
       tags:
-      - HITLSharedLinks
+      - HumanInTheLoopSharedLinks
       summary: Generate Mapped Ti Shared Link
       description: 'Generate a shared link for mapped HITL tasks.
 
@@ -7873,8 +7852,6 @@ paths:
         :param try_number: The try number for the task
 
         :param request: Request containing link configuration
-
-        :param user: The authenticated user creating the shared link
 
         :param session: Database session for data persistence
 
@@ -7968,10 +7945,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/hitl-shared-links/redirect:
+  /api/v2/hitlSharedLinks/redirect:
     get:
       tags:
-      - HITLSharedLinks
+      - HumanInTheLoopSharedLinks
       summary: Redirect Shared Link
       description: 'Redirect to Airflow UI for HITL task interaction via shared link.
 
@@ -8040,10 +8017,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/hitl-shared-links/execute:
+  /api/v2/hitlSharedLinks/execute:
     get:
       tags:
-      - HITLSharedLinks
+      - HumanInTheLoopSharedLinks
       summary: Execute Shared Link Action
       description: 'Execute an action via shared link by making PATCH request to existing
         HITL endpoint.

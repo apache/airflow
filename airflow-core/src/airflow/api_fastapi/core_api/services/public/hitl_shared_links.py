@@ -21,11 +21,10 @@ from __future__ import annotations
 import base64
 import json
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Literal
 
 import structlog
 from fastapi import HTTPException, status
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from airflow._shared.timezones.timezone import utcnow
@@ -33,17 +32,17 @@ from airflow.api_fastapi.core_api.datamodels.hitl import (
     HITLDetailResponse,
     UpdateHITLDetailPayload,
 )
-from airflow.api_fastapi.core_api.services.public.hitl import (
-    service_update_hitl_detail,
-)
 from airflow.configuration import conf
-from airflow.models.taskinstance import TaskInstance
 
 log = structlog.get_logger(__name__)
 
 
-def requires_hitl_shared_links_enabled() -> None:
-    """Check if HITL shared links are enabled."""
+def check_hitl_shared_link_enabled() -> None:
+    """
+    Check if 'api.hitl_enable_shared_links' is set to True in the config.
+
+    This normally won't happen as the route itself won't be registered at the first place.
+    """
     if not conf.getboolean("api", "hitl_enable_shared_links", fallback=False):
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
@@ -51,59 +50,18 @@ def requires_hitl_shared_links_enabled() -> None:
         )
 
 
-def _get_task_instance(
-    dag_id: str,
-    dag_run_id: str,
-    task_id: str,
-    session: Session,
-    map_index: int | None = None,
-    try_number: int = 1,
-) -> TaskInstance:
-    """
-    Get a task instance by its identifiers.
-
-    :param dag_id: DAG ID
-    :param dag_run_id: DAG run ID
-    :param task_id: Task ID
-    :param session: Database session
-    :param map_index: Map index for mapped tasks
-    :param try_number: Try number for the task
-    :return: Task instance
-    """
-    query = select(TaskInstance).where(
-        TaskInstance.dag_id == dag_id,
-        TaskInstance.run_id == dag_run_id,
-        TaskInstance.task_id == task_id,
-        TaskInstance.try_number == try_number,
-    )
-
-    if map_index is not None:
-        query = query.where(TaskInstance.map_index == map_index)
-
-    task_instance = session.scalar(query)
-
-    if not task_instance:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            f"Task instance not found: {dag_id}/{dag_run_id}/{task_id}"
-            + (f"/{map_index}" if map_index is not None else "")
-            + f" (try_number={try_number})",
-        )
-
-    return task_instance
-
-
 def generate_shared_link_token(
+    # task instnace
     dag_id: str,
     dag_run_id: str,
     task_id: str,
-    try_number: int,
-    link_type: str = "direct_action",
+    map_index: int | None = None,
+    # Human-in-the-look shared link
+    link_type: Literal["direct_action", "ui_redirect"] = "direct_action",
+    expiration_hours: int | None = None,
     action: str | None = None,
     chosen_options: list[str] | None = None,
     params_input: dict[str, Any] | None = None,
-    map_index: int | None = None,
-    expiration_hours: int | None = None,
     session: Session | None = None,
 ) -> str:
     """
@@ -112,7 +70,6 @@ def generate_shared_link_token(
     :param dag_id: DAG ID
     :param dag_run_id: DAG run ID
     :param task_id: Task ID
-    :param try_number: Try number for the task
     :param link_type: Type of link ('ui_redirect' or 'direct_action')
     :param action: Action to perform (for direct_action links)
     :param chosen_options: Chosen options for direct_action links
@@ -122,7 +79,7 @@ def generate_shared_link_token(
     :param session: Database session (required to get task instance UUID)
     :return: Base64-encoded token
     """
-    requires_hitl_shared_links_enabled()
+    check_hitl_shared_link_enabled()
 
     if link_type == "direct_action" and not action:
         raise ValueError("Action is required for direct_action-type links")
@@ -142,7 +99,6 @@ def generate_shared_link_token(
         task_id=task_id,
         session=session,
         map_index=map_index,
-        try_number=try_number,
     )
 
     token_data = {
@@ -151,7 +107,6 @@ def generate_shared_link_token(
         "dag_id": dag_id,
         "dag_run_id": dag_run_id,
         "task_id": task_id,
-        "try_number": try_number,
         "map_index": map_index,
         "action": action,
         "chosen_options": chosen_options,
@@ -174,7 +129,7 @@ def validate_shared_link_token(token: str) -> dict[str, Any]:
     :return: Decoded token data
     :raises ValueError: If token is invalid or expired
     """
-    requires_hitl_shared_links_enabled()
+    check_hitl_shared_link_enabled()
 
     try:
         token_bytes = base64.urlsafe_b64decode(token)
@@ -188,7 +143,6 @@ def validate_shared_link_token(token: str) -> dict[str, Any]:
             "dag_id",
             "dag_run_id",
             "task_id",
-            "try_number",
             "expires_at",
         ]
         for field in required_fields:
@@ -206,27 +160,25 @@ def validate_shared_link_token(token: str) -> dict[str, Any]:
         raise ValueError(f"Invalid token: {e}")
 
 
-def service_generate_shared_link(
+def _generate_hitl_shared_link(
     dag_id: str,
     dag_run_id: str,
     task_id: str,
-    try_number: int,
     link_type: str = "direct_action",
     action: str | None = None,
     chosen_options: list[str] | None = None,
     params_input: dict[str, Any] | None = None,
-    map_index: int | None = None,
+    # map_index: int | None = None,
     expiration_hours: int | None = None,
     base_url: str | None = None,
     session: Session | None = None,
 ) -> dict[str, Any]:
     """
-    Generate a shared link for HITL tasks.
+    Generate a shared link for a Human-in-the-look task instance.
 
-    :param dag_id: DAG ID
-    :param dag_run_id: DAG run ID
+    :param dag_id: Dag ID
+    :param dag_run_id: Dag run ID
     :param task_id: Task ID
-    :param try_number: Try number for the task
     :param link_type: Type of link ('ui_redirect' or 'direct_action')
     :param action: Action to perform (for direct_action links)
     :param chosen_options: Chosen options for direct_action links
@@ -237,7 +189,7 @@ def service_generate_shared_link(
     :param session: Database session
     :return: Link data including URL and metadata
     """
-    requires_hitl_shared_links_enabled()
+    check_hitl_shared_link_enabled()
 
     if session is None:
         raise ValueError("Database session is required to generate shared link")
@@ -251,7 +203,6 @@ def service_generate_shared_link(
         dag_id=dag_id,
         dag_run_id=dag_run_id,
         task_id=task_id,
-        try_number=try_number,
         link_type=link_type,
         action=action,
         chosen_options=chosen_options,
@@ -279,7 +230,6 @@ def service_generate_shared_link(
         "dag_id": dag_id,
         "dag_run_id": dag_run_id,
         "task_id": task_id,
-        "try_number": try_number,
         "map_index": map_index,
         "task_instance_uuid": token_data["task_instance_uuid"],
     }
@@ -296,7 +246,7 @@ def service_execute_shared_link_action(
     :param session: Database session
     :return: HITL detail response
     """
-    requires_hitl_shared_links_enabled()
+    check_hitl_shared_link_enabled()
 
     try:
         # Validate token
@@ -349,7 +299,7 @@ def service_redirect_shared_link(
     :param base_url: Base URL for Airflow instance
     :return: Redirect URL to Airflow UI
     """
-    requires_hitl_shared_links_enabled()
+    check_hitl_shared_link_enabled()
 
     try:
         # Validate token

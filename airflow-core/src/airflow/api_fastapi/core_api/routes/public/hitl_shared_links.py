@@ -18,68 +18,29 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 import structlog
 from fastapi import Depends, Request, status
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel, Field
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.hitl import HITLDetailResponse
+from airflow.api_fastapi.core_api.datamodels.hitl_shared_link import (
+    GenerateSharedLinkRequest,
+    GenerateSharedLinkResponse,
+)
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import GetUserDep, requires_access_dag
+from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.api_fastapi.core_api.services.public.hitl_shared_links import (
+    _generate_hitl_shared_link,
     service_execute_shared_link_action,
-    service_generate_shared_link,
     service_redirect_shared_link,
 )
 
-hitl_shared_links_router = AirflowRouter(tags=["HITLSharedLinks"], prefix="/hitl-shared-links")
+hitl_shared_links_router = AirflowRouter(tags=["HumanInTheLoopSharedLinks"], prefix="/hitlSharedLinks")
 
 log = structlog.get_logger(__name__)
-
-
-class GenerateSharedLinkRequest(BaseModel):
-    """Request model for generating HITL shared links."""
-
-    link_type: str = Field(
-        default="direct_action",
-        description="Type of link to generate: 'ui_redirect' for UI interaction or 'direct_action' for direct execution",
-    )
-    action: str | None = Field(
-        default=None,
-        description="Optional action to perform when link is accessed (e.g., 'approve', 'reject'). Required for direct_action links.",
-    )
-    chosen_options: list[str] | None = Field(
-        default=None,
-        description="Chosen options for direct_action links",
-    )
-    params_input: dict[str, Any] | None = Field(
-        default=None,
-        description="Parameters input for direct_action links",
-    )
-    expiration_hours: int | None = Field(
-        default=None,
-        description="Custom expiration time in hours",
-    )
-
-
-class GenerateSharedLinkResponse(BaseModel):
-    """Response model for generated HITL shared links."""
-
-    url: str
-    expires_at: str
-    link_type: str
-    action: str | None
-    dag_id: str
-    dag_run_id: str
-    task_id: str
-    try_number: int
-    map_index: int | None
-    task_instance_uuid: str
 
 
 @hitl_shared_links_router.post(
@@ -93,36 +54,31 @@ class GenerateSharedLinkResponse(BaseModel):
         ]
     ),
     dependencies=[
-        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE)),
+        Depends(requires_access_dag(method="POST", access_entity=DagAccessEntity.HITL_DETAIL)),
     ],
 )
 def generate_shared_link(
     dag_id: str,
     dag_run_id: str,
     task_id: str,
-    try_number: int,
     request: GenerateSharedLinkRequest,
-    user: GetUserDep,
-    session: SessionDep,
     http_request: Request,
-    map_index: int | None = None,
+    session: SessionDep,
+    # map_index: int | None = None,
 ) -> GenerateSharedLinkResponse:
     """
-    Generate a shared link for HITL tasks.
+    Generate a shared link for a Human-in-the-look task instance.
 
     This endpoint generates a secure, time-limited shared link that allows external users
-    to interact with HITL tasks without requiring full Airflow authentication. The link
+    to interact with the Human-in-the-look task instance. The link
     can be configured for either direct action execution or UI redirection.
 
-    :param dag_id: The DAG identifier
-    :param dag_run_id: The DAG run identifier
+    :param dag_id: The dag identifier
+    :param dag_run_id: The dag run identifier
     :param task_id: The task identifier
-    :param try_number: The try number for the task
     :param request: Request containing link configuration
-    :param user: The authenticated user creating the shared link
-    :param session: Database session for data persistence
     :param http_request: HTTP request for base URL extraction
-    :param map_index: The map index for mapped tasks
+    :param session: Database session for data persistence
 
     :raises HTTPException: 403 if HITL shared links are not enabled
     :raises HTTPException: 404 if the task instance does not exist
@@ -132,21 +88,21 @@ def generate_shared_link(
     """
     base_url = f"{http_request.base_url.scheme}://{http_request.base_url.netloc}"
 
-    link_data = service_generate_shared_link(
+    link_data = _generate_hitl_shared_link(
+        # task instance
         dag_id=dag_id,
         dag_run_id=dag_run_id,
         task_id=task_id,
-        try_number=try_number,
+        # try_number=try_number,
+        # map_index=map_index,
         link_type=request.link_type,
         action=request.action,
         chosen_options=request.chosen_options,
         params_input=request.params_input,
-        map_index=map_index,
         expiration_hours=request.expiration_hours,
         base_url=base_url,
         session=session,
     )
-
     return GenerateSharedLinkResponse(**link_data)
 
 
@@ -171,7 +127,6 @@ def generate_mapped_ti_shared_link(
     map_index: int,
     try_number: int,
     request: GenerateSharedLinkRequest,
-    user: GetUserDep,
     session: SessionDep,
     http_request: Request,
 ) -> GenerateSharedLinkResponse:
@@ -189,7 +144,6 @@ def generate_mapped_ti_shared_link(
     :param map_index: The map index for the mapped task instance
     :param try_number: The try number for the task
     :param request: Request containing link configuration
-    :param user: The authenticated user creating the shared link
     :param session: Database session for data persistence
     :param http_request: HTTP request for base URL extraction
 
@@ -201,7 +155,7 @@ def generate_mapped_ti_shared_link(
     """
     base_url = f"{http_request.base_url.scheme}://{http_request.base_url.netloc}"
 
-    link_data = service_generate_shared_link(
+    link_data = _generate_hitl_shared_link(
         dag_id=dag_id,
         dag_run_id=dag_run_id,
         task_id=task_id,

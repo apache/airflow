@@ -27,30 +27,6 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import TaskInstanceR
 from airflow.sdk import Param
 
 
-class HITLSharedLinkFields(BaseModel):
-    """Common shared link fields for HITL models."""
-
-    link_type: str = Field(
-        default="direct_action",
-        description="Type of link to generate: 'ui_redirect' for UI interaction or 'direct_action' for direct execution",
-    )
-    action: str | None = Field(
-        default=None,
-        description="Optional action to perform when link is accessed (e.g., 'approve', 'reject'). Required for direct_action links.",
-    )
-
-
-class HITLSharedLinkPayload(HITLSharedLinkFields, BaseModel):
-    """Payload data for HITL shared links containing task and link metadata."""
-
-    dag_id: str
-    dag_run_id: str
-    task_id: str
-    try_number: int
-    map_index: int | None = None
-    expires_at: str
-
-
 class UpdateHITLDetailPayload(BaseModel):
     """Schema for updating the content of a Human-in-the-loop detail."""
 
@@ -66,6 +42,7 @@ class HITLDetailResponse(BaseModel):
     response_at: datetime
     chosen_options: list[str]
     params_input: Mapping = Field(default_factory=dict)
+
     # Shared link response fields (added)
     task_instance_id: str | None = None
     link_url: str | None = None
@@ -113,3 +90,27 @@ class HITLDetailCollection(BaseModel):
     # Shared link action request fields
     chosen_options: list[str] | None = None
     params_input: Mapping = Field(default_factory=dict)
+
+
+class HITLSharedLinkFields(BaseModel):
+    """Common shared link fields for Human-in-the-loop models."""
+
+    link_type: str = Field(
+        default="direct_action",
+        description="Type of link to generate: 'ui_redirect' for UI interaction or 'direct_action' for direct execution",
+    )
+    action: str | None = Field(
+        default=None,
+        description="Optional action to perform when link is accessed (e.g., 'approve', 'reject'). Required for direct_action links.",
+    )
+
+
+class HITLSharedLinkPayload(HITLSharedLinkFields, BaseModel):
+    """Payload data for Human-in-the-loop shared links containing task and link metadata."""
+
+    dag_id: str
+    dag_run_id: str
+    task_id: str
+    try_number: int
+    map_index: int | None = None
+    expires_at: str
