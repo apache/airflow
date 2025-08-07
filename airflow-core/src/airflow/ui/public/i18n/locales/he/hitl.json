@@ -9,7 +9,7 @@
     "received": "תגובה התקבלה ב",
     "respond": "הגב",
     "success": "התגובה של {{taskId}} הצליחה",
-    "title": "מופע משימה אנושית - {{taskId}}"
+    "title": "מופע משימה ידנית - {{taskId}}"
   },
   "state": {
     "approvalReceived": "האישור התקבל",
