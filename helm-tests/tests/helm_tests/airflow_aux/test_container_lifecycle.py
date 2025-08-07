@@ -174,8 +174,9 @@ class TestContainerLifecycleHooks:
             )
 
             for doc in docs:
-                assert LIFECYCLE_PARSED == jmespath.search(
-                    f"spec.template.spec.containers[0].lifecycle.{hook_type}", doc
+                assert (
+                    jmespath.search(f"spec.template.spec.containers[0].lifecycle.{hook_type}", doc)
+                    == LIFECYCLE_PARSED
                 )
 
     # Test container lifecycle hooks for metrics-explorer main container
@@ -201,21 +202,30 @@ class TestContainerLifecycleHooks:
     @pytest.mark.parametrize("hook_type", ["preStop", "postStart"])
     def test_worker_kerberos_container_setting(self, hook_type):
         workers_config = (
-            {"kerberosSidecar": {"enabled": True, "containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE}}},
+            {
+                "kerberosSidecar": {
+                    "enabled": True,
+                    "containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE},
+                }
+            },
             {
                 "celery": {
-                    "kerberosSidecar": {"enabled": True, "containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE}}
+                    "kerberosSidecar": {
+                        "enabled": True,
+                        "containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE},
+                    }
                 }
             },
             {
                 "kerberosSidecar": {
                     "enabled": True,
-                    "containerLifecycleHooks": {
-                        hook_type: {"exec": {"command": ["echo", "release"]}}
-                    },
+                    "containerLifecycleHooks": {hook_type: {"exec": {"command": ["echo", "release"]}}},
                 },
                 "celery": {
-                    "kerberosSidecar": {"enabled": True, "containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE}}
+                    "kerberosSidecar": {
+                        "enabled": True,
+                        "containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE},
+                    }
                 },
             },
         )
@@ -242,9 +252,7 @@ class TestContainerLifecycleHooks:
             {"celery": {"logGroomerSidecar": {"containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE}}}},
             {
                 "logGroomerSidecar": {
-                    "containerLifecycleHooks": {
-                        hook_type: {"exec": {"command": ["echo", "release"]}}
-                    }
+                    "containerLifecycleHooks": {hook_type: {"exec": {"command": ["echo", "release"]}}}
                 },
                 "celery": {"logGroomerSidecar": {"containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE}}},
             },
@@ -254,7 +262,9 @@ class TestContainerLifecycleHooks:
             docs = render_chart(
                 name=RELEASE_NAME,
                 values={
-                    "scheduler": {"logGroomerSidecar": {"containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE}}},
+                    "scheduler": {
+                        "logGroomerSidecar": {"containerLifecycleHooks": {hook_type: LIFECYCLE_TEMPLATE}}
+                    },
                     "workers": config,
                 },
                 show_only=[
@@ -264,6 +274,7 @@ class TestContainerLifecycleHooks:
             )
 
             for doc in docs:
-                assert LIFECYCLE_PARSED == jmespath.search(
-                    f"spec.template.spec.containers[1].lifecycle.{hook_type}", doc
+                assert (
+                    jmespath.search(f"spec.template.spec.containers[1].lifecycle.{hook_type}", doc)
+                    == LIFECYCLE_PARSED
                 )
