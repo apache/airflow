@@ -3,7 +3,7 @@
   "requiredAction_other": "Erforderliche Interaktionen",
   "requiredActionState": "Status der Interaktion",
   "response": {
-    "error": "Sender der Antwort fehlgeschlagen",
+    "error": "Senden der Antwort fehlgeschlagen",
     "optionsDescription": "Wählen Sie Ihre Optionen für diesen Task",
     "optionsLabel": "Optionen",
     "received": "Antwort empfangen um ",
