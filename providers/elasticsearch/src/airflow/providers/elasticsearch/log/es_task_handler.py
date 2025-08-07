@@ -25,7 +25,6 @@ import os
 import shutil
 import sys
 import time
-import pathlib
 from collections import defaultdict
 from collections.abc import Callable
 from operator import attrgetter
@@ -571,8 +570,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
 @attrs.define(kw_only=True)
 class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
-    write_stdout: bool
-    delete_local_copy: bool
+    write_stdout: bool = False
+    delete_local_copy: bool = False
     host: str = "http://localhost:9200"
     host_field: str = "host"
     target_index: str = "airflow-logs"
@@ -648,7 +647,7 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
 
     def read(self, relative_path: str, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages]:
         log_id = f"{ti.dag_id}-{ti.task_id}-{ti.run_id}-{ti.map_index}-{ti.try_number}"
-        self.log.info(f"Reading log {log_id} from Elasticsearch")
+        self.log.info("Reading log %s from Elasticsearch", log_id)
         offset = 0
         response = self._es_read(log_id, offset, ti)
         if response is not None and response.hits:
@@ -664,17 +663,16 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
             )
             return [], [missing_log_message]
 
-        else:
-            header = []
-            # Start log group
-            header.append("".join([host for host in logs_by_host.keys()]))
+        header = []
+        # Start log group
+        header.append("".join([host for host in logs_by_host.keys()]))
 
-            message = []
-            # Structured log messages
-            for hits in logs_by_host.values():
-                for hit in hits:
-                    filtered = {k: v for k, v in hit.to_dict().items() if k.lower() in TASK_LOG_FIELDS}
-                    message.append(json.dumps(filtered))
+        message = []
+        # Structured log messages
+        for hits in logs_by_host.values():
+            for hit in hits:
+                filtered = {k: v for k, v in hit.to_dict().items() if k.lower() in TASK_LOG_FIELDS}
+                message.append(json.dumps(filtered))
 
         return header, message
 

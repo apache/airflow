@@ -16,4 +16,40 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+from testcontainers.elasticsearch import ElasticSearchContainer
+
+_container = None
+
+
+class EarlyEnvPlugin:
+    def pytest_sessionstart(self, session):
+        global _container
+
+        _container = ElasticSearchContainer("docker.elastic.co/elasticsearch/elasticsearch:8.19.0")
+        _container.start()
+
+        es_host = _container.get_container_host_ip()
+        es_port = _container.get_exposed_port(_container.port)
+        es_url = f"http://{es_host}:{es_port}"
+
+        session.config._es_url = es_url
+
+    def pytest_sessionfinish(self, session, exitstatus):
+        global _container
+        if _container:
+            _container.stop()
+
+
+def pytest_configure(config):
+    plugin = EarlyEnvPlugin()
+    config.pluginmanager.register(plugin, name="early_env_plugin")
+
+
+@pytest.fixture(scope="session")
+def elasticsearch_8_url(request):
+    """Provides ES URL and client after early bootstrapping."""
+    return request.config._es_url
+
+
 pytest_plugins = "tests_common.pytest_plugin"
