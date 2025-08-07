@@ -51,7 +51,7 @@ class TestSqlToS3Operator:
             task_id="task_id",
             replace=True,
             read_kwargs={"dtype_backend": dtype_backend},
-            pd_kwargs={"index": False, "header": False},
+            df_kwargs={"index": False, "header": False},
             dag=None,
         )
         op._get_hook = mock_dbapi_hook
@@ -126,7 +126,7 @@ class TestSqlToS3Operator:
             task_id="task_id",
             file_format="json",
             replace=True,
-            pd_kwargs={"date_format": "iso", "lines": True, "orient": "records"},
+            df_kwargs={"date_format": "iso", "lines": True, "orient": "records"},
             dag=None,
         )
         op._get_hook = mock_dbapi_hook
@@ -159,7 +159,7 @@ class TestSqlToS3Operator:
             aws_conn_id="aws_conn_id",
             task_id="task_id",
             replace=True,
-            pd_kwargs={"index": False, "compression": "gzip"},
+            df_kwargs={"index": False, "compression": "gzip"},
             dag=None,
         )
         op._get_hook = mock_dbapi_hook
@@ -261,7 +261,7 @@ class TestSqlToS3Operator:
             aws_conn_id="aws_conn_id",
             task_id="task_id",
             replace=True,
-            pd_kwargs={"index": False, "header": False},
+            df_kwargs={"index": False, "header": False},
             groupby_kwargs={"by": "Team"},
             dag=None,
         )
@@ -313,7 +313,7 @@ class TestSqlToS3Operator:
             aws_conn_id="aws_conn_id",
             task_id="task_id",
             replace=True,
-            pd_kwargs={"index": False, "header": False},
+            df_kwargs={"index": False, "header": False},
             dag=None,
         )
         example = {
@@ -355,7 +355,7 @@ class TestSqlToS3Operator:
             aws_conn_id="aws_conn_id",
             task_id="task_id",
             replace=True,
-            pd_kwargs={"index": False, "header": False},
+            df_kwargs={"index": False, "header": False},
             max_rows_per_file=3,
             dag=None,
         )
@@ -515,6 +515,20 @@ class TestSqlToS3Operator:
                 "can not be both specified",
                 None,
                 id="max-rows-groupby-conflict-error",
+            ),
+            pytest.param(
+                {"pd_kwargs": {"index": False}},
+                "The 'pd_kwargs' parameter is deprecated",
+                None,
+                None,
+                id="deprecated-pd-kwargs-warning",
+            ),
+            pytest.param(
+                {"df_kwargs": {"index": False}, "pd_kwargs": {"header": False}},
+                None,
+                "Cannot specify both 'df_kwargs' and 'pd_kwargs'",
+                None,
+                id="df-kwargs-conflict-error",
             ),
         ],
     )

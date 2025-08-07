@@ -86,7 +86,7 @@ class SqlToS3Operator(BaseOperator):
     :param max_rows_per_file: (optional) argument to set destination file number of rows limit, if source data
         is larger than that, it will be dispatched into multiple files.
         Will be ignored if ``groupby_kwargs`` argument is specified.
-    :param pd_kwargs: arguments to include in DataFrame ``.to_parquet()``, ``.to_json()`` or ``.to_csv()``.
+    :param df_kwargs: arguments to include in DataFrame ``.to_parquet()``, ``.to_json()`` or ``.to_csv()``.
     :param groupby_kwargs: argument to include in DataFrame ``groupby()``.
     """
 
@@ -99,6 +99,7 @@ class SqlToS3Operator(BaseOperator):
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {
         "query": "sql",
+        "df_kwargs": "json",
         "pd_kwargs": "json",
         "read_kwargs": "json",
     }
@@ -120,6 +121,7 @@ class SqlToS3Operator(BaseOperator):
         verify: bool | str | None = None,
         file_format: Literal["csv", "json", "parquet"] = "csv",
         max_rows_per_file: int = 0,
+        df_kwargs: dict | None = None,
         pd_kwargs: dict | None = None,
         groupby_kwargs: dict | None = None,
         **kwargs,
@@ -132,7 +134,6 @@ class SqlToS3Operator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.verify = verify
         self.replace = replace
-        self.pd_kwargs = pd_kwargs or {}
         self.parameters = parameters
         self.max_rows_per_file = max_rows_per_file
         self.groupby_kwargs = groupby_kwargs or {}
@@ -154,7 +155,24 @@ class SqlToS3Operator(BaseOperator):
         else:
             self.read_kwargs = read_kwargs or {}
 
-        if "path_or_buf" in self.pd_kwargs:
+        # Handle df_kwargs and pd_kwargs backward compatibility
+        if pd_kwargs is not None and df_kwargs is not None:
+            raise AirflowException(
+                "Cannot specify both 'df_kwargs' and 'pd_kwargs'. Use 'df_kwargs' instead."
+            )
+        if pd_kwargs is not None:
+            import warnings
+
+            warnings.warn(
+                "The 'pd_kwargs' parameter is deprecated. Use 'df_kwargs' instead.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            self.df_kwargs = pd_kwargs or {}
+        else:
+            self.df_kwargs = df_kwargs or {}
+
+        if "path_or_buf" in self.df_kwargs:
             raise AirflowException("The argument path_or_buf is not allowed, please remove it")
 
         if self.max_rows_per_file and self.groupby_kwargs:
@@ -222,16 +240,16 @@ class SqlToS3Operator(BaseOperator):
             self.log.info("Writing data to in-memory buffer")
             object_key = f"{self.s3_key}_{group_name}" if group_name else self.s3_key
 
-            if self.pd_kwargs.get("compression") == "gzip":
-                pd_kwargs = {k: v for k, v in self.pd_kwargs.items() if k != "compression"}
+            if self.df_kwargs.get("compression") == "gzip":
+                df_kwargs = {k: v for k, v in self.df_kwargs.items() if k != "compression"}
                 with gzip.GzipFile(fileobj=buf, mode="wb", filename=object_key) as gz:
-                    getattr(df, file_options.function)(gz, **pd_kwargs)
+                    getattr(df, file_options.function)(gz, **df_kwargs)
             else:
                 if self.file_format == FILE_FORMAT.PARQUET:
-                    getattr(df, file_options.function)(buf, **self.pd_kwargs)
+                    getattr(df, file_options.function)(buf, **self.df_kwargs)
                 else:
                     text_buf = io.TextIOWrapper(buf, encoding="utf-8", write_through=True)
-                    getattr(df, file_options.function)(text_buf, **self.pd_kwargs)
+                    getattr(df, file_options.function)(text_buf, **self.df_kwargs)
                     text_buf.flush()
             buf.seek(0)
 
