@@ -50,6 +50,7 @@ from airflow.exceptions import (
     AirflowDagCycleException,
     AirflowDagDuplicatedIdException,
     AirflowException,
+    AirflowTaskTimeout,
 )
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base, StringID
@@ -64,7 +65,6 @@ from airflow.utils.file import (
 )
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.timeout import timeout
 from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
@@ -76,6 +76,8 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.models.dagwarning import DagWarning
     from airflow.utils.types import ArgNotSet
+
+_timeout = contextlib.AbstractContextManager[None]
 
 
 @contextlib.contextmanager
@@ -115,6 +117,33 @@ class FileLoadStat(NamedTuple):
     task_num: int
     dags: str
     warning_num: int
+
+
+class _TimeoutPosix(_timeout, LoggingMixin):
+    """Private POSIX Timeout class for internal use within this module."""
+
+    def __init__(self, seconds=1, error_message="Timeout"):
+        super().__init__()
+        self.seconds = seconds
+        self.error_message = error_message + ", PID: " + str(os.getpid())
+
+    def handle_timeout(self, signum, frame):
+        """Log information and raises AirflowTaskTimeout."""
+        self.log.error("Process timed out, PID: %s", str(os.getpid()))
+        raise AirflowTaskTimeout(self.error_message)
+
+    def __enter__(self):
+        try:
+            signal.signal(signal.SIGALRM, self.handle_timeout)
+            signal.setitimer(signal.ITIMER_REAL, self.seconds)
+        except ValueError:
+            self.log.warning("timeout can't be used in the current context", exc_info=True)
+
+    def __exit__(self, type_, value, traceback):
+        try:
+            signal.setitimer(signal.ITIMER_REAL, 0)
+        except ValueError:
+            self.log.warning("timeout can't be used in the current context", exc_info=True)
 
 
 class DagBag(LoggingMixin):
@@ -464,7 +493,7 @@ class DagBag(LoggingMixin):
             f"* {get_docs_url('best-practices.html#top-level-python-code')}\n"
             f"* {get_docs_url('best-practices.html#reducing-dag-complexity')}"
         )
-        with timeout(dagbag_import_timeout, error_message=timeout_msg):
+        with _TimeoutPosix(dagbag_import_timeout, error_message=timeout_msg):
             return parse(mod_name, filepath)
 
     def _load_modules_from_zip(self, filepath, safe_mode):
