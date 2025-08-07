@@ -44,14 +44,14 @@ Here is how Deadlines are calculated:
         |                                     |
      Start time                          Trigger point
 
-Below is an example DAG implementation. If the DAG has not finished 15 minutes after it was queued, send an email:
+Below is an example DAG implementation. If the DAG has not finished 15 minutes after it was queued, send a Slack message:
 
 .. code-block:: python
 
     from datetime import datetime, timedelta
     from airflow import DAG
-    from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
-    from airflow.providers.smtp.notifications.smtp import SmtpNotifier
+    from airflow.sdk.definitions.deadline import AsyncCallback, DeadlineAlert, DeadlineReference
+    from airflow.providers.slack.notifications.slack_webhook import SlackWebhookNotifier
     from airflow.providers.standard.operators.empty import EmptyOperator
 
     with DAG(
@@ -59,10 +59,14 @@ Below is an example DAG implementation. If the DAG has not finished 15 minutes a
         deadline=DeadlineAlert(
             reference=DeadlineReference.DAGRUN_QUEUED_AT,
             interval=timedelta(minutes=15),
-            callback=SmtpNotifier(
-                to="team@example.com",
-                subject="[Alert] DAG `deadline_alert_example` exceeded time threshold",
-                html_content="The DAG has been running for more than 15 minutes since being queued.",
+            callback=AsyncCallback(
+                SlackWebhookNotifier,
+                kwargs={
+                    "slack_conn_id": "slack_default",
+                    "channel": "#alerts",
+                    "text": "DAG 'slack_deadline_alert' still running after 30 minutes.",
+                    "username": "Airflow Alerts",
+                },
             ),
         ),
     ):
@@ -104,10 +108,14 @@ Here's an example using a fixed datetime:
         deadline=DeadlineAlert(
             reference=DeadlineReference.FIXED_DATETIME(tomorrow_at_ten),
             interval=timedelta(minutes=-30),  # Alert 30 minutes before the reference.
-            callback=SmtpNotifier(
-                to="team@example.com",
-                subject="Report will be late",
-                html_content="The report will not be ready 30 minutes before the deadline.",
+            callback=AsyncCallback(
+                SlackWebhookNotifier,
+                kwargs={
+                    "slack_conn_id": "slack_default",
+                    "channel": "#alerts",
+                    "text": "DAG 'slack_deadline_alert' still running after 30 minutes.",
+                    "username": "Airflow Alerts",
+                },
             ),
         ),
     ):
@@ -128,7 +136,8 @@ Using Callbacks
 ---------------
 
 When a deadline is exceeded, the callback is executed. You can use an existing :doc:`Notifier </howto/notifications>`
-or create a custom callback function.
+or create a custom callback function.  A callback must be either an :class:`~airflow.sdk.definitions.deadline.AsyncCallback`
+or a :class:`~airflow.sdk.definitions.deadline.SyncCallback`.
 
 Using Built-in Notifiers
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -142,11 +151,14 @@ Here's an example using the Slack Notifier if the DagRun has not finished within
         deadline=DeadlineAlert(
             reference=DeadlineReference.DAGRUN_QUEUED_AT,
             interval=timedelta(minutes=30),
-            callback=SlackNotifier(
-                slack_conn_id="slack_default",
-                channel="#alerts",
-                text="DAG 'slack_deadline_alert' still running after 30 minutes.",
-                username="Airflow Alerts",
+            callback=AsyncCallback(
+                SlackNotifier,
+                kwargs={
+                    "slack_conn_id": "slack_default",
+                    "channel": "#alerts",
+                    "text": "DAG 'slack_deadline_alert' still running after 30 minutes.",
+                    "username": "Airflow Alerts",
+                },
             ),
         ),
     ):
@@ -175,7 +187,7 @@ A **custom synchronous callback** might look like this:
 
     from airflow import DAG
     from airflow.providers.standard.operators.empty import EmptyOperator
-    from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
+    from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference, SyncCallback
 
 
     def custom_synchronous_callback(**kwargs):
@@ -190,8 +202,10 @@ A **custom synchronous callback** might look like this:
         deadline=DeadlineAlert(
             reference=DeadlineReference.DAGRUN_QUEUED_AT,
             interval=timedelta(minutes=15),
-            callback=custom_synchronous_callback,
-            callback_kwargs={"alert_type": "time_exceeded", "dag_id": "custom_deadline_alert"},
+            callback=SyncCallback(
+                custom_synchronous_callback,
+                kwargs={"alert_type": "time_exceeded", "dag_id": "custom_deadline_alert"},
+            ),
         ),
     ):
         EmptyOperator(task_id="example_task")
@@ -216,15 +230,17 @@ the custom callback code is placed in a separate file, and must be imported in t
 
     from airflow import DAG
     from airflow.providers.standard.operators.empty import EmptyOperator
-    from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
+    from airflow.sdk.definitions.deadline import AsyncCallback, DeadlineAlert, DeadlineReference
 
     with DAG(
         dag_id="custom_deadline_alert",
         deadline=DeadlineAlert(
             reference=DeadlineReference.DAGRUN_QUEUED_AT,
             interval=timedelta(minutes=15),
-            callback=custom_async_callback,
-            callback_kwargs={"alert_type": "time_exceeded", "dag_id": "custom_deadline_alert"},
+            callback=AsyncCallback(
+                custom_async_callback,
+                kwargs={"alert_type": "time_exceeded", "dag_id": "custom_deadline_alert"},
+            ),
         ),
     ):
         EmptyOperator(task_id="example_task")
