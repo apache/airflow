@@ -288,14 +288,15 @@ def ti_run(
 def _get_upstream_map_indexes(
     task: Operator, ti_map_index: int, run_id: str, session: SessionDep
 ) -> Iterator[tuple[str, int | list[int] | None]]:
+    task_mapped_group = task.get_closest_mapped_task_group()
     for upstream_task in task.upstream_list:
+        upstream_mapped_group = upstream_task.get_closest_mapped_task_group()
         map_indexes: int | list[int] | None
-        if not isinstance(upstream_task.task_group, MappedTaskGroup):
+        if upstream_mapped_group is None:
             # regular tasks or non-mapped task groups
             map_indexes = None
-        elif task.task_group == upstream_task.task_group:
-            # tasks in the same mapped task group
-            # the task should use the map_index as the previous task in the same mapped task group
+        elif task_mapped_group == upstream_mapped_group: 
+            # tasks in the same mapped task group hierarchy
             map_indexes = ti_map_index
         else:
             # tasks not in the same mapped task group
