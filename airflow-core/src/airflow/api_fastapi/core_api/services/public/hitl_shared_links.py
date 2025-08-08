@@ -22,6 +22,7 @@ import base64
 import json
 from datetime import datetime, timedelta
 from typing import Any, Literal, TypedDict
+from urllib.parse import urlparse, urlunparse
 
 import structlog
 from fastapi import HTTPException, status
@@ -150,7 +151,7 @@ def _generate_hitl_shared_link(
     params_input: dict[str, Any] | None = None,
     # utility
     session: Session | None = None,
-) -> dict[str, Any]:
+) -> str:
     """
     Generate a shared link for a Human-in-the-loop task instance.
 
@@ -205,28 +206,25 @@ def _generate_hitl_shared_link(
     )
 
     if link_type == "perform_action":
-        url_path = "/api/v2/hitl-shared-links/execute"
+        url_path = f"/api/v2/hitlSharedLinks/execute/{token}"
     elif link_type == "ui_redirect":
-        url_path = "/api/v2/hitl-shared-links/redirect"
+        url_path = f"/api/v2/hitlSharedLinks/redirect/{token}"
     else:
         raise ValueError(f"Unknown link type: {link_type}")
 
-    link_url = f"{base_url.rstrip('/')}{url_path}?token={token}"
+    # TODO: add back token validate_shared_link_token
 
-    token_data = validate_shared_link_token(token)
-    expires_at = datetime.fromisoformat(token_data["expires_at"])
-
-    return {
-        "url": link_url,
-        "expires_at": expires_at.isoformat(),
-        "link_type": link_type,
-        "action": action,
-        "dag_id": dag_id,
-        "dag_run_id": dag_run_id,
-        "task_id": task_id,
-        "map_index": map_index,
-        "task_instance_uuid": token_data["task_instance_uuid"],
-    }
+    parsed_base_url = urlparse(base_url)
+    return urlunparse(
+        (
+            parsed_base_url.scheme,
+            parsed_base_url.netloc,
+            url_path,
+            "",
+            "",
+            "",
+        ),
+    )
 
 
 def service_execute_shared_link_action(
