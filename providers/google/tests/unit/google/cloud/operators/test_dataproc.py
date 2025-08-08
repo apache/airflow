@@ -3474,9 +3474,15 @@ class TestDataprocCreateBatchOperator:
         mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
+        expected_labels = {
+            "airflow-dag-id": "test-dataproc-operators",
+            "airflow-dag-display-name": "test-dataproc-operators",
+            "airflow-task-id": "task-id",
+        }
+
         expected_batch = {
             **BATCH,
-            "labels": EXPECTED_LABELS,
+            "labels": expected_labels,
             "runtime_config": {"properties": OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_SPARK_PROPERTIES},
         }
         op = DataprocCreateBatchOperator(
@@ -3531,9 +3537,15 @@ class TestDataprocCreateBatchOperator:
         mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
+        expected_labels = {
+            "airflow-dag-id": "test-dataproc-operators",
+            "airflow-dag-display-name": "test-dataproc-operators",
+            "airflow-task-id": "task-id",
+        }
+
         expected_batch = {
             **BATCH,
-            "labels": EXPECTED_LABELS,
+            "labels": expected_labels,
             "runtime_config": {
                 "properties": {
                     **OPENLINEAGE_PARENT_JOB_EXAMPLE_SPARK_PROPERTIES,
@@ -3625,9 +3637,14 @@ class TestDataprocCreateBatchOperator:
         mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
+        expected_labels = {
+            "airflow-dag-id": "test-dataproc-operators",
+            "airflow-dag-display-name": "test-dataproc-operators",
+            "airflow-task-id": "task-id",
+        }
         batch = {
             **BATCH,
-            "labels": EXPECTED_LABELS,
+            "labels": expected_labels,
             "runtime_config": {
                 "properties": {
                     "spark.openlineage.transport.type": "console",
