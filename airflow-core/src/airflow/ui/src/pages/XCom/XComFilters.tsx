@@ -31,45 +31,45 @@ const FILTERS = [
   {
     hotkeyDisabled: false,
     key: SearchParamsKeys.KEY_PATTERN,
-    translationKey: "keyFilter",
+    translationKey: "keyPlaceholder",
     type: "search",
   },
   {
     hotkeyDisabled: true,
-    key: SearchParamsKeys.DAG_ID_PATTERN,
-    translationKey: "dagFilter",
+    key: SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN,
+    translationKey: "dagDisplayNamePlaceholder",
     type: "search",
   },
   {
     hotkeyDisabled: true,
     key: SearchParamsKeys.RUN_ID_PATTERN,
-    translationKey: "runIdFilter",
+    translationKey: "runIdPlaceholder",
     type: "search",
   },
   {
     hotkeyDisabled: true,
     key: SearchParamsKeys.TASK_ID_PATTERN,
-    translationKey: "taskIdFilter",
+    translationKey: "taskIdPlaceholder",
     type: "search",
   },
   {
     key: SearchParamsKeys.LOGICAL_DATE_GTE,
-    translationKey: "logicalDateFrom",
+    translationKey: "logicalDateFromPlaceholder",
     type: "datetime",
   },
   {
     key: SearchParamsKeys.LOGICAL_DATE_LTE,
-    translationKey: "logicalDateTo",
+    translationKey: "logicalDateToPlaceholder",
     type: "datetime",
   },
   {
     key: SearchParamsKeys.RUN_AFTER_GTE,
-    translationKey: "runAfterFrom",
+    translationKey: "runAfterFromPlaceholder",
     type: "datetime",
   },
   {
     key: SearchParamsKeys.RUN_AFTER_LTE,
-    translationKey: "runAfterTo",
+    translationKey: "runAfterToPlaceholder",
     type: "datetime",
   },
 ] as const;
@@ -125,7 +125,7 @@ export const XComFilters = () => {
     return (
       <Box key={key} w="200px">
         <Text fontSize="xs" marginBottom={1}>
-          {type === "search" ? "\u00A0" : translate(`xcom.filters.${translationKey}`)}
+          {type === "search" ? "\u00A0" : translate(`common:filters.${translationKey}`)}
         </Text>
         {type === "search" ? (
           (() => {
@@ -138,7 +138,7 @@ export const XComFilters = () => {
                 hotkeyDisabled={hotkeyDisabled}
                 key={`${key}-${resetKey}`}
                 onChange={handleFilterChange(key)}
-                placeHolder={translate(`xcom.filters.${translationKey}`)}
+                placeHolder={translate(`common:filters.${translationKey}`)}
               />
             );
           })()

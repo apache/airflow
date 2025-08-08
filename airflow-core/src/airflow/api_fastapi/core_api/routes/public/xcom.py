@@ -29,7 +29,7 @@ from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     QueryLimit,
     QueryOffset,
-    QueryXComDagIdPatternSearch,
+    QueryXComDagDisplayNamePatternSearch,
     QueryXComKeyPatternSearch,
     QueryXComRunIdPatternSearch,
     QueryXComTaskIdPatternSearch,
@@ -49,6 +49,7 @@ from airflow.api_fastapi.core_api.security import ReadableXComFilterDep, require
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import TaskNotFound
 from airflow.models import DagRun as DR
+from airflow.models.dag import DagModel
 from airflow.models.xcom import XComModel
 
 xcom_router = AirflowRouter(
@@ -137,7 +138,7 @@ def get_xcom_entries(
     readable_xcom_filter: ReadableXComFilterDep,
     session: SessionDep,
     xcom_key_pattern: QueryXComKeyPatternSearch,
-    dag_id_pattern: QueryXComDagIdPatternSearch,
+    dag_display_name_pattern: QueryXComDagDisplayNamePatternSearch,
     run_id_pattern: QueryXComRunIdPatternSearch,
     task_id_pattern: QueryXComTaskIdPatternSearch,
     logical_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", DR))],
@@ -152,8 +153,10 @@ def get_xcom_entries(
     query = select(XComModel)
     if dag_id != "~":
         query = query.where(XComModel.dag_id == dag_id)
-    query = query.join(DR, and_(XComModel.dag_id == DR.dag_id, XComModel.run_id == DR.run_id)).options(
-        joinedload(XComModel.dag_run).joinedload(DR.dag_model)
+    query = (
+        query.join(DR, and_(XComModel.dag_id == DR.dag_id, XComModel.run_id == DR.run_id))
+        .join(DagModel, DR.dag_id == DagModel.dag_id)
+        .options(joinedload(XComModel.dag_run).joinedload(DR.dag_model))
     )
 
     if task_id != "~":
@@ -170,7 +173,7 @@ def get_xcom_entries(
         filters=[
             readable_xcom_filter,
             xcom_key_pattern,
-            dag_id_pattern,
+            dag_display_name_pattern,
             run_id_pattern,
             task_id_pattern,
             logical_date_range,

@@ -737,8 +737,9 @@ QueryTIDagVersionFilter = Annotated[
 QueryXComKeyPatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(XComModel.key, "xcom_key_pattern"))
 ]
-QueryXComDagIdPatternSearch = Annotated[
-    _SearchParam, Depends(search_param_factory(XComModel.dag_id, "dag_id_pattern"))
+
+QueryXComDagDisplayNamePatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(DagModel.dag_display_name, "dag_display_name_pattern"))
 ]
 QueryXComRunIdPatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(XComModel.run_id, "run_id_pattern"))

@@ -34,7 +34,7 @@ import { XComEntry } from "./XComEntry";
 import { XComFilters } from "./XComFilters";
 
 const {
-  DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
+  DAG_DISPLAY_NAME_PATTERN: DAG_DISPLAY_NAME_PATTERN_PARAM,
   KEY_PATTERN: KEY_PATTERN_PARAM,
   RUN_ID_PATTERN: RUN_ID_PATTERN_PARAM,
   TASK_ID_PATTERN: TASK_ID_PATTERN_PARAM,
@@ -115,7 +115,7 @@ export const XCom = () => {
   const [searchParams] = useSearchParams();
 
   const filteredKey = searchParams.get(KEY_PATTERN_PARAM);
-  const filteredDagId = searchParams.get(DAG_ID_PATTERN_PARAM);
+  const filteredDagDisplayName = searchParams.get(DAG_DISPLAY_NAME_PATTERN_PARAM);
   const filteredRunId = searchParams.get(RUN_ID_PATTERN_PARAM);
   const filteredTaskId = searchParams.get(TASK_ID_PATTERN_PARAM);
 
@@ -127,8 +127,8 @@ export const XCom = () => {
   const runAfterLte = searchParams.get(RUN_AFTER_LTE);
 
   const apiParams = {
+    dagDisplayNamePattern: filteredDagDisplayName ?? undefined,
     dagId,
-    dagIdPattern: filteredDagId ?? undefined,
     dagRunId: runId,
     limit: pagination.pageSize,
     logicalDateGte: logicalDateGte ?? undefined,
@@ -153,7 +153,7 @@ export const XCom = () => {
         <Heading size="md">{translate("xcom.title")}</Heading>
       ) : undefined}
 
-      {dagId === "~" && runId === "~" && taskId === "~" ? <XComFilters /> : undefined}
+      <XComFilters />
 
       <ErrorAlert error={error} />
       <DataTable

@@ -92,6 +92,16 @@
     "any": "任何",
     "or": "或"
   },
+  "filters": {
+    "dagDisplayNamePlaceholder": "依 Dag 顯示名稱過濾",
+    "keyPlaceholder": "依 XCom 鍵過濾",
+    "logicalDateFromPlaceholder": "邏輯日期起始",
+    "logicalDateToPlaceholder": "邏輯日期結束",
+    "runAfterFromPlaceholder": "執行時間起始",
+    "runAfterToPlaceholder": "執行時間結束",
+    "runIdPlaceholder": "依執行 ID 過濾",
+    "taskIdPlaceholder": "依任務 ID 過濾"
+  },
   "logicalDate": "邏輯日期",
   "logout": "登出",
   "logoutConfirmation": "確定要登出嗎？",

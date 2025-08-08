@@ -2809,11 +2809,11 @@ export type UpdateXcomEntryData = {
 export type UpdateXcomEntryResponse = XComResponseNative;
 
 export type GetXcomEntriesData = {
-    dagId: string;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
-    dagIdPattern?: string | null;
+    dagDisplayNamePattern?: string | null;
+    dagId: string;
     dagRunId: string;
     limit?: number;
     logicalDateGte?: string | null;

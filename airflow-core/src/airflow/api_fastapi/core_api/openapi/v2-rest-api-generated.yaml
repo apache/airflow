@@ -4671,7 +4671,7 @@ paths:
           title: Xcom Key Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
-      - name: dag_id_pattern
+      - name: dag_display_name_pattern
         in: query
         required: false
         schema:
@@ -4680,7 +4680,7 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ Regular expressions are **not** supported."
-          title: Dag Id Pattern
+          title: Dag Display Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
       - name: run_id_pattern

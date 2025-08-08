@@ -17,6 +17,7 @@
  * under the License.
  */
 export enum SearchParamsKeys {
+  DAG_DISPLAY_NAME_PATTERN = "dag_display_name_pattern",
   DAG_ID_PATTERN = "dag_id_pattern",
   DEPENDENCIES = "dependencies",
   END_DATE = "end_date",
