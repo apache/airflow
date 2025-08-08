@@ -77,8 +77,6 @@ if TYPE_CHECKING:
     from airflow.models.dagwarning import DagWarning
     from airflow.utils.types import ArgNotSet
 
-_timeout = contextlib.AbstractContextManager[None]
-
 
 @contextlib.contextmanager
 def _capture_with_reraise() -> Generator[list[warnings.WarningMessage], None, None]:
