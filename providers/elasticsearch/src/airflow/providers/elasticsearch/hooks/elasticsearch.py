@@ -22,6 +22,7 @@ from copy import deepcopy
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 from urllib import parse
+from warnings import warn
 
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import bulk, streaming_bulk, parallel_bulk, scan, reindex
@@ -240,6 +241,9 @@ class ElasticsearchPythonHook(BaseHook):
     """
     Interacts with Elasticsearch. This hook uses the official Elasticsearch Python Client.
 
+    .. deprecated:: 2.10.0
+        This hook is deprecated. Use :class:`~airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook` instead.
+
     :param hosts: list: A list of a single or many Elasticsearch instances. Example: ["http://localhost:9200"]
     :param es_conn_args: dict: Additional arguments you might need to enter to connect to Elasticsearch.
                                 Example: {"ca_cert":"/path/to/cert", "basic_auth": "(user, pass)"}
@@ -247,13 +251,18 @@ class ElasticsearchPythonHook(BaseHook):
 
     def __init__(self, hosts: list[Any], es_conn_args: dict | None = None):
         super().__init__()
+        warn(
+            "ElasticsearchPythonHook is deprecated. "
+            "Use airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         self.hosts = hosts
         self.es_conn_args = es_conn_args or {}
 
     def _get_elastic_connection(self):
         """Return the Elasticsearch client."""
         client = Elasticsearch(self.hosts, **self.es_conn_args)
-
         return client
 
     @cached_property
