@@ -70,7 +70,7 @@ export const Grid = ({ limit }: Props) => {
 
   const { data: gridRuns, isLoading } = useGridRuns({ limit });
 
-  useGraphStructureSync();
+  void useGraphStructureSync();
 
   // Check if the selected dag run is inside of the grid response, if not, we'll update the grid filters
   // Eventually we should redo the api endpoint to make this work better
