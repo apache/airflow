@@ -32,14 +32,7 @@ AIRFLOW_SITE_DIRECTORY = os.environ.get("AIRFLOW_SITE_DIRECTORY")
 
 error_versions: list[str] = []
 
-if AIRFLOW_SITE_DIRECTORY is None:
-    console.print(
-        "[red]AIRFLOW_SITE_DIRECTORY environment variable is not set. "
-        "Please set it to the directory containing the Airflow site files.[red]"
-    )
-    sys.exit(1)
-
-if "docs-archive" not in AIRFLOW_SITE_DIRECTORY:
+if AIRFLOW_SITE_DIRECTORY and "docs-archive" not in AIRFLOW_SITE_DIRECTORY:
     AIRFLOW_SITE_DIRECTORY = os.path.join(Path(AIRFLOW_SITE_DIRECTORY), "docs-archive")
 
 
@@ -83,14 +76,12 @@ def validate_docs_version() -> None:
         console.print("[red]Errors found in version validation:[/red]")
         for error in error_versions:
             console.print(f"[red]{error}[/red]")
-
         console.print(
             "[blue]These errors could be due to invalid redirects present in the doc packages.[/blue]"
         )
         sys.exit(1)
 
     console.print("[green]All versions validated successfully![/green]")
-
     console.print(f"[blue] {json.dumps(package_version_map, indent=2)} [/blue]")
 
 
@@ -112,4 +103,12 @@ def get_all_versions(package_name: str, versions: list[str]) -> list[str]:
 
 if __name__ == "__main__":
     console.print("[blue]Validating documentation versions...[/blue]")
+
+    if AIRFLOW_SITE_DIRECTORY is None:
+        console.print(
+            "[red]AIRFLOW_SITE_DIRECTORY environment variable is not set. "
+            "Please set it to the directory containing the Airflow site files.[red]"
+        )
+        sys.exit(1)
+
     validate_docs_version()
