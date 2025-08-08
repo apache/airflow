@@ -26,12 +26,12 @@ if TYPE_CHECKING:
     import jinja2
     from pendulum import DateTime
 
-    from airflow.models.operator import Operator
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.execution_time.context import InletEventsAccessors
     from airflow.sdk.types import (
         DagRunProtocol,
+        Operator,
         OutletEventAccessorsProtocol,
         RuntimeTaskInstanceProtocol,
     )
