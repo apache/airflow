@@ -664,10 +664,9 @@ class AutocommitEngineForMySQL:
 
 def _create_db_from_orm(session):
     """Create database tables from ORM models and stamp alembic version."""
-    log.info("Creating Airflow database tables from the ORM")
-    from alembic import command
-
     from airflow.models.base import Base
+
+    log.info("Creating Airflow database tables from the ORM")
 
     # Debug setup if requested
     _setup_debug_logging_if_needed()
@@ -677,13 +676,20 @@ def _create_db_from_orm(session):
         log.info("Binding engine")
         engine = session.get_bind().engine
         log.info("Pool status: %s", engine.pool.status())
+
         log.info("Creating metadata")
         Base.metadata.create_all(engine)
 
-        # Stamp the migration head
         log.info("Getting alembic config")
         config = _get_alembic_config()
-        command.stamp(config, "head")
+
+        # Use AUTOCOMMIT for DDL to avoid metadata lock issues
+        with AutocommitEngineForMySQL():  # TODO: enable for sqlite too
+            from alembic import command
+
+            log.info("Stamping migration head")
+            command.stamp(config, "head")
+
         log.info("Airflow database tables created")
 
 
