@@ -28,7 +28,7 @@ export enum SearchParamsKeys {
   LOG_LEVEL = "log_level",
   LOGICAL_DATE_GTE = "logical_date_gte",
   LOGICAL_DATE_LTE = "logical_date_lte",
-  MAP_INDEX_PATTERN = "map_index_pattern",
+  MAP_INDEX = "map_index",
   NAME_PATTERN = "name_pattern",
   OFFSET = "offset",
   OWNERS = "owners",

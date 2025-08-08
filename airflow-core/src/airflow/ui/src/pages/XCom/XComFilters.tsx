@@ -54,7 +54,7 @@ const FILTERS = [
   },
   {
     hotkeyDisabled: true,
-    key: SearchParamsKeys.MAP_INDEX_PATTERN,
+    key: SearchParamsKeys.MAP_INDEX,
     translationKey: "mapIndexPlaceholder",
     type: "search",
   },

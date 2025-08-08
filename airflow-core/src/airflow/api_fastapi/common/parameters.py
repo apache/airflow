@@ -747,8 +747,9 @@ QueryXComRunIdPatternSearch = Annotated[
 QueryXComTaskIdPatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(XComModel.task_id, "task_id_pattern"))
 ]
-QueryXComMapIndexPatternSearch = Annotated[
-    _SearchParam, Depends(search_param_factory(XComModel.map_index, "map_index_pattern"))
+QueryXComMapIndexFilter = Annotated[
+    FilterParam[int | None],
+    Depends(filter_param_factory(XComModel.map_index, int | None, filter_name="map_index")),
 ]
 
 # Assets

@@ -36,7 +36,7 @@ import { XComFilters } from "./XComFilters";
 const {
   DAG_DISPLAY_NAME_PATTERN: DAG_DISPLAY_NAME_PATTERN_PARAM,
   KEY_PATTERN: KEY_PATTERN_PARAM,
-  MAP_INDEX_PATTERN: MAP_INDEX_PATTERN_PARAM,
+  MAP_INDEX: MAP_INDEX_PARAM,
   RUN_ID_PATTERN: RUN_ID_PATTERN_PARAM,
   TASK_ID_PATTERN: TASK_ID_PATTERN_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
@@ -117,7 +117,7 @@ export const XCom = () => {
 
   const filteredKey = searchParams.get(KEY_PATTERN_PARAM);
   const filteredDagDisplayName = searchParams.get(DAG_DISPLAY_NAME_PATTERN_PARAM);
-  const filteredMapIndex = searchParams.get(MAP_INDEX_PATTERN_PARAM);
+  const filteredMapIndex = searchParams.get(MAP_INDEX_PARAM);
   const filteredRunId = searchParams.get(RUN_ID_PATTERN_PARAM);
   const filteredTaskId = searchParams.get(TASK_ID_PATTERN_PARAM);
 
@@ -135,8 +135,12 @@ export const XCom = () => {
     limit: pagination.pageSize,
     logicalDateGte: logicalDateGte ?? undefined,
     logicalDateLte: logicalDateLte ?? undefined,
-    mapIndex: mapIndex === "-1" ? undefined : parseInt(mapIndex, 10),
-    mapIndexPattern: filteredMapIndex ?? undefined,
+    mapIndexFilter:
+      filteredMapIndex !== null && filteredMapIndex !== ""
+        ? parseInt(filteredMapIndex, 10)
+        : mapIndex === "-1"
+          ? undefined
+          : parseInt(mapIndex, 10),
     offset: pagination.pageIndex * pagination.pageSize,
     runAfterGte: runAfterGte ?? undefined,
     runAfterLte: runAfterLte ?? undefined,
