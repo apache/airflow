@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-08T17:06:48.914646
+# This constraints file was automatically generated on 2025-08-08T20:39:35.940972
 # via `uv pip install --resolution highest` for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -67,7 +67,7 @@ Werkzeug==2.2.3
 a2wsgi==1.10.10
 adal==1.2.7
 adlfs==2024.12.0
-aiobotocore==2.23.2
+aiobotocore==2.24.0
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
 aiohttp-cors==0.8.1
@@ -247,8 +247,8 @@ bitarray==3.6.0
 black==25.1.0
 bleach==6.2.0
 blinker==1.9.0
-boto3==1.39.8
-botocore==1.39.8
+boto3==1.39.11
+botocore==1.39.11
 build==1.3.0
 cachelib==0.13.0
 cachetools==5.5.2
@@ -344,7 +344,7 @@ google-api-python-client==2.178.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.40.3
-google-cloud-aiplatform==1.107.0
+google-cloud-aiplatform==1.108.0
 google-cloud-alloydb==0.4.8
 google-cloud-appengine-logging==1.6.2
 google-cloud-audit-log==0.3.2
@@ -667,7 +667,7 @@ requests-oauthlib==2.0.0
 requests-toolbelt==1.0.0
 requests==2.32.4
 requests_ntlm==1.3.0
-responses==0.25.7
+responses==0.25.8
 restructuredtext_lint==1.4.0
 retryhttp==1.3.3
 rfc3339-validator==0.1.4
@@ -759,7 +759,7 @@ tokenizers==0.21.4
 tomli==2.2.1
 tomli_w==1.2.0
 tomlkit==0.13.3
-tornado==6.5.1
+tornado==6.5.2
 towncrier==24.8.0
 tqdm==4.67.1
 traitlets==5.14.3
@@ -798,7 +798,7 @@ uritemplate==4.2.0
 urllib3==2.5.0
 userpath==1.9.2
 uuid6==2025.0.1
-uv==0.8.6
+uv==0.8.7
 uvicorn==0.35.0
 uvloop==0.21.0
 validators==0.35.0
