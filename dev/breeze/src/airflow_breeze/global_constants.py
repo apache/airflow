@@ -218,6 +218,8 @@ DESTINATION_LOCATIONS = [
     "s3://staging-docs-airflow-apache-org/docs/",
 ]
 
+PACKAGES_METADATA_EXCLUDE_NAMES = ["docker-stack", "apache-airflow-providers"]
+
 
 @clearable_cache
 def all_selective_core_test_types() -> tuple[str, ...]:
