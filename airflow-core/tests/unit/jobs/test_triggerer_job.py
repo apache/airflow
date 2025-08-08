@@ -418,12 +418,8 @@ class TestTriggerRunner:
         zip_file = "/path/to/zipfile.zip"
 
         zip_info_list = [
-            MagicMock(
-                filename="path/to/file1.py"
-            ),
-            MagicMock(
-                filename="longer/path/to/file2.py"
-            ),
+            MagicMock(filename="path/to/file1.py"),
+            MagicMock(filename="longer/path/to/file2.py"),
         ]
         zipfile_mock.return_value.__enter__.return_value.infolist.return_value = zip_info_list
 
@@ -439,8 +435,6 @@ class TestTriggerRunner:
                 call("longer.path.to.file2", None),
             ]
         )
-
-
 
 
 @pytest.mark.asyncio

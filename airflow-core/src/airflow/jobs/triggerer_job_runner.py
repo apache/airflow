@@ -24,6 +24,7 @@ import selectors
 import signal
 import sys
 import time
+import zipfile
 from collections import deque
 from collections.abc import Generator, Iterable
 from contextlib import suppress
