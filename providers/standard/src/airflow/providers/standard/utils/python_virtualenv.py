@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import warnings
 from pathlib import Path
 
 import jinja2
@@ -55,6 +56,13 @@ def _use_uv() -> bool:
 
 def _generate_uv_cmd(tmp_dir: str, python_bin: str, system_site_packages: bool) -> list[str]:
     """Build the command to install the venv via UV."""
+    if python_bin == "python" or python_bin == "python3":
+        warnings.warn(
+            f"uv trying to use `{python_bin}` as the python interpreter. it could lead to errors if the python interpreter not found in PATH. "
+            f"please specify python_version in operator.",
+            UserWarning,
+            stacklevel=3,
+        )
     cmd = ["uv", "venv", "--allow-existing", "--seed", "--python", python_bin]
     if system_site_packages:
         cmd.append("--system-site-packages")
