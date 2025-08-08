@@ -1532,9 +1532,15 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/generate_openapi_spec_fab.py
         pass_filenames: false
-        files: ^airflow-core/src/airflow/api_fastapi/.*\.py$|^airflow-core/src/airflow/api_fastapi/auth/managers/simple/.*\.py$|^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
-        exclude: ^airflow-core/src/airflow/api_fastapi/execution_api/.*
+        files: ^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
         additional_dependencies: ['rich>=12.4.4', 'openapi-spec-validator>=0.7.1']
+      - id: generate-openapi-spec-keycloak
+        name: Generate the FastAPI API spec for Keycloak
+        language: python
+        entry: ./scripts/ci/pre_commit/generate_openapi_spec_keycloak.py
+        pass_filenames: false
+        files: ^providers/keycloak/src/airflow/providers/keycloak/auth_manager/.*\.py$
+        additional_dependencies: [ 'rich>=12.4.4', 'openapi-spec-validator>=0.7.1' ]
       - id: check-i18n-json
         name: Check i18n files validity
         description: Check i18n files are valid json, have no TODOs, and auto-format them
@@ -1681,6 +1687,7 @@ repos:
           ^airflow-core/src/airflow/models/baseoperator\.py$|
           ^airflow-core/src/airflow/models/connection\.py$|
           ^airflow-core/src/airflow/models/dag\.py$|
+          ^airflow-core/src/airflow/models/deadline\.py$|
           ^airflow-core/src/airflow/models/dagbag\.py$|
           ^airflow-core/src/airflow/models/dagrun\.py$|
           ^airflow-core/src/airflow/models/mappedoperator\.py$|

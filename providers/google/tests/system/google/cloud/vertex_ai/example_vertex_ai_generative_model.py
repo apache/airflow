@@ -29,6 +29,11 @@ import requests
 from vertexai.generative_models import HarmBlockThreshold, HarmCategory, Part, Tool, grounding
 from vertexai.preview.evaluation import MetricPromptTemplateExamples
 
+try:
+    from airflow.sdk import task
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.vertex_ai.experiment_service import (
     CreateExperimentOperator,
@@ -43,9 +48,10 @@ from airflow.providers.google.cloud.operators.vertex_ai.generative_model import 
     RunEvaluationOperator,
     TextEmbeddingModelGetEmbeddingsOperator,
 )
+from airflow.providers.google.common.utils.get_secret import get_secret
 
 
-def get_actual_models() -> dict[str, str]:
+def _get_actual_models(key) -> dict[str, str]:
     models: dict[str, str] = {
         "multimodal": "",
         "text-embedding": "",
@@ -54,7 +60,7 @@ def get_actual_models() -> dict[str, str]:
     try:
         response = requests.get(
             "https://generativelanguage.googleapis.com/v1/models",
-            {"key": GEMINI_API_KEY},
+            {"key": key},
             timeout=10,
         )
         response.raise_for_status()
@@ -120,15 +126,15 @@ def get_actual_models() -> dict[str, str]:
 
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-MODELS = get_actual_models()
+GEMINI_API_KEY = "api_key"
+MODELS = "{{ task_instance.xcom_pull('get_actual_models') }}"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 DAG_ID = "vertex_ai_generative_model_dag"
 REGION = "us-central1"
 PROMPT = "In 10 words or less, why is Apache Airflow amazing?"
 CONTENTS = [PROMPT]
-TEXT_EMBEDDING_MODEL = MODELS["text-embedding"]
-MULTIMODAL_MODEL = MODELS["multimodal"]
+TEXT_EMBEDDING_MODEL = "{{ task_instance.xcom_pull('get_actual_models')['text-embedding'] }}"
+MULTIMODAL_MODEL = "{{ task_instance.xcom_pull('get_actual_models')['multimodal'] }}"
 MEDIA_GCS_PATH = "gs://download.tensorflow.org/example_images/320px-Felis_catus-cat_on_snow.jpg"
 MIME_TYPE = "image/jpeg"
 TOOLS = [Tool.from_google_search_retrieval(grounding.GoogleSearchRetrieval())]
@@ -168,11 +174,11 @@ METRICS = [
     "rouge_2",
     "rouge_l_sum",
 ]
-EXPERIMENT_NAME = f"eval-test-experiment-airflow-operator-{ENV_ID}"
-EXPERIMENT_RUN_NAME = f"eval-experiment-airflow-operator-run-{ENV_ID}"
+EXPERIMENT_NAME = f"eval-test-experiment-airflow-operator-{ENV_ID}".replace("_", "-")
+EXPERIMENT_RUN_NAME = f"eval-experiment-airflow-operator-run-{ENV_ID}".replace("_", "-")
 PROMPT_TEMPLATE = "{instruction}. Article: {context}. Summary:"
 
-CACHED_MODEL = MODELS["cached-model"]
+CACHED_MODEL = "{{ task_instance.xcom_pull('get_actual_models')['cached-model'] }}"
 CACHED_SYSTEM_INSTRUCTION = """
 You are an expert researcher. You always stick to the facts in the sources provided, and never make up new facts.
 Now look at these research papers, and answer the following questions.
@@ -196,7 +202,21 @@ with DAG(
     start_date=datetime(2024, 1, 1),
     catchup=False,
     tags=["example", "vertex_ai", "generative_model"],
+    render_template_as_native_obj=True,
 ) as dag:
+
+    @task
+    def get_gemini_api_key():
+        return get_secret(GEMINI_API_KEY)
+
+    get_gemini_api_key_task = get_gemini_api_key()
+
+    @task
+    def get_actual_models(key):
+        return _get_actual_models(key)
+
+    get_actual_models_task = get_actual_models(get_gemini_api_key_task)
+
     # [START how_to_cloud_vertex_ai_text_embedding_model_get_embeddings_operator]
     generate_embeddings_task = TextEmbeddingModelGetEmbeddingsOperator(
         task_id="generate_embeddings_task",
@@ -290,9 +310,16 @@ with DAG(
         safety_settings=SAFETY_SETTINGS,
     )
     # [END how_to_cloud_vertex_ai_generate_from_cached_content_operator]
-
-    create_cached_content_task >> generate_from_cached_content_task
-    create_experiment_task >> run_evaluation_task >> delete_experiment_run_task >> delete_experiment_task
+    get_gemini_api_key_task >> get_actual_models_task
+    get_actual_models_task >> [generate_embeddings_task, count_tokens_task, generate_content_task]
+    get_actual_models_task >> create_cached_content_task >> generate_from_cached_content_task
+    (
+        get_actual_models_task
+        >> create_experiment_task
+        >> run_evaluation_task
+        >> delete_experiment_run_task
+        >> delete_experiment_task
+    )
 
     from tests_common.test_utils.watcher import watcher
 

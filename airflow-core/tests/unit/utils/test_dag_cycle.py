@@ -23,7 +23,6 @@ from airflow.models.dag import DAG
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Label
 from airflow.sdk.definitions.taskgroup import TaskGroup
-from airflow.utils.dag_cycle_tester import check_cycle
 
 from unit.models import DEFAULT_DATE
 
@@ -33,7 +32,7 @@ class TestCycleTester:
         # test empty
         dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
 
-        assert not check_cycle(dag)
+        assert not dag.check_cycle()
 
     def test_cycle_single_task(self):
         # test single task
@@ -42,7 +41,7 @@ class TestCycleTester:
         with dag:
             EmptyOperator(task_id="A")
 
-        assert not check_cycle(dag)
+        assert not dag.check_cycle()
 
     def test_semi_complex(self):
         dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
@@ -79,7 +78,7 @@ class TestCycleTester:
             op2.set_downstream(op4)
             op5.set_downstream(op6)
 
-        assert not check_cycle(dag)
+        assert not dag.check_cycle()
 
     def test_cycle_loop(self):
         # test self loop
@@ -91,7 +90,7 @@ class TestCycleTester:
             op1.set_downstream(op1)
 
         with pytest.raises(AirflowDagCycleException):
-            assert not check_cycle(dag)
+            assert not dag.check_cycle()
 
     def test_cycle_downstream_loop(self):
         # test downstream self loop
@@ -111,7 +110,7 @@ class TestCycleTester:
             op5.set_downstream(op5)
 
         with pytest.raises(AirflowDagCycleException):
-            assert not check_cycle(dag)
+            assert not dag.check_cycle()
 
     def test_cycle_large_loop(self):
         # large loop
@@ -129,7 +128,7 @@ class TestCycleTester:
 
             current.set_downstream(start)
         with pytest.raises(AirflowDagCycleException):
-            assert not check_cycle(dag)
+            assert not dag.check_cycle()
 
     def test_cycle_arbitrary_loop(self):
         # test arbitrary loop
@@ -151,7 +150,7 @@ class TestCycleTester:
             op5.set_downstream(op1)
 
         with pytest.raises(AirflowDagCycleException):
-            assert not check_cycle(dag)
+            assert not dag.check_cycle()
 
     def test_cycle_task_group_with_edge_labels(self):
         # Test a cycle is not detected when Labels are used between tasks in Task Groups.
@@ -165,4 +164,4 @@ class TestCycleTester:
 
                 op1 >> Label("label") >> op2
 
-        assert not check_cycle(dag)
+        assert not dag.check_cycle()

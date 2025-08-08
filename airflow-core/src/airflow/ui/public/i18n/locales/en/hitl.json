@@ -19,5 +19,6 @@
     "rejectionReceived": "Rejection Received",
     "responseReceived": "Response Received",
     "responseRequired": "Response Required"
-  }
+  },
+  "subject": "Subject"
 }

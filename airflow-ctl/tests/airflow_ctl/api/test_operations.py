@@ -898,8 +898,8 @@ class TestDagRunOperations:
         data_interval_start=datetime.datetime(2025, 1, 1, 0, 0, 0),
         data_interval_end=datetime.datetime(2025, 1, 1, 0, 0, 0),
         last_scheduling_decision=datetime.datetime(2025, 1, 1, 0, 0, 0),
-        run_type=DagRunType.MANUAL,
         run_after=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        run_type=DagRunType.MANUAL,
         state=DagRunState.RUNNING,
         triggered_by=DagRunTriggeredByType.UI,
         conf={},
@@ -923,11 +923,8 @@ class TestDagRunOperations:
     )
 
     trigger_dag_run = TriggerDAGRunPostBody(
-        dag_run_id=dag_run_id,
-        data_interval_start=datetime.datetime(2025, 1, 1, 0, 0, 0),
-        data_interval_end=datetime.datetime(2025, 1, 1, 0, 0, 0),
-        conf={},
-        note="note",
+        conf=None,
+        note=None,
     )
 
     def test_get(self):

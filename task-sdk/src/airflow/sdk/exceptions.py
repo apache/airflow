@@ -20,8 +20,14 @@ from __future__ import annotations
 import enum
 from typing import TYPE_CHECKING, Any
 
+from airflow.exceptions import AirflowException
+
 if TYPE_CHECKING:
     from airflow.sdk.execution_time.comms import ErrorResponse
+
+
+class AirflowDagCycleException(AirflowException):
+    """Raise when there is a cycle in DAG definition."""
 
 
 class AirflowRuntimeError(Exception):
