@@ -77,89 +77,101 @@ export const Calendar = () => {
     { enabled: Boolean(dagId) },
   );
 
-  const renderCalendarContent = () => (
-    <>
-      {granularity === "daily" ? (
-        <DailyCalendarView cellSize={cellSize} data={data?.dag_runs ?? []} selectedYear={selectedYear} />
-      ) : (
-        <HourlyCalendarView
-          cellSize={cellSize}
-          data={data?.dag_runs ?? []}
-          selectedMonth={selectedMonth}
-          selectedYear={selectedYear}
-        />
-      )}
-
-      <Box>
-        {/* Success Rate Spectrum */}
-        <Box mb={4}>
-          <Text color="gray.700" fontSize="sm" fontWeight="medium" mb={3} textAlign="center">
-            {translate("calendar.legend.successRateSpectrum")}
+  const renderLegend = () => (
+    <Box>
+      {/* Success Rate Spectrum */}
+      <Box mb={4}>
+        <Text color="gray.700" fontSize="sm" fontWeight="medium" mb={3} textAlign="center">
+          {translate("calendar.legend.successRateSpectrum")}
+        </Text>
+        <HStack gap={3} justify="center">
+          <Text color="gray.600" fontSize="xs">
+            {translate("common:states.success")}
           </Text>
-          <HStack gap={3} justify="center">
-            <Text color="gray.600" fontSize="xs">
-              {translate("common:states.success")}
-            </Text>
-            <HStack borderRadius="full" boxShadow="sm" gap={0} overflow="hidden">
-              <Tooltip content={translate("calendar.legend.tooltips.success100")} openDelay={300}>
-                <Box bg="#008000" cursor="pointer" height="20px" width="32px" />
-              </Tooltip>
-              <Tooltip content={translate("calendar.legend.tooltips.successRate80")} openDelay={300}>
-                <Box bg="#16A34A" cursor="pointer" height="20px" width="24px" />
-              </Tooltip>
-              <Tooltip content={translate("calendar.legend.tooltips.successRate60")} openDelay={300}>
-                <Box bg="#22C55E" cursor="pointer" height="20px" width="24px" />
-              </Tooltip>
-              <Tooltip content={translate("calendar.legend.tooltips.successRate40")} openDelay={300}>
-                <Box bg="#EAB308" cursor="pointer" height="20px" width="24px" />
-              </Tooltip>
-              <Tooltip content={translate("calendar.legend.tooltips.successRate20")} openDelay={300}>
-                <Box bg="#F97316" cursor="pointer" height="20px" width="24px" />
-              </Tooltip>
-              <Tooltip content={translate("calendar.legend.tooltips.failed")} openDelay={300}>
-                <Box bg="#DC2626" cursor="pointer" height="20px" width="32px" />
-              </Tooltip>
-            </HStack>
-            <Text color="gray.600" fontSize="xs">
-              {translate("common:states.failed")}
-            </Text>
+          <HStack borderRadius="full" boxShadow="sm" gap={0} overflow="hidden">
+            <Tooltip content={translate("calendar.legend.tooltips.success100")} openDelay={300}>
+              <Box bg="#008000" cursor="pointer" height="20px" width="32px" />
+            </Tooltip>
+            <Tooltip content={translate("calendar.legend.tooltips.successRate80")} openDelay={300}>
+              <Box bg="#16A34A" cursor="pointer" height="20px" width="24px" />
+            </Tooltip>
+            <Tooltip content={translate("calendar.legend.tooltips.successRate60")} openDelay={300}>
+              <Box bg="#22C55E" cursor="pointer" height="20px" width="24px" />
+            </Tooltip>
+            <Tooltip content={translate("calendar.legend.tooltips.successRate40")} openDelay={300}>
+              <Box bg="#EAB308" cursor="pointer" height="20px" width="24px" />
+            </Tooltip>
+            <Tooltip content={translate("calendar.legend.tooltips.successRate20")} openDelay={300}>
+              <Box bg="#F97316" cursor="pointer" height="20px" width="24px" />
+            </Tooltip>
+            <Tooltip content={translate("calendar.legend.tooltips.failed")} openDelay={300}>
+              <Box bg="#DC2626" cursor="pointer" height="20px" width="32px" />
+            </Tooltip>
           </HStack>
-        </Box>
-
-        {/* Single State Colors */}
-        <Box>
-          <Text color="gray.700" fontSize="sm" fontWeight="medium" mb={3} textAlign="center">
-            {translate("common:state")}
+          <Text color="gray.600" fontSize="xs">
+            {translate("common:states.failed")}
           </Text>
-          <HStack gap={4} justify="center" wrap="wrap">
-            <HStack gap={2}>
-              <Box bg="#3182CE" borderRadius="full" boxShadow="sm" height="16px" width="16px" />
-              <Text color="gray.600" fontSize="sm">
-                {translate("common:states.running")}
-              </Text>
-            </HStack>
-            <HStack gap={2}>
-              <Box bg="#F1E7DA" borderRadius="full" boxShadow="sm" height="16px" width="16px" />
-              <Text color="gray.600" fontSize="sm">
-                {translate("common:states.planned")}
-              </Text>
-            </HStack>
-            <HStack gap={2}>
-              <Box bg="#808080" borderRadius="full" boxShadow="sm" height="16px" width="16px" />
-              <Text color="gray.600" fontSize="sm">
-                {translate("common:states.queued")}
-              </Text>
-            </HStack>
-            <HStack gap={2}>
-              <Box bg="#ebedf0" borderRadius="full" boxShadow="sm" height="16px" width="16px" />
-              <Text color="gray.600" fontSize="sm">
-                {translate("common:states.no_status")}
-              </Text>
-            </HStack>
-          </HStack>
-        </Box>
+        </HStack>
       </Box>
-    </>
+
+      {/* Single State Colors */}
+      <Box>
+        <Text color="gray.700" fontSize="sm" fontWeight="medium" mb={3} textAlign="center">
+          {translate("common:state")}
+        </Text>
+        <HStack gap={4} justify="center" wrap="wrap">
+          <HStack gap={2}>
+            <Box bg="#3182CE" borderRadius="full" boxShadow="sm" height="16px" width="16px" />
+            <Text color="gray.600" fontSize="sm">
+              {translate("common:states.running")}
+            </Text>
+          </HStack>
+          <HStack gap={2}>
+            <Box bg="#F1E7DA" borderRadius="full" boxShadow="sm" height="16px" width="16px" />
+            <Text color="gray.600" fontSize="sm">
+              {translate("common:states.planned")}
+            </Text>
+          </HStack>
+          <HStack gap={2}>
+            <Box bg="#808080" borderRadius="full" boxShadow="sm" height="16px" width="16px" />
+            <Text color="gray.600" fontSize="sm">
+              {translate("common:states.queued")}
+            </Text>
+          </HStack>
+          <HStack gap={2}>
+            <Box bg="#ebedf0" borderRadius="full" boxShadow="sm" height="16px" width="16px" />
+            <Text color="gray.600" fontSize="sm">
+              {translate("common:states.no_status")}
+            </Text>
+          </HStack>
+        </HStack>
+      </Box>
+    </Box>
+  );
+
+  const renderCalendarContent = () => (
+    <Box>
+      {granularity === "daily" ? (
+        <>
+          <DailyCalendarView cellSize={cellSize} data={data?.dag_runs ?? []} selectedYear={selectedYear} />
+          {renderLegend()}
+        </>
+      ) : (
+        <HStack align="start" gap={4}>
+          <Box flex="1">
+            <HourlyCalendarView
+              cellSize={cellSize}
+              data={data?.dag_runs ?? []}
+              selectedMonth={selectedMonth}
+              selectedYear={selectedYear}
+            />
+          </Box>
+          <Box minWidth="200px" pt={16}>
+            {renderLegend()}
+          </Box>
+        </HStack>
+      )}
+    </Box>
   );
 
   if (!data && !isLoading) {
