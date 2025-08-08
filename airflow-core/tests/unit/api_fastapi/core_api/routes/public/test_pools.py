@@ -37,7 +37,7 @@ POOL2_INCLUDE_DEFERRED = False
 POOL2_DESCRIPTION = "Some Description"
 
 
-POOL3_NAME = "pool/3"
+POOL3_NAME = "pool3/with_slashes"
 POOL3_SLOT = 5
 POOL3_INCLUDE_DEFERRED = False
 POOL3_DESCRIPTION = "Some Description"
@@ -152,7 +152,7 @@ class TestGetPool(TestPoolsEndpoint):
             "deferred_slots": 0,
             "description": "Some Description",
             "include_deferred": False,
-            "name": "pool/3",
+            "name": "pool3/with_slashes",
             "occupied_slots": 0,
             "open_slots": 5,
             "queued_slots": 0,
@@ -173,7 +173,7 @@ class TestGetPools(TestPoolsEndpoint):
             # Sort
             ({"order_by": "-id"}, 4, [POOL3_NAME, POOL2_NAME, POOL1_NAME, Pool.DEFAULT_POOL_NAME]),
             ({"order_by": "id"}, 4, [Pool.DEFAULT_POOL_NAME, POOL1_NAME, POOL2_NAME, POOL3_NAME]),
-            ({"order_by": "name"}, 4, [Pool.DEFAULT_POOL_NAME, POOL3_NAME, POOL1_NAME, POOL2_NAME]),
+            ({"order_by": "name"}, 4, [Pool.DEFAULT_POOL_NAME, POOL1_NAME, POOL2_NAME, POOL3_NAME]),
             # Search
             (
                 {"pool_name_pattern": "~"},
@@ -370,7 +370,7 @@ class TestPatchPool(TestPoolsEndpoint):
             "deferred_slots": 0,
             "description": "Updated Description",
             "include_deferred": True,
-            "name": "pool/3",
+            "name": "pool3/with_slashes",
             "occupied_slots": 0,
             "open_slots": 10,
             "queued_slots": 0,
