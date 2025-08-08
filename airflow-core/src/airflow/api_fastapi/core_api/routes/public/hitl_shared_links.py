@@ -64,7 +64,6 @@ def generate_shared_link(
     request: GenerateSharedLinkRequest,
     http_request: Request,
     session: SessionDep,
-    # map_index: int | None = None,
 ) -> GenerateSharedLinkResponse:
     """
     Generate a shared link for a Human-in-the-look task instance.

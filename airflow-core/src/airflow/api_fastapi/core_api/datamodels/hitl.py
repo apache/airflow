@@ -32,7 +32,6 @@ class UpdateHITLDetailPayload(BaseModel):
 
     chosen_options: list[str]
     params_input: Mapping = Field(default_factory=dict)
-    try_number: int = Field(default=1, description="Try number for the task")
 
 
 class HITLDetailResponse(BaseModel):
@@ -42,13 +41,6 @@ class HITLDetailResponse(BaseModel):
     response_at: datetime
     chosen_options: list[str]
     params_input: Mapping = Field(default_factory=dict)
-
-    # Shared link response fields (added)
-    task_instance_id: str | None = None
-    link_url: str | None = None
-    expires_at: datetime | None = None
-    action: str | None = None
-    link_type: str = "direct_action"
 
 
 class HITLDetail(BaseModel):
@@ -71,8 +63,6 @@ class HITLDetail(BaseModel):
     params_input: dict[str, Any] = Field(default_factory=dict)
 
     response_received: bool = False
-    link_url: str | None = None  # Added
-    expires_at: datetime | None = None  # Added
 
     @field_validator("params", mode="before")
     @classmethod
@@ -111,6 +101,5 @@ class HITLSharedLinkPayload(HITLSharedLinkFields, BaseModel):
     dag_id: str
     dag_run_id: str
     task_id: str
-    try_number: int
     map_index: int | None = None
     expires_at: str

@@ -16,21 +16,18 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
+from datetime import datetime
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
 
 class GenerateSharedLinkRequest(BaseModel):
-    """Request model for generating HITL shared links."""
+    """Request model for generating Human-in-the-loop shared links."""
 
-    link_type: str = Field(
-        default="direct_action",
-        description="Type of link to generate: 'ui_redirect' for UI interaction or 'direct_action' for direct execution",
-    )
-    action: str | None = Field(
-        default=None,
-        description="Optional action to perform when link is accessed (e.g., 'approve', 'reject'). Required for direct_action links.",
+    link_type: Literal["ui_redirect", "perform_action"] = Field(
+        default="ui_redirect",
+        description="Type of link to generate: 'ui_redirect' for UI interaction or 'perform_action' for direct execution",
     )
     chosen_options: list[str] | None = Field(
         default=None,
@@ -40,22 +37,15 @@ class GenerateSharedLinkRequest(BaseModel):
         default=None,
         description="Parameters input for direct_action links",
     )
-    expiration_hours: int | None = Field(
+    expires_at: datetime | None = Field(
         default=None,
-        description="Custom expiration time in hours",
+        description="Time that the link should expire at",
     )
 
 
 class GenerateSharedLinkResponse(BaseModel):
-    """Response model for generated HITL shared links."""
+    """Response model for generated Human-in-the-loop shared links."""
 
     url: str
     expires_at: str
     link_type: str
-    action: str | None
-    dag_id: str
-    dag_run_id: str
-    task_id: str
-    try_number: int
-    map_index: int | None
-    task_instance_uuid: str

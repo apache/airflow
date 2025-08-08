@@ -21,7 +21,7 @@ from __future__ import annotations
 import base64
 import json
 from datetime import datetime, timedelta
-from typing import Any, Literal
+from typing import Any, Literal, TypedDict
 
 import structlog
 from fastapi import HTTPException, status
@@ -32,9 +32,26 @@ from airflow.api_fastapi.core_api.datamodels.hitl import (
     HITLDetailResponse,
     UpdateHITLDetailPayload,
 )
+from airflow.api_fastapi.core_api.services.hitl import _get_task_instance
 from airflow.configuration import conf
 
 log = structlog.get_logger(__name__)
+
+HITL_LINK_TYPE = Literal["ui_redirect", "perform_action"]
+
+
+class HITLSharedDataOrigin(TypedDict):
+    """The type of data used to generate a share token."""
+
+    ti_id: str
+    dag_id: str
+    dag_run_id: str
+    task_id: str
+    map_index: int | None
+    link_type: HITL_LINK_TYPE
+    chosen_options: list[str]
+    params_input: dict[str, Any]
+    expires_at: str
 
 
 def check_hitl_shared_link_enabled() -> None:
@@ -50,80 +67,62 @@ def check_hitl_shared_link_enabled() -> None:
         )
 
 
-def generate_shared_link_token(
-    # task instnace
+def encode_shared_data(
+    # task instance
+    ti_id: str,
     dag_id: str,
     dag_run_id: str,
     task_id: str,
-    map_index: int | None = None,
+    map_index: int | None,
     # Human-in-the-look shared link
-    link_type: Literal["direct_action", "ui_redirect"] = "direct_action",
-    expiration_hours: int | None = None,
-    action: str | None = None,
-    chosen_options: list[str] | None = None,
-    params_input: dict[str, Any] | None = None,
-    session: Session | None = None,
+    link_type: HITL_LINK_TYPE,
+    expires_at: str,
+    chosen_options: list[str],
+    params_input: dict[str, Any],
 ) -> str:
     """
-    Generate a secure token for HITL shared links.
+    Generate a secure token for Human-in-the-loop shared links.
 
-    :param dag_id: DAG ID
-    :param dag_run_id: DAG run ID
+    :param ti_id: task_instance ID
+    :param dag_id: Dag ID
+    :param dag_run_id: Dag run ID
     :param task_id: Task ID
-    :param link_type: Type of link ('ui_redirect' or 'direct_action')
-    :param action: Action to perform (for direct_action links)
-    :param chosen_options: Chosen options for direct_action links
-    :param params_input: Parameters input for direct_action links
     :param map_index: Map index for mapped tasks
-    :param expiration_hours: Custom expiration time in hours
+    :param link_type: Type of link ('ui_redirect' or 'perform_action')
+    :param chosen_options: Chosen options for perform_action links
+    :param params_input: Parameters input for perform_action links
+    :param expires_at: Custom expiration time in hours
     :param session: Database session (required to get task instance UUID)
-    :return: Base64-encoded token
+
+    :return: jwt-encoded token
     """
+    # TODO: make it a decorator
     check_hitl_shared_link_enabled()
 
-    if link_type == "direct_action" and not action:
-        raise ValueError("Action is required for direct_action-type links")
-
-    if session is None:
-        raise ValueError("Database session is required to generate shared link token")
-
-    if expiration_hours is None:
-        expiration_hours = conf.getint("api", "hitl_shared_link_expiration_hours", fallback=24)
-
-    expires_at = utcnow() + timedelta(hours=expiration_hours)
-
-    # Get the task instance to use its UUID
-    task_instance = _get_task_instance(
-        dag_id=dag_id,
-        dag_run_id=dag_run_id,
-        task_id=task_id,
-        session=session,
-        map_index=map_index,
-    )
-
-    token_data = {
-        "task_instance_uuid": str(task_instance.id),  # Use existing task instance ID
-        "type": link_type,
+    token_data: HITLSharedDataOrigin = {
+        # task instance
+        "ti_id": ti_id,
         "dag_id": dag_id,
         "dag_run_id": dag_run_id,
         "task_id": task_id,
         "map_index": map_index,
-        "action": action,
-        "chosen_options": chosen_options,
-        "params_input": params_input,
+        # hitl shared link
+        "link_type": link_type,
+        "chosen_options": chosen_options or [],
+        "params_input": params_input or {},
         "expires_at": expires_at.isoformat(),
     }
 
     token_json = json.dumps(token_data, sort_keys=True)
     token_bytes = token_json.encode("utf-8")
+    # TODO: replace base64 as jwt
     token = base64.urlsafe_b64encode(token_bytes).decode("utf-8")
-
     return token
 
 
-def validate_shared_link_token(token: str) -> dict[str, Any]:
+def decode_shared_data(token: str) -> HITLSharedDataOrigin:
     """
-    Validate and decode a shared link token.
+    Decode a shared link token.
 
     :param token: Base64-encoded token
     :return: Decoded token data
@@ -131,50 +130,29 @@ def validate_shared_link_token(token: str) -> dict[str, Any]:
     """
     check_hitl_shared_link_enabled()
 
-    try:
-        token_bytes = base64.urlsafe_b64decode(token)
-        token_json = token_bytes.decode("utf-8")
-        token_data = json.loads(token_json)
-
-        # Validate required fields
-        required_fields = [
-            "task_instance_uuid",
-            "type",
-            "dag_id",
-            "dag_run_id",
-            "task_id",
-            "expires_at",
-        ]
-        for field in required_fields:
-            if field not in token_data:
-                raise ValueError(f"Missing required field: {field}")
-
-        # Check expiration
-        expires_at = datetime.fromisoformat(token_data["expires_at"])
-        if utcnow() > expires_at:
-            raise ValueError("Token has expired")
-
-        return token_data
-
-    except (json.JSONDecodeError, KeyError, ValueError) as e:
-        raise ValueError(f"Invalid token: {e}")
+    # TODO: replace base64 as jwt
+    token_bytes = base64.urlsafe_b64decode(token)
+    token_json = token_bytes.decode("utf-8")
+    return json.loads(token_json)
 
 
 def _generate_hitl_shared_link(
+    # task instance
     dag_id: str,
     dag_run_id: str,
     task_id: str,
-    link_type: str = "direct_action",
-    action: str | None = None,
+    map_index: int | None = None,
+    # Human-in-the-look shared link
+    base_url: str | None = None,
+    link_type: HITL_LINK_TYPE = "perform_action",
+    expires_at: datetime | None = None,
     chosen_options: list[str] | None = None,
     params_input: dict[str, Any] | None = None,
-    # map_index: int | None = None,
-    expiration_hours: int | None = None,
-    base_url: str | None = None,
+    # utility
     session: Session | None = None,
 ) -> dict[str, Any]:
     """
-    Generate a shared link for a Human-in-the-look task instance.
+    Generate a shared link for a Human-in-the-loop task instance.
 
     :param dag_id: Dag ID
     :param dag_run_id: Dag run ID
@@ -194,28 +172,44 @@ def _generate_hitl_shared_link(
     if session is None:
         raise ValueError("Database session is required to generate shared link")
 
-    if base_url is None:
-        base_url = conf.get("api", "base_url")
-        if not base_url:
-            raise ValueError("API base_url is not configured")
+    if base_url is None and not (base_url := conf.get("api", "base_url")):
+        raise ValueError("API base_url is not configured")
 
-    token = generate_shared_link_token(
+    if expires_at is None:
+        hitl_shared_link_expiration_hours = conf.getint(
+            "api", "hitl_shared_link_expiration_hours", fallback=24
+        )
+        expires_at = utcnow() + timedelta(hours=hitl_shared_link_expiration_hours)
+
+    # Get the task instance to use its UUID
+    task_instance = _get_task_instance(
         dag_id=dag_id,
         dag_run_id=dag_run_id,
         task_id=task_id,
-        link_type=link_type,
-        action=action,
-        chosen_options=chosen_options,
-        params_input=params_input,
         map_index=map_index,
-        expiration_hours=expiration_hours,
         session=session,
     )
 
-    if link_type == "direct_action":
+    token = encode_shared_data(
+        # task instance
+        ti_id=str(task_instance.id),
+        dag_id=dag_id,
+        dag_run_id=dag_run_id,
+        task_id=task_id,
+        map_index=map_index,
+        # hitl shared link
+        link_type=link_type,
+        chosen_options=chosen_options or [],
+        params_input=params_input or {},
+        expires_at=expires_at.isoformat(),
+    )
+
+    if link_type == "perform_action":
         url_path = "/api/v2/hitl-shared-links/execute"
-    else:
+    elif link_type == "ui_redirect":
         url_path = "/api/v2/hitl-shared-links/redirect"
+    else:
+        raise ValueError(f"Unknown link type: {link_type}")
 
     link_url = f"{base_url.rstrip('/')}{url_path}?token={token}"
 
