@@ -153,7 +153,7 @@ export const XCom = () => {
         <Heading size="md">{translate("xcom.title")}</Heading>
       ) : undefined}
 
-      <XComFilters />
+      {dagId === "~" && runId === "~" && taskId === "~" ? <XComFilters /> : undefined}
 
       <ErrorAlert error={error} />
       <DataTable
