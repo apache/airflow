@@ -73,8 +73,10 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
+from airflow.sdk.definitions import enable_lazy_task_expansion
 from airflow.sdk.definitions._internal.abstractoperator import NotMapped
 from airflow.sdk.definitions.deadline import DeadlineReference
+from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
@@ -1506,6 +1508,10 @@ class DagRun(Base, LoggingMixin):
                 return expanded_tis
             return ()
 
+        def is_unmapped_task(ti: TI) -> bool:
+            # TODO: check why task is still MappedOperator even when not an unmapped task anymore
+            return isinstance(schedulable.task, MappedOperator) and schedulable.map_index == -1
+
         # Check dependencies.
         expansion_happened = False
         # Set of task ids for which was already done _revise_map_indexes_if_mapped
@@ -1539,7 +1545,8 @@ class DagRun(Base, LoggingMixin):
                         )
                     )
                     revised_map_index_task_ids.add(schedulable.task.task_id)
-                ready_tis.append(schedulable)
+                if not enable_lazy_task_expansion or not is_unmapped_task(schedulable):
+                    ready_tis.append(schedulable)
 
         # Check if any ti changed state
         tis_filter = TI.filter_for_tis(old_states)
@@ -2087,6 +2094,15 @@ class DagRun(Base, LoggingMixin):
     @staticmethod
     def _get_partial_task_ids(dag: DAG | None) -> list[str] | None:
         return dag.task_ids if dag and dag.partial else None
+
+    @classmethod
+    def get_dag_run(cls, dag_id: str, run_id: str, session: Session) -> DagRun | None:
+        return session.scalars(
+            select(DagRun).where(
+                DagRun.dag_id == dag_id,
+                DagRun.run_id == run_id,
+            )
+        ).one_or_none()
 
 
 class DagRunNote(Base):

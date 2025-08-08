@@ -52,6 +52,7 @@ from airflow.sdk.api.datamodels._generated import (
 )
 from airflow.sdk.bases.operator import BaseOperator, ExecutorSafeguard
 from airflow.sdk.bases.xcom import BaseXCom
+from airflow.sdk.definitions import enable_lazy_task_expansion
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
@@ -1240,9 +1241,10 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
         from airflow.sdk.definitions.mappedoperator import is_mappable_value
         from airflow.sdk.exceptions import UnmappableXComTypePushed
 
-        if not is_mappable_value(xcom_value):
+        if is_mappable_value(xcom_value):
+            mapped_length = len(xcom_value)
+        elif not enable_lazy_task_expansion:
             raise UnmappableXComTypePushed(xcom_value)
-        mapped_length = len(xcom_value)
 
     log.info("Pushing xcom", ti=ti)
 
