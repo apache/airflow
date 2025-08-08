@@ -38,11 +38,12 @@
 import { Box, Text } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
+import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
-import { Tooltip } from "src/components/ui";
 
+import { CalendarTooltip } from "./CalendarTooltip";
 import { createTooltipContent, generateHourlyCalendarData, getCalendarCellColor } from "./calendarUtils";
 
 dayjs.extend(isSameOrBefore);
@@ -57,6 +58,39 @@ type Props = {
 export const HourlyCalendarView = ({ cellSize, data, selectedMonth, selectedYear }: Props) => {
   const { t: translate } = useTranslation("dag");
   const hourlyData = generateHourlyCalendarData(data, selectedYear, selectedMonth);
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const activeTooltipRef = useRef<HTMLElement | undefined>(undefined);
+
+  const handleMouseEnter = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    const tooltipElement = event.currentTarget.querySelector("[data-tooltip]");
+
+    if (tooltipElement) {
+      activeTooltipRef.current = tooltipElement as HTMLElement;
+      debounceTimeoutRef.current = setTimeout(() => {
+        if (activeTooltipRef.current) {
+          activeTooltipRef.current.style.opacity = "1";
+          activeTooltipRef.current.style.visibility = "visible";
+        }
+      }, 200);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+      debounceTimeoutRef.current = undefined;
+    }
+
+    if (activeTooltipRef.current) {
+      activeTooltipRef.current.style.opacity = "0";
+      activeTooltipRef.current.style.visibility = "hidden";
+      activeTooltipRef.current = undefined;
+    }
+  };
 
   return (
     <Box mb={4}>
@@ -151,16 +185,25 @@ export const HourlyCalendarView = ({ cellSize, data, selectedMonth, selectedYear
                 const hourData = day.hours.find((hourItem) => hourItem.hour === hour);
 
                 if (!hourData) {
+                  const noRunsTooltip = `${dayjs(day.day).format("MMM DD")}, ${hour.toString().padStart(2, "0")}:00 - No runs`;
+
                   return (
                     <Box
-                      bg={getCalendarCellColor([])}
-                      borderRadius="2px"
-                      cursor="pointer"
-                      height={`${cellSize}px`}
                       key={`${day.day}-${hour}`}
-                      marginRight={index % 7 === 6 ? "8px" : "0"}
-                      width={`${cellSize}px`}
-                    />
+                      onMouseEnter={handleMouseEnter}
+                      onMouseLeave={handleMouseLeave}
+                      position="relative"
+                    >
+                      <Box
+                        bg={getCalendarCellColor([])}
+                        borderRadius="2px"
+                        cursor="pointer"
+                        height={`${cellSize}px`}
+                        marginRight={index % 7 === 6 ? "8px" : "0"}
+                        width={`${cellSize}px`}
+                      />
+                      <CalendarTooltip cellSize={cellSize} content={noRunsTooltip} />
+                    </Box>
                   );
                 }
 
@@ -170,7 +213,12 @@ export const HourlyCalendarView = ({ cellSize, data, selectedMonth, selectedYear
                     : `${dayjs(day.day).format("MMM DD")}, ${hour.toString().padStart(2, "0")}:00 - No runs`;
 
                 return (
-                  <Tooltip content={tooltipContent} key={`${day.day}-${hour}`} openDelay={600}>
+                  <Box
+                    key={`${day.day}-${hour}`}
+                    onMouseEnter={handleMouseEnter}
+                    onMouseLeave={handleMouseLeave}
+                    position="relative"
+                  >
                     <Box
                       bg={getCalendarCellColor(hourData.runs)}
                       borderRadius="2px"
@@ -179,7 +227,8 @@ export const HourlyCalendarView = ({ cellSize, data, selectedMonth, selectedYear
                       marginRight={index % 7 === 6 ? "8px" : "0"}
                       width={`${cellSize}px`}
                     />
-                  </Tooltip>
+                    <CalendarTooltip cellSize={cellSize} content={tooltipContent} />
+                  </Box>
                 );
               })}
             </Box>

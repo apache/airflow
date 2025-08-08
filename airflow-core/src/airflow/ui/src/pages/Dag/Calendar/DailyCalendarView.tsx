@@ -37,10 +37,11 @@
  */
 import { Box, Text } from "@chakra-ui/react";
 import dayjs from "dayjs";
+import { useRef } from "react";
 
 import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
-import { Tooltip } from "src/components/ui";
 
+import { CalendarTooltip } from "./CalendarTooltip";
 import { createTooltipContent, generateDailyCalendarData, getCalendarCellColor } from "./calendarUtils";
 
 type Props = {
@@ -53,6 +54,39 @@ type Props = {
 export const DailyCalendarView = ({ cellSize, currentYear, data, selectedYear }: Props) => {
   const isCurrentYear = selectedYear === currentYear;
   const dailyData = generateDailyCalendarData(data, selectedYear);
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const activeTooltipRef = useRef<HTMLElement | undefined>(undefined);
+
+  const handleMouseEnter = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    const tooltipElement = event.currentTarget.querySelector("[data-tooltip]");
+
+    if (tooltipElement) {
+      activeTooltipRef.current = tooltipElement as HTMLElement;
+      debounceTimeoutRef.current = setTimeout(() => {
+        if (activeTooltipRef.current) {
+          activeTooltipRef.current.style.opacity = "1";
+          activeTooltipRef.current.style.visibility = "visible";
+        }
+      }, 200);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+      debounceTimeoutRef.current = undefined;
+    }
+
+    if (activeTooltipRef.current) {
+      activeTooltipRef.current.style.opacity = "0";
+      activeTooltipRef.current.style.visibility = "hidden";
+      activeTooltipRef.current = undefined;
+    }
+  };
 
   return (
     <Box mb={4}>
@@ -108,7 +142,12 @@ export const DailyCalendarView = ({ cellSize, currentYear, data, selectedYear }:
                 }
 
                 return (
-                  <Tooltip content={createTooltipContent(day)} key={day.date} openDelay={600}>
+                  <Box
+                    key={day.date}
+                    onMouseEnter={handleMouseEnter}
+                    onMouseLeave={handleMouseLeave}
+                    position="relative"
+                  >
                     <Box
                       _hover={isInSelectedYear ? { transform: "scale(1.1)" } : undefined}
                       bg={isInSelectedYear ? getCalendarCellColor(day.runs) : "colorMode.background"}
@@ -117,7 +156,8 @@ export const DailyCalendarView = ({ cellSize, currentYear, data, selectedYear }:
                       height={`${cellSize}px`}
                       width={`${cellSize}px`}
                     />
-                  </Tooltip>
+                    <CalendarTooltip cellSize={cellSize} content={createTooltipContent(day)} />
+                  </Box>
                 );
               })}
             </Box>
