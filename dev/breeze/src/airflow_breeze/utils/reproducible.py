@@ -37,6 +37,7 @@ import itertools
 import locale
 import os
 import shutil
+import stat
 import tarfile
 from argparse import ArgumentParser
 from pathlib import Path
@@ -106,15 +107,6 @@ def repack_deterministically(
     if result.returncode != 0:
         return result
     dest_archive.unlink(missing_ok=True)
-    result = run_command(
-        [
-            "chmod",
-            "-R",
-            "go=",
-            REPRODUCIBLE_PATH.as_posix(),
-        ],
-        check=False,
-    )
     with cd(REPRODUCIBLE_PATH):
         current_dir = "."
         file_list = [current_dir]
@@ -133,6 +125,19 @@ def repack_deterministically(
             with gzip.GzipFile(fileobj=out_file, mtime=0, mode="wb") as gzip_file:
                 with tarfile.open(fileobj=gzip_file, mode="w:") as tar_file:  # type: ignore
                     for entry in file_list:
+                        entry_path = Path(entry)
+                        if not entry_path.is_symlink():
+                            # For non symlinks clear other and group permission bits,
+                            # keep others unchanged
+                            current_mode = entry_path.stat().st_mode
+                            new_mode = current_mode & ~(stat.S_IRWXO | stat.S_IRWXG)
+                            entry_path.chmod(new_mode)
+                        else:
+                            # for symlinks on the other hand set rwx for all - to match Linux on MacOS
+                            # on platforms like Linux symlink permissions cannot be changed
+                            with contextlib.suppress(NotImplementedError):
+                                # Python 3.9 does not support follow_symlinks
+                                entry_path.lchmod(0o777)
                         arcname = entry
                         if prepend_path is not None:
                             arcname = os.path.normpath(os.path.join(prepend_path, arcname))
