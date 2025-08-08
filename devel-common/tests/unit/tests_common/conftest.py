@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,22 +17,39 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
 
-def get_base_airflow_version_tuple() -> tuple[int, int, int]:
-    from packaging.version import Version
-
-    from airflow import __version__
-
-    airflow_version = Version(__version__)
-    return airflow_version.major, airflow_version.minor, airflow_version.micro
-
-
-AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)
-
-try:
-    from airflow.sdk.execution_time.timeout import timeout
-except ImportError:
-    from airflow.utils.timeout import timeout  # type: ignore[assignment]
+from tests_common.test_utils.stream_capture_manager import (
+    CombinedCaptureManager,
+    StderrCaptureManager,
+    StdoutCaptureManager,
+    StreamCaptureManager,
+)
 
 
-__all__ = ["AIRFLOW_V_3_0_PLUS", "timeout"]
+@pytest.fixture
+def stdout_capture():
+    """Fixture that captures stdout only."""
+    return StdoutCaptureManager()
+
+
+@pytest.fixture
+def stderr_capture():
+    """Fixture that captures stderr only."""
+    return StderrCaptureManager()
+
+
+@pytest.fixture
+def stream_capture():
+    """Fixture that returns a configurable stream capture manager."""
+
+    def _capture(stdout=True, stderr=False):
+        return StreamCaptureManager(capture_stdout=stdout, capture_stderr=stderr)
+
+    return _capture
+
+
+@pytest.fixture
+def combined_capture():
+    """Fixture that captures both stdout and stderr."""
+    return CombinedCaptureManager()

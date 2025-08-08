@@ -14,24 +14,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
+from google.cloud.exceptions import NotFound
 
-def get_base_airflow_version_tuple() -> tuple[int, int, int]:
-    from packaging.version import Version
-
-    from airflow import __version__
-
-    airflow_version = Version(__version__)
-    return airflow_version.major, airflow_version.minor, airflow_version.micro
+from airflow.providers.google.cloud.hooks.secret_manager import (
+    GoogleCloudSecretManagerHook,
+)
 
 
-AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)
-
-try:
-    from airflow.sdk.execution_time.timeout import timeout
-except ImportError:
-    from airflow.utils.timeout import timeout  # type: ignore[assignment]
-
-
-__all__ = ["AIRFLOW_V_3_0_PLUS", "timeout"]
+def get_secret(secret_id: str) -> str:
+    hook = GoogleCloudSecretManagerHook()
+    if hook.secret_exists(secret_id=secret_id):
+        return hook.access_secret(secret_id=secret_id).payload.data.decode()
+    raise NotFound("The secret '%s' not found", secret_id)
