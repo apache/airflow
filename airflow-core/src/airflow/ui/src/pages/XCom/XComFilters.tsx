@@ -27,10 +27,50 @@ import { SearchBar } from "src/components/SearchBar";
 import { SearchParamsKeys } from "src/constants/searchParams";
 
 const FILTERS = [
-  { hotkeyDisabled: false, key: SearchParamsKeys.KEY_PATTERN, translationKey: "keyFilter" },
-  { hotkeyDisabled: true, key: SearchParamsKeys.DAG_ID_PATTERN, translationKey: "dagFilter" },
-  { hotkeyDisabled: true, key: SearchParamsKeys.RUN_ID_PATTERN, translationKey: "runIdFilter" },
-  { hotkeyDisabled: true, key: SearchParamsKeys.TASK_ID_PATTERN, translationKey: "taskIdFilter" },
+  {
+    hotkeyDisabled: false,
+    key: SearchParamsKeys.KEY_PATTERN,
+    translationKey: "keyFilter",
+    type: "search",
+  },
+  {
+    hotkeyDisabled: true,
+    key: SearchParamsKeys.DAG_ID_PATTERN,
+    translationKey: "dagFilter",
+    type: "search",
+  },
+  {
+    hotkeyDisabled: true,
+    key: SearchParamsKeys.RUN_ID_PATTERN,
+    translationKey: "runIdFilter",
+    type: "search",
+  },
+  {
+    hotkeyDisabled: true,
+    key: SearchParamsKeys.TASK_ID_PATTERN,
+    translationKey: "taskIdFilter",
+    type: "search",
+  },
+  {
+    key: SearchParamsKeys.LOGICAL_DATE_GTE,
+    translationKey: "logicalDateFrom",
+    type: "datetime",
+  },
+  {
+    key: SearchParamsKeys.LOGICAL_DATE_LTE,
+    translationKey: "logicalDateTo",
+    type: "datetime",
+  },
+  {
+    key: SearchParamsKeys.RUN_AFTER_GTE,
+    translationKey: "runAfterFrom",
+    type: "datetime",
+  },
+  {
+    key: SearchParamsKeys.RUN_AFTER_LTE,
+    translationKey: "runAfterTo",
+    type: "datetime",
+  },
 ] as const;
 
 export const XComFilters = () => {
@@ -39,7 +79,7 @@ export const XComFilters = () => {
   const { pagination, sorting } = tableURLState;
   const { t: translate } = useTranslation(["browse"]);
 
-  const createFilterHandler = useCallback(
+  const handleFilterChange = useCallback(
     (paramKey: string) => (value: string) => {
       if (value === "") {
         searchParams.delete(paramKey);
@@ -55,77 +95,42 @@ export const XComFilters = () => {
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
 
-  const createDateTimeFilterHandler = useCallback(
-    (paramKey: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
-      const { value } = event.target;
+  const renderFilterInput = (filter: (typeof FILTERS)[number]) => {
+    const { key, translationKey, type } = filter;
 
-      if (value === "") {
-        searchParams.delete(paramKey);
-      } else {
-        searchParams.set(paramKey, value);
-      }
-      setTableURLState({
-        pagination: { ...pagination, pageIndex: 0 },
-        sorting,
-      });
-      setSearchParams(searchParams);
-    },
-    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
-  );
+    return (
+      <Box key={key} minW="200px">
+        <Text fontSize="xs" marginBottom={1}>
+          {type === "search" ? "\u00A0" : translate(`xcom.filters.${translationKey}`)}
+        </Text>
+        {type === "search" ? (
+          (() => {
+            const { hotkeyDisabled } = filter;
+
+            return (
+              <SearchBar
+                defaultValue={searchParams.get(key) ?? ""}
+                hideAdvanced
+                hotkeyDisabled={hotkeyDisabled}
+                onChange={handleFilterChange(key)}
+                placeHolder={translate(`xcom.filters.${translationKey}`)}
+              />
+            );
+          })()
+        ) : (
+          <DateTimeInput
+            onChange={(event) => handleFilterChange(key)(event.target.value)}
+            value={searchParams.get(key) ?? ""}
+          />
+        )}
+      </Box>
+    );
+  };
 
   return (
     <VStack align="start" gap={4} paddingY="4px">
       <HStack flexWrap="wrap" gap={4}>
-        {FILTERS.map(({ hotkeyDisabled, key, translationKey }) => (
-          <Box key={key} minW="200px">
-            <Text fontSize="xs" marginBottom={1}>
-              &nbsp;
-            </Text>
-            <SearchBar
-              defaultValue={searchParams.get(key) ?? ""}
-              hideAdvanced
-              hotkeyDisabled={hotkeyDisabled}
-              onChange={createFilterHandler(key)}
-              placeHolder={translate(`xcom.filters.${translationKey}`)}
-            />
-          </Box>
-        ))}
-        <Box minW="200px">
-          <Text fontSize="xs" marginBottom={1}>
-            {translate("xcom.filters.logicalDateFrom")}
-          </Text>
-          <DateTimeInput
-            onChange={createDateTimeFilterHandler(SearchParamsKeys.LOGICAL_DATE_GTE as string)}
-            value={searchParams.get(SearchParamsKeys.LOGICAL_DATE_GTE) ?? ""}
-          />
-        </Box>
-        <Box minW="200px">
-          <Text fontSize="xs" marginBottom={1}>
-            {translate("xcom.filters.logicalDateTo")}
-          </Text>
-          <DateTimeInput
-            onChange={createDateTimeFilterHandler(SearchParamsKeys.LOGICAL_DATE_LTE as string)}
-            value={searchParams.get(SearchParamsKeys.LOGICAL_DATE_LTE) ?? ""}
-          />
-        </Box>
-        <Box minW="200px">
-          <Text fontSize="xs" marginBottom={1}>
-            {translate("xcom.filters.runAfterFrom")}
-          </Text>
-          <DateTimeInput
-            onChange={createDateTimeFilterHandler(SearchParamsKeys.RUN_AFTER_GTE as string)}
-            value={searchParams.get(SearchParamsKeys.RUN_AFTER_GTE) ?? ""}
-          />
-        </Box>
-        <Box minW="200px">
-          <Text fontSize="xs" marginBottom={1}>
-            {translate("xcom.filters.runAfterTo")}
-          </Text>
-          <DateTimeInput
-            onChange={createDateTimeFilterHandler(SearchParamsKeys.RUN_AFTER_LTE as string)}
-            value={searchParams.get(SearchParamsKeys.RUN_AFTER_LTE) ?? ""}
-          />
-        </Box>
+        {FILTERS.map(renderFilterInput)}
       </HStack>
     </VStack>
   );
