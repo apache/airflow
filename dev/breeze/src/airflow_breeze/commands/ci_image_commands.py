@@ -825,9 +825,7 @@ def run_build_ci_image(
         process = subprocess.run(
             [
                 sys.executable,
-                os.fspath(
-                    AIRFLOW_ROOT_PATH / "scripts" / "ci" / "pre_commit" / "update_providers_dependencies.py"
-                ),
+                os.fspath(AIRFLOW_ROOT_PATH / "scripts" / "ci" / "prek" / "update_providers_dependencies.py"),
             ],
             check=False,
         )

@@ -122,7 +122,7 @@ jobs:
       arm-runners: ${{ steps.selective-checks.outputs.arm-runners }}
       selected-providers-list-as-string: >-
         ${{ steps.selective-checks.outputs.selected-providers-list-as-string }}
-      skip-pre-commits: ${{ steps.selective-checks.outputs.skip-pre-commits }}
+      skip-prek-hooks: ${{ steps.selective-checks.outputs.skip-prek-hooks }}
       skip-providers-tests: ${{ steps.selective-checks.outputs.skip-providers-tests }}
       source-head-repo: ${{ steps.source-run-info.outputs.head-repo }}
       source-head-ref: ${{ steps.source-run-info.outputs.head-ref }}
@@ -168,8 +168,8 @@ jobs:
           PR_LABELS: ${{ steps.source-run-info.outputs.pr-labels }}
           GITHUB_CONTEXT: ${{ toJson(github) }}
 
-  run-pin-versions-pre-commit:
-    name: "Run pin-versions pre-commit"
+  run-pin-versions-prek:
+    name: "Run pin-versions prek"
     needs: [build-info]
     runs-on: ${{ fromJSON(needs.build-info.outputs.amd-runners) }}
     steps:
@@ -177,24 +177,22 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - name: "Install Python 3.11 as 3.11+ is needed by pin-versions pre-commit"
+      - name: "Install Python 3.11 as 3.11+ is needed by pin-versions"
         uses: actions/setup-python@7f4fc3e22c37d6ff65e88745f38bd3157c663f7c  # v4.9.1
         with:
           python-version: 3.11
           cache: "pip"
-      - name: Install pre-commit, uv, and pre-commit-uv
+      - name: Install prek, uv
         shell: bash
         env:
-          UV_VERSION: "0.8.9"  # Keep this comment to allow automatic replacement of uv version
-          PRE_COMMIT_VERSION: "4.3.0"  # Keep this comment to allow automatic replacement of pre-commit version
-          PRE_COMMIT_UV_VERSION: "4.1.4"  # Keep this comment to allow automatic replacement of pre-commit-uv version
+          UV_VERSION: "0.8.11"  # Keep this comment to allow automatic replacement of uv version
+          PREK_VERSION: "0.0.26"  # Keep this comment to allow automatic replacement of prek version
         run: |
           pip install uv==${UV_VERSION} || true
-          uv tool install pre-commit==${PRE_COMMIT_VERSION} --with uv==${UV_VERSION} \
-          --with pre-commit-uv==${PRE_COMMIT_UV_VERSION}
-      - name: "Run pin-versions pre-commit"
+          uv tool install prek==${PREK_VERSION} --with uv==${UV_VERSION}
+      - name: "Run pin-versions"
         run: >
-          pre-commit run -c .github/.pre-commit-config.yaml --all-files --verbose --hook-stage manual
+          prek -c .github/.pre-commit-config.yaml --all-files --verbose --hook-stage manual
           pin-versions
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -210,7 +208,7 @@ jobs:
       needs-api-codegen: ${{needs.build-info.outputs.needs-api-codegen}}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       basic-checks-only: ${{needs.build-info.outputs.basic-checks-only}}
-      skip-pre-commits: ${{needs.build-info.outputs.skip-pre-commits}}
+      skip-prek-hooks: ${{needs.build-info.outputs.skip-prek-hooks}}
       canary-run: ${{needs.build-info.outputs.canary-run}}
       latest-versions-only: ${{needs.build-info.outputs.latest-versions-only}}
       use-uv: ${{needs.build-info.outputs.use-uv}}
@@ -255,7 +253,7 @@ jobs:
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      skip-pre-commits: ${{ needs.build-info.outputs.skip-pre-commits }}
+      skip-prek-hooks: ${{ needs.build-info.outputs.skip-prek-hooks }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
       disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
@@ -301,7 +299,7 @@ jobs:
       latest-versions-only: ${{ needs.build-info.outputs.latest-versions-only }}
       basic-checks-only: ${{ needs.build-info.outputs.basic-checks-only }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      skip-pre-commits: ${{ needs.build-info.outputs.skip-pre-commits }}
+      skip-prek-hooks: ${{ needs.build-info.outputs.skip-prek-hooks }}
       ci-image-build: ${{ needs.build-info.outputs.ci-image-build }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}

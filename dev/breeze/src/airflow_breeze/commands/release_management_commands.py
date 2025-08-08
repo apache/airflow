@@ -245,17 +245,15 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "25.2"
-AIRFLOW_UV_VERSION = "0.8.9"
+AIRFLOW_UV_VERSION = "0.8.11"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.45"
 RICH_VERSION = "14.1.0"
-PRE_COMMIT_VERSION = "4.3.0"
-PRE_COMMIT_UV_VERSION = "4.1.4"
+PREK_VERSION = "0.0.26"
 HATCH_VERSION = "1.14.1"
 PYYAML_VERSION = "6.0.2"
 
-# no need for pre-commit-uv. Those commands will only ever initialize the compile-www-assets
-# pre-commit environment and this is done with node, no python installation is needed.
+# prek environment and this is done with node, no python installation is needed.
 AIRFLOW_BUILD_DOCKERFILE = f"""
 # syntax=docker/dockerfile:1.4
 FROM python:{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}-slim-{ALLOWED_DEBIAN_VERSIONS[0]}
@@ -264,7 +262,7 @@ RUN pip install uv=={UV_VERSION}
 RUN --mount=type=cache,id=cache-airflow-build-dockerfile-installation,target=/root/.cache/ \
   uv pip install --system ignore pip=={AIRFLOW_PIP_VERSION} hatch=={HATCH_VERSION} \
   pyyaml=={PYYAML_VERSION} gitpython=={GITPYTHON_VERSION} rich=={RICH_VERSION} \
-  pre-commit=={PRE_COMMIT_VERSION} pre-commit-uv=={PRE_COMMIT_UV_VERSION}
+  prek=={PREK_VERSION}
 COPY . /opt/airflow
 """
 
@@ -356,7 +354,7 @@ def _build_local_build_image():
     AIRFLOW_BUILD_DOCKERFILE_DOCKERIGNORE_PATH.unlink(missing_ok=True)
     dockerignore_content = AIRFLOW_DOCKERIGNORE_PATH.read_text()
     dockerignore_content = dockerignore_content + textwrap.dedent("""
-        # Include git in the build context - we need to get git version and pre-commit configuration
+        # Include git in the build context - we need to get git version and prek configuration
         # And clients python code to be included in the context
         !.git
         !.pre-commit-config.yaml
@@ -795,12 +793,12 @@ def provider_action_summary(description: str, message_type: MessageType, package
 @click.option(
     "--skip-changelog",
     is_flag=True,
-    help="Skip changelog generation. This is used in pre-commit that updates build-files only.",
+    help="Skip changelog generation. This is used in prek that updates build-files only.",
 )
 @click.option(
     "--skip-readme",
     is_flag=True,
-    help="Skip readme generation. This is used in pre-commit that updates build-files only.",
+    help="Skip readme generation. This is used in prek that updates build-files only.",
 )
 @option_verbose
 def prepare_provider_documentation(

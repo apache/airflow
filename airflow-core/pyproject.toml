@@ -62,7 +62,7 @@ classifiers = [
     "Topic :: System :: Monitoring",
 ]
 
-# Version is defined in src/airflow/__init__.py and it is automatically synchronized by pre-commit
+# Version is defined in src/airflow/__init__.py and it is automatically synchronized by prek hook
 version = "3.1.0"
 
 dependencies = [

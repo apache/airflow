@@ -32,7 +32,7 @@ Here's the list of all the Database Migrations that are executed via when you ru
 
 
 
- .. This table is automatically updated by pre-commit by ``scripts/ci/pre_commit/migration_reference.py``
+ .. This table is automatically updated by prek hook by ``scripts/ci/prek/migration_reference.py``
  .. All table elements are scraped from migration files
  .. Beginning of auto-generated table
 

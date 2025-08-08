@@ -349,7 +349,7 @@ Thus, the following example is valid:
         class MyHelloOperator(HelloOperator):
             template_fields = "foo"
 
-The limitations above are enforced by a pre-commit named 'validate-operators-init'.
+The limitations above are enforced by a prek hook named 'validate-operators-init'.
 
 Add template fields with subclassing
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
