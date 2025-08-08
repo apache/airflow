@@ -18,7 +18,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Text, IconButton, Button, Skeleton } from "@chakra-ui/react";
+import { Box, HStack, Text, IconButton, Button } from "@chakra-ui/react";
+import { keyframes } from "@emotion/react";
 import dayjs from "dayjs";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -32,6 +33,11 @@ import { Tooltip } from "src/components/ui";
 
 import { DailyCalendarView } from "./DailyCalendarView";
 import { HourlyCalendarView } from "./HourlyCalendarView";
+
+const spin = keyframes`
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+`;
 
 export const Calendar = () => {
   const { dagId = "" } = useParams();
@@ -71,16 +77,92 @@ export const Calendar = () => {
     { enabled: Boolean(dagId) },
   );
 
-  if (isLoading) {
-    return (
-      <Box p={6}>
-        <Skeleton height="40px" mb={4} width="200px" />
-        <Skeleton height="300px" width="100%" />
-      </Box>
-    );
-  }
+  const renderCalendarContent = () => (
+    <>
+      {granularity === "daily" ? (
+        <DailyCalendarView cellSize={cellSize} data={data?.dag_runs ?? []} selectedYear={selectedYear} />
+      ) : (
+        <HourlyCalendarView
+          cellSize={cellSize}
+          data={data?.dag_runs ?? []}
+          selectedMonth={selectedMonth}
+          selectedYear={selectedYear}
+        />
+      )}
 
-  if (!data) {
+      <Box>
+        {/* Success Rate Spectrum */}
+        <Box mb={4}>
+          <Text color="gray.700" fontSize="sm" fontWeight="medium" mb={3} textAlign="center">
+            {translate("calendar.legend.successRateSpectrum")}
+          </Text>
+          <HStack gap={3} justify="center">
+            <Text color="gray.600" fontSize="xs">
+              {translate("common:states.success")}
+            </Text>
+            <HStack borderRadius="full" boxShadow="sm" gap={0} overflow="hidden">
+              <Tooltip content={translate("calendar.legend.tooltips.success100")} openDelay={300}>
+                <Box bg="#008000" cursor="pointer" height="20px" width="32px" />
+              </Tooltip>
+              <Tooltip content={translate("calendar.legend.tooltips.successRate80")} openDelay={300}>
+                <Box bg="#16A34A" cursor="pointer" height="20px" width="24px" />
+              </Tooltip>
+              <Tooltip content={translate("calendar.legend.tooltips.successRate60")} openDelay={300}>
+                <Box bg="#22C55E" cursor="pointer" height="20px" width="24px" />
+              </Tooltip>
+              <Tooltip content={translate("calendar.legend.tooltips.successRate40")} openDelay={300}>
+                <Box bg="#EAB308" cursor="pointer" height="20px" width="24px" />
+              </Tooltip>
+              <Tooltip content={translate("calendar.legend.tooltips.successRate20")} openDelay={300}>
+                <Box bg="#F97316" cursor="pointer" height="20px" width="24px" />
+              </Tooltip>
+              <Tooltip content={translate("calendar.legend.tooltips.failed")} openDelay={300}>
+                <Box bg="#DC2626" cursor="pointer" height="20px" width="32px" />
+              </Tooltip>
+            </HStack>
+            <Text color="gray.600" fontSize="xs">
+              {translate("common:states.failed")}
+            </Text>
+          </HStack>
+        </Box>
+
+        {/* Single State Colors */}
+        <Box>
+          <Text color="gray.700" fontSize="sm" fontWeight="medium" mb={3} textAlign="center">
+            {translate("common:state")}
+          </Text>
+          <HStack gap={4} justify="center" wrap="wrap">
+            <HStack gap={2}>
+              <Box bg="#3182CE" borderRadius="full" boxShadow="sm" height="16px" width="16px" />
+              <Text color="gray.600" fontSize="sm">
+                {translate("common:states.running")}
+              </Text>
+            </HStack>
+            <HStack gap={2}>
+              <Box bg="#F1E7DA" borderRadius="full" boxShadow="sm" height="16px" width="16px" />
+              <Text color="gray.600" fontSize="sm">
+                {translate("common:states.planned")}
+              </Text>
+            </HStack>
+            <HStack gap={2}>
+              <Box bg="#808080" borderRadius="full" boxShadow="sm" height="16px" width="16px" />
+              <Text color="gray.600" fontSize="sm">
+                {translate("common:states.queued")}
+              </Text>
+            </HStack>
+            <HStack gap={2}>
+              <Box bg="#ebedf0" borderRadius="full" boxShadow="sm" height="16px" width="16px" />
+              <Text color="gray.600" fontSize="sm">
+                {translate("common:states.no_status")}
+              </Text>
+            </HStack>
+          </HStack>
+        </Box>
+      </Box>
+    </>
+  );
+
+  if (!data && !isLoading) {
     return (
       <Box p={4}>
         <Text>{translate("calendar.noData")}</Text>
@@ -178,18 +260,18 @@ export const Calendar = () => {
 
           <HStack gap={0}>
             <Button
-              colorScheme={granularity === "daily" ? "blue" : "gray"}
+              colorScheme="blue"
               onClick={() => setGranularity("daily")}
               size="sm"
-              variant={granularity === "daily" ? "solid" : "ghost"}
+              variant={granularity === "daily" ? "solid" : "outline"}
             >
               {translate("calendar.daily")}
             </Button>
             <Button
-              colorScheme={granularity === "hourly" ? "blue" : "gray"}
+              colorScheme="blue"
               onClick={() => setGranularity("hourly")}
               size="sm"
-              variant={granularity === "hourly" ? "solid" : "ghost"}
+              variant={granularity === "hourly" ? "solid" : "outline"}
             >
               {translate("calendar.hourly")}
             </Button>
@@ -225,90 +307,36 @@ export const Calendar = () => {
         </HStack>
       </HStack>
 
-      {granularity === "daily" ? (
-        <DailyCalendarView
-          cellSize={cellSize}
-          currentYear={currentYear}
-          data={data.dag_runs}
-          selectedYear={selectedYear}
-        />
-      ) : (
-        <HourlyCalendarView
-          cellSize={cellSize}
-          data={data.dag_runs}
-          selectedMonth={selectedMonth}
-          selectedYear={selectedYear}
-        />
-      )}
-
-      <Box>
-        {/* Success Rate Spectrum */}
-        <Box mb={4}>
-          <Text color="gray.700" fontSize="sm" fontWeight="medium" mb={3} textAlign="center">
-            {translate("calendar.legend.successRateSpectrum")}
-          </Text>
-          <HStack gap={3} justify="center">
-            <Text color="gray.600" fontSize="xs">
-              {translate("common:states.success")}
-            </Text>
-            <HStack borderRadius="full" boxShadow="sm" gap={0} overflow="hidden">
-              <Tooltip content={translate("calendar.legend.tooltips.success100")} openDelay={300}>
-                <Box bg="#008000" cursor="pointer" height="20px" width="32px" />
-              </Tooltip>
-              <Tooltip content={translate("calendar.legend.tooltips.successRate80")} openDelay={300}>
-                <Box bg="#16A34A" cursor="pointer" height="20px" width="24px" />
-              </Tooltip>
-              <Tooltip content={translate("calendar.legend.tooltips.successRate60")} openDelay={300}>
-                <Box bg="#22C55E" cursor="pointer" height="20px" width="24px" />
-              </Tooltip>
-              <Tooltip content={translate("calendar.legend.tooltips.successRate40")} openDelay={300}>
-                <Box bg="#EAB308" cursor="pointer" height="20px" width="24px" />
-              </Tooltip>
-              <Tooltip content={translate("calendar.legend.tooltips.successRate20")} openDelay={300}>
-                <Box bg="#F97316" cursor="pointer" height="20px" width="24px" />
-              </Tooltip>
-              <Tooltip content={translate("calendar.legend.tooltips.failed")} openDelay={300}>
-                <Box bg="#DC2626" cursor="pointer" height="20px" width="32px" />
-              </Tooltip>
-            </HStack>
-            <Text color="gray.600" fontSize="xs">
-              {translate("common:states.failed")}
-            </Text>
-          </HStack>
-        </Box>
-
-        {/* Single State Colors */}
-        <Box>
-          <Text color="gray.700" fontSize="sm" fontWeight="medium" mb={3} textAlign="center">
-            {translate("common:state")}
-          </Text>
-          <HStack gap={4} justify="center" wrap="wrap">
-            <HStack gap={2}>
-              <Box bg="#3182CE" borderRadius="full" boxShadow="sm" height="16px" width="16px" />
-              <Text color="gray.600" fontSize="sm">
-                {translate("common:states.running")}
-              </Text>
-            </HStack>
-            <HStack gap={2}>
-              <Box bg="#F1E7DA" borderRadius="full" boxShadow="sm" height="16px" width="16px" />
-              <Text color="gray.600" fontSize="sm">
-                {translate("common:states.planned")}
-              </Text>
-            </HStack>
-            <HStack gap={2}>
-              <Box bg="#808080" borderRadius="full" boxShadow="sm" height="16px" width="16px" />
-              <Text color="gray.600" fontSize="sm">
-                {translate("common:states.queued")}
-              </Text>
-            </HStack>
-            <HStack gap={2}>
-              <Box bg="#ebedf0" borderRadius="full" boxShadow="sm" height="16px" width="16px" />
-              <Text color="gray.600" fontSize="sm">
-                {translate("common:states.no_status")}
-              </Text>
-            </HStack>
-          </HStack>
-        </Box>
+      <Box position="relative">
+        {isLoading ? (
+          <Box
+            alignItems="center"
+            backdropFilter="blur(2px)"
+            bg="rgba(255, 255, 255, 0.8)"
+            borderRadius="md"
+            bottom="0"
+            display="flex"
+            justifyContent="center"
+            left="0"
+            position="absolute"
+            right="0"
+            top="0"
+            zIndex={10}
+          >
+            <Box textAlign="center">
+              <Box
+                animation={`${spin} 1s linear infinite`}
+                border="3px solid"
+                borderColor="blue.100"
+                borderRadius="50%"
+                borderTopColor="blue.500"
+                height="24px"
+                width="24px"
+              />
+            </Box>
+          </Box>
+        ) : undefined}
+        {renderCalendarContent()}
       </Box>
     </Box>
   );

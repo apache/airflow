@@ -46,13 +46,11 @@ import { createTooltipContent, generateDailyCalendarData, getCalendarCellColor }
 
 type Props = {
   readonly cellSize: number;
-  readonly currentYear: number;
   readonly data: Array<CalendarTimeRangeResponse>;
   readonly selectedYear: number;
 };
 
-export const DailyCalendarView = ({ cellSize, currentYear, data, selectedYear }: Props) => {
-  const isCurrentYear = selectedYear === currentYear;
+export const DailyCalendarView = ({ cellSize, data, selectedYear }: Props) => {
   const dailyData = generateDailyCalendarData(data, selectedYear);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const activeTooltipRef = useRef<HTMLElement | undefined>(undefined);
@@ -129,15 +127,9 @@ export const DailyCalendarView = ({ cellSize, currentYear, data, selectedYear }:
                 const dayDate = dayjs(day.date);
                 const isInSelectedYear = dayDate.year() === selectedYear;
 
-                if (!isCurrentYear && !isInSelectedYear) {
+                if (!isInSelectedYear) {
                   return (
-                    <Box
-                      bg="gray.100"
-                      borderRadius="2px"
-                      height={`${cellSize}px`}
-                      key={day.date}
-                      width={`${cellSize}px`}
-                    />
+                    <Box bg="transparent" height={`${cellSize}px`} key={day.date} width={`${cellSize}px`} />
                   );
                 }
 
@@ -149,10 +141,10 @@ export const DailyCalendarView = ({ cellSize, currentYear, data, selectedYear }:
                     position="relative"
                   >
                     <Box
-                      _hover={isInSelectedYear ? { transform: "scale(1.1)" } : undefined}
-                      bg={isInSelectedYear ? getCalendarCellColor(day.runs) : "colorMode.background"}
+                      _hover={{ transform: "scale(1.1)" }}
+                      bg={getCalendarCellColor(day.runs)}
                       borderRadius="2px"
-                      cursor={isInSelectedYear ? "pointer" : "default"}
+                      cursor="pointer"
                       height={`${cellSize}px`}
                       width={`${cellSize}px`}
                     />
