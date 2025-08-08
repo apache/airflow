@@ -18,15 +18,12 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from flask_appbuilder.models.filters import BaseFilter
 from flask_appbuilder.models.sqla import filters as fab_sqlafilters
 from flask_appbuilder.models.sqla.filters import get_field_setup_query, set_value_to_type
-from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_babel import lazy_gettext
-from sqlalchemy import types
-from sqlalchemy.ext.associationproxy import AssociationProxy
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.configuration import conf
@@ -40,8 +37,6 @@ from airflow.providers.fab.www.security.permissions import (
 from airflow.utils import timezone
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm.session import Session
-
     try:
         from airflow.api_fastapi.auth.managers.base_auth_manager import ExtendedResourceMethod
     except ImportError:
@@ -220,74 +215,3 @@ class AirflowFilterConverter(fab_sqlafilters.SQLAFilterConverter):
                 filters.append(FilterIsNull)
             if FilterIsNotNull not in filters:
                 filters.append(FilterIsNotNull)
-
-
-class CustomSQLAInterface(SQLAInterface):
-    """
-    FAB does not know how to handle columns with leading underscores because they are not supported by WTForm.
-
-    This hack will remove the leading '_' from the key to lookup the column names.
-    """
-
-    def __init__(self, obj, session: Session | None = None):
-        super().__init__(obj, session=session)
-
-        def clean_column_names():
-            if self.list_properties:
-                self.list_properties = {k.lstrip("_"): v for k, v in self.list_properties.items()}
-            if self.list_columns:
-                self.list_columns = {k.lstrip("_"): v for k, v in self.list_columns.items()}
-
-        clean_column_names()
-        # Support for AssociationProxy in search and list columns
-        for obj_attr, desc in self.obj.__mapper__.all_orm_descriptors.items():
-            if isinstance(desc, AssociationProxy):
-                proxy_instance = getattr(self.obj, obj_attr)
-                if hasattr(proxy_instance.remote_attr.prop, "columns"):
-                    self.list_columns[obj_attr] = proxy_instance.remote_attr.prop.columns[0]
-                    self.list_properties[obj_attr] = proxy_instance.remote_attr.prop
-
-    def is_utcdatetime(self, col_name):
-        """Check if the datetime is a UTC one."""
-        from airflow.utils.sqlalchemy import UtcDateTime
-
-        if col_name in self.list_columns:
-            obj = self.list_columns[col_name].type
-            return (
-                isinstance(obj, UtcDateTime)
-                or isinstance(obj, types.TypeDecorator)
-                and isinstance(obj.impl, UtcDateTime)
-            )
-        return False
-
-    def is_extendedjson(self, col_name):
-        """Check if it is a special extended JSON type."""
-        from airflow.utils.sqlalchemy import ExtendedJSON
-
-        if col_name in self.list_columns:
-            obj = self.list_columns[col_name].type
-            return (
-                isinstance(obj, ExtendedJSON)
-                or isinstance(obj, types.TypeDecorator)
-                and isinstance(obj.impl, ExtendedJSON)
-            )
-        return False
-
-    def is_json(self, col_name):
-        """Check if it is a JSON type."""
-        from sqlalchemy import JSON
-
-        if col_name in self.list_columns:
-            obj = self.list_columns[col_name].type
-            return (
-                isinstance(obj, JSON) or isinstance(obj, types.TypeDecorator) and isinstance(obj.impl, JSON)
-            )
-        return False
-
-    def get_col_default(self, col_name: str) -> Any:
-        if col_name not in self.list_columns:
-            # Handle AssociationProxy etc, or anything that isn't a "real" column
-            return None
-        return super().get_col_default(col_name)
-
-    filter_converter_class = AirflowFilterConverter
