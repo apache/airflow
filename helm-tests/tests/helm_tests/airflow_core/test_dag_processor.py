@@ -739,7 +739,7 @@ class TestDagProcessor:
             (None, False),
         ],
     )
-    def test_should_add_webserver_config_volume_and_volume_mount_when_exists(
+    def test_should_add_webserver_config_volume_and_volume_mount_when_exists_pre_v3(
         self, webserver_config, should_add_volume
     ):
         expected_volume = {
@@ -755,8 +755,49 @@ class TestDagProcessor:
 
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "dagProcessor": {"enabled": True},
                 "webserver": {"webserverConfig": webserver_config},
+            },
+            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
+        )
+
+        created_volumes = jmespath.search("spec.template.spec.volumes", docs[0])
+        created_volume_mounts = jmespath.search("spec.template.spec.containers[1].volumeMounts", docs[0])
+
+        if should_add_volume:
+            assert expected_volume in created_volumes
+            assert expected_volume_mount in created_volume_mounts
+        else:
+            assert expected_volume not in created_volumes
+            assert expected_volume_mount not in created_volume_mounts
+
+    @pytest.mark.parametrize(
+        "webserver_config, should_add_volume",
+        [
+            ("CSRF_ENABLED = True", True),
+            (None, False),
+        ],
+    )
+    def test_should_add_webserver_config_volume_and_volume_mount_when_exists(
+        self, webserver_config, should_add_volume
+    ):
+        expected_volume = {
+            "name": "api-server-config",
+            "configMap": {"name": "release-name-api-server-config"},
+        }
+        expected_volume_mount = {
+            "name": "api-server-config",
+            "mountPath": "/opt/airflow/webserver_config.py",
+            "subPath": "webserver_config.py",
+            "readOnly": True,
+        }
+
+        docs = render_chart(
+            values={
+                "airflowVersion": "3.0.0",
+                "dagProcessor": {"enabled": True},
+                "apiServer": {"apiServerConfig": webserver_config},
             },
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
