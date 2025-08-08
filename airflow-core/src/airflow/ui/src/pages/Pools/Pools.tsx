@@ -32,6 +32,7 @@ import { SearchBar } from "src/components/SearchBar";
 import { Select } from "src/components/ui";
 import type { SearchParamsKeysType } from "src/constants/searchParams";
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { getOrderBy } from "src/utils";
 
 import AddPoolButton from "./AddPoolButton";
 import PoolBarCard from "./PoolBarCard";
@@ -58,8 +59,7 @@ export const Pools = () => {
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
-  const [sort] = sorting;
-  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["name"];
+  const orderBy = getOrderBy("name");
 
   const { data, error, isLoading } = usePoolServiceGetPools({
     limit: pagination.pageSize,

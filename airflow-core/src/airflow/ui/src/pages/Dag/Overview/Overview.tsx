@@ -66,7 +66,7 @@ export const Overview = () => {
   });
   const { data: gridRuns, isLoading: isLoadingRuns } = useGridRuns({ limit });
   const { data: assetEventsData, isLoading: isLoadingAssetEvents } = useAssetServiceGetAssetEvents({
-    limit,
+    limit: 6,
     orderBy: [assetSortBy],
     sourceDagId: dagId,
     timestampGte: startDate,
