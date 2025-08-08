@@ -913,6 +913,7 @@ class TaskInstance(Base, LoggingMixin):
         TaskInstanceHistory.record_ti(self, session=session)
         session.execute(delete(TaskReschedule).filter_by(ti_id=self.id))
         self.id = uuid7()
+        self.last_queueing_decision = None
 
     @provide_session
     def are_dependents_done(self, session: Session = NEW_SESSION) -> bool:

@@ -77,7 +77,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.span_status import SpanStatus
-from airflow.utils.sqlalchemy import is_lock_not_available_error, prohibit_commit, with_row_locks
+from airflow.utils.sqlalchemy import is_lock_not_available_error, nulls_first, prohibit_commit, with_row_locks
 from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from airflow.utils.thread_safe_dict import ThreadSafeDict
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -352,7 +352,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .where(TI.state == TaskInstanceState.SCHEDULED)
             .where(DM.bundle_name.is_not(None))
             .options(selectinload(TI.dag_model))
-            .order_by(-TI.priority_weight, DR.logical_date, TI.map_index)
+            .order_by(
+                nulls_first(TI.last_queueing_decision.desc(), session=session),
+                -TI.priority_weight,
+                DR.logical_date,
+                TI.map_index,
+            )
         )
 
         query = query.limit(max_tis)
