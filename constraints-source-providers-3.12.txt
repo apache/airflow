@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-07T17:41:38.386984
+# This constraints file was automatically generated on 2025-08-08T04:43:03.389962
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -99,7 +99,7 @@ azure-common==1.1.28
 azure-core==1.35.0
 azure-cosmos==4.9.0
 azure-datalake-store==0.0.53
-azure-identity==1.23.1
+azure-identity==1.24.0
 azure-keyvault-secrets==4.10.0
 azure-kusto-data==5.0.5
 azure-mgmt-containerinstance==10.1.0
@@ -355,7 +355,7 @@ lazy-object-proxy==1.11.0
 libcst==1.8.2
 limits==5.5.0
 linkify-it-py==2.0.3
-litellm==1.75.0
+litellm==1.75.2
 lockfile==0.12.2
 looker-sdk==25.10.0
 lxml==5.3.2
@@ -406,7 +406,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.3.1
 objsize==0.7.1
-openai==1.99.2
+openai==1.99.3
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
 opencensus-context==0.1.3
@@ -560,7 +560,7 @@ ruamel.yaml==0.18.14
 ruff==0.11.2
 s3fs==2025.7.0
 s3transfer==0.13.1
-sagemaker_studio==1.0.20
+sagemaker_studio==1.0.21
 scikit-learn==1.7.1
 scipy==1.16.1
 scramp==1.4.6
