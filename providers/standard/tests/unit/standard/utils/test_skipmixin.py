@@ -39,6 +39,7 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.exceptions import DownstreamTasksSkipped
     from airflow.models.dag_version import DagVersion
     from airflow.providers.standard.utils.skipmixin import SkipMixin
+    from airflow.sdk import task, task_group
 else:
     from airflow.decorators import task, task_group  # type: ignore[attr-defined,no-redef]
     from airflow.models.skipmixin import SkipMixin
