@@ -32,6 +32,8 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.elasticsearch.version_compat import BaseHook
 
 if TYPE_CHECKING:
+    import pandas as pd
+
     from elastic_transport import ObjectApiResponse
 
     from airflow.models.connection import Connection as AirflowConnection
@@ -272,7 +274,6 @@ class ElasticsearchPythonHook(BaseHook):
         result = es_client.search(index=index, body=query)
         return result["hits"]
 
-import pandas as pd
 
 class ElasticsearchHook(BaseHook):
     """
@@ -539,7 +540,7 @@ class ElasticsearchHook(BaseHook):
         index: str,
         query: Dict[str, Any],
         **kwargs
-    ) -> pd.DataFrame:
+    ) -> "pd.DataFrame":
         """
         Execute a search query and return results as a pandas DataFrame.
 
@@ -548,6 +549,14 @@ class ElasticsearchHook(BaseHook):
         :param kwargs: Additional search parameters to pass to the Elasticsearch client.
         :return: A pandas DataFrame containing the search results with _source data normalized.
         """
+        try:
+            import pandas as pd
+        except ImportError:
+            raise ImportError(
+                "pandas is required for search_to_pandas method. "
+                "Install it with: pip install pandas"
+            )
+
         res = self.client.search(index=index, body=query, **kwargs)
         hits = res['hits']['hits']
 
@@ -567,7 +576,7 @@ class ElasticsearchHook(BaseHook):
         index: Optional[Union[str, List[str]]] = None,
         query: Optional[Dict[str, Any]] = None,
         **kwargs
-    ) -> pd.DataFrame:
+    ) -> "pd.DataFrame":
         """
         Scan all documents matching the query and return results as a pandas DataFrame.
 
@@ -584,6 +593,14 @@ class ElasticsearchHook(BaseHook):
             This method loads all documents into memory. For very large datasets,
             consider using the scan() method directly and processing in chunks.
         """
+        try:
+            import pandas as pd
+        except ImportError:
+            raise ImportError(
+                "pandas is required for scan_to_pandas method. "
+                "Install it with: pip install pandas"
+            )
+
         self.log.info("Scanning index: %s and converting to DataFrame", index)
 
         # Get all documents using scan
