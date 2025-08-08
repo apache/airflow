@@ -44,10 +44,7 @@ export const useGraphStructureSync = () => {
   useEffect(() => {
     const observedGroupIds = flattenGraphNodes(graphData.nodes).allGroupIds;
 
-    if (
-      observedGroupIds.length !== allGroupIds.length ||
-      observedGroupIds.some((element, index) => allGroupIds[index] !== element)
-    ) {
+    if (JSON.stringify(observedGroupIds) !== JSON.stringify(allGroupIds)) {
       setAllGroupIds(observedGroupIds);
     }
   }, [allGroupIds, graphData.nodes, setAllGroupIds]);
