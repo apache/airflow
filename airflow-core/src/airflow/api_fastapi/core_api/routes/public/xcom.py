@@ -24,7 +24,7 @@ from sqlalchemy import and_, select
 from sqlalchemy.orm import joinedload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
-from airflow.api_fastapi.common.dagbag import DagBagDep
+from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run_or_latest_version
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -39,7 +39,7 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import ReadableXComFilterDep, requires_access_dag
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import TaskNotFound
-from airflow.models import DAG, DagRun as DR
+from airflow.models import DagRun as DR
 from airflow.models.xcom import XComModel
 
 xcom_router = AirflowRouter(
@@ -188,25 +188,26 @@ def create_xcom_entry(
     dag_bag: DagBagDep,
 ) -> XComResponseNative:
     """Create an XCom entry."""
+    from airflow.models.dagrun import DagRun
+
+    dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
     # Validate DAG ID
-    dag: DAG = dag_bag.get_dag(dag_id)
-    if not dag:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with ID: `{dag_id}` was not found")
+    dag = get_dag_for_run_or_latest_version(dag_bag, dag_run, dag_id, session)
 
     # Validate Task ID
     try:
         dag.get_task(task_id)
     except TaskNotFound:
         raise HTTPException(
-            status.HTTP_404_NOT_FOUND, f"Task with ID: `{task_id}` not found in DAG: `{dag_id}`"
+            status.HTTP_404_NOT_FOUND, f"Task with ID: `{task_id}` not found in dag: `{dag_id}`"
         )
 
     # Validate DAG Run ID
-    dag_run = dag.get_dagrun(dag_run_id, session)
     if not dag_run:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND, f"DAG Run with ID: `{dag_run_id}` not found for DAG: `{dag_id}`"
-        )
+        if not dag_run:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND, f"Dag Run with ID: `{dag_run_id}` not found for dag: `{dag_id}`"
+            )
 
     # Check existing XCom
     already_existing_query = XComModel.get_many(

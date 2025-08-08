@@ -22,6 +22,7 @@ from airflow.api_fastapi.core_api.routes.public import authenticated_router, pub
 NO_AUTH_PATHS = {
     "/api/v2/auth/login",
     "/api/v2/auth/logout",
+    "/api/v2/auth/refresh",
     "/api/v2/version",
     "/api/v2/monitor/health",
 }

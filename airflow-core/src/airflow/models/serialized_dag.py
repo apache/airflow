@@ -32,6 +32,7 @@ from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.sql.expression import func, literal
 from sqlalchemy_utils import UUIDType
 
+from airflow._shared.timezones import timezone
 from airflow.exceptions import TaskNotFound
 from airflow.models.asset import (
     AssetAliasModel,
@@ -46,7 +47,6 @@ from airflow.sdk.definitions.asset import AssetUniqueKey
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import COMPRESS_SERIALIZED_DAGS, json
-from airflow.utils import timezone
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -295,13 +295,13 @@ class SerializedDagModel(Base):
 
     dag_runs = relationship(
         DagRun,
-        primaryjoin=dag_id == foreign(DagRun.dag_id),  # type: ignore
+        primaryjoin=dag_id == foreign(DagRun.dag_id),
         backref=backref("serialized_dag", uselist=False, innerjoin=True),
     )
 
     dag_model = relationship(
         DagModel,
-        primaryjoin=dag_id == DagModel.dag_id,  # type: ignore
+        primaryjoin=dag_id == DagModel.dag_id,  # type: ignore[has-type]
         foreign_keys=dag_id,
         uselist=False,
         innerjoin=True,

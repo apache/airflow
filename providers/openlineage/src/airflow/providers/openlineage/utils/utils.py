@@ -52,7 +52,7 @@ from airflow.providers.openlineage.utils.selective_enable import (
     is_dag_lineage_enabled,
     is_task_lineage_enabled,
 )
-from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS, get_base_airflow_version_tuple
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.module_loading import import_string
 
@@ -70,8 +70,7 @@ if TYPE_CHECKING:
 
     from airflow.models import TaskInstance
     from airflow.providers.common.compat.assets import Asset
-    from airflow.sdk import DAG
-    from airflow.sdk.bases.operator import BaseOperator
+    from airflow.sdk import DAG, BaseOperator
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.execution_time.secrets_masker import (
         Redactable,
@@ -83,8 +82,7 @@ if TYPE_CHECKING:
     from airflow.utils.state import DagRunState, TaskInstanceState
 else:
     try:
-        from airflow.sdk import DAG
-        from airflow.sdk.bases.operator import BaseOperator
+        from airflow.sdk import DAG, BaseOperator
         from airflow.sdk.definitions.mappedoperator import MappedOperator
     except ImportError:
         from airflow.models import DAG, BaseOperator, MappedOperator
@@ -310,7 +308,7 @@ def get_user_provided_run_facets(ti: TaskInstance, ti_state: TaskInstanceState) 
 def get_fully_qualified_class_name(operator: BaseOperator | MappedOperator) -> str:
     if isinstance(operator, (MappedOperator, SerializedBaseOperator)):
         # as in airflow.api_connexion.schemas.common_schema.ClassReferenceSchema
-        return operator._task_module + "." + operator._task_type  # type: ignore
+        return operator._task_module + "." + operator._task_type
     op_class = get_operator_class(operator)
     return op_class.__module__ + "." + op_class.__name__
 
@@ -780,6 +778,7 @@ def _emits_ol_events(task: BaseOperator | MappedOperator) -> bool:
             not getattr(task, "on_execute_callback", None),
             not getattr(task, "on_success_callback", None),
             not task.outlets,
+            not (task.inlets and get_base_airflow_version_tuple() >= (3, 0, 2)),  # Added in 3.0.2 #50773
         )
     )
 
@@ -831,7 +830,7 @@ class OpenLineageRedactor(SecretsMasker):
         instance.replacer = other.replacer
         return instance
 
-    def _redact(self, item: Redactable, name: str | None, depth: int, max_depth: int) -> Redacted:
+    def _redact(self, item: Redactable, name: str | None, depth: int, max_depth: int, **kwargs) -> Redacted:  # type: ignore[override]
         if AIRFLOW_V_3_0_PLUS:
             # Keep compatibility for Airflow 2.x, remove when Airflow 3.0 is the minimum version
             class AirflowContextDeprecationWarning(UserWarning):
@@ -887,7 +886,7 @@ class OpenLineageRedactor(SecretsMasker):
                                 ),
                             )
                     return item
-                return super()._redact(item, name, depth, max_depth)
+                return super()._redact(item, name, depth, max_depth, **kwargs)
         except Exception as exc:
             log.warning("Unable to redact %r. Error was: %s: %s", item, type(exc).__name__, exc)
         return item
@@ -947,7 +946,7 @@ def translate_airflow_asset(asset: Asset, lineage_context) -> OpenLineageDataset
         from airflow.sdk.definitions.asset import _get_normalized_scheme
     else:
         try:
-            from airflow.datasets import _get_normalized_scheme  # type: ignore[no-redef, attr-defined]
+            from airflow.datasets import _get_normalized_scheme  # type: ignore[no-redef]
         except ImportError:
             return None
 

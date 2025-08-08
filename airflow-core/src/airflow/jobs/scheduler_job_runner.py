@@ -27,7 +27,7 @@ import time
 from collections import Counter, defaultdict, deque
 from collections.abc import Callable, Collection, Iterable, Iterator
 from contextlib import ExitStack
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any
@@ -38,14 +38,15 @@ from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, sele
 from sqlalchemy.sql import expression
 
 from airflow import settings
+from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext
-from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
+from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext, TaskCallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, perform_heartbeat
-from airflow.models import Log
+from airflow.models import Deadline, Log
 from airflow.models.asset import (
     AssetActive,
     AssetAliasModel,
@@ -59,6 +60,7 @@ from airflow.models.asset import (
 from airflow.models.backfill import Backfill
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbag import DBDagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.serialized_dag import SerializedDagModel
@@ -69,7 +71,6 @@ from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.traces import utils as trace_utils
 from airflow.traces.tracer import DebugTrace, Trace, add_debug_span
-from airflow.utils import timezone
 from airflow.utils.dates import datetime_to_nano
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -83,7 +84,6 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     import logging
-    from datetime import datetime
     from types import FrameType
 
     from pendulum.datetime import DateTime
@@ -102,47 +102,6 @@ DM = DagModel
 
 TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT = "stuck in queued reschedule"
 """:meta private:"""
-
-
-class SchedulerDagBag:
-    """
-    Internal class for retrieving and caching dags in the scheduler.
-
-    :meta private:
-    """
-
-    def __init__(self):
-        self._dags: dict[str, DAG] = {}  # dag_version_id to dag
-
-    def _get_dag(self, version_id: str, session: Session) -> DAG | None:
-        if dag := self._dags.get(version_id):
-            return dag
-        dag_version = session.get(DagVersion, version_id, options=[joinedload(DagVersion.serialized_dag)])
-        if not dag_version:
-            return None
-        serdag = dag_version.serialized_dag
-        if not serdag:
-            return None
-        serdag.load_op_links = False
-        dag = serdag.dag
-        if not dag:
-            return None
-        self._dags[version_id] = dag
-        return dag
-
-    @staticmethod
-    def _version_from_dag_run(dag_run, session):
-        if dag_run.bundle_version:
-            dag_version = dag_run.created_dag_version
-        else:
-            dag_version = DagVersion.get_latest_version(dag_id=dag_run.dag_id, session=session)
-        return dag_version
-
-    def get_dag(self, dag_run: DagRun, session: Session) -> DAG | None:
-        version = self._version_from_dag_run(dag_run=dag_run, session=session)
-        if not version:
-            return None
-        return self._get_dag(version_id=version.id, session=session)
 
 
 def _get_current_dag(dag_id: str, session: Session) -> DAG | None:
@@ -252,7 +211,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if log:
             self._log = log
 
-        self.scheduler_dag_bag = SchedulerDagBag()
+        self.scheduler_dag_bag = DBDagBag(load_op_links=False)
 
     @provide_session
     def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
@@ -543,7 +502,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if task_instance.dag_model.has_task_concurrency_limits:
                     # Many dags don't have a task_concurrency, so where we can avoid loading the full
                     # serialized DAG the better.
-                    serialized_dag = self.scheduler_dag_bag.get_dag(
+                    serialized_dag = self.scheduler_dag_bag.get_dag_for_run(
                         dag_run=task_instance.dag_run, session=session
                     )
                     # If the dag is missing, fail the task and continue to the next task.
@@ -772,7 +731,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @classmethod
     def process_executor_events(
-        cls, executor: BaseExecutor, job_id: str | None, scheduler_dag_bag: SchedulerDagBag, session: Session
+        cls, executor: BaseExecutor, job_id: str | None, scheduler_dag_bag: DBDagBag, session: Session
     ) -> int:
         """
         Respond to executor events.
@@ -904,7 +863,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                 # Get task from the Serialized DAG
                 try:
-                    dag = scheduler_dag_bag.get_dag(dag_run=ti.dag_run, session=session)
+                    dag = scheduler_dag_bag.get_dag_for_run(dag_run=ti.dag_run, session=session)
                     cls.logger().error(
                         "DAG '%s' for task instance %s not found in serialized_dag table",
                         ti.dag_id,
@@ -1001,7 +960,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             self._run_scheduler_loop()
 
-            settings.Session.remove()  # type: ignore
+            settings.Session.remove()
         except Exception:
             self.log.exception("Exception when executing SchedulerJob._run_scheduler_loop")
             raise
@@ -1033,7 +992,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .group_by(DagRun)
             )
             for dag_run in paused_runs:
-                dag = self.scheduler_dag_bag.get_dag(dag_run=dag_run, session=session)
+                dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
                 if dag is not None:
                     dag_run.dag = dag
                     _, callback_to_run = dag_run.update_state(execute_callbacks=False, session=session)
@@ -1202,6 +1161,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             #. Heartbeat executor
                 #. Execute queued tasks in executor asynchronously
                 #. Sync on the states of running tasks
+            #. Check for expired Deadlines
+                #. Hand off processing the expired Deadlines if any are found
         """
         is_unit_test: bool = conf.getboolean("core", "unit_test_mode")
 
@@ -1304,6 +1265,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     except Exception:
                         self.log.exception("Something went wrong when trying to save task event logs.")
 
+                with create_session() as session:
+                    # Only retrieve expired deadlines that haven't been processed yet.
+                    # `callback_state` is null/None by default until the handler set it.
+                    for deadline in session.scalars(
+                        select(Deadline)
+                        .where(Deadline.deadline_time < datetime.now(timezone.utc))
+                        .where(Deadline.callback_state.is_(None))
+                    ):
+                        deadline.handle_miss(session)
+
                 # Heartbeat the scheduler periodically
                 perform_heartbeat(
                     job=self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=True
@@ -1385,7 +1356,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # Send the callbacks after we commit to ensure the context is up to date when it gets run
         # cache saves time during scheduling of many dag_runs for same dag
         cached_get_dag: Callable[[DagRun], DAG | None] = lru_cache()(
-            partial(self.scheduler_dag_bag.get_dag, session=session)
+            partial(self.scheduler_dag_bag.get_dag_for_run, session=session)
         )
         for dag_run, callback_to_run in callback_tuples:
             dag = cached_get_dag(dag_run)
@@ -1727,7 +1698,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         # cache saves time during scheduling of many dag_runs for same dag
         cached_get_dag: Callable[[DagRun], DAG | None] = lru_cache()(
-            partial(self.scheduler_dag_bag.get_dag, session=session)
+            partial(self.scheduler_dag_bag.get_dag_for_run, session=session)
         )
 
         span = Trace.get_current_span()
@@ -1817,7 +1788,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             callback: DagCallbackRequest | None = None
 
-            dag = dag_run.dag = self.scheduler_dag_bag.get_dag(dag_run=dag_run, session=session)
+            dag = dag_run.dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
             dag_model = DM.get_dagmodel(dag_run.dag_id, session)
 
             if not dag or not dag_model:
@@ -1853,6 +1824,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     run_id=dag_run.run_id,
                     bundle_name=dag_model.bundle_name,
                     bundle_version=dag_run.bundle_version,
+                    context_from_server=DagRunContext(
+                        dag_run=dag_run,
+                        last_ti=dag_run.get_last_ti(dag=dag, session=session),
+                    ),
                     is_failure_callback=True,
                     msg="timed_out",
                 )
@@ -1931,7 +1906,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.debug("DAG %s not changed structure, skipping dagrun.verify_integrity", dag_run.dag_id)
             return True
         # Refresh the DAG
-        dag_run.dag = self.scheduler_dag_bag.get_dag(dag_run=dag_run, session=session)
+        dag_run.dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
         if not dag_run.dag:
             return False
         # Select all TIs in State.unfinished and update the dag_version_id
@@ -2259,7 +2234,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         task_instances_without_heartbeats = session.scalars(
             select(TI)
             .options(selectinload(TI.dag_model))
-            .options(selectinload(TI.dag_run))
+            .options(selectinload(TI.dag_run).selectinload(DagRun.consumed_asset_events))
             .options(selectinload(TI.dag_version))
             .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
             .join(DM, TI.dag_id == DM.dag_id)
@@ -2501,3 +2476,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # ourselves here and the user should get some feedback about that.
         self.log.warning("Executor, %s, was not found but a Task was configured to use it", executor_name)
         return None
+
+
+# Backcompat for older versions of task sdk import SchedulerDagBag from here
+SchedulerDagBag = DBDagBag

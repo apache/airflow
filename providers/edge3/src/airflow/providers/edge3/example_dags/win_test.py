@@ -32,7 +32,11 @@ from subprocess import STDOUT, Popen
 from time import sleep
 from typing import TYPE_CHECKING, Any
 
-from airflow.decorators import task, task_group
+try:
+    from airflow.sdk import task, task_group
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import task, task_group  # type: ignore[attr-defined,no-redef]
 from airflow.exceptions import AirflowException, AirflowNotFoundException, AirflowSkipException
 from airflow.models import BaseOperator
 from airflow.models.dag import DAG
@@ -297,7 +301,7 @@ with DAG(
             except AirflowNotFoundException:
                 print("Connection 'integration_test' not found... but also OK.")
 
-        command = CmdOperator(task_id="command", command="echo Parameter is {{params.mapping_count}}")
+        command = CmdOperator(task_id="command", command="echo Hello World")
 
         def python_call():
             print("Hello world")

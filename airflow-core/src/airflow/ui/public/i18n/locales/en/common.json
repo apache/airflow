@@ -15,6 +15,7 @@
   "backfill_other": "Backfills",
   "browse": {
     "auditLog": "Audit Log",
+    "requiredActions": "Required Actions",
     "xcoms": "XComs"
   },
   "collapseDetailsPanel": "Collapse Details Panel",
@@ -60,6 +61,7 @@
   },
   "dagRun_one": "Dag Run",
   "dagRun_other": "Dag Runs",
+  "dagRunId": "Dag Run ID",
   "dagWarnings": "Dag warnings/errors",
   "defaultToGraphView": "Default to graph view",
   "defaultToGridView": "Default to grid view",
@@ -78,7 +80,7 @@
     "notFound": "Page Not Found",
     "title": "Error"
   },
-  "expand":{
+  "expand": {
     "collapse": "Collapse",
     "expand": "Expand",
     "hotkey": "e",

@@ -37,7 +37,6 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.common import (
     GridNodeResponse,
     GridRunsResponse,
-    LatestRunResponse,
 )
 from airflow.api_fastapi.core_api.datamodels.ui.grid import (
     GridTISummaries,
@@ -52,7 +51,7 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
-from airflow.utils.task_group import (
+from airflow.sdk.definitions.taskgroup import (
     get_task_group_children_getter,
     task_group_to_dict_grid,
 )
@@ -127,12 +126,12 @@ def get_dag_structure(
     # Retrieve, sort the previous DAG Runs
     base_query = select(DagRun.id).where(DagRun.dag_id == dag_id)
     # This comparison is to fall back to DAG timetable when no order_by is provided
-    if order_by.value == order_by.get_primary_key_string():
+    if order_by.value == [order_by.get_primary_key_string()]:
         ordering = list(latest_dag.timetable.run_ordering)
         order_by = SortParam(
             allowed_attrs=ordering,
             model=DagRun,
-        ).set_value(ordering[0])
+        ).set_value(ordering)
     dag_runs_select_filter, _ = paginated_select(
         statement=base_query,
         order_by=order_by,
@@ -230,14 +229,14 @@ def get_grid_runs(
     ).where(DagRun.dag_id == dag_id)
 
     # This comparison is to fall back to DAG timetable when no order_by is provided
-    if order_by.value == order_by.get_primary_key_string():
+    if order_by.value == [order_by.get_primary_key_string()]:
         latest_serdag = _get_latest_serdag(dag_id, session)
         latest_dag = latest_serdag.dag
         ordering = list(latest_dag.timetable.run_ordering)
         order_by = SortParam(
             allowed_attrs=ordering,
             model=DagRun,
-        ).set_value(ordering[0])
+        ).set_value(ordering)
     dag_runs_select_filter, _ = paginated_select(
         statement=base_query,
         order_by=order_by,
@@ -305,7 +304,7 @@ def get_grid_ti_summaries(
             )
         ),
         filters=[],
-        order_by=SortParam(allowed_attrs=["task_id", "run_id"], model=TaskInstance).set_value("task_id"),
+        order_by=SortParam(allowed_attrs=["task_id", "run_id"], model=TaskInstance).set_value(["task_id"]),
         limit=None,
         return_total_entries=False,
     )
@@ -348,49 +347,3 @@ def get_grid_ti_summaries(
         "dag_id": dag_id,
         "task_instances": list(get_node_sumaries()),
     }
-
-
-@grid_router.get(
-    "/latest_run/{dag_id}",
-    responses=create_openapi_http_exception_doc(
-        [
-            status.HTTP_400_BAD_REQUEST,
-            status.HTTP_404_NOT_FOUND,
-        ]
-    ),
-    dependencies=[
-        Depends(
-            requires_access_dag(
-                method="GET",
-                access_entity=DagAccessEntity.TASK_INSTANCE,
-            )
-        ),
-        Depends(
-            requires_access_dag(
-                method="GET",
-                access_entity=DagAccessEntity.RUN,
-            )
-        ),
-    ],
-    response_model_exclude_none=True,
-)
-def get_latest_run(
-    dag_id: str,
-    session: SessionDep,
-) -> LatestRunResponse | None:
-    """
-    Get information about the latest dag run by run_after.
-
-    This is used by the UI to figure out if it needs to rerun queries and resume auto refresh.
-    """
-    return session.execute(
-        select(
-            DagRun.id,
-            DagRun.dag_id,
-            DagRun.run_id,
-            DagRun.run_after,
-        )
-        .where(DagRun.dag_id == dag_id)
-        .order_by(DagRun.run_after.desc())
-        .limit(1)
-    ).one_or_none()

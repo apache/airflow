@@ -23,8 +23,9 @@
 
 Package ``apache-airflow-providers-edge3``
 
-Release: ``1.1.2``
+Release: ``1.1.3``
 
+Release Date: ``|PypiReleaseDate|``
 
 Handle edge workers on remote sites via HTTP(s) connection and orchestrates work over distributed sites.
 
@@ -48,7 +49,7 @@ This is a provider package for ``edge3`` provider. All classes for this provider
 are in ``airflow.providers.edge3`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-edge3/1.1.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-edge3/1.1.3/>`_.
 
 Installation
 ------------
@@ -57,7 +58,7 @@ You can install this package on top of an existing Airflow 2 installation (see `
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-edge3``
 
-The package supports the following python versions: 3.10,3.11,3.12
+The package supports the following python versions: 3.10,3.11,3.12,3.13
 
 Requirements
 ------------
@@ -71,4 +72,4 @@ PIP package         Version required
 ==================  ===================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-edge3/1.1.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-edge3/1.1.3/changelog.html>`_.

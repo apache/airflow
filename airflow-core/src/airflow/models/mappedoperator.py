@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import functools
 import operator
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
 import attrs
@@ -31,7 +32,6 @@ from airflow.sdk.definitions._internal.abstractoperator import NotMapped
 from airflow.sdk.definitions.mappedoperator import MappedOperator as TaskSDKMappedOperator
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.serialization.serialized_objects import DEFAULT_OPERATOR_DEPS, SerializedBaseOperator
-from airflow.utils.helpers import prevent_duplicates
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -46,6 +46,21 @@ if TYPE_CHECKING:
 log = structlog.get_logger(__name__)
 
 
+def _prevent_duplicates(kwargs1: dict[str, Any], kwargs2: Mapping[str, Any], *, fail_reason: str) -> None:
+    """
+    Ensure *kwargs1* and *kwargs2* do not contain common keys.
+
+    :raises TypeError: If common keys are found.
+    """
+    duplicated_keys = set(kwargs1).intersection(kwargs2)
+    if not duplicated_keys:
+        return
+    if len(duplicated_keys) == 1:
+        raise TypeError(f"{fail_reason} argument: {duplicated_keys.pop()}")
+    duplicated_keys_display = ", ".join(sorted(duplicated_keys))
+    raise TypeError(f"{fail_reason} arguments: {duplicated_keys_display}")
+
+
 @attrs.define(
     kw_only=True,
     # Disable custom __getstate__ and __setstate__ generation since it interacts
@@ -58,7 +73,7 @@ log = structlog.get_logger(__name__)
     getstate_setstate=False,
     repr=False,
 )
-class MappedOperator(TaskSDKMappedOperator):  # type: ignore[misc] # It complains about weight_rule being different
+class MappedOperator(TaskSDKMappedOperator):
     """Object representing a mapped operator in a DAG."""
 
     deps: frozenset[BaseTIDep] = attrs.field(init=False, default=DEFAULT_OPERATOR_DEPS)
@@ -72,20 +87,25 @@ class MappedOperator(TaskSDKMappedOperator):  # type: ignore[misc] # It complain
 
         :meta private:
         """
-        if not self.partial_kwargs.get("start_from_trigger", self.start_from_trigger):
+        if self.partial_kwargs.get("start_from_trigger", self.start_from_trigger):
             log.warning(
                 "Starting a mapped task from triggerer is currently unsupported",
                 task_id=self.task_id,
                 dag_id=self.dag_id,
             )
-            return False
+
+        # This is intentional. start_from_trigger does not work correctly with
+        # sdk-db separation yet, so it is disabled unconditionally for now.
+        # TODO: TaskSDK: Implement this properly.
+        return False
+
         # start_from_trigger only makes sense when start_trigger_args exists.
         if not self.start_trigger_args:
             return False
 
         mapped_kwargs, _ = self._expand_mapped_kwargs(context)
         if self._disallow_kwargs_override:
-            prevent_duplicates(
+            _prevent_duplicates(
                 self.partial_kwargs,
                 mapped_kwargs,
                 fail_reason="unmappable or already specified",
@@ -145,7 +165,7 @@ class MappedOperator(TaskSDKMappedOperator):  # type: ignore[misc] # It complain
         link = self.operator_extra_link_dict.get(name) or self.global_operator_extra_link_dict.get(name)
         if not link:
             return None
-        return link.get_link(self, ti_key=ti.key)  # type: ignore[arg-type]
+        return link.get_link(self, ti_key=ti.key)
 
 
 @functools.singledispatch

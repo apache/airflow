@@ -54,3 +54,24 @@ the connection metadata is structured as follows:
     :dedent: 4
     :start-after: [START run_query_neo4j_operator]
     :end-before: [END run_query_neo4j_operator]
+
+Passing parameters into the query
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Neo4jOperator provides ``parameters`` argument to pass parameters into the
+query. This allows you to use placeholders in your parameterized query and
+substitute them with actual values at execution time.
+
+When using the ``parameters`` argument, you should prefix placeholders in your
+query using the ``$`` syntax. For example, if your query uses a placeholder
+like ``$name``, you would provide the parameters as ``{"name": "value"}`` in
+the operator. This allows you to write dynamic queries without having to
+concatenate strings. This is particularly useful when you want to execute
+the same query with different values, or use values from the Airflow
+context, such as task instance parameters or variables.
+
+.. exampleinclude:: /../../neo4j/tests/system/neo4j/example_neo4j_query.py
+    :language: python
+    :dedent: 4
+    :start-after: [START run_query_neo4j_operator]
+    :end-before: [END run_query_neo4j_operator]

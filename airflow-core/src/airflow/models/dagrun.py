@@ -30,6 +30,7 @@ from typing import (
     overload,
 )
 
+from natsort import natsorted
 from sqlalchemy import (
     JSON,
     Column,
@@ -60,11 +61,12 @@ from sqlalchemy.sql.expression import false, select
 from sqlalchemy.sql.functions import coalesce
 from sqlalchemy_utils import UUIDType
 
-from airflow.callbacks.callback_requests import DagCallbackRequest
+from airflow._shared.timezones import timezone
+from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.listeners.listener import get_listener_manager
-from airflow.models import Log
+from airflow.models import Deadline, Log
 from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
 from airflow.models.taskinstance import TaskInstance as TI
@@ -72,11 +74,11 @@ from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
 from airflow.sdk.definitions._internal.abstractoperator import NotMapped
+from airflow.sdk.definitions.deadline import DeadlineReference
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
 from airflow.traces.tracer import EmptySpan, Trace
-from airflow.utils import timezone
 from airflow.utils.dates import datetime_to_nano
 from airflow.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -101,7 +103,7 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.models.dag_version import DagVersion
     from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.sdk import DAG as SDKDAG, Context
+    from airflow.sdk import DAG as SDKDAG
     from airflow.sdk.types import Operator
     from airflow.serialization.serialized_objects import SerializedBaseOperator as BaseOperator
     from airflow.utils.types import ArgNotSet
@@ -369,7 +371,7 @@ class DagRun(Base, LoggingMixin):
         """Return the DAG versions associated with the TIs of this DagRun."""
         # when the dag is in a versioned bundle, we keep the dag version fixed
         if self.bundle_version:
-            return [self.created_dag_version]
+            return [self.created_dag_version] if self.created_dag_version is not None else []
         dag_versions = [
             dv
             for dv in dict.fromkeys(list(self._tih_dag_versions) + list(self._ti_dag_versions))
@@ -1185,6 +1187,10 @@ class DagRun(Base, LoggingMixin):
                     run_id=self.run_id,
                     bundle_name=self.dag_model.bundle_name,
                     bundle_version=self.bundle_version,
+                    context_from_server=DagRunContext(
+                        dag_run=self,
+                        last_ti=self.get_last_ti(dag=dag, session=session),
+                    ),
                     is_failure_callback=True,
                     msg="task_failure",
                 )
@@ -1214,9 +1220,17 @@ class DagRun(Base, LoggingMixin):
                     run_id=self.run_id,
                     bundle_name=self.dag_model.bundle_name,
                     bundle_version=self.bundle_version,
+                    context_from_server=DagRunContext(
+                        dag_run=self,
+                        last_ti=self.get_last_ti(dag=dag, session=session),
+                    ),
                     is_failure_callback=False,
                     msg="success",
                 )
+
+            if (deadline := dag.deadline) and isinstance(deadline.reference, DeadlineReference.TYPES.DAGRUN):
+                # The dagrun has succeeded.  If there wre any Deadlines for it which were not breached, they are no longer needed.
+                Deadline.prune_deadlines(session=session, conditions={DagRun.run_id: self.run_id})
 
         # if *all tasks* are deadlocked, the run failed
         elif unfinished.should_schedule and not are_runnable_tasks:
@@ -1233,6 +1247,10 @@ class DagRun(Base, LoggingMixin):
                     run_id=self.run_id,
                     bundle_name=self.dag_model.bundle_name,
                     bundle_version=self.bundle_version,
+                    context_from_server=DagRunContext(
+                        dag_run=self,
+                        last_ti=self.get_last_ti(dag=dag, session=session),
+                    ),
                     is_failure_callback=True,
                     msg="all_tasks_deadlocked",
                 )
@@ -1345,13 +1363,75 @@ class DagRun(Base, LoggingMixin):
         # we can't get all the state changes on SchedulerJob,
         # or LocalTaskJob, so we don't want to "falsely advertise" we notify about that
 
+    @provide_session
+    def get_last_ti(self, dag: DAG, session: Session = NEW_SESSION) -> TI | None:
+        """Get Last TI from the dagrun to build and pass Execution context object from server to then run callbacks."""
+        tis = self.get_task_instances(session=session)
+        # tis from a dagrun may not be a part of dag.partial_subset,
+        # since dag.partial_subset is a subset of the dag.
+        # This ensures that we will only use the accessible TI
+        # context for the callback.
+        if dag.partial:
+            tis = [ti for ti in tis if not ti.state == State.NONE]
+        # filter out removed tasks
+        tis = natsorted(
+            (ti for ti in tis if ti.state != TaskInstanceState.REMOVED),
+            key=lambda ti: ti.task_id,
+        )
+        if not tis:
+            return None
+        ti = tis[-1]  # get last TaskInstance of DagRun
+        return ti
+
     def handle_dag_callback(self, dag: SDKDAG, success: bool = True, reason: str = "success"):
         """Only needed for `dag.test` where `execute_callbacks=True` is passed to `update_state`."""
-        context: Context = {  # type: ignore[assignment]
-            "dag": dag,
-            "run_id": str(self.run_id),
-            "reason": reason,
-        }
+        from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+            DagRun as DRDataModel,
+            TaskInstance as TIDataModel,
+            TIRunContext,
+        )
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+        last_ti = self.get_last_ti(dag)  # type: ignore[arg-type]
+        if last_ti:
+            last_ti_model = TIDataModel.model_validate(last_ti, from_attributes=True)
+            task = dag.get_task(last_ti.task_id)
+
+            dag_run_data = DRDataModel(
+                dag_id=self.dag_id,
+                run_id=self.run_id,
+                logical_date=self.logical_date,
+                data_interval_start=self.data_interval_start,
+                data_interval_end=self.data_interval_end,
+                run_after=self.run_after,
+                start_date=self.start_date,
+                end_date=self.end_date,
+                run_type=self.run_type,
+                state=self.state,
+                conf=self.conf,
+                consumed_asset_events=[],
+            )
+
+            runtime_ti = RuntimeTaskInstance.model_construct(
+                **last_ti_model.model_dump(exclude_unset=True),
+                task=task,
+                _ti_context_from_server=TIRunContext(
+                    dag_run=dag_run_data,
+                    max_tries=last_ti.max_tries,
+                    variables=[],
+                    connections=[],
+                    xcom_keys_to_clear=[],
+                ),
+                max_tries=last_ti.max_tries,
+            )
+            context = runtime_ti.get_template_context()
+        else:
+            context = {
+                "dag": dag,
+                "run_id": self.run_id,
+            }
+
+        context["reason"] = reason
 
         callbacks = dag.on_success_callback if success else dag.on_failure_callback
         if not callbacks:

@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-apache-kafka"
-version = "1.10.0"
+version = "1.10.2"
 description = "Provider package apache-airflow-providers-apache-kafka for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -49,7 +49,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: System :: Monitoring",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.10,!=3.13"
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
@@ -58,7 +58,7 @@ requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=2.10.0",
     "asgiref>=2.3.0",
-    "confluent-kafka>=2.3.0",
+    "confluent-kafka>=2.6.0",
 ]
 
 # The optional dependencies should be modified in place in the generated file
@@ -68,7 +68,7 @@ dependencies = [
     "apache-airflow-providers-google"
 ]
 "common.messaging" = [
-    "apache-airflow-providers-common-messaging>=1.0.1"
+    "apache-airflow-providers-common-messaging>=1.0.3"
 ]
 
 [dependency-groups]
@@ -79,6 +79,7 @@ dev = [
     "apache-airflow-providers-common-messaging",
     "apache-airflow-providers-google",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
+    "apache-airflow-providers-common-messaging>=1.0.3",
 ]
 
 # To build docs:
@@ -107,8 +108,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.10.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.10.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.10.2"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.10.2/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

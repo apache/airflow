@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import math
 from collections.abc import Iterator
 from datetime import datetime, timedelta
 
@@ -28,6 +29,7 @@ from kubernetes.client import models as k8s
 from pendulum.tz.timezone import FixedTimezone, Timezone
 from uuid6 import uuid7
 
+from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.exceptions import (
     AirflowException,
@@ -56,26 +58,30 @@ from airflow.sdk.definitions.asset import (
     AssetUniqueKey,
     AssetWatcher,
 )
-from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineAlertFields, DeadlineReference
+from airflow.sdk.definitions.deadline import (
+    AsyncCallback,
+    DeadlineAlert,
+    DeadlineAlertFields,
+    DeadlineReference,
+)
 from airflow.sdk.definitions.decorators import task
 from airflow.sdk.definitions.param import Param
+from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.serialized_objects import BaseSerialization, LazyDeserializedDAG, SerializedDAG
 from airflow.timetables.base import DataInterval
 from airflow.triggers.base import BaseTrigger
-from airflow.utils import timezone
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.operator_resources import Resources
 from airflow.utils.state import DagRunState, State
-from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 
 from unit.models import DEFAULT_DATE
 
 DAG_ID = "dag_id_1"
 
-TEST_CALLBACK_PATH = f"{__name__}.test_callback_for_deadline"
+TEST_CALLBACK_PATH = f"{__name__}.empty_callback_for_deadline"
 TEST_CALLBACK_KWARGS = {"arg1": "value1"}
 
 REFERENCE_TYPES = [
@@ -85,7 +91,7 @@ REFERENCE_TYPES = [
 ]
 
 
-def test_callback_for_deadline():
+async def empty_callback_for_deadline():
     """Used in a number of tests to confirm that Deadlines and DeadlineAlerts function correctly."""
     pass
 
@@ -227,9 +233,8 @@ def equal_exception(a: AirflowException, b: AirflowException) -> bool:
 
 
 def equal_outlet_event_accessors(a: OutletEventAccessors, b: OutletEventAccessors) -> bool:
-    return a._dict.keys() == b._dict.keys() and all(  # type: ignore[attr-defined]
-        equal_outlet_event_accessor(a._dict[key], b._dict[key])  # type: ignore[attr-defined]
-        for key in a._dict  # type: ignore[attr-defined]
+    return a._dict.keys() == b._dict.keys() and all(
+        equal_outlet_event_accessor(a._dict[key], b._dict[key]) for key in a._dict
     )
 
 
@@ -255,6 +260,9 @@ class MockLazySelectSequence(LazySelectSequence):
     [
         ("test_str", None, equals),
         (1, None, equals),
+        (math.nan, None, lambda a, b: b == "nan"),
+        (math.inf, None, lambda a, b: b == "inf"),
+        (-math.inf, None, lambda a, b: b == "-inf"),
         (timezone.utcnow(), DAT.DATETIME, equal_time),
         (timedelta(minutes=2), DAT.TIMEDELTA, equals),
         (Timezone("UTC"), DAT.TIMEZONE, lambda a, b: a.name == b.name),
@@ -361,7 +369,7 @@ class MockLazySelectSequence(LazySelectSequence):
             DeadlineAlert(
                 reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
                 interval=timedelta(),
-                callback="fake_callable",
+                callback=AsyncCallback("fake_callable"),
             ),
             None,
             None,
@@ -407,8 +415,7 @@ class MockLazySelectSequence(LazySelectSequence):
             DeadlineAlert(
                 reference=DeadlineReference.DAGRUN_QUEUED_AT,
                 interval=timedelta(hours=1),
-                callback="valid.callback.path",
-                callback_kwargs={"arg1": "value1"},
+                callback=AsyncCallback("valid.callback.path", kwargs={"arg1": "value1"}),
             ),
             DAT.DEADLINE_ALERT,
             equals,
@@ -442,8 +449,7 @@ def test_serialize_deserialize_deadline_alert(reference):
     original = DeadlineAlert(
         reference=reference,
         interval=timedelta(hours=1),
-        callback=test_callback_for_deadline,
-        callback_kwargs=TEST_CALLBACK_KWARGS,
+        callback=AsyncCallback(empty_callback_for_deadline, kwargs=TEST_CALLBACK_KWARGS),
     )
 
     serialized = original.serialize_deadline_alert()
@@ -453,9 +459,7 @@ def test_serialize_deserialize_deadline_alert(reference):
     deserialized = DeadlineAlert.deserialize_deadline_alert(serialized)
     assert deserialized.reference.serialize_reference() == reference.serialize_reference()
     assert deserialized.interval == original.interval
-    assert deserialized.callback_kwargs == original.callback_kwargs
-    assert isinstance(deserialized.callback, str)
-    assert deserialized.callback == TEST_CALLBACK_PATH
+    assert deserialized.callback == original.callback
 
 
 @pytest.mark.parametrize(

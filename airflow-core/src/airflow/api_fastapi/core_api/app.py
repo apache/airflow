@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 import warnings
 from pathlib import Path
 
@@ -34,6 +35,8 @@ from airflow.exceptions import AirflowException
 from airflow.settings import AIRFLOW_PATH
 
 log = logging.getLogger(__name__)
+
+PY313 = sys.version_info >= (3, 13)
 
 
 def init_views(app: FastAPI) -> None:
@@ -124,6 +127,13 @@ def init_flask_plugins(app: FastAPI) -> None:
     try:
         from airflow.providers.fab.www.app import create_app
     except ImportError:
+        if PY313:
+            log.info(
+                "Some Airflow 2 plugins have been detected in your environment. Currently FAB provider "
+                "does not support Python 3.13, so you cannot use Airflow 2 plugins with Airflow 3 until "
+                "FAB provider will be Python 3.13 compatible."
+            )
+            return
         raise AirflowException(
             "Some Airflow 2 plugins have been detected in your environment. "
             "To run them with Airflow 3, you must install the FAB provider in your Airflow environment."

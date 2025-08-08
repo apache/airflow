@@ -25,6 +25,7 @@ import datetime
 import enum
 import itertools
 import logging
+import math
 import weakref
 from collections.abc import Collection, Generator, Iterable, Iterator, Mapping, Sequence
 from functools import cache, cached_property
@@ -40,6 +41,7 @@ from dateutil import relativedelta
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
 from airflow import macros
+from airflow._shared.timezones.timezone import from_timestamp, parse_timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.exceptions import AirflowException, SerializationError, TaskDeferred
 from airflow.models.connection import Connection
@@ -94,7 +96,6 @@ from airflow.utils.docs import get_docs_url
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string, qualname
 from airflow.utils.operator_resources import Resources
-from airflow.utils.timezone import from_timestamp, parse_timezone
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
@@ -164,7 +165,7 @@ def encode_relativedelta(var: relativedelta.relativedelta) -> dict[str, Any]:
 def decode_relativedelta(var: dict[str, Any]) -> relativedelta.relativedelta:
     """Dencode a relativedelta object."""
     if "weekday" in var:
-        var["weekday"] = relativedelta.weekday(*var["weekday"])  # type: ignore
+        var["weekday"] = relativedelta.weekday(*var["weekday"])
     return relativedelta.relativedelta(**var)
 
 
@@ -399,14 +400,14 @@ def encode_outlet_event_accessors(var: OutletEventAccessors) -> dict[str, Any]:
         "__type": DAT.ASSET_EVENT_ACCESSORS,
         "_dict": [
             {"key": BaseSerialization.serialize(k), "value": encode_outlet_event_accessor(v)}
-            for k, v in var._dict.items()  # type: ignore[attr-defined]
+            for k, v in var._dict.items()
         ],
     }
 
 
 def decode_outlet_event_accessors(var: dict[str, Any]) -> OutletEventAccessors:
-    d = OutletEventAccessors()  # type: ignore[assignment]
-    d._dict = {  # type: ignore[attr-defined]
+    d = OutletEventAccessors()
+    d._dict = {
         BaseSerialization.deserialize(row["key"]): decode_outlet_event_accessor(row["value"])
         for row in var["_dict"]
     }
@@ -720,6 +721,9 @@ class BaseSerialization:
             # enum.IntEnum is an int instance, it causes json dumps error so we use its value.
             if isinstance(var, enum.Enum):
                 return var.value
+            # These are not allowed in JSON. https://datatracker.ietf.org/doc/html/rfc8259#section-6
+            if isinstance(var, float) and (math.isnan(var) or math.isinf(var)):
+                return str(var)
             return var
         elif isinstance(var, dict):
             return cls._encode(
@@ -1332,6 +1336,15 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
     def expand_start_trigger_args(self, *, context: Context) -> StartTriggerArgs | None:
         return self.start_trigger_args
 
+    def __getattr__(self, name):
+        # Handle missing attributes with task_type instead of SerializedBaseOperator
+        # Don't intercept special methods that Python internals might check
+        if name.startswith("__") and name.endswith("__"):
+            # For special methods, raise the original error
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+        # For regular attributes, use task_type in the error message
+        raise AttributeError(f"'{self.task_type}' object has no attribute '{name}'")
+
     @classmethod
     def serialize_mapped_operator(cls, op: MappedOperator) -> dict[str, Any]:
         serialized_op = cls._serialize_node(op)
@@ -1524,7 +1537,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
                 if v is False:
                     raise RuntimeError("_is_sensor=False should never have been serialized!")
-                object.__setattr__(op, "deps", op.deps | {ReadyToRescheduleDep()})  # type: ignore[union-attr]
+                object.__setattr__(op, "deps", op.deps | {ReadyToRescheduleDep()})
                 continue
             elif (
                 k in cls._decorated_fields

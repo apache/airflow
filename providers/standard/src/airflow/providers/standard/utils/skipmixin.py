@@ -22,7 +22,7 @@ from types import GeneratorType
 from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_PLUS
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
@@ -40,12 +40,12 @@ XCOM_SKIPMIXIN_FOLLOWED = "followed"
 
 
 def _ensure_tasks(nodes: Iterable[DAGNode]) -> Sequence[Operator]:
-    if AIRFLOW_V_3_1_PLUS:
+    if AIRFLOW_V_3_0_PLUS:
         from airflow.sdk import BaseOperator
         from airflow.sdk.definitions.mappedoperator import MappedOperator
     else:
         from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
-        from airflow.models.mappedoperator import MappedOperator  # type: ignore[no-redef]
+        from airflow.models.mappedoperator import MappedOperator
 
     return [n for n in nodes if isinstance(n, (BaseOperator, MappedOperator))]
 

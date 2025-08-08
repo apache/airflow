@@ -435,7 +435,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         :param url: The URL for the API endpoint.
         :param headers: The headers to include in the API call.
         :param params: (Optional) The query parameters to include in the API call.
-        :param data: (Optional) The data to include in the API call.
+        :param json: (Optional) The data to include in the API call.
         :return: The response object from the API call.
         """
         with requests.Session() as session:
@@ -464,7 +464,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         :return: The response object from the API call.
         """
         async with aiohttp.ClientSession(headers=headers) as session:
-            async for attempt in AsyncRetrying(**self.retry_config):  # type: ignore
+            async for attempt in AsyncRetrying(**self.retry_config):
                 with attempt:
                     if method.upper() == "GET":
                         async with session.request(method=method.lower(), url=url, params=params) as response:

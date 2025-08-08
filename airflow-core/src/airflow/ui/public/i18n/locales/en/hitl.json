@@ -1,0 +1,24 @@
+{
+  "requiredAction_one": "Required Action",
+  "requiredAction_other": "Required Actions",
+  "requiredActionState": "Required Action State",
+  "response": {
+    "error": "Response failed",
+    "optionsDescription": "Choose your options for this task instance",
+    "optionsLabel": "Options",
+    "received": "Response received at ",
+    "respond": "Respond",
+    "success": "{{taskId}} response successful",
+    "title": "Human Task Instance - {{taskId}}"
+  },
+  "state": {
+    "approvalReceived": "Approval Received",
+    "approvalRequired": "Approval Required",
+    "choiceReceived": "Choice Received",
+    "choiceRequired": "Choice Required",
+    "rejectionReceived": "Rejection Received",
+    "responseReceived": "Response Received",
+    "responseRequired": "Response Required"
+  },
+  "subject": "Subject"
+}

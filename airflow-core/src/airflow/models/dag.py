@@ -39,7 +39,6 @@ import methodtools
 import pendulum
 import sqlalchemy_jsonfield
 from dateutil.relativedelta import relativedelta
-from packaging import version as packaging_version
 from sqlalchemy import (
     Boolean,
     Column,
@@ -62,6 +61,7 @@ from sqlalchemy.orm import backref, load_only, relationship
 from sqlalchemy.sql import Select, expression
 
 from airflow import settings, utils
+from airflow._shared.timezones import timezone
 from airflow.assets.evaluation import AssetEvaluator
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import (
@@ -95,9 +95,7 @@ from airflow.timetables.simple import (
     NullTimetable,
     OnceTimetable,
 )
-from airflow.utils import timezone
 from airflow.utils.context import Context
-from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, lock_rows, with_row_locks
@@ -461,28 +459,14 @@ class DAG(TaskSDKDag, LoggingMixin):
         """Look for outdated dag level actions in DAG access_controls and replace them with updated actions."""
         if access_control is None:
             return None
-
-        from airflow.providers.fab import __version__ as FAB_VERSION
-        from airflow.providers.fab.www.security import permissions
-
         updated_access_control = {}
         for role, perms in access_control.items():
-            if packaging_version.parse(FAB_VERSION) >= packaging_version.parse("1.3.0"):
-                updated_access_control[role] = updated_access_control.get(role, {})
-                if isinstance(perms, (set, list)):
-                    # Support for old-style access_control where only the actions are specified
-                    updated_access_control[role][permissions.RESOURCE_DAG] = set(perms)
-                else:
-                    updated_access_control[role] = perms
-            elif isinstance(perms, dict):
-                # Not allow new access control format with old FAB versions
-                raise AirflowException(
-                    "Please upgrade the FAB provider to a version >= 1.3.0 to allow "
-                    "use the Dag Level Access Control new format."
-                )
+            updated_access_control[role] = updated_access_control.get(role, {})
+            if isinstance(perms, (set, list)):
+                # Support for old-style access_control where only the actions are specified
+                updated_access_control[role]["DAGs"] = set(perms)
             else:
-                updated_access_control[role] = set(perms)
-
+                updated_access_control[role] = perms
         return updated_access_control
 
     def get_next_data_interval(self, dag_model: DagModel) -> DataInterval | None:
@@ -1301,6 +1285,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         dag_bag: DagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
+        run_on_latest_version: bool = False,
     ) -> list[TaskInstance]: ...  # pragma: no cover
 
     @overload
@@ -1318,6 +1303,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         dag_bag: DagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
+        run_on_latest_version: bool = False,
     ) -> int: ...  # pragma: no cover
 
     @overload
@@ -1336,6 +1322,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         dag_bag: DagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
+        run_on_latest_version: bool = False,
     ) -> list[TaskInstance]: ...  # pragma: no cover
 
     @overload
@@ -1354,6 +1341,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         dag_bag: DagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
+        run_on_latest_version: bool = False,
     ) -> int: ...  # pragma: no cover
 
     @provide_session
@@ -1373,6 +1361,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         dag_bag: DagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
+        run_on_latest_version: bool = False,
     ) -> int | Iterable[TaskInstance]:
         """
         Clear a set of task instances associated with the current dag for a specified date range.
@@ -1387,6 +1376,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         :param dag_run_state: state to set DagRun to. If set to False, dagrun state will not
             be changed.
         :param dry_run: Find the tasks to clear but don't clear them.
+        :param run_on_latest_version: whether to run on latest serialized DAG and Bundle version
         :param session: The sqlalchemy session to use
         :param dag_bag: The DagBag used to find the dags (Optional)
         :param exclude_task_ids: A set of ``task_id`` or (``task_id``, ``map_index``)
@@ -1432,6 +1422,7 @@ class DAG(TaskSDKDag, LoggingMixin):
                 list(tis),
                 session,
                 dag_run_state=dag_run_state,
+                run_on_latest_version=run_on_latest_version,
             )
         else:
             count = 0
@@ -1497,16 +1488,6 @@ class DAG(TaskSDKDag, LoggingMixin):
             count = 0
             print("Cancelled, nothing was cleared.")
         return count
-
-    def cli(self):
-        """Exposes a CLI specific to this DAG."""
-        check_cycle(self)
-
-        from airflow.cli import cli_parser
-
-        parser = cli_parser.get_parser(dag_parser=True)
-        args = parser.parse_args()
-        args.func(args, self)
 
     @provide_session
     def create_dagrun(
@@ -1613,7 +1594,6 @@ class DAG(TaskSDKDag, LoggingMixin):
                         run_id=run_id,
                     ),
                     callback=self.deadline.callback,
-                    callback_kwargs=self.deadline.callback_kwargs or {},
                     dag_id=self.dag_id,
                     dagrun_id=orm_dagrun.id,
                 )
@@ -1644,7 +1624,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         log.info("Sync %s DAGs", len(dags))
         dag_op = DagModelOperation(
             bundle_name=bundle_name, bundle_version=bundle_version, dags={d.dag_id: d for d in dags}
-        )  # type: ignore[misc]
+        )
 
         orm_dags = dag_op.add_dags(session=session)
         dag_op.update_dags(orm_dags, session=session)

@@ -529,6 +529,9 @@ Dlp
 dlp
 DlpJob
 DlpServiceClient
+DLQ
+Dlq
+dlq
 dms
 DNs
 dns
@@ -1159,6 +1162,7 @@ mssql
 mTLS
 mtls
 muldelete
+multi-cloud
 multimodal
 Multinamespace
 mutex
@@ -1982,6 +1986,7 @@ views
 virtualenv
 virtualenvs
 virtualized
+Vite
 vm
 VolumeKmsKeyId
 VolumeMount

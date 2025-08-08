@@ -66,6 +66,7 @@ from airflow.providers.fab.auth_manager.cli_commands.definition import (
 )
 from airflow.providers.fab.auth_manager.models import Permission, Role, User
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
+from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.fab.www.app import create_app
 from airflow.providers.fab.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
 from airflow.providers.fab.www.extensions.init_views import (
@@ -158,6 +159,7 @@ _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE = {
 _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE = {
     MenuItem.ASSETS: RESOURCE_ASSET,
     MenuItem.AUDIT_LOG: RESOURCE_AUDIT_LOG,
+    MenuItem.CONFIG: RESOURCE_CONFIG,
     MenuItem.CONNECTIONS: RESOURCE_CONNECTION,
     MenuItem.DAGS: RESOURCE_DAG,
     MenuItem.DOCS: RESOURCE_DOCS,
@@ -167,6 +169,13 @@ _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE = {
     MenuItem.VARIABLES: RESOURCE_VARIABLE,
     MenuItem.XCOMS: RESOURCE_XCOM,
 }
+
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.providers.fab.www.security.permissions import RESOURCE_HITL_DETAIL
+
+    _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE[MenuItem.REQUIRED_ACTIONS] = RESOURCE_HITL_DETAIL
+    _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE[DagAccessEntity.HITL_DETAIL] = (RESOURCE_HITL_DETAIL,)
 
 
 class FabAuthManager(BaseAuthManager[User]):

@@ -251,7 +251,7 @@ def _log_stream_to_parsed_log_stream(
     :param log_stream: The stream to parse.
     :return: A generator of parsed log lines.
     """
-    from airflow.utils.timezone import coerce_datetime
+    from airflow._shared.timezones.timezone import coerce_datetime
 
     timestamp = None
     next_timestamp = None
@@ -739,11 +739,7 @@ class FileTaskHandler(logging.Handler):
             try_number = task_instance.try_number
 
         if try_number == 0 and task_instance.state == TaskInstanceState.SKIPPED:
-            logs = [
-                StructuredLogMessage(  # type: ignore[call-arg]
-                    event="Task was skipped, no logs available."
-                )
-            ]
+            logs = [StructuredLogMessage(event="Task was skipped, no logs available.")]
             return chain(logs), {"end_of_log": True}
 
         if try_number is None or try_number < 1:
@@ -866,13 +862,13 @@ class FileTaskHandler(logging.Handler):
 
     def _read_from_logs_server(
         self,
-        ti: TaskInstance,
+        ti: TaskInstance | TaskInstanceHistory,
         worker_log_rel_path: str,
     ) -> LogResponse:
         sources: LogSourceInfo = []
         log_streams: list[RawLogStream] = []
         try:
-            log_type = LogType.TRIGGER if ti.triggerer_job else LogType.WORKER
+            log_type = LogType.TRIGGER if getattr(ti, "triggerer_job", False) else LogType.WORKER
             url, rel_path = self._get_log_retrieval_url(ti, worker_log_rel_path, log_type=log_type)
             response = _fetch_logs_from_service(url, rel_path)
             if response.status_code == 403:

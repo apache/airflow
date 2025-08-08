@@ -25,6 +25,7 @@ import pytest
 import time_machine
 from sqlalchemy import select
 
+from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun
@@ -32,13 +33,18 @@ from airflow.models.asset import AssetEvent, AssetModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.param import Param
-from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.api_fastapi import _check_dag_run_note, _check_last_log
-from tests_common.test_utils.db import clear_db_dags, clear_db_logs, clear_db_runs, clear_db_serialized_dags
+from tests_common.test_utils.db import (
+    clear_db_connections,
+    clear_db_dags,
+    clear_db_logs,
+    clear_db_runs,
+    clear_db_serialized_dags,
+)
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu, from_datetime_to_zulu_without_ms
 
 if TYPE_CHECKING:
@@ -82,6 +88,7 @@ DAG_RUNS_LIST = [DAG1_RUN1_ID, DAG1_RUN2_ID, DAG2_RUN1_ID, DAG2_RUN2_ID]
 @pytest.fixture(autouse=True)
 @provide_session
 def setup(request, dag_maker, session=None):
+    clear_db_connections()
     clear_db_runs()
     clear_db_dags()
     clear_db_serialized_dags()
@@ -101,7 +108,8 @@ def setup(request, dag_maker, session=None):
         triggered_by=DAG1_RUN1_TRIGGERED_BY,
         logical_date=LOGICAL_DATE1,
     )
-
+    # Set triggering_user_name for testing
+    dag_run1.triggering_user_name = "alice_admin"
     dag_run1.note = (DAG1_RUN1_NOTE, "not_test")
 
     for i, task in enumerate([task1, task2], start=1):
@@ -118,6 +126,8 @@ def setup(request, dag_maker, session=None):
         triggered_by=DAG1_RUN2_TRIGGERED_BY,
         logical_date=LOGICAL_DATE2,
     )
+    # Set triggering_user_name for testing
+    dag_run2.triggering_user_name = "bob_service"
 
     ti1 = dag_run2.get_task_instance(task_id=task1.task_id)
     ti1.task = task1
@@ -130,20 +140,25 @@ def setup(request, dag_maker, session=None):
     with dag_maker(DAG2_ID, schedule=None, start_date=START_DATE2, params=DAG2_PARAM, serialized=True):
         EmptyOperator(task_id="task_2")
 
-    dag_maker.create_dagrun(
+    dag_run3 = dag_maker.create_dagrun(
         run_id=DAG2_RUN1_ID,
         state=DAG2_RUN1_STATE,
         run_type=DAG2_RUN1_RUN_TYPE,
         triggered_by=DAG2_RUN1_TRIGGERED_BY,
         logical_date=LOGICAL_DATE3,
     )
-    dag_maker.create_dagrun(
+    # Set triggering_user_name for testing
+    dag_run3.triggering_user_name = "service_account"
+
+    dag_run4 = dag_maker.create_dagrun(
         run_id=DAG2_RUN2_ID,
         state=DAG2_RUN2_STATE,
         run_type=DAG2_RUN2_RUN_TYPE,
         triggered_by=DAG2_RUN2_TRIGGERED_BY,
         logical_date=LOGICAL_DATE4,
     )
+    # Leave triggering_user_name as None for testing
+    dag_run4.triggering_user_name = None
 
     dag_maker.sync_dagbag_to_db()
     dag_maker.dag_model.has_task_concurrency_limits = True
@@ -274,7 +289,7 @@ class TestGetDagRuns:
         response = test_client.get("/dags/invalid/dagRuns")
         assert response.status_code == 404
         body = response.json()
-        assert body["detail"] == "The DAG with dag_id: `invalid` was not found"
+        assert body["detail"] == "The Dag with ID: `invalid` was not found"
 
     def test_invalid_order_by_raises_400(self, test_client):
         response = test_client.get("/dags/test_dag1/dagRuns?order_by=invalid")
@@ -475,6 +490,21 @@ class TestGetDagRuns:
                 DAG1_ID,
                 {
                     "run_id_pattern": DAG1_RUN1_ID,
+                    "state": DagRunState.SUCCESS.value,
+                },
+                [DAG1_RUN1_ID],
+            ),
+            # Test triggering_user_name_pattern filter
+            (DAG1_ID, {"triggering_user_name_pattern": "alice_admin"}, [DAG1_RUN1_ID]),
+            (DAG1_ID, {"triggering_user_name_pattern": "bob_service"}, [DAG1_RUN2_ID]),
+            (DAG2_ID, {"triggering_user_name_pattern": "service_account"}, [DAG2_RUN1_ID]),
+            ("~", {"triggering_user_name_pattern": "alice%"}, [DAG1_RUN1_ID]),
+            ("~", {"triggering_user_name_pattern": "%service%"}, [DAG1_RUN2_ID, DAG2_RUN1_ID]),
+            ("~", {"triggering_user_name_pattern": "nonexistent"}, []),
+            (
+                DAG1_ID,
+                {
+                    "triggering_user_name_pattern": "alice%",
                     "state": DagRunState.SUCCESS.value,
                 },
                 [DAG1_RUN1_ID],
