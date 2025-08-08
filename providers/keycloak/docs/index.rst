@@ -32,10 +32,18 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
+    :caption: Guides
+
+    Keycloak auth manager <auth-manager/index>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/keycloak/index>
     Configuration <configurations-ref>
+    Keycloak auth manager token API <api-ref/token-api-ref>
 
 .. toctree::
     :hidden:
