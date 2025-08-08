@@ -562,6 +562,7 @@ you are checking):
 
 ```shell script
 VERSION=X.Y.Zrc1
+git fetch apache --tags
 git checkout ${VERSION}
 export AIRFLOW_REPO_ROOT=$(pwd)
 rm -rf dist/*
