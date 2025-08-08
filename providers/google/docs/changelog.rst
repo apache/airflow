@@ -963,7 +963,7 @@ Main
   The new API is not a replacement for the old one, it has a different approach and endpoints.
   Therefore, new operators implemented for the new API.
 
-10.22.0
+10.0.22
 .......
 
 .. note::

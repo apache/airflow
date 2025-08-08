@@ -107,7 +107,7 @@ needs to be updated after you change dependencies:
 
 .. code:: bash
 
-    breeze static-checks --type update-providers-dependencies --all-files
+    prefligit run update-providers-dependencies --all-files
 
 If you have ``pre-commit`` installed, this will be done automatically for you when you commit the changes and
 you should do it before you make a PR with such changed dependency changes

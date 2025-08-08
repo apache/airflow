@@ -204,73 +204,59 @@ def get_environments_to_print(env: Mapping[str, str] | None):
     return env_to_print
 
 
-def assert_pre_commit_installed():
+def assert_prefligit_installed():
     """
-    Check if pre-commit is installed in the right version.
+    Check if prefligit is installed in the right version.
 
-    :return: True is the pre-commit is installed in the right version.
+    :return: True is the prefligit is installed in the right version.
     """
     # Local import to make autocomplete work
     import yaml
     from packaging.version import Version
 
-    pre_commit_config = yaml.safe_load((AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml").read_text())
-    min_pre_commit_version = pre_commit_config["minimum_pre_commit_version"]
+    prefligit_config = yaml.safe_load((AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml").read_text())
+    min_prefligit_version = prefligit_config["minimum_prefligit_version"]
 
     python_executable = sys.executable
-    get_console().print(f"[info]Checking pre-commit installed for {python_executable}[/]")
-    need_to_reinstall_precommit = False
+    get_console().print(f"[info]Checking prefligit installed for {python_executable}[/]")
+    need_to_reinstall_prefligit = False
     try:
         command_result = run_command(
-            ["pre-commit", "--version"],
+            ["prefligit", "--version"],
             capture_output=True,
             text=True,
             check=False,
         )
         if command_result.returncode == 0:
             if command_result.stdout:
-                pre_commit_version = command_result.stdout.split(" ")[1].strip()
-                if Version(pre_commit_version) >= Version(min_pre_commit_version):
+                prefligit_version = command_result.stdout.split(" ")[1].strip()
+                if Version(prefligit_version) >= Version(min_prefligit_version):
                     get_console().print(
-                        f"\n[success]Package pre_commit is installed. "
-                        f"Good version {pre_commit_version} (>= {min_pre_commit_version})[/]\n"
+                        f"\n[success]Package prefligit is installed. "
+                        f"Good version {prefligit_version} (>= {min_prefligit_version})[/]\n"
                     )
                 else:
                     get_console().print(
-                        f"\n[error]Package name pre_commit version is wrong. It should be "
-                        f"at least {min_pre_commit_version} and is {pre_commit_version}.[/]\n\n"
+                        f"\n[error]Package name prefligit version is wrong. It should be "
+                        f"at least {min_prefligit_version} and is {prefligit_version}.[/]\n\n"
                     )
                     sys.exit(1)
-                if "pre-commit-uv" not in command_result.stdout:
-                    get_console().print(
-                        "\n[warning]You can significantly improve speed of installing your pre-commit envs "
-                        "by installing `pre-commit-uv` with it.[/]\n"
-                    )
-                    get_console().print(
-                        "\n[warning]With uv you can install it with:[/]\n\n"
-                        "        uv tool install pre-commit --with pre-commit-uv --force-reinstall\n"
-                    )
-                    get_console().print(
-                        "\n[warning]With pipx you can install it with:[/]\n\n"
-                        "        pipx inject pre-commit pre-commit-uv # optionally if you want to use uv to "
-                        "install virtualenvs\n"
-                    )
             else:
                 get_console().print(
-                    "\n[warning]Could not determine version of pre-commit. You might need to update it![/]\n"
+                    "\n[warning]Could not determine version of prefligit. You might need to update it![/]\n"
                 )
         else:
-            need_to_reinstall_precommit = True
-            get_console().print("\n[error]Error checking for pre-commit-installation:[/]\n")
+            need_to_reinstall_prefligit = True
+            get_console().print("\n[error]Error checking for prefligit-installation:[/]\n")
             get_console().print(command_result.stderr)
     except FileNotFoundError as e:
-        need_to_reinstall_precommit = True
-        get_console().print(f"\n[error]Error checking for pre-commit-installation: [/]\n{e}\n")
-    if need_to_reinstall_precommit:
-        get_console().print("[info]Make sure to install pre-commit. For example by running:\n")
-        get_console().print("   uv tool install pre-commit --with pre-commit-uv\n")
+        need_to_reinstall_prefligit = True
+        get_console().print(f"\n[error]Error checking for prefligit installation: [/]\n{e}\n")
+    if need_to_reinstall_prefligit:
+        get_console().print("[info]Make sure to install prefligit. For example by running:\n")
+        get_console().print("   uv tool install prefligit\n")
         get_console().print("Or if you prefer pipx:\n")
-        get_console().print("   pipx install pre-commit")
+        get_console().print("   pipx install prefligit")
         sys.exit(1)
 
 
@@ -479,7 +465,7 @@ def run_compile_ui_assets(
             "[info]However, it requires you to have local pnpm installation.\n"
         )
     command_to_execute = [
-        "pre-commit",
+        "prefligit",
         "run",
         "--hook-stage",
         "manual",

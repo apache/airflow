@@ -72,8 +72,8 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to build CI images (true/false)"
         required: true
         type: string
-      skip-pre-commits:
-        description: "Whether to skip pre-commits (true/false)"
+      skip-prefligits:
+        description: "Whether to skip prefligits (true/false)"
         required: true
         type: string
       include-success-outputs:
@@ -114,9 +114,9 @@ on:  # yamllint disable-line rule:truthy
 permissions:
   contents: read
 jobs:
-  install-pre-commit:
+  install-prefligit:
     timeout-minutes: 5
-    name: "Install pre-commit for cache (only canary runs)"
+    name: "Install prefligit for cache (only canary runs)"
     runs-on: ${{ fromJSON(inputs.runners) }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
@@ -135,13 +135,13 @@ jobs:
         uses: ./.github/actions/breeze
         id: breeze
         if: inputs.canary-run == 'true'
-      - name: "Install pre-commit"
-        uses: ./.github/actions/install-pre-commit
-        id: pre-commit
+      - name: "Install prefligit"
+        uses: ./.github/actions/install-prefligit
+        id: prefligit
         with:
           python-version: ${{steps.breeze.outputs.host-python-version}}
         if: inputs.canary-run == 'true'
-      - name: "Prepare .tar file from pre-commit cache"
+      - name: "Prepare .tar file from prefligit cache"
         run: |
           tar -C ~ -czf /tmp/cache-pre-commit.tar.gz .cache/pre-commit .cache/uv
         shell: bash
@@ -160,7 +160,7 @@ jobs:
     timeout-minutes: 45
     name: "Static checks"
     runs-on: ${{ fromJSON(inputs.runners) }}
-    needs: install-pre-commit
+    needs: install-prefligit
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       UPGRADE_TO_NEWER_DEPENDENCIES: "${{ inputs.upgrade-to-newer-dependencies }}"
@@ -182,15 +182,15 @@ jobs:
           use-uv: ${{ inputs.use-uv }}
         id: breeze
       - name: "Install pre-commit"
-        uses: ./.github/actions/install-pre-commit
-        id: pre-commit
+        uses: ./.github/actions/install-prefligit
+        id: prefligit
         with:
           python-version: ${{steps.breeze.outputs.host-python-version}}
       - name: "Static checks"
-        run: breeze static-checks --all-files --show-diff-on-failure --color always --initialize-environment
+        run: prefligit run --all-files --show-diff-on-failure --color always --initialize-environment
         env:
           VERBOSE: "false"
-          SKIP: ${{ inputs.skip-pre-commits }}
+          SKIP: ${{ inputs.skip-prefligits }}
           COLUMNS: "202"
           SKIP_GROUP_OUTPUT: "true"
           DEFAULT_BRANCH: ${{ inputs.branch }}
@@ -200,7 +200,7 @@ jobs:
     timeout-minutes: 45
     name: "MyPy checks"
     runs-on: ${{ fromJSON(inputs.runners) }}
-    needs: install-pre-commit
+    needs: install-prefligit
     if: inputs.needs-mypy == 'true'
     strategy:
       fail-fast: false
@@ -225,7 +225,7 @@ jobs:
           use-uv: ${{ inputs.use-uv }}
         id: breeze
       - name: "Install pre-commit"
-        uses: ./.github/actions/install-pre-commit
+        uses: ./.github/actions/install-prefligit
         id: pre-commit
         with:
           python-version: ${{steps.breeze.outputs.host-python-version}}
