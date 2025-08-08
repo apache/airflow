@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-08T02:29:10.277253
+# This constraints file was automatically generated on 2025-08-08T13:57:06.962914
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -342,7 +342,7 @@ httplib2==0.22.0
 httptools==0.6.4
 httpx-sse==0.4.0
 httpx==0.28.1
-huggingface-hub==0.34.3
+huggingface-hub==0.34.4
 humanize==4.12.3
 hvac==2.3.0
 hyperframe==6.1.0
@@ -423,7 +423,7 @@ neo4j==5.28.2
 nest-asyncio==1.6.0
 numpy==2.3.2
 oauthlib==3.3.1
-openai==1.99.3
+openai==1.99.4
 openlineage-integration-common==1.36.0
 openlineage-python==1.36.0
 openlineage_sql==1.36.0
