@@ -38,6 +38,7 @@ from airflow.api_fastapi.core_api.routes.public.dags import dags_router
 from airflow.api_fastapi.core_api.routes.public.event_logs import event_logs_router
 from airflow.api_fastapi.core_api.routes.public.extra_links import extra_links_router
 from airflow.api_fastapi.core_api.routes.public.hitl import hitl_router
+from airflow.api_fastapi.core_api.routes.public.hitl_shared_links import hitl_shared_links_router
 from airflow.api_fastapi.core_api.routes.public.import_error import import_error_router
 from airflow.api_fastapi.core_api.routes.public.job import job_router
 from airflow.api_fastapi.core_api.routes.public.log import task_instances_log_router
@@ -50,6 +51,7 @@ from airflow.api_fastapi.core_api.routes.public.tasks import tasks_router
 from airflow.api_fastapi.core_api.routes.public.variables import variables_router
 from airflow.api_fastapi.core_api.routes.public.version import version_router
 from airflow.api_fastapi.core_api.routes.public.xcom import xcom_router
+from airflow.configuration import conf
 
 public_router = AirflowRouter(prefix="/api/v2")
 
@@ -85,6 +87,9 @@ authenticated_router.include_router(dag_parsing_router)
 authenticated_router.include_router(dag_tags_router)
 authenticated_router.include_router(dag_versions_router)
 authenticated_router.include_router(hitl_router)
+
+if not conf.getboolean("api", "hitl_enable_shared_links", fallback=False):
+    authenticated_router.include_router(hitl_shared_links_router)
 
 
 # Include authenticated router in public router
