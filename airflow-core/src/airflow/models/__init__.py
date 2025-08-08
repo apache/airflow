@@ -38,7 +38,6 @@ __all__ = [
     "DbCallbackRequest",
     "Log",
     "MappedOperator",
-    "Operator",
     "Param",
     "Pool",
     "RenderedTaskInstanceFields",
