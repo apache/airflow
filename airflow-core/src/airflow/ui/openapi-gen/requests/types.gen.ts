@@ -2288,6 +2288,12 @@ export type GetConfigValueResponse = Config;
 
 export type GetConfigsResponse = ConfigResponse;
 
+export type GetBackendsOrderValueData = {
+    accept?: 'application/json' | 'text/plain' | '*/*';
+};
+
+export type GetBackendsOrderValueResponse = Config;
+
 export type ListDagWarningsData = {
     dagId?: string | null;
     limit?: number;
@@ -4283,6 +4289,29 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+            };
+        };
+    };
+    '/ui/backends_order': {
+        get: {
+            req: GetBackendsOrderValueData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: Config;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Not Acceptable
+                 */
+                406: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
             };
         };
     };
