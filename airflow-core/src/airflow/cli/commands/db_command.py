@@ -66,7 +66,11 @@ def _get_version_revision(version: str, revision_heads_map: dict[str, str] | Non
     if version in revision_heads_map:
         return revision_heads_map[version]
 
-    wanted = tuple(map(int, version.split(".")))
+    try:
+        wanted = tuple(map(int, version.split(".")))
+    except ValueError:
+        return None
+
     # Else, we walk backwards in the revision map until we find a version that is < the target
     for revision, head in reversed(revision_heads_map.items()):
         try:
