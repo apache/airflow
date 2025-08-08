@@ -1442,6 +1442,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         confirm_prompt=False,
         dag_run_state=DagRunState.QUEUED,
         dry_run=False,
+        run_id=None,
     ):
         all_tis = []
         for dag in dags:
@@ -1455,6 +1456,7 @@ class DAG(TaskSDKDag, LoggingMixin):
                 confirm_prompt=False,
                 dag_run_state=dag_run_state,
                 dry_run=True,
+                run_id=run_id,
             )
             all_tis.extend(tis)
 
@@ -1483,6 +1485,7 @@ class DAG(TaskSDKDag, LoggingMixin):
                     confirm_prompt=False,
                     dag_run_state=dag_run_state,
                     dry_run=False,
+                    run_id=run_id,
                 )
         else:
             count = 0
