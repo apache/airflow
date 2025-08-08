@@ -301,8 +301,8 @@ class ElasticsearchHook(BaseHook):
         self,
         elasticsearch_conn_id: str = "elasticsearch_default",
         log_query: bool = False,
-        **kwargs
-    ):
+        **kwargs: Any
+    ) -> None:
         """
         Initialize the Elasticsearch Hook.
 
@@ -318,7 +318,7 @@ class ElasticsearchHook(BaseHook):
         self.log_query = log_query
 
         # Environment variables as fallback configuration
-        self.env_vars = {
+        self.env_vars: dict[str, str | bool | None] = {
             'host': os.getenv('ELASTICSEARCH_HOST'),
             'port': os.getenv('ELASTICSEARCH_PORT'),
             'username': os.getenv('ELASTICSEARCH_USERNAME'),
@@ -330,7 +330,7 @@ class ElasticsearchHook(BaseHook):
         }
 
     @cached_property
-    def conn(self):
+    def conn(self) -> Any:
         """Get the Airflow connection object for Elasticsearch."""
         return self.get_connection(self.conn_id)
 
@@ -358,7 +358,7 @@ class ElasticsearchHook(BaseHook):
 
             # Build hosts list
             hosts = [f"{schema}://{host}:{port}"]
-            client_args = {"hosts": hosts}
+            client_args: dict[str, Any] = {"hosts": hosts}
 
             # Authentication: prioritize Airflow connection
             if conn.login and conn.password:
@@ -398,10 +398,10 @@ class ElasticsearchHook(BaseHook):
                 f"Failed to create Elasticsearch client with connection '{self.conn_id}': {e}"
             )
 
-    def _log_config_source(self):
+    def _log_config_source(self) -> None:
         """Log the source of configuration for debugging purposes."""
         conn = self.get_connection(self.conn_id)
-        config_sources = []
+        config_sources: list[str] = []
 
         if conn.host:
             config_sources.append("Airflow connection")
@@ -443,10 +443,10 @@ class ElasticsearchHook(BaseHook):
 
     def search(
         self,
-        query: Dict[str, Any],
+        query: dict[str, Any],
         index_name: str,
-        **kwargs
-    ) -> Dict[str, Any]:
+        **kwargs: Any
+    ) -> dict[str, Any]:
         """
         Execute a search query against the specified Elasticsearch index.
 
@@ -460,7 +460,7 @@ class ElasticsearchHook(BaseHook):
 
         return self.client.search(index=index_name, body=query, **kwargs)
 
-    def bulk(self, actions: Iterable[Any], **kwargs) -> Tuple[int, list]:
+    def bulk(self, actions: Iterable[Any], **kwargs: Any) -> tuple[int, list]:
         """
         Execute bulk operations on Elasticsearch.
 
@@ -472,7 +472,7 @@ class ElasticsearchHook(BaseHook):
                       len(list(actions)) if hasattr(actions, '__len__') else 'unknown number of')
         return bulk(self.client, actions, **kwargs)
 
-    def streaming_bulk(self, actions: Iterable[Any], **kwargs) -> Generator[Tuple[bool, Dict[str, Any]], None, None]:
+    def streaming_bulk(self, actions: Iterable[Any], **kwargs: Any) -> Generator[tuple[bool, dict[str, Any]], None, None]:
         """
         Execute streaming bulk operations on Elasticsearch.
 
@@ -483,7 +483,7 @@ class ElasticsearchHook(BaseHook):
         self.log.info("Executing streaming bulk operation")
         return streaming_bulk(self.client, actions, **kwargs)
 
-    def parallel_bulk(self, actions: Iterable[Any], **kwargs) -> Generator[Tuple[bool, Dict[str, Any]], None, None]:
+    def parallel_bulk(self, actions: Iterable[Any], **kwargs: Any) -> Generator[tuple[bool, dict[str, Any]], None, None]:
         """
         Execute parallel bulk operations on Elasticsearch.
 
@@ -496,10 +496,10 @@ class ElasticsearchHook(BaseHook):
 
     def scan(
         self,
-        index: Optional[Union[str, List[str]]] = None,
-        query: Optional[Dict[str, Any]] = None,
-        **kwargs
-    ) -> Generator[Dict[str, Any], None, None]:
+        index: Optional[Union[str, list[str]]] = None,
+        query: Optional[dict[str, Any]] = None,
+        **kwargs: Any
+    ) -> Generator[dict[str, Any], None, None]:
         """
         Scan and return all documents matching the query using the scroll API.
 
@@ -517,11 +517,11 @@ class ElasticsearchHook(BaseHook):
 
     def reindex(
         self,
-        source_index: Union[str, List[str]],
+        source_index: Union[str, list[str]],
         target_index: str,
-        query: Optional[Dict[str, Any]] = None,
-        **kwargs
-    ) -> Tuple[int, list]:
+        query: Optional[dict[str, Any]] = None,
+        **kwargs: Any
+    ) -> tuple[int, list]:
         """
         Reindex documents from source index(es) to a target index.
 
@@ -547,8 +547,8 @@ class ElasticsearchHook(BaseHook):
     def search_to_pandas(
         self,
         index: str,
-        query: Dict[str, Any],
-        **kwargs
+        query: dict[str, Any],
+        **kwargs: Any
     ) -> "pd.DataFrame":
         """
         Execute a search query and return results as a pandas DataFrame.
@@ -582,9 +582,9 @@ class ElasticsearchHook(BaseHook):
 
     def scan_to_pandas(
         self,
-        index: Optional[Union[str, List[str]]] = None,
-        query: Optional[Dict[str, Any]] = None,
-        **kwargs
+        index: Optional[Union[str, list[str]]] = None,
+        query: Optional[dict[str, Any]] = None,
+        **kwargs: Any
     ) -> "pd.DataFrame":
         """
         Scan all documents matching the query and return results as a pandas DataFrame.
@@ -624,7 +624,7 @@ class ElasticsearchHook(BaseHook):
             return pd.DataFrame()
 
         # Extract _source data from each document
-        source_data = []
+        source_data: list[dict[str, Any]] = []
         for doc in docs:
             if '_source' in doc:
                 # Add document metadata as columns if needed
@@ -646,10 +646,10 @@ class ElasticsearchHook(BaseHook):
     def create_index(
         self,
         index_name: str,
-        mappings: Optional[Dict[str, Any]] = None,
-        settings: Optional[Dict[str, Any]] = None,
-        **kwargs
-    ) -> Optional[Dict[str, Any]]:
+        mappings: Optional[dict[str, Any]] = None,
+        settings: Optional[dict[str, Any]] = None,
+        **kwargs: Any
+    ) -> Optional[dict[str, Any]]:
         """
         Create a new Elasticsearch index with proper error handling.
 
@@ -665,7 +665,7 @@ class ElasticsearchHook(BaseHook):
             other than "already exists".
         """
         try:
-            body = {}
+            body: dict[str, Any] = {}
             if mappings:
                 body['mappings'] = mappings
             if settings:
@@ -682,7 +682,7 @@ class ElasticsearchHook(BaseHook):
                 # Let other Elasticsearch exceptions pass through for proper error handling
                 raise
 
-    def delete_index(self, index_name: str, **kwargs) -> Dict[str, Any]:
+    def delete_index(self, index_name: str, **kwargs: Any) -> dict[str, Any]:
         """
         Delete an Elasticsearch index.
 
@@ -730,7 +730,7 @@ class ElasticsearchHook(BaseHook):
 
     def __exit__(
         self,
-        exc_type: Optional[Type[BaseException]],
+        exc_type: Optional[type[BaseException]],
         exc_val: Optional[BaseException],
         exc_tb: Optional[Any]
     ) -> None:
