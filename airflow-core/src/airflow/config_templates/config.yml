@@ -511,7 +511,7 @@ core:
       default: ~
     template_searchpath:
       description: |
-        Path or list of paths where Airflow looks for Jinja templates used in DAGs and task fields.
+        Path where Airflow looks for Jinja templates used in DAGs and task fields.
       version_added: ~
       type: string
       example: "/opt/airflow/dags/templates"
