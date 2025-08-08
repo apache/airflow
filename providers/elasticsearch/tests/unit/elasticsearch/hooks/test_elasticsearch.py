@@ -249,7 +249,7 @@ class TestElasticsearchPythonHook:
         assert result == es_data["hits"]
 
 
-class TestExtendedElasticsearchHook:
+class TestElasticsearchHook:
     def setup_method(self):
         self.hook = ElasticsearchHook(
             elasticsearch_conn_id=None,
