@@ -255,7 +255,7 @@ class ElasticsearchPythonHook(BaseHook):
             "ElasticsearchPythonHook is deprecated. "
             "Use airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         self.hosts = hosts
         self.es_conn_args = es_conn_args or {}
@@ -298,10 +298,7 @@ class ElasticsearchHook(BaseHook):
     hook_name = "Elasticsearch"
 
     def __init__(
-        self,
-        elasticsearch_conn_id: str = "elasticsearch_default",
-        log_query: bool = False,
-        **kwargs: Any
+        self, elasticsearch_conn_id: str = "elasticsearch_default", log_query: bool = False, **kwargs: Any
     ) -> None:
         """
         Initialize the Elasticsearch Hook.
@@ -313,20 +310,21 @@ class ElasticsearchHook(BaseHook):
         :param kwargs: Additional arguments passed to the parent BaseHook class.
         """
         import os
+
         super().__init__()
         self.conn_id = elasticsearch_conn_id
         self.log_query = log_query
 
         # Environment variables as fallback configuration
         self.env_vars: dict[str, str | bool | None] = {
-            'host': os.getenv('ELASTICSEARCH_HOST'),
-            'port': os.getenv('ELASTICSEARCH_PORT'),
-            'username': os.getenv('ELASTICSEARCH_USERNAME'),
-            'password': os.getenv('ELASTICSEARCH_PASSWORD'),
-            'use_ssl': os.getenv('ELASTICSEARCH_USE_SSL', 'false').lower() == 'true',
-            'verify_certs': os.getenv('ELASTICSEARCH_VERIFY_CERTS', 'true').lower() == 'true',
-            'timeout': os.getenv('ELASTICSEARCH_TIMEOUT'),
-            'max_retries': os.getenv('ELASTICSEARCH_MAX_RETRIES')
+            "host": os.getenv("ELASTICSEARCH_HOST"),
+            "port": os.getenv("ELASTICSEARCH_PORT"),
+            "username": os.getenv("ELASTICSEARCH_USERNAME"),
+            "password": os.getenv("ELASTICSEARCH_PASSWORD"),
+            "use_ssl": os.getenv("ELASTICSEARCH_USE_SSL", "false").lower() == "true",
+            "verify_certs": os.getenv("ELASTICSEARCH_VERIFY_CERTS", "true").lower() == "true",
+            "timeout": os.getenv("ELASTICSEARCH_TIMEOUT"),
+            "max_retries": os.getenv("ELASTICSEARCH_MAX_RETRIES"),
         }
 
     @cached_property
@@ -351,9 +349,9 @@ class ElasticsearchHook(BaseHook):
         conn = self.get_connection(self.conn_id)
 
         # Configuration with fallback priority: connection -> env vars -> defaults
-        host = conn.host or self.env_vars['host'] or 'localhost'
-        port = conn.port or (int(self.env_vars['port']) if self.env_vars['port'] else None) or 9200
-        schema = conn.schema or ('https' if self.env_vars['use_ssl'] else 'http')
+        host = conn.host or self.env_vars["host"] or "localhost"
+        port = conn.port or (int(self.env_vars["port"]) if self.env_vars["port"] else None) or 9200
+        schema = conn.schema or ("https" if self.env_vars["use_ssl"] else "http")
 
         # Build hosts list
         hosts = [f"{schema}://{host}:{port}"]
@@ -362,31 +360,28 @@ class ElasticsearchHook(BaseHook):
         # Authentication: prioritize Airflow connection
         if conn.login and conn.password:
             client_args["basic_auth"] = (conn.login, conn.password)
-        elif self.env_vars['username'] and self.env_vars['password']:
-            client_args["basic_auth"] = (self.env_vars['username'], self.env_vars['password'])
+        elif self.env_vars["username"] and self.env_vars["password"]:
+            client_args["basic_auth"] = (self.env_vars["username"], self.env_vars["password"])
 
         # Handle extra configuration from connection
         extra = conn.extra_dejson or {}
 
         # SSL configuration with fallback
-        use_ssl = extra.get('use_ssl', self.env_vars['use_ssl'])
+        use_ssl = extra.get("use_ssl", self.env_vars["use_ssl"])
         if use_ssl:
             client_args["use_ssl"] = True
-            client_args["verify_certs"] = extra.get('verify_certs', self.env_vars['verify_certs'])
+            client_args["verify_certs"] = extra.get("verify_certs", self.env_vars["verify_certs"])
 
         # Add timeout and retry configuration
-        if extra.get('timeout') or self.env_vars['timeout']:
-            client_args["timeout"] = extra.get('timeout') or int(self.env_vars['timeout'])
+        if extra.get("timeout") or self.env_vars["timeout"]:
+            client_args["timeout"] = extra.get("timeout") or int(self.env_vars["timeout"])
 
-        if extra.get('max_retries') or self.env_vars['max_retries']:
-            client_args["max_retries"] = extra.get('max_retries') or int(self.env_vars['max_retries'])
+        if extra.get("max_retries") or self.env_vars["max_retries"]:
+            client_args["max_retries"] = extra.get("max_retries") or int(self.env_vars["max_retries"])
 
         # Add other extra configuration, excluding already handled fields
         excluded_fields = ["use_ssl", "verify_certs", "timeout", "max_retries"]
-        other_extra = {
-            k: v for k, v in extra.items()
-            if k not in excluded_fields
-        }
+        other_extra = {k: v for k, v in extra.items() if k not in excluded_fields}
         client_args.update(other_extra)
 
         self._log_config_source()
@@ -405,7 +400,7 @@ class ElasticsearchHook(BaseHook):
 
         if conn.host:
             config_sources.append("Airflow connection")
-        if self.env_vars['host']:
+        if self.env_vars["host"]:
             config_sources.append("Environment variables")
 
         if config_sources:
@@ -441,12 +436,7 @@ class ElasticsearchHook(BaseHook):
             self.log.error(f"Failed to connect to Elasticsearch: {e}")
             return False
 
-    def search(
-        self,
-        query: dict[str, Any],
-        index_name: str,
-        **kwargs: Any
-    ) -> dict[str, Any]:
+    def search(self, query: dict[str, Any], index_name: str, **kwargs: Any) -> dict[str, Any]:
         """
         Execute a search query against the specified Elasticsearch index.
 
@@ -468,11 +458,15 @@ class ElasticsearchHook(BaseHook):
         :param kwargs: Additional bulk parameters to pass to the Elasticsearch client.
         :return: A tuple containing (success_count, failed_operations).
         """
-        self.log.info("Executing bulk operation with %d actions",
-                      len(list(actions)) if hasattr(actions, '__len__') else 'unknown number of')
+        self.log.info(
+            "Executing bulk operation with %d actions",
+            len(list(actions)) if hasattr(actions, "__len__") else "unknown number of",
+        )
         return bulk(self.client, actions, **kwargs)
 
-    def streaming_bulk(self, actions: Iterable[Any], **kwargs: Any) -> Generator[tuple[bool, dict[str, Any]], None, None]:
+    def streaming_bulk(
+        self, actions: Iterable[Any], **kwargs: Any
+    ) -> Generator[tuple[bool, dict[str, Any]], None, None]:
         """
         Execute streaming bulk operations on Elasticsearch.
 
@@ -483,7 +477,9 @@ class ElasticsearchHook(BaseHook):
         self.log.info("Executing streaming bulk operation")
         return streaming_bulk(self.client, actions, **kwargs)
 
-    def parallel_bulk(self, actions: Iterable[Any], **kwargs: Any) -> Generator[tuple[bool, dict[str, Any]], None, None]:
+    def parallel_bulk(
+        self, actions: Iterable[Any], **kwargs: Any
+    ) -> Generator[tuple[bool, dict[str, Any]], None, None]:
         """
         Execute parallel bulk operations on Elasticsearch.
 
@@ -498,7 +494,7 @@ class ElasticsearchHook(BaseHook):
         self,
         index: Optional[Union[str, list[str]]] = None,
         query: Optional[dict[str, Any]] = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> Generator[dict[str, Any], None, None]:
         """
         Scan and return all documents matching the query using the scroll API.
@@ -511,7 +507,7 @@ class ElasticsearchHook(BaseHook):
         self.log.info("Scanning index: %s", index)
         scan_kwargs = kwargs.copy()
         if query:
-            scan_kwargs['query'] = query
+            scan_kwargs["query"] = query
 
         return scan(self.client, index=index, **scan_kwargs)
 
@@ -520,7 +516,7 @@ class ElasticsearchHook(BaseHook):
         source_index: Union[str, list[str]],
         target_index: str,
         query: Optional[dict[str, Any]] = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> tuple[int, list]:
         """
         Reindex documents from source index(es) to a target index.
@@ -535,21 +531,11 @@ class ElasticsearchHook(BaseHook):
         self.log.info("Reindexing from %s to %s", source_index, target_index)
         reindex_kwargs = kwargs.copy()
         if query:
-            reindex_kwargs['query'] = query
+            reindex_kwargs["query"] = query
 
-        return reindex(
-            self.client,
-            source_index=source_index,
-            target_index=target_index,
-            **reindex_kwargs
-        )
+        return reindex(self.client, source_index=source_index, target_index=target_index, **reindex_kwargs)
 
-    def search_to_pandas(
-        self,
-        index: str,
-        query: dict[str, Any],
-        **kwargs: Any
-    ) -> "pd.DataFrame":
+    def search_to_pandas(self, index: str, query: dict[str, Any], **kwargs: Any) -> "pd.DataFrame":
         """
         Execute a search query and return results as a pandas DataFrame.
 
@@ -562,19 +548,18 @@ class ElasticsearchHook(BaseHook):
             import pandas as pd
         except ImportError:
             raise ImportError(
-                "pandas is required for search_to_pandas method. "
-                "Install it with: pip install pandas"
+                "pandas is required for search_to_pandas method. " "Install it with: pip install pandas"
             )
 
         res = self.client.search(index=index, body=query, **kwargs)
-        hits = res['hits']['hits']
+        hits = res["hits"]["hits"]
 
         if not hits:
             self.log.info("No results found for query")
             return pd.DataFrame()
 
         # Extract _source data and normalize to DataFrame
-        source_data = [hit['_source'] for hit in hits]
+        source_data = [hit["_source"] for hit in hits]
         df = pd.json_normalize(source_data)
 
         self.log.info(f"Converted {len(hits)} search results to DataFrame")
@@ -584,7 +569,7 @@ class ElasticsearchHook(BaseHook):
         self,
         index: Optional[Union[str, list[str]]] = None,
         query: Optional[dict[str, Any]] = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> "pd.DataFrame":
         """
         Scan all documents matching the query and return results as a pandas DataFrame.
@@ -606,8 +591,7 @@ class ElasticsearchHook(BaseHook):
             import pandas as pd
         except ImportError:
             raise ImportError(
-                "pandas is required for scan_to_pandas method. "
-                "Install it with: pip install pandas"
+                "pandas is required for scan_to_pandas method. " "Install it with: pip install pandas"
             )
 
         self.log.info("Scanning index: %s and converting to DataFrame", index)
@@ -615,7 +599,7 @@ class ElasticsearchHook(BaseHook):
         # Get all documents using scan
         scan_kwargs = kwargs.copy()
         if query:
-            scan_kwargs['query'] = query
+            scan_kwargs["query"] = query
 
         docs = list(scan(self.client, index=index, **scan_kwargs))
 
@@ -626,12 +610,12 @@ class ElasticsearchHook(BaseHook):
         # Extract _source data from each document
         source_data: list[dict[str, Any]] = []
         for doc in docs:
-            if '_source' in doc:
+            if "_source" in doc:
                 # Add document metadata as columns if needed
-                doc_data = doc['_source'].copy()
+                doc_data = doc["_source"].copy()
                 # Optionally add metadata fields
-                doc_data['_index'] = doc.get('_index')
-                doc_data['_id'] = doc.get('_id')
+                doc_data["_index"] = doc.get("_index")
+                doc_data["_id"] = doc.get("_id")
                 source_data.append(doc_data)
             else:
                 # Fallback: use the document as-is if no _source
@@ -648,7 +632,7 @@ class ElasticsearchHook(BaseHook):
         index_name: str,
         mappings: Optional[dict[str, Any]] = None,
         settings: Optional[dict[str, Any]] = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> Optional[dict[str, Any]]:
         """
         Create a new Elasticsearch index with proper error handling.
@@ -667,9 +651,9 @@ class ElasticsearchHook(BaseHook):
         try:
             body: dict[str, Any] = {}
             if mappings:
-                body['mappings'] = mappings
+                body["mappings"] = mappings
             if settings:
-                body['settings'] = settings
+                body["settings"] = settings
 
             self.log.info(f"Creating index: {index_name}")
             return self.client.indices.create(index=index_name, body=body, **kwargs)
@@ -729,10 +713,7 @@ class ElasticsearchHook(BaseHook):
         return self
 
     def __exit__(
-        self,
-        exc_type: Optional[type[BaseException]],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional[Any]
+        self, exc_type: Optional[type[BaseException]], exc_val: Optional[BaseException], exc_tb: Optional[Any]
     ) -> None:
         """
         Context manager exit point.
