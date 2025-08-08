@@ -47,6 +47,7 @@ from airflow.utils.cli import (
     get_dag,
     get_dag_by_file_location,
     get_dags,
+    get_serialized_dag,
     suppress_logs_and_warning,
 )
 from airflow.utils.platform import getuser
@@ -268,7 +269,7 @@ def task_state(args) -> None:
     >>> airflow tasks state tutorial sleep 2015-01-01
     success
     """
-    dag = get_dag(args.bundle_name, args.dag_id, from_db=True)
+    dag = get_serialized_dag(args.bundle_name, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
     ti, _ = _get_ti(task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id)
     print(ti.state)

@@ -40,16 +40,16 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from itsdangerous import URLSafeSerializer
+    from pendulum import DateTime
     from sqlalchemy.orm import Session
 
-    from airflow.models.baseoperator import BaseOperator
-    from airflow.models.dag import DAG, ScheduleArg
     from airflow.models.dagrun import DagRun, DagRunType
     from airflow.models.taskinstance import TaskInstance
     from airflow.providers.standard.operators.empty import EmptyOperator
-    from airflow.sdk import Context
+    from airflow.sdk import DAG, BaseOperator, Context
     from airflow.sdk.api.datamodels._generated import TaskInstanceState as TIState
-    from airflow.sdk.bases.operator import BaseOperator as TaskSDKBaseOperator
+    from airflow.sdk.definitions.dag import ScheduleArg
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.execution_time.comms import StartupDetails, ToSupervisor
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
     from airflow.sdk.types import DagRunProtocol
@@ -945,7 +945,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
         def __exit__(self, type, value, traceback):
             from airflow.configuration import conf
-            from airflow.models import DagModel
+            from airflow.models import DAG, DagModel
 
             dag = self.dag
             dag.__exit__(type, value, traceback)
@@ -954,7 +954,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             dag.clear(session=self.session)
             if AIRFLOW_V_3_0_PLUS:
-                dag.bulk_write_to_db(self.bundle_name, self.bundle_version, [dag], session=self.session)
+                DAG.bulk_write_to_db(self.bundle_name, self.bundle_version, [dag], session=self.session)
             else:
                 dag.sync_to_db(session=self.session)
 
@@ -1008,6 +1008,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             serialized_dag = self._serialized_dag()
             self._bag_dag_compat(serialized_dag)
             self.session.flush()
+            return serialized_dag
 
         def create_dagrun(self, *, logical_date=NOTSET, **kwargs):
             from airflow.utils.state import DagRunState
@@ -1173,7 +1174,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             **kwargs,
         ):
             from airflow import settings
-            from airflow.models.dag import DAG
+            from airflow.models import DAG
 
             timezone = _import_timezone()
 
@@ -1591,6 +1592,7 @@ def session():
 def get_test_dag():
     def _get(dag_id: str):
         from airflow import settings
+        from airflow.models.dag import DAG
         from airflow.models.dagbag import DagBag
         from airflow.models.serialized_dag import SerializedDagModel
 
@@ -1601,7 +1603,7 @@ def get_test_dag():
 
         dag = dagbag.get_dag(dag_id)
 
-        if dagbag.import_errors:
+        if not dag or dagbag.import_errors:
             session = settings.Session()
             from airflow.models.errors import ParseImportError
 
@@ -1621,15 +1623,18 @@ def get_test_dag():
             return
 
         if AIRFLOW_V_3_0_PLUS:
-            session = settings.Session()
             from airflow.models.dagbundle import DagBundleModel
+            from airflow.serialization.serialized_objects import SerializedDAG
 
+            session = settings.Session()
             if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
                 session.add(DagBundleModel(name="testing"))
                 session.commit()
-            dag.bulk_write_to_db("testing", None, [dag])
+            DAG.bulk_write_to_db(
+                "testing", None, [SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))]
+            )
         else:
-            dag.sync_to_db()
+            dag.sync_to_db()  # type: ignore[attr-defined]
         SerializedDagModel.write_dag(dag, bundle_name="testing")
 
         return dag
@@ -2093,7 +2098,7 @@ def mocked_parse(spy_agency):
             )
     """
 
-    def set_dag(what: StartupDetails, dag_id: str, task: TaskSDKBaseOperator) -> RuntimeTaskInstance:
+    def set_dag(what: StartupDetails, dag_id: str, task: BaseOperator) -> RuntimeTaskInstance:
         from airflow.sdk.definitions.dag import DAG
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, parse
 
@@ -2172,7 +2177,7 @@ class RunTaskCallable(Protocol):
 
     def __call__(
         self,
-        task: TaskSDKBaseOperator,
+        task: BaseOperator,
         dag_id: str = ...,
         run_id: str = ...,
         logical_date: datetime | None = None,
@@ -2216,7 +2221,7 @@ def create_runtime_ti(mocked_parse):
     timezone = _import_timezone()
 
     def _create_task_instance(
-        task: BaseOperator,
+        task: BaseOperator | MappedOperator,
         dag_id: str = "test_dag",
         run_id: str = "test_run",
         logical_date: str | datetime = "2024-12-01T01:00:00Z",
@@ -2245,6 +2250,15 @@ def create_runtime_ti(mocked_parse):
 
         data_interval_start = None
         data_interval_end = None
+
+        if isinstance(logical_date, str):
+            logical_date = timezone.parse(logical_date)
+        else:
+            logical_date = timezone.coerce_datetime(logical_date)
+
+        if TYPE_CHECKING:
+            assert isinstance(logical_date, DateTime)
+            assert task.dag
 
         if task.dag.timetable:
             if run_type == DagRunType.MANUAL:
@@ -2477,7 +2491,7 @@ def run_task(create_runtime_ti, mock_supervisor_comms, spy_agency) -> RunTaskCal
 
         def __call__(
             self,
-            task: TaskSDKBaseOperator,
+            task: BaseOperator,
             dag_id: str = "test_dag",
             run_id: str = "test_run",
             logical_date: datetime | None = None,

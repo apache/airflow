@@ -31,7 +31,7 @@ import warnings
 from argparse import Namespace
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from airflow import settings
 from airflow._shared.timezones import timezone
@@ -46,7 +46,7 @@ from airflow.utils.platform import getuser, is_terminal_support_colors
 T = TypeVar("T", bound=Callable)
 
 if TYPE_CHECKING:
-    from airflow.sdk import DAG
+    from airflow.serialization.serialized_objects import SerializedDAG
 
 logger = logging.getLogger(__name__)
 
@@ -261,9 +261,17 @@ def _search_for_dag_file(val: str | None) -> str | None:
     return None
 
 
-def get_dag(
-    bundle_names: list | None, dag_id: str, from_db: bool = False, dagfile_path: str | None = None
-) -> DAG:
+def get_serialized_dag(
+    bundle_names: list | None, dag_id: str, dagfile_path: str | None = None
+) -> SerializedDAG:
+    from airflow.models.serialized_dag import SerializedDagModel
+
+    if not (dag := SerializedDagModel.get_dag(dag_id)):
+        raise AirflowException(f"Dag {dag_id!r} could not be found in DagBag read from database.")
+    return dag
+
+
+def get_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | None = None):
     """
     Return DAG of a given dag_id.
 
@@ -272,13 +280,10 @@ def get_dag(
     dags folder.
     """
     from airflow.models.dagbag import DagBag, sync_bag_to_db
-    from airflow.models.serialized_dag import SerializedDagModel
 
     bundle_names = bundle_names or []
-    dag: DAG | None = None
-    if from_db:
-        dag = SerializedDagModel.get_dag(dag_id)
-    elif bundle_names:
+    dag: Any = None
+    if bundle_names:
         manager = DagBundlesManager()
         for bundle_name in bundle_names:
             bundle = manager.get_bundle(bundle_name)
@@ -288,9 +293,8 @@ def get_dag(
                 )
             if dag := dagbag.dags.get(dag_id):
                 break
+
     if not dag:
-        if from_db:
-            raise AirflowException(f"Dag {dag_id!r} could not be found in DagBag read from database.")
         manager = DagBundlesManager()
         manager.sync_bundles_to_db()
         all_bundles = list(manager.get_all_dag_bundles())
@@ -319,7 +323,9 @@ def get_dags(bundle_names: list | None, dag_id: str, use_regex: bool = False, fr
     bundle_names = bundle_names or []
 
     if not use_regex:
-        return [get_dag(bundle_names=bundle_names, dag_id=dag_id, from_db=from_db)]
+        if from_db:
+            return [get_serialized_dag(bundle_names=bundle_names, dag_id=dag_id)]
+        return [get_dag(bundle_names=bundle_names, dag_id=dag_id)]
 
     def _find_dag(bundle):
         dagbag = DagBag(dag_folder=bundle.path, bundle_path=bundle.path)

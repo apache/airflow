@@ -1685,7 +1685,10 @@ def run_tasks(
     for dag in dag_bag.dags.values():
         data_interval = DataInterval(coerce_datetime(logical_date), coerce_datetime(logical_date))
         if AIRFLOW_V_3_0_PLUS:
-            runs[dag.dag_id] = dagrun = dag.create_dagrun(
+            from airflow.serialization.serialized_objects import SerializedDAG
+
+            scheduler_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
+            runs[dag.dag_id] = dagrun = scheduler_dag.create_dagrun(
                 run_id=dag.timetable.generate_run_id(
                     run_type=DagRunType.MANUAL,
                     run_after=logical_date,
@@ -1701,7 +1704,7 @@ def run_tasks(
                 session=session,
             )
         else:
-            runs[dag.dag_id] = dagrun = dag.create_dagrun(  # type: ignore[call-arg]
+            runs[dag.dag_id] = dagrun = dag.create_dagrun(  # type: ignore[attr-defined,call-arg]
                 run_id=dag.timetable.generate_run_id(  # type: ignore[call-arg]
                     run_type=DagRunType.MANUAL,
                     logical_date=logical_date,

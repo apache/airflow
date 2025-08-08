@@ -45,7 +45,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.session import create_session
-from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.config import conf_vars
@@ -96,7 +96,7 @@ class TestCliTasks:
             cls.dag = cls.dagbag.get_latest_version_of_dag(cls.dag_id, session=session)
         data_interval = cls.dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE)
         cls.dag_run = cls.dag.create_dagrun(
-            state=State.RUNNING,
+            state=DagRunState.RUNNING,
             run_id=cls.run_id,
             run_type=DagRunType.MANUAL,
             logical_date=DEFAULT_DATE,
@@ -162,7 +162,7 @@ class TestCliTasks:
             task_command.task_test(args)
         ti = self.dag_run.get_task_instance(task_id=task_id)
         assert ti is not None
-        assert ti.state == State.SUCCESS
+        assert ti.state == TaskInstanceState.SUCCESS
 
     @pytest.mark.enable_redact
     def test_test_filters_secrets(self, capsys):
@@ -355,7 +355,7 @@ class TestCliTasks:
         data_interval = dag2.timetable.infer_manual_data_interval(run_after=default_date2)
         dagrun = dag2.create_dagrun(
             run_id="test",
-            state=State.RUNNING,
+            state=DagRunState.RUNNING,
             logical_date=default_date2,
             data_interval=data_interval,
             run_after=default_date2,
@@ -364,7 +364,7 @@ class TestCliTasks:
         )
         dag_version = DagVersion.get_latest_version(dag2.dag_id)
         ti2 = TaskInstance(task2, run_id=dagrun.run_id, dag_version_id=dag_version.id)
-        ti2.set_state(State.SUCCESS)
+        ti2.set_state(TaskInstanceState.SUCCESS)
         ti_start = ti2.start_date
         ti_end = ti2.end_date
 
@@ -435,7 +435,9 @@ class TestLogsfromTaskRunCommand:
         cli_parser.get_parser.cache_clear()
         self.parser = cli_parser.get_parser()
 
-        dag = DagBag().get_dag(self.dag_id)
+        with create_session() as session:
+            dag = DBDagBag().get_latest_version_of_dag(self.dag_id, session=session)
+        assert dag
         data_interval = dag.timetable.infer_manual_data_interval(run_after=self.logical_date)
         self.dr = dag.create_dagrun(
             run_id=self.run_id,
@@ -443,7 +445,7 @@ class TestLogsfromTaskRunCommand:
             data_interval=data_interval,
             run_after=self.logical_date,
             start_date=timezone.utcnow(),
-            state=State.RUNNING,
+            state=DagRunState.RUNNING,
             run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.TEST,
         )
