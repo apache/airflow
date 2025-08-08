@@ -29,6 +29,7 @@ import json
 import logging
 import multiprocessing
 import time
+import warnings
 from collections import Counter, defaultdict
 from collections.abc import Sequence
 from contextlib import suppress
@@ -42,6 +43,7 @@ from sqlalchemy import select
 
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.utils.types import NOTSET, ArgNotSet
 
 try:
     from airflow.cli.cli_config import ARG_LOGICAL_DATE
@@ -145,7 +147,7 @@ KUBERNETES_COMMANDS = (
 class KubernetesExecutor(BaseExecutor):
     """Executor for Kubernetes."""
 
-    RUNNING_POD_LOG_LINES = 100
+    RUNNING_POD_LOG_LINES: ArgNotSet | int = NOTSET
     supports_ad_hoc_ti_run: bool = True
 
     if TYPE_CHECKING and AIRFLOW_V_3_0_PLUS:
@@ -167,7 +169,31 @@ class KubernetesExecutor(BaseExecutor):
         self.task_publish_max_retries = conf.getint(
             "kubernetes_executor", "task_publish_max_retries", fallback=0
         )
+        self._running_pod_log_lines = conf.getint(
+            "kubernetes_executor", "running_pod_log_lines", fallback=100
+        )
+        self._check_and_get_running_pod_log_lines()
+
         super().__init__(parallelism=self.kube_config.parallelism)
+
+    # TODO: remove after RUNNING_POD_LOG_LINES is removed and use directly
+    @property
+    def running_pod_log_lines(self) -> int:
+        return self._check_and_get_running_pod_log_lines()
+
+    def _check_and_get_running_pod_log_lines(self) -> int:
+        if isinstance(self.RUNNING_POD_LOG_LINES, int):
+            warnings.warn(
+                "Usage of `RUNNING_POD_LOG_LINES` attribute is deprecated and will be removed "
+                "in future versions. You should use `running_pod_log_lines` option from "
+                "`kubernetes_executor` configuration section instead. For now attribute value "
+                "will take precedence.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            return self.RUNNING_POD_LOG_LINES
+
+        return self._running_pod_log_lines
 
     def _list_pods(self, query_kwargs):
         query_kwargs["header_params"] = {
@@ -498,8 +524,8 @@ class KubernetesExecutor(BaseExecutor):
                 namespace=namespace,
                 container="base",
                 follow=False,
-                tail_lines=self.RUNNING_POD_LOG_LINES,
                 _preload_content=False,
+                **self._prepare_read_namespaced_pod_log_extra_kwargs(),
             )
             for line in res:
                 log.append(remove_escape_codes(line.decode()))
@@ -508,6 +534,20 @@ class KubernetesExecutor(BaseExecutor):
         except Exception as e:
             messages.append(f"Reading from k8s pod logs failed: {e}")
         return messages, ["\n".join(log)]
+
+    def _prepare_read_namespaced_pod_log_extra_kwargs(self) -> dict[str, Any]:
+        """
+        Prepare extra kwargs for reading namespaced pod logs.
+
+        Kubernetes API may have different behavior if some query parameters are set or not.
+        This method allows us to adapt to that based on the magic values of these parameters.
+
+        :return: Extra kwargs for k8s API client read_namespaced_pod_log method.
+        """
+        extra_kwargs = {}
+        if self.running_pod_log_lines >= 0:
+            extra_kwargs["tail_lines"] = self.running_pod_log_lines
+        return extra_kwargs
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         with Stats.timer("kubernetes_executor.adopt_task_instances.duration"):
