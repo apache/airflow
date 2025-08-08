@@ -32,6 +32,7 @@ from airflow.providers.elasticsearch.hooks.elasticsearch import (
     ElasticsearchSQLCursor,
     ElasticsearchSQLHook,
     ESConnection,
+    ElasticsearchHook
 )
 
 ROWS = [
@@ -246,3 +247,112 @@ class TestElasticsearchPythonHook:
         result = self.elasticsearch_hook.search(index="test_index", query=query)
 
         assert result == es_data["hits"]
+
+
+class TestExtendedElasticsearchHook:
+    def setup_method(self):
+        self.hook = ElasticsearchHook(
+            elasticsearch_conn_id=None,
+            hosts=["http://localhost:9200"],
+            log_query=True,
+        )
+        self.hook.client = MagicMock()
+
+    @mock.patch("airflow.providers.elasticsearch.hooks.elasticsearch.Elasticsearch")
+    def test_test_connection_success(self, mock_es):
+        instance = mock_es.return_value
+        instance.info.return_value.body = {"cluster_name": "test-cluster"}
+
+        hook = ElasticsearchHook()
+        assert hook.test_connection() is True
+        instance.info.assert_called_once()
+
+    @mock.patch("airflow.providers.elasticsearch.hooks.elasticsearch.Elasticsearch")
+    def test_test_connection_failure(self, mock_es):
+        instance = mock_es.return_value
+        instance.info.side_effect = Exception("Connection failed")
+
+        hook = ElasticsearchHook()
+        assert hook.test_connection() is False
+
+    def test_index_exists(self):
+        self.hook.client.indices.exists.return_value = True
+        assert self.hook.index_exists("test-index") is True
+        self.hook.client.indices.exists.assert_called_once_with(index="test-index")
+
+    def test_create_index(self):
+        self.hook.client.indices.create.return_value = {"acknowledged": True}
+        result = self.hook.create_index("test-index", mappings={"properties": {}}, settings={"number_of_shards": 1})
+        assert result == {"acknowledged": True}
+        self.hook.client.indices.create.assert_called_once()
+
+    def test_delete_index(self):
+        self.hook.client.indices.delete.return_value = {"acknowledged": True}
+        result = self.hook.delete_index("test-index")
+        assert result == {"acknowledged": True}
+        self.hook.client.indices.delete.assert_called_once_with(index="test-index")
+
+    def test_bulk(self):
+        with mock.patch("airflow.providers.elasticsearch.hooks.elasticsearch.bulk") as bulk_mock:
+            bulk_mock.return_value = (2, [])
+            result = self.hook.bulk([{"_index": "test", "_source": {"field": "value"}}])
+            assert result == (2, [])
+            bulk_mock.assert_called_once()
+
+    def test_streaming_bulk(self):
+        with mock.patch("airflow.providers.elasticsearch.hooks.elasticsearch.streaming_bulk") as streaming_mock:
+            streaming_mock.return_value = iter([(True, {"result": "created"})])
+            results = list(self.hook.streaming_bulk([{"_index": "test", "_source": {"field": "value"}}]))
+            assert results == [(True, {"result": "created"})]
+            streaming_mock.assert_called_once()
+
+    def test_parallel_bulk(self):
+        with mock.patch("airflow.providers.elasticsearch.hooks.elasticsearch.parallel_bulk") as parallel_mock:
+            parallel_mock.return_value = iter([(True, {"result": "created"})])
+            results = list(self.hook.parallel_bulk([{"_index": "test", "_source": {"field": "value"}}]))
+            assert results == [(True, {"result": "created"})]
+            parallel_mock.assert_called_once()
+
+    @mock.patch("airflow.providers.elasticsearch.hooks.elasticsearch.Elasticsearch")
+    def test_search(self, mock_es):
+        mock_client = mock_es.return_value
+        mock_client.search.return_value = {
+            "hits": {
+                "hits": [
+                    {"_source": {"field": "value"}},
+                ]
+            }
+        }
+
+        hook = ElasticsearchHook()
+        result = hook.search(index_name="test", query={})
+        assert result == [{"field": "value"}]
+
+    def test_scan_to_pandas(self):
+        with mock.patch("airflow.providers.elasticsearch.hooks.elasticsearch.scan") as scan_mock:
+            scan_mock.return_value = [{"_source": {"field": i}} for i in range(3)]
+            df = self.hook.scan_to_pandas(index="test-index", size=3)
+            assert df.shape == (3, 3)
+            assert set(["field", "_index", "_id"]).issubset(df.columns)
+
+    def test_search_to_pandas(self):
+        self.hook.client.search.return_value = {
+            "hits": {
+                "hits": [{"_source": {"field": i}} for i in range(2)]
+            }
+        }
+        df = self.hook.search_to_pandas(index="test-index", query={"match_all": {}})
+        assert df.shape == (2, 1)
+        assert list(df.columns) == ["field"]
+
+    def test_reindex(self):
+        with mock.patch("elasticsearch.helpers.scan") as scan_mock:
+            scan_mock.return_value = [
+                {"_source": {"field": "value1"}, "_index": "src", "_id": "1"},
+                {"_source": {"field": "value2"}, "_index": "src", "_id": "2"}
+            ]
+            with mock.patch("elasticsearch.helpers.reindex") as reindex_mock:
+                reindex_mock.return_value = (2, [])
+                result = self.hook.reindex(source_index="src", target_index="dst")
+                assert result == (2, [])
+
