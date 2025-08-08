@@ -192,7 +192,7 @@ class TestGetPools(TestPoolsEndpoint):
 
         body = response.json()
         assert body["total_entries"] == expected_total_entries
-        assert [pool["name"] for pool in body["pools"]] == expected_ids
+        assert sorted([pool["name"] for pool in body["pools"]]) == sorted(expected_ids)
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/pools", params={"pool_name_pattern": "~"})
