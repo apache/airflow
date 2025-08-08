@@ -110,10 +110,10 @@ if TYPE_CHECKING:
     from airflow.sdk import DAG as SdkDag, BaseOperatorLink
     from airflow.sdk.types import Operator
     from airflow.serialization.json_schema import Validator
+    from airflow.task.trigger_rule import TriggerRule
     from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
     from airflow.triggers.base import BaseEventTrigger
     from airflow.typing_compat import Self
-    from airflow.utils.trigger_rule import TriggerRule
 
     HAS_KUBERNETES: bool
     try:

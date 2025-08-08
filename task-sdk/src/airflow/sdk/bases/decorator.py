@@ -29,6 +29,7 @@ import attr
 import typing_extensions
 
 from airflow.sdk import timezone
+from airflow.sdk.api.datamodels._generated import TriggerRule
 from airflow.sdk.bases.operator import (
     BaseOperator,
     coerce_resources,
@@ -53,7 +54,6 @@ from airflow.sdk.definitions.mappedoperator import (
 )
 from airflow.sdk.definitions.xcom_arg import XComArg
 from airflow.utils.context import KNOWN_CONTEXT_KEYS
-from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions._internal.expandinput import (

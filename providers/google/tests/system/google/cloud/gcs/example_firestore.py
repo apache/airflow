@@ -41,7 +41,7 @@ from airflow.providers.google.cloud.operators.datastore import (
 )
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.firebase.operators.firestore import CloudFirestoreExportDatabaseOperator
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.sdk.api.datamodels._generated import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")

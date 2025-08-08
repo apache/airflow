@@ -64,6 +64,7 @@ if TYPE_CHECKING:
         OperatorExpandArgument,
         OperatorExpandKwargsArgument,
     )
+    from airflow.sdk.api.datamodels._generated import TriggerRule
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.definitions._internal.expandinput import ExpandInput
@@ -74,7 +75,6 @@ if TYPE_CHECKING:
     from airflow.triggers.base import StartTriggerArgs
     from airflow.utils.context import Context
     from airflow.utils.operator_resources import Resources
-    from airflow.utils.trigger_rule import TriggerRule
 
 TaskStateChangeCallbackAttrType: TypeAlias = TaskStateChangeCallback | list[TaskStateChangeCallback] | None
 ValidationSource = Literal["expand"] | Literal["partial"]

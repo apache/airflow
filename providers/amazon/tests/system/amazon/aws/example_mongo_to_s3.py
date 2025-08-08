@@ -33,8 +33,8 @@ else:
         # Airflow 2.10 compat
         from airflow.models.baseoperator import chain
         from airflow.models.dag import DAG
+from airflow.sdk.api.datamodels._generated import TriggerRule
 from airflow.utils.timezone import datetime
-from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import SystemTestContextBuilder
 

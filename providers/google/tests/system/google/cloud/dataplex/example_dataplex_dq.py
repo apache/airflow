@@ -49,7 +49,7 @@ from airflow.providers.google.cloud.operators.dataplex import (
     DataplexRunDataQualityScanOperator,
 )
 from airflow.providers.google.cloud.sensors.dataplex import DataplexDataQualityJobStatusSensor
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.sdk.api.datamodels._generated import TriggerRule
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 

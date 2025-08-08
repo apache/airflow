@@ -46,11 +46,11 @@ from airflow import settings
 from airflow.exceptions import (
     AirflowDagCycleException,
     DuplicateTaskIdFound,
-    FailFastDagInvalidTriggerRule,
     ParamValidationError,
     RemovedInAirflow4Warning,
     TaskNotFound,
 )
+from airflow.sdk.api.datamodels._generated import TriggerRule
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions._internal.node import validate_key
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
@@ -58,6 +58,7 @@ from airflow.sdk.definitions.asset import AssetAll, BaseAsset
 from airflow.sdk.definitions.context import Context
 from airflow.sdk.definitions.deadline import DeadlineAlert
 from airflow.sdk.definitions.param import DagParam, ParamsDict
+from airflow.sdk.exceptions import FailFastDagInvalidTriggerRule
 from airflow.timetables.base import Timetable
 from airflow.timetables.simple import (
     AssetTriggeredTimetable,
@@ -65,7 +66,6 @@ from airflow.timetables.simple import (
     NullTimetable,
     OnceTimetable,
 )
-from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
     from re import Pattern

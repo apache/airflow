@@ -48,7 +48,7 @@ from airflow.providers.google.cloud.operators.managed_kafka import (
     ManagedKafkaListConsumerGroupsOperator,
     ManagedKafkaUpdateConsumerGroupOperator,
 )
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.sdk.api.datamodels._generated import TriggerRule
 
 from tests_common.test_utils.api_client_helpers import create_airflow_connection
 
