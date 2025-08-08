@@ -389,7 +389,7 @@ option_tty = click.option(
     default=ALLOWED_TTY[0],
     show_default=True,
     help="Whether to allocate pseudo-tty when running docker command"
-    " (useful for pre-commit and CI to force-enable it).",
+    " (useful for prefligit and CI to force-enable it).",
 )
 option_upgrade_boto = click.option(
     "--upgrade-boto",

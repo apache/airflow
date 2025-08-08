@@ -423,17 +423,16 @@ Note that you might need to run pre-commit several times until all the static ch
 because modification from one pre-commit might impact other pre-commits.
 
 If you have pre-commit installed, pre-commit will be run automatically on commit. If you want to run it
-manually after commit, you can run it via ``breeze static-checks --last-commit`` some of the tests might fail
+manually after commit, you can run it via ``prefligit run --last-commit`` some of the tests might fail
 because suspension of the provider might cause changes in the dependencies, so if you see errors about
 missing dependencies imports, non-usable classes etc., you will need to build the CI image locally
 via ``breeze build-image --python 3.9 --upgrade-to-newer-dependencies`` after the first pre-commit run
 and then run the static checks again.
 
 If you want to be absolutely sure to run all static checks you can always do this via
-``pre-commit run --all-files`` or ``breeze static-checks --all-files``.
+``prefligit run --all-files``.
 
-Some of the manual modifications you will have to do (in both cases ``pre-commit`` will guide you on what
-to do.
+Some of the manual modifications you will have to do (in both cases ``prefligit`` will guide you on what to do
 
 * You will have to run  ``breeze setup regenerate-command-images`` to regenerate breeze help files
 * you will need to update ``extra-packages-ref.rst`` and in some cases - when mentioned there explicitly -

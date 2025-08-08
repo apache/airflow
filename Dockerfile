@@ -87,7 +87,7 @@ FROM scratch as scripts
 
 ##############################################################################################
 # Please DO NOT modify the inlined scripts manually. The content of those files will be
-# replaced by pre-commit automatically from the "scripts/docker/" folder.
+# replaced by prefligit automatically from the "scripts/docker/" folder.
 # This is done in order to avoid problems with caching and file permissions and in order to
 # make the PROD Dockerfile standalone
 ##############################################################################################
@@ -618,7 +618,7 @@ function common::install_packaging_tools() {
             pip install --root-user-action ignore --disable-pip-version-check "uv==${AIRFLOW_UV_VERSION}"
         fi
     fi
-    if  [[ ${AIRFLOW_PRE_COMMIT_VERSION=} == "" ]]; then
+    if  [[ ${AIRFLOW_PREFLIGIT_VERSION=} == "" ]]; then
         echo
         echo "${COLOR_BLUE}Installing latest pre-commit with pre-commit-uv uv${COLOR_RESET}"
         echo
@@ -628,10 +628,9 @@ function common::install_packaging_tools() {
     else
         echo
         echo "${COLOR_BLUE}Installing predefined versions of pre-commit with pre-commit-uv and uv:${COLOR_RESET}"
-        echo "${COLOR_BLUE}pre_commit(${AIRFLOW_PRE_COMMIT_VERSION}) uv(${AIRFLOW_UV_VERSION}) pre_commit-uv(${AIRFLOW_PRE_COMMIT_UV_VERSION})${COLOR_RESET}"
+        echo "${COLOR_BLUE}prefligit(${AIRFLOW_PREFLIGIT_VERSION}) uv(${AIRFLOW_UV_VERSION})${COLOR_RESET}"
         echo
-        uv tool install "pre-commit==${AIRFLOW_PRE_COMMIT_VERSION}" \
-            --with "uv==${AIRFLOW_UV_VERSION}" --with "pre-commit-uv==${AIRFLOW_PRE_COMMIT_UV_VERSION}"
+        uv tool install "prefligit==${AIRFLOW_PREFLIGIT_VERSION}" --with "uv==${AIRFLOW_UV_VERSION}"
         # make sure that the venv/user in .local exists
         mkdir -p "${HOME}/.local/bin"
     fi

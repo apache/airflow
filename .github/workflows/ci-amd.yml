@@ -122,7 +122,7 @@ jobs:
       arm-runners: ${{ steps.selective-checks.outputs.arm-runners }}
       selected-providers-list-as-string: >-
         ${{ steps.selective-checks.outputs.selected-providers-list-as-string }}
-      skip-pre-commits: ${{ steps.selective-checks.outputs.skip-pre-commits }}
+      skip-prefligits: ${{ steps.selective-checks.outputs.skip-prefligits }}
       skip-providers-tests: ${{ steps.selective-checks.outputs.skip-providers-tests }}
       source-head-repo: ${{ steps.source-run-info.outputs.source-head-repo }}
       sqlite-exclude: ${{ steps.selective-checks.outputs.sqlite-exclude }}
@@ -185,12 +185,10 @@ jobs:
         shell: bash
         env:
           UV_VERSION: "0.8.4"  # Keep this comment to allow automatic replacement of uv version
-          PRE_COMMIT_VERSION: "4.2.0"  # Keep this comment to allow automatic replacement of pre-commit version
-          PRE_COMMIT_UV_VERSION: "4.1.4"  # Keep this comment to allow automatic replacement of pre-commit-uv version
+          PREFLIGIT_VERSION: "0.0.22"  # Keep this comment to allow automatic replacement of prefligit version
         run: |
           pip install uv==${UV_VERSION} || true
-          uv tool install pre-commit==${PRE_COMMIT_VERSION} --with uv==${UV_VERSION} \
-          --with pre-commit-uv==${PRE_COMMIT_UV_VERSION}
+          uv tool install pre-commit==${PREFLIGIT_VERSION} --with uv==${UV_VERSION}
       - name: "Run pin-versions pre-commit"
         run: >
           pre-commit run -c .github/.pre-commit-config.yaml --all-files --verbose --hook-stage manual
@@ -209,7 +207,7 @@ jobs:
       needs-api-codegen: ${{needs.build-info.outputs.needs-api-codegen}}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       basic-checks-only: ${{needs.build-info.outputs.basic-checks-only}}
-      skip-pre-commits: ${{needs.build-info.outputs.skip-pre-commits}}
+      skip-prefligits: ${{needs.build-info.outputs.skip-prefligits}}
       canary-run: ${{needs.build-info.outputs.canary-run}}
       latest-versions-only: ${{needs.build-info.outputs.latest-versions-only}}
       use-uv: ${{needs.build-info.outputs.use-uv}}
@@ -254,7 +252,7 @@ jobs:
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      skip-pre-commits: ${{ needs.build-info.outputs.skip-pre-commits }}
+      skip-prefligits: ${{ needs.build-info.outputs.skip-prefligits }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
       disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
@@ -300,7 +298,7 @@ jobs:
       latest-versions-only: ${{ needs.build-info.outputs.latest-versions-only }}
       basic-checks-only: ${{ needs.build-info.outputs.basic-checks-only }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      skip-pre-commits: ${{ needs.build-info.outputs.skip-pre-commits }}
+      skip-prefligits: ${{ needs.build-info.outputs.skip-prefligits }}
       ci-image-build: ${{ needs.build-info.outputs.ci-image-build }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}

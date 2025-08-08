@@ -149,16 +149,13 @@ If you want to add core dependency that should always be installed - you need to
 to ``dependencies`` section. If you want to add it to one of the optional core extras, you should
 add it in the extra definition in ``pyproject.toml`` (you need to find out where it is defined).
 If you want to add it to one of the providers, you need to add it to the ``provider.yaml`` file in the provider
-directory - but remember that this should be followed by running pre-commit that will automatically update
+directory - but remember that this should be followed by running prefligit that will automatically update
 the ``pyproject.toml`` with the new dependencies as the ``provider.yaml`` files are not used directly, they
 are used to update ``pyproject.toml`` file:
 
 .. code-block:: bash
 
-    pre-commit run update-providers-dependencies  --all-files
-
-You can also run the pre-commit by ``breeze static-checks --type update-providers-dependencies --all-files``
-command - which provides autocomplete.
+    prefligit run update-providers-dependencies  --all-files
 
 After you've updated the dependencies, you need to rebuild the image:
 
@@ -195,11 +192,7 @@ After you modify the dependencies in the scripts, you need to inline them by run
 
 .. code-block:: bash
 
-    pre-commit run update-inlined-dockerfile-scripts --all-files
-
-You can also run the pre-commit by ``breeze static-checks --type update-inlined-dockerfile-scripts --all-files``
-command - which provides autocomplete.
-
+    prefligit run update-inlined-dockerfile-scripts --all-files
 
 After you've updated the dependencies, you need to rebuild the image:
 

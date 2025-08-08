@@ -50,7 +50,7 @@ or with Breeze:
 
 .. code-block:: bash
 
-    breeze static-checks --type generate-airflow-diagrams --all-files
+    preflifigit run generate-airflow-diagrams --all-files
 
 When you iterate over a diagram, you can also setup a "save" action in your IDE to run the python
 file automatically when you save the diagram file.

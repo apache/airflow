@@ -36,7 +36,7 @@ class AirflowDeprecationAdapter(ClassicAdapter):
         This parameter is required if the `planned_removal_release` parameter is not set.
     :param planned_removal_release: The package name and the version in which the deprecated object is
         expected to be removed. The expected format is `<package_name>==<package_version>`, for example
-        `apache-airflow==2.10.0` or `apache-airflow-providers-google==10.22.0`.
+        `apache-airflow==2.10.0` or `apache-airflow-providers-google==10.0.22`.
         This parameter is required if the `planned_removal_date` parameter is not set.
     :param use_instead: Optional. Replacement of the deprecated object.
     :param reason: Optional. The detailed reason for the deprecated object.
@@ -157,7 +157,7 @@ def deprecated(
         This parameter is required if the `planned_removal_release` parameter is not set.
     :param planned_removal_release: The package name and the version in which the deprecated object is
         expected to be removed. The expected format is `<package_name>==<package_version>`, for example
-        `apache-airflow==2.10.0` or `apache-airflow-providers-google==10.22.0`.
+        `apache-airflow==2.10.0` or `apache-airflow-providers-google==10.0.22`.
         This parameter is required if the `planned_removal_date` parameter is not set.
     :param use_instead: Optional. Replacement of the deprecated object.
     :param reason: Optional. The detailed reason for the deprecated object.
