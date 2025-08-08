@@ -590,7 +590,7 @@ class TestCliDags:
         DM = DagModel
         key = "my_dag_id"
         session = settings.Session()
-        session.add(DM(dag_id=key))
+        session.add(DM(dag_id=key, bundle_name="dags-folder"))
         session.commit()
         dag_command.dag_delete(self.parser.parse_args(["dags", "delete", key, "--yes"]))
         assert session.query(DM).filter_by(dag_id=key).count() == 0
@@ -607,7 +607,7 @@ class TestCliDags:
         DM = DagModel
         key = "my_dag_id"
         session = settings.Session()
-        session.add(DM(dag_id=key))
+        session.add(DM(dag_id=key, bundle_name="dags-folder"))
         _backfill = Backfill(dag_id=key, from_date=DEFAULT_DATE, to_date=DEFAULT_DATE + timedelta(days=1))
         session.add(_backfill)
         # To create the backfill_id in DagRun
@@ -636,7 +636,7 @@ class TestCliDags:
         DM = DagModel
         key = "my_dag_id"
         session = settings.Session()
-        session.add(DM(dag_id=key, fileloc=os.fspath(path)))
+        session.add(DM(dag_id=key, bundle_name="dags-folder", fileloc=os.fspath(path)))
         session.commit()
         dag_command.dag_delete(self.parser.parse_args(["dags", "delete", key, "--yes"]))
         assert session.query(DM).filter_by(dag_id=key).count() == 0

@@ -40,6 +40,7 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from tests_common.test_utils.api_fastapi import _check_dag_run_note, _check_last_log
 from tests_common.test_utils.db import (
     clear_db_connections,
+    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_logs,
     clear_db_runs,
@@ -91,6 +92,7 @@ def setup(request, dag_maker, session=None):
     clear_db_connections()
     clear_db_runs()
     clear_db_dags()
+    clear_db_dag_bundles()
     clear_db_serialized_dags()
     clear_db_logs()
 
@@ -1276,6 +1278,7 @@ class TestTriggerDagRun:
     def _dags_for_trigger_tests(self, session=None):
         inactive_dag = DagModel(
             dag_id="inactive",
+            bundle_name="testing",
             fileloc="/tmp/dag_del_1.py",
             timetable_summary="2 2 * * *",
             is_stale=True,
@@ -1286,6 +1289,7 @@ class TestTriggerDagRun:
 
         import_errors_dag = DagModel(
             dag_id="import_errors",
+            bundle_name="testing",
             fileloc="/tmp/dag_del_2.py",
             timetable_summary="2 2 * * *",
             is_stale=False,
@@ -1507,14 +1511,14 @@ class TestTriggerDagRun:
         assert response.status_code == 400
         assert response.json() == {"detail": error_message}
 
-    def test_should_respond_404_if_a_dag_is_inactive(self, test_client, session):
+    def test_should_respond_404_if_a_dag_is_inactive(self, test_client, session, testing_dag_bundle):
         now = timezone.utcnow().isoformat()
         self._dags_for_trigger_tests(session)
         response = test_client.post("/dags/inactive/dagRuns", json={"logical_date": now})
         assert response.status_code == 404
         assert response.json()["detail"] == "DAG with dag_id: 'inactive' not found"
 
-    def test_should_respond_400_if_a_dag_has_import_errors(self, test_client, session):
+    def test_should_respond_400_if_a_dag_has_import_errors(self, test_client, session, testing_dag_bundle):
         now = timezone.utcnow().isoformat()
         self._dags_for_trigger_tests(session)
         response = test_client.post("/dags/import_errors/dagRuns", json={"logical_date": now})
