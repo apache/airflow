@@ -762,7 +762,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     },
     {
         "python-version": "3.10",
-        "airflow-version": "3.0.3",
+        "airflow-version": "3.0.4",
         "remove-providers": "",
         "run-tests": "true",
     },
