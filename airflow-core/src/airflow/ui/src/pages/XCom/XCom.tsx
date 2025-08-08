@@ -135,7 +135,7 @@ export const XCom = () => {
     limit: pagination.pageSize,
     logicalDateGte: logicalDateGte ?? undefined,
     logicalDateLte: logicalDateLte ?? undefined,
-    mapIndexFilter:
+    mapIndex:
       filteredMapIndex !== null && filteredMapIndex !== ""
         ? parseInt(filteredMapIndex, 10)
         : mapIndex === "-1"

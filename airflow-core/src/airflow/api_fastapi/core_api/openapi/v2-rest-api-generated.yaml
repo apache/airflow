@@ -4634,14 +4634,6 @@ paths:
         schema:
           type: string
           title: Task Id
-      - name: map_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Map Index
       - name: limit
         in: query
         required: false
@@ -4706,6 +4698,14 @@ paths:
           title: Task Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Map Index
       - name: logical_date_gte
         in: query
         required: false

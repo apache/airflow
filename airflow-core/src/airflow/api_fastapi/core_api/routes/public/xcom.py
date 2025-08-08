@@ -27,15 +27,16 @@ from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessE
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run_or_latest_version
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
+    FilterParam,
     QueryLimit,
     QueryOffset,
     QueryXComDagDisplayNamePatternSearch,
     QueryXComKeyPatternSearch,
-    QueryXComMapIndexFilter,
     QueryXComRunIdPatternSearch,
     QueryXComTaskIdPatternSearch,
     RangeFilter,
     datetime_range_filter_factory,
+    filter_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.xcom import (
@@ -142,10 +143,12 @@ def get_xcom_entries(
     dag_display_name_pattern: QueryXComDagDisplayNamePatternSearch,
     run_id_pattern: QueryXComRunIdPatternSearch,
     task_id_pattern: QueryXComTaskIdPatternSearch,
-    map_index_filter: QueryXComMapIndexFilter,
+    map_index: Annotated[
+        FilterParam[int | None],
+        Depends(filter_param_factory(XComModel.map_index, int | None, filter_name="map_index")),
+    ],
     logical_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", DR))],
     run_after_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", DR))],
-    map_index: Annotated[int | None, Query(ge=-1)] = None,
 ) -> XComCollectionResponse:
     """
     Get all XCom entries.
@@ -167,9 +170,6 @@ def get_xcom_entries(
     if dag_run_id != "~":
         query = query.where(DR.run_id == dag_run_id)
 
-    if map_index is not None:
-        query = query.where(XComModel.map_index == map_index)
-
     query, total_entries = paginated_select(
         statement=query,
         filters=[
@@ -178,7 +178,7 @@ def get_xcom_entries(
             dag_display_name_pattern,
             run_id_pattern,
             task_id_pattern,
-            map_index_filter,
+            map_index,
             logical_date_range,
             run_after_range,
         ],
