@@ -129,14 +129,19 @@ class SkipMixin(LoggingMixin):
         if isinstance(branch_task_ids, str):
             branch_task_id_set = {branch_task_ids}
         elif isinstance(branch_task_ids, Iterable):
+            # Handle the case where invalid values are passed as elements of an Iterable
+            # Non-string values are considered invalid elements
             branch_task_id_set = set(branch_task_ids)
             invalid_task_ids_type = {
                 (bti, type(bti).__name__) for bti in branch_task_id_set if not isinstance(bti, str)
             }
             if invalid_task_ids_type:
                 raise AirflowException(
-                    f"'branch_task_ids' expected all task IDs are strings. "
-                    f"Invalid tasks found: {invalid_task_ids_type}."
+                    f"Cannot properly branch. "
+                    f"Invalid branch task ID's were returned by the python_callable. "
+                    f"These invalid 'branch_task_ids' were: {invalid_task_ids_type}. "
+                    f"Make sure your python_callable returns an Iterable of strings storing valid task_id's."
+                    f"These task_id's should correspond to Tasks within your DAG."
                 )
         elif branch_task_ids is None:
             branch_task_id_set = set()
