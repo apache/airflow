@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-07T19:45:10.985439
+# This constraints file was automatically generated on 2025-08-08T02:25:35.581994
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -98,7 +98,7 @@ azure-common==1.1.28
 azure-core==1.35.0
 azure-cosmos==4.9.0
 azure-datalake-store==0.0.53
-azure-identity==1.23.1
+azure-identity==1.24.0
 azure-keyvault-secrets==4.10.0
 azure-kusto-data==5.0.5
 azure-mgmt-containerinstance==10.1.0
@@ -192,7 +192,6 @@ execnet==2.1.1
 executing==2.2.0
 facebook_business==23.0.1
 fastapi-cli==0.0.8
-fastapi-cloud-cli==0.1.5
 fastapi==0.116.1
 fastavro==1.12.0
 fastjsonschema==2.21.1
@@ -349,7 +348,7 @@ lazy-object-proxy==1.11.0
 libcst==1.8.2
 limits==5.5.0
 linkify-it-py==2.0.3
-litellm==1.75.0
+litellm==1.75.2
 lockfile==0.12.2
 looker-sdk==25.10.0
 lxml==6.0.0
@@ -398,7 +397,7 @@ nh3==0.3.0
 nodeenv==1.9.1
 numpy==2.2.6
 oauthlib==3.3.1
-openai==1.99.2
+openai==1.99.3
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
 openlineage-integration-common==1.36.0
@@ -536,7 +535,6 @@ rich-argparse==1.7.1
 rich-click==1.8.9
 rich-toolkit==0.14.9
 rich==13.9.4
-rignore==0.6.4
 roman-numerals-py==3.1.0
 rpds-py==0.27.0
 rsa==4.9.1
