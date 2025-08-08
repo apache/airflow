@@ -330,7 +330,7 @@ class ElasticsearchHook(BaseHook):
         }
 
     @cached_property
-    def conn(self) -> Any:
+    def conn(self) -> "AirflowConnection":
         """Get the Airflow connection object for Elasticsearch."""
         return self.get_connection(self.conn_id)
 
