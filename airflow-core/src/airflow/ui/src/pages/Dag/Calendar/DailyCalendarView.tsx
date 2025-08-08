@@ -41,6 +41,8 @@ import dayjs from "dayjs";
 import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 import { Tooltip } from "src/components/ui";
 
+import { createTooltipContent, generateDailyCalendarData, getCalendarCellColor } from "./calendarUtils";
+
 type Props = {
   readonly cellSize: number;
   readonly currentYear: number;
@@ -48,49 +50,9 @@ type Props = {
   readonly selectedYear: number;
 };
 
-const getColor = (count: number) => {
-  if (count === 0) {
-    return "#ebedf0";
-  }
-  if (count <= 2) {
-    return "#C6F6D5";
-  }
-  if (count <= 5) {
-    return "#68D391";
-  }
-
-  return "#22543D";
-};
-
 export const DailyCalendarView = ({ cellSize, currentYear, data, selectedYear }: Props) => {
   const isCurrentYear = selectedYear === currentYear;
-
-  const generateDailyData = () => {
-    const weeks: Array<Array<{ count: number; date: string }>> = [];
-    const startOfYear = dayjs().year(selectedYear).startOf("year");
-    const endOfYear = dayjs().year(selectedYear).endOf("year");
-
-    let currentDate = startOfYear.startOf("week");
-    const endDate = endOfYear.endOf("week");
-
-    while (currentDate.isBefore(endDate) || currentDate.isSame(endDate, "day")) {
-      const week = [];
-
-      for (let dayIndex = 0; dayIndex < 7; dayIndex += 1) {
-        const dateStr = currentDate.format("YYYY-MM-DD");
-        const runs = data.filter((run) => run.date.startsWith(dateStr));
-        const count = runs.reduce((sum, run) => sum + run.count, 0);
-
-        week.push({ count, date: dateStr });
-        currentDate = currentDate.add(1, "day");
-      }
-      weeks.push(week);
-    }
-
-    return weeks;
-  };
-
-  const dailyData = generateDailyData();
+  const dailyData = generateDailyCalendarData(data, selectedYear);
 
   return (
     <Box mb={4}>
@@ -146,10 +108,10 @@ export const DailyCalendarView = ({ cellSize, currentYear, data, selectedYear }:
                 }
 
                 return (
-                  <Tooltip content={`${day.date}: ${day.count} runs`} key={day.date} openDelay={600}>
+                  <Tooltip content={createTooltipContent(day)} key={day.date} openDelay={600}>
                     <Box
                       _hover={isInSelectedYear ? { transform: "scale(1.1)" } : undefined}
-                      bg={isInSelectedYear ? getColor(day.count) : "colorMode.background"}
+                      bg={isInSelectedYear ? getCalendarCellColor(day.runs) : "colorMode.background"}
                       borderRadius="2px"
                       cursor={isInSelectedYear ? "pointer" : "default"}
                       height={`${cellSize}px`}

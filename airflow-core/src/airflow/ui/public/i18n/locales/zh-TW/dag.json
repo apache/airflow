@@ -5,6 +5,31 @@
     "reason": "原因",
     "title": "依賴 (Dependencies) 阻礙任務排程"
   },
+  "calendar": {
+    "cellSize": "格子大小",
+    "daily": "每日",
+    "decreaseSize": "縮小尺寸",
+    "error": "載入日曆資料時發生錯誤",
+    "hourly": "每小時",
+    "increaseSize": "增大尺寸",
+    "legend": {
+      "successRateSpectrum": "成功率光譜",
+      "tooltips": {
+        "failed": "成功率低於20%",
+        "success100": "100%成功",
+        "successRate20": "20%以上成功率",
+        "successRate40": "40%以上成功率",
+        "successRate60": "60%以上成功率",
+        "successRate80": "80%以上成功率"
+      }
+    },
+    "less": "較少",
+    "loading": "載入中...",
+    "more": "較多",
+    "noData": "沒有可用的資料",
+    "px": "像素",
+    "week": "第 {{weekNumber}} 週"
+  },
   "code": {
     "bundleUrl": "套件包網址",
     "noCode": "找不到程式碼",
@@ -96,6 +121,7 @@
     "assetEvents": "資源事件",
     "auditLog": "審計日誌",
     "backfills": "回填",
+    "calendar": "日曆",
     "code": "程式碼",
     "details": "詳細資訊",
     "logs": "日誌",
@@ -103,6 +129,7 @@
     "mappedTaskInstances_other": "任務實例 [{{count}}]",
     "overview": "總覽",
     "renderedTemplates": "渲染後的範本",
+    "requiredActions": "必要動作",
     "runs": "執行紀錄",
     "taskInstances": "任務實例",
     "tasks": "任務",

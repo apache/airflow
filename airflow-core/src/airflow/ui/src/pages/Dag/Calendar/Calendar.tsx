@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -26,23 +28,10 @@ import { useLocalStorage } from "usehooks-ts";
 
 import { useCalendarServiceGetCalendar } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { Tooltip } from "src/components/ui";
 
 import { DailyCalendarView } from "./DailyCalendarView";
 import { HourlyCalendarView } from "./HourlyCalendarView";
-
-const getColor = (count: number) => {
-  if (count === 0) {
-    return "#ebedf0";
-  }
-  if (count <= 2) {
-    return "#C6F6D5";
-  }
-  if (count <= 5) {
-    return "#68D391";
-  }
-
-  return "#22543D";
-};
 
 export const Calendar = () => {
   const { dagId = "" } = useParams();
@@ -252,25 +241,75 @@ export const Calendar = () => {
         />
       )}
 
-      <HStack gap={2}>
-        <Text color="gray.600" fontSize="sm">
-          {translate("calendar.less")}
-        </Text>
-        <HStack gap={1}>
-          {[0, 1, 3, 6].map((count) => (
-            <Box
-              bg={getColor(count)}
-              borderRadius="2px"
-              height={`${cellSize}px`}
-              key={count}
-              width={`${cellSize}px`}
-            />
-          ))}
-        </HStack>
-        <Text color="gray.600" fontSize="sm">
-          {translate("calendar.more")}
-        </Text>
-      </HStack>
+      <Box>
+        {/* Success Rate Spectrum */}
+        <Box mb={4}>
+          <Text color="gray.700" fontSize="sm" fontWeight="medium" mb={3} textAlign="center">
+            {translate("calendar.legend.successRateSpectrum")}
+          </Text>
+          <HStack gap={3} justify="center">
+            <Text color="gray.600" fontSize="xs">
+              {translate("common:states.success")}
+            </Text>
+            <HStack borderRadius="full" boxShadow="sm" gap={0} overflow="hidden">
+              <Tooltip content={translate("calendar.legend.tooltips.success100")} openDelay={300}>
+                <Box bg="#008000" cursor="pointer" height="20px" width="32px" />
+              </Tooltip>
+              <Tooltip content={translate("calendar.legend.tooltips.successRate80")} openDelay={300}>
+                <Box bg="#16A34A" cursor="pointer" height="20px" width="24px" />
+              </Tooltip>
+              <Tooltip content={translate("calendar.legend.tooltips.successRate60")} openDelay={300}>
+                <Box bg="#22C55E" cursor="pointer" height="20px" width="24px" />
+              </Tooltip>
+              <Tooltip content={translate("calendar.legend.tooltips.successRate40")} openDelay={300}>
+                <Box bg="#EAB308" cursor="pointer" height="20px" width="24px" />
+              </Tooltip>
+              <Tooltip content={translate("calendar.legend.tooltips.successRate20")} openDelay={300}>
+                <Box bg="#F97316" cursor="pointer" height="20px" width="24px" />
+              </Tooltip>
+              <Tooltip content={translate("calendar.legend.tooltips.failed")} openDelay={300}>
+                <Box bg="#DC2626" cursor="pointer" height="20px" width="32px" />
+              </Tooltip>
+            </HStack>
+            <Text color="gray.600" fontSize="xs">
+              {translate("common:states.failed")}
+            </Text>
+          </HStack>
+        </Box>
+
+        {/* Single State Colors */}
+        <Box>
+          <Text color="gray.700" fontSize="sm" fontWeight="medium" mb={3} textAlign="center">
+            {translate("common:state")}
+          </Text>
+          <HStack gap={4} justify="center" wrap="wrap">
+            <HStack gap={2}>
+              <Box bg="#3182CE" borderRadius="full" boxShadow="sm" height="16px" width="16px" />
+              <Text color="gray.600" fontSize="sm">
+                {translate("common:states.running")}
+              </Text>
+            </HStack>
+            <HStack gap={2}>
+              <Box bg="#F1E7DA" borderRadius="full" boxShadow="sm" height="16px" width="16px" />
+              <Text color="gray.600" fontSize="sm">
+                {translate("common:states.planned")}
+              </Text>
+            </HStack>
+            <HStack gap={2}>
+              <Box bg="#808080" borderRadius="full" boxShadow="sm" height="16px" width="16px" />
+              <Text color="gray.600" fontSize="sm">
+                {translate("common:states.queued")}
+              </Text>
+            </HStack>
+            <HStack gap={2}>
+              <Box bg="#ebedf0" borderRadius="full" boxShadow="sm" height="16px" width="16px" />
+              <Text color="gray.600" fontSize="sm">
+                {translate("common:states.no_status")}
+              </Text>
+            </HStack>
+          </HStack>
+        </Box>
+      </Box>
     </Box>
   );
 };

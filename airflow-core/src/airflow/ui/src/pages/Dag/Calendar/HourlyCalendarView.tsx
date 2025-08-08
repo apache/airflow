@@ -43,6 +43,8 @@ import { useTranslation } from "react-i18next";
 import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 import { Tooltip } from "src/components/ui";
 
+import { createTooltipContent, generateHourlyCalendarData, getCalendarCellColor } from "./calendarUtils";
+
 dayjs.extend(isSameOrBefore);
 
 type Props = {
@@ -52,48 +54,9 @@ type Props = {
   readonly selectedYear: number;
 };
 
-const getColor = (count: number) => {
-  if (count === 0) {
-    return "#ebedf0";
-  }
-  if (count <= 2) {
-    return "#C6F6D5";
-  }
-  if (count <= 5) {
-    return "#68D391";
-  }
-
-  return "#22543D";
-};
-
 export const HourlyCalendarView = ({ cellSize, data, selectedMonth, selectedYear }: Props) => {
   const { t: translate } = useTranslation("dag");
-
-  const generateHourlyData = () => {
-    const monthStart = dayjs().year(selectedYear).month(selectedMonth).startOf("month");
-    const monthEnd = dayjs().year(selectedYear).month(selectedMonth).endOf("month");
-    const monthData = [];
-
-    let currentDate = monthStart;
-
-    while (Boolean(currentDate.isSameOrBefore(monthEnd, "day"))) {
-      const dayHours = [];
-
-      for (let hour = 0; hour < 24; hour += 1) {
-        const hourStr = currentDate.hour(hour).format("YYYY-MM-DDTHH:00:00");
-        const runs = data.filter((run) => run.date.startsWith(hourStr));
-        const count = runs.reduce((sum, run) => sum + run.count, 0);
-
-        dayHours.push({ count, date: hourStr, hour });
-      }
-      monthData.push({ day: currentDate.format("YYYY-MM-DD"), hours: dayHours });
-      currentDate = currentDate.add(1, "day");
-    }
-
-    return { days: monthData, month: monthStart.format("MMM YYYY") };
-  };
-
-  const hourlyData = generateHourlyData();
+  const hourlyData = generateHourlyCalendarData(data, selectedYear, selectedMonth);
 
   return (
     <Box mb={4}>
@@ -123,7 +86,7 @@ export const HourlyCalendarView = ({ cellSize, data, selectedMonth, selectedYear
                       top="-25px"
                       whiteSpace="nowrap"
                     >
-                      {translate("calendar.week")} {weekNumber}
+                      {translate("calendar.week", { weekNumber })}
                     </Text>
                   )}
                 </Box>
@@ -186,22 +149,34 @@ export const HourlyCalendarView = ({ cellSize, data, selectedMonth, selectedYear
             <Box display="flex" gap={1} key={hour}>
               {hourlyData.days.map((day, index) => {
                 const hourData = day.hours.find((hourItem) => hourItem.hour === hour);
-                const dayOfWeek = dayjs(day.day).day();
-                const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+                if (!hourData) {
+                  return (
+                    <Box
+                      bg={getCalendarCellColor([])}
+                      borderRadius="2px"
+                      cursor="pointer"
+                      height={`${cellSize}px`}
+                      key={`${day.day}-${hour}`}
+                      marginRight={index % 7 === 6 ? "8px" : "0"}
+                      width={`${cellSize}px`}
+                    />
+                  );
+                }
+
+                const tooltipContent =
+                  hourData.counts.total > 0
+                    ? `${dayjs(day.day).format("MMM DD")}, ${hour.toString().padStart(2, "0")}:00 - ${createTooltipContent(hourData).split(": ")[1]}`
+                    : `${dayjs(day.day).format("MMM DD")}, ${hour.toString().padStart(2, "0")}:00 - No runs`;
 
                 return (
-                  <Tooltip
-                    content={`${dayjs(day.day).format("MMM DD")}, ${hour.toString().padStart(2, "0")}:00 - ${hourData?.count ?? 0} runs`}
-                    key={`${day.day}-${hour}`}
-                    openDelay={600}
-                  >
+                  <Tooltip content={tooltipContent} key={`${day.day}-${hour}`} openDelay={600}>
                     <Box
-                      bg={getColor(hourData?.count ?? 0)}
+                      bg={getCalendarCellColor(hourData.runs)}
                       borderRadius="2px"
                       cursor="pointer"
                       height={`${cellSize}px`}
                       marginRight={index % 7 === 6 ? "8px" : "0"}
-                      opacity={isWeekend ? 0.8 : 1}
                       width={`${cellSize}px`}
                     />
                   </Tooltip>
