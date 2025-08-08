@@ -106,6 +106,8 @@ Authentication related methods
 * ``get_url_login``: Return the URL the user is redirected to for signing in.
 * ``get_url_logout``: Return the URL the user is redirected to when logging out. This is an optional method,
   this redirection is usually needed to invalidate resources when logging out, such as a session.
+* ``get_url_refresh``: Return the URL the user is redirected to when refreshing the JWT token.
+  This is an optional method, if not implemented, the Airflow UI/API will fall to log out if the auth manager needs to refresh the JWT token.
 * ``serialize_user``: Serialize a user instance to a dict. This dict is the actual content of the JWT token.
   It should contain all the information needed to identify the user and make an authorization request.
 * ``deserialize_user``: Create a user instance from a dict. The dict is the payload of the JWT token.
@@ -174,7 +176,9 @@ cookie named ``_token`` before redirecting to the Airflow UI. The Airflow UI wil
 
 Refreshing JWT Token
 ''''''''''''''''''''
-The refresh token ``<METHOD> <PATH>`` is ``POST /auth/token/refresh``. It returns a new JWT token in the cookie where updated token is stored.
+The refresh token logic is to automatically refresh the JWT token when it is about to expire.
+The auth manager should implement ``get_url_refresh`` method to return the URL of the refresh token endpoint.
+
 It requires the user to be authenticated, and it is usually called by the Airflow UI/API when the JWT token is about to expire.
 This endpoint is used to refresh the JWT token when it is about to expire.
 The auth manager should implement this endpoint to allow the Airflow UI/API to refresh the JWT token.
@@ -182,6 +186,24 @@ If the auth manager does not implement this endpoint, the Airflow UI/API will no
 The user will be logged out when the JWT token expires in that case, and they will have to log in again.
 
 This procedure is following the same pattern as the initial token generation endpoints and login/logout logic.
+
+If the auth manager have a token which expires and need to be refreshed, it should override the endpoint.
+
+Example token structure below shows that we need to refresh the token via using the ``refresh_token`` key in the token dict.
+This is example and the names can be different in your auth manager implementation.
+If this is not the case, auth manager don't need to implement the refresh token endpoint.
+
+.. code-block:: python
+
+  token = {
+      "access_token": "ACCESS_TOKEN",
+      "refresh_token": "REFRESH_TOKEN",
+      "param1": "value1",
+      "param2": "value2",
+      "...": "...",
+  }
+
+
 A typical implementation of the refresh token endpoint would look like this:
 
 
