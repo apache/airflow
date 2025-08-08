@@ -326,7 +326,14 @@ class TestExtendedElasticsearchHook:
 
         hook = ElasticsearchHook()
         result = hook.search(index_name="test", query={})
-        assert result == [{"field": "value"}]
+        expected = {
+            "hits": {
+                "hits": [
+                    {"_source": {"field": "value"}},
+                ]
+            }
+        }
+        assert result == expected
 
     def test_scan_to_pandas(self):
         with mock.patch("airflow.providers.elasticsearch.hooks.elasticsearch.scan") as scan_mock:
@@ -346,13 +353,13 @@ class TestExtendedElasticsearchHook:
         assert list(df.columns) == ["field"]
 
     def test_reindex(self):
-        with mock.patch("elasticsearch.helpers.scan") as scan_mock:
-            scan_mock.return_value = [
-                {"_source": {"field": "value1"}, "_index": "src", "_id": "1"},
-                {"_source": {"field": "value2"}, "_index": "src", "_id": "2"}
-            ]
-            with mock.patch("elasticsearch.helpers.reindex") as reindex_mock:
-                reindex_mock.return_value = (2, [])
-                result = self.hook.reindex(source_index="src", target_index="dst")
-                assert result == (2, [])
+        with mock.patch("airflow.providers.elasticsearch.hooks.elasticsearch.reindex") as mock_reindex:
+            mock_reindex.return_value = (3, [])
+            result = self.hook.reindex(source_index="src", target_index="dst")
+            assert result == (3, [])
+            mock_reindex.assert_called_once_with(
+                self.hook.client,
+                source_index="src",
+                target_index="dst"
+            )
 
