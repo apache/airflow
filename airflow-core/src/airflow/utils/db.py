@@ -100,10 +100,6 @@ _REVISION_HEADS_MAP: dict[str, str] = {
 }
 
 
-class TimeoutException(Exception):
-    """Exception raised when a timeout occurs."""
-
-
 @contextmanager
 def timeout_with_traceback(seconds, message="Operation timed out"):
     """
@@ -113,6 +109,9 @@ def timeout_with_traceback(seconds, message="Operation timed out"):
 
     Note: This uses SIGALRM and only works on Unix systems (not Windows).
     """
+
+    class TimeoutException(Exception):
+        """Exception raised when a timeout occurs."""
 
     def timeout_handler(signum, frame):
         # Capture the full call stack
@@ -614,48 +613,110 @@ def get_default_connections():
     return conns
 
 
+class AutocommitEngineForMySQL:
+    """
+    Context manager to temporarily use AUTOCOMMIT isolation level for MySQL.
+
+    This is needed to work around MySQL 8.4 metadata lock issues with SQLAlchemy 2.0.
+    """
+
+    def __init__(self):
+        self.is_mysql = settings.SQL_ALCHEMY_CONN and settings.SQL_ALCHEMY_CONN.lower().startswith("mysql")
+        self.original_prepare_engine_args = None
+
+    def __enter__(self):
+        if not self.is_mysql:
+            return self
+
+        log.info("Entering AUTOCOMMIT mode for MySQL DDL operations")
+
+        # Save and replace prepare_engine_args
+        self.original_prepare_engine_args = settings.prepare_engine_args
+
+        def autocommit_prepare_engine_args(disable_connection_pool=False, pool_class=None):
+            args = self.original_prepare_engine_args(disable_connection_pool, pool_class)
+            args["isolation_level"] = "AUTOCOMMIT"
+            return args
+
+        settings.prepare_engine_args = autocommit_prepare_engine_args
+
+        # Recreate engine with AUTOCOMMIT
+        settings.dispose_orm(do_log=False)
+        settings.configure_orm()
+
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if not self.is_mysql:
+            return
+
+        log.info("Exiting AUTOCOMMIT mode, restoring normal transaction engine")
+
+        # Restore original function
+        settings.prepare_engine_args = self.original_prepare_engine_args
+
+        # Recreate engine with normal settings
+        settings.dispose_orm(do_log=False)
+        settings.configure_orm()
+
+
 def _create_db_from_orm(session):
+    """Create database tables from ORM models and stamp alembic version."""
     log.info("Creating Airflow database tables from the ORM")
-    import sys
-    import threading
-    import traceback
 
-    from alembic import command
-
-    from airflow.models.base import Base
-
-    if os.environ.get("SQLALCHEMY_ENGINE_DEBUG", None):
-        import faulthandler
-
-        # Enable SQLA debug logging
-        logging.getLogger("sqlalchemy.engine").setLevel(logging.DEBUG)
-
-        # Enable Fault Handler
-        faulthandler.enable(file=sys.stderr, all_threads=True)
-
-        # Print Active Threads and Stack Traces Periodically
-        def dump_stacks():
-            while True:
-                for thread_id, frame in sys._current_frames().items():
-                    log.info("\nThread %s stack:", thread_id)
-                    traceback.print_stack(frame)
-                time.sleep(300)
-
-        threading.Thread(target=dump_stacks, daemon=True).start()
+    # Debug setup if requested
+    _setup_debug_logging_if_needed()
 
     log.info("Creating context")
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         log.info("Binding engine")
         engine = session.get_bind().engine
         log.info("Pool status: %s", engine.pool.status())
+
         log.info("Creating metadata")
+        from airflow.models.base import Base
+
         Base.metadata.create_all(engine)
-        # stamp the migration head
+
+        # Stamp the migration head
         log.info("Getting alembic config")
         config = _get_alembic_config()
-        log.info("Stamping migration head")
-        command.stamp(config, "head")
+
+        # Use AUTOCOMMIT for MySQL to avoid metadata lock issues
+        with AutocommitEngineForMySQL():
+            from alembic import command
+
+            log.info("Stamping migration head")
+            command.stamp(config, "head")
+
         log.info("Airflow database tables created")
+
+
+def _setup_debug_logging_if_needed():
+    """Set up debug logging and stack trace dumping if SQLALCHEMY_ENGINE_DEBUG is set."""
+    if not os.environ.get("SQLALCHEMY_ENGINE_DEBUG"):
+        return
+
+    import faulthandler
+    import sys
+    import threading
+    import traceback
+
+    # Enable SQLA debug logging
+    logging.getLogger("sqlalchemy.engine").setLevel(logging.DEBUG)
+
+    # Enable Fault Handler
+    faulthandler.enable(file=sys.stderr, all_threads=True)
+
+    # Print Active Threads and Stack Traces Periodically
+    def dump_stacks():
+        while True:
+            for thread_id, frame in sys._current_frames().items():
+                log.info("\nThread %s stack:", thread_id)
+                traceback.print_stack(frame)
+            time.sleep(300)
+
+    threading.Thread(target=dump_stacks, daemon=True).start()
 
 
 @provide_session
