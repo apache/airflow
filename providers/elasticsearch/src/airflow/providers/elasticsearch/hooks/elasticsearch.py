@@ -17,10 +17,10 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Generator
 from copy import deepcopy
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, cast, Optional, Union, Type
 from urllib import parse
 from warnings import warn
 
@@ -28,7 +28,7 @@ from elasticsearch import Elasticsearch
 from elasticsearch.helpers import bulk, streaming_bulk, parallel_bulk, scan, reindex
 from elasticsearch.exceptions import ConnectionError as ESConnectionError
 
-
+from airflow.exceptions import AirflowException, AirflowConfigException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.elasticsearch.version_compat import BaseHook
 
@@ -460,7 +460,7 @@ class ElasticsearchHook(BaseHook):
 
         return self.client.search(index=index_name, body=query, **kwargs)
 
-    def bulk(self, actions: Iterable, **kwargs) -> tuple:
+    def bulk(self, actions: Iterable[Any], **kwargs) -> Tuple[int, list]:
         """
         Execute bulk operations on Elasticsearch.
 
@@ -472,7 +472,7 @@ class ElasticsearchHook(BaseHook):
                       len(list(actions)) if hasattr(actions, '__len__') else 'unknown number of')
         return bulk(self.client, actions, **kwargs)
 
-    def streaming_bulk(self, actions: Iterable, **kwargs):
+    def streaming_bulk(self, actions: Iterable[Any], **kwargs) -> Generator[Tuple[bool, Dict[str, Any]], None, None]:
         """
         Execute streaming bulk operations on Elasticsearch.
 
@@ -483,7 +483,7 @@ class ElasticsearchHook(BaseHook):
         self.log.info("Executing streaming bulk operation")
         return streaming_bulk(self.client, actions, **kwargs)
 
-    def parallel_bulk(self, actions: Iterable, **kwargs):
+    def parallel_bulk(self, actions: Iterable[Any], **kwargs) -> Generator[Tuple[bool, Dict[str, Any]], None, None]:
         """
         Execute parallel bulk operations on Elasticsearch.
 
@@ -499,7 +499,7 @@ class ElasticsearchHook(BaseHook):
         index: Optional[Union[str, List[str]]] = None,
         query: Optional[Dict[str, Any]] = None,
         **kwargs
-    ) -> Dict[str, Any]:
+    ) -> Generator[Dict[str, Any], None, None]:
         """
         Scan and return all documents matching the query using the scroll API.
 
@@ -521,7 +521,7 @@ class ElasticsearchHook(BaseHook):
         target_index: str,
         query: Optional[Dict[str, Any]] = None,
         **kwargs
-    ) -> tuple:
+    ) -> Tuple[int, list]:
         """
         Reindex documents from source index(es) to a target index.
 
@@ -702,7 +702,7 @@ class ElasticsearchHook(BaseHook):
         """
         return self.client.indices.exists(index=index_name)
 
-    def close(self):
+    def close(self) -> None:
         """
         Close the Elasticsearch client connection and clean up resources.
 
@@ -720,7 +720,7 @@ class ElasticsearchHook(BaseHook):
                 if "client" in self.__dict__:
                     del self.__dict__["client"]
 
-    def __enter__(self):
+    def __enter__(self) -> "ElasticsearchHook":
         """
         Context manager entry point.
 
@@ -728,7 +728,12 @@ class ElasticsearchHook(BaseHook):
         """
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[Any]
+    ) -> None:
         """
         Context manager exit point.
 
