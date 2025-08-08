@@ -22,6 +22,8 @@ import pytest
 
 DATA_FILES_DIRECTORY = Path(__file__).resolve().parent
 
+pytest_plugins = "tests_common.pytest_plugin"
+
 
 @pytest.fixture(autouse=True)
 def initialize_providers_manager():
