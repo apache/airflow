@@ -527,6 +527,7 @@ class TaskInstance(Base, LoggingMixin):
         UUIDType(binary=False), ForeignKey("dag_version.id", ondelete="RESTRICT"), nullable=False
     )
     dag_version = relationship("DagVersion", back_populates="task_instances")
+    last_queueing_decision = Column(UtcDateTime)
 
     __table_args__ = (
         Index("ti_dag_state", dag_id, state),

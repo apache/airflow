@@ -106,6 +106,7 @@ class TaskInstanceHistory(Base):
 
     task_display_name = Column(String(2000), nullable=True)
     dag_version_id = Column(UUIDType(binary=False))
+    last_queueing_decision = Column(UtcDateTime)
 
     dag_version = relationship(
         "DagVersion",
