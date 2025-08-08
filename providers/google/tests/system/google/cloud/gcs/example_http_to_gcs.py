@@ -36,7 +36,7 @@ from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.http_to_gcs import HttpToGCSOperator
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.sdk.api.datamodels._generated import TriggerRule
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 from tests_common.test_utils.api_client_helpers import create_airflow_connection, delete_airflow_connection

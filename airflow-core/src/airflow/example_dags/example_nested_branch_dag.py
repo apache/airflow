@@ -27,7 +27,7 @@ import pendulum
 
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import DAG, task
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.sdk.api.datamodels._generated import TriggerRule
 
 with DAG(
     dag_id="example_nested_branch_dag",

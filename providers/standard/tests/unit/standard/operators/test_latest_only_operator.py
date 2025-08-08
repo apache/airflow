@@ -27,10 +27,10 @@ from airflow import settings
 from airflow.models import DagRun, TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.latest_only import LatestOnlyOperator
+from airflow.sdk.api.datamodels._generated import TriggerRule
 from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
 from airflow.utils.state import State
-from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import clear_db_runs, clear_db_xcom

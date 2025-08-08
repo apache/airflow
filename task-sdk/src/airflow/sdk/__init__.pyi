@@ -51,7 +51,6 @@ from airflow.sdk.definitions.edges import EdgeModifier as EdgeModifier, Label as
 from airflow.sdk.definitions.param import Param as Param
 from airflow.sdk.definitions.taskgroup import TaskGroup as TaskGroup
 from airflow.sdk.definitions.template import literal as literal
-from airflow.sdk.definitions.trigger_rule import TriggerRule as TriggerRule
 from airflow.sdk.definitions.variable import Variable as Variable
 from airflow.sdk.definitions.xcom_arg import XComArg as XComArg
 from airflow.sdk.execution_time.cache import SecretCache as SecretCache
@@ -80,7 +79,6 @@ __all__ = [
     "PokeReturnValue",
     "SecretCache",
     "TaskGroup",
-    "TriggerRule",
     "Variable",
     "XComArg",
     "WeightRule",

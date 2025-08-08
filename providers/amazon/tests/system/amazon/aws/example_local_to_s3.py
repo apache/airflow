@@ -37,7 +37,7 @@ else:
         from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
         from airflow.models.baseoperator import chain
         from airflow.models.dag import DAG
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.sdk.api.datamodels._generated import TriggerRule
 
 from system.amazon.aws.utils import SystemTestContextBuilder
 

@@ -38,7 +38,7 @@ from airflow.providers.google.cloud.sensors.dataflow import (
     DataflowJobMetricsSensor,
     DataflowJobStatusSensor,
 )
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.sdk.api.datamodels._generated import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "dataflow_native_python_async"

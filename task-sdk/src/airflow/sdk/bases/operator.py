@@ -37,6 +37,7 @@ import attrs
 
 from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.sdk import timezone
+from airflow.sdk.api.datamodels._generated import TriggerRule
 from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
@@ -66,7 +67,6 @@ from airflow.task.priority_strategy import (
     airflow_priority_weight_strategies,
     validate_and_load_priority_weight_strategy,
 )
-from airflow.utils.trigger_rule import TriggerRule
 
 # Databases do not support arbitrary precision integers, so we need to limit the range of priority weights.
 # postgres: -2147483648 to +2147483647 (see https://www.postgresql.org/docs/current/datatype-numeric.html)

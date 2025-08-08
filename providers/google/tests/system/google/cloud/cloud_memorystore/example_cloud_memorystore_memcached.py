@@ -42,7 +42,7 @@ from airflow.providers.google.cloud.operators.cloud_memorystore import (
     CloudMemorystoreMemcachedUpdateParametersOperator,
 )
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.sdk.api.datamodels._generated import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "google_project_id")

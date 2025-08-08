@@ -30,7 +30,7 @@ from airflow.providers.yandex.operators.dataproc import (
 )
 
 # Name of the datacenter where Dataproc cluster will be created
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.sdk.api.datamodels._generated import TriggerRule
 
 from tests_common.test_utils.system_tests import get_test_env_id
 

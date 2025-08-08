@@ -22,7 +22,7 @@ import pendulum
 
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import chain, dag, task
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.sdk.api.datamodels._generated import TriggerRule
 
 
 @dag(schedule=None, start_date=pendulum.datetime(2021, 1, 1, tz="UTC"), catchup=False, tags=["example"])

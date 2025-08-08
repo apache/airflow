@@ -26,7 +26,7 @@ from datetime import datetime, timedelta
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.task.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
     from airflow.models import DagRun

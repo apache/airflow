@@ -28,7 +28,7 @@ import pytest
 
 from airflow.configuration import conf
 from airflow.models import DagBag
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.sdk.api.datamodels._generated import TriggerRule
 
 DAGS_DIR = os.path.join(os.path.dirname(__file__), "../src/performance_dags/performance_dag")
 

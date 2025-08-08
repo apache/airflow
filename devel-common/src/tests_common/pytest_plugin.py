@@ -48,7 +48,7 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
     from airflow.providers.standard.operators.empty import EmptyOperator
     from airflow.sdk import Context
-    from airflow.sdk.api.datamodels._generated import TaskInstanceState as TIState
+    from airflow.sdk.api.datamodels._generated import TaskInstanceState as TIState, TriggerRule
     from airflow.sdk.bases.operator import BaseOperator as TaskSDKBaseOperator
     from airflow.sdk.execution_time.comms import StartupDetails, ToSupervisor
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
@@ -56,7 +56,6 @@ if TYPE_CHECKING:
     from airflow.timetables.base import DataInterval
     from airflow.typing_compat import Self
     from airflow.utils.state import DagRunState, TaskInstanceState
-    from airflow.utils.trigger_rule import TriggerRule
 
     from tests_common._internals.capture_warnings import CaptureWarningsPlugin  # noqa: F401
     from tests_common._internals.forbidden_warnings import ForbiddenWarningsPlugin  # noqa: F401

@@ -32,7 +32,7 @@ try:
     from airflow.sdk import BaseHook
 except ImportError:
     from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.sdk.api.datamodels._generated import TriggerRule
 
 try:
     from airflow.providers.standard.operators.bash import BashOperator

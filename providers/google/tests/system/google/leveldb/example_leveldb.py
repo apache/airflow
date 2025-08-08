@@ -34,7 +34,7 @@ try:
 except AirflowOptionalProviderFeatureException:
     pytest.skip("LevelDB not available", allow_module_level=True)
 
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.sdk.api.datamodels._generated import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "example_leveldb"

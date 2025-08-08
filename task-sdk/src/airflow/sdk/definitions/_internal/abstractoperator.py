@@ -32,12 +32,12 @@ import methodtools
 
 from airflow.configuration import conf
 from airflow.sdk import WeightRule
+from airflow.sdk.api.datamodels._generated import TriggerRule
 from airflow.sdk.definitions._internal.mixins import DependencyMixin
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions._internal.setup_teardown import SetupTeardownContext
 from airflow.sdk.definitions._internal.templater import Templater
 from airflow.sdk.definitions.context import Context
-from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
     import jinja2

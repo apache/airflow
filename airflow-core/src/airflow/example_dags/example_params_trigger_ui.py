@@ -26,7 +26,7 @@ import datetime
 from pathlib import Path
 
 from airflow.sdk import DAG, Param, task
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.sdk.api.datamodels._generated import TriggerRule
 
 # [START params_trigger]
 with DAG(

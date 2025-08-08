@@ -38,7 +38,7 @@ from airflow.providers.google.cloud.operators.vision import (
     CloudVisionUpdateProductSetOperator,
 )
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.sdk.api.datamodels._generated import TriggerRule
 
 # [START howto_operator_vision_retry_import]
 from google.api_core.retry import Retry  # isort:skip

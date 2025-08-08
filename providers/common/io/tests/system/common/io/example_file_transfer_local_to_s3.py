@@ -29,7 +29,7 @@ except ImportError:
     # Airflow 2 path
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.providers.common.io.operators.file_transfer import FileTransferOperator
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.sdk.api.datamodels._generated import TriggerRule
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 

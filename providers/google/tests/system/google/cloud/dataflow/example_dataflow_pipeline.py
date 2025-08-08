@@ -36,7 +36,7 @@ from airflow.providers.google.cloud.operators.gcs import (
     GCSDeleteBucketOperator,
     GCSSynchronizeBucketsOperator,
 )
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.sdk.api.datamodels._generated import TriggerRule
 
 DAG_ID = "dataflow_pipeline"
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")

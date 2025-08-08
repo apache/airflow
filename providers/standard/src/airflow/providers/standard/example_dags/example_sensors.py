@@ -30,7 +30,7 @@ from airflow.providers.standard.sensors.time_delta import TimeDeltaSensor
 from airflow.providers.standard.sensors.weekday import DayOfWeekSensor
 from airflow.providers.standard.utils.weekday import WeekDay
 from airflow.sdk import DAG
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.sdk.api.datamodels._generated import TriggerRule
 
 
 # [START example_callables]

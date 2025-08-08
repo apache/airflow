@@ -36,7 +36,7 @@ from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKEStartJobOperator,
     GKESuspendJobOperator,
 )
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.sdk.api.datamodels._generated import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "kubernetes_engine_job"

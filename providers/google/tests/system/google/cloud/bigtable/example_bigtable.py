@@ -59,7 +59,7 @@ from airflow.providers.google.cloud.operators.bigtable import (
     BigtableUpdateInstanceOperator,
 )
 from airflow.providers.google.cloud.sensors.bigtable import BigtableTableReplicationCompletedSensor
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.sdk.api.datamodels._generated import TriggerRule
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
