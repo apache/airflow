@@ -35,12 +35,12 @@ import time_machine
 from sqlalchemy import select
 
 from airflow import settings
+from airflow._shared.timezones import timezone as tz
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag, _capture_with_reraise
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.serialization.serialized_objects import SerializedDAG
-from airflow.utils import timezone as tz
 from airflow.utils.session import create_session
 
 from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
@@ -55,6 +55,7 @@ pytestmark = pytest.mark.db_test
 example_dags_folder = AIRFLOW_ROOT_PATH / "airflow-core" / "src" / "airflow" / "example_dags" / "standard"
 
 PY311 = sys.version_info >= (3, 11)
+PY313 = sys.version_info >= (3, 13)
 
 # Include the words "airflow" and "dag" in the file contents,
 # tricking airflow into thinking these
@@ -651,10 +652,12 @@ with airflow.DAG(
 
     @staticmethod
     def _make_test_traceback(unparseable_filename: str, depth=None) -> str:
-        marker = "           ^^^^^^^^^^^\n" if PY311 else ""
+        python_311_marker = "           ^^^^^^^^^^^\n" if PY311 else ""
+        python_313_marker = ["    ~~~~~~~~~^^\n"] if PY313 else []
         frames = (
             f'  File "{unparseable_filename}", line 3, in <module>\n    something()\n',
-            f'  File "{unparseable_filename}", line 2, in something\n    return airflow_DAG\n{marker}',
+            *python_313_marker,
+            f'  File "{unparseable_filename}", line 2, in something\n    return airflow_DAG\n{python_311_marker}',
         )
         depth = 0 if depth is None else -depth
         return (

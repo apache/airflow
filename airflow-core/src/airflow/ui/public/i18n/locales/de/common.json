@@ -15,6 +15,7 @@
   "backfill_other": "Auffüllungen",
   "browse": {
     "auditLog": "Prüf-Log",
+    "requiredActions": "Erforderliche Interaktionen",
     "xcoms": "Task Kommunikation (XComs)"
   },
   "collapseDetailsPanel": "Detailansicht ausblenden",
@@ -55,11 +56,12 @@
     "runAfter": "Gelaufen ab",
     "runType": "Typ des Laufs",
     "sourceAssetEvent": "Ursprung des Datenset (Asset) Ereignisses",
-    "triggeredBy": "Angestoßen von",
+    "triggeredBy": "Ausgelöst durch",
     "triggeringUser": "Benutzer der ausgelöst hat"
   },
   "dagRun_one": "Dag Lauf",
   "dagRun_other": "Dag Läufe",
+  "dagRunId": "Dag Lauf ID",
   "dagWarnings": "Dag Warnungen und Fehler",
   "defaultToGraphView": "Graph-Ansicht als Standard",
   "defaultToGridView": "Gitter-Ansicht als Standard",
@@ -81,6 +83,7 @@
   "expand": {
     "collapse": "Einklappen",
     "expand": "Ausklappen",
+    "hotkey": "e",
     "tooltip": "Tastenkombination {{hotkey}} zum Ein-/Ausklappen drücken"
   },
   "expression": {
@@ -131,7 +134,7 @@
   },
   "runId": "Lauf Id",
   "runTypes": {
-    "asset_triggered": "Durch Datenset (Asset) angestoßen",
+    "asset_triggered": "Durch Datenset (Asset) ausgelöst",
     "backfill": "Nachträglich Aufgefüllt",
     "manual": "Manuell",
     "scheduled": "Geplant"
@@ -153,6 +156,11 @@
   },
   "selectLanguage": "Sprache wählen",
   "showDetailsPanel": "Detailansicht einblenden",
+  "source": {
+    "hide": "Log-Quelle ausblenden",
+    "hotkey": "s",
+    "show": "Log-Quelle einblenden"
+  },
   "sourceAssetEvent_one": "Urspung des Datenset (Asset) Ereignisses",
   "sourceAssetEvent_other": "Urspung der Datenset (Asset) Ereignisse",
   "startDate": "Startdatum",
@@ -232,6 +240,11 @@
     "lastHour": "Letzte Stunde",
     "pastWeek": "Letzte Woche"
   },
+  "timestamp": {
+    "hide": "Zeitstempel ausblenden",
+    "hotkey": "t",
+    "show": "Zeitstempel einblenden"
+  },
   "timezone": "Zeitzone",
   "timezoneModal": {
     "current-timezone": "Aktuelle Zeit in",
@@ -277,10 +290,11 @@
     }
   },
   "total": "Gesamt {{state}}",
-  "triggered": "Angestoßen",
+  "triggered": "Ausgelöst",
   "tryNumber": "Versuch Nummer",
   "user": "Benutzer",
   "wrap": {
+    "hotkey": "w",
     "tooltip": "Buchstabe {{hotkey}} drücken um den Zeilenumbruch umzuschalten",
     "unwrap": "Kein Zeilenumbruch",
     "wrap": "Zeilenumbruch"

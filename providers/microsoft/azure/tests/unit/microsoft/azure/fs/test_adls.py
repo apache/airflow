@@ -124,6 +124,23 @@ def mocked_blob_file_system():
                 "account_key": "p",
             },
         ),
+        (
+            Connection(
+                conn_id="testconn",
+                conn_type="wasb",
+                login="testaccountname",
+                password="p",
+                host="testaccountID",
+                extra={
+                    "account_host": "mystorageaccount.blob.core.mydomain.io",
+                },
+            ),
+            {
+                "account_url": "https://testaccountname.blob.core.windows.net/",
+                "account_host": "mystorageaccount.blob.core.mydomain.io",
+                "account_key": "p",
+            },
+        ),
     ],
     indirect=["mocked_connection"],
 )

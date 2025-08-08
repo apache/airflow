@@ -20,7 +20,10 @@ import logging
 from collections.abc import Callable
 from datetime import datetime, timedelta
 
-from airflow.utils import timezone
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 log = logging.getLogger(__name__)
 

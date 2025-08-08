@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import sys
 from unittest import mock
 
 import pytest
@@ -147,15 +148,13 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
 
             # Verify the AIRFLOW_API_APPS was set correctly
             if "--apps" in args:
-                expected_setitem_calls.append(
-                    mock.call(api_server_command.AIRFLOW_API_APPS, parsed_args.apps)
-                )
+                expected_setitem_calls.append(mock.call("AIRFLOW_API_APPS", parsed_args.apps))
 
             # Verify AIRFLOW_API_APPS was cleaned up
             if original_env is not None:
-                expected_setitem_calls.append(mock.call(api_server_command.AIRFLOW_API_APPS, original_env))
+                expected_setitem_calls.append(mock.call("AIRFLOW_API_APPS", original_env))
             else:
-                mock_environ.pop.assert_called_with(api_server_command.AIRFLOW_API_APPS, None)
+                mock_environ.pop.assert_called_with("AIRFLOW_API_APPS", None)
 
             # Verify that the environment variable was set and cleaned up correctly
             mock_environ.__setitem__.assert_has_calls(expected_setitem_calls)
@@ -296,16 +295,31 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
                 )
             ]
             mock_pid_file.assert_has_calls([mock.call(mock_setup_locations.return_value[0], -1)])
-            assert mock_open.mock_calls == [
-                mock.call(mock_setup_locations.return_value[1], "a"),
-                mock.call().__enter__(),
-                mock.call(mock_setup_locations.return_value[2], "a"),
-                mock.call().__enter__(),
-                mock.call().truncate(0),
-                mock.call().truncate(0),
-                mock.call().__exit__(None, None, None),
-                mock.call().__exit__(None, None, None),
-            ]
+            if sys.version_info >= (3, 13):
+                # extra close is called in Python 3.13+ to close the file descriptors
+                assert mock_open.mock_calls == [
+                    mock.call(mock_setup_locations.return_value[1], "a"),
+                    mock.call().__enter__(),
+                    mock.call(mock_setup_locations.return_value[2], "a"),
+                    mock.call().__enter__(),
+                    mock.call().truncate(0),
+                    mock.call().truncate(0),
+                    mock.call().__exit__(None, None, None),
+                    mock.call().close(),
+                    mock.call().__exit__(None, None, None),
+                    mock.call().close(),
+                ]
+            else:
+                assert mock_open.mock_calls == [
+                    mock.call(mock_setup_locations.return_value[1], "a"),
+                    mock.call().__enter__(),
+                    mock.call(mock_setup_locations.return_value[2], "a"),
+                    mock.call().__enter__(),
+                    mock.call().truncate(0),
+                    mock.call().truncate(0),
+                    mock.call().__exit__(None, None, None),
+                    mock.call().__exit__(None, None, None),
+                ]
         else:
             assert mock_daemon.mock_calls == []
             mock_setup_locations.mock_calls == []

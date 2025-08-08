@@ -76,6 +76,22 @@ In the following example, the task ``wait_for_dag_run`` waits for the DAG run cr
     :start-after: [START howto_sensor_mwaa_dag_run]
     :end-before: [END howto_sensor_mwaa_dag_run]
 
+.. _howto/sensor:MwaaTaskSensor:
+
+Wait on the state of an AWS MWAA Task
+========================================
+
+To wait for a DAG task instance across MWAA environments until it reaches one of the given states, you can use the
+:class:`~airflow.providers.amazon.aws.sensors.mwaa.MwaaTaskSensor`
+
+In the following example, the task ``wait_for_task`` waits for the DAG run created in the above task to complete.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_mwaa.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_mwaa_task]
+    :end-before: [END howto_sensor_mwaa_task]
+
 References
 ----------
 

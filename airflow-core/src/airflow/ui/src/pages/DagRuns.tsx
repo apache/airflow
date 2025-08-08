@@ -39,6 +39,7 @@ import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { SearchBar } from "src/components/SearchBar";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
+import { TruncatedText } from "src/components/TruncatedText";
 import { Select } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { dagRunTypeOptions, dagRunStateOptions as stateOptions } from "src/constants/stateOptions";
@@ -52,6 +53,7 @@ const {
   RUN_TYPE: RUN_TYPE_PARAM,
   START_DATE: START_DATE_PARAM,
   STATE: STATE_PARAM,
+  TRIGGERING_USER_NAME_PATTERN: TRIGGERING_USER_NAME_PATTERN_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRunResponse>> => [
@@ -64,6 +66,17 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
           header: translate("dagId"),
         },
       ]),
+  {
+    accessorKey: "dag_run_id",
+    cell: ({ row: { original } }: DagRunRow) => (
+      <Link asChild color="fg.info" fontWeight="bold">
+        <RouterLink to={`/dags/${original.dag_id}/runs/${original.dag_run_id}`}>
+          <TruncatedText text={original.dag_run_id} />
+        </RouterLink>
+      </Link>
+    ),
+    header: translate("dagRunId"),
+  },
   {
     accessorKey: "run_after",
     cell: ({ row: { original } }: DagRunRow) => (
@@ -94,6 +107,12 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
     ),
     enableSorting: false,
     header: translate("dagRun.runType"),
+  },
+  {
+    accessorKey: "triggering_user_name",
+    cell: ({ row: { original } }) => <Text>{original.triggering_user_name ?? ""}</Text>,
+    enableSorting: false,
+    header: translate("dagRun.triggeringUser"),
   },
   {
     accessorKey: "start_date",
@@ -156,12 +175,13 @@ export const DagRuns = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-run_after";
+  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-run_after"];
 
   const { pageIndex, pageSize } = pagination;
   const filteredState = searchParams.get(STATE_PARAM);
   const filteredType = searchParams.get(RUN_TYPE_PARAM);
   const filteredRunIdPattern = searchParams.get(RUN_ID_PATTERN_PARAM);
+  const filteredTriggeringUserNamePattern = searchParams.get(TRIGGERING_USER_NAME_PATTERN_PARAM);
   const startDate = searchParams.get(START_DATE_PARAM);
   const endDate = searchParams.get(END_DATE_PARAM);
 
@@ -178,6 +198,7 @@ export const DagRuns = () => {
       runType: filteredType === null ? undefined : [filteredType],
       startDateGte: startDate ?? undefined,
       state: filteredState === null ? undefined : [filteredState],
+      triggeringUserNamePattern: filteredTriggeringUserNamePattern ?? undefined,
     },
     undefined,
     {
@@ -239,6 +260,22 @@ export const DagRuns = () => {
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
 
+  const handleTriggeringUserNamePatternChange = useCallback(
+    (value: string) => {
+      if (value === "") {
+        searchParams.delete(TRIGGERING_USER_NAME_PATTERN_PARAM);
+      } else {
+        searchParams.set(TRIGGERING_USER_NAME_PATTERN_PARAM, value);
+      }
+      setTableURLState({
+        pagination: { ...pagination, pageIndex: 0 },
+        sorting,
+      });
+      setSearchParams(searchParams);
+    },
+    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
+  );
+
   return (
     <>
       <HStack paddingY="4px">
@@ -249,6 +286,15 @@ export const DagRuns = () => {
             hotkeyDisabled={false}
             onChange={handleRunIdPatternChange}
             placeHolder={translate("dags:filters.runIdPatternFilter")}
+          />
+        </Box>
+        <Box>
+          <SearchBar
+            defaultValue={filteredTriggeringUserNamePattern ?? ""}
+            hideAdvanced
+            hotkeyDisabled={true}
+            onChange={handleTriggeringUserNamePatternChange}
+            placeHolder={translate("dags:filters.triggeringUserNameFilter")}
           />
         </Box>
         <Select.Root

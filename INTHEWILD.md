@@ -308,6 +308,7 @@ Currently, **officially** using Airflow:
 1. [JobTeaser](https://www.jobteaser.com) [[@stefani75](https://github.com/stefani75) & [@knil-sama](https://github.com/knil-sama)]
 1. [JULO](https://www.julo.co.id/) [[@sepam](https://github.com/sepam) & [@tenapril](https://github.com/tenapril) & [@verzqy](https://github.com/verzqy)]
 1. [Kalibrr](https://www.kalibrr.com/) [[@charlesverdad](https://github.com/charlesverdad)]
+1. [Karana Dynamics](https://www.karanadyn.com) [[@aarongaut](https://github.com/aarongaut), [@leakec](https://github.com/leakec) & [@kajain2](https://github.com/kajain2)]
 1. [Kargo](https://kargo.com) [[@chaithra-yenikapati](https://github.com/chaithra-yenikapati), [@akarsh3007](https://github.com/akarsh3007) & [@dineshanchan](https://github.com/dineshanchan)]
 1. [Karmic](https://karmiclabs.com) [[@hyw](https://github.com/hyw)]
 1. [Kayzen](https://kayzen.io) [[@arvindeybram](https://github.com/arvindeybram)]
@@ -469,6 +470,7 @@ Currently, **officially** using Airflow:
 1. [SnapTravel](https://www.snaptravel.com/)
 1. [SocialCops](https://www.socialcops.com/) [[@vinayak-mehta](https://github.com/vinayak-mehta) & [@sharky93](https://github.com/sharky93)]
 1. [Société générale](https://www.societegenerale.fr/) [[@medmrgh](https://github.com/medmrgh) & [@s83](https://github.com/s83)]
+1. [Softwrd](https://softwrd.ai/) [[@softwrdai](https://github.com/softwrdai) & [@Mrrobi](https://github.com/Mrrobi)]
 1. [Spotahome](https://www.spotahome.com/) [[@spotahome](https://github.com/spotahome)]
 1. [SpotHero](https://github.com/spothero) [[@benjigoldberg](https://github.com/benjigoldberg)]
 1. [Spotify](https://github.com/spotify) [[@znichols](https://github.com/znichols)]
