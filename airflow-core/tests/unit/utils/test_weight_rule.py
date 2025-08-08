@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.utils.weight_rule import WeightRule
+from airflow.configuration import WeightRule
 
 
 class TestWeightRule:

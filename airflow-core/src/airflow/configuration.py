@@ -36,12 +36,14 @@ from collections.abc import Generator, Iterable
 from configparser import ConfigParser, NoOptionError, NoSectionError
 from contextlib import contextmanager
 from copy import deepcopy
+from enum import Enum
 from io import StringIO
 from json.decoder import JSONDecodeError
 from re import Pattern
 from typing import IO, TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
+import methodtools
 from packaging.version import parse as parse_version
 from typing_extensions import overload
 
@@ -49,7 +51,6 @@ from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
 from airflow.utils import yaml
 from airflow.utils.module_loading import import_string
-from airflow.utils.weight_rule import WeightRule
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
@@ -200,6 +201,28 @@ def retrieve_configuration_description(
             if not selected_provider or provider == selected_provider:
                 base_configuration_description.update(config)
     return base_configuration_description
+
+
+class WeightRule(str, Enum):
+    """Weight rules."""
+
+    DOWNSTREAM = "downstream"
+    UPSTREAM = "upstream"
+    ABSOLUTE = "absolute"
+
+    @classmethod
+    def is_valid(cls, weight_rule: str) -> bool:
+        """Check if weight rule is valid."""
+        return weight_rule in cls.all_weight_rules()
+
+    @methodtools.lru_cache(maxsize=None)
+    @classmethod
+    def all_weight_rules(cls) -> set[str]:
+        """Return all weight rules."""
+        return set(cls.__members__.values())
+
+    def __str__(self) -> str:
+        return self.value
 
 
 class AirflowConfigParser(ConfigParser):
