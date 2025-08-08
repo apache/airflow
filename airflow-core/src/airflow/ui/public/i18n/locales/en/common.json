@@ -97,6 +97,7 @@
     "keyPlaceholder": "Filter by XCom key",
     "logicalDateFromPlaceholder": "Logical Date From",
     "logicalDateToPlaceholder": "Logical Date To",
+    "mapIndexPlaceholder": "Filter by Map Index",
     "runAfterFromPlaceholder": "Run After From",
     "runAfterToPlaceholder": "Run After To",
     "runIdPlaceholder": "Filter by Run ID",

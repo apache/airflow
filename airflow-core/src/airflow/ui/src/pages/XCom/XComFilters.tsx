@@ -53,6 +53,12 @@ const FILTERS = [
     type: "search",
   },
   {
+    hotkeyDisabled: true,
+    key: SearchParamsKeys.MAP_INDEX_PATTERN,
+    translationKey: "mapIndexPlaceholder",
+    type: "search",
+  },
+  {
     key: SearchParamsKeys.LOGICAL_DATE_GTE,
     translationKey: "logicalDateFromPlaceholder",
     type: "datetime",

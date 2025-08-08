@@ -1091,6 +1091,7 @@ export const useXcomServiceGetXcomEntry = <TData = Common.XcomServiceGetXcomEntr
 * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.mapIndexPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @param data.logicalDateGte
 * @param data.logicalDateLte
 * @param data.runAfterGte
@@ -1098,7 +1099,7 @@ export const useXcomServiceGetXcomEntry = <TData = Common.XcomServiceGetXcomEntr
 * @returns XComCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useXcomServiceGetXcomEntries = <TData = Common.XcomServiceGetXcomEntriesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagDisplayNamePattern, dagId, dagRunId, limit, logicalDateGte, logicalDateLte, mapIndex, offset, runAfterGte, runAfterLte, runIdPattern, taskId, taskIdPattern, xcomKeyPattern }: {
+export const useXcomServiceGetXcomEntries = <TData = Common.XcomServiceGetXcomEntriesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagDisplayNamePattern, dagId, dagRunId, limit, logicalDateGte, logicalDateLte, mapIndex, mapIndexPattern, offset, runAfterGte, runAfterLte, runIdPattern, taskId, taskIdPattern, xcomKeyPattern }: {
   dagDisplayNamePattern?: string;
   dagId: string;
   dagRunId: string;
@@ -1106,6 +1107,7 @@ export const useXcomServiceGetXcomEntries = <TData = Common.XcomServiceGetXcomEn
   logicalDateGte?: string;
   logicalDateLte?: string;
   mapIndex?: number;
+  mapIndexPattern?: string;
   offset?: number;
   runAfterGte?: string;
   runAfterLte?: string;
@@ -1113,7 +1115,7 @@ export const useXcomServiceGetXcomEntries = <TData = Common.XcomServiceGetXcomEn
   taskId: string;
   taskIdPattern?: string;
   xcomKeyPattern?: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseXcomServiceGetXcomEntriesKeyFn({ dagDisplayNamePattern, dagId, dagRunId, limit, logicalDateGte, logicalDateLte, mapIndex, offset, runAfterGte, runAfterLte, runIdPattern, taskId, taskIdPattern, xcomKeyPattern }, queryKey), queryFn: () => XcomService.getXcomEntries({ dagDisplayNamePattern, dagId, dagRunId, limit, logicalDateGte, logicalDateLte, mapIndex, offset, runAfterGte, runAfterLte, runIdPattern, taskId, taskIdPattern, xcomKeyPattern }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseXcomServiceGetXcomEntriesKeyFn({ dagDisplayNamePattern, dagId, dagRunId, limit, logicalDateGte, logicalDateLte, mapIndex, mapIndexPattern, offset, runAfterGte, runAfterLte, runIdPattern, taskId, taskIdPattern, xcomKeyPattern }, queryKey), queryFn: () => XcomService.getXcomEntries({ dagDisplayNamePattern, dagId, dagRunId, limit, logicalDateGte, logicalDateLte, mapIndex, mapIndexPattern, offset, runAfterGte, runAfterLte, runIdPattern, taskId, taskIdPattern, xcomKeyPattern }) as TData, ...options });
 /**
 * Get Tasks
 * Get tasks for DAG.
