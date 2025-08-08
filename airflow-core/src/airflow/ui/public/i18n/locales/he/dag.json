@@ -39,6 +39,11 @@
     "viewInExternal": "צפה ברישומים ב-{{name}} (ניסיון {{attempt}})",
     "warning": "WARNING"
   },
+  "navigation": {
+    "jump": "קפיצה: Shift+{{arrow}}",
+    "navigation": "ניווט: {{arrow}}",
+    "toggleGroup": "החלפת קבוצה: רווח"
+  },
   "overview": {
     "buttons": {
       "failedRun_one": "הרצה שנכשלה",
@@ -103,6 +108,7 @@
     "mappedTaskInstances_other": "מופעי משימות [{{count}}]",
     "overview": "סקירה כללית",
     "renderedTemplates": "תבניות מעובדות",
+    "requiredActions": "פעולות נדרשות",
     "runs": "הרצות",
     "taskInstances": "מופעי משימות",
     "tasks": "משימות",

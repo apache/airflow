@@ -15,6 +15,7 @@
   "backfill_other": "백필들",
   "browse": {
     "auditLog": "감사 로그",
+    "requiredActions": "필수 작업",
     "xcoms": "XComs"
   },
   "collapseDetailsPanel": "세부 정보 패널 접기",
