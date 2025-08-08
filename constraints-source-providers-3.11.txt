@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-08T04:43:57.294345
+# This constraints file was automatically generated on 2025-08-08T17:04:54.919204
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -152,7 +152,7 @@ click-repl==0.3.0
 click==8.1.8
 clickclick==20.10.2
 cloudpickle==2.2.1
-cohere==5.16.2
+cohere==5.16.3
 colorama==0.4.6
 colorful==0.5.7
 colorlog==6.9.0
@@ -172,7 +172,7 @@ db-dtypes==1.4.3
 debugpy==1.8.16
 decorator==5.2.1
 defusedxml==0.7.1
-deltalake==1.1.3
+deltalake==1.1.4
 deprecation==2.1.0
 diagrams==0.24.4
 dill==0.3.1.1
@@ -295,7 +295,7 @@ httplib2==0.22.0
 httptools==0.6.4
 httpx-sse==0.4.0
 httpx==0.28.1
-huggingface-hub==0.34.3
+huggingface-hub==0.34.4
 humanize==4.12.3
 hvac==2.3.0
 hyperframe==6.1.0
@@ -356,7 +356,7 @@ lazy-object-proxy==1.11.0
 libcst==1.8.2
 limits==5.5.0
 linkify-it-py==2.0.3
-litellm==1.75.2
+litellm==1.75.3
 lockfile==0.12.2
 looker-sdk==25.10.0
 lxml==5.3.2
@@ -407,7 +407,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.3.1
 objsize==0.7.1
-openai==1.99.3
+openai==1.99.5
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
 opencensus-context==0.1.3
