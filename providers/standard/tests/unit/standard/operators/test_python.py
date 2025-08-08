@@ -63,7 +63,11 @@ from airflow.providers.standard.operators.python import (
     get_current_context,
 )
 from airflow.providers.standard.utils.python_virtualenv import execute_in_subprocess, prepare_virtualenv
-from airflow.utils import timezone
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
@@ -1672,7 +1676,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
     ):
         custom_pycache_prefix = "custom/__pycache__"
         tempdir_name = "tmp"
-        venv_dir_temp_name = "venvrandom"
+        venv_dir_temp_name = "dummy12345/venvrandom"
         venv_path_tmp = f"/{tempdir_name}/{venv_dir_temp_name}"
         expected_cleanup_path = Path.cwd() / custom_pycache_prefix / tempdir_name / venv_dir_temp_name
 
