@@ -1,0 +1,15 @@
+# Test dependencies for SeaTunnel provider integration tests
+pytest>=6.0.0
+pytest-mock>=3.0.0
+pytest-cov>=2.10.0
+pytest-xdist>=2.0.0
+requests>=2.25.0
+docker>=5.0.0
+testcontainers>=3.4.0
+
+# Airflow dependencies
+apache-airflow>=2.3.0
+apache-airflow[test]
+
+# Provider dependencies
+requests>=2.25.0
