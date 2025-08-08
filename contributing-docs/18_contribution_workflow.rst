@@ -40,7 +40,7 @@ In general, your contribution includes the following stages:
 
 2. Create a `local virtualenv <07_local_virtualenv.rst>`_,
    initialize the `Breeze environment <../dev/breeze/doc/README.rst>`__, and
-   install `pre-commit framework <08_static_code_checks.rst#pre-commit-hooks>`__.
+   install `prek tool <08_static_code_checks.rst#prek-hooks>`__.
    If you want to add more changes in the future, set up your fork and enable GitHub Actions.
 
 3. Join `devlist <https://lists.apache.org/list.html?dev@airflow.apache.org>`__
@@ -176,9 +176,9 @@ Step 4: Prepare PR
    * Modify the class and add necessary code and unit tests.
 
    * Run and fix all the `static checks <08_static_code_checks.rst>`__. If you have
-     `pre-commits installed <08_static_code_checks.rst#pre-commit-hooks>`__,
+     `prek installed <08_static_code_checks.rst#prek-hooks>`__,
      this step is automatically run while you are committing your code. If not, you can do it manually
-     via ``git add`` and then ``pre-commit run``.
+     via ``git add`` and then ``prek``.
 
    * Run the appropriate tests as described in `Testing documentation <09_testing.rst>`__.
 
