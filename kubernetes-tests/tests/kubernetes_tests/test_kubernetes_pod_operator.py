@@ -160,7 +160,7 @@ class TestKubernetesPodOperatorSystem:
         client.delete_collection_namespaced_pod(namespace="default", grace_period_seconds=0)
 
     @pytest.fixture(autouse=True)
-    def setup_connections(self, create_connection_without_db, request):
+    def setup_connections(self, create_connection_without_db):
         """Create kubernetes_default connection"""
         connection = Connection(
             conn_id="kubernetes_default",
