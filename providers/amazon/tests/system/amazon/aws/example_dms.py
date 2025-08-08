@@ -53,7 +53,7 @@ else:
     from airflow.models.baseoperator import chain  # type: ignore[attr-defined,no-redef]
     from airflow.models.dag import DAG  # type: ignore[attr-defined,no-redef,assignment]
 
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.sdk.api.datamodels._generated import TriggerRule
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 from system.amazon.aws.utils.ec2 import get_default_vpc_id

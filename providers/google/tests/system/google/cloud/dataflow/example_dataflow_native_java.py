@@ -43,7 +43,7 @@ from airflow.providers.apache.beam.operators.beam import BeamRunJavaPipelineOper
 from airflow.providers.google.cloud.operators.dataflow import CheckJobRunning
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.sdk.api.datamodels._generated import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "dataflow_native_java"

@@ -73,6 +73,7 @@ from airflow.sdk.definitions._internal.templater import NativeEnvironment, Sandb
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
 from airflow.sdk.definitions.deadline import AsyncCallback, DeadlineAlert, DeadlineReference
 from airflow.sdk.definitions.param import Param
+from airflow.task.trigger_rule import TriggerRule
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.simple import (
     AssetTriggeredTimetable,
@@ -82,7 +83,6 @@ from airflow.timetables.simple import (
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count
@@ -1400,7 +1400,6 @@ class TestDag:
     def test_dag_add_task_checks_trigger_rule(self):
         # A non fail stop dag should allow any trigger rule
         from airflow.exceptions import FailFastDagInvalidTriggerRule
-        from airflow.utils.trigger_rule import TriggerRule
 
         task_with_non_default_trigger_rule = EmptyOperator(
             task_id="task_with_non_default_trigger_rule", trigger_rule=TriggerRule.ALWAYS

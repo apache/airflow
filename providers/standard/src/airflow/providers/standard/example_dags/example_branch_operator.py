@@ -39,7 +39,7 @@ from airflow.providers.standard.operators.python import (
     PythonVirtualenvOperator,
 )
 from airflow.sdk import DAG, Label
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.sdk.api.datamodels._generated import TriggerRule
 
 PATH_TO_PYTHON_BINARY = sys.executable
 

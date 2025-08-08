@@ -29,7 +29,7 @@ from airflow import models
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.providers.samba.transfers.gcs_to_samba import GCSToSambaOperator
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.sdk.api.datamodels._generated import TriggerRule
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 

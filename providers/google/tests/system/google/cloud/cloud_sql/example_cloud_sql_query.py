@@ -40,7 +40,7 @@ from airflow.providers.google.cloud.operators.cloud_sql import (
     CloudSQLDeleteInstanceOperator,
     CloudSQLExecuteQueryOperator,
 )
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.sdk.api.datamodels._generated import TriggerRule
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 

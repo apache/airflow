@@ -51,7 +51,7 @@ from airflow.providers.google.cloud.operators.gcs import (
 from airflow.providers.google.cloud.transfers.postgres_to_gcs import PostgresToGCSOperator
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.sdk.api.datamodels._generated import TriggerRule
 
 from tests_common.test_utils.api_client_helpers import create_airflow_connection, delete_airflow_connection
 

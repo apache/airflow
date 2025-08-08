@@ -41,7 +41,7 @@ from airflow.providers.google.cloud.operators.video_intelligence import (
 )
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.sdk.api.datamodels._generated import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 

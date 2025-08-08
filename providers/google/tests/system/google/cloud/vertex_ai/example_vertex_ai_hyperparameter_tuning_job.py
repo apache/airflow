@@ -36,7 +36,7 @@ from airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_jo
     GetHyperparameterTuningJobOperator,
     ListHyperparameterTuningJobOperator,
 )
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.sdk.api.datamodels._generated import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")

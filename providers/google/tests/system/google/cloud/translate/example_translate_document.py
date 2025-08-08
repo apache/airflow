@@ -35,7 +35,7 @@ from airflow.providers.google.cloud.operators.translate import (
     TranslateDocumentBatchOperator,
     TranslateDocumentOperator,
 )
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.sdk.api.datamodels._generated import TriggerRule
 
 DAG_ID = "gcp_translate_document"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
