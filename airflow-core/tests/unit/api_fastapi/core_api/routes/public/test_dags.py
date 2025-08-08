@@ -23,6 +23,7 @@ import pendulum
 import pytest
 from sqlalchemy import insert, select
 
+from airflow.models.asset import AssetModel, DagScheduleAssetReference
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dagrun import DagRun
@@ -32,6 +33,7 @@ from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.db import (
+    clear_db_assets,
     clear_db_connections,
     clear_db_dags,
     clear_db_runs,
@@ -51,6 +53,10 @@ DAG4_ID = "test_dag4"
 DAG4_DISPLAY_NAME = "display4"
 DAG5_ID = "test_dag5"
 DAG5_DISPLAY_NAME = "display5"
+ASSET_SCHEDULED_DAG_ID = "test_asset_scheduled_dag"
+NON_ASSET_SCHEDULED_DAG_ID = "test_non_asset_scheduled_dag"
+ASSET_DEP_DAG_ID = "test_asset_dep_dag"
+ASSET_DEP_DAG2_ID = "test_asset_dep_dag2"
 TASK_ID = "op1"
 UTC_JSON_REPR = "UTC" if pendulum.__version__.startswith("3") else "Timezone('UTC')"
 API_PREFIX = "/dags"
@@ -66,6 +72,7 @@ class TestDagEndpoint:
         clear_db_connections()
         clear_db_runs()
         clear_db_dags()
+        clear_db_assets()
         clear_db_serialized_dags()
 
     def _create_deactivated_paused_dag(self, session=None):
@@ -109,6 +116,98 @@ class TestDagEndpoint:
         session.add(DagTag(dag_id=DAG1_ID, name="tag_2"))
         session.add(DagTag(dag_id=DAG2_ID, name="tag_1"))
         session.add(DagTag(dag_id=DAG3_ID, name="tag_1"))
+
+    def _create_asset_test_data(self, session=None):
+        """Create test assets and asset-scheduled DAGs."""
+        # Create assets
+        asset1 = AssetModel(uri="test://asset1", name="test_asset_1", group="test-group")
+        asset2 = AssetModel(uri="s3://bucket/dataset", name="dataset_asset", group="test-group")
+        session.add_all([asset1, asset2])
+        session.commit()
+
+        # Create a DAG with asset-based scheduling
+        asset_scheduled_dag = DagModel(
+            dag_id=ASSET_SCHEDULED_DAG_ID,
+            bundle_name="dag_maker",
+            relative_fileloc="asset_scheduled_dag.py",
+            fileloc="/tmp/asset_scheduled_dag.py",
+            timetable_summary="Asset",
+            timetable_description="Triggered by assets",
+            is_stale=False,
+            is_paused=False,
+            owners="airflow",
+            asset_expression={"any": [{"uri": "test://asset1"}]},  # Non-null asset expression
+            max_active_tasks=16,
+            max_active_runs=16,
+            max_consecutive_failed_dag_runs=0,
+            has_task_concurrency_limits=False,
+            has_import_errors=False,
+        )
+
+        # Create a DAG without asset-based scheduling (asset_expression = null)
+        non_asset_scheduled_dag = DagModel(
+            dag_id=NON_ASSET_SCHEDULED_DAG_ID,
+            bundle_name="dag_maker",
+            relative_fileloc="non_asset_scheduled_dag.py",
+            fileloc="/tmp/non_asset_scheduled_dag.py",
+            timetable_summary=None,
+            timetable_description="Never, external triggers only",
+            is_stale=False,
+            is_paused=False,
+            owners="airflow",
+            asset_expression=None,  # Null asset expression
+            max_active_tasks=16,
+            max_active_runs=16,
+            max_consecutive_failed_dag_runs=0,
+            has_task_concurrency_limits=False,
+            has_import_errors=False,
+        )
+
+        # Create DAGs with asset dependencies
+        asset_dep_dag = DagModel(
+            dag_id=ASSET_DEP_DAG_ID,
+            bundle_name="dag_maker",
+            relative_fileloc="asset_dep_dag.py",
+            fileloc="/tmp/asset_dep_dag.py",
+            timetable_summary="Asset",
+            timetable_description="Triggered by assets",
+            is_stale=False,
+            is_paused=False,
+            owners="airflow",
+            asset_expression={"any": [{"uri": "test://asset1"}]},
+            max_active_tasks=16,
+            max_active_runs=16,
+            max_consecutive_failed_dag_runs=0,
+            has_task_concurrency_limits=False,
+            has_import_errors=False,
+        )
+
+        asset_dep_dag2 = DagModel(
+            dag_id=ASSET_DEP_DAG2_ID,
+            bundle_name="dag_maker",
+            relative_fileloc="asset_dep_dag2.py",
+            fileloc="/tmp/asset_dep_dag2.py",
+            timetable_summary="Asset",
+            timetable_description="Triggered by assets",
+            is_stale=False,
+            is_paused=False,
+            owners="airflow",
+            asset_expression={"any": [{"uri": "s3://bucket/dataset"}]},
+            max_active_tasks=16,
+            max_active_runs=16,
+            max_consecutive_failed_dag_runs=0,
+            has_task_concurrency_limits=False,
+            has_import_errors=False,
+        )
+
+        session.add_all([asset_scheduled_dag, non_asset_scheduled_dag, asset_dep_dag, asset_dep_dag2])
+        session.commit()
+
+        # Create asset dependencies
+        asset_ref1 = DagScheduleAssetReference(dag_id=ASSET_DEP_DAG_ID, asset_id=asset1.id)
+        asset_ref2 = DagScheduleAssetReference(dag_id=ASSET_DEP_DAG2_ID, asset_id=asset2.id)
+        session.add_all([asset_ref1, asset_ref2])
+        session.commit()
 
     @pytest.fixture(autouse=True)
     @provide_session
@@ -839,3 +938,85 @@ class TestDeleteDAG(TestDagEndpoint):
     def test_delete_dag_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.delete(f"{API_PREFIX}/{DAG1_ID}")
         assert response.status_code == 403
+
+
+class TestDagAssetFilters(TestDagEndpoint):
+    """Unit tests for DAG asset-based filters."""
+
+    @pytest.fixture(autouse=True)
+    @provide_session
+    def setup_with_assets(self, dag_maker, session=None) -> None:
+        """Set up test data including asset-based DAGs."""
+        # Clear and set up base data first
+        self._clear_db()
+
+        with dag_maker(
+            DAG1_ID,
+            dag_display_name=DAG1_DISPLAY_NAME,
+            schedule=None,
+            start_date=DAG1_START_DATE,
+            doc_md="details",
+            default_args={
+                "depends_on_past": False,
+                "retries": 1,
+                "retry_delay": timedelta(minutes=5),
+            },
+            params={"foo": 1},
+            tags=["example"],
+        ):
+            EmptyOperator(task_id=TASK_ID)
+
+        dag_maker.create_dagrun(state=DagRunState.FAILED)
+
+        with dag_maker(
+            DAG2_ID,
+            schedule=None,
+            start_date=DAG2_START_DATE,
+            doc_md="details",
+            default_args={
+                "depends_on_past": False,
+                "retries": 1,
+                "retry_delay": timedelta(minutes=5),
+            },
+            params={"foo": 1},
+            max_active_tasks=16,
+            max_active_runs=16,
+        ):
+            EmptyOperator(task_id=TASK_ID)
+
+        self._create_deactivated_paused_dag(session)
+        self._create_dag_tags(session)
+        # Add our asset-specific test data
+        self._create_asset_test_data(session)
+
+        dag_maker.sync_dagbag_to_db()
+        dag_maker.dag_model.has_task_concurrency_limits = True
+        session.merge(dag_maker.dag_model)
+        session.commit()
+
+    @pytest.mark.parametrize(
+        "query_params, expected_total_entries, expected_ids",
+        [
+            # has_asset_schedule filter tests
+            ({"has_asset_schedule": True}, 3, [ASSET_SCHEDULED_DAG_ID, ASSET_DEP_DAG_ID, ASSET_DEP_DAG2_ID]),
+            ({"has_asset_schedule": False}, 3, [DAG1_ID, DAG2_ID, NON_ASSET_SCHEDULED_DAG_ID]),
+            # asset_dependency filter tests
+            ({"asset_dependency": "test_asset"}, 1, [ASSET_DEP_DAG_ID]),
+            ({"asset_dependency": "dataset"}, 1, [ASSET_DEP_DAG2_ID]),
+            ({"asset_dependency": "bucket"}, 1, [ASSET_DEP_DAG2_ID]),
+            ({"asset_dependency": "s3://"}, 1, [ASSET_DEP_DAG2_ID]),
+            ({"asset_dependency": "nonexistent"}, 0, []),
+            # Combined filters
+            ({"has_asset_schedule": True, "asset_dependency": "test_asset"}, 1, [ASSET_DEP_DAG_ID]),
+            ({"has_asset_schedule": False, "asset_dependency": "test_asset"}, 0, []),
+        ],
+    )
+    def test_get_dags_asset_filters(self, test_client, query_params, expected_total_entries, expected_ids):
+        """Test DAG filtering by asset-related parameters."""
+        response = test_client.get("/dags", params=query_params)
+        assert response.status_code == 200
+        body = response.json()
+
+        assert body["total_entries"] == expected_total_entries
+        actual_ids = [dag["dag_id"] for dag in body["dags"]]
+        assert sorted(actual_ids) == sorted(expected_ids)
