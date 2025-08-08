@@ -119,31 +119,28 @@ class FileLoadStat(NamedTuple):
     warning_num: int
 
 
-class _TimeoutPosix(_timeout, LoggingMixin):
-    """Private POSIX Timeout class for internal use within this module."""
+@contextlib.contextmanager
+def timeout(seconds=1, error_message="Timeout"):
+    import logging
 
-    def __init__(self, seconds=1, error_message="Timeout"):
-        super().__init__()
-        self.seconds = seconds
-        self.error_message = error_message + ", PID: " + str(os.getpid())
+    log = logging.getLogger(__name__)
+    error_message = error_message + ", PID: " + str(os.getpid())
 
-    def handle_timeout(self, signum, frame):
+    def handle_timeout(signum, frame):
         """Log information and raises AirflowTaskTimeout."""
-        self.log.error("Process timed out, PID: %s", str(os.getpid()))
-        raise AirflowTaskTimeout(self.error_message)
+        log.error("Process timed out, PID: %s", str(os.getpid()))
+        raise AirflowTaskTimeout(error_message)
 
-    def __enter__(self):
+    try:
         try:
-            signal.signal(signal.SIGALRM, self.handle_timeout)
-            signal.setitimer(signal.ITIMER_REAL, self.seconds)
+            signal.signal(signal.SIGALRM, handle_timeout)
+            signal.setitimer(signal.ITIMER_REAL, seconds)
         except ValueError:
-            self.log.warning("timeout can't be used in the current context", exc_info=True)
-
-    def __exit__(self, type_, value, traceback):
-        try:
+            log.warning("timeout can't be used in the current context", exc_info=True)
+        yield
+    finally:
+        with contextlib.suppress(ValueError):
             signal.setitimer(signal.ITIMER_REAL, 0)
-        except ValueError:
-            self.log.warning("timeout can't be used in the current context", exc_info=True)
 
 
 class DagBag(LoggingMixin):
@@ -493,7 +490,7 @@ class DagBag(LoggingMixin):
             f"* {get_docs_url('best-practices.html#top-level-python-code')}\n"
             f"* {get_docs_url('best-practices.html#reducing-dag-complexity')}"
         )
-        with _TimeoutPosix(dagbag_import_timeout, error_message=timeout_msg):
+        with timeout(dagbag_import_timeout, error_message=timeout_msg):
             return parse(mod_name, filepath)
 
     def _load_modules_from_zip(self, filepath, safe_mode):

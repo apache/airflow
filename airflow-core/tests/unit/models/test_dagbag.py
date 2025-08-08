@@ -77,6 +77,17 @@ class TestDagBag:
     def teardown_class(self):
         db_clean_up()
 
+    def test_timeout_context_manager_raises_exception(self):
+        """Test that the timeout context manager raises AirflowTaskTimeout when time limit is exceeded."""
+        import time
+
+        from airflow.exceptions import AirflowTaskTimeout
+        from airflow.models.dagbag import timeout
+
+        with pytest.raises(AirflowTaskTimeout):
+            with timeout(1, "Test timeout"):
+                time.sleep(2)
+
     def test_get_existing_dag(self, tmp_path):
         """
         Test that we're able to parse some example DAGs and retrieve them
@@ -220,7 +231,7 @@ class TestDagBag:
         assert sys.path == syspath_before  # sys.path doesn't change
         assert not dagbag.import_errors
 
-    @patch("airflow.models.dagbag._TimeoutPosix")
+    @patch("airflow.models.dagbag.timeout")
     @patch("airflow.models.dagbag.settings.get_dagbag_import_timeout")
     def test_process_dag_file_without_timeout(
         self, mocked_get_dagbag_import_timeout, mocked_timeout, tmp_path
@@ -239,7 +250,7 @@ class TestDagBag:
         dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_sensor.py"))
         mocked_timeout.assert_not_called()
 
-    @patch("airflow.models.dagbag._TimeoutPosix")
+    @patch("airflow.models.dagbag.timeout")
     @patch("airflow.models.dagbag.settings.get_dagbag_import_timeout")
     def test_process_dag_file_with_non_default_timeout(
         self, mocked_get_dagbag_import_timeout, mocked_timeout, tmp_path
