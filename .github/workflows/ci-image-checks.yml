@@ -363,7 +363,7 @@ jobs:
       - name: "Validate published doc versions"
         id: validate-docs-versions
         shell: bash
-        run: uv run ./dev/breeze/src/airflow_breeze/utils/docs_version_validation.py
+        run: breeze run ./dev/breeze/src/airflow_breeze/utils/docs_version_validation.py
       - name: Install AWS CLI v2
         run: |
           curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
