@@ -26,6 +26,7 @@ from airflow.exceptions import AirflowException
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
@@ -38,11 +39,9 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.exceptions import DownstreamTasksSkipped
     from airflow.models.dag_version import DagVersion
     from airflow.providers.standard.utils.skipmixin import SkipMixin
-    from airflow.sdk import task, task_group, timezone
 else:
     from airflow.decorators import task, task_group  # type: ignore[attr-defined,no-redef]
     from airflow.models.skipmixin import SkipMixin
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 DEFAULT_DAG_RUN_ID = "test1"
@@ -330,7 +329,7 @@ class TestSkipMixin:
             r"Cannot properly branch. "
             r"Invalid branch task ID's were returned by the python_callable. "
             r"These invalid 'branch_task_ids' were: \{\(42, 'int'\)\}\. "
-            r"Make sure your python_callable returns an Iterable of strings storing valid task_id's."
+            r"Make sure your python_callable returns an Iterable of strings storing valid task_id's. "
             r"These task_id's should correspond to Tasks within your DAG."
         )
         with pytest.raises(AirflowException, match=error_message):

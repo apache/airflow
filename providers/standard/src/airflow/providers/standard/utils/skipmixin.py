@@ -140,7 +140,7 @@ class SkipMixin(LoggingMixin):
                     f"Cannot properly branch. "
                     f"Invalid branch task ID's were returned by the python_callable. "
                     f"These invalid 'branch_task_ids' were: {invalid_task_ids_type}. "
-                    f"Make sure your python_callable returns an Iterable of strings storing valid task_id's."
+                    f"Make sure your python_callable returns an Iterable of strings storing valid task_id's. "
                     f"These task_id's should correspond to Tasks within your DAG."
                 )
         elif branch_task_ids is None:
