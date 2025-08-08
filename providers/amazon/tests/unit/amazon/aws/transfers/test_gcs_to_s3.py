@@ -329,3 +329,33 @@ class TestGCSToS3Operator:
             uploaded_files = operator.execute(None)
             assert sorted(MOCK_FILES) == sorted(uploaded_files)
             assert hook.check_for_prefix(bucket_name="bucket", prefix=PREFIX + "/", delimiter="/") is True
+
+    @pytest.mark.parametrize(
+        ("gcs_prefix", "dest_s3_key", "expected_input", "expected_output"),
+        [
+            ("dir/pre", "s3://bucket/dest_dir/", "dir/pre", "dest_dir/"),
+            ("dir/pre", "s3://bucket/dest_dir", "dir/pre", "dest_dir"),
+            ("dir/pre/", "s3://bucket/dest_dir/", "dir/pre/", "dest_dir/"),
+            ("dir/pre", "s3://bucket/", "dir/pre", "/"),
+            ("dir/pre", "s3://bucket", "dir/pre", "/"),
+            ("", "s3://bucket/", "/", "/"),
+            ("", "s3://bucket", "/", "/"),
+        ],
+    )
+    def test_get_openlineage_facets_on_start(self, gcs_prefix, dest_s3_key, expected_input, expected_output):
+        operator = GCSToS3Operator(
+            task_id=TASK_ID,
+            gcs_bucket=GCS_BUCKET,
+            prefix=gcs_prefix,
+            dest_s3_key=dest_s3_key,
+        )
+
+        result = operator.get_openlineage_facets_on_start()
+        assert not result.job_facets
+        assert not result.run_facets
+        assert len(result.outputs) == 1
+        assert len(result.inputs) == 1
+        assert result.outputs[0].namespace == S3_BUCKET.rstrip("/")
+        assert result.outputs[0].name == expected_output
+        assert result.inputs[0].namespace == f"gs://{GCS_BUCKET}"
+        assert result.inputs[0].name == expected_input
