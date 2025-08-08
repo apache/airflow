@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-08T13:53:34.412721
+# This constraints file was automatically generated on 2025-08-08T19:43:06.491961
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -47,7 +47,7 @@ a2wsgi==1.10.10
 adal==1.2.7
 adlfs==2024.12.0
 aenum==3.1.16
-aiobotocore==2.23.2
+aiobotocore==2.24.0
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
 aiohttp==3.12.15
@@ -127,8 +127,8 @@ bitarray==3.6.0
 black==25.1.0
 bleach==6.2.0
 blinker==1.9.0
-boto3==1.39.8
-botocore==1.39.8
+boto3==1.39.11
+botocore==1.39.11
 build==1.3.0
 cachetools==5.5.2
 cadwyn==5.4.4
@@ -148,7 +148,7 @@ click-plugins==1.1.1.2
 click-repl==0.3.0
 click==8.1.8
 cloudpickle==3.1.1
-cohere==5.16.2
+cohere==5.16.3
 colorama==0.4.6
 colorlog==6.9.0
 comm==0.2.3
@@ -216,7 +216,7 @@ google-api-python-client==2.178.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.40.3
-google-cloud-aiplatform==1.107.0
+google-cloud-aiplatform==1.108.0
 google-cloud-alloydb==0.4.8
 google-cloud-appengine-logging==1.6.2
 google-cloud-audit-log==0.3.2
@@ -266,7 +266,7 @@ googleapis-common-protos==1.70.0
 graphql-core==3.2.6
 graphviz==0.20.3
 greenlet==3.2.4
-gremlinpython==3.7.3
+gremlinpython==3.7.4
 grpc-google-iam-v1==0.14.2
 grpc-interceptor==0.15.4
 grpcio-gcp==0.2.2
@@ -348,7 +348,7 @@ lazy-object-proxy==1.11.0
 libcst==1.8.2
 limits==5.5.0
 linkify-it-py==2.0.3
-litellm==1.75.2
+litellm==1.75.3
 lockfile==0.12.2
 looker-sdk==25.10.0
 lxml==6.0.0
@@ -397,7 +397,7 @@ nh3==0.3.0
 nodeenv==1.9.1
 numpy==2.2.6
 oauthlib==3.3.1
-openai==1.99.3
+openai==1.99.5
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
 openlineage-integration-common==1.36.0
@@ -526,7 +526,7 @@ requests-oauthlib==2.0.0
 requests-toolbelt==1.0.0
 requests==2.32.4
 requests_ntlm==1.3.0
-responses==0.25.7
+responses==0.25.8
 restructuredtext_lint==1.4.0
 retryhttp==1.3.3
 rfc3339-validator==0.1.4
@@ -615,7 +615,7 @@ tinycss2==1.4.0
 tokenizers==0.21.4
 tomli_w==1.2.0
 tomlkit==0.13.3
-tornado==6.5.1
+tornado==6.5.2
 towncrier==24.8.0
 tqdm==4.67.1
 traitlets==5.14.3
