@@ -27,7 +27,7 @@ import typing
 from collections.abc import AsyncIterator
 from socket import socket
 from typing import TYPE_CHECKING, Any
-from unittest.mock import ANY, AsyncMock, MagicMock, patch, call
+from unittest.mock import ANY, AsyncMock, MagicMock, call, patch
 
 import pendulum
 import pytest
@@ -457,7 +457,7 @@ class TestTriggerRunner:
 
         assert cls is not None
         clear_modules_mock.assert_not_called()
-        import_mock.assert_not_called()
+        import_mock.assert_called_once_with(classpath)
 
     @patch("airflow.jobs.triggerer_job_runner.os")
     @patch("airflow.jobs.triggerer_job_runner.sys")
