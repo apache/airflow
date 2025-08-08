@@ -93,7 +93,7 @@
     "or": "OR"
   },
   "filters": {
-    "dagDisplayNamePlaceholder": "Filter by Dag Display Name",
+    "dagDisplayNamePlaceholder": "Filter by Dag",
     "keyPlaceholder": "Filter by XCom key",
     "logicalDateFromPlaceholder": "Logical Date From",
     "logicalDateToPlaceholder": "Logical Date To",

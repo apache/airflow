@@ -93,14 +93,14 @@
     "or": "或"
   },
   "filters": {
-    "dagDisplayNamePlaceholder": "依 Dag 顯示名稱過濾",
-    "keyPlaceholder": "依 XCom 鍵過濾",
+    "dagDisplayNamePlaceholder": "依 Dag 名稱篩選",
+    "keyPlaceholder": "依 XCom 鍵篩選",
     "logicalDateFromPlaceholder": "邏輯日期起始",
     "logicalDateToPlaceholder": "邏輯日期結束",
     "runAfterFromPlaceholder": "執行時間起始",
     "runAfterToPlaceholder": "執行時間結束",
-    "runIdPlaceholder": "依執行 ID 過濾",
-    "taskIdPlaceholder": "依任務 ID 過濾"
+    "runIdPlaceholder": "依執行 ID 篩選",
+    "taskIdPlaceholder": "依任務 ID 篩選"
   },
   "logicalDate": "邏輯日期",
   "logout": "登出",
