@@ -1078,7 +1078,6 @@ class TestElasticsearchRemoteLogIO:
             assert "message" in json_log
             assert json_log["message"] == msg
 
-    # @patch.object(ElasticsearchRemoteLogIO, "_get_index_patterns", return_value="invalid")
     @patch("elasticsearch.Elasticsearch.count", return_value={"count": 0})
     def test_read_with_missing_log(self, mocked_count, ti):
         log_source_info, log_messages = self.elasticsearch_io.read("", ti)
