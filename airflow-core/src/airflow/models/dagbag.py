@@ -47,7 +47,6 @@ from airflow.exceptions import (
     AirflowClusterPolicyError,
     AirflowClusterPolicySkipDag,
     AirflowClusterPolicyViolation,
-    AirflowDagCycleException,
     AirflowDagDuplicatedIdException,
     AirflowException,
 )
@@ -66,6 +65,11 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.timeout import timeout
 from airflow.utils.types import NOTSET
+
+try:
+    from airflow.sdk.exceptions import AirflowDagCycleException
+except ImportError:
+    from airflow.exceptions import AirflowDagCycleException  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     from collections.abc import Generator
