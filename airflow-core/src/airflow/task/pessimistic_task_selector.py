@@ -200,24 +200,3 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
             .group_by(*group_fields)
             .cte()
         )
-
-    def _add_window_limit(
-        self, priority_order: list[Column], query: Select, limit: LimitWindowDescriptor
-    ) -> Select:
-        inner_query = query.add_columns(limit.window).order_by(*priority_order).subquery()
-        return (
-            select(TI)
-            .join(inner_query, TI.id == inner_query.c.id)
-            .join(DR, TI.run_id == DR.id)
-            .join(
-                limit.running_now_join,
-                *(
-                    getattr(TI, predicate) == getattr(limit.running_now_join.c, predicate)
-                    for predicate in limit.running_now_join_predicates
-                ),
-            )
-            .where(
-                getattr(inner_query.c, limit.window.name) + limit.running_now_join.c.now_running
-                < limit.limit_column
-            )
-        )
