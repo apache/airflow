@@ -18,13 +18,15 @@ from __future__ import annotations
 
 import datetime
 import enum
+import textwrap
 from collections import namedtuple
 from dataclasses import dataclass
-from importlib import import_module
+from importlib import import_module, metadata
 from typing import ClassVar
 
 import attr
 import pytest
+from packaging import version
 from pydantic import BaseModel
 
 from airflow.sdk.definitions.asset import Asset
@@ -59,6 +61,67 @@ def recalculate_patterns():
         _get_regexp_patterns.cache_clear()
         _match_glob.cache_clear()
         _match_regexp.cache_clear()
+
+
+def generate_serializers_importable_tests():
+    """
+    Generate test cases for `test_serializers_importable_and_str`.
+
+    The function iterates through all the modules defined under `airflow.serialization.serializers`. It loads
+    the import strings defined in the `serializers` from each module, and create a test case to verify that the
+    serializer is importable.
+    """
+    import airflow.serialization.serializers
+
+    NUMPY_VERSION = version.parse(metadata.version("numpy"))
+
+    serializer_tests = []
+
+    for _, name, _ in iter_namespace(airflow.serialization.serializers):
+        ############################################################
+        # Handle compatibility / optional dependency at module level
+        ############################################################
+        # https://github.com/apache/airflow/pull/37320
+        if name == "airflow.serialization.serializers.iceberg":
+            try:
+                import pyiceberg  # noqa: F401
+            except ImportError:
+                continue
+        # https://github.com/apache/airflow/pull/38074
+        if name == "airflow.serialization.serializers.deltalake":
+            try:
+                import deltalake  # noqa: F401
+            except ImportError:
+                continue
+        mod = import_module(name)
+        for s in getattr(mod, "serializers", list()):
+            ############################################################
+            # Handle compatibility issue at serializer level
+            ############################################################
+            if s == "numpy.bool" and NUMPY_VERSION.major < 2:
+                reason = textwrap.dedent(f"""\
+                    Current NumPy version: {NUMPY_VERSION}
+
+                    In NumPy 1.20, `numpy.bool` was deprecated as an alias for the built-in `bool`.
+                    For NumPy versions <= 1.26, attempting to import `numpy.bool` raises an ImportError.
+                    Starting with NumPy 2.0, `numpy.bool` is reintroduced as the NumPy scalar type,
+                    and `numpy.bool_` becomes an alias for `numpy.bool`.
+
+                    The serializers are loaded lazily at runtime. As a result:
+                    - With NumPy <= 1.26, only `numpy.bool_` is loaded.
+                    - With NumPy >= 2.0, only `numpy.bool` is loaded.
+
+                    This test case deliberately attempts to import both `numpy.bool` and `numpy.bool_`,
+                    regardless of the installed NumPy version. Therefore, when NumPy <= 1.26 is installed,
+                    importing `numpy.bool` will raise an ImportError.
+                """)
+                serializer_tests.append(pytest.param(name, s, marks=pytest.mark.skip(reason=reason)))
+            else:
+                serializer_tests.append(pytest.param(name, s))
+    return serializer_tests
+
+
+SERIALIZER_TESTS = generate_serializers_importable_tests()
 
 
 class Z:
@@ -386,29 +449,15 @@ class TestSerDe:
         obj = deserialize(serialize(asset))
         assert asset.uri == obj.uri
 
-    def test_serializers_importable_and_str(self):
+    @pytest.mark.parametrize("name, s", SERIALIZER_TESTS)
+    def test_serializers_importable_and_str(self, name, s):
         """Test if all distributed serializers are lazy loading and can be imported"""
-        import airflow.serialization.serializers
-
-        for _, name, _ in iter_namespace(airflow.serialization.serializers):
-            if name == "airflow.serialization.serializers.iceberg":
-                try:
-                    import pyiceberg  # noqa: F401
-                except ImportError:
-                    continue
-            if name == "airflow.serialization.serializers.deltalake":
-                try:
-                    import deltalake  # noqa: F401
-                except ImportError:
-                    continue
-            mod = import_module(name)
-            for s in getattr(mod, "serializers", list()):
-                if not isinstance(s, str):
-                    raise TypeError(f"{s} is not of type str. This is required for lazy loading")
-                try:
-                    import_string(s)
-                except ImportError:
-                    raise AttributeError(f"{s} cannot be imported (located in {name})")
+        if not isinstance(s, str):
+            raise TypeError(f"{s} is not of type str. This is required for lazy loading")
+        try:
+            import_string(s)
+        except ImportError:
+            raise AttributeError(f"{s} cannot be imported (located in {name})")
 
     def test_stringify(self):
         i = V(W(10), ["l1", "l2"], (1, 2), 10)
