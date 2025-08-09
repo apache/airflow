@@ -42,7 +42,7 @@ from airflow.jobs.triggerer_job_runner import (
     TriggerRunnerSupervisor,
     messages,
 )
-from airflow.models import DagModel, DagRun, TaskInstance, Trigger
+from airflow.models import DagBag, DagModel, DagRun, TaskInstance, Trigger
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
@@ -117,6 +117,15 @@ def create_trigger_in_db(session, trigger, operator=None):
     session.add(task_instance)
     session.commit()
     return dag_model, run, trigger_orm, task_instance
+
+
+def mock_dag_bag(mock_dag_bag_cls, task_instance: TaskInstance):
+    mock_dag = MagicMock(spec=DAG)
+    mock_dag.get_task.return_value = task_instance.task
+
+    mock_dag_bag = MagicMock(spec=DagBag)
+    mock_dag_bag.get_dag.return_value = mock_dag
+    mock_dag_bag_cls.return_value = mock_dag_bag
 
 
 def test_is_needed(session):
@@ -197,7 +206,8 @@ def supervisor_builder(mocker, session):
     return builder
 
 
-def test_trigger_lifecycle(spy_agency: SpyAgency, session):
+@patch("airflow.jobs.triggerer_job_runner.DagBag")
+def test_trigger_lifecycle(mock_dag_bag_cls, spy_agency: SpyAgency, session):
     """
     Checks that the triggerer will correctly see a new Trigger in the database
     and send it to the trigger runner, and then delete it when it vanishes.
@@ -206,6 +216,8 @@ def test_trigger_lifecycle(spy_agency: SpyAgency, session):
     # (we want to avoid it firing and deleting itself)
     trigger = TimeDeltaTrigger(datetime.timedelta(days=7))
     dag_model, run, trigger_orm, task_instance = create_trigger_in_db(session, trigger)
+    mock_dag_bag(mock_dag_bag_cls, task_instance)
+
     # Make a TriggererJobRunner and have it retrieve DB tasks
     trigger_runner_supervisor = TriggerRunnerSupervisor.start(job=Job(id=12345), capacity=10)
 
@@ -388,7 +400,8 @@ class TestTriggerRunner:
 
 
 @pytest.mark.asyncio
-async def test_trigger_create_race_condition_38599(session, supervisor_builder):
+@patch("airflow.jobs.triggerer_job_runner.DagBag")
+async def test_trigger_create_race_condition_38599(mock_dag_bag_cls, session, supervisor_builder):
     """
     This verifies the resolution of race condition documented in github issue #38599.
     More details in the issue description.
@@ -415,10 +428,14 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder):
     dm = DagModel(dag_id="test-dag")
     session.add(dm)
     SerializedDagModel.write_dag(dag, bundle_name="testing")
-    dag_run = DagRun(dag.dag_id, run_id="abc", run_type="none", run_after=timezone.utcnow())
+    dag_run = DagRun(
+        dag.dag_id, run_id="abc", run_type="manual", start_date=timezone.utcnow(), run_after=timezone.utcnow()
+    )
     dag_version = DagVersion.get_latest_version(dag.dag_id)
+    task = PythonOperator(task_id="dummy-task", python_callable=print)
+    task.dag = dag
     ti = TaskInstance(
-        PythonOperator(task_id="dummy-task", python_callable=print),
+        task,
         run_id=dag_run.run_id,
         state=TaskInstanceState.DEFERRED,
         dag_version_id=dag_version.id,
@@ -434,6 +451,8 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder):
     session.add(job2)
 
     session.commit()
+
+    mock_dag_bag(mock_dag_bag_cls, ti)
 
     supervisor1 = supervisor_builder(job1)
     supervisor2 = supervisor_builder(job2)
@@ -568,7 +587,8 @@ async def test_trigger_failing():
             info["task"].cancel()
 
 
-def test_failed_trigger(session, dag_maker, supervisor_builder):
+@patch("airflow.jobs.triggerer_job_runner.DagBag")
+def test_failed_trigger(mock_dag_bag_cls, session, dag_maker, supervisor_builder):
     """
     Checks that the triggerer will correctly fail task instances that depend on
     triggers that can't even be loaded.
@@ -590,6 +610,8 @@ def test_failed_trigger(session, dag_maker, supervisor_builder):
     task_instance.state = TaskInstanceState.DEFERRED
     task_instance.trigger_id = trigger_orm.id
     session.commit()
+
+    mock_dag_bag(mock_dag_bag_cls, task_instance)
 
     supervisor: TriggerRunnerSupervisor = supervisor_builder()
 
@@ -732,7 +754,8 @@ class DummyTriggerRunnerSupervisor(TriggerRunnerSupervisor):
 
 @pytest.mark.asyncio
 @pytest.mark.execution_timeout(20)
-async def test_trigger_can_call_variables_connections_and_xcoms_methods(session, dag_maker):
+@patch("airflow.jobs.triggerer_job_runner.DagBag")
+async def test_trigger_can_call_variables_connections_and_xcoms_methods(mock_dag_bag_cls, session, dag_maker):
     """Checks that the trigger will successfully call Variables, Connections and XComs methods."""
     # Create the test DAG and task
     with dag_maker(dag_id="trigger_accessing_variable_connection_and_xcom", session=session):
@@ -793,6 +816,8 @@ async def test_trigger_can_call_variables_connections_and_xcoms_methods(session,
     job = Job()
     session.add(job)
     session.commit()
+
+    mock_dag_bag(mock_dag_bag_cls, task_instance)
 
     supervisor = DummyTriggerRunnerSupervisor.start(job=job, capacity=1, logger=None)
     supervisor.run()
@@ -864,7 +889,10 @@ class CustomTriggerDagRun(BaseTrigger):
 
 @pytest.mark.asyncio
 @pytest.mark.execution_timeout(10)
-async def test_trigger_can_fetch_trigger_dag_run_count_and_state_in_deferrable(session, dag_maker):
+@patch("airflow.jobs.triggerer_job_runner.DagBag")
+async def test_trigger_can_fetch_trigger_dag_run_count_and_state_in_deferrable(
+    mock_dag_bag_cls, session, dag_maker
+):
     """Checks that the trigger will successfully fetch the count of trigger DAG runs."""
     # Create the test DAG and task
     with dag_maker(dag_id="trigger_can_fetch_trigger_dag_run_count_and_state_in_deferrable", session=session):
@@ -894,6 +922,8 @@ async def test_trigger_can_fetch_trigger_dag_run_count_and_state_in_deferrable(s
     job = Job()
     session.add(job)
     session.commit()
+
+    mock_dag_bag(mock_dag_bag_cls, task_instance)
 
     supervisor = DummyTriggerRunnerSupervisor.start(job=job, capacity=1, logger=None)
     supervisor.run()
@@ -955,7 +985,8 @@ class CustomTriggerWorkflowStateTrigger(BaseTrigger):
 
 @pytest.mark.asyncio
 @pytest.mark.execution_timeout(10)
-async def test_trigger_can_fetch_dag_run_count_ti_count_in_deferrable(session, dag_maker):
+@patch("airflow.jobs.triggerer_job_runner.DagBag")
+async def test_trigger_can_fetch_dag_run_count_ti_count_in_deferrable(mock_dag_bag_cls, session, dag_maker):
     """Checks that the trigger will successfully fetch the count of DAG runs, Task count and task states."""
     # Create the test DAG and task
     with dag_maker(dag_id="parent_dag", session=session):
@@ -995,6 +1026,8 @@ async def test_trigger_can_fetch_dag_run_count_ti_count_in_deferrable(session, d
     job = Job()
     session.add(job)
     session.commit()
+
+    mock_dag_bag(mock_dag_bag_cls, task_instance)
 
     supervisor = DummyTriggerRunnerSupervisor.start(job=job, capacity=1, logger=None)
     supervisor.run()
