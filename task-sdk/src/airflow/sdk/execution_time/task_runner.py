@@ -105,6 +105,7 @@ from airflow.sdk.execution_time.context import (
 )
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.timezone import coerce_datetime
+from airflow.stats import Stats
 
 if TYPE_CHECKING:
     import jinja2
@@ -552,6 +553,11 @@ class RuntimeTaskInstance(TaskInstance):
 
         return response.state
 
+    @property
+    def stats_tags(self) -> dict[str, str]:
+        """Returns task instance tags."""
+        return {"dag_id": self.dag_id, "task_id": self.task_id}
+
 
 def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int | None = None) -> None:
     """Push a XCom through XCom.set, which pushes to XCom Backend if configured."""
@@ -892,7 +898,21 @@ def run(
     msg: ToSupervisor | None = None
     state: TaskInstanceState
     error: BaseException | None = None
-
+    Stats.incr(f"ti.start.{ti.dag_id}.{ti.task_id}", tags=ti.stats_tags)
+    # Same metric with tagging
+    Stats.incr("ti.start", tags=ti.stats_tags)
+    for state in TaskInstanceState:
+        Stats.incr(
+            f"ti.finish.{ti.dag_id}.{ti.task_id}.{state.value}",
+            count=0,
+            tags=ti.stats_tags,
+        )
+        # Same metric with tagging
+        Stats.incr(
+            "ti.finish",
+            count=0,
+            tags={**ti.stats_tags, "state": str(state.value)},
+        )
     try:
         # First, clear the xcom data sent from server
         if ti._ti_context_from_server and (keys_to_delete := ti._ti_context_from_server.xcom_keys_to_clear):
@@ -990,6 +1010,12 @@ def run(
         msg, state = _handle_current_task_failed(ti)
         error = e
     finally:
+        Stats.incr(
+            f"ti.finish.{ti.dag_id}.{ti.task_id}.{ti.state}",
+            tags=ti.stats_tags,
+        )
+        # Same metric with tagging
+        Stats.incr("ti.finish", tags={**ti.stats_tags, "state": str(ti.state)})
         if msg:
             SUPERVISOR_COMMS.send(msg=msg)
 
@@ -1019,6 +1045,12 @@ def _handle_current_task_failed(
     end_date = datetime.now(tz=timezone.utc)
     if ti._ti_context_from_server and ti._ti_context_from_server.should_retry:
         return RetryTask(end_date=end_date), TaskInstanceState.UP_FOR_RETRY
+
+    Stats.incr(f"operator_failures_{ti.task}", tags=ti.stats_tags)
+    # Same metric with tagging
+    Stats.incr("operator_failures", tags={**ti.stats_tags, "operator": ti.task})
+    Stats.incr("ti_failures", tags=ti.stats_tags)
+
     return TaskState(
         state=TaskInstanceState.FAILED, end_date=end_date, rendered_map_index=ti.rendered_map_index
     ), TaskInstanceState.FAILED
