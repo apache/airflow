@@ -116,6 +116,16 @@ class TaskInstancesBatchBody(StrictBaseModel):
     end_date_lte: AwareDatetime | None = None
     duration_gte: float | None = None
     duration_lte: float | None = None
+    run_after_gt: AwareDatetime | None = None
+    run_after_lt: AwareDatetime | None = None
+    logical_date_gt: AwareDatetime | None = None
+    logical_date_lt: AwareDatetime | None = None
+    start_date_gt: AwareDatetime | None = None
+    start_date_lt: AwareDatetime | None = None
+    end_date_gt: AwareDatetime | None = None
+    end_date_lt: AwareDatetime | None = None
+    duration_gt: float | None = None
+    duration_lt: float | None = None
     pool: list[str] | None = None
     queue: list[str] | None = None
     executor: list[str] | None = None

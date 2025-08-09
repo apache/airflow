@@ -511,6 +511,8 @@ class Range(BaseModel, Generic[T]):
 
     lower_bound: T | None
     upper_bound: T | None
+    lower_bound_excluded: T | None
+    upper_bound_excluded: T | None
 
 
 class RangeFilter(BaseParam[Range]):
@@ -526,8 +528,14 @@ class RangeFilter(BaseParam[Range]):
 
         if self.value and self.value.lower_bound:
             select = select.where(self.attribute >= self.value.lower_bound)
+        elif self.value and self.value.lower_bound_excluded:
+            select = select.where(self.attribute > self.value.lower_bound_excluded)
+
         if self.value and self.value.upper_bound:
             select = select.where(self.attribute <= self.value.upper_bound)
+        elif self.value and self.value.upper_bound_excluded:
+            select = select.where(self.attribute < self.value.upper_bound_excluded)
+
         return select
 
     @classmethod
@@ -537,7 +545,10 @@ class RangeFilter(BaseParam[Range]):
     def is_active(self) -> bool:
         """Check if the range filter has any active bounds."""
         return self.value is not None and (
-            self.value.lower_bound is not None or self.value.upper_bound is not None
+            self.value.lower_bound is not None
+            or self.value.upper_bound is not None
+            or self.value.lower_bound_excluded is not None
+            or self.value.upper_bound_excluded is not None
         )
 
 
@@ -547,12 +558,19 @@ def datetime_range_filter_factory(
     def depends_datetime(
         lower_bound: datetime | None = Query(alias=f"{filter_name}_gte", default=None),
         upper_bound: datetime | None = Query(alias=f"{filter_name}_lte", default=None),
+        lower_bound_excluded: datetime | None = Query(alias=f"{filter_name}_gt", default=None),
+        upper_bound_excluded: datetime | None = Query(alias=f"{filter_name}_lt", default=None),
     ) -> RangeFilter:
         attr = getattr(model, attribute_name or filter_name)
         if filter_name in ("start_date", "end_date"):
             attr = func.coalesce(attr, func.now())
         return RangeFilter(
-            Range(lower_bound=lower_bound, upper_bound=upper_bound),
+            Range(
+                lower_bound=lower_bound,
+                upper_bound=upper_bound,
+                lower_bound_excluded=lower_bound_excluded,
+                upper_bound_excluded=upper_bound_excluded,
+            ),
             attr,
         )
 
@@ -565,9 +583,17 @@ def float_range_filter_factory(
     def depends_float(
         lower_bound: float | None = Query(alias=f"{filter_name}_gte", default=None),
         upper_bound: float | None = Query(alias=f"{filter_name}_lte", default=None),
+        lower_bound_excluded: float | None = Query(alias=f"{filter_name}_gt", default=None),
+        upper_bound_excluded: float | None = Query(alias=f"{filter_name}_lt", default=None),
     ) -> RangeFilter:
         return RangeFilter(
-            Range(lower_bound=lower_bound, upper_bound=upper_bound), getattr(model, filter_name)
+            Range(
+                lower_bound=lower_bound,
+                upper_bound=upper_bound,
+                lower_bound_excluded=lower_bound_excluded,
+                upper_bound_excluded=upper_bound_excluded,
+            ),
+            getattr(model, filter_name),
         )
 
     return depends_float
