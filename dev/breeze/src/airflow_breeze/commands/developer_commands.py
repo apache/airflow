@@ -498,6 +498,14 @@ option_auth_manager_start_airflow = click.option(
     show_default=True,
 )
 
+option_expose_config = click.option(
+    "--expose-config",
+    type=click.BOOL,
+    help="Specify whether to expose config (true/false)",
+    default=False,
+    show_default=True,
+)
+
 
 @main.command(name="start-airflow")
 @click.option(
@@ -557,6 +565,7 @@ option_auth_manager_start_airflow = click.option(
 @option_allow_pre_releases
 @option_use_distributions_from_dist
 @option_verbose
+@option_expose_config
 def start_airflow(
     airflow_constraints_mode: str,
     airflow_constraints_location: str,
@@ -602,6 +611,7 @@ def start_airflow(
     use_distributions_from_dist: bool,
     use_uv: bool,
     uv_http_timeout: int,
+    expose_config: bool,
 ):
     """
     Enter breeze environment and starts all Airflow components in the tmux session.
@@ -675,6 +685,7 @@ def start_airflow(
         use_distributions_from_dist=use_distributions_from_dist,
         use_uv=use_uv,
         uv_http_timeout=uv_http_timeout,
+        expose_config=expose_config,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     result = enter_shell(shell_params=shell_params)
