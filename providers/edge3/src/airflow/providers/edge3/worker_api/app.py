@@ -52,11 +52,16 @@ def create_edge_worker_api_app() -> FastAPI:
     if ".cjs" not in mimetypes.suffix_map:
         mimetypes.add_type("application/javascript", ".cjs")
 
-    static_files = Path(__file__).parents[1] / "plugins/www/dist"
+    www_files = Path(__file__).parents[1] / "plugins" / "www"
     edge_worker_api_app.mount(
         "/static",
-        StaticFiles(directory=static_files.absolute(), html=True),
+        StaticFiles(directory=(www_files / "dist").absolute(), html=True),
         name="react_static_plugin_files",
+    )
+    edge_worker_api_app.mount(
+        "/res",
+        StaticFiles(directory=(www_files / "src" / "res").absolute(), html=True),
+        name="react_res_plugin_files",
     )
 
     return edge_worker_api_app
