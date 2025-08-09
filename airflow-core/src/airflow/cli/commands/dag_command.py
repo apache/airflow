@@ -39,11 +39,12 @@ from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.jobs.job import Job
-from airflow.models import DagBag, DagModel, DagRun, TaskInstance
+from airflow.models import DAG, DagBag, DagModel, DagRun, TaskInstance
+from airflow.models.dagbag import sync_bag_to_db
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import cli as cli_utils
-from airflow.utils.cli import get_dag, suppress_logs_and_warning, validate_dag_bundle_arg
+from airflow.utils.cli import get_dag, get_serialized_dag, suppress_logs_and_warning, validate_dag_bundle_arg
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
 from airflow.utils.helpers import ask_yesno
 from airflow.utils.platform import getuser
@@ -55,7 +56,6 @@ if TYPE_CHECKING:
     from graphviz.dot import Dot
     from sqlalchemy.orm import Session
 
-    from airflow.models.dag import DAG
     from airflow.timetables.base import DataInterval
 
 DAG_DETAIL_FIELDS = {*DAGResponse.model_fields, *DAGResponse.model_computed_fields}
@@ -191,7 +191,7 @@ def dag_dependencies_show(args) -> None:
 @providers_configuration_loaded
 def dag_show(args) -> None:
     """Display DAG or saves its graphic representation to the file."""
-    dag = get_dag(bundle_names=None, dag_id=args.dag_id, from_db=True)
+    dag = get_serialized_dag(bundle_names=None, dag_id=args.dag_id)
     dot = render_dag(dag)
     filename = args.save
     imgcat = args.imgcat
@@ -301,7 +301,7 @@ def dag_next_execution(args) -> None:
     >>> airflow dags next-execution tutorial
     2018-08-31 10:38:00
     """
-    dag = get_dag(bundle_names=None, dag_id=args.dag_id, from_db=True)
+    dag = get_serialized_dag(bundle_names=None, dag_id=args.dag_id)
 
     with create_session() as session:
         last_parsed_dag: DagModel = session.scalars(
@@ -351,6 +351,8 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
     dagbag_import_errors = 0
     dags_list = []
     if args.local:
+        from airflow.models.dagbag import DagBag
+
         # Get import errors from the local area
         if args.bundle_name:
             manager = DagBundlesManager()
@@ -370,16 +372,11 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
             dags_list.extend(list(dagbag.dags.values()))
             dagbag_import_errors += len(dagbag.import_errors)
     else:
-        # Get import errors from the DB
-        dagbag = DagBag(read_dags_from_db=True)
-        dagbag.collect_dags_from_db()
-        dags_list = list(dagbag.dags.values())
-
-        query = select(func.count()).select_from(ParseImportError)
+        dags_list.extend(sm.dag for sm in session.scalars(select(SerializedDagModel)))
+        pie_stmt = select(func.count()).select_from(ParseImportError)
         if args.bundle_name:
-            query = query.where(ParseImportError.bundle_name.in_(args.bundle_name))
-
-        dagbag_import_errors = session.scalar(query)
+            pie_stmt = pie_stmt.where(ParseImportError.bundle_name.in_(args.bundle_name))
+        dagbag_import_errors = session.scalar(pie_stmt)
 
     if dagbag_import_errors > 0:
         from rich import print as rich_print
@@ -400,13 +397,21 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
             return dag_detail
         return {col: dag_detail[col] for col in cols if col in DAG_DETAIL_FIELDS}
 
-    def filter_dags_by_bundle(dags: list[DAG], bundle_names: list[str] | None) -> list[DAG]:
+    def filter_dags_by_bundle(dags: list, bundle_names: list[str] | None) -> list:
         """Filter DAGs based on the specified bundle name, if provided."""
         if not bundle_names:
             return dags
 
         validate_dag_bundle_arg(bundle_names)
-        return [dag for dag in dags if dag.get_bundle_name() in bundle_names]
+        with create_session() as session:
+            filtered_dag_ids = set(
+                session.scalars(
+                    select(DagModel.dag_id)
+                    .where(DagModel.dag_id.in_(dag.dag_id for dag in dags))
+                    .where(DagModel.bundle_name.in_(bundle_names))
+                )
+            )
+        return [dag for dag in dags if dag.dag_id in filtered_dag_ids]
 
     AirflowConsole().print_as(
         data=sorted(
@@ -671,4 +676,4 @@ def dag_reserialize(args, session: Session = NEW_SESSION) -> None:
             continue
         bundle.initialize()
         dag_bag = DagBag(bundle.path, bundle_path=bundle.path, include_examples=False)
-        dag_bag.sync_to_db(bundle.name, bundle_version=bundle.get_current_version(), session=session)
+        sync_bag_to_db(dag_bag, bundle.name, bundle_version=bundle.get_current_version(), session=session)

@@ -31,7 +31,7 @@ from collections.abc import Collection, Generator, Iterable, Iterator, Mapping, 
 from functools import cache, cached_property
 from inspect import signature
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypeVar, Union, cast, overload
+from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypeAlias, TypeVar, cast, overload
 
 import attrs
 import lazy_object_proxy
@@ -669,7 +669,7 @@ class BaseSerialization:
     @classmethod
     def serialize_to_json(
         cls,
-        object_to_serialize: BaseOperator | MappedOperator | SerializedBaseOperator | DAG,
+        object_to_serialize: BaseOperator | MappedOperator | SerializedBaseOperator | DAG | SdkDag,
         decorated_fields: set,
     ) -> dict[str, Any]:
         """Serialize an object to JSON."""
@@ -1161,7 +1161,7 @@ class DependencyDetector:
         return deps
 
     @staticmethod
-    def detect_dag_dependencies(dag: DAG | None) -> Iterable[DagDependency]:
+    def detect_dag_dependencies(dag: SdkDag | DAG | None) -> Iterable[DagDependency]:
         """Detect dependencies set directly on the DAG object."""
         if not dag:
             return
@@ -1899,7 +1899,7 @@ class SerializedDAG(DAG, BaseSerialization):
     _json_schema = lazy_object_proxy.Proxy(load_dag_schema)
 
     @classmethod
-    def serialize_dag(cls, dag: DAG) -> dict:
+    def serialize_dag(cls, dag: SdkDag) -> dict:
         """Serialize a DAG into a JSON object."""
         try:
             serialized_dag = cls.serialize_to_json(dag, cls._decorated_fields)
@@ -2280,7 +2280,7 @@ def _has_kubernetes() -> bool:
 
 
 AssetT = TypeVar("AssetT", bound=BaseAsset)
-MaybeSerializedDAG = Union[DAG, "LazyDeserializedDAG"]
+MaybeSerializedDAG: TypeAlias = "DAG | LazyDeserializedDAG"
 
 
 class LazyDeserializedDAG(pydantic.BaseModel):

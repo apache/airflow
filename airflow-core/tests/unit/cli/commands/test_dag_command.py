@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import logging
 import os
 from datetime import datetime, timedelta
 from unittest import mock
@@ -36,9 +35,10 @@ from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel, DagRun
+from airflow.models.dagbag import DBDagBag, sync_bag_to_db
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
-from airflow.sdk import task
+from airflow.sdk import BaseOperator, task
 from airflow.sdk.definitions.dag import _run_inline_trigger
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.session import create_session
@@ -263,7 +263,10 @@ class TestCliDags:
         # Clear the database
         clear_db_dags()
         args = self.parser.parse_args(["dags", "list", "--output", "json", "--local"])
-        with stdout_capture as temp_stdout:
+        with (
+            mock.patch("airflow.sdk.definitions.dagbag.log"),
+            stdout_capture as temp_stdout,
+        ):
             dag_command.dag_list_dags(args)
             out = temp_stdout.getvalue()
             dag_list = json.loads(out)
@@ -281,16 +284,17 @@ class TestCliDags:
         args = self.parser.parse_args(
             ["dags", "list", "--output", "json", "--local", "--bundle-name", "testing"]
         )
-        with configure_testing_dag_bundle(path_to_parse):
-            with stdout_capture as temp_stdout:
-                dag_command.dag_list_dags(args)
-                out = temp_stdout.getvalue()
-                dag_list = json.loads(out)
-            for key in ["dag_id", "fileloc", "owners", "is_paused"]:
-                assert key in dag_list[0]
-            assert any(
-                str(TEST_DAGS_FOLDER / "test_example_bash_operator.py") in d["fileloc"] for d in dag_list
-            )
+        with (
+            mock.patch("airflow.sdk.definitions.dagbag.log"),
+            configure_testing_dag_bundle(path_to_parse),
+            stdout_capture as temp_stdout,
+        ):
+            dag_command.dag_list_dags(args)
+            out = temp_stdout.getvalue()
+            dag_list = json.loads(out)
+        for key in ["dag_id", "fileloc", "owners", "is_paused"]:
+            assert key in dag_list[0]
+        assert any(str(TEST_DAGS_FOLDER / "test_example_bash_operator.py") in d["fileloc"] for d in dag_list)
         # Rebuild Test DB for other tests
         parse_and_sync_to_db(os.devnull, include_examples=True)
 
@@ -368,25 +372,29 @@ class TestCliDags:
         assert any("airflow/example_dags/example_complex.py" in d["fileloc"] for d in dag_list)
 
     @conf_vars({("core", "load_examples"): "true"})
-    def test_dagbag_dag_col(self):
-        dagbag = DagBag(include_examples=True, read_dags_from_db=True)
-        dag_details = dag_command._get_dagbag_dag_details(dagbag.get_dag("tutorial_dag"))
+    def test_dagbag_dag_col(self, session):
+        dagbag = DBDagBag()
+        dag_details = dag_command._get_dagbag_dag_details(
+            dagbag.get_latest_version_of_dag("tutorial_dag", session=session)
+        )
         assert sorted(dag_details) == sorted(dag_command.DAG_DETAIL_FIELDS)
 
     @conf_vars({("core", "load_examples"): "false"})
-    def test_cli_list_import_errors(self, get_test_dag, configure_testing_dag_bundle, caplog):
+    def test_cli_list_import_errors(self, get_test_dag, configure_testing_dag_bundle, stdout_capture):
         path_to_parse = TEST_DAGS_FOLDER / "test_invalid_cron.py"
         get_test_dag("test_invalid_cron")
 
         args = self.parser.parse_args(
             ["dags", "list-import-errors", "--output", "yaml", "--bundle-name", "testing"]
         )
-        with configure_testing_dag_bundle(path_to_parse):
-            with pytest.raises(SystemExit) as err_ctx:
-                with caplog.at_level(logging.ERROR):
-                    dag_command.dag_list_import_errors(args)
+        with (
+            configure_testing_dag_bundle(path_to_parse),
+            pytest.raises(SystemExit) as err_ctx,
+            stdout_capture as temp_stdout,
+        ):
+            dag_command.dag_list_import_errors(args)
 
-        log_output = caplog.text
+        log_output = temp_stdout.getvalue()
 
         assert err_ctx.value.code == 1
         assert str(path_to_parse) in log_output
@@ -864,7 +872,7 @@ class TestCliDags:
 
         with configure_testing_dag_bundle(path_to_parse):
             bag = DagBag(dag_folder=path_to_parse, include_examples=False)
-            bag.sync_to_db("testing", None)
+            sync_bag_to_db(bag, "testing", None)
             cli_args = self.parser.parse_args(
                 ["dags", "test", "test_dag_parsing_context", DEFAULT_DATE.isoformat()]
             )

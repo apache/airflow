@@ -95,7 +95,7 @@ __lazy_imports = {
     "BaseOperatorLink": "airflow.sdk.bases.operatorlink",
     "BaseXCom": "airflow.sdk.bases.xcom",
     "Connection": "airflow.models.connection",
-    "DagBag": "airflow.models.dagbag",
+    "DagBag": "airflow.sdk.definitions.dagbag",
     "DagModel": "airflow.models.dag",
     "DagRun": "airflow.models.dagrun",
     "DagTag": "airflow.models.dag",
@@ -123,7 +123,6 @@ if TYPE_CHECKING:
     from airflow.models.base import ID_LEN, Base
     from airflow.models.connection import Connection
     from airflow.models.dag import DAG, DagModel, DagTag
-    from airflow.models.dagbag import DagBag
     from airflow.models.dagrun import DagRun
     from airflow.models.dagwarning import DagWarning
     from airflow.models.db_callback_request import DbCallbackRequest
@@ -141,6 +140,7 @@ if TYPE_CHECKING:
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.bases.xcom import BaseXCom
+    from airflow.sdk.definitions.dagbag import DagBag
     from airflow.sdk.definitions.param import Param
     from airflow.sdk.execution_time.xcom import XCom
 

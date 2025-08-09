@@ -51,6 +51,7 @@ from airflow.exceptions import (
     RemovedInAirflow4Warning,
     TaskNotFound,
 )
+from airflow.sdk._shared.timezones.timezone import utcnow
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions._internal.node import validate_key
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
@@ -455,6 +456,8 @@ class DAG:
     disable_bundle_versioning: bool = attrs.field(
         factory=_config_bool_factory("dag_processor", "disable_bundle_versioning")
     )
+
+    last_loaded: datetime = attrs.field(init=False, factory=utcnow)
 
     def __attrs_post_init__(self):
         from airflow.sdk import timezone
@@ -1156,7 +1159,7 @@ class DAG:
             data_interval = (
                 self.timetable.infer_manual_data_interval(run_after=logical_date) if logical_date else None
             )
-            scheduler_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(self))  # type: ignore[arg-type]
+            scheduler_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(self))
 
             dr: DagRun = _get_or_create_dagrun(
                 dag=scheduler_dag,

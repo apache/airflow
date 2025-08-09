@@ -35,8 +35,8 @@ if TYPE_CHECKING:
     import graphviz
 
     from airflow.models import TaskInstance
-    from airflow.models.dag import DAG
     from airflow.models.taskmixin import DependencyMixin
+    from airflow.sdk import DAG
     from airflow.serialization.dag_dependency import DagDependency
 else:
     try:
