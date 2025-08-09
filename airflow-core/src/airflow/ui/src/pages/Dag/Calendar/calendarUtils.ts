@@ -26,6 +26,40 @@ import type { RunCounts, DailyCalendarData, HourlyCalendarData, CalendarCellData
 
 dayjs.extend(isSameOrBefore);
 
+const createDailyDataMap = (data: Array<CalendarTimeRangeResponse>) => {
+  const dailyDataMap = new Map<string, Array<CalendarTimeRangeResponse>>();
+
+  data.forEach((run) => {
+    const dateStr = run.date.slice(0, 10); // "YYYY-MM-DD"
+    const dailyRuns = dailyDataMap.get(dateStr);
+
+    if (dailyRuns) {
+      dailyRuns.push(run);
+    } else {
+      dailyDataMap.set(dateStr, [run]);
+    }
+  });
+
+  return dailyDataMap;
+};
+
+const createHourlyDataMap = (data: Array<CalendarTimeRangeResponse>) => {
+  const hourlyDataMap = new Map<string, Array<CalendarTimeRangeResponse>>();
+
+  data.forEach((run) => {
+    const hourStr = run.date.slice(0, 13); // "YYYY-MM-DDTHH"
+    const hourlyRuns = hourlyDataMap.get(hourStr);
+
+    if (hourlyRuns) {
+      hourlyRuns.push(run);
+    } else {
+      hourlyDataMap.set(hourStr, [run]);
+    }
+  });
+
+  return hourlyDataMap;
+};
+
 export const calculateRunCounts = (runs: Array<CalendarTimeRangeResponse>): RunCounts => {
   const counts: { [K in keyof RunCounts]: number } = {
     failed: 0,
@@ -48,6 +82,20 @@ export const calculateRunCounts = (runs: Array<CalendarTimeRangeResponse>): RunC
   return counts as RunCounts;
 };
 
+const PRIORITY_STATE_RULES = [
+  { color: CALENDAR_STATE_COLORS.queued.pure, condition: (counts: RunCounts) => counts.queued > 0 },
+  { color: CALENDAR_STATE_COLORS.running.pure, condition: (counts: RunCounts) => counts.running > 0 },
+  { color: CALENDAR_STATE_COLORS.planned.pure, condition: (counts: RunCounts) => counts.planned > 0 },
+] as const;
+
+const SUCCESS_RATE_RULES = [
+  { color: CALENDAR_STATE_COLORS.success.pure, threshold: 1 },
+  { color: CALENDAR_STATE_COLORS.success.high, threshold: SUCCESS_RATE_THRESHOLDS.HIGH },
+  { color: CALENDAR_STATE_COLORS.success.medium, threshold: SUCCESS_RATE_THRESHOLDS.MEDIUM },
+  { color: CALENDAR_STATE_COLORS.mixed.moderate, threshold: SUCCESS_RATE_THRESHOLDS.MODERATE },
+  { color: CALENDAR_STATE_COLORS.mixed.poor, threshold: SUCCESS_RATE_THRESHOLDS.POOR },
+] as const;
+
 export const getCalendarCellColor = (runs: Array<CalendarTimeRangeResponse>): string => {
   if (runs.length === 0) {
     return CALENDAR_STATE_COLORS.empty;
@@ -59,35 +107,19 @@ export const getCalendarCellColor = (runs: Array<CalendarTimeRangeResponse>): st
     return CALENDAR_STATE_COLORS.empty;
   }
 
-  // Priority states - show if any exist
-  if (counts.queued > 0) {
-    return CALENDAR_STATE_COLORS.queued.pure;
-  }
-  if (counts.running > 0) {
-    return CALENDAR_STATE_COLORS.running.pure;
-  }
-  if (counts.planned > 0) {
-    return CALENDAR_STATE_COLORS.planned.pure;
+  const priorityRule = PRIORITY_STATE_RULES.find((rule) => rule.condition(counts));
+
+  if (priorityRule) {
+    return priorityRule.color;
   }
 
-  // Calculate rates for success/failed spectrum
   const successRate = counts.success / counts.total;
+  const successRule = SUCCESS_RATE_RULES.find((rule) => successRate >= rule.threshold);
 
-  if (successRate === 1) {
-    return CALENDAR_STATE_COLORS.success.pure;
+  if (successRule) {
+    return successRule.color;
   }
-  if (successRate >= SUCCESS_RATE_THRESHOLDS.HIGH) {
-    return CALENDAR_STATE_COLORS.success.high;
-  }
-  if (successRate >= SUCCESS_RATE_THRESHOLDS.MEDIUM) {
-    return CALENDAR_STATE_COLORS.success.medium;
-  }
-  if (successRate >= SUCCESS_RATE_THRESHOLDS.MODERATE) {
-    return CALENDAR_STATE_COLORS.mixed.moderate;
-  }
-  if (successRate >= SUCCESS_RATE_THRESHOLDS.POOR) {
-    return CALENDAR_STATE_COLORS.mixed.poor;
-  }
+
   if (counts.failed > 0) {
     return CALENDAR_STATE_COLORS.failed.pure;
   }
@@ -99,6 +131,8 @@ export const generateDailyCalendarData = (
   data: Array<CalendarTimeRangeResponse>,
   selectedYear: number,
 ): DailyCalendarData => {
+  const dailyDataMap = createDailyDataMap(data);
+
   const weeks = [];
   const startOfYear = dayjs().year(selectedYear).startOf("year");
   const endOfYear = dayjs().year(selectedYear).endOf("year");
@@ -111,7 +145,7 @@ export const generateDailyCalendarData = (
 
     for (let dayIndex = 0; dayIndex < 7; dayIndex += 1) {
       const dateStr = currentDate.format("YYYY-MM-DD");
-      const runs = data.filter((run) => run.date.startsWith(dateStr));
+      const runs = dailyDataMap.get(dateStr) ?? [];
       const counts = calculateRunCounts(runs);
 
       week.push({ counts, date: dateStr, runs });
@@ -128,6 +162,8 @@ export const generateHourlyCalendarData = (
   selectedYear: number,
   selectedMonth: number,
 ): HourlyCalendarData => {
+  const hourlyDataMap = createHourlyDataMap(data);
+
   const monthStart = dayjs().year(selectedYear).month(selectedMonth).startOf("month");
   const monthEnd = dayjs().year(selectedYear).month(selectedMonth).endOf("month");
   const monthData = [];
@@ -138,11 +174,11 @@ export const generateHourlyCalendarData = (
     const dayHours = [];
 
     for (let hour = 0; hour < 24; hour += 1) {
-      const hourStr = currentDate.hour(hour).format("YYYY-MM-DDTHH:00:00");
-      const runs = data.filter((run) => run.date.startsWith(hourStr));
+      const hourStr = currentDate.hour(hour).format("YYYY-MM-DDTHH");
+      const runs = hourlyDataMap.get(hourStr) ?? [];
       const counts = calculateRunCounts(runs);
 
-      dayHours.push({ counts, date: hourStr, hour, runs });
+      dayHours.push({ counts, date: `${hourStr}:00:00`, hour, runs });
     }
     monthData.push({ day: currentDate.format("YYYY-MM-DD"), hours: dayHours });
     currentDate = currentDate.add(1, "day");
@@ -158,23 +194,9 @@ export const createTooltipContent = (cellData: CalendarCellData): string => {
     return `${date}: No runs`;
   }
 
-  const parts = [];
-
-  if (counts.success > 0) {
-    parts.push(`${counts.success} success`);
-  }
-  if (counts.failed > 0) {
-    parts.push(`${counts.failed} failed`);
-  }
-  if (counts.planned > 0) {
-    parts.push(`${counts.planned} planned`);
-  }
-  if (counts.running > 0) {
-    parts.push(`${counts.running} running`);
-  }
-  if (counts.queued > 0) {
-    parts.push(`${counts.queued} queued`);
-  }
+  const parts = Object.entries(counts)
+    .filter(([key, value]) => key !== "total" && value > 0)
+    .map(([state, count]) => `${count} ${state}`);
 
   return `${date}: ${counts.total} runs (${parts.join(", ")})`;
 };

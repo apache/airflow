@@ -18,39 +18,33 @@
  */
 import type { DagRunState } from "./types";
 
-/**
- * Color mapping for calendar states using theme colors
- */
 export const CALENDAR_STATE_COLORS = {
-  empty: "#ebedf0", // gray.200
+  empty: "#ebedf0",
   failed: {
-    medium: "#EF4444", // red.500 - mostly failed
-    pure: "#DC2626", // red.600
+    medium: "#EF4444",
+    pure: "#DC2626",
   },
   mixed: {
-    moderate: "#EAB308", // yellow.500 - 40-60%
-    poor: "#F97316", // orange.500 - 20-40%
+    moderate: "#EAB308",
+    poor: "#F97316",
   },
-  other: "#9CA3AF", // gray.400
+  other: "#9CA3AF",
   planned: {
-    pure: "#F1E7DA", // scheduled.200 (lighter tan)
+    pure: "#F1E7DA",
   },
   queued: {
-    pure: "#808080", // queued.600 (gray)
+    pure: "#808080",
   },
   running: {
-    pure: "#3182CE", // blue.600
+    pure: "#3182CE",
   },
   success: {
-    high: "#16A34A", // success.700 - ≥80%
-    medium: "#22C55E", // success.500 - ≥60%
-    pure: "#008000", // success.600
+    high: "#16A34A",
+    medium: "#22C55E",
+    pure: "#008000",
   },
 } as const;
 
-/**
- * Success rate thresholds for color mapping
- */
 export const SUCCESS_RATE_THRESHOLDS = {
   HIGH: 0.8,
   MEDIUM: 0.6,
@@ -58,9 +52,6 @@ export const SUCCESS_RATE_THRESHOLDS = {
   POOR: 0.2,
 } as const;
 
-/**
- * Supported DAG run states for calendar display
- */
 export const SUPPORTED_DAG_RUN_STATES: Array<DagRunState> = [
   "success",
   "failed",
