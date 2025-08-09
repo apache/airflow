@@ -82,7 +82,7 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
         priority_order = [-TI.priority_weight, DR.logical_date, TI.map_index]
         max_tis = additional_params["max_tis"]
 
-        base_query = (
+        query = (
             select(TI.id)
             .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
             .join(TI.dag_run)
@@ -101,6 +101,33 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
                 .where(TI.state.in_(states))
                 .group_by(*group_fields)
                 .cte(name)
+            )
+
+        def add_window_limit(query: Select, limit: LimitWindowDescriptor) -> Select:
+            inner_query = query.add_columns(limit.window).subquery()
+            query = (
+                select(TI.id)
+                .join(inner_query, TI.id == inner_query.c.id)
+                .outerjoin(
+                    limit.running_now_join,
+                    and_(
+                        *(
+                            getattr(TI, predicate) == getattr(limit.running_now_join.c, predicate)
+                            for predicate in limit.running_now_join_predicates
+                        )
+                    ),
+                )
+                .join(DR, TI.run_id == DR.run_id)
+            )
+            if limit.limit_join_model is not None:
+                query = query.join(limit.limit_join_model)
+
+            return query.where(
+                and_(
+                    func.coalesce(getattr(inner_query.c, limit.window.name), text("0"))
+                    + func.coalesce(limit.running_now_join.c.now_running, text("0"))
+                    <= func.coalesce(limit.limit_column, max_tis)
+                )
             )
 
         running_total_tis_per_dagrun = running_tasks_group("dag_run_active_tasks", [TI.dag_id, TI.run_id])
@@ -158,39 +185,10 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
             ),
         ]
 
-        base_query = base_query.add_columns(
-            total_tis_per_dagrun_count,
-            tis_per_dag_count,
-            mapped_tis_per_task_run_count,
-            pool_slots_taken
-        ).subquery().alias("windowed_tis")
-
-        query = (
-            select(TI)
-            .join(base_query, TI.id == base_query.c.id)
-        )
-
         for limit in limits:
-            if limit.limit_join_model is not None:
-                query = query.join(limit.limit_join_model)
-        for limit in limits:
-            query = query.outerjoin(
-                limit.running_now_join,
-                and_(
-                    *(
-                        getattr(TI, predicate) == getattr(limit.running_now_join.c, predicate)
-                        for predicate in limit.running_now_join_predicates
-                    )
-                ),
-            )
-            query = query.where(
-                and_(
-                    func.coalesce(getattr(base_query.c, limit.window.name), text("0"))
-                    + func.coalesce(limit.running_now_join.c.now_running, text("0"))
-                    <= func.coalesce(limit.limit_column, max_tis)
-                )
-            )
+            query = add_window_limit(query, limit)
 
+        query = query.with_only_columns([TI])
         query = query.options(selectinload(TI.dag_model))
         query = query.limit(max_tis)
         return query
@@ -201,4 +199,25 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
             .where(TI.state.in_(EXECUTION_STATES))
             .group_by(*group_fields)
             .cte()
+        )
+
+    def _add_window_limit(
+        self, priority_order: list[Column], query: Select, limit: LimitWindowDescriptor
+    ) -> Select:
+        inner_query = query.add_columns(limit.window).order_by(*priority_order).subquery()
+        return (
+            select(TI)
+            .join(inner_query, TI.id == inner_query.c.id)
+            .join(DR, TI.run_id == DR.id)
+            .join(
+                limit.running_now_join,
+                *(
+                    getattr(TI, predicate) == getattr(limit.running_now_join.c, predicate)
+                    for predicate in limit.running_now_join_predicates
+                ),
+            )
+            .where(
+                getattr(inner_query.c, limit.window.name) + limit.running_now_join.c.now_running
+                < limit.limit_column
+            )
         )
