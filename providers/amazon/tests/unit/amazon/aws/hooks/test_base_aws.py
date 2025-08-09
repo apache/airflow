@@ -50,7 +50,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import (
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytest.importorskip("aiobotocore")
 
@@ -459,7 +459,7 @@ class TestAwsBaseHook:
     def test_user_agent_dag_run_key_is_hashed_correctly(
         self, _, env_var, expected_version, mock_supervisor_comms
     ):
-        if AIRFLOW_V_3_1_PLUS:
+        if AIRFLOW_V_3_0_PLUS:
             from airflow.sdk.execution_time.comms import ConnectionResult
 
             mock_supervisor_comms.send.return_value = ConnectionResult(
