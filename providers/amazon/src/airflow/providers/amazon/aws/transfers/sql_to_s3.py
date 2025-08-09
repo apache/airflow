@@ -271,7 +271,7 @@ class SqlToS3Operator(BaseOperator):
             import polars as pl
         except ImportError:
             pass
-
+ 
         if isinstance(df, pl.DataFrame):
             df = df.to_pandas()
 
