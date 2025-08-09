@@ -679,12 +679,24 @@ class DAG:
 
     def get_template_env(self, *, force_sandboxed: bool = False) -> jinja2.Environment:
         """Build a Jinja2 environment."""
+        from airflow.configuration import conf
         from airflow.sdk.definitions._internal.templater import NativeEnvironment, SandboxedEnvironment
 
         # Collect directories to search for template files
         searchpath = [self.folder]
+
+        # First priority: template_searchpath passed by user
         if self.template_searchpath:
             searchpath += self.template_searchpath
+
+        # Always include config path as a fallback source
+        # Developers don't need to configure template_searchpath in every DAG — they can rely on a global value from airflow.cfg
+        config_path = conf.get("core", "template_searchpath", fallback=None)
+        if config_path:
+            if isinstance(config_path, str):
+                searchpath += [p.strip() for p in config_path.split(",")]
+            elif isinstance(config_path, list):
+                searchpath += config_path
 
         # Default values (for backward compatibility)
         jinja_env_options = {
