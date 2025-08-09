@@ -95,6 +95,7 @@ PRE_COMMIT_LIST = [
     "check-xml",
     "check-zip-file-is-not-committed",
     "codespell",
+    "compile-edge-assets",
     "compile-fab-assets",
     "compile-ui-assets",
     "compile-ui-assets-dev",
