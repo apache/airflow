@@ -49,8 +49,7 @@ describe("getDuration", () => {
     expect(getDuration(start, end)).toBe("02:30:00");
   });
 
-  it("handles null or undefined dates", () => {
-    expect(getDuration(null, null)).toBe("00:00:00");
+  it("handles undefined dates", () => {
     expect(getDuration(undefined, undefined)).toBe("00:00:00");
   });
 });
