@@ -17,7 +17,7 @@
  * under the License.
  */
 import { HStack, Text, Box } from "@chakra-ui/react";
-import { useCallback, useState, useRef } from "react";
+import { useCallback, useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { FiBarChart, FiMessageSquare } from "react-icons/fi";
 
@@ -42,6 +42,10 @@ export const Header = ({
 }) => {
   const { t: translate } = useTranslation();
   const [note, setNote] = useState<string | null>(dagRun.note);
+
+  useEffect(() => {
+    setNote(dagRun.note);
+  }, [dagRun.note]);
 
   const dagId = dagRun.dag_id;
   const dagRunId = dagRun.dag_run_id;
