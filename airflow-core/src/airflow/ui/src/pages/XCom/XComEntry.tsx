@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Skeleton, HStack, Text } from "@chakra-ui/react";
+import { Skeleton, HStack, Text, Link } from "@chakra-ui/react";
 
 import { useXcomServiceGetXcomEntry } from "openapi/queries";
 import type { XComResponseNative } from "openapi/requests/types.gen";
@@ -29,6 +29,45 @@ type XComEntryProps = {
   readonly runId: string;
   readonly taskId: string;
   readonly xcomKey: string;
+};
+
+const isUrl = (text: string): boolean => {
+  try {
+    // eslint-disable-next-line no-new
+    new URL(text);
+
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const renderTextWithLinks = (text: string) => {
+  const urlRegex = /(https?:\/\/\S+)/gu;
+  const parts = text.split(urlRegex);
+
+  return (
+    <>
+      {parts.map((part) => {
+        if (isUrl(part)) {
+          return (
+            <Link
+              color="fg.info"
+              href={part}
+              key={part}
+              rel="noopener noreferrer"
+              target="_blank"
+              textDecoration="underline"
+            >
+              {part}
+            </Link>
+          );
+        }
+
+        return part;
+      })}
+    </>
+  );
 };
 
 export const XComEntry = ({ dagId, mapIndex, runId, taskId, xcomKey }: XComEntryProps) => {
@@ -63,7 +102,7 @@ export const XComEntry = ({ dagId, mapIndex, runId, taskId, xcomKey }: XComEntry
       {["array", "object"].includes(typeof data?.value) ? (
         <RenderedJsonField content={data?.value as object} enableClipboard={false} />
       ) : (
-        <Text>{valueFormatted}</Text>
+        <Text>{renderTextWithLinks(valueFormatted)}</Text>
       )}
     </HStack>
   );
