@@ -33,7 +33,7 @@ from airflow.providers.google.cloud.operators.compute import (
     ComputeEngineInsertInstanceOperator,
 )
 from airflow.providers.ssh.operators.ssh import SSHOperator
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.sdk.api.datamodels._generated import TriggerRule
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 

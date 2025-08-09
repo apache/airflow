@@ -25,7 +25,7 @@ import os
 from datetime import datetime
 from urllib.parse import urlsplit
 
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.sdk.api.datamodels._generated import TriggerRule
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 GCS_INPUT = os.environ.get("APACHE_BEAM_PYTHON", "gs://INVALID BUCKET NAME/shakespeare/kinglear.txt")
