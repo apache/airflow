@@ -295,6 +295,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-openapi-spec-fab                                 | Generate the FastAPI API spec for FAB                  | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| generate-openapi-spec-keycloak                            | Generate the FastAPI API spec for Keycloak             | *       |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-pypi-readme                                      | Generate PyPI README                                   |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-tasksdk-datamodels                               | Generate Datamodels for TaskSDK client                 | *       |

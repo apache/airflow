@@ -219,6 +219,8 @@ DESTINATION_LOCATIONS = [
     "s3://staging-docs-airflow-apache-org/docs/",
 ]
 
+PACKAGES_METADATA_EXCLUDE_NAMES = ["docker-stack", "apache-airflow-providers"]
+
 
 @clearable_cache
 def all_selective_core_test_types() -> tuple[str, ...]:
@@ -760,7 +762,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     },
     {
         "python-version": "3.10",
-        "airflow-version": "3.0.3",
+        "airflow-version": "3.0.4",
         "remove-providers": "",
         "run-tests": "true",
     },

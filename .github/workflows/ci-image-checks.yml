@@ -303,7 +303,7 @@ jobs:
 
   publish-docs:
     timeout-minutes: 150
-    name: "Publish documentation"
+    name: "Publish documentation and validate versions"
     permissions:
       id-token: write
       contents: read
@@ -317,9 +317,6 @@ jobs:
       INCLUDE_SUCCESS_OUTPUTS: "${{ inputs.include-success-outputs }}"
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       VERBOSE: "true"
-    if: >
-      inputs.canary-run == 'true' &&
-      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -363,6 +360,11 @@ jobs:
         run: breeze release-management add-back-references docker-stack
       - name: "Generate back references for helm-chart"
         run: breeze release-management add-back-references helm-chart
+      - name: "Validate published doc versions"
+        id: validate-docs-versions
+        run: cd ./dev/breeze && uv run ./src/airflow_breeze/utils/docs_version_validation.py
+        env:
+          AIRFLOW_SITE_DIRECTORY: /mnt/airflow-site/airflow-site
       - name: Install AWS CLI v2
         run: |
           curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
@@ -370,14 +372,23 @@ jobs:
           rm /tmp/awscliv2.zip
           sudo /tmp/aws/install --update
           rm -rf /tmp/aws/
+        if: >
+          inputs.canary-run == 'true' &&
+          (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@010d0da01d0b5a38af31e9c3470dbfdabdecca3a  # v4.0.1
         with:
           aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-central-1
+        if: >
+          inputs.canary-run == 'true' &&
+          (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
       - name: "Upload documentation to AWS S3"
         run: aws s3 sync --delete ./generated/_build s3://apache-airflow-docs
+        if: >
+          inputs.canary-run == 'true' &&
+          (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
 
   test-python-api-client:
     timeout-minutes: 60
