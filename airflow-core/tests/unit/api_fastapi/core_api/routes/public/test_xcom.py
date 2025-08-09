@@ -369,7 +369,7 @@ class TestGetXComEntries(TestXComEndpoint):
         self._create_xcom_entries(TEST_DAG_ID, run_id, logical_date_parsed, TEST_TASK_ID, mapped_ti=True)
         response = test_client.get(
             "/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
-            params={"xcom_key": key} if key is not None else None,
+            params={"xcom_key_pattern": key} if key is not None else None,
         )
 
         assert response.status_code == 200

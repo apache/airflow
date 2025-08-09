@@ -26,7 +26,18 @@ from sqlalchemy.orm import joinedload
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run_or_latest_version
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
-from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
+from airflow.api_fastapi.common.parameters import (
+    FilterParam,
+    QueryLimit,
+    QueryOffset,
+    QueryXComDagDisplayNamePatternSearch,
+    QueryXComKeyPatternSearch,
+    QueryXComRunIdPatternSearch,
+    QueryXComTaskIdPatternSearch,
+    RangeFilter,
+    datetime_range_filter_factory,
+    filter_param_factory,
+)
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.xcom import (
     XComCollectionResponse,
@@ -40,6 +51,7 @@ from airflow.api_fastapi.core_api.security import ReadableXComFilterDep, require
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import TaskNotFound
 from airflow.models import DagRun as DR
+from airflow.models.dag import DagModel
 from airflow.models.xcom import XComModel
 
 xcom_router = AirflowRouter(
@@ -127,8 +139,16 @@ def get_xcom_entries(
     offset: QueryOffset,
     readable_xcom_filter: ReadableXComFilterDep,
     session: SessionDep,
-    xcom_key: Annotated[str | None, Query()] = None,
-    map_index: Annotated[int | None, Query(ge=-1)] = None,
+    xcom_key_pattern: QueryXComKeyPatternSearch,
+    dag_display_name_pattern: QueryXComDagDisplayNamePatternSearch,
+    run_id_pattern: QueryXComRunIdPatternSearch,
+    task_id_pattern: QueryXComTaskIdPatternSearch,
+    map_index: Annotated[
+        FilterParam[int | None],
+        Depends(filter_param_factory(XComModel.map_index, int | None, filter_name="map_index")),
+    ],
+    logical_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", DR))],
+    run_after_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", DR))],
 ) -> XComCollectionResponse:
     """
     Get all XCom entries.
@@ -138,22 +158,30 @@ def get_xcom_entries(
     query = select(XComModel)
     if dag_id != "~":
         query = query.where(XComModel.dag_id == dag_id)
-    query = query.join(DR, and_(XComModel.dag_id == DR.dag_id, XComModel.run_id == DR.run_id)).options(
-        joinedload(XComModel.dag_run).joinedload(DR.dag_model)
+    query = (
+        query.join(DR, and_(XComModel.dag_id == DR.dag_id, XComModel.run_id == DR.run_id))
+        .join(DagModel, DR.dag_id == DagModel.dag_id)
+        .options(joinedload(XComModel.dag_run).joinedload(DR.dag_model))
     )
 
     if task_id != "~":
         query = query.where(XComModel.task_id == task_id)
+
     if dag_run_id != "~":
         query = query.where(DR.run_id == dag_run_id)
-    if map_index is not None:
-        query = query.where(XComModel.map_index == map_index)
-    if xcom_key is not None:
-        query = query.where(XComModel.key == xcom_key)
 
     query, total_entries = paginated_select(
         statement=query,
-        filters=[readable_xcom_filter],
+        filters=[
+            readable_xcom_filter,
+            xcom_key_pattern,
+            dag_display_name_pattern,
+            run_id_pattern,
+            task_id_pattern,
+            map_index,
+            logical_date_range,
+            run_after_range,
+        ],
         offset=offset,
         limit=limit,
         session=session,
