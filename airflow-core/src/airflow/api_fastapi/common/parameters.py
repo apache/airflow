@@ -34,7 +34,7 @@ from typing import (
 from fastapi import Depends, HTTPException, Query, status
 from pendulum.parsing.exceptions import ParserError
 from pydantic import AfterValidator, BaseModel, NonNegativeInt
-from sqlalchemy import Column, and_, case, func, not_, or_, select
+from sqlalchemy import Column, String, and_, case, func, not_, or_, select
 from sqlalchemy.inspection import inspect
 
 from airflow._shared.timezones import timezone
@@ -605,6 +605,65 @@ QueryDagIdPatternSearchWithNone = Annotated[
 ]
 QueryTagsFilter = Annotated[_TagsFilter, Depends(_TagsFilter.depends)]
 QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter.depends)]
+
+
+class _HasAssetScheduleFilter(BaseParam[bool]):
+    """Filter DAGs that have asset-based scheduling."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+
+        if self.value:
+            # Filter DAGs that have asset-based scheduling
+            return select.where(
+                and_(
+                    DagModel.asset_expression.is_not(None),
+                    func.cast(DagModel.asset_expression, String) != "null",
+                )
+            )
+        # Filter DAGs that do NOT have asset-based scheduling
+        return select.where(
+            or_(DagModel.asset_expression.is_(None), func.cast(DagModel.asset_expression, String) == "null")
+        )
+
+    @classmethod
+    def depends(
+        cls,
+        has_asset_schedule: bool | None = Query(None, description="Filter DAGs with asset-based scheduling"),
+    ) -> _HasAssetScheduleFilter:
+        return cls().set_value(has_asset_schedule)
+
+
+class _AssetDependencyFilter(BaseParam[str]):
+    """Filter DAGs by specific asset dependencies."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+
+        # Join with DagScheduleAssetReference and AssetModel to filter by asset name/URI
+        select = select.join(
+            DagScheduleAssetReference, DagModel.dag_id == DagScheduleAssetReference.dag_id, isouter=False
+        ).join(AssetModel, DagScheduleAssetReference.asset_id == AssetModel.id, isouter=False)
+
+        # Filter by asset name or URI containing the search term
+        return select.where(
+            or_(AssetModel.name.ilike(f"%{self.value}%"), AssetModel.uri.ilike(f"%{self.value}%"))
+        )
+
+    @classmethod
+    def depends(
+        cls,
+        asset_dependency: str | None = Query(
+            None, description="Filter DAGs by asset dependency (name or URI)"
+        ),
+    ) -> _AssetDependencyFilter:
+        return cls().set_value(asset_dependency)
+
+
+QueryHasAssetScheduleFilter = Annotated[_HasAssetScheduleFilter, Depends(_HasAssetScheduleFilter.depends)]
+QueryAssetDependencyFilter = Annotated[_AssetDependencyFilter, Depends(_AssetDependencyFilter.depends)]
 
 # DagRun
 QueryLastDagRunStateFilter = Annotated[
