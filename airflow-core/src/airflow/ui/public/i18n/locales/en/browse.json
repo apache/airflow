@@ -10,6 +10,19 @@
       "user": "User",
       "when": "When"
     },
+    "filters": {
+      "after": "After",
+      "before": "Before",
+      "clearAll": "Clear All",
+      "dagId": "DAG ID",
+      "eventType": "Event Type",
+      "filters": "Filters",
+      "mapIndex": "Map Index",
+      "runId": "Run ID",
+      "taskId": "Task ID",
+      "tryNumber": "Try Number",
+      "user": "User"
+    },
     "title": "Audit Log"
   },
   "xcom": {
