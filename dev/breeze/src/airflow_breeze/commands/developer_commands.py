@@ -96,6 +96,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_ALLOWED_EXECUTOR,
     DEFAULT_CELERY_BROKER,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    DEFAULT_TEMPLATE_SEARCHPATH,
     GITHUB_REPO_BRANCH_PATTERN,
     MOUNT_ALL,
     START_AIRFLOW_ALLOWED_EXECUTORS,
@@ -498,6 +499,15 @@ option_auth_manager_start_airflow = click.option(
     show_default=True,
 )
 
+option_template_searchpath = click.option(
+    "--template-searchpath",
+    type=str,
+    help="Specify the template search path to use inside Airflow.",
+    default=DEFAULT_TEMPLATE_SEARCHPATH,
+    envvar="AIRFLOW__CORE__TEMPLATE_SEARCHPATH",
+    show_default=True,
+)
+
 
 @main.command(name="start-airflow")
 @click.option(
@@ -557,6 +567,7 @@ option_auth_manager_start_airflow = click.option(
 @option_allow_pre_releases
 @option_use_distributions_from_dist
 @option_verbose
+@option_template_searchpath
 def start_airflow(
     airflow_constraints_mode: str,
     airflow_constraints_location: str,
@@ -602,6 +613,7 @@ def start_airflow(
     use_distributions_from_dist: bool,
     use_uv: bool,
     uv_http_timeout: int,
+    template_searchpath: str,
 ):
     """
     Enter breeze environment and starts all Airflow components in the tmux session.
@@ -675,6 +687,7 @@ def start_airflow(
         use_distributions_from_dist=use_distributions_from_dist,
         use_uv=use_uv,
         uv_http_timeout=uv_http_timeout,
+        template_searchpath=template_searchpath,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     result = enter_shell(shell_params=shell_params)
