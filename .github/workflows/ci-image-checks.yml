@@ -104,6 +104,14 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to use uv to build the image (true/false)"
         required: true
         type: string
+      source-head-repo:
+        description: "The source head repository to use for back-references"
+        default: "apache/airflow"
+        type: string
+      source-head-ref:
+        description: "The source head ref to use for back-references"
+        default: "main"
+        type: string
     secrets:
       DOCS_AWS_ACCESS_KEY_ID:
         required: true
@@ -317,6 +325,8 @@ jobs:
       INCLUDE_SUCCESS_OUTPUTS: "${{ inputs.include-success-outputs }}"
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       VERBOSE: "true"
+      HEAD_REPO: "${{ inputs.source-head-repo }}"
+      HEAD_REF: "${{ inputs.source-head-ref }}"
     steps:
       - name: "Cleanup repo"
         shell: bash
