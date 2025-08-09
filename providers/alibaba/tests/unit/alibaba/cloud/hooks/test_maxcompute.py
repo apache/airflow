@@ -70,7 +70,7 @@ class TestMaxComputeHook:
 
         assert instance == mock_instance
 
-        assert mock_client.run_sql.asssert_called_once_with(
+        assert mock_client.run_sql.assert_called_once_with(
             sql=sql,
             priority=priority,
             running_cluster=running_cluster,
