@@ -1,0 +1,239 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from __future__ import annotations
+
+import functools
+from collections.abc import Iterable, Callable, Mapping
+from contextlib import closing
+from functools import cached_property
+from typing import Any
+from urllib.parse import quote
+
+from adbc_driver_manager.dbapi import Connection, connect
+from pyarrow import Table
+
+from airflow.providers.common.sql.dialects.dialect import Dialect
+from airflow.providers.common.sql.hooks.sql import DbApiHook, T
+
+
+def fetch_all_handler(cursor) -> list[tuple] | None:
+    """Return results for DbApiHook.run()."""
+    if not hasattr(cursor, "description"):
+        raise RuntimeError(
+            "The database we interact with does not support DBAPI 2.0. Use operator and "
+            "handlers that are specifically designed for your database."
+        )
+    if cursor.description is not None:
+        return cursor.fetch_arrow_table().to_pylist()
+    return None
+
+
+# https://arrow.apache.org/adbc/current/python/api/adbc_driver_manager.html
+# https://arrow.apache.org/docs/python/
+class AdbcHook(DbApiHook):
+    """
+    General hook for ADBC access.
+    """
+
+    conn_name_attr = "adbc_conn_id"
+    default_conn_name = "adbc_default"
+    conn_type = "adbc"
+    hook_name = "ADBC Connection"
+    supports_autocommit = True
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Get custom field behaviour."""
+        return {
+            "hidden_fields": ["port", "schema"],
+            "relabeling": {"host": "Connection URL"},
+        }
+
+    @functools.lru_cache
+    def _driver_path(self) -> str | None:
+        import pathlib
+        import sys
+
+        import importlib_resources
+
+        driver = self.driver
+
+        if driver:
+            # Wheels bundle the shared library
+            root = importlib_resources.files(driver)
+            # The filename is always the same regardless of platform
+            entrypoint = root.joinpath(f"lib{driver}.so")
+            if entrypoint.is_file():
+                return str(entrypoint)
+
+            # Search sys.prefix + '/lib' (Unix, Conda on Unix)
+            root = pathlib.Path(sys.prefix)
+            for filename in (f"lib{driver}.so", f"lib{driver}.dylib"):
+                entrypoint = root.joinpath("lib", filename)
+                if entrypoint.is_file():
+                    return str(entrypoint)
+
+            # Conda on Windows
+            entrypoint = root.joinpath("bin", f"{driver}.dll")
+            if entrypoint.is_file():
+                return str(entrypoint)
+
+            # Let the driver manager fall back to (DY)LD_LIBRARY_PATH/PATH
+            # (It will insert 'lib', 'so', etc. as needed)
+            return driver
+        return None
+
+    @cached_property
+    def uri(self) -> str:
+        uri = f"{self.dialect_name.lower().replace('_', '-')}://"
+        host = self.connection.host
+
+        if host and "://" in host:
+            protocol, host = host.split("://", 1)
+        else:
+            protocol, host = None, host
+
+        if protocol:
+            uri += f"{protocol}://"
+
+        authority_block = ""
+        if self.connection.login is not None:
+            authority_block += quote(self.connection.login, safe="")
+
+        if self.connection.password is not None:
+            authority_block += ":" + quote(self.connection.password, safe="")
+
+        if authority_block > "":
+            authority_block += "@"
+
+            uri += authority_block
+
+        host_block = ""
+        if host:
+            host_block += quote(host, safe="")
+
+        if self.connection.port:
+            if host_block == "" and authority_block == "":
+                host_block += f"@:{self.connection.port}"
+            else:
+                host_block += f":{self.connection.port}"
+
+        if self.connection.schema:
+            host_block += f"/{quote(self.connection.schema, safe='')}"
+
+        uri += host_block
+        return uri
+
+    @cached_property
+    def driver(self) -> str:
+        return f"adbc_driver_{self.dialect_name}"
+
+    @cached_property
+    def entrypoint(self) -> str | None:
+        return self.connection_extra_lower.get("entrypoint")
+
+    @cached_property
+    def db_kwargs(self) -> dict:
+        return {**{"uri": self.uri}, **self.connection_extra_lower.get("db_kwargs", {})}
+
+    @cached_property
+    def conn_kwargs(self) -> dict:
+        return self.connection_extra_lower.get("conn_kwargs", {})
+
+    @cached_property
+    def dialect_name(self) -> str:
+        return self.connection_extra_lower["dialect"]
+
+    def get_conn(self) -> Connection:
+        return connect(
+            driver=self._driver_path(),
+            entrypoint=self.entrypoint,
+            db_kwargs=self.db_kwargs,
+            conn_kwargs=self.conn_kwargs,
+            autocommit=False,
+        )
+
+    def get_records(
+        self,
+        sql: str | list[str],
+        parameters: Iterable | Mapping[str, Any] | None = None,
+        handler: Callable[[Any], T] = fetch_all_handler,
+    ) -> Any:
+        """
+        Execute the sql and return a set of records.
+
+        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
+        :param parameters: The parameters to render the SQL query with.
+        :param handler: The result handler which is called with the result of each statement.
+        """
+        return self.run(sql=sql, parameters=parameters, handler=handler)
+
+    def insert_rows(
+        self,
+        table,
+        rows,
+        target_fields=None,
+        commit_every=1000,
+        replace=False,
+        *,
+        executemany=False,
+        fast_executemany=False,
+        autocommit=False,
+        **kwargs,
+    ):
+        """
+        Insert a collection of tuples into a table.
+
+        Rows are inserted in chunks, each chunk (of size ``commit_every``) is
+        done in a new transaction.
+
+        :param table: Name of the target table
+        :param rows: The rows to insert into the table
+        :param target_fields: The names of the columns to fill in the table
+        :param commit_every: The maximum number of rows to insert in one
+            transaction. Set to 0 to insert all rows in one transaction.
+        :param replace: Whether to replace instead of insert
+        :param executemany: If True, all rows are inserted at once in
+            chunks defined by the commit_every parameter. This only works if all rows
+            have same number of column names, but leads to better performance.
+        :param fast_executemany: If True, the `fast_executemany` parameter will be set on the
+            cursor used by `executemany` which leads to better performance, if supported by driver.
+        :param autocommit: What to set the connection's autocommit setting to
+            before executing the query.
+        """
+        with self._create_autocommit_connection(autocommit) as conn:
+            conn.commit()
+
+            table_name, schema_name = Dialect.extract_schema_from_table(table)
+
+            self.log.info("target fields: %s", target_fields)
+
+            with closing(conn.cursor()) as cur:
+                schema = conn.adbc_get_table_schema(
+                    table_name=table_name,
+                    db_schema_filter=schema_name,
+                )
+                data = Table.from_arrays(list(zip(*rows)), schema=schema)
+                cur.adbc_ingest(
+                    table_name=table_name,
+                    db_schema_name=schema_name,
+                    data=data,
+                    mode="append",
+                )
+
+            self.log.info("Done loading. Loaded a total of %s rows into %s", data.num_rows, table)
