@@ -282,6 +282,37 @@ class TestCommandFactory:
                         assert arg.kwargs["type"] == test_arg[1]["type"]
 
 
+class TestVariablesCLI:
+    def test_variables_import_help_message_consistency(self):
+        """
+        Test that ARG_VAR_IMPORT help message accurately reflects supported file formats.
+
+        This test ensures that when new file formats are added to FILE_PARSERS,
+        developers remember to update the CLI help message accordingly.
+        """
+        from airflow.cli.cli_config import ARG_VAR_IMPORT
+        from airflow.secrets.local_filesystem import FILE_PARSERS
+
+        # Get actually supported formats
+        supported_formats = set(FILE_PARSERS.keys())
+
+        # Check each supported format is mentioned in help as .ext
+        help_text = ARG_VAR_IMPORT.kwargs["help"].lower()
+        missing_in_help = set()
+
+        for fmt in supported_formats:
+            if f".{fmt}" not in help_text:
+                missing_in_help.add(fmt)
+
+        assert not missing_in_help, (
+            f"CLI help message for 'airflow variables import' is missing supported formats.\n"
+            f"Supported formats: {sorted(supported_formats)}\n"
+            f"Missing from help: {sorted(missing_in_help)}\n"
+            f"Help message: '{ARG_VAR_IMPORT.kwargs['help']}'\n"
+            f"Please update ARG_VAR_IMPORT help message in cli_config.py to include: {', '.join([f'.{fmt}' for fmt in sorted(missing_in_help)])}"
+        )
+
+
 class TestCliConfigMethods:
     def test_merge_commands(self, no_op_method):
         """Test the merge_commands method."""

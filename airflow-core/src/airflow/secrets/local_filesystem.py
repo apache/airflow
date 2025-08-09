@@ -176,9 +176,9 @@ def _parse_secret_file(file_path: str) -> dict[str, Any]:
     ext = Path(file_path).suffix.lstrip(".").lower()
 
     if ext not in FILE_PARSERS:
+        extensions = " ".join([f".{ext}" for ext in sorted(FILE_PARSERS.keys())])
         raise AirflowUnsupportedFileTypeException(
-            "Unsupported file format. The file must have one of the following extensions: "
-            ".env .json .yaml .yml"
+            f"Unsupported file format. The file must have one of the following extensions: {extensions}"
         )
 
     secrets, parse_errors = FILE_PARSERS[ext](file_path)
