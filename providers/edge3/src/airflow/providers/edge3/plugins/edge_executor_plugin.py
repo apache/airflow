@@ -241,20 +241,19 @@ class EdgeExecutorPlugin(AirflowPlugin):
                     "destination": "nav",
                     "url_route": "edge_worker",
                     "category": "admin",
-                },
-                {
-                    "name": "Edge Jobs",
-                    "bundle_url": "/edge_worker/static/main.umd.cjs",
-                    "destination": "nav",
-                    "url_route": "edge_jobs",
-                    "category": "admin",
+                    "icon": "/edge_worker/res/cloud-computer.svg",
+                    "icon_dark_mode": "/edge_worker/res/cloud-computer-dark.svg",
                 },
             ]
-            appbuilder_menu_items = [  # TODO should be menu_links ???
+            external_views = [
                 {
                     "name": "Edge Worker API docs",
                     "href": "/edge_worker/docs",
+                    "destination": "nav",
                     "category": "docs",
+                    "icon": "/edge_worker/res/cloud-computer.svg",
+                    "icon_dark_mode": "/edge_worker/res/cloud-computer-dark.svg",
+                    "url_route": "edge_worker_api_docs",
                 }
             ]
         if AIRFLOW_V_3_0_PLUS:
