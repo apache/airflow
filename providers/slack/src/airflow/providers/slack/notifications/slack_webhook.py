@@ -86,12 +86,28 @@ class SlackWebhookNotifier(BaseNotifier):
 
     def notify(self, context):
         """Send a message to a Slack Incoming Webhook."""
-        self.hook.send(
+        resp = self.hook.send(
             text=self.text,
             blocks=self.blocks,
             unfurl_links=self.unfurl_links,
             unfurl_media=self.unfurl_media,
             attachments=self.attachments,
+        )
+        self.log.debug(
+            "Slack webhook notification sent using notify(): %s %s", resp.status_code, resp.api_url
+        )
+
+    async def async_notify(self, context):
+        """Send a message to a Slack Incoming Webhook (async)."""
+        resp = await self.hook.async_send(
+            text=self.text,
+            blocks=self.blocks,
+            unfurl_links=self.unfurl_links,
+            unfurl_media=self.unfurl_media,
+            attachments=self.attachments,
+        )
+        self.log.debug(
+            "Slack webhook notification sent using notify_async(): %s %s", resp.status_code, resp.api_url
         )
 
 
