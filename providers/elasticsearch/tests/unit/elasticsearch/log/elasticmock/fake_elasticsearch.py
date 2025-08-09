@@ -479,7 +479,6 @@ class FakeElasticsearch(Elasticsearch):
         # TODO: support allow_no_indices query parameter
         matches = set()
         for target in targets:
-            print(f"Loop over:::target = {target}")
             if target in ("_all", ""):
                 matches.update(self.__documents_dict)
             elif "*" in target:
@@ -499,7 +498,6 @@ class FakeElasticsearch(Elasticsearch):
         else:
             # Is it the correct exception to use ?
             raise ValueError("Invalid param 'index'")
-
         generator = (target for index in searchable_indexes for target in index.split(","))
         return list(self._validate_search_targets(generator, query=query))
 

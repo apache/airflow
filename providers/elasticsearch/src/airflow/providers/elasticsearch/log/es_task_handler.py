@@ -22,15 +22,17 @@ import inspect
 import json
 import logging
 import os
-import pathlib
 import shutil
 import sys
 import time
 from collections import defaultdict
 from collections.abc import Callable
 from operator import attrgetter
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
 from urllib.parse import quote, urlparse
+
+import attrs
 
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
 import elasticsearch
@@ -44,7 +46,7 @@ from airflow.models.dagrun import DagRun
 from airflow.providers.elasticsearch.log.es_json_formatter import (
     ElasticsearchJSONFormatter,
 )
-from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit
+from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit, resolve_nested
 from airflow.providers.elasticsearch.version_compat import AIRFLOW_V_3_0_PLUS, EsLogMsgType
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
@@ -56,7 +58,8 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
-    from airflow.utils.log.file_task_handler import LogMetadata
+    from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
+    from airflow.utils.log.file_task_handler import LogMessages, LogMetadata, LogSourceInfo
 
 
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
@@ -108,6 +111,21 @@ def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
         val.try_number = ti.try_number
         return val
     raise AirflowException(f"Could not find TaskInstance for {ti}")
+
+
+def getattr_nested(obj, item, default):
+    """
+    Get item from obj but return default if not found.
+
+    E.g. calling ``getattr_nested(a, 'b.c', "NA")`` will return
+    ``a.b.c`` if such a value exists, and "NA" otherwise.
+
+    :meta private:
+    """
+    try:
+        return attrgetter(item)(obj)
+    except AttributeError:
+        return default
 
 
 class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin):
@@ -189,6 +207,16 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         self.handler: logging.FileHandler | logging.StreamHandler | None = None
         self._doc_type_map: dict[Any, Any] = {}
         self._doc_type: list[Any] = []
+        self.io = ElasticsearchRemoteLogIO(
+            host=self.host,
+            target_index=self.target_index,
+            write_stdout=self.write_stdout,
+            write_to_es=self.write_to_es,
+            offset_field=self.offset_field,
+            host_field=self.host_field,
+            base_log_folder=base_log_folder,
+            delete_local_copy=self.delete_local_copy,
+        )
 
     @staticmethod
     def format_url(host: str) -> str:
@@ -211,19 +239,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             raise ValueError(f"'{host}' is not a valid URL.")
 
         return host
-
-    def _get_index_patterns(self, ti: TaskInstance | None) -> str:
-        """
-        Get index patterns by calling index_patterns_callable, if provided, or the configured index_patterns.
-
-        :param ti: A TaskInstance object or None.
-        """
-        if self.index_patterns_callable:
-            self.log.debug("Using index_patterns_callable: %s", self.index_patterns_callable)
-            index_pattern_callable_obj = import_string(self.index_patterns_callable)
-            return index_pattern_callable_obj(ti)
-        self.log.debug("Using index_patterns: %s", self.index_patterns)
-        return self.index_patterns
 
     def _render_log_id(self, ti: TaskInstance | TaskInstanceKey, try_number: int) -> str:
         from airflow.models.taskinstance import TaskInstanceKey
@@ -285,13 +300,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             return ""
         return value.strftime("%Y_%m_%dT%H_%M_%S_%f")
 
-    def _group_logs_by_host(self, response: ElasticSearchResponse) -> dict[str, list[Hit]]:
-        grouped_logs = defaultdict(list)
-        for hit in response:
-            key = getattr_nested(hit, self.host_field, None) or self.host
-            grouped_logs[key].append(hit)
-        return grouped_logs
-
     def _read_grouped_logs(self):
         return True
 
@@ -316,9 +324,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         offset = metadata["offset"]
         log_id = self._render_log_id(ti, try_number)
-        response = self._es_read(log_id, offset, ti)
+        response = self.io._es_read(log_id, offset, ti)
+        # TODO: Can we skip group logs by host ?
         if response is not None and response.hits:
-            logs_by_host = self._group_logs_by_host(response)
+            logs_by_host = self.io._group_logs_by_host(response)
             next_offset = attrgetter(self.offset_field)(response[-1])
         else:
             logs_by_host = None
@@ -413,45 +422,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # Just a safe-guard to preserve backwards-compatibility
         return hit.message
 
-    def _es_read(self, log_id: str, offset: int | str, ti: TaskInstance) -> ElasticSearchResponse | None:
-        """
-        Return the logs matching log_id in Elasticsearch and next offset or ''.
-
-        :param log_id: the log_id of the log to read.
-        :param offset: the offset start to read log from.
-        :param ti: the task instance object
-
-        :meta private:
-        """
-        query: dict[Any, Any] = {
-            "bool": {
-                "filter": [{"range": {self.offset_field: {"gt": int(offset)}}}],
-                "must": [{"match_phrase": {"log_id": log_id}}],
-            }
-        }
-
-        index_patterns = self._get_index_patterns(ti)
-        try:
-            max_log_line = self.client.count(index=index_patterns, query=query)["count"]
-        except NotFoundError as e:
-            self.log.exception("The target index pattern %s does not exist", index_patterns)
-            raise e
-
-        if max_log_line != 0:
-            try:
-                res = self.client.search(
-                    index=index_patterns,
-                    query=query,
-                    sort=[self.offset_field],
-                    size=self.MAX_LINE_PER_PAGE,
-                    from_=self.MAX_LINE_PER_PAGE * self.PAGE,
-                )
-                return ElasticSearchResponse(self, res)
-            except Exception as err:
-                self.log.exception("Could not read log with log_id: %s. Exception: %s", log_id, err)
-
-        return None
-
     def emit(self, record):
         if self.handler:
             setattr(record, self.offset_field, int(time.time() * (10**9)))
@@ -459,6 +429,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
     def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None:
         """
+        TODO: This API should be removed in airflow 3.
+
         Provide task_instance context to airflow task handler.
 
         :param ti: task instance object
@@ -504,6 +476,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # calling close method. Here we check if logger is already
         # closed to prevent uploading the log to remote storage multiple
         # times when `logging.shutdown` is called.
+        # TODO: This API should be simplified since Airflow 3 no longer requires this API for writing log to ES
         if self.closed:
             return
 
@@ -529,18 +502,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         if self.write_stdout:
             self.handler.close()
             sys.stdout = sys.__stdout__
-
-        if self.write_to_es and not self.write_stdout:
-            full_path = self.handler.baseFilename  # type: ignore[union-attr]
-            log_relative_path = pathlib.Path(full_path).relative_to(self.local_base).as_posix()
-            local_loc = os.path.join(self.local_base, log_relative_path)
-            if os.path.exists(local_loc):
-                # read log and remove old logs to get just the latest additions
-                log = pathlib.Path(local_loc).read_text()
-                log_lines = self._parse_raw_log(log)
-                success = self._write_to_es(log_lines)
-                if success and self.delete_local_copy:
-                    shutil.rmtree(os.path.dirname(local_loc))
 
         super().close()
 
@@ -568,38 +529,12 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         """Whether we can support external links."""
         return bool(self.frontend)
 
-    def _resolve_nested(self, hit: dict[Any, Any], parent_class=None) -> type[Hit]:
-        """
-        Resolve nested hits from Elasticsearch by iteratively navigating the `_nested` field.
-
-        The result is used to fetch the appropriate document class to handle the hit.
-
-        This method can be used with nested Elasticsearch fields which are structured
-        as dictionaries with "field" and "_nested" keys.
-        """
-        doc_class = Hit
-
-        nested_path: list[str] = []
-        nesting = hit["_nested"]
-        while nesting and "field" in nesting:
-            nested_path.append(nesting["field"])
-            nesting = nesting.get("_nested")
-        nested_path_str = ".".join(nested_path)
-
-        if hasattr(parent_class, "_index"):
-            nested_field = parent_class._index.resolve_field(nested_path_str)
-
-        if nested_field is not None:
-            return nested_field._doc_class
-
-        return doc_class
-
     def _get_result(self, hit: dict[Any, Any], parent_class=None) -> Hit:
         """
         Process a hit (i.e., a result) from an Elasticsearch response and transform it into a class instance.
 
         The transformation depends on the contents of the hit. If the document in hit contains a nested field,
-        the '_resolve_nested' method is used to determine the appropriate class (based on the nested path).
+        the 'resolve_nested' method is used to determine the appropriate class (based on the nested path).
         If the hit has a document type that is present in the '_doc_type_map', the corresponding class is
         used. If not, the method iterates over the '_doc_type' classes and uses the first one whose '_matches'
         method returns True for the hit.
@@ -609,41 +544,12 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         Finally, the transformed hit is returned. If the determined class has a 'from_es' method, this is
         used to transform the hit
-
-        An example of the hit argument:
-
-        {'_id': 'jdeZT4kBjAZqZnexVUxk',
-         '_index': '.ds-filebeat-8.8.2-2023.07.09-000001',
-         '_score': 2.482621,
-         '_source': {'@timestamp': '2023-07-13T14:13:15.140Z',
-                     'asctime': '2023-07-09T07:47:43.907+0000',
-                     'container': {'id': 'airflow'},
-                     'dag_id': 'example_bash_operator',
-                     'ecs': {'version': '8.0.0'},
-                     'logical_date': '2023_07_09T07_47_32_000000',
-                     'filename': 'taskinstance.py',
-                     'input': {'type': 'log'},
-                     'levelname': 'INFO',
-                     'lineno': 1144,
-                     'log': {'file': {'path': "/opt/airflow/Documents/GitHub/airflow/logs/
-                     dag_id=example_bash_operator'/run_id=owen_run_run/
-                     task_id=run_after_loop/attempt=1.log"},
-                             'offset': 0},
-                     'log.offset': 1688888863907337472,
-                     'log_id': 'example_bash_operator-run_after_loop-owen_run_run--1-1',
-                     'message': 'Dependencies all met for dep_context=non-requeueable '
-                                'deps ti=<TaskInstance: '
-                                'example_bash_operator.run_after_loop owen_run_run '
-                                '[queued]>',
-                     'task_id': 'run_after_loop',
-                     'try_number': '1'},
-         '_type': '_doc'}
         """
         doc_class = Hit
         dt = hit.get("_type")
 
         if "_nested" in hit:
-            doc_class = self._resolve_nested(hit, parent_class)
+            doc_class = resolve_nested(hit, parent_class)
 
         elif dt in self._doc_type_map:
             doc_class = self._doc_type_map[dt]
@@ -661,13 +567,66 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         callback: type[Hit] | Callable[..., Any] = getattr(doc_class, "from_es", doc_class)
         return callback(hit)
 
-    def _parse_raw_log(self, log: str) -> list[dict[str, Any]]:
+
+@attrs.define(kw_only=True)
+class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
+    write_stdout: bool = False
+    delete_local_copy: bool = False
+    host: str = "http://localhost:9200"
+    host_field: str = "host"
+    target_index: str = "airflow-logs"
+    offset_field: str = "offset"
+    write_to_es: bool = False
+    base_log_folder: Path = attrs.field(converter=Path)
+
+    processors = ()
+
+    def __attrs_post_init__(self):
+        es_kwargs = get_es_kwargs_from_config()
+        self.client = elasticsearch.Elasticsearch(self.host, **es_kwargs)
+        self.index_patterns_callable = conf.get("elasticsearch", "index_patterns_callable", fallback="")
+        self.PAGE = 0
+        self.MAX_LINE_PER_PAGE = 1000
+        self.index_patterns: str = conf.get("elasticsearch", "index_patterns")
+        self._doc_type_map: dict[Any, Any] = {}
+        self._doc_type: list[Any] = []
+
+    def upload(self, path: os.PathLike | str, ti: RuntimeTI):
+        """Write the log to ElasticSearch."""
+        path = Path(path)
+
+        if path.is_absolute():
+            local_loc = path
+        else:
+            local_loc = self.base_log_folder.joinpath(path)
+
+        if local_loc.is_file() and self.write_stdout:
+            # Intentionally construct the log_id and offset field
+            log_lines = self._parse_raw_log(local_loc.read_text(), ti)
+            for line in log_lines:
+                sys.stdout.write(json.dumps(line) + "\n")
+                sys.stdout.flush()
+
+        if local_loc.is_file() and self.write_to_es:
+            log_lines = self._parse_raw_log(local_loc.read_text(), ti)
+            success = self._write_to_es(log_lines)
+            if success and self.delete_local_copy:
+                shutil.rmtree(os.path.dirname(local_loc))
+
+    def _parse_raw_log(self, log: str, ti: RuntimeTI) -> list[dict[str, Any]]:
         logs = log.split("\n")
         parsed_logs = []
+        offset = 1
         for line in logs:
             # Make sure line is not empty
             if line.strip():
-                parsed_logs.append(json.loads(line))
+                # construct log_id which is {dag_id}-{task_id}-{run_id}-{map_index}-{try_number}
+                # also construct the offset field (default is 'offset')
+                log_dict = json.loads(line)
+                log_id = f"{ti.dag_id}-{ti.task_id}-{ti.run_id}-{ti.map_index}-{ti.try_number}"
+                log_dict.update({"log_id": log_id, self.offset_field: offset})
+                offset += 1
+                parsed_logs.append(log_dict)
 
         return parsed_logs
 
@@ -686,17 +645,130 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             self.log.exception("Unable to insert logs into Elasticsearch. Reason: %s", str(e))
             return False
 
+    def read(self, relative_path: str, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages]:
+        log_id = f"{ti.dag_id}-{ti.task_id}-{ti.run_id}-{ti.map_index}-{ti.try_number}"
+        self.log.info("Reading log %s from Elasticsearch", log_id)
+        offset = 0
+        response = self._es_read(log_id, offset, ti)
+        if response is not None and response.hits:
+            logs_by_host = self._group_logs_by_host(response)
+        else:
+            logs_by_host = None
 
-def getattr_nested(obj, item, default):
-    """
-    Get item from obj but return default if not found.
+        if logs_by_host is None:
+            missing_log_message = (
+                f"*** Log {log_id} not found in Elasticsearch. "
+                "If your task started recently, please wait a moment and reload this page. "
+                "Otherwise, the logs for this task instance may have been removed."
+            )
+            return [], [missing_log_message]
 
-    E.g. calling ``getattr_nested(a, 'b.c', "NA")`` will return
-    ``a.b.c`` if such a value exists, and "NA" otherwise.
+        header = []
+        # Start log group
+        header.append("".join([host for host in logs_by_host.keys()]))
 
-    :meta private:
-    """
-    try:
-        return attrgetter(item)(obj)
-    except AttributeError:
-        return default
+        message = []
+        # Structured log messages
+        for hits in logs_by_host.values():
+            for hit in hits:
+                filtered = {k: v for k, v in hit.to_dict().items() if k.lower() in TASK_LOG_FIELDS}
+                message.append(json.dumps(filtered))
+
+        return header, message
+
+    def _es_read(self, log_id: str, offset: int | str, ti: RuntimeTI) -> ElasticSearchResponse | None:
+        """
+        Return the logs matching log_id in Elasticsearch and next offset or ''.
+
+        :param log_id: the log_id of the log to read.
+        :param offset: the offset start to read log from.
+        :param ti: the task instance object
+
+        :meta private:
+        """
+        query: dict[Any, Any] = {
+            "bool": {
+                "filter": [{"range": {self.offset_field: {"gt": int(offset)}}}],
+                "must": [{"match_phrase": {"log_id": log_id}}],
+            }
+        }
+
+        index_patterns = self._get_index_patterns(ti)
+        try:
+            max_log_line = self.client.count(index=index_patterns, query=query)["count"]
+        except NotFoundError as e:
+            self.log.exception("The target index pattern %s does not exist", index_patterns)
+            raise e
+
+        if max_log_line != 0:
+            try:
+                res = self.client.search(
+                    index=index_patterns,
+                    query=query,
+                    sort=[self.offset_field],
+                    size=self.MAX_LINE_PER_PAGE,
+                    from_=self.MAX_LINE_PER_PAGE * self.PAGE,
+                )
+                return ElasticSearchResponse(self, res)
+            except Exception as err:
+                self.log.exception("Could not read log with log_id: %s. Exception: %s", log_id, err)
+
+        return None
+
+    def _get_index_patterns(self, ti: RuntimeTI | None) -> str:
+        """
+        Get index patterns by calling index_patterns_callable, if provided, or the configured index_patterns.
+
+        :param ti: A TaskInstance object or None.
+        """
+        if self.index_patterns_callable:
+            self.log.debug("Using index_patterns_callable: %s", self.index_patterns_callable)
+            index_pattern_callable_obj = import_string(self.index_patterns_callable)
+            return index_pattern_callable_obj(ti)
+        self.log.debug("Using index_patterns: %s", self.index_patterns)
+        return self.index_patterns
+
+    def _group_logs_by_host(self, response: ElasticSearchResponse) -> dict[str, list[Hit]]:
+        grouped_logs = defaultdict(list)
+        for hit in response:
+            key = getattr_nested(hit, self.host_field, None) or self.host
+            grouped_logs[key].append(hit)
+        return grouped_logs
+
+    def _get_result(self, hit: dict[Any, Any], parent_class=None) -> Hit:
+        """
+        Process a hit (i.e., a result) from an Elasticsearch response and transform it into a class instance.
+
+        The transformation depends on the contents of the hit. If the document in hit contains a nested field,
+        the 'resolve_nested' method is used to determine the appropriate class (based on the nested path).
+        If the hit has a document type that is present in the '_doc_type_map', the corresponding class is
+        used. If not, the method iterates over the '_doc_type' classes and uses the first one whose '_matches'
+        method returns True for the hit.
+
+        If the hit contains any 'inner_hits', these are also processed into 'ElasticSearchResponse' instances
+        using the determined class.
+
+        Finally, the transformed hit is returned. If the determined class has a 'from_es' method, this is
+        used to transform the hit
+        """
+        doc_class = Hit
+        dt = hit.get("_type")
+
+        if "_nested" in hit:
+            doc_class = resolve_nested(hit, parent_class)
+
+        elif dt in self._doc_type_map:
+            doc_class = self._doc_type_map[dt]
+
+        else:
+            for doc_type in self._doc_type:
+                if hasattr(doc_type, "_matches") and doc_type._matches(hit):
+                    doc_class = doc_type
+                    break
+
+        for t in hit.get("inner_hits", ()):
+            hit["inner_hits"][t] = ElasticSearchResponse(self, hit["inner_hits"][t], doc_class=doc_class)
+
+        # callback should get the Hit class if "from_es" is not defined
+        callback: type[Hit] | Callable[..., Any] = getattr(doc_class, "from_es", doc_class)
+        return callback(hit)
