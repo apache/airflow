@@ -330,11 +330,11 @@ class KubernetesExecutor(BaseExecutor):
             while True:
                 results = self.result_queue.get_nowait()
                 try:
-                    key, state, pod_name, namespace, resource_version = results
+                    key, state, pod_name, namespace, resource_version, failure_details = results
                     last_resource_version[namespace] = resource_version
                     self.log.info("Changing state of %s to %s", results, state)
                     try:
-                        self._change_state(key, state, pod_name, namespace)
+                        self._change_state(key, state, pod_name, namespace, failure_details)
                     except Exception as e:
                         self.log.exception(
                             "Exception: %s when attempting to change state of %s to %s, re-queueing.",
@@ -412,10 +412,43 @@ class KubernetesExecutor(BaseExecutor):
         state: TaskInstanceState | str | None,
         pod_name: str,
         namespace: str,
+        failure_details: dict[str, Any] | None = None,
         session: Session = NEW_SESSION,
     ) -> None:
         if TYPE_CHECKING:
             assert self.kube_scheduler
+
+        if state == TaskInstanceState.FAILED:
+            # Use pre-collected failure details from the watcher to avoid additional API calls
+            if failure_details:
+                pod_status = failure_details.get("pod_status")
+                pod_reason = failure_details.get("pod_reason")
+                pod_message = failure_details.get("pod_message")
+                container_state = failure_details.get("container_state")
+                container_reason = failure_details.get("container_reason")
+                container_message = failure_details.get("container_message")
+                exit_code = failure_details.get("exit_code")
+
+                task_key_str = f"{key.dag_id}.{key.task_id}.{key.try_number}"
+                self.log.warning(
+                    "Task %s failed in pod %s/%s. Pod phase: %s, reason: %s, message: %s, "
+                    "container_state: %s, container_reason: %s, container_message: %s, exit_code: %s",
+                    task_key_str,
+                    namespace,
+                    pod_name,
+                    pod_status,
+                    pod_reason,
+                    pod_message,
+                    container_state,
+                    container_reason,
+                    container_message,
+                    exit_code,
+                )
+            else:
+                task_key_str = f"{key.dag_id}.{key.task_id}.{key.try_number}"
+                self.log.warning(
+                    "Task %s failed in pod %s/%s (no details available)", task_key_str, namespace, pod_name
+                )
 
         if state == ADOPTED:
             # When the task pod is adopted by another executor,
@@ -696,12 +729,12 @@ class KubernetesExecutor(BaseExecutor):
                 results = self.result_queue.get_nowait()
                 self.log.warning("Executor shutting down, flushing results=%s", results)
                 try:
-                    key, state, pod_name, namespace, resource_version = results
+                    key, state, pod_name, namespace, resource_version, failure_details = results
                     self.log.info(
                         "Changing state of %s to %s : resource_version=%d", results, state, resource_version
                     )
                     try:
-                        self._change_state(key, state, pod_name, namespace)
+                        self._change_state(key, state, pod_name, namespace, failure_details)
                     except Exception as e:
                         self.log.exception(
                             "Ignoring exception: %s when attempting to change state of %s to %s.",
