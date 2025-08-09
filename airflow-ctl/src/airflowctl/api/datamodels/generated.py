@@ -842,6 +842,16 @@ class TaskInstancesBatchBody(BaseModel):
     end_date_lte: Annotated[datetime | None, Field(title="End Date Lte")] = None
     duration_gte: Annotated[float | None, Field(title="Duration Gte")] = None
     duration_lte: Annotated[float | None, Field(title="Duration Lte")] = None
+    run_after_gt: Annotated[datetime | None, Field(title="Run After Gt")] = None
+    run_after_lt: Annotated[datetime | None, Field(title="Run After Lt")] = None
+    logical_date_gt: Annotated[datetime | None, Field(title="Logical Date Gt")] = None
+    logical_date_lt: Annotated[datetime | None, Field(title="Logical Date Lt")] = None
+    start_date_gt: Annotated[datetime | None, Field(title="Start Date Gt")] = None
+    start_date_lt: Annotated[datetime | None, Field(title="Start Date Lt")] = None
+    end_date_gt: Annotated[datetime | None, Field(title="End Date Gt")] = None
+    end_date_lt: Annotated[datetime | None, Field(title="End Date Lt")] = None
+    duration_gt: Annotated[float | None, Field(title="Duration Gt")] = None
+    duration_lt: Annotated[float | None, Field(title="Duration Lt")] = None
     pool: Annotated[list[str] | None, Field(title="Pool")] = None
     queue: Annotated[list[str] | None, Field(title="Queue")] = None
     executor: Annotated[list[str] | None, Field(title="Executor")] = None
@@ -1406,6 +1416,14 @@ class DAGRunsBatchBody(BaseModel):
     start_date_lte: Annotated[datetime | None, Field(title="Start Date Lte")] = None
     end_date_gte: Annotated[datetime | None, Field(title="End Date Gte")] = None
     end_date_lte: Annotated[datetime | None, Field(title="End Date Lte")] = None
+    run_after_gt: Annotated[datetime | None, Field(title="Run After Gt")] = None
+    run_after_lt: Annotated[datetime | None, Field(title="Run After Lt")] = None
+    logical_date_gt: Annotated[datetime | None, Field(title="Logical Date Gt")] = None
+    logical_date_lt: Annotated[datetime | None, Field(title="Logical Date Lt")] = None
+    start_date_gt: Annotated[datetime | None, Field(title="Start Date Gt")] = None
+    start_date_lt: Annotated[datetime | None, Field(title="Start Date Lt")] = None
+    end_date_gt: Annotated[datetime | None, Field(title="End Date Gt")] = None
+    end_date_lt: Annotated[datetime | None, Field(title="End Date Lt")] = None
 
 
 class DAGVersionCollectionResponse(BaseModel):
