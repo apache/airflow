@@ -19,7 +19,8 @@
   },
   "header": {
     "buttons": {
-      "dagDocs": "תיעוד DAG"
+      "advanced": "מתקדם",
+      "dagDocs": "תיעוד Dag"
     }
   },
   "logs": {
@@ -37,6 +38,11 @@
     "settings": "הגדרות רישום",
     "viewInExternal": "צפה ברישומים ב-{{name}} (ניסיון {{attempt}})",
     "warning": "WARNING"
+  },
+  "navigation": {
+    "jump": "קפיצה: Shift+{{arrow}}",
+    "navigation": "ניווט: {{arrow}}",
+    "toggleGroup": "החלפת קבוצה: רווח"
   },
   "overview": {
     "buttons": {
@@ -63,12 +69,12 @@
       "showGrid": "הצג רשת"
     },
     "dagRuns": {
-      "label": "מספר הרצות DAG"
+      "label": "מספר הרצות Dag"
     },
     "dependencies": {
       "label": "תלויות",
       "options": {
-        "allDagDependencies": "כל תלויות ה-DAG",
+        "allDagDependencies": "כל תלויות ה-Dag",
         "externalConditions": "תנאים חיצוניים",
         "onlyTasks": "משימות בלבד"
       },
@@ -82,11 +88,11 @@
   "parse": {
     "toaster": {
       "error": {
-        "description": "ניתוח ה-DAG נכשל. ייתכן שישנן בקשות ניתוח ממתינות.",
-        "title": "ניתוח מחדש של ה-DAG נכשל"
+        "description": "ניתוח ה-Dag נכשל. ייתכן שישנן בקשות ניתוח ממתינות.",
+        "title": "ניתוח מחדש של ה-Dag נכשל"
       },
       "success": {
-        "description": "ה-DAG יתנתח מחדש בקרוב.",
+        "description": "ה-Dag יתנתח מחדש בקרוב.",
         "title": "בקשת הניתוח מחדש נשלחה בהצלחה"
       }
     }
@@ -102,6 +108,7 @@
     "mappedTaskInstances_other": "מופעי משימות [{{count}}]",
     "overview": "סקירה כללית",
     "renderedTemplates": "תבניות מעובדות",
+    "requiredActions": "פעולות נדרשות",
     "runs": "הרצות",
     "taskInstances": "מופעי משימות",
     "tasks": "משימות",

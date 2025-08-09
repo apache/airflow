@@ -149,7 +149,7 @@ export const Events = () => {
   const [sort] = sorting;
   const { onClose, onOpen, open } = useDisclosure();
 
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-when";
+  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-when"];
 
   const { data, error, isFetching, isLoading } = useEventLogServiceGetEventLogs(
     {

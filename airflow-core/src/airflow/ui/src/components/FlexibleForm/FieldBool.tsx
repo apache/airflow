@@ -22,7 +22,7 @@ import type { FlexibleFormElementProps } from ".";
 import { Switch } from "../ui";
 
 export const FieldBool = ({ name }: FlexibleFormElementProps) => {
-  const { paramsDict, setParamsDict } = useParamStore();
+  const { disabled, paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
   const onCheck = (value: boolean) => {
     if (paramsDict[name]) {
@@ -36,6 +36,7 @@ export const FieldBool = ({ name }: FlexibleFormElementProps) => {
     <Switch
       checked={Boolean(param.value)}
       colorPalette="blue"
+      disabled={disabled}
       id={`element_${name}`}
       name={`element_${name}`}
       onCheckedChange={(event) => onCheck(event.checked)}

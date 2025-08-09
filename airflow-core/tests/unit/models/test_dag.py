@@ -34,6 +34,8 @@ import time_machine
 from sqlalchemy import inspect, select
 
 from airflow import settings
+from airflow._shared.timezones import timezone
+from airflow._shared.timezones.timezone import datetime as datetime_tz
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
@@ -68,7 +70,7 @@ from airflow.sdk import TaskGroup, setup, task as task_decorator, teardown
 from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
 from airflow.sdk.definitions._internal.templater import NativeEnvironment, SandboxedEnvironment
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
-from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
+from airflow.sdk.definitions.deadline import AsyncCallback, DeadlineAlert, DeadlineReference
 from airflow.sdk.definitions.param import Param
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.simple import (
@@ -76,11 +78,9 @@ from airflow.timetables.simple import (
     NullTimetable,
     OnceTimetable,
 )
-from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.timezone import datetime as datetime_tz
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -110,6 +110,11 @@ pytestmark = pytest.mark.db_test
 TEST_DATE = datetime_tz(2015, 1, 2, 0, 0)
 
 repo_root = Path(__file__).parents[2]
+
+
+async def empty_callback_for_deadline():
+    """Used in a number of tests to confirm that Deadlines and DeadlineAlerts function correctly."""
+    pass
 
 
 @pytest.fixture
@@ -1480,8 +1485,7 @@ class TestDag:
 
     def test_dag_test_basic(self):
         dag = DAG(dag_id="test_local_testing_conn_file", schedule=None, start_date=DEFAULT_DATE)
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+
         mock_object = mock.MagicMock()
 
         @task_decorator
@@ -1491,14 +1495,14 @@ class TestDag:
 
         with dag:
             check_task()
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
 
         dag.test()
         mock_object.assert_called_once()
 
     def test_dag_test_with_dependencies(self):
         dag = DAG(dag_id="test_local_testing_conn_file", schedule=None, start_date=DEFAULT_DATE)
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
         mock_object = mock.MagicMock()
 
         @task_decorator
@@ -1512,6 +1516,9 @@ class TestDag:
 
         with dag:
             check_task_2(check_task())
+
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
 
         dag.test()
         mock_object.assert_called_with("output of first task")
@@ -1538,8 +1545,6 @@ class TestDag:
 
         mock_task_object_1 = mock.MagicMock()
         mock_task_object_2 = mock.MagicMock()
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
 
         @task_decorator
         def check_task():
@@ -1553,7 +1558,8 @@ class TestDag:
 
         with dag:
             check_task_2(check_task())
-
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
         dr = dag.test()
 
         ti1 = dr.get_task_instance("check_task")
@@ -2023,7 +2029,7 @@ my_postgres_conn:
             deadline=DeadlineAlert(
                 reference=reference_type,
                 interval=interval,
-                callback=print,
+                callback=AsyncCallback(empty_callback_for_deadline),
             ),
         ) as dag:
             ...

@@ -15,6 +15,7 @@
   "backfill_other": "השלמות למפרע",
   "browse": {
     "auditLog": "יומן מערכת",
+    "requiredActions": "פעולות נדרשות",
     "xcoms": "XComs"
   },
   "collapseDetailsPanel": "כווץ לוח פרטים",
@@ -60,6 +61,7 @@
   },
   "dagRun_one": "הרצת Dag",
   "dagRun_other": "הרצת Dag",
+  "dagRunId": "מזהה הרצת Dag",
   "dagWarnings": "אזהרות/שגיאות Dag",
   "defaultToGraphView": "תצוגת גרף כברירת מחדל",
   "defaultToGridView": "תצוגת רשת כברירת מחדל",
@@ -155,9 +157,9 @@
   "selectLanguage": "בחר שפה",
   "showDetailsPanel": "הצג לוח פרטים",
   "source": {
-      "hide": "הסתר מקור",
-      "hotkey": "s",
-      "show": "הצג מקור"
+    "hide": "הסתר מקור",
+    "hotkey": "s",
+    "show": "הצג מקור"
   },
   "sourceAssetEvent_one": "אירוע נכס מקור",
   "sourceAssetEvent_other": "אירועי נכס מקור",

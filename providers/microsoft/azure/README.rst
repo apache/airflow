@@ -23,8 +23,9 @@
 
 Package ``apache-airflow-providers-microsoft-azure``
 
-Release: ``12.5.0``
+Release: ``12.6.1``
 
+Release Date: ``|PypiReleaseDate|``
 
 `Microsoft Azure <https://azure.microsoft.com/>`__
 
@@ -36,7 +37,7 @@ This is a provider package for ``microsoft.azure`` provider. All classes for thi
 are in ``airflow.providers.microsoft.azure`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.5.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.6.1/>`_.
 
 Installation
 ------------
@@ -63,7 +64,7 @@ PIP package                               Version required
 ``azure-keyvault-secrets``                ``>=4.1.0``
 ``azure-mgmt-datalake-store``             ``>=0.5.0``
 ``azure-mgmt-resource``                   ``>=2.2.0``
-``azure-storage-blob``                    ``>=12.14.0``
+``azure-storage-blob``                    ``>=12.26.0``
 ``azure-mgmt-storage``                    ``>=16.0.0``
 ``azure-storage-file-share``              ``>=12.7.0``
 ``azure-servicebus``                      ``>=7.12.1``
@@ -109,4 +110,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.5.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.6.1/changelog.html>`_.

@@ -353,7 +353,7 @@ class AdminClientHook(BaseAzureServiceBusHook):
                 lock_duration=lock_duration,
                 requires_session=requires_session,
                 default_message_time_to_live=default_message_time_to_live,
-                dead_lettering_on_ßmessage_expiration=dead_lettering_on_message_expiration,
+                dead_lettering_on_message_expiration=dead_lettering_on_message_expiration,
                 dead_lettering_on_filter_evaluation_exceptions=dead_lettering_on_filter_evaluation_exceptions,
                 max_delivery_count=max_delivery_count,
                 enable_batched_operations=enable_batched_operations,

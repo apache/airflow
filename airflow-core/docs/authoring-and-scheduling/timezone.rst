@@ -75,7 +75,7 @@ Because Airflow uses time zone aware datetime objects. If your code creates date
 
 .. code-block:: python
 
-    from airflow.utils import timezone
+    from airflow.sdk import timezone
 
     now = timezone.utcnow()
     a_date = timezone.datetime(2017, 1, 1)

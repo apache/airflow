@@ -23,8 +23,9 @@
 
 Package ``apache-airflow-providers-snowflake``
 
-Release: ``6.5.0``
+Release: ``6.5.2``
 
+Release Date: ``|PypiReleaseDate|``
 
 `Snowflake <https://www.snowflake.com/>`__
 
@@ -36,7 +37,7 @@ This is a provider package for ``snowflake`` provider. All classes for this prov
 are in ``airflow.providers.snowflake`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.5.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.5.2/>`_.
 
 Installation
 ------------
@@ -50,9 +51,9 @@ The package supports the following python versions: 3.10,3.11,3.12,3.13
 Requirements
 ------------
 
-==========================================  ======================================
+==========================================  ========================================================================
 PIP package                                 Version required
-==========================================  ======================================
+==========================================  ========================================================================
 ``apache-airflow``                          ``>=2.10.0``
 ``apache-airflow-providers-common-compat``  ``>=1.6.0``
 ``apache-airflow-providers-common-sql``     ``>=1.21.0``
@@ -63,8 +64,8 @@ PIP package                                 Version required
 ``snowflake-connector-python``              ``>=3.7.1``
 ``snowflake-sqlalchemy``                    ``>=1.4.0``
 ``snowflake-snowpark-python``               ``>=1.17.0; python_version < "3.12"``
-``snowflake-snowpark-python``               ``>=1.27.0; python_version >= "3.12"``
-==========================================  ======================================
+``snowflake-snowpark-python``               ``>=1.27.0,<9999; python_version >= "3.12" and python_version < "3.13"``
+==========================================  ========================================================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -88,4 +89,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.5.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.5.2/changelog.html>`_.

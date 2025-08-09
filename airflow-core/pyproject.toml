@@ -17,7 +17,7 @@
 
 [build-system]
 requires = [
-    "GitPython==3.1.44",
+    "GitPython==3.1.45",
     "gitdb==4.0.12",
     "hatchling==1.27.0",
     "packaging==25.0",
@@ -25,7 +25,7 @@ requires = [
     "pluggy==1.6.0",
     "smmap==5.0.2",
     "tomli==2.2.1; python_version < '3.11'",
-    "trove-classifiers==2025.5.9.12",
+    "trove-classifiers==2025.8.6.13",
 ]
 build-backend = "hatchling.build"
 
@@ -82,9 +82,7 @@ dependencies = [
     "cryptography>=41.0.0",
     "deprecated>=1.2.13",
     "dill>=0.2.2",
-    # 0.115.10 fastapi was a bad release that broke our API's and static checks.
-    # Related fastapi issue here: https://github.com/fastapi/fastapi/discussions/13431
-    "fastapi[standard]>=0.115.0,!=0.115.10",
+    "fastapi[standard-no-fastapi-cloud-cli]>=0.116.0",
     "starlette>=0.45.0",
     "httpx>=0.25.0",
     'importlib_metadata>=6.5;python_version<"3.12"',
@@ -214,6 +212,9 @@ exclude = [
     "src/airflow/api_fastapi/auth/managers/simple/ui/node_modules",
     "src/airflow/ui/openapi.merged.json",
 ]
+
+[tool.hatch.build.targets.sdist.force-include]
+"../shared/timezones/src/airflow_shared/timezones" = "src/airflow/_shared/timezones"
 
 [tool.hatch.build.targets.custom]
 path = "./hatch_build.py"

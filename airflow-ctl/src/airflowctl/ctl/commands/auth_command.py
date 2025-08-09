@@ -65,6 +65,7 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
         rich.print(
             "[green]Please pass:[/green] [blue]--api-token[/blue] or set "
             "[blue]AIRFLOW_CLI_TOKEN[/blue] environment variable to login."
+            "[blue] Alternatively, you can use --username and --password to login.[/blue]"
         )
         sys.exit(1)
 
