@@ -76,7 +76,7 @@ spec:
             pathType: {{ .pathType }}
             backend:
               service:
-                name: {{ .serviceName }}
+                name: {{ $fullname }}-api-server
                 port:
                   name: {{ .servicePort }}
           {{- end }}
@@ -94,7 +94,7 @@ spec:
             pathType: {{ .pathType }}
             backend:
               service:
-                name: {{ .serviceName }}
+                name: {{ $fullname }}-api-server
                 port:
                   name: {{ .servicePort }}
           {{- end }}
