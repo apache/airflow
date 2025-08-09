@@ -546,10 +546,11 @@ class ElasticsearchHook(BaseHook):
         """
         try:
             import pandas as pd
-        except ImportError:
+        except ImportError as e:
             raise ImportError(
-                "pandas is required for search_to_pandas method. " "Install it with: pip install pandas"
-            )
+                "pandas is required for search_to_pandas method. "
+                "Install it with: pip install apache-airflow-providers-elasticsearch[pandas]"
+            ) from e
 
         res = self.client.search(index=index, body=query, **kwargs)
         hits = res["hits"]["hits"]
@@ -589,10 +590,11 @@ class ElasticsearchHook(BaseHook):
         """
         try:
             import pandas as pd
-        except ImportError:
+        except ImportError as e:
             raise ImportError(
-                "pandas is required for scan_to_pandas method. " "Install it with: pip install pandas"
-            )
+                "pandas is required for scan_to_pandas method. "
+                "Install it with: pip install apache-airflow-providers-elasticsearch[pandas]"
+            ) from e
 
         self.log.info("Scanning index: %s and converting to DataFrame", index)
 
