@@ -77,6 +77,17 @@ class TestDagBag:
     def teardown_class(self):
         db_clean_up()
 
+    def test_timeout_context_manager_raises_exception(self):
+        """Test that the timeout context manager raises AirflowTaskTimeout when time limit is exceeded."""
+        import time
+
+        from airflow.exceptions import AirflowTaskTimeout
+        from airflow.models.dagbag import timeout
+
+        with pytest.raises(AirflowTaskTimeout):
+            with timeout(1, "Test timeout"):
+                time.sleep(2)
+
     def test_get_existing_dag(self, tmp_path):
         """
         Test that we're able to parse some example DAGs and retrieve them
