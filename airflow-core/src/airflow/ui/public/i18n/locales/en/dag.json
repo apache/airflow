@@ -5,6 +5,30 @@
     "reason": "Reason",
     "title": "Dependencies Blocking Task From Getting Scheduled"
   },
+  "calendar": {
+    "cellSize": "Cell Size",
+    "daily": "Daily",
+    "decreaseSize": "Decrease size",
+    "error": "Error loading calendar data",
+    "hourly": "Hourly",
+    "increaseSize": "Increase size",
+    "legend": {
+      "successRateSpectrum": "Success Rate Spectrum",
+      "tooltips": {
+        "failed": "Less than 20% Success",
+        "success100": "100% Success",
+        "successRate20": "20%+ Success Rate",
+        "successRate40": "40%+ Success Rate",
+        "successRate60": "60%+ Success Rate",
+        "successRate80": "80%+ Success Rate"
+      }
+    },
+    "less": "Less",
+    "loading": "Loading...",
+    "more": "More",
+    "noData": "No data available",
+    "week": "Week"
+  },
   "code": {
     "bundleUrl": "Bundle Url",
     "noCode": "No Code Found",
@@ -101,6 +125,7 @@
     "assetEvents": "Asset Events",
     "auditLog": "Audit Log",
     "backfills": "Backfills",
+    "calendar": "Calendar",
     "code": "Code",
     "details": "Details",
     "logs": "Logs",
