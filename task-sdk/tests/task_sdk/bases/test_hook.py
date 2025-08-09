@@ -21,8 +21,7 @@ import pytest
 
 from airflow.exceptions import AirflowNotFoundException
 from airflow.sdk import BaseHook
-from airflow.sdk.exceptions import ErrorType
-from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse, GetConnection
+from airflow.sdk.execution_time.comms import ConnectionResult, GetConnection
 
 from tests_common.test_utils.config import conf_vars
 
@@ -60,10 +59,10 @@ class TestBaseHook:
             msg=GetConnection(conn_id="test_conn"),
         )
 
-    def test_get_connection_not_found(self, mock_supervisor_comms):
+    def test_get_connection_not_found(self, sdk_connection_not_found):
         conn_id = "test_conn"
         hook = BaseHook()
-        mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
+        sdk_connection_not_found
 
         with pytest.raises(AirflowNotFoundException, match="The conn_id `test_conn` isn't defined"):
             hook.get_connection(conn_id=conn_id)

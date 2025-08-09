@@ -1167,7 +1167,7 @@ class TestSqlBranch:
         with pytest.raises(AirflowException):
             op.execute({})
 
-    def test_invalid_conn(self):
+    def test_invalid_conn(self, sdk_connection_not_found):
         """Check if BranchSQLOperator throws an exception for invalid connection"""
         op = BranchSQLOperator(
             task_id="make_choice",
@@ -1177,11 +1177,10 @@ class TestSqlBranch:
             follow_task_ids_if_false=["branch_2"],
             dag=self.dag,
         )
-
         with pytest.raises(AirflowException):
             op.execute({})
 
-    def test_invalid_follow_task_true(self):
+    def test_invalid_follow_task_true(self, sdk_connection_not_found):
         """Check if BranchSQLOperator throws an exception for invalid connection"""
         op = BranchSQLOperator(
             task_id="make_choice",
@@ -1194,7 +1193,7 @@ class TestSqlBranch:
         with pytest.raises(AirflowException):
             op.execute({})
 
-    def test_invalid_follow_task_false(self):
+    def test_invalid_follow_task_false(self, sdk_connection_not_found):
         """Check if BranchSQLOperator throws an exception for invalid connection"""
         op = BranchSQLOperator(
             task_id="make_choice",
