@@ -41,6 +41,7 @@ from airflow_breeze.commands.common_options import (
     option_python,
     option_verbose,
 )
+from airflow_breeze.commands.developer_commands import option_auth_manager
 from airflow_breeze.commands.main_command import main
 from airflow_breeze.utils.cache import check_if_cache_exists, delete_cache, touch_cache_file
 from airflow_breeze.utils.click_utils import BreezeGroup
@@ -190,6 +191,7 @@ def version():
 @option_backend
 @option_postgres_version
 @option_mysql_version
+@option_auth_manager
 @click.option("-C/-c", "--cheatsheet/--no-cheatsheet", help="Enable/disable cheatsheet.", default=None)
 @click.option("-A/-a", "--asciiart/--no-asciiart", help="Enable/disable ASCIIart.", default=None)
 @click.option(
@@ -202,6 +204,7 @@ def change_config(
     backend: str,
     postgres_version: str,
     mysql_version: str,
+    auth_manager: str,
     cheatsheet: bool,
     asciiart: bool,
     colour: bool,
@@ -237,9 +240,6 @@ def change_config(
     def get_supress_status(file: str):
         return "disabled" if check_if_cache_exists(file) else "enabled"
 
-    def get_status(file: str):
-        return "enabled" if check_if_cache_exists(file) else "disabled"
-
     get_console().print()
     get_console().print("[info]Current configuration:[/]")
     get_console().print()
@@ -247,10 +247,10 @@ def change_config(
     get_console().print(f"[info]* Backend: {backend}[/]")
     get_console().print(f"[info]* Postgres version: {postgres_version}[/]")
     get_console().print(f"[info]* MySQL version: {mysql_version}[/]")
+    get_console().print(f"[info]* Auth Manager: {auth_manager}[/]")
     get_console().print()
     get_console().print(f"[info]* ASCIIART: {get_supress_status(asciiart_file)}[/]")
     get_console().print(f"[info]* Cheatsheet: {get_supress_status(cheatsheet_file)}[/]")
-    get_console().print()
     get_console().print()
     get_console().print(f"[info]* Colour: {get_supress_status(colour_file)}[/]")
     get_console().print()
