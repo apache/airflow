@@ -136,7 +136,6 @@ class AzureBaseHook(BaseHook):
         if not conn:
             conn = self.get_connection(self.conn_id)
         tenant = conn.extra_dejson.get("tenantId")
-        use_azure_identity_object = conn.extra_dejson.get("use_azure_identity_object", False)
         credential: (
             ServicePrincipalCredentials
             | AzureIdentityCredentialAdapter
@@ -144,29 +143,36 @@ class AzureBaseHook(BaseHook):
             | DefaultAzureCredential
         )
         if all([conn.login, conn.password, tenant]):
-            self.log.info("Getting credentials using specific credentials and subscription_id.")
-            if use_azure_identity_object:
-                credential = ClientSecretCredential(
-                    client_id=conn.login,  # type: ignore[arg-type]
-                    client_secret=conn.password,  # type: ignore[arg-type]
-                    tenant_id=tenant,  # type: ignore[arg-type]
-                )
-            else:
-                credential = ServicePrincipalCredentials(
-                    client_id=conn.login, secret=conn.password, tenant=tenant
-                )
+            credential = self._get_client_secret_credential(conn)
         else:
-            self.log.info("Using DefaultAzureCredential as credential")
-            managed_identity_client_id = conn.extra_dejson.get("managed_identity_client_id")
-            workload_identity_tenant_id = conn.extra_dejson.get("workload_identity_tenant_id")
-            if use_azure_identity_object:
-                credential = get_sync_default_azure_credential(
-                    managed_identity_client_id=managed_identity_client_id,
-                    workload_identity_tenant_id=workload_identity_tenant_id,
-                )
-            else:
-                credential = AzureIdentityCredentialAdapter(
-                    managed_identity_client_id=managed_identity_client_id,
-                    workload_identity_tenant_id=workload_identity_tenant_id,
-                )
+            credential = self._get_default_azure_credential(conn)
         return credential
+
+    def _get_client_secret_credential(self, conn: Connection):
+        self.log.info("Getting credentials using specific credentials and subscription_id.")
+        extra_dejson = conn.extra_dejson
+        tenant = extra_dejson.get("tenantId")
+        use_azure_identity_object = extra_dejson.get("use_azure_identity_object", False)
+        if use_azure_identity_object:
+            return ClientSecretCredential(
+                client_id=conn.login,  # type: ignore[arg-type]
+                client_secret=conn.password,  # type: ignore[arg-type]
+                tenant_id=tenant,  # type: ignore[arg-type]
+            )
+        return ServicePrincipalCredentials(client_id=conn.login, secret=conn.password, tenant=tenant)
+
+    def _get_default_azure_credential(self, conn: Connection):
+        self.log.info("Using DefaultAzureCredential as credential")
+        extra_dejson = conn.extra_dejson
+        managed_identity_client_id = extra_dejson.get("managed_identity_client_id")
+        workload_identity_tenant_id = extra_dejson.get("workload_identity_tenant_id")
+        use_azure_identity_object = extra_dejson.get("use_azure_identity_object", False)
+        if use_azure_identity_object:
+            return get_sync_default_azure_credential(
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
+            )
+        return AzureIdentityCredentialAdapter(
+            managed_identity_client_id=managed_identity_client_id,
+            workload_identity_tenant_id=workload_identity_tenant_id,
+        )
