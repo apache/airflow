@@ -43,10 +43,10 @@ export const PluginMenuItem = ({
   const isExternalView = "href" in rest;
   const href = isExternalView ? (rest as ExternalViewResponse).href : undefined;
 
-  const someIcon = colorMode === "dark" && typeof iconDarkMode === "string" ? iconDarkMode : icon;
+  const displayIcon = colorMode === "dark" && typeof iconDarkMode === "string" ? iconDarkMode : icon;
   const pluginIcon =
-    typeof someIcon === "string" ? (
-      <Image height="1.25rem" mr={topLevel ? 0 : 2} src={someIcon} width="1.25rem" />
+    typeof displayIcon === "string" ? (
+      <Image height="1.25rem" mr={topLevel ? 0 : 2} src={displayIcon} width="1.25rem" />
     ) : urlRoute === "legacy-fab-views" ? (
       <RiArchiveStackLine size="1.25rem" style={{ marginRight: topLevel ? 0 : "8px" }} />
     ) : (
