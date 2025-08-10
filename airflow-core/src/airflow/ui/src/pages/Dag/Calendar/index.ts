@@ -18,6 +18,7 @@
  */
 
 export { Calendar } from "./Calendar";
+export { CalendarLegend } from "./CalendarLegend";
 export { DailyCalendarView } from "./DailyCalendarView";
 export { HourlyCalendarView } from "./HourlyCalendarView";
 export type * from "./types";
