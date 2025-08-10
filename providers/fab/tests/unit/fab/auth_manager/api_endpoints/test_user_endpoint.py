@@ -680,9 +680,7 @@ class TestPatchUser(TestUserEndpoint):
 
         mock_generate_password_hash.assert_called_once_with("new-pass")
 
-        password_in_db = self.session.execute(
-            select(User.password).where(User.username == autoclean_username)
-        ).scalar()
+        password_in_db = self.session.scalar(select(User.password).where(User.username == autoclean_username))
         assert password_in_db == "fake-hashed-pass"
 
     @pytest.mark.usefixtures("autoclean_admin_user")
@@ -792,10 +790,7 @@ class TestDeleteUser(TestUserEndpoint):
         )
         assert response.status_code == 204, response.json  # NO CONTENT.
         assert (
-            self.session.execute(
-                select(func.count(User.id)).where(User.username == autoclean_username)
-            ).scalar()
-            == 0
+            self.session.scalar(select(func.count(User.id)).where(User.username == autoclean_username)) == 0
         )
 
     @pytest.mark.usefixtures("autoclean_admin_user")
@@ -805,10 +800,7 @@ class TestDeleteUser(TestUserEndpoint):
         )
         assert response.status_code == 401, response.json
         assert (
-            self.session.execute(
-                select(func.count(User.id)).where(User.username == autoclean_username)
-            ).scalar()
-            == 1
+            self.session.scalar(select(func.count(User.id)).where(User.username == autoclean_username)) == 1
         )
 
     @pytest.mark.usefixtures("autoclean_admin_user")
@@ -819,10 +811,7 @@ class TestDeleteUser(TestUserEndpoint):
         )
         assert response.status_code == 403, response.json
         assert (
-            self.session.execute(
-                select(func.count(User.id)).where(User.username == autoclean_username)
-            ).scalar()
-            == 1
+            self.session.scalar(select(func.count(User.id)).where(User.username == autoclean_username)) == 1
         )
 
     def test_not_found(self, autoclean_username):
