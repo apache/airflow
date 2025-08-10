@@ -16,9 +16,25 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypedDict
 
 ADOPTED = "adopted"
+
+
+class FailureDetails(TypedDict, total=False):
+    """Detailed information about pod/container failure."""
+
+    pod_status: str | None
+    pod_reason: str | None
+    pod_message: str | None
+    container_state: str | None
+    container_reason: str | None
+    container_message: str | None
+    exit_code: int | None
+    container_type: str | None  # "init" or "main"
+    container_name: str | None
+
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
@@ -33,12 +49,12 @@ if TYPE_CHECKING:
 
     # key, pod state, pod_name, namespace, resource_version, failure_details
     KubernetesResultsType = tuple[
-        TaskInstanceKey, TaskInstanceState | str | None, str, str, str, dict[str, Any] | None
+        TaskInstanceKey, TaskInstanceState | str | None, str, str, str, FailureDetails | None
     ]
 
     # pod_name, namespace, pod state, annotations, resource_version, failure_details
     KubernetesWatchType = tuple[
-        str, str, TaskInstanceState | str | None, dict[str, str], str, dict[str, Any] | None
+        str, str, TaskInstanceState | str | None, dict[str, str], str, FailureDetails | None
     ]
 
 ALL_NAMESPACES = "ALL_NAMESPACES"

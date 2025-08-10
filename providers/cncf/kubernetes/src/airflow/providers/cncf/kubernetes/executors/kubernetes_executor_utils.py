@@ -21,7 +21,7 @@ import json
 import multiprocessing
 import time
 from queue import Empty, Queue
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from kubernetes import client, watch
 from kubernetes.client.rest import ApiException
@@ -34,6 +34,7 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types impor
     ALL_NAMESPACES,
     POD_EXECUTOR_DONE_KEY,
     POD_REVOKED_KEY,
+    FailureDetails,
 )
 from airflow.providers.cncf.kubernetes.kube_client import get_kube_client
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
@@ -210,84 +211,11 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         if POD_REVOKED_KEY in pod.metadata.labels.keys():
             return
 
-        # Collect failure details for failed pods
+        # Collect failure details for failed pods using the new function
         failure_details = None
         if status == "Failed":
             try:
-                pod_status = getattr(pod.status, "phase", None)
-                pod_reason = getattr(pod.status, "reason", None)
-                pod_message = getattr(pod.status, "message", None)
-
-                # Container status analysis - check both init and main containers
-                container_info = {}
-
-                # Check init containers first (they run before main containers)
-                init_container_statuses = getattr(pod.status, "init_container_statuses", None)
-                if init_container_statuses:
-                    for cs in init_container_statuses:
-                        state_obj = cs.state
-                        if state_obj.terminated:
-                            terminated_reason = getattr(state_obj.terminated, "reason", None)
-                            exit_code = getattr(state_obj.terminated, "exit_code", 0)
-                            # Only treat as failure if exit code != 0 AND reason is not "Completed"
-                            if exit_code != 0 and terminated_reason != "Completed":
-                                # Init container failed
-                                container_info = {
-                                    "state": "terminated",
-                                    "reason": terminated_reason,
-                                    "message": getattr(state_obj.terminated, "message", None),
-                                    "exit_code": exit_code,
-                                    "container_type": "init",
-                                    "container_name": getattr(cs, "name", "unknown"),
-                                }
-                                break
-                        elif state_obj.waiting:
-                            container_info = {
-                                "state": "waiting",
-                                "reason": getattr(state_obj.waiting, "reason", None),
-                                "message": getattr(state_obj.waiting, "message", None),
-                                "container_type": "init",
-                                "container_name": getattr(cs, "name", "unknown"),
-                            }
-                            # Continue to look for terminated state in other init containers
-
-                # If no init container failure found, check main containers
-                if not container_info:
-                    container_statuses = getattr(pod.status, "container_statuses", None)
-                    if container_statuses:
-                        for cs in container_statuses:
-                            state_obj = cs.state
-                            # Prioritize terminated state for final failure details
-                            if state_obj.terminated:
-                                terminated_reason = getattr(state_obj.terminated, "reason", None)
-                                exit_code = getattr(state_obj.terminated, "exit_code", 0)
-                                # Only treat as failure if exit code != 0 AND reason is not "Completed"
-                                if exit_code != 0 and terminated_reason != "Completed":
-                                    container_info = {
-                                        "state": "terminated",
-                                        "reason": terminated_reason,
-                                        "message": getattr(state_obj.terminated, "message", None),
-                                        "exit_code": exit_code,
-                                        "container_type": "main",
-                                        "container_name": getattr(cs, "name", "unknown"),
-                                    }
-                                    break
-                            elif state_obj.waiting:
-                                container_info = {
-                                    "state": "waiting",
-                                    "reason": getattr(state_obj.waiting, "reason", None),
-                                    "message": getattr(state_obj.waiting, "message", None),
-                                    "container_type": "main",
-                                    "container_name": getattr(cs, "name", "unknown"),
-                                }
-                                # Continue to look for terminated state in other containers
-
-                failure_details = {
-                    "pod_status": pod_status,
-                    "pod_reason": pod_reason,
-                    "pod_message": pod_message,
-                    **container_info,
-                }
+                failure_details = collect_pod_failure_details(pod)
             except Exception as e:
                 self.log.warning(
                     "Failed to collect pod failure details for %s/%s: %s", namespace, pod_name, e
@@ -423,6 +351,139 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 annotations,
                 resource_version,
             )
+
+
+def collect_pod_failure_details(pod: k8s.V1Pod) -> FailureDetails | None:
+    """
+    Collect detailed failure information from a failed pod.
+
+    Analyzes both init containers and main containers to determine the root cause
+    of pod failure, prioritizing terminated containers with non-zero exit codes.
+
+    Args:
+        pod: The Kubernetes V1Pod object to analyze
+
+    Returns:
+        FailureDetails dict with failure information, or None if no failure details found
+    """
+    if not pod.status or pod.status.phase != "Failed":
+        return None
+
+    try:
+        # Basic pod-level information
+        failure_details: FailureDetails = {
+            "pod_status": getattr(pod.status, "phase", None),
+            "pod_reason": getattr(pod.status, "reason", None),
+            "pod_message": getattr(pod.status, "message", None),
+        }
+
+        # Check init containers first (they run before main containers)
+        container_failure = _analyze_init_containers(pod.status)
+
+        # If no init container failure found, check main containers
+        if not container_failure:
+            container_failure = _analyze_main_containers(pod.status)
+
+        # Merge container failure details
+        if container_failure:
+            failure_details.update(container_failure)
+
+        return failure_details
+
+    except Exception:
+        # Return basic pod info if container analysis fails
+        return {
+            "pod_status": getattr(pod.status, "phase", None),
+            "pod_reason": getattr(pod.status, "reason", None),
+            "pod_message": getattr(pod.status, "message", None),
+        }
+
+
+def _analyze_init_containers(pod_status: k8s.V1PodStatus) -> FailureDetails | None:
+    """Analyze init container statuses for failure details."""
+    init_container_statuses = getattr(pod_status, "init_container_statuses", None)
+    if not init_container_statuses:
+        return None
+
+    waiting_info: FailureDetails | None = None
+
+    for cs in init_container_statuses:
+        state_obj = cs.state
+        if state_obj.terminated:
+            terminated_reason = getattr(state_obj.terminated, "reason", None)
+            exit_code = getattr(state_obj.terminated, "exit_code", 0)
+
+            # Only treat as failure if exit code != 0 AND reason is not "Completed"
+            if exit_code != 0 and terminated_reason != "Completed":
+                return cast(
+                    "FailureDetails",
+                    {
+                        "container_state": "terminated",
+                        "container_reason": terminated_reason,
+                        "container_message": getattr(state_obj.terminated, "message", None),
+                        "exit_code": exit_code,
+                        "container_type": "init",
+                        "container_name": getattr(cs, "name", "unknown"),
+                    },
+                )
+        elif state_obj.waiting:
+            # Record waiting state but continue looking for terminated containers
+            waiting_info = cast(
+                "FailureDetails",
+                {
+                    "container_state": "waiting",
+                    "container_reason": getattr(state_obj.waiting, "reason", None),
+                    "container_message": getattr(state_obj.waiting, "message", None),
+                    "container_type": "init",
+                    "container_name": getattr(cs, "name", "unknown"),
+                },
+            )
+
+    # If we only found waiting containers, return the last one
+    return waiting_info
+
+
+def _analyze_main_containers(pod_status: k8s.V1PodStatus) -> FailureDetails | None:
+    """Analyze main container statuses for failure details."""
+    container_statuses = getattr(pod_status, "container_statuses", None)
+    if not container_statuses:
+        return None
+
+    waiting_info: FailureDetails | None = None
+
+    for cs in container_statuses:
+        state_obj = cs.state
+        if state_obj.terminated:
+            terminated_reason = getattr(state_obj.terminated, "reason", None)
+            exit_code = getattr(state_obj.terminated, "exit_code", 0)
+
+            # Only treat as failure if exit code != 0 AND reason is not "Completed"
+            if exit_code != 0 and terminated_reason != "Completed":
+                return cast(
+                    "FailureDetails",
+                    {
+                        "container_state": "terminated",
+                        "container_reason": terminated_reason,
+                        "container_message": getattr(state_obj.terminated, "message", None),
+                        "exit_code": exit_code,
+                        "container_type": "main",
+                        "container_name": getattr(cs, "name", "unknown"),
+                    },
+                )
+        elif state_obj.waiting:
+            # Record waiting state but continue looking for terminated containers
+            waiting_info = cast(
+                "FailureDetails",
+                {
+                    "container_state": "waiting",
+                    "container_reason": getattr(state_obj.waiting, "reason", None),
+                    "container_message": getattr(state_obj.waiting, "message", None),
+                    "container_type": "main",
+                    "container_name": getattr(cs, "name", "unknown"),
+                },
+            )
+
+    return waiting_info
 
 
 class AirflowKubernetesScheduler(LoggingMixin):
