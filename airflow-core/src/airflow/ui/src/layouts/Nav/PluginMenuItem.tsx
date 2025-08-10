@@ -32,8 +32,7 @@ type Props = { readonly topLevel?: boolean } & NavItemResponse;
 
 export const PluginMenuItem = ({
   icon,
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  icon_dark_mode,
+  icon_dark_mode: iconDarkMode,
   name,
   topLevel = false,
   url_route: urlRoute,
@@ -44,11 +43,10 @@ export const PluginMenuItem = ({
   const isExternalView = "href" in rest;
   const href = isExternalView ? (rest as ExternalViewResponse).href : undefined;
 
+  const someIcon = colorMode === "dark" && typeof iconDarkMode === "string" ? iconDarkMode : icon;
   const pluginIcon =
-    colorMode === "dark" && typeof icon_dark_mode === "string" ? (
-      <Image height="1.25rem" mr={topLevel ? 0 : 2} src={icon_dark_mode} width="1.25rem" />
-    ) : typeof icon === "string" ? (
-      <Image height="1.25rem" mr={topLevel ? 0 : 2} src={icon} width="1.25rem" />
+    typeof someIcon === "string" ? (
+      <Image height="1.25rem" mr={topLevel ? 0 : 2} src={someIcon} width="1.25rem" />
     ) : urlRoute === "legacy-fab-views" ? (
       <RiArchiveStackLine size="1.25rem" style={{ marginRight: topLevel ? 0 : "8px" }} />
     ) : (
