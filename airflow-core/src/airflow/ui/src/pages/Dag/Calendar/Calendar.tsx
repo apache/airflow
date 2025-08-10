@@ -19,7 +19,7 @@
 import { Box, HStack, Text, IconButton, Button } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
 import dayjs from "dayjs";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FiMinus, FiPlus, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { useParams } from "react-router-dom";
@@ -41,35 +41,36 @@ export const Calendar = () => {
   const { dagId = "" } = useParams();
   const { t: translate } = useTranslation("dag");
   const [cellSize, setCellSize] = useLocalStorage("calendar-cell-size", 18);
-  const [selectedYear, setSelectedYear] = useState(dayjs().year());
-  const [selectedMonth, setSelectedMonth] = useState(dayjs().month());
+  const [selectedDate, setSelectedDate] = useState(dayjs());
   const [granularity, setGranularity] = useLocalStorage<"daily" | "hourly">("calendar-granularity", "daily");
 
-  const currentYear = dayjs().year();
-  const currentMonth = dayjs().month();
+  const currentDate = dayjs();
 
-  const getDateRange = () => {
+  const dateRange = useMemo(() => {
     if (granularity === "daily") {
+      const yearStart = selectedDate.startOf("year");
+      const yearEnd = selectedDate.endOf("year");
+
       return {
-        logicalDateGte: `${selectedYear}-01-01T00:00:00Z`,
-        logicalDateLte: `${selectedYear}-12-31T23:59:59Z`,
+        logicalDateGte: yearStart.format("YYYY-MM-DD[T]HH:mm:ss[Z]"),
+        logicalDateLte: yearEnd.format("YYYY-MM-DD[T]HH:mm:ss[Z]"),
       };
     } else {
-      const monthStart = dayjs().year(selectedYear).month(selectedMonth).startOf("month");
-      const monthEnd = dayjs().year(selectedYear).month(selectedMonth).endOf("month");
+      const monthStart = selectedDate.startOf("month");
+      const monthEnd = selectedDate.endOf("month");
 
       return {
         logicalDateGte: monthStart.format("YYYY-MM-DD[T]HH:mm:ss[Z]"),
         logicalDateLte: monthEnd.format("YYYY-MM-DD[T]HH:mm:ss[Z]"),
       };
     }
-  };
+  }, [granularity, selectedDate]);
 
   const { data, error, isLoading } = useCalendarServiceGetCalendar(
     {
       dagId,
       granularity,
-      ...getDateRange(),
+      ...dateRange,
     },
     undefined,
     { enabled: Boolean(dagId) },
@@ -92,7 +93,7 @@ export const Calendar = () => {
             <HStack gap={2}>
               <IconButton
                 aria-label="Previous year"
-                onClick={() => setSelectedYear(selectedYear - 1)}
+                onClick={() => setSelectedDate(selectedDate.subtract(1, "year"))}
                 size="sm"
                 variant="ghost"
               >
@@ -100,19 +101,19 @@ export const Calendar = () => {
               </IconButton>
               <Text
                 _hover={{ textDecoration: "underline" }}
-                color={selectedYear === currentYear ? "fg.info" : "inherit"}
+                color={selectedDate.year() === currentDate.year() ? "fg.info" : "inherit"}
                 cursor="pointer"
                 fontSize="xl"
                 fontWeight="bold"
                 minWidth="120px"
-                onClick={() => setSelectedYear(currentYear)}
+                onClick={() => setSelectedDate(currentDate.startOf("year"))}
                 textAlign="center"
               >
-                {selectedYear}
+                {selectedDate.year()}
               </Text>
               <IconButton
                 aria-label="Next year"
-                onClick={() => setSelectedYear(selectedYear + 1)}
+                onClick={() => setSelectedDate(selectedDate.add(1, "year"))}
                 size="sm"
                 variant="ghost"
               >
@@ -123,14 +124,7 @@ export const Calendar = () => {
             <HStack gap={2}>
               <IconButton
                 aria-label="Previous month"
-                onClick={() => {
-                  if (selectedMonth === 0) {
-                    setSelectedMonth(11);
-                    setSelectedYear(selectedYear - 1);
-                  } else {
-                    setSelectedMonth(selectedMonth - 1);
-                  }
-                }}
+                onClick={() => setSelectedDate(selectedDate.subtract(1, "month"))}
                 size="sm"
                 variant="ghost"
               >
@@ -138,29 +132,23 @@ export const Calendar = () => {
               </IconButton>
               <Text
                 _hover={{ textDecoration: "underline" }}
-                color={selectedYear === currentYear && selectedMonth === currentMonth ? "fg.info" : "inherit"}
+                color={
+                  selectedDate.isSame(currentDate, "month") && selectedDate.isSame(currentDate, "year")
+                    ? "fg.info"
+                    : "inherit"
+                }
                 cursor="pointer"
                 fontSize="xl"
                 fontWeight="bold"
                 minWidth="120px"
-                onClick={() => {
-                  setSelectedYear(currentYear);
-                  setSelectedMonth(currentMonth);
-                }}
+                onClick={() => setSelectedDate(currentDate.startOf("month"))}
                 textAlign="center"
               >
-                {dayjs().year(selectedYear).month(selectedMonth).format("MMM YYYY")}
+                {selectedDate.format("MMM YYYY")}
               </Text>
               <IconButton
                 aria-label="Next month"
-                onClick={() => {
-                  if (selectedMonth === 11) {
-                    setSelectedMonth(0);
-                    setSelectedYear(selectedYear + 1);
-                  } else {
-                    setSelectedMonth(selectedMonth + 1);
-                  }
-                }}
+                onClick={() => setSelectedDate(selectedDate.add(1, "month"))}
                 size="sm"
                 variant="ghost"
               >
@@ -248,7 +236,11 @@ export const Calendar = () => {
         ) : undefined}
         {granularity === "daily" ? (
           <>
-            <DailyCalendarView cellSize={cellSize} data={data?.dag_runs ?? []} selectedYear={selectedYear} />
+            <DailyCalendarView
+              cellSize={cellSize}
+              data={data?.dag_runs ?? []}
+              selectedYear={selectedDate.year()}
+            />
             <CalendarLegend />
           </>
         ) : (
@@ -257,8 +249,8 @@ export const Calendar = () => {
               <HourlyCalendarView
                 cellSize={cellSize}
                 data={data?.dag_runs ?? []}
-                selectedMonth={selectedMonth}
-                selectedYear={selectedYear}
+                selectedMonth={selectedDate.month()}
+                selectedYear={selectedDate.year()}
               />
             </Box>
             <Box display="flex" flex="1" justifyContent="center" pt={16}>
