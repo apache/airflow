@@ -39,7 +39,7 @@ from sqlalchemy.sql import expression
 
 from airflow import settings
 from airflow._shared.timezones import timezone
-from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as DRDataModel, TIRunContext
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext, TaskCallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
@@ -888,7 +888,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         ti=ti,
                         msg=msg,
                         context_from_server=TIRunContext(
-                            dag_run=ti.dag_run,
+                            dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
                             max_tries=ti.max_tries,
                             variables=[],
                             connections=[],
@@ -2266,7 +2266,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti=ti,
                 msg=str(task_instance_heartbeat_timeout_message_details),
                 context_from_server=TIRunContext(
-                    dag_run=ti.dag_run,
+                    dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
                     max_tries=ti.max_tries,
                     variables=[],
                     connections=[],

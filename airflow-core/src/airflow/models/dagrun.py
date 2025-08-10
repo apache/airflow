@@ -248,6 +248,13 @@ class DagRun(Base, LoggingMixin):
         back_populates="dag_run",
         cascade="save-update, merge, delete, delete-orphan",
     )
+
+    consumed_asset_events = relationship(
+        "AssetEvent",
+        secondary="dagrun_asset_event",
+        back_populates="created_dagruns",
+        lazy="selectin",
+    )
     task_instances_histories = relationship(
         TIH,
         primaryjoin="and_(DagRun.dag_id == TaskInstanceHistory.dag_id, DagRun.run_id == TaskInstanceHistory.run_id)",
