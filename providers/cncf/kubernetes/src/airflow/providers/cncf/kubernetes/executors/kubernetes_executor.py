@@ -66,6 +66,7 @@ from airflow.providers.cncf.kubernetes.exceptions import PodMutationHookExceptio
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
     POD_EXECUTOR_DONE_KEY,
+    FailureDetails,
 )
 from airflow.providers.cncf.kubernetes.kube_config import KubeConfig
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import annotations_to_key
@@ -412,7 +413,7 @@ class KubernetesExecutor(BaseExecutor):
         state: TaskInstanceState | str | None,
         pod_name: str,
         namespace: str,
-        failure_details: dict[str, Any] | None = None,
+        failure_details: FailureDetails | None = None,
         session: Session = NEW_SESSION,
     ) -> None:
         if TYPE_CHECKING:
@@ -428,17 +429,22 @@ class KubernetesExecutor(BaseExecutor):
                 container_reason = failure_details.get("container_reason")
                 container_message = failure_details.get("container_message")
                 exit_code = failure_details.get("exit_code")
+                container_type = failure_details.get("container_type")
+                container_name = failure_details.get("container_name")
 
                 task_key_str = f"{key.dag_id}.{key.task_id}.{key.try_number}"
                 self.log.warning(
                     "Task %s failed in pod %s/%s. Pod phase: %s, reason: %s, message: %s, "
-                    "container_state: %s, container_reason: %s, container_message: %s, exit_code: %s",
+                    "container_type: %s, container_name: %s, container_state: %s, container_reason: %s, "
+                    "container_message: %s, exit_code: %s",
                     task_key_str,
                     namespace,
                     pod_name,
                     pod_status,
                     pod_reason,
                     pod_message,
+                    container_type,
+                    container_name,
                     container_state,
                     container_reason,
                     container_message,
