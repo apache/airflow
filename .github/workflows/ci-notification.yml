@@ -75,7 +75,7 @@ jobs:
               - type: "section"
                 text:
                   type: "mrkdwn"
-                  text: "🚨🕒 Failure Alert: ${{ env.workflow_id }} ${{ env.branch }}🕒🚨\n\n*Details:* <${{ env.run_url }}|View the failure log>"
+                  text: "🚨🕒 Failure Alert: ${{ env.workflow_id }} ${{ env.branch }} 🕒🚨\n\n*Details:* <${{ env.run_url }}|View the failure log>"
         env:
           run_url: ${{ steps.find-workflow-run-status.outputs.run-url }}
           branch: ${{ matrix.branch }}
