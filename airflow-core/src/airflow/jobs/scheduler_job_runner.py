@@ -25,7 +25,7 @@ import signal
 import sys
 import time
 from collections import Counter, defaultdict, deque
-from collections.abc import Callable, Collection, Iterable, Iterator
+from collections.abc import Callable, Collection, Iterable, Iterator, Mapping
 from contextlib import ExitStack
 from datetime import date, datetime, timedelta
 from functools import lru_cache, partial
@@ -67,6 +67,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.trigger import TRIGGER_FAIL_REPR, TriggerFailureReason
 from airflow.stats import Stats
+from airflow.task.task_selectors import TASK_SELECTOR_PARAMS_PROVIDERS, TASK_SELECTORS
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.traces import utils as trace_utils
@@ -213,6 +214,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         self.scheduler_dag_bag = DBDagBag(load_op_links=False)
 
+        task_selector_type = conf.get("scheduler", "task_selector_strategy")
+
+        if self._log:
+            self._log.info("Using %s task selector", task_selector_type)
+
+        self.task_selector = TASK_SELECTORS[task_selector_type]
+        self.task_selector_params_provider = TASK_SELECTOR_PARAMS_PROVIDERS[task_selector_type]
+
     @provide_session
     def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
         Stats.incr("scheduler_heartbeat", 1, 1)
@@ -289,6 +298,21 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.info("\n\t".join(map(repr, callstack)))
             self.log.info("-" * 80)
 
+    def _aqcuire_lock_for_pgsql(self, session: Session) -> None:
+        from airflow.utils.db import DBLocks
+
+        # Optimization: to avoid littering the DB errors of "ERROR: canceling statement due to lock
+        # timeout", try to take out a transactional advisory lock (unlocks automatically on
+        # COMMIT/ROLLBACK)
+        lock_acquired = session.execute(
+            text("SELECT pg_try_advisory_xact_lock(:id)").bindparams(
+                id=DBLocks.SCHEDULER_CRITICAL_SECTION.value
+            )
+        ).scalar()
+        if not lock_acquired:
+            # Throw an error like the one that would happen with NOWAIT
+            raise OperationalError("Failed to acquire advisory lock", params=None, orig=RuntimeError("55P03"))
+
     def _executable_task_instances_to_queued(self, max_tis: int, session: Session) -> list[TI]:
         """
         Find TIs that are ready for execution based on conditions.
@@ -304,320 +328,68 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         :param max_tis: Maximum number of TIs to queue in this loop.
         :return: list[airflow.models.TaskInstance]
         """
-        from airflow.models.pool import Pool
-        from airflow.utils.db import DBLocks
-
         executable_tis: list[TI] = []
 
         if session.get_bind().dialect.name == "postgresql":
-            # Optimization: to avoid littering the DB errors of "ERROR: canceling statement due to lock
-            # timeout", try to take out a transactional advisory lock (unlocks automatically on
-            # COMMIT/ROLLBACK)
-            lock_acquired = session.execute(
-                text("SELECT pg_try_advisory_xact_lock(:id)").bindparams(
-                    id=DBLocks.SCHEDULER_CRITICAL_SECTION.value
-                )
-            ).scalar()
-            if not lock_acquired:
-                # Throw an error like the one that would happen with NOWAIT
-                raise OperationalError(
-                    "Failed to acquire advisory lock", params=None, orig=RuntimeError("55P03")
-                )
+            self._aqcuire_lock_for_pgsql(session)
+        timer = Stats.timer("scheduler.critical_section_query_duration")
+        timer.start()
 
-        # Get the pool settings. We get a lock on the pool rows, treating this as a "critical section"
-        # Throws an exception if lock cannot be obtained, rather than blocking
-        pools = Pool.slots_stats(lock_rows=True, session=session)
+        try:
+            params: Mapping[str, Any] = self.task_selector_params_provider(
+                conf=conf,  # type: ignore[call-arg]
+                scheduler_job_runner=self,  # type: ignore[call-arg]
+            )
+            task_instances_to_examine: list[TI] = self.task_selector.query_tasks_with_locks(
+                session,
+                **params,
+            )
+        except OperationalError as e:
+            timer.stop(send=False)
+            raise e
 
-        # If the pools are full, there is no point doing anything!
-        # If _somehow_ the pool is overfull, don't let the limit go negative - it breaks SQL
-        pool_slots_free = sum(max(0, pool["open"]) for pool in pools.values())
+        # TODO[HA]: This was wrong before anyway, as it only looked at a sub-set of dags, not everything.
+        # Stats.gauge('scheduler.tasks.pending', len(task_instances_to_examine))
 
-        if pool_slots_free == 0:
-            self.log.debug("All pools are full!")
+        if not task_instances_to_examine:
+            self.log.debug("No tasks to consider for execution.")
             return []
 
-        max_tis = min(max_tis, pool_slots_free)
+        # Put one task instance on each line
+        task_instance_str = "\n".join(f"\t{x!r}" for x in task_instances_to_examine)
+        self.log.info("%s tasks up for execution:\n%s", len(task_instances_to_examine), task_instance_str)
 
-        starved_pools = {pool_name for pool_name, stats in pools.items() if stats["open"] <= 0}
+        executor_slots_available: dict[ExecutorName, int] = {}
+        # First get a mapping of executor names to slots they have available
+        for executor in self.job.executors:
+            if TYPE_CHECKING:
+                # All executors should have a name if they are initted from the executor_loader.
+                # But we need to check for None to make mypy happy.
+                assert executor.name
+            executor_slots_available[executor.name] = executor.slots_available
 
-        # dag_id to # of running tasks and (dag_id, task_id) to # of running tasks.
-        concurrency_map = ConcurrencyMap()
-        concurrency_map.load(session=session)
-
-        # Number of tasks that cannot be scheduled because of no open slot in pool
-        num_starving_tasks_total = 0
-
-        # dag and task ids that can't be queued because of concurrency limits
-        starved_dags: set[str] = set()
-        starved_tasks: set[tuple[str, str]] = set()
-        starved_tasks_task_dagrun_concurrency: set[tuple[str, str, str]] = set()
-
-        pool_num_starving_tasks: dict[str, int] = Counter()
-
-        for loop_count in itertools.count(start=1):
-            num_starved_pools = len(starved_pools)
-            num_starved_dags = len(starved_dags)
-            num_starved_tasks = len(starved_tasks)
-            num_starved_tasks_task_dagrun_concurrency = len(starved_tasks_task_dagrun_concurrency)
-
-            query = (
-                select(TI)
-                .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
-                .join(TI.dag_run)
-                .where(DR.state == DagRunState.RUNNING)
-                .join(TI.dag_model)
-                .where(~DM.is_paused)
-                .where(TI.state == TaskInstanceState.SCHEDULED)
-                .where(DM.bundle_name.is_not(None))
-                .options(selectinload(TI.dag_model))
-                .order_by(-TI.priority_weight, DR.logical_date, TI.map_index)
-            )
-
-            if starved_pools:
-                query = query.where(TI.pool.not_in(starved_pools))
-
-            if starved_dags:
-                query = query.where(TI.dag_id.not_in(starved_dags))
-
-            if starved_tasks:
-                query = query.where(tuple_(TI.dag_id, TI.task_id).not_in(starved_tasks))
-
-            if starved_tasks_task_dagrun_concurrency:
-                query = query.where(
-                    tuple_(TI.dag_id, TI.run_id, TI.task_id).not_in(starved_tasks_task_dagrun_concurrency)
-                )
-
-            query = query.limit(max_tis)
-
-            timer = Stats.timer("scheduler.critical_section_query_duration")
-            timer.start()
-
-            try:
-                query = with_row_locks(query, of=TI, session=session, skip_locked=True)
-                task_instances_to_examine: list[TI] = session.scalars(query).all()
-
-                timer.stop(send=True)
-            except OperationalError as e:
-                timer.stop(send=False)
-                raise e
-
-            # TODO[HA]: This was wrong before anyway, as it only looked at a sub-set of dags, not everything.
-            # Stats.gauge('scheduler.tasks.pending', len(task_instances_to_examine))
-
-            if not task_instances_to_examine:
-                self.log.debug("No tasks to consider for execution.")
-                break
-
-            # Put one task instance on each line
-            task_instance_str = "\n".join(f"\t{x!r}" for x in task_instances_to_examine)
-            self.log.info("%s tasks up for execution:\n%s", len(task_instances_to_examine), task_instance_str)
-
-            executor_slots_available: dict[ExecutorName, int] = {}
-            # First get a mapping of executor names to slots they have available
-            for executor in self.job.executors:
+        for task_instance in task_instances_to_examine:
+            if executor_obj := self._try_to_load_executor(task_instance.executor):
                 if TYPE_CHECKING:
                     # All executors should have a name if they are initted from the executor_loader.
                     # But we need to check for None to make mypy happy.
-                    assert executor.name
-                executor_slots_available[executor.name] = executor.slots_available
-
-            for task_instance in task_instances_to_examine:
-                pool_name = task_instance.pool
-
-                pool_stats = pools.get(pool_name)
-                if not pool_stats:
-                    self.log.warning("Tasks using non-existent pool '%s' will not be scheduled", pool_name)
-                    starved_pools.add(pool_name)
-                    continue
-
-                # Make sure to emit metrics if pool has no starving tasks
-                pool_num_starving_tasks.setdefault(pool_name, 0)
-
-                pool_total = pool_stats["total"]
-                open_slots = pool_stats["open"]
-
-                if open_slots <= 0:
-                    self.log.info(
-                        "Not scheduling since there are %s open slots in pool %s", open_slots, pool_name
+                    assert executor_obj.name
+                if executor_slots_available[executor_obj.name] <= 0:
+                    self.log.debug(
+                        "Not scheduling %s since its executor %s does not currently have any more "
+                        "available slots"
                     )
-                    # Can't schedule any more since there are no more open slots.
-                    pool_num_starving_tasks[pool_name] += 1
-                    num_starving_tasks_total += 1
-                    starved_pools.add(pool_name)
                     continue
+                executor_slots_available[executor_obj.name] -= 1
+            else:
+                # This is a defensive guard for if we happen to have a task who's executor cannot be
+                # found. The check in the dag parser should make this not realistically possible but the
+                # loader can fail if some direct DB modification has happened or another as yet unknown
+                # edge case. _try_to_load_executor will log an error message explaining the executor
+                # cannot be found.
+                continue
 
-                if task_instance.pool_slots > pool_total:
-                    self.log.warning(
-                        "Not executing %s. Requested pool slots (%s) are greater than "
-                        "total pool slots: '%s' for pool: %s.",
-                        task_instance,
-                        task_instance.pool_slots,
-                        pool_total,
-                        pool_name,
-                    )
-
-                    pool_num_starving_tasks[pool_name] += 1
-                    num_starving_tasks_total += 1
-                    starved_tasks.add((task_instance.dag_id, task_instance.task_id))
-                    continue
-
-                if task_instance.pool_slots > open_slots:
-                    self.log.info(
-                        "Not executing %s since it requires %s slots "
-                        "but there are %s open slots in the pool %s.",
-                        task_instance,
-                        task_instance.pool_slots,
-                        open_slots,
-                        pool_name,
-                    )
-                    pool_num_starving_tasks[pool_name] += 1
-                    num_starving_tasks_total += 1
-                    starved_tasks.add((task_instance.dag_id, task_instance.task_id))
-                    # Though we can execute tasks with lower priority if there's enough room
-                    continue
-
-                # Check to make sure that the task max_active_tasks of the DAG hasn't been
-                # reached.
-                dag_id = task_instance.dag_id
-                dag_run_key = (dag_id, task_instance.run_id)
-                current_active_tasks_per_dag_run = concurrency_map.dag_run_active_tasks_map[dag_run_key]
-                dag_max_active_tasks = task_instance.dag_model.max_active_tasks
-                self.log.info(
-                    "DAG %s has %s/%s running and queued tasks",
-                    dag_id,
-                    current_active_tasks_per_dag_run,
-                    dag_max_active_tasks,
-                )
-                if current_active_tasks_per_dag_run >= dag_max_active_tasks:
-                    self.log.info(
-                        "Not executing %s since the number of tasks running or queued "
-                        "from DAG %s is >= to the DAG's max_active_tasks limit of %s",
-                        task_instance,
-                        dag_id,
-                        dag_max_active_tasks,
-                    )
-                    starved_dags.add(dag_id)
-                    continue
-
-                if task_instance.dag_model.has_task_concurrency_limits:
-                    # Many dags don't have a task_concurrency, so where we can avoid loading the full
-                    # serialized DAG the better.
-                    serialized_dag = self.scheduler_dag_bag.get_dag_for_run(
-                        dag_run=task_instance.dag_run, session=session
-                    )
-                    # If the dag is missing, fail the task and continue to the next task.
-                    if not serialized_dag:
-                        self.log.error(
-                            "DAG '%s' for task instance %s not found in serialized_dag table",
-                            dag_id,
-                            task_instance,
-                        )
-                        session.execute(
-                            update(TI)
-                            .where(TI.dag_id == dag_id, TI.state == TaskInstanceState.SCHEDULED)
-                            .values(state=TaskInstanceState.FAILED)
-                            .execution_options(synchronize_session="fetch")
-                        )
-                        continue
-
-                    task_concurrency_limit: int | None = None
-                    if serialized_dag.has_task(task_instance.task_id):
-                        task_concurrency_limit = serialized_dag.get_task(
-                            task_instance.task_id
-                        ).max_active_tis_per_dag
-
-                    if task_concurrency_limit is not None:
-                        current_task_concurrency = concurrency_map.task_concurrency_map[
-                            (task_instance.dag_id, task_instance.task_id)
-                        ]
-
-                        if current_task_concurrency >= task_concurrency_limit:
-                            self.log.info(
-                                "Not executing %s since the task concurrency for this task has been reached.",
-                                task_instance,
-                            )
-                            starved_tasks.add((task_instance.dag_id, task_instance.task_id))
-                            continue
-
-                    task_dagrun_concurrency_limit: int | None = None
-                    if serialized_dag.has_task(task_instance.task_id):
-                        task_dagrun_concurrency_limit = serialized_dag.get_task(
-                            task_instance.task_id
-                        ).max_active_tis_per_dagrun
-
-                    if task_dagrun_concurrency_limit is not None:
-                        current_task_dagrun_concurrency = concurrency_map.task_dagrun_concurrency_map[
-                            (task_instance.dag_id, task_instance.run_id, task_instance.task_id)
-                        ]
-
-                        if current_task_dagrun_concurrency >= task_dagrun_concurrency_limit:
-                            self.log.info(
-                                "Not executing %s since the task concurrency per DAG run for"
-                                " this task has been reached.",
-                                task_instance,
-                            )
-                            starved_tasks_task_dagrun_concurrency.add(
-                                (task_instance.dag_id, task_instance.run_id, task_instance.task_id)
-                            )
-                            continue
-
-                if executor_obj := self._try_to_load_executor(task_instance.executor):
-                    if TYPE_CHECKING:
-                        # All executors should have a name if they are initted from the executor_loader.
-                        # But we need to check for None to make mypy happy.
-                        assert executor_obj.name
-                    if executor_slots_available[executor_obj.name] <= 0:
-                        self.log.debug(
-                            "Not scheduling %s since its executor %s does not currently have any more "
-                            "available slots"
-                        )
-                        starved_tasks.add((task_instance.dag_id, task_instance.task_id))
-                        continue
-                    executor_slots_available[executor_obj.name] -= 1
-                else:
-                    # This is a defensive guard for if we happen to have a task who's executor cannot be
-                    # found. The check in the dag parser should make this not realistically possible but the
-                    # loader can fail if some direct DB modification has happened or another as yet unknown
-                    # edge case. _try_to_load_executor will log an error message explaining the executor
-                    # cannot be found.
-                    starved_tasks.add((task_instance.dag_id, task_instance.task_id))
-                    continue
-
-                executable_tis.append(task_instance)
-                open_slots -= task_instance.pool_slots
-                concurrency_map.dag_run_active_tasks_map[dag_run_key] += 1
-                concurrency_map.task_concurrency_map[(task_instance.dag_id, task_instance.task_id)] += 1
-                concurrency_map.task_dagrun_concurrency_map[
-                    (task_instance.dag_id, task_instance.run_id, task_instance.task_id)
-                ] += 1
-
-                pool_stats["open"] = open_slots
-
-            is_done = executable_tis or len(task_instances_to_examine) < max_tis
-            # Check this to avoid accidental infinite loops
-            found_new_filters = (
-                len(starved_pools) > num_starved_pools
-                or len(starved_dags) > num_starved_dags
-                or len(starved_tasks) > num_starved_tasks
-                or len(starved_tasks_task_dagrun_concurrency) > num_starved_tasks_task_dagrun_concurrency
-            )
-
-            if is_done or not found_new_filters:
-                break
-
-            self.log.info(
-                "Found no task instances to queue on query iteration %s "
-                "but there could be more candidate task instances to check.",
-                loop_count,
-            )
-
-        for pool_name, num_starving_tasks in pool_num_starving_tasks.items():
-            Stats.gauge(f"pool.starving_tasks.{pool_name}", num_starving_tasks)
-            # Same metric with tagging
-            Stats.gauge("pool.starving_tasks", num_starving_tasks, tags={"pool_name": pool_name})
-
-        Stats.gauge("scheduler.tasks.starving", num_starving_tasks_total)
-        Stats.gauge("scheduler.tasks.executable", len(executable_tis))
+            executable_tis.append(task_instance)
 
         if executable_tis:
             task_instance_str = "\n".join(f"\t{x!r}" for x in executable_tis)
@@ -902,32 +674,30 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @classmethod
     def set_ti_span_attrs(cls, span, state, ti):
-        span.set_attributes(
-            {
-                "airflow.category": "scheduler",
-                "airflow.task.id": ti.id,
-                "airflow.task.task_id": ti.task_id,
-                "airflow.task.dag_id": ti.dag_id,
-                "airflow.task.state": ti.state,
-                "airflow.task.error": state == TaskInstanceState.FAILED,
-                "airflow.task.start_date": str(ti.start_date),
-                "airflow.task.end_date": str(ti.end_date),
-                "airflow.task.duration": ti.duration,
-                "airflow.task.executor_config": str(ti.executor_config),
-                "airflow.task.logical_date": str(ti.logical_date),
-                "airflow.task.hostname": ti.hostname,
-                "airflow.task.log_url": ti.log_url,
-                "airflow.task.operator": str(ti.operator),
-                "airflow.task.try_number": ti.try_number,
-                "airflow.task.executor_state": state,
-                "airflow.task.pool": ti.pool,
-                "airflow.task.queue": ti.queue,
-                "airflow.task.priority_weight": ti.priority_weight,
-                "airflow.task.queued_dttm": str(ti.queued_dttm),
-                "airflow.task.queued_by_job_id": ti.queued_by_job_id,
-                "airflow.task.pid": ti.pid,
-            }
-        )
+        span.set_attributes({
+            "airflow.category": "scheduler",
+            "airflow.task.id": ti.id,
+            "airflow.task.task_id": ti.task_id,
+            "airflow.task.dag_id": ti.dag_id,
+            "airflow.task.state": ti.state,
+            "airflow.task.error": state == TaskInstanceState.FAILED,
+            "airflow.task.start_date": str(ti.start_date),
+            "airflow.task.end_date": str(ti.end_date),
+            "airflow.task.duration": ti.duration,
+            "airflow.task.executor_config": str(ti.executor_config),
+            "airflow.task.logical_date": str(ti.logical_date),
+            "airflow.task.hostname": ti.hostname,
+            "airflow.task.log_url": ti.log_url,
+            "airflow.task.operator": str(ti.operator),
+            "airflow.task.try_number": ti.try_number,
+            "airflow.task.executor_state": state,
+            "airflow.task.pool": ti.pool,
+            "airflow.task.queue": ti.queue,
+            "airflow.task.priority_weight": ti.priority_weight,
+            "airflow.task.queued_dttm": str(ti.queued_dttm),
+            "airflow.task.queued_by_job_id": ti.queued_by_job_id,
+            "airflow.task.pid": ti.pid,
+        })
         if span.is_recording():
             span.add_event(name="airflow.task.queued", timestamp=datetime_to_nano(ti.queued_dttm))
             span.add_event(name="airflow.task.started", timestamp=datetime_to_nano(ti.start_date))
@@ -986,10 +756,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .join(TI)
                 .where(
                     DagModel.is_paused == expression.true(),
-                    DagRun.state == DagRunState.RUNNING,
+                    DR.state == DagRunState.RUNNING,
                 )
-                .having(DagRun.last_scheduling_decision <= func.max(TI.updated_at))
-                .group_by(DagRun)
+                .having(DR.last_scheduling_decision <= func.max(TI.updated_at))
+                .group_by(DR)
             )
             for dag_run in paused_runs:
                 dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
@@ -1230,12 +1000,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 DebugTrace.start_span(span_name="scheduler_job_loop", component="SchedulerJobRunner") as span,
                 Stats.timer("scheduler.scheduler_loop_duration") as timer,
             ):
-                span.set_attributes(
-                    {
-                        "category": "scheduler",
-                        "loop_count": loop_count,
-                    }
-                )
+                span.set_attributes({
+                    "category": "scheduler",
+                    "loop_count": loop_count,
+                })
 
                 with create_session() as session:
                     self._end_spans_of_externally_ended_ops(session)
@@ -1657,14 +1425,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         @add_debug_span
         def _update_state(dag: DAG, dag_run: DagRun):
             span = Trace.get_current_span()
-            span.set_attributes(
-                {
-                    "state": str(DagRunState.RUNNING),
-                    "run_id": dag_run.run_id,
-                    "type": dag_run.run_type,
-                    "dag_id": dag_run.dag_id,
-                }
-            )
+            span.set_attributes({
+                "state": str(DagRunState.RUNNING),
+                "run_id": dag_run.run_id,
+                "type": dag_run.run_type,
+                "dag_id": dag_run.dag_id,
+            })
 
             dag_run.state = DagRunState.RUNNING
             dag_run.start_date = timezone.utcnow()
@@ -1779,13 +1545,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         with DebugTrace.start_span(
             span_name="_schedule_dag_run", component="SchedulerJobRunner", links=links
         ) as span:
-            span.set_attributes(
-                {
-                    "dag_id": dag_run.dag_id,
-                    "run_id": dag_run.run_id,
-                    "run_type": dag_run.run_type,
-                }
-            )
+            span.set_attributes({
+                "dag_id": dag_run.dag_id,
+                "run_id": dag_run.run_id,
+                "run_type": dag_run.run_type,
+            })
             callback: DagCallbackRequest | None = None
 
             dag = dag_run.dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
@@ -2091,16 +1855,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 Stats.gauge("pool.deferred_slots", slot_stats["deferred"], tags={"pool_name": pool_name})
                 Stats.gauge("pool.scheduled_slots", slot_stats["scheduled"], tags={"pool_name": pool_name})
 
-                span.set_attributes(
-                    {
-                        "category": "scheduler",
-                        f"pool.open_slots.{pool_name}": slot_stats["open"],
-                        f"pool.queued_slots.{pool_name}": slot_stats["queued"],
-                        f"pool.running_slots.{pool_name}": slot_stats["running"],
-                        f"pool.deferred_slots.{pool_name}": slot_stats["deferred"],
-                        f"pool.scheduled_slots.{pool_name}": slot_stats["scheduled"],
-                    }
-                )
+                span.set_attributes({
+                    "category": "scheduler",
+                    f"pool.open_slots.{pool_name}": slot_stats["open"],
+                    f"pool.queued_slots.{pool_name}": slot_stats["queued"],
+                    f"pool.running_slots.{pool_name}": slot_stats["running"],
+                    f"pool.deferred_slots.{pool_name}": slot_stats["deferred"],
+                    f"pool.scheduled_slots.{pool_name}": slot_stats["scheduled"],
+                })
 
     @provide_session
     def adopt_or_reset_orphaned_tasks(self, session: Session = NEW_SESSION) -> int:

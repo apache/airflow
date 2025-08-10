@@ -62,8 +62,6 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.task_instance_session import get_current_task_instance_session
 
 if TYPE_CHECKING:
-    from alembic.runtime.environment import EnvironmentContext
-    from alembic.script import ScriptDirectory
     from sqlalchemy.engine import Row
     from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
@@ -72,6 +70,8 @@ if TYPE_CHECKING:
 
     from airflow.models.connection import Connection
     from airflow.typing_compat import Self
+    from alembic.runtime.environment import EnvironmentContext
+    from alembic.script import ScriptDirectory
 
     # TODO: Import this from sqlalchemy.orm instead when switching to SQLA 2.
     # https://docs.sqlalchemy.org/en/20/orm/mapping_api.html#sqlalchemy.orm.MappedClassProtocol
@@ -95,7 +95,7 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "2.10.3": "5f2621c13b39",
     "3.0.0": "29ce7909c52b",
     "3.0.3": "fe199e1abd77",
-    "3.1.0": "808787349f22",
+    "3.1.0": "2f49f2dae90c",
 }
 
 
@@ -665,9 +665,8 @@ class AutocommitEngineForMySQL:
 def _create_db_from_orm(session):
     """Create database tables from ORM models and stamp alembic version."""
     log.info("Creating Airflow database tables from the ORM")
-    from alembic import command
-
     from airflow.models.base import Base
+    from alembic import command
 
     # Debug setup if requested
     _setup_debug_logging_if_needed()
