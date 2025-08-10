@@ -350,7 +350,7 @@ class DagRun(Base, LoggingMixin):
         """Return the DAG versions associated with the TIs of this DagRun."""
         # when the dag is in a versioned bundle, we keep the dag version fixed
         if self.bundle_version:
-            return [self.created_dag_version]
+            return [self.created_dag_version] if self.created_dag_version is not None else []
         dag_versions = [
             dv
             for dv in dict.fromkeys(list(self._tih_dag_versions) + list(self._ti_dag_versions))
