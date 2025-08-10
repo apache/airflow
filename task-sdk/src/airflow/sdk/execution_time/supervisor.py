@@ -1262,6 +1262,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 defaults=msg.defaults,
                 params=msg.params,
                 multiple=msg.multiple,
+                respondents=msg.respondents,
             )
             self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
         else:

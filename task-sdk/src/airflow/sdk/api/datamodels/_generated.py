@@ -166,6 +166,7 @@ class HITLDetailRequest(BaseModel):
     defaults: Annotated[list[str] | None, Field(title="Defaults")] = None
     multiple: Annotated[bool | None, Field(title="Multiple")] = False
     params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
+    respondents: Annotated[list[str] | None, Field(title="Respondents")] = None
 
 
 class HITLDetailResponse(BaseModel):

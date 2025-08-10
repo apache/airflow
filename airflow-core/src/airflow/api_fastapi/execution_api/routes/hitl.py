@@ -62,6 +62,7 @@ def upsert_hitl_detail(
     """
     ti_id_str = str(task_instance_id)
     hitl_detail_model = session.scalar(select(HITLDetail).where(HITLDetail.ti_id == ti_id_str))
+    # TODO: check the username in the respondents are valid users.
     if not hitl_detail_model:
         hitl_detail_model = HITLDetail(
             ti_id=ti_id_str,
@@ -71,6 +72,7 @@ def upsert_hitl_detail(
             defaults=payload.defaults,
             multiple=payload.multiple,
             params=payload.params,
+            respondents=payload.respondents,
         )
         session.add(hitl_detail_model)
     elif hitl_detail_model.response_received:

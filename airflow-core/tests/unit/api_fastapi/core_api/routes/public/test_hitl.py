@@ -169,6 +169,7 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
         "multiple": False,
         "options": ["Approve", "Reject"],
         "params": {"input_1": 1},
+        "respondents": None,
         "params_input": {},
         "response_at": None,
         "chosen_options": None,

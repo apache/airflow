@@ -118,6 +118,12 @@ def _update_hitl_detail(
             f"Human-in-the-loop detail has already been updated for Task Instance with id {ti_id_str} "
             "and is not allowed to write again.",
         )
+    
+    if hitl_detail_model.respondents and user.get_name() not in hitl_detail_model.respondents:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            f"User={user.get_name()} is not a respondent for the task."
+        )
 
     hitl_detail_model.user_id = user.get_id()
     hitl_detail_model.response_at = timezone.utcnow()
@@ -171,6 +177,7 @@ def _get_hitl_detail(
     "/{dag_id}/{dag_run_id}/{task_id}",
     responses=create_openapi_http_exception_doc(
         [
+            status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
             status.HTTP_409_CONFLICT,
         ]
@@ -201,6 +208,7 @@ def update_hitl_detail(
     "/{dag_id}/{dag_run_id}/{task_id}/{map_index}",
     responses=create_openapi_http_exception_doc(
         [
+            status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
             status.HTTP_409_CONFLICT,
         ]
