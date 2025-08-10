@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-10T02:30:52.344309
+# This constraints file was automatically generated on 2025-08-10T19:47:42.330538
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -13,14 +13,7 @@ APScheduler==3.11.0
 Authlib==1.6.1
 Deprecated==1.2.18
 Events==0.5
-Flask-AppBuilder==4.8.0
-Flask-Babel==2.0.0
-Flask-JWT-Extended==4.7.1
-Flask-Limiter==3.12
-Flask-Login==0.6.3
-Flask-SQLAlchemy==2.5.1
-Flask-WTF==1.2.2
-Flask==2.3.3
+Flask==3.1.1
 GitPython==3.1.45
 JayDeBeApi==1.2.3
 Jinja2==3.1.6
@@ -38,10 +31,9 @@ PyYAML==6.0.2
 Pygments==2.19.2
 SQLAlchemy-JSONField==1.0.2
 SQLAlchemy-Utils==0.41.2
-SQLAlchemy==1.4.54
+SQLAlchemy==2.0.42
 SecretStorage==3.3.3
 Sphinx==8.2.3
-WTForms==3.2.1
 Werkzeug==3.1.3
 a2wsgi==1.10.10
 adal==1.2.7
@@ -75,7 +67,6 @@ amqp==5.3.1
 annotated-types==0.7.0
 ansicolors==1.1.8
 anyio==4.10.0
-apispec==6.8.2
 apprise==1.9.4
 argcomplete==3.6.2
 arro3-core==0.5.1
@@ -160,7 +151,7 @@ croniter==6.0.0
 cryptography==45.0.6
 curlify==3.0.0
 databricks-sql-connector==4.0.5
-databricks-sqlalchemy==1.0.2
+databricks-sqlalchemy==2.0.7
 dataclasses-json==0.6.7
 datadog==0.52.1
 db-dtypes==1.4.3
@@ -346,15 +337,13 @@ kubernetes_asyncio==32.3.2
 kylinpy==2.8.4
 lazy-object-proxy==1.11.0
 libcst==1.8.2
-limits==5.5.0
 linkify-it-py==2.0.3
-litellm==1.75.4
+litellm==1.75.5.post1
 lockfile==0.12.2
 looker-sdk==25.10.0
 lxml==6.0.0
 lz4==4.4.4
 markdown-it-py==3.0.0
-marshmallow-sqlalchemy==1.4.2
 marshmallow==3.26.1
 matplotlib-inline==0.1.7
 mdurl==0.1.2
@@ -416,7 +405,6 @@ opentelemetry-sdk==1.36.0
 opentelemetry-semantic-conventions==0.57b0
 opsgenie-sdk==2.1.5
 oracledb==3.3.0
-ordered-set==4.1.0
 oss2==2.19.1
 packaging==25.0
 pagerduty==3.1.0
@@ -448,7 +436,6 @@ pprintpp==0.4.0
 pre-commit-uv==4.1.4
 pre_commit==4.3.0
 presto-python-client==0.8.4
-prison==0.2.1
 prometheus_client==0.22.1
 prompt_toolkit==3.0.51
 propcache==0.3.2
@@ -540,7 +527,7 @@ rpds-py==0.27.0
 rsa==4.9.1
 ruamel.yaml.clib==0.2.12
 ruamel.yaml==0.18.14
-ruff==0.12.7
+ruff==0.12.8
 s3fs==2025.7.0
 s3transfer==0.13.1
 sagemaker_studio==1.0.21

@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-10T02:31:18.850345
+# This constraints file was automatically generated on 2025-08-10T19:47:27.201516
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -358,7 +358,7 @@ lazy-object-proxy==1.11.0
 libcst==1.8.2
 limits==5.5.0
 linkify-it-py==2.0.3
-litellm==1.75.4
+litellm==1.75.5.post1
 lockfile==0.12.2
 looker-sdk==25.10.0
 lxml==6.0.0
@@ -560,7 +560,7 @@ rpds-py==0.27.0
 rsa==4.9.1
 ruamel.yaml.clib==0.2.12
 ruamel.yaml==0.18.14
-ruff==0.12.7
+ruff==0.12.8
 s3fs==2025.7.0
 s3transfer==0.13.1
 sagemaker_studio==1.0.21
