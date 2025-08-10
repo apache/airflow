@@ -548,7 +548,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             interface = self.appbuilder.get_app.session_interface
             session = interface.db.session
             user_session_model = interface.sql_session_model
-            # num_sessions = session.query(user_session_model).count()
             num_sessions = session.scalars(select(func.count()).select_from(user_session_model)).one()
             if num_sessions > MAX_NUM_DATABASE_USER_SESSIONS:
                 safe_username = escape(user.username)
@@ -564,7 +563,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                     "warning",
                 )
             else:
-                # for s in session.query(user_session_model):
                 for s in session.scalars(select(user_session_model)).all():
                     session_details = interface.serializer.loads(want_bytes(s.data))
                     if session_details.get("_user_id") == user.id:
@@ -1282,7 +1280,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return self.get_session.scalars(select(self.role_model).filter_by(name=name)).unique().one_or_none()
 
     def get_all_roles(self):
-        # return self.get_session.query(self.role_model).all()
         return self.get_session.scalars(select(self.role_model)).unique().all()
 
     def delete_role(self, role_name: str) -> None:
@@ -1292,7 +1289,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         :param role_name: the name of a role in the ab_role table
         """
         session = self.get_session
-        # role = session.query(Role).filter(Role.name == role_name).first()
         role = session.scalars(select(Role).where(Role.name == role_name)).first()
         if role:
             log.info("Deleting role '%s'", role_name)
@@ -1327,7 +1323,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return _roles
 
     def get_public_role(self):
-        # return self.get_session.query(self.role_model).filter_by(name=self.auth_role_public).one_or_none()
         return (
             self.get_session.scalars(select(self.role_model).filter_by(name=self.auth_role_public))
             .unique()
@@ -1389,8 +1384,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def count_users(self):
         """Return the number of users in the database."""
-        # return self.get_session.query(func.count(self.user_model.id)).scalar()
-        return self.get_session.execute(select(func.count(self.user_model.id))).scalar()
+        return self.get_session.scalar(select(func.count(self.user_model.id)))
 
     def add_register_user(self, username, first_name, last_name, email, password="", hashed_password=""):
         """
@@ -1422,21 +1416,11 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         if username:
             try:
                 if self.auth_username_ci:
-                    """ return (
-                        self.get_session.query(self.user_model)
-                        .filter(func.lower(self.user_model.username) == func.lower(username))
-                        .one_or_none()
-                    ) """
                     return self.get_session.scalars(
                         select(self.user_model).where(
                             func.lower(self.user_model.username) == func.lower(username)
                         )
                     ).one_or_none()
-                """ return (
-                    self.get_session.query(self.user_model)
-                    .filter(func.lower(self.user_model.username) == func.lower(username))
-                    .one_or_none()
-                ) """
                 return self.get_session.scalars(
                     select(self.user_model).where(
                         func.lower(self.user_model.username) == func.lower(username)
@@ -1626,12 +1610,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 .unique()
                 .one_or_none()
             )
-        """ if action and resource:
-            return (
-                self.get_session.query(self.permission_model)
-                .filter_by(action=action, resource=resource)
-                .one_or_none()
-            ) """
 
         return None
 
@@ -1644,7 +1622,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return self.get_session.scalars(
             select(self.permission_model).filter_by(resource_id=resource.id)
         ).all()
-        # return self.get_session.query(self.permission_model).filter_by(resource_id=resource.id).all()
 
     def create_permission(self, action_name, resource_name) -> Permission | None:
         """
@@ -1691,9 +1668,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         perm = self.get_permission(action_name, resource_name)
         if not perm:
             return
-        """ roles = (
-            self.get_session.query(self.role_model).filter(self.role_model.permissions.contains(perm)).first()
-        ) """
         roles = self.get_session.scalars(
             select(self.role_model).where(self.role_model.permissions.contains(perm))
         ).first()
@@ -1708,7 +1682,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             if not self.get_session.scalars(
                 select(self.permission_model).filter_by(action=perm.action)
             ).all():
-                # if not self.get_session.query(self.permission_model).filter_by(action=perm.action).all():
                 self.delete_action(perm.action.name)
             log.info(const.LOGMSG_INF_SEC_DEL_PERMVIEW, action_name, resource_name)
         except Exception as e:
