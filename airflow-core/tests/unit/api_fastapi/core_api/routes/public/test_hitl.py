@@ -487,7 +487,9 @@ class TestGetHITLDetailsEndpoint:
             # ti related filter
             ({"dag_id_pattern": "hitl_dag"}, 5),
             ({"dag_id_pattern": "other_Dag_"}, 3),
+            ({"dag_id": "hitl_dag_0"}, 1),
             ({"dag_run_id": "hitl_run_0"}, 1),
+            ({"task_id": "hitl_task_0"}, 1),
             ({"task_id_pattern": "another_hitl"}, 3),
             ({"state": "running"}, 5),
             ({"state": "success"}, 3),
@@ -499,9 +501,11 @@ class TestGetHITLDetailsEndpoint:
             ({"user_id": ["test"]}, 3),
         ],
         ids=[
-            "dag_id_hitl_dag",
-            "dag_id_other_dag",
+            "dag_id_pattern_hitl_dag",
+            "dag_id_pattern_other_dag",
+            "dag_id",
             "dag_run_id",
+            "task_id_pattern",
             "task_id",
             "ti_state_running",
             "ti_state_success",

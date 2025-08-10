@@ -853,3 +853,23 @@ QueryHITLDetailUserIdFilter = Annotated[
         )
     ),
 ]
+QueryHITLDetailDagIdFilter = Annotated[
+    FilterParam[str | None],
+    Depends(
+        filter_param_factory(
+            TaskInstance.dag_id,
+            str | None,
+            filter_name="dag_id",
+        )
+    ),
+]
+QueryHITLDetailTaskIdFilter = Annotated[
+    FilterParam[str | None],
+    Depends(
+        filter_param_factory(
+            TaskInstance.task_id,
+            str | None,
+            filter_name="task_id",
+        )
+    ),
+]
