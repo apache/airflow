@@ -33,11 +33,12 @@ from alembic.runtime.environment import EnvironmentContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import Column, Integer, MetaData, Table, select
 
+from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.models import Base as airflow_base
-from airflow.settings import engine
 from airflow.utils.db import (
     _REVISION_HEADS_MAP,
+    AutocommitEngineForMySQL,
     LazySelectSequence,
     _get_alembic_config,
     check_migrations,
@@ -82,7 +83,7 @@ class TestDb:
             print("Ignoring FAB models in Python 3.13+ as FAB is not compatible with 3.13+ yet.")
         # create diff between database schema and SQLAlchemy model
         mctx = MigrationContext.configure(
-            engine.connect(),
+            settings.engine.connect(),
             opts={"compare_type": compare_type, "compare_server_default": compare_server_default},
         )
         diff = compare_metadata(mctx, all_meta_data)
@@ -296,3 +297,200 @@ class TestDb:
         )
         with pytest.raises(AirflowException, match=re.escape(msg)):
             downgrade(to_revision=_REVISION_HEADS_MAP["2.7.0"])
+
+
+class TestAutocommitEngineForMySQL:
+    """Test the AutocommitEngineForMySQL context manager."""
+
+    def test_non_mysql_database_is_noop(self, mocker):
+        """Test that non-MySQL databases don't trigger any changes."""
+        # Mock settings to use PostgreSQL
+        mocker.patch.object(settings, "SQL_ALCHEMY_CONN", "postgresql://user:pass@localhost/db")
+        mock_dispose = mocker.patch.object(settings, "dispose_orm")
+        mock_configure = mocker.patch.object(settings, "configure_orm")
+
+        original_prepare = settings.prepare_engine_args
+
+        with AutocommitEngineForMySQL() as ctx:
+            # Should return self but not modify anything
+            assert ctx is not None
+            # prepare_engine_args should be unchanged
+            assert settings.prepare_engine_args == original_prepare
+
+        # No engine operations should have been called
+        mock_dispose.assert_not_called()
+        mock_configure.assert_not_called()
+
+        # After exit, should still be unchanged
+        assert settings.prepare_engine_args == original_prepare
+
+    def test_mysql_database_modifies_engine(self, mocker):
+        """Test that MySQL databases trigger AUTOCOMMIT mode."""
+        # Mock settings to use MySQL
+        mocker.patch.object(settings, "SQL_ALCHEMY_CONN", "mysql+mysqlconnector://user:pass@localhost/db")
+        mock_dispose = mocker.patch.object(settings, "dispose_orm")
+        mock_configure = mocker.patch.object(settings, "configure_orm")
+
+        # Create a mock for original prepare_engine_args
+        original_prepare = mocker.Mock(return_value={"pool_size": 5})
+        mocker.patch.object(settings, "prepare_engine_args", original_prepare)
+
+        with AutocommitEngineForMySQL():
+            # Check that prepare_engine_args was replaced
+            assert settings.prepare_engine_args != original_prepare
+
+            # Call the new prepare_engine_args and verify it adds AUTOCOMMIT
+            result = settings.prepare_engine_args()
+            assert result["isolation_level"] == "AUTOCOMMIT"
+            assert result["pool_size"] == 5  # Original args preserved
+
+            # Verify engine was recreated on enter
+            assert mock_dispose.call_count == 1
+            assert mock_configure.call_count == 1
+
+        # After exit, original should be restored
+        assert settings.prepare_engine_args == original_prepare
+
+        # Verify engine was recreated on exit
+        assert mock_dispose.call_count == 2
+        assert mock_configure.call_count == 2
+
+    def test_mysql_variants_detected(self, mocker):
+        """Test that different MySQL connection strings are detected."""
+        mock_dispose = mocker.patch.object(settings, "dispose_orm")
+        mock_configure = mocker.patch.object(settings, "configure_orm")
+
+        mysql_variants = [
+            "mysql://user:pass@localhost/db",
+            "mysql+pymysql://user:pass@localhost/db",
+            "mysql+mysqlconnector://user:pass@localhost/db",
+            "mysql+mysqldb://user:pass@localhost/db",
+            "MySQL://user:pass@localhost/db",  # Case insensitive
+        ]
+
+        for conn_string in mysql_variants:
+            mocker.patch.object(settings, "SQL_ALCHEMY_CONN", conn_string)
+            mock_dispose.reset_mock()
+            mock_configure.reset_mock()
+
+            with AutocommitEngineForMySQL():
+                # Should trigger engine recreation for all MySQL variants
+                assert mock_dispose.call_count == 1
+                assert mock_configure.call_count == 1
+
+            # Cleanup on exit
+            assert mock_dispose.call_count == 2
+            assert mock_configure.call_count == 2
+
+    def test_none_sql_alchemy_conn(self, mocker):
+        """Test behavior when SQL_ALCHEMY_CONN is None."""
+        mocker.patch.object(settings, "SQL_ALCHEMY_CONN", None)
+        mock_dispose = mocker.patch.object(settings, "dispose_orm")
+        mock_configure = mocker.patch.object(settings, "configure_orm")
+
+        with AutocommitEngineForMySQL():
+            # Should be a no-op when connection string is None
+            mock_dispose.assert_not_called()
+            mock_configure.assert_not_called()
+
+    def test_prepare_engine_args_with_parameters(self, mocker):
+        """Test that prepare_engine_args parameters are properly forwarded."""
+        mocker.patch.object(settings, "SQL_ALCHEMY_CONN", "mysql://user:pass@localhost/db")
+        mocker.patch.object(settings, "dispose_orm")
+        mocker.patch.object(settings, "configure_orm")
+
+        # Mock original with different behavior based on parameters
+        original_prepare = mocker.Mock(
+            side_effect=lambda disable_connection_pool=False, pool_class=None: {
+                "disabled": disable_connection_pool,
+                "pool_class": pool_class,
+                "original": True,
+            }
+        )
+        mocker.patch.object(settings, "prepare_engine_args", original_prepare)
+
+        with AutocommitEngineForMySQL():
+            # Test with different parameters
+            result1 = settings.prepare_engine_args(disable_connection_pool=True)
+            assert result1["isolation_level"] == "AUTOCOMMIT"
+            assert result1["disabled"] is True
+            assert result1["original"] is True
+
+            result2 = settings.prepare_engine_args(pool_class="CustomPool")
+            assert result2["isolation_level"] == "AUTOCOMMIT"
+            assert result2["pool_class"] == "CustomPool"
+
+            # Verify original was called with correct parameters
+            original_prepare.assert_any_call(disable_connection_pool=True, pool_class=None)
+            original_prepare.assert_any_call(disable_connection_pool=False, pool_class="CustomPool")
+
+    def test_exception_during_context(self, mocker):
+        """Test that cleanup happens even if an exception occurs."""
+        mocker.patch.object(settings, "SQL_ALCHEMY_CONN", "mysql://user:pass@localhost/db")
+        mock_dispose = mocker.patch.object(settings, "dispose_orm")
+        mock_configure = mocker.patch.object(settings, "configure_orm")
+        original_prepare = mocker.Mock()
+        mocker.patch.object(settings, "prepare_engine_args", original_prepare)
+
+        # Setup and assertions before raising the exception
+        with AutocommitEngineForMySQL():
+            assert mock_dispose.call_count == 1
+            assert mock_configure.call_count == 1
+            assert settings.prepare_engine_args != original_prepare
+
+            # Now check that ValueError is raised
+            with pytest.raises(ValueError):
+                raise ValueError("Test exception")
+
+        # Verify cleanup still happened despite exception
+        assert settings.prepare_engine_args == original_prepare
+        assert mock_dispose.call_count == 2
+        assert mock_configure.call_count == 2
+
+    def test_logging_messages(self, mocker):
+        """Test that appropriate log messages are generated."""
+        mocker.patch.object(settings, "SQL_ALCHEMY_CONN", "mysql://user:pass@localhost/db")
+        mocker.patch.object(settings, "dispose_orm")
+        mocker.patch.object(settings, "configure_orm")
+
+        # Mock the log object in the db module
+        mock_log = mocker.patch("airflow.utils.db.log")
+
+        with AutocommitEngineForMySQL():
+            pass
+
+        # Get the list of calls made to the mock's 'info' method
+        info_calls = mock_log.info.mock_calls
+
+        # Assert that each expected call is present in the list of actual calls
+        assert mocker.call("Entering AUTOCOMMIT mode for MySQL DDL operations") in info_calls
+        assert mocker.call("Exiting AUTOCOMMIT mode, restoring normal transaction engine") in info_calls
+
+    def test_integration_with_actual_settings_module(self, mocker):
+        """Test integration using a fully mocked settings module."""
+        # Setup mock settings module
+        mock_settings = mocker.Mock()
+        mock_settings.SQL_ALCHEMY_CONN = "mysql://user:pass@localhost/db"
+        mock_settings.dispose_orm = mocker.Mock()
+        mock_settings.configure_orm = mocker.Mock()
+        original_prepare = mocker.Mock(return_value={"test": "value"})
+        mock_settings.prepare_engine_args = original_prepare
+
+        # Import the class with mocked settings
+        from airflow.utils.db import AutocommitEngineForMySQL
+
+        mocker.patch("airflow.utils.db.settings", mock_settings)
+        with AutocommitEngineForMySQL():
+            # Verify the prepare_engine_args was replaced
+            assert mock_settings.prepare_engine_args != original_prepare
+
+            # Test the wrapper function
+            result = mock_settings.prepare_engine_args()
+            assert "isolation_level" in result
+            assert result["isolation_level"] == "AUTOCOMMIT"
+            assert result["test"] == "value"
+
+        # Verify restoration
+        assert mock_settings.prepare_engine_args == original_prepare
+        assert mock_settings.dispose_orm.call_count == 2
+        assert mock_settings.configure_orm.call_count == 2

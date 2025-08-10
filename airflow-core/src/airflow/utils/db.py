@@ -571,6 +571,56 @@ def get_default_connections():
     return conns
 
 
+class AutocommitEngineForMySQL:
+    """
+    Context manager to temporarily use AUTOCOMMIT isolation level for MySQL.
+
+    This is needed to work around MySQL 8.4 metadata lock issues with SQLAlchemy 2.0.
+    """
+
+    def __init__(self):
+        self.is_mysql = settings.SQL_ALCHEMY_CONN and settings.SQL_ALCHEMY_CONN.lower().startswith("mysql")
+        self.original_prepare_engine_args = None
+
+    def __enter__(self):
+        if not self.is_mysql:
+            return self
+
+        log.info("Entering AUTOCOMMIT mode for MySQL DDL operations")
+
+        # Save and replace prepare_engine_args
+        self.original_prepare_engine_args = settings.prepare_engine_args
+
+        def autocommit_prepare_engine_args(disable_connection_pool=False, pool_class=None):
+            # Call with keyword arguments to preserve the calling convention
+            args = self.original_prepare_engine_args(
+                disable_connection_pool=disable_connection_pool, pool_class=pool_class
+            )
+            args["isolation_level"] = "AUTOCOMMIT"
+            return args
+
+        settings.prepare_engine_args = autocommit_prepare_engine_args
+
+        # Recreate engine with AUTOCOMMIT
+        settings.dispose_orm(do_log=False)
+        settings.configure_orm()
+
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if not self.is_mysql:
+            return
+
+        log.info("Exiting AUTOCOMMIT mode, restoring normal transaction engine")
+
+        # Restore original function
+        settings.prepare_engine_args = self.original_prepare_engine_args
+
+        # Recreate engine with normal settings
+        settings.dispose_orm(do_log=False)
+        settings.configure_orm()
+
+
 def _create_db_from_orm(session):
     log.info("Creating Airflow database tables from the ORM")
     from alembic import command
