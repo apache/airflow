@@ -535,10 +535,14 @@ repos:
             (?x)
             ^airflow-ctl.*\.py$|
 <<<<<<< HEAD
+<<<<<<< HEAD
             ^providers/fab.*\.py$|
 =======
             ^airflow-core.src.airflow.models.*\.py$|
 >>>>>>> a0db4e42ed (add path to pre-commit hook)
+=======
+            ^airflow-core/src/airflow/models/.*\.py$|
+>>>>>>> 68f94dfb9c (use / in path)
             ^task_sdk.*\.py$
         pass_filenames: true
       - id: update-supported-versions
