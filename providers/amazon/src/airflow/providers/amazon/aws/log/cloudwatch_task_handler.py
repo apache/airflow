@@ -22,6 +22,7 @@ import copy
 import json
 import logging
 import os
+from collections.abc import Generator
 from datetime import date, datetime, timedelta, timezone
 from functools import cached_property
 from pathlib import Path
@@ -33,6 +34,7 @@ import watchtower
 from airflow.configuration import conf
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.utils import datetime_to_epoch_utc_ms
+from airflow.providers.amazon.version_compat import SUPPORT_STREAM_BASED_READ
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -43,9 +45,7 @@ if TYPE_CHECKING:
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
     from airflow.utils.log.file_task_handler import (
         LegacyLogResponse,
-        LogMessages,
         LogResponse,
-        LogSourceInfo,
         RawLogStream,
     )
 
@@ -299,23 +299,24 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         # Mark closed so we don't double write if close is called twice
         self.closed = True
 
-    def _read_remote_logs(
-        self, task_instance, try_number, metadata=None
-    ) -> tuple[LogSourceInfo, LogMessages]:
+    def _read_remote_logs(self, task_instance, try_number, metadata=None) -> LegacyLogResponse | LogResponse:
         stream_name = self._render_filename(task_instance, try_number)
-        messages, logs = self.io.read(stream_name, task_instance)
-
         messages = [
             f"Reading remote log from Cloudwatch log_group: {self.io.log_group} log_stream: {stream_name}"
         ]
+
+        logs: list[str] | list[Generator[str, None, None]]
         try:
             events = self.io.get_cloudwatch_logs(stream_name, task_instance)
-            logs = ["\n".join(self._event_to_str(event) for event in events)]
+            if SUPPORT_STREAM_BASED_READ:
+                logs = [(self._event_to_str(event) for event in events)]
+            else:
+                logs = ["\n".join(self._event_to_str(event) for event in events)]
         except Exception as e:
             logs = []
             messages.append(str(e))
 
-        return messages, logs
+        return messages, logs  # type: ignore[return-value]
 
     def _event_to_str(self, event: dict) -> str:
         event_dt = datetime.fromtimestamp(event["timestamp"] / 1000.0, tz=timezone.utc)
