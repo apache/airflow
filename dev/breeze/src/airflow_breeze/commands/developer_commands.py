@@ -37,6 +37,7 @@ from airflow_breeze.commands.common_options import (
     option_all_integration,
     option_allow_pre_releases,
     option_answer,
+    option_auth_manager,
     option_backend,
     option_builder,
     option_clean_airflow_installation,
@@ -89,7 +90,6 @@ from airflow_breeze.commands.common_package_installation_options import (
 from airflow_breeze.commands.main_command import cleanup, main
 from airflow_breeze.commands.testing_commands import option_test_type
 from airflow_breeze.global_constants import (
-    ALLOWED_AUTH_MANAGERS,
     ALLOWED_CELERY_BROKERS,
     ALLOWED_CELERY_EXECUTORS,
     ALLOWED_EXECUTORS,
@@ -291,6 +291,7 @@ option_load_default_connections = click.option(
 @option_airflow_constraints_reference
 @option_airflow_extras
 @option_answer
+@option_auth_manager
 @option_backend
 @option_builder
 @option_celery_broker
@@ -348,6 +349,7 @@ def shell(
     airflow_constraints_mode: str,
     airflow_constraints_reference: str,
     airflow_extras: str,
+    auth_manager: str,
     backend: str,
     builder: str,
     celery_broker: str,
@@ -422,6 +424,7 @@ def shell(
         airflow_constraints_reference=airflow_constraints_reference,
         airflow_extras=airflow_extras,
         allow_pre_releases=allow_pre_releases,
+        auth_manager=auth_manager,
         backend=backend,
         builder=builder,
         celery_broker=celery_broker,
@@ -490,14 +493,6 @@ option_executor_start_airflow = click.option(
     "or CeleryExecutor depending on the integration used).",
 )
 
-option_auth_manager_start_airflow = click.option(
-    "--auth-manager",
-    type=click.Choice(ALLOWED_AUTH_MANAGERS, case_sensitive=False),
-    help="Specify the auth manager to use with start-airflow",
-    default=ALLOWED_AUTH_MANAGERS[0],
-    show_default=True,
-)
-
 
 @main.command(name="start-airflow")
 @click.option(
@@ -517,7 +512,7 @@ option_auth_manager_start_airflow = click.option(
 @option_airflow_constraints_mode_ci
 @option_airflow_constraints_reference
 @option_airflow_extras
-@option_auth_manager_start_airflow
+@option_auth_manager
 @option_answer
 @option_backend
 @option_builder
