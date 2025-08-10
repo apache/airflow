@@ -124,7 +124,8 @@ jobs:
         ${{ steps.selective-checks.outputs.selected-providers-list-as-string }}
       skip-pre-commits: ${{ steps.selective-checks.outputs.skip-pre-commits }}
       skip-providers-tests: ${{ steps.selective-checks.outputs.skip-providers-tests }}
-      source-head-repo: ${{ steps.source-run-info.outputs.source-head-repo }}
+      source-head-repo: ${{ steps.source-run-info.outputs.head-repo }}
+      source-head-ref: ${{ steps.source-run-info.outputs.head-ref }}
       sqlite-exclude: ${{ steps.selective-checks.outputs.sqlite-exclude }}
       testable-core-integrations: ${{ steps.selective-checks.outputs.testable-core-integrations }}
       testable-providers-integrations: ${{ steps.selective-checks.outputs.testable-providers-integrations }}
@@ -184,8 +185,8 @@ jobs:
       - name: Install pre-commit, uv, and pre-commit-uv
         shell: bash
         env:
-          UV_VERSION: "0.8.4"  # Keep this comment to allow automatic replacement of uv version
-          PRE_COMMIT_VERSION: "4.2.0"  # Keep this comment to allow automatic replacement of pre-commit version
+          UV_VERSION: "0.8.8"  # Keep this comment to allow automatic replacement of uv version
+          PRE_COMMIT_VERSION: "4.3.0"  # Keep this comment to allow automatic replacement of pre-commit version
           PRE_COMMIT_UV_VERSION: "4.1.4"  # Keep this comment to allow automatic replacement of pre-commit-uv version
         run: |
           pip install uv==${UV_VERSION} || true
@@ -309,6 +310,8 @@ jobs:
       default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+      source-head-repo: ${{ needs.build-info.outputs.source-head-repo }}
+      source-head-ref: ${{ needs.build-info.outputs.source-head-ref }}
     secrets:
       DOCS_AWS_ACCESS_KEY_ID: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
       DOCS_AWS_SECRET_ACCESS_KEY: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
