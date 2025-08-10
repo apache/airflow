@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-09T13:51:12.811967
+# This constraints file was automatically generated on 2025-08-10T02:31:18.850345
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -305,7 +305,7 @@ ibm-cloud-sdk-core==3.24.2
 ibmcloudant==0.10.5
 icdiff==2.0.7
 id==1.5.0
-identify==2.6.12
+identify==2.6.13
 idna==3.10
 ijson==3.4.0
 imagesize==1.4.1
@@ -358,7 +358,7 @@ lazy-object-proxy==1.11.0
 libcst==1.8.2
 limits==5.5.0
 linkify-it-py==2.0.3
-litellm==1.75.3
+litellm==1.75.4
 lockfile==0.12.2
 looker-sdk==25.10.0
 lxml==6.0.0
@@ -409,7 +409,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.3.1
 objsize==0.7.1
-openai==1.99.5
+openai==1.99.6
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
 opencensus-context==0.1.3
@@ -461,7 +461,7 @@ polars==1.32.2
 portalocker==3.2.0
 pprintpp==0.4.0
 pre-commit-uv==4.1.4
-pre_commit==4.2.0
+pre_commit==4.3.0
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.22.1
@@ -675,7 +675,7 @@ uritemplate==4.2.0
 urllib3==2.5.0
 userpath==1.9.2
 uuid6==2025.0.1
-uv==0.8.4
+uv==0.8.8
 uvicorn==0.35.0
 uvloop==0.21.0
 validators==0.35.0

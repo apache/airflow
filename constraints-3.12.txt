@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-09T13:53:33.166772
+# This constraints file was automatically generated on 2025-08-10T02:33:45.984503
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -411,7 +411,7 @@ lazy-object-proxy==1.11.0
 libcst==1.8.2
 limits==5.5.0
 linkify-it-py==2.0.3
-litellm==1.75.3
+litellm==1.75.4
 lockfile==0.12.2
 looker-sdk==25.10.0
 lxml==6.0.0
@@ -451,7 +451,7 @@ nest-asyncio==1.6.0
 numpy==1.26.4
 oauthlib==3.3.1
 objsize==0.7.1
-openai==1.99.5
+openai==1.99.6
 opencensus-context==0.1.3
 opencensus==0.11.4
 openlineage-integration-common==1.36.0

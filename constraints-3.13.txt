@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-09T13:53:23.465480
+# This constraints file was automatically generated on 2025-08-10T02:34:34.895564
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -386,7 +386,7 @@ kylinpy==2.8.4
 lazy-object-proxy==1.11.0
 libcst==1.8.2
 linkify-it-py==2.0.3
-litellm==1.75.3
+litellm==1.75.4
 lockfile==0.12.2
 looker-sdk==25.10.0
 lxml==5.4.0
@@ -423,7 +423,7 @@ neo4j==5.28.2
 nest-asyncio==1.6.0
 numpy==2.3.2
 oauthlib==3.3.1
-openai==1.99.5
+openai==1.99.6
 openlineage-integration-common==1.36.0
 openlineage-python==1.36.0
 openlineage_sql==1.36.0
