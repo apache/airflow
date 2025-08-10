@@ -81,8 +81,9 @@ export const TaskInstance = () => {
 
   const { data: hitlDetails } = useHumanInTheLoopServiceGetHitlDetails(
     {
-      dagIdPattern: dagId,
+      dagId,
       dagRunId: runId,
+      taskId,
     },
     undefined,
     {
@@ -91,9 +92,7 @@ export const TaskInstance = () => {
     },
   );
 
-  const hasHitlForTask = Boolean(
-    hitlDetails?.hitl_details.find((hitl) => hitl.task_instance.task_id === taskId),
-  );
+  const hasHitlForTask = (hitlDetails?.total_entries ?? 0) > 0;
 
   const taskInstanceSummary = gridTISummaries?.task_instances.find((ti) => ti.task_id === taskId);
   const taskCount = useMemo(
