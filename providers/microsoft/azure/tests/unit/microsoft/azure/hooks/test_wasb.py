@@ -20,6 +20,7 @@ from __future__ import annotations
 import os
 import re
 from unittest import mock
+from urllib.parse import urlparse
 
 import pytest
 from azure.core.exceptions import ResourceNotFoundError
@@ -157,13 +158,13 @@ class TestWasbHook:
             Connection(
                 conn_id=self.http_sas_conn_id,
                 conn_type=self.connection_type,
-                extra={"sas_token": "https://login.blob.core.windows.net/token", "proxies": self.proxies},
+                extra={"sas_token": "https://login.blob.core.windows.net?token", "proxies": self.proxies},
             ),
             Connection(
                 conn_id=self.extra__wasb__http_sas_conn_id,
                 conn_type=self.connection_type,
                 extra={
-                    "extra__wasb__sas_token": "https://login.blob.core.windows.net/token",
+                    "extra__wasb__sas_token": "https://login.blob.core.windows.net?token",
                     "proxies": self.proxies,
                 },
             ),
@@ -280,7 +281,8 @@ class TestWasbHook:
     ):
         WasbHook(wasb_conn_id="testconn").get_conn()
         mocked_blob_service_client.assert_called_once_with(
-            account_url="https://testaccountname.blob.core.windows.net/SAStoken",
+            account_url="https://testaccountname.blob.core.windows.net/",
+            credential="SAStoken",
             sas_token="SAStoken",
         )
 
@@ -339,7 +341,12 @@ class TestWasbHook:
         assert conn.url.startswith("https://")
         if hook_conn.login:
             assert hook_conn.login in conn.url
-        assert conn.url.endswith(sas_token + "/")
+
+        if sas_token.startswith("https"):
+            # Parse the URL without query params
+            parsed_sas_url = urlparse(sas_token)
+            base_url = f"{parsed_sas_url.scheme}://{parsed_sas_url.netloc}{parsed_sas_url.path}"
+            assert conn.url.rstrip("/") == base_url.rstrip("/")
 
     @pytest.mark.parametrize(
         argnames="conn_id_str",
