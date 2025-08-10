@@ -24,8 +24,10 @@ import itertools
 import json
 import logging
 import os
+import signal
 import sys
 import time
+import traceback
 import warnings
 from collections.abc import Callable, Generator, Iterable, Iterator, Sequence
 from tempfile import gettempdir
@@ -95,6 +97,45 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "3.0.3": "fe199e1abd77",
     "3.1.0": "808787349f22",
 }
+
+
+@contextlib.contextmanager
+def timeout_with_traceback(seconds, message="Operation timed out"):
+    """
+    Raise a TimeoutException after specified seconds.
+
+    Logs the full call stack when timeout occurs.
+
+    Note: This uses SIGALRM and only works on Unix systems (not Windows).
+    """
+
+    class TimeoutException(Exception):
+        """Exception raised when a timeout occurs."""
+
+    def timeout_handler(signum, frame):
+        # Capture the full call stack
+        stack_trace = "".join(traceback.format_stack(frame))
+
+        # Log the timeout and stack trace
+        log.error(
+            "\n%s after %s seconds\nFull call stack at timeout:\n%s",
+            message,
+            seconds,
+            stack_trace,
+        )
+
+        raise TimeoutException(message)
+
+    # Set the signal handler
+    old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(seconds)
+
+    try:
+        yield
+    finally:
+        # Cancel the alarm and restore the old handler
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old_handler)
 
 
 @provide_session
@@ -622,18 +663,53 @@ class AutocommitEngineForMySQL:
 
 
 def _create_db_from_orm(session):
+    """Create database tables from ORM models and stamp alembic version."""
     log.info("Creating Airflow database tables from the ORM")
     from alembic import command
 
     from airflow.models.base import Base
 
+    # Debug setup if requested
+    _setup_debug_logging_if_needed()
+
+    log.info("Creating context")
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
+        log.info("Binding engine")
         engine = session.get_bind().engine
+        log.info("Pool status: %s", engine.pool.status())
+        log.info("Creating metadata")
         Base.metadata.create_all(engine)
-        # stamp the migration head
+
+        # Stamp the migration head
+        log.info("Getting alembic config")
         config = _get_alembic_config()
         command.stamp(config, "head")
         log.info("Airflow database tables created")
+
+
+def _setup_debug_logging_if_needed():
+    """Set up debug logging and stack trace dumping if SQLALCHEMY_ENGINE_DEBUG is set."""
+    if not os.environ.get("SQLALCHEMY_ENGINE_DEBUG"):
+        return
+
+    import faulthandler
+    import threading
+
+    # Enable SQLA debug logging
+    logging.getLogger("sqlalchemy.engine").setLevel(logging.DEBUG)
+
+    # Enable Fault Handler
+    faulthandler.enable(file=sys.stderr, all_threads=True)
+
+    # Print Active Threads and Stack Traces Periodically
+    def dump_stacks():
+        while True:
+            for thread_id, frame in sys._current_frames().items():
+                log.info("\nThread %s stack:", thread_id)
+                traceback.print_stack(frame)
+            time.sleep(300)
+
+    threading.Thread(target=dump_stacks, daemon=True).start()
 
 
 @provide_session
@@ -646,10 +722,11 @@ def initdb(session: Session = NEW_SESSION):
     import_all_models()
 
     db_exists = _get_current_revision(session)
-    if db_exists:
-        upgradedb(session=session)
-    else:
-        _create_db_from_orm(session=session)
+    with timeout_with_traceback(60 * 20, "DB upgrade/creation timed out."):
+        if db_exists:
+            upgradedb(session=session)
+        else:
+            _create_db_from_orm(session=session)
 
     external_db_manager.initdb(session)
     # Add default pool & sync log_template

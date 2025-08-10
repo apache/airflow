@@ -378,6 +378,8 @@ class MySqlHook(DbApiHook):
         # Determine URI prefix based on client
         if client_name == "mysql-connector-python":
             uri_prefix = "mysql+mysqlconnector://"
+        elif client_name == "pymysql":
+            uri_prefix = "mysql+pymysql://"
         else:  # default: mysqlclient
             uri_prefix = "mysql://"
 
