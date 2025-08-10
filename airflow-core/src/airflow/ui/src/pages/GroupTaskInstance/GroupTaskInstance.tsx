@@ -18,9 +18,11 @@
  */
 import { ReactFlowProvider } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
+import { FiUser } from "react-icons/fi";
 import { MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
+import { useHumanInTheLoopServiceGetHitlDetails } from "openapi/queries";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 import { isStatePending, useAutoRefresh } from "src/utils";
@@ -28,18 +30,37 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 import { Header } from "./Header";
 
 export const GroupTaskInstance = () => {
-  const { dagId = "", runId = "", taskId = "" } = useParams();
+  const { dagId = "", groupId = "", runId = "" } = useParams();
   const { t: translate } = useTranslation("dag");
   const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId });
-  const taskInstance = gridTISummaries?.task_instances.find((ti) => ti.task_id === taskId);
+  const taskInstance = gridTISummaries?.task_instances.find((ti) => ti.task_id === groupId);
 
   const refetchInterval = useAutoRefresh({ dagId });
 
-  const tabs = [{ icon: <MdOutlineTask />, label: translate("tabs.taskInstances"), value: "" }];
+  const { data: hitlData } = useHumanInTheLoopServiceGetHitlDetails(
+    {
+      dagId,
+      dagRunId: runId,
+      taskIdPattern: groupId,
+    },
+    undefined,
+    {
+      enabled: Boolean(dagId && groupId),
+    },
+  );
+
+  const hasHitlForTask = (hitlData?.total_entries ?? 0) > 0;
+
+  const tabs = [
+    { icon: <MdOutlineTask />, label: translate("tabs.taskInstances"), value: "" },
+    { icon: <FiUser />, label: translate("tabs.requiredActions"), value: "required_actions" },
+  ];
+
+  const displayTabs = tabs.filter((tab) => tab.value !== "required_actions" || hasHitlForTask);
 
   return (
     <ReactFlowProvider>
-      <DetailsLayout tabs={tabs}>
+      <DetailsLayout tabs={displayTabs}>
         {taskInstance === undefined ? undefined : (
           <Header
             isRefreshing={Boolean(isStatePending(taskInstance.state) && Boolean(refetchInterval))}
