@@ -321,6 +321,7 @@ class TestVertexAICreateCustomContainerTrainingJobOperator:
             is_default_version=None,
             model_version_aliases=None,
             model_version_description=None,
+            psc_interface_config=None,
         )
 
     @mock.patch(VERTEX_AI_PATH.format("custom_job.Dataset"))
@@ -407,6 +408,7 @@ class TestVertexAICreateCustomContainerTrainingJobOperator:
             is_default_version=None,
             model_version_aliases=None,
             model_version_description=None,
+            psc_interface_config=None,
         )
 
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomContainerTrainingJobOperator.hook"))
@@ -648,6 +650,7 @@ class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
             timestamp_split_column_name=None,
             tensorboard=None,
             sync=True,
+            psc_interface_config=None,
         )
 
     @mock.patch(VERTEX_AI_PATH.format("custom_job.Dataset"))
@@ -736,6 +739,7 @@ class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
             timestamp_split_column_name=None,
             tensorboard=None,
             sync=True,
+            psc_interface_config=None,
         )
 
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomPythonPackageTrainingJobOperator.hook"))
@@ -976,6 +980,7 @@ class TestVertexAICreateCustomTrainingJobOperator:
             is_default_version=None,
             model_version_aliases=None,
             model_version_description=None,
+            psc_interface_config=None,
         )
 
     @mock.patch(VERTEX_AI_PATH.format("custom_job.Dataset"))
@@ -1057,6 +1062,7 @@ class TestVertexAICreateCustomTrainingJobOperator:
             is_default_version=None,
             model_version_aliases=None,
             model_version_description=None,
+            psc_interface_config=None,
         )
 
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomTrainingJobOperator.hook"))
@@ -1387,8 +1393,9 @@ class TestVertexAIImportDataOperator:
         FINAL_DS_SIZE = 101
         INITIAL_DS = {**SAMPLE_DATASET, "data_item_count": INITIAL_DS_SIZE}
         FINAL_DS = {**SAMPLE_DATASET, "data_item_count": FINAL_DS_SIZE}
+        get_ds_mock = mock_hook.return_value.get_dataset
 
-        mock_hook.return_value.get_dataset.side_effect = [Dataset(INITIAL_DS), Dataset(FINAL_DS)]
+        get_ds_mock.side_effect = [Dataset(INITIAL_DS), Dataset(FINAL_DS)]
 
         res = op.execute(context={})
 
@@ -1403,6 +1410,22 @@ class TestVertexAIImportDataOperator:
             metadata=METADATA,
         )
         assert res["total_data_items_imported"] == FINAL_DS_SIZE - INITIAL_DS_SIZE
+
+        assert get_ds_mock.call_count == 2
+        sample_get_ds_kwargs = dict(
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            dataset=TEST_DATASET_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        get_ds_mock.assert_has_calls(
+            [
+                call(**sample_get_ds_kwargs),
+                call(**sample_get_ds_kwargs),
+            ]
+        )
 
 
 class TestVertexAIListDatasetsOperator:

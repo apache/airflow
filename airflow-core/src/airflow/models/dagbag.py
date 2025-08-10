@@ -55,7 +55,6 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base, StringID
 from airflow.models.dag_version import DagVersion
 from airflow.stats import Stats
-from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.docs import get_docs_url
 from airflow.utils.file import (
     correct_maybe_zipped,
@@ -556,7 +555,7 @@ class DagBag(LoggingMixin):
         :raises: AirflowDagCycleException if a cycle is detected.
         :raises: AirflowDagDuplicatedIdException if this dag already exists in the bag.
         """
-        check_cycle(dag)  # throws if a task cycle is found
+        dag.check_cycle()  # throws exception if a task cycle is found
 
         dag.resolve_template_files()
         dag.last_loaded = timezone.utcnow()
@@ -715,7 +714,7 @@ class DagBag(LoggingMixin):
         )
 
 
-class SchedulerDagBag:
+class DBDagBag:
     """
     Internal class for retrieving and caching dags in the scheduler.
 
