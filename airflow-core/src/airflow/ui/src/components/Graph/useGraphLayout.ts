@@ -169,6 +169,8 @@ const generateElkGraph = ({
     }
 
     if (!Boolean(isOpen) && node.children !== undefined) {
+      const seenEdges = new Set<string>();
+
       filteredEdges = filteredEdges
         // Filter out internal group edges
         .filter((fe) => !(childIds.includes(fe.source_id) && childIds.includes(fe.target_id)))
@@ -177,7 +179,18 @@ const generateElkGraph = ({
           ...fe,
           source_id: childIds.includes(fe.source_id) ? node.id : fe.source_id,
           target_id: childIds.includes(fe.target_id) ? node.id : fe.target_id,
-        }));
+        }))
+        // Deduplicate edges based on source_id and target_id composite
+        .filter((fe) => {
+          const edgeKey = `${fe.source_id}-${fe.target_id}`;
+
+          if (seenEdges.has(edgeKey)) {
+            return false;
+          }
+          seenEdges.add(edgeKey);
+
+          return true;
+        });
       closedGroupIds.push(node.id);
     }
 
@@ -210,20 +223,7 @@ const generateElkGraph = ({
 
   const children = nodes.map(formatChildNode);
 
-  // Deduplicate edges that point to the same source/target
-  const edgeMap = new Map<string, EdgeResponse>();
-
-  filteredEdges.forEach((edge) => {
-    const edgeKey = `${edge.source_id}-${edge.target_id}`;
-
-    if (!edgeMap.has(edgeKey)) {
-      edgeMap.set(edgeKey, edge);
-    }
-  });
-
-  // Convert back to array and create formatted edges
-  const deduplicatedEdges = [...edgeMap.values()];
-  const edges = deduplicatedEdges.map((fe) => formatElkEdge(fe, font));
+  const edges = filteredEdges.map((fe) => formatElkEdge(fe, font));
 
   return {
     children: children as Array<ElkNode>,
