@@ -74,24 +74,26 @@ def get_dag_stats(
     query_result = session.execute(dagruns_select)
 
     result_dag_ids = []
+    dag_display_names: dict[str, str] = {}
     dag_state_data = {}
     for dag_id, state, dag_display_name, count in query_result:
-        dag_state_data[(dag_id, dag_display_name, state)] = count
-        if (dag_id, dag_display_name) not in result_dag_ids:
-            result_dag_ids.append((dag_id, dag_display_name))
+        dag_state_data[(dag_id, state)] = count
+        if (dag_id) not in result_dag_ids:
+            dag_display_names[dag_id] = dag_display_name
+            result_dag_ids.append(dag_id)
 
     dags = [
         DagStatsResponse(
             dag_id=dag_id,
-            dag_display_name=dag_display_name,
+            dag_display_name=dag_display_names[dag_id],
             stats=[
                 DagStatsStateResponse(
                     state=state,
-                    count=dag_state_data.get((dag_id, dag_display_name, state), 0),
+                    count=dag_state_data.get((dag_id, state), 0),
                 )
                 for state in DagRunState
             ],
         )
-        for (dag_id, dag_display_name) in result_dag_ids
+        for dag_id in result_dag_ids
     ]
     return DagStatsCollectionResponse(dags=dags, total_entries=len(dags))
