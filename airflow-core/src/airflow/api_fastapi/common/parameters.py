@@ -592,6 +592,14 @@ QueryDagIdPatternSearch = Annotated[
 QueryDagDisplayNamePatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(DagModel.dag_display_name, "dag_display_name_pattern"))
 ]
+QueryBundleNameFilter = Annotated[
+    FilterParam[str | None],
+    Depends(filter_param_factory(DagModel.bundle_name, str | None, filter_name="bundle_name")),
+]
+QueryBundleVersionFilter = Annotated[
+    FilterParam[str | None],
+    Depends(filter_param_factory(DagModel.bundle_version, str | None, filter_name="bundle_version")),
+]
 QueryDagIdPatternSearchWithNone = Annotated[
     _SearchParam, Depends(search_param_factory(DagModel.dag_id, "dag_id_pattern", False))
 ]
@@ -842,6 +850,26 @@ QueryHITLDetailUserIdFilter = Annotated[
             FilterOptionEnum.ANY_EQUAL,
             default_factory=list,
             filter_name="user_id",
+        )
+    ),
+]
+QueryHITLDetailDagIdFilter = Annotated[
+    FilterParam[str | None],
+    Depends(
+        filter_param_factory(
+            TaskInstance.dag_id,
+            str | None,
+            filter_name="dag_id",
+        )
+    ),
+]
+QueryHITLDetailTaskIdFilter = Annotated[
+    FilterParam[str | None],
+    Depends(
+        filter_param_factory(
+            TaskInstance.task_id,
+            str | None,
+            filter_name="task_id",
         )
     ),
 ]

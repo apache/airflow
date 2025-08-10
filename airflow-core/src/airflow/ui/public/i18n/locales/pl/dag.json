@@ -19,11 +19,12 @@
   },
   "header": {
     "buttons": {
+      "advanced": "Zaawansowane",
       "dagDocs": "Dokumentacja Daga"
     }
   },
   "logs": {
-    "allLevels": "Wszystkie poziomy logów",
+    "allLevels": "Wszystkie poziomy logowania",
     "allSources": "Wszystkie źródła",
     "critical": "CRITICAL",
     "debug": "DEBUG",
@@ -34,6 +35,7 @@
     },
     "info": "INFO",
     "noTryNumber": "Brak numeru próby",
+    "settings": "Ustawienia logowania",
     "viewInExternal": "Zobacz logi w {{name}} (próba {{attempt}})",
     "warning": "WARNING"
   },
@@ -111,6 +113,7 @@
     "mappedTaskInstances_other": "Instancje zadań [{{count}}]",
     "overview": "Przegląd",
     "renderedTemplates": "Wyrenderowane szablony",
+    "requiredActions": "Wymagane akcje",
     "runs": "Wykonania",
     "taskInstances": "Instancje zadań",
     "tasks": "Zadania",

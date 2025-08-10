@@ -111,6 +111,7 @@ PRE_COMMIT_LIST = [
     "generate-airflowctl-help-images",
     "generate-openapi-spec",
     "generate-openapi-spec-fab",
+    "generate-openapi-spec-keycloak",
     "generate-pypi-readme",
     "generate-tasksdk-datamodels",
     "generate-volumes-for-sources",

@@ -18,7 +18,7 @@
 default_stages: [pre-commit, pre-push]
 default_language_version:
   python: python3
-  node: 22.17.1
+  node: 22.18.0
   golang: 1.24.0
 minimum_pre_commit_version: '3.2.0'
 exclude: ^.*/.*_vendor/
@@ -328,7 +328,7 @@ repos:
           ^.*reproducible_build\.yaml$|
           ^.*pnpm-lock\.yaml$
   - repo: https://github.com/ikamensh/flynt
-    rev: '1.0.1'
+    rev: '1.0.6'
     hooks:
       - id: flynt
         name: Run flynt string format converter for Python
@@ -441,7 +441,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.12.3']
+        additional_dependencies: ['ruff==0.12.7']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -451,7 +451,7 @@ repos:
         types_or: [python, pyi]
         args: []
         require_serial: true
-        additional_dependencies: ['ruff==0.12.3']
+        additional_dependencies: ['ruff==0.12.7']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$
       - id: replace-bad-characters
         name: Replace bad characters
@@ -1532,9 +1532,15 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/generate_openapi_spec_fab.py
         pass_filenames: false
-        files: ^airflow-core/src/airflow/api_fastapi/.*\.py$|^airflow-core/src/airflow/api_fastapi/auth/managers/simple/.*\.py$|^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
-        exclude: ^airflow-core/src/airflow/api_fastapi/execution_api/.*
+        files: ^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
         additional_dependencies: ['rich>=12.4.4', 'openapi-spec-validator>=0.7.1']
+      - id: generate-openapi-spec-keycloak
+        name: Generate the FastAPI API spec for Keycloak
+        language: python
+        entry: ./scripts/ci/pre_commit/generate_openapi_spec_keycloak.py
+        pass_filenames: false
+        files: ^providers/keycloak/src/airflow/providers/keycloak/auth_manager/.*\.py$
+        additional_dependencies: [ 'rich>=12.4.4', 'openapi-spec-validator>=0.7.1' ]
       - id: check-i18n-json
         name: Check i18n files validity
         description: Check i18n files are valid json, have no TODOs, and auto-format them
@@ -1609,7 +1615,7 @@ repos:
         name: Check imports in providers
         entry: ./scripts/ci/pre_commit/check_imports_in_providers.py
         language: python
-        additional_dependencies: ['rich>=12.4.4', 'ruff==0.12.3']
+        additional_dependencies: ['rich>=12.4.4', 'ruff==0.12.7']
         files: ^providers/.*/src/airflow/providers/.*version_compat.*\.py$
         require_serial: true
       - id: provider-version-compat
@@ -1681,6 +1687,7 @@ repos:
           ^airflow-core/src/airflow/models/baseoperator\.py$|
           ^airflow-core/src/airflow/models/connection\.py$|
           ^airflow-core/src/airflow/models/dag\.py$|
+          ^airflow-core/src/airflow/models/deadline\.py$|
           ^airflow-core/src/airflow/models/dagbag\.py$|
           ^airflow-core/src/airflow/models/dagrun\.py$|
           ^airflow-core/src/airflow/models/mappedoperator\.py$|
