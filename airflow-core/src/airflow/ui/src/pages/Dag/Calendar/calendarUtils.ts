@@ -21,7 +21,6 @@ import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
 
 import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 
-import { CALENDAR_STATE_COLORS, SUCCESS_RATE_THRESHOLDS } from "./constants";
 import type { RunCounts, DailyCalendarData, HourlyCalendarData, CalendarCellData } from "./types";
 
 dayjs.extend(isSameOrBefore);
@@ -83,29 +82,25 @@ export const calculateRunCounts = (runs: Array<CalendarTimeRangeResponse>): RunC
 };
 
 const PRIORITY_STATE_RULES = [
-  { color: CALENDAR_STATE_COLORS.queued.pure, condition: (counts: RunCounts) => counts.queued > 0 },
-  { color: CALENDAR_STATE_COLORS.running.pure, condition: (counts: RunCounts) => counts.running > 0 },
-  { color: CALENDAR_STATE_COLORS.planned.pure, condition: (counts: RunCounts) => counts.planned > 0 },
+  { color: "queued.600", condition: (counts: RunCounts) => counts.queued > 0 },
+  { color: "blue.400", condition: (counts: RunCounts) => counts.running > 0 },
+  { color: "scheduled.200", condition: (counts: RunCounts) => counts.planned > 0 },
 ] as const;
 
 const SUCCESS_RATE_RULES = [
-  { color: CALENDAR_STATE_COLORS.success.pure, threshold: 1 },
-  { color: CALENDAR_STATE_COLORS.success.high, threshold: SUCCESS_RATE_THRESHOLDS.HIGH },
-  { color: CALENDAR_STATE_COLORS.success.medium, threshold: SUCCESS_RATE_THRESHOLDS.MEDIUM },
-  { color: CALENDAR_STATE_COLORS.mixed.moderate, threshold: SUCCESS_RATE_THRESHOLDS.MODERATE },
-  { color: CALENDAR_STATE_COLORS.mixed.poor, threshold: SUCCESS_RATE_THRESHOLDS.POOR },
+  { color: "success.600", threshold: 1 },
+  { color: "success.500", threshold: 0.8 },
+  { color: "success.400", threshold: 0.6 },
+  { color: "up_for_retry.500", threshold: 0.4 },
+  { color: "upstream_failed.500", threshold: 0.2 },
 ] as const;
 
 export const getCalendarCellColor = (runs: Array<CalendarTimeRangeResponse>): string => {
   if (runs.length === 0) {
-    return CALENDAR_STATE_COLORS.empty;
+    return "bg.muted";
   }
 
   const counts = calculateRunCounts(runs);
-
-  if (counts.total === 0) {
-    return CALENDAR_STATE_COLORS.empty;
-  }
 
   const priorityRule = PRIORITY_STATE_RULES.find((rule) => rule.condition(counts));
 
@@ -121,10 +116,10 @@ export const getCalendarCellColor = (runs: Array<CalendarTimeRangeResponse>): st
   }
 
   if (counts.failed > 0) {
-    return CALENDAR_STATE_COLORS.failed.pure;
+    return "failed.600";
   }
 
-  return CALENDAR_STATE_COLORS.other;
+  return "gray.400";
 };
 
 export const generateDailyCalendarData = (

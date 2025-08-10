@@ -94,7 +94,7 @@ export const DailyCalendarView = ({ cellSize, data, selectedYear }: Props) => {
           {dailyData.map((week, index) => (
             <Box key={`month-${week[0]?.date ?? index}`} position="relative" width={`${cellSize}px`}>
               {Boolean(week[0] && dayjs(week[0].date).date() <= 7) && (
-                <Text color="gray.500" fontSize="xs" left="0" position="absolute" top="-20px">
+                <Text color="fg.muted" fontSize="xs" left="0" position="absolute" top="-20px">
                   {dayjs(week[0]?.date).format("MMM")}
                 </Text>
               )}
@@ -107,7 +107,7 @@ export const DailyCalendarView = ({ cellSize, data, selectedYear }: Props) => {
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
             <Box
               alignItems="center"
-              color="gray.500"
+              color="fg.muted"
               display="flex"
               fontSize="xs"
               height={`${cellSize}px`}

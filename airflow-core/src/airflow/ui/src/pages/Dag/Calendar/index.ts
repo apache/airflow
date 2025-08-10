@@ -23,4 +23,3 @@ export { DailyCalendarView } from "./DailyCalendarView";
 export { HourlyCalendarView } from "./HourlyCalendarView";
 export type * from "./types";
 export * from "./calendarUtils";
-export * from "./constants";

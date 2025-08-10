@@ -100,7 +100,7 @@ export const Calendar = () => {
               </IconButton>
               <Text
                 _hover={{ textDecoration: "underline" }}
-                color={selectedYear === currentYear ? "blue.500" : "inherit"}
+                color={selectedYear === currentYear ? "fg.info" : "inherit"}
                 cursor="pointer"
                 fontSize="xl"
                 fontWeight="bold"
@@ -138,9 +138,7 @@ export const Calendar = () => {
               </IconButton>
               <Text
                 _hover={{ textDecoration: "underline" }}
-                color={
-                  selectedYear === currentYear && selectedMonth === currentMonth ? "blue.500" : "inherit"
-                }
+                color={selectedYear === currentYear && selectedMonth === currentMonth ? "fg.info" : "inherit"}
                 cursor="pointer"
                 fontSize="xl"
                 fontWeight="bold"
@@ -192,7 +190,7 @@ export const Calendar = () => {
         </HStack>
 
         <HStack gap={2}>
-          <Text color="gray.600" fontSize="sm">
+          <Text color="fg.muted" fontSize="sm">
             {translate("calendar.cellSize")}:
           </Text>
           <IconButton
@@ -224,7 +222,7 @@ export const Calendar = () => {
           <Box
             alignItems="center"
             backdropFilter="blur(2px)"
-            bg="rgba(255, 255, 255, 0.8)"
+            bg="bg/80"
             borderRadius="md"
             bottom="0"
             display="flex"
@@ -239,7 +237,7 @@ export const Calendar = () => {
               <Box
                 animation={`${spin} 1s linear infinite`}
                 border="3px solid"
-                borderColor="blue.100"
+                borderColor={{ _dark: "gray.600", _light: "blue.100" }}
                 borderRadius="50%"
                 borderTopColor="blue.500"
                 height="24px"
