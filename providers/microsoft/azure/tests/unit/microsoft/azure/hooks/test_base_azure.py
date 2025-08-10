@@ -202,3 +202,22 @@ class TestBaseAzureHook:
             additionally_allowed_tenants=[mocked_connection.extra_dejson.get("workload_identity_tenant_id")],
         )
         assert cred == "foo-bar"
+
+    @patch(f"{UTILS}.DefaultAzureCredential")
+    @pytest.mark.parametrize(
+        "mocked_connection",
+        [
+            Connection(
+                conn_id="azure_default",
+                extra={"use_azure_identity_object": True},
+            ),
+        ],
+        indirect=True,
+    )
+    def test_get_token_with_azure_default_credential(self, mock_spc, mocked_connection):
+        mock_spc.get_token.return_value = "new-token"
+        scope = "custom_scope"
+        token = AzureBaseHook().get_token(scope)
+
+        mock_spc.assert_called_once_with()
+        assert token == "new-token"
