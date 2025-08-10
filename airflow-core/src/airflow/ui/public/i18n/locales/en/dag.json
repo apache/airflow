@@ -27,7 +27,7 @@
     "loading": "Loading...",
     "more": "More",
     "noData": "No data available",
-    "week": "Week"
+    "week": "Week {{weekNumber}}"
   },
   "code": {
     "bundleUrl": "Bundle Url",

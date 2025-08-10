@@ -134,24 +134,30 @@ export const HourlyCalendarView = ({ cellSize, data, selectedMonth, selectedYear
             {hourlyData.days.map((day, index) => {
               const dayOfWeek = dayjs(day.day).day();
               const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+              const fontSize = cellSize < 18 ? "2xs" : "xs";
+              const dayName =
+                cellSize < 18 ? dayjs(day.day).format("dd").charAt(0) : dayjs(day.day).format("dd");
 
               return (
                 <Box key={day.day} marginRight={index % 7 === 6 ? "8px" : "0"} width={`${cellSize}px`}>
                   <Text
                     color={isWeekend ? "red.400" : "gray.600"}
-                    fontSize="xs"
+                    fontSize={fontSize}
                     fontWeight={isWeekend ? "bold" : "normal"}
+                    lineHeight="1"
                     textAlign="center"
                   >
                     {dayjs(day.day).format("D")}
                   </Text>
                   <Text
                     color={isWeekend ? "red.400" : "gray.500"}
-                    fontSize="xs"
+                    fontSize={fontSize}
                     fontWeight={isWeekend ? "bold" : "normal"}
+                    lineHeight="1"
+                    mt="1px"
                     textAlign="center"
                   >
-                    {dayjs(day.day).format("dd")}
+                    {dayName}
                   </Text>
                 </Box>
               );

@@ -197,8 +197,8 @@ export const Calendar = () => {
           </Text>
           <IconButton
             aria-label={translate("calendar.decreaseSize")}
-            disabled={cellSize <= 8}
-            onClick={() => setCellSize(Math.max(8, cellSize - 1))}
+            disabled={cellSize <= 14}
+            onClick={() => setCellSize(Math.max(14, cellSize - 1))}
             size="sm"
             variant="ghost"
           >
@@ -206,12 +206,11 @@ export const Calendar = () => {
           </IconButton>
           <Text fontSize="sm" minWidth="40px" textAlign="center">
             {cellSize}
-            {translate("calendar.px")}
           </Text>
           <IconButton
             aria-label={translate("calendar.increaseSize")}
-            disabled={cellSize >= 20}
-            onClick={() => setCellSize(Math.min(20, cellSize + 1))}
+            disabled={cellSize >= 24}
+            onClick={() => setCellSize(Math.min(24, cellSize + 1))}
             size="sm"
             variant="ghost"
           >
