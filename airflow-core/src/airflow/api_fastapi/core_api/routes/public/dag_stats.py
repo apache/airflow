@@ -78,7 +78,7 @@ def get_dag_stats(
     dag_state_data = {}
     for dag_id, state, dag_display_name, count in query_result:
         dag_state_data[(dag_id, state)] = count
-        if (dag_id) not in result_dag_ids:
+        if dag_id not in result_dag_ids:
             dag_display_names[dag_id] = dag_display_name
             result_dag_ids.append(dag_id)
 
