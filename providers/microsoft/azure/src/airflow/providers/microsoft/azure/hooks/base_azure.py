@@ -31,6 +31,8 @@ from airflow.providers.microsoft.azure.utils import (
 from airflow.providers.microsoft.azure.version_compat import BaseHook
 
 if TYPE_CHECKING:
+    from azure.core.credentials import AccessToken
+
     from airflow.sdk import Connection
 
 
@@ -176,3 +178,15 @@ class AzureBaseHook(BaseHook):
             managed_identity_client_id=managed_identity_client_id,
             workload_identity_tenant_id=workload_identity_tenant_id,
         )
+
+    def get_token(self, *scopes, **kwargs) -> AccessToken:
+        """Request an access token for `scopes`."""
+        credential = self.get_credential()
+        if isinstance(credential, AzureIdentityCredentialAdapter) or isinstance(
+            credential, AzureIdentityCredentialAdapter
+        ):
+            raise AttributeError(
+                "The azure credential does not support get_token method. "
+                "Please set `use_azure_identity_object: True` in the connection extra field to use credential that support get_token method."
+            )
+        return credential.get_token(*scopes, **kwargs)
