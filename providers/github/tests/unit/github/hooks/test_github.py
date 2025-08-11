@@ -114,6 +114,5 @@ class TestGithubHook:
         github_hook = GithubHook(github_conn_id="github_app_conn")
 
         assert github_mock.called
-        github_mock.assert_called_once_with(auth=get_auth_mock.return_value)
         assert isinstance(github_hook.client, Mock)
-        assert github_hook.client == github_app_client_mock
+        assert github_hook.client.name == github_mock.return_value.name

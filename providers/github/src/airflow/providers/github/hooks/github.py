@@ -23,7 +23,6 @@ from typing import TYPE_CHECKING
 
 from github import Auth, Github as GithubClient
 
-from airflow.exceptions import AirflowException
 from airflow.providers.github.version_compat import BaseHook
 
 
@@ -59,31 +58,33 @@ class GithubHook(BaseHook):
 
         if not access_token:
             if not extras:
-                raise AirflowException("An access token is required to authenticate to GitHub.")
+                raise RuntimeError("An access token is required to authenticate to GitHub.")
 
             key_path = extras.get("key_path")
             if key_path:
                 if not key_path.endswith(".pem"):
-                    raise AirflowException("Unrecognised extension for key file")
+                    raise RuntimeError("Unrecognised extension for key file")
                 with open(key_path) as key_file:
                     private_key = key_file.read()
 
             app_id = extras.get("app_id")
             installation_id = extras.get("installation_id")
             if not isinstance(installation_id, int):
-                raise AirflowException("The provided installation_id should be integer.")
-            if not isinstance(app_id, str) or not isinstance(app_id, int):
-                raise AirflowException("The provided installation_id should be integer or string.")
+                raise RuntimeError("The provided installation_id should be integer.")
+            if not isinstance(app_id, str) and not isinstance(app_id, int):
+                raise RuntimeError("The provided app_id should be integer or string.")
             token_permissions = extras.get("token_permissions", None)
 
-            auth = Auth.AppAuth(app_id, private_key).get_installation_auth(installation_id, token_permissions)
+            auth: Auth.Auth = Auth.AppAuth(app_id, private_key).get_installation_auth(
+                installation_id, token_permissions
+            )
+        else:
+            auth = Auth.Token(access_token)
 
+        if not host:
             self.client = GithubClient(auth=auth)
         else:
-            if not host:
-                self.client = GithubClient(login_or_token=access_token)
-            else:
-                self.client = GithubClient(login_or_token=access_token, base_url=host)
+            self.client = GithubClient(auth=auth, base_url=host)
 
         return self.client
 
