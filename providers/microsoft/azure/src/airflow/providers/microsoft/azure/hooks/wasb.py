@@ -137,6 +137,7 @@ class WasbHook(BaseHook):
         super().__init__()
         self.conn_id = wasb_conn_id
         self.public_read = public_read
+        self._blob_service_client: AsyncBlobServiceClient | BlobServiceClient | None = None
 
         logger = logging.getLogger("azure.core.pipeline.policies.http_logging_policy")
         try:
@@ -154,10 +155,17 @@ class WasbHook(BaseHook):
             return extra_dict[field_name] or None
         return extra_dict.get(f"{prefix}{field_name}") or None
 
-    @cached_property
-    def blob_service_client(self) -> BlobServiceClient:
+    @property
+    def blob_service_client(self) -> AsyncBlobServiceClient | BlobServiceClient:
         """Return the BlobServiceClient object (cached)."""
-        return self.get_conn()
+        if self._blob_service_client is None:
+            self._blob_service_client = self.get_conn()
+        return self._blob_service_client
+
+    @blob_service_client.setter
+    def blob_service_client(self, client: AsyncBlobServiceClient):
+        """Set the cached BlobServiceClient object."""
+        self._blob_service_client = client
 
     def get_conn(self) -> BlobServiceClient:
         """Return the BlobServiceClient object."""
@@ -591,11 +599,10 @@ class WasbAsyncHook(WasbHook):
         """Initialize the hook instance."""
         self.conn_id = wasb_conn_id
         self.public_read = public_read
-        self.blob_service_client: AsyncBlobServiceClient = None  # type: ignore
 
     async def get_async_conn(self) -> AsyncBlobServiceClient:
         """Return the Async BlobServiceClient object."""
-        if self.blob_service_client is not None:
+        if isinstance(self._blob_service_client, AsyncBlobServiceClient):
             return self.blob_service_client
 
         conn = await sync_to_async(self.get_connection)(self.conn_id)
