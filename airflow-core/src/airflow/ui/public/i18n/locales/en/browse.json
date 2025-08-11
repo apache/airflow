@@ -11,11 +11,8 @@
       "when": "When"
     },
     "filters": {
-      "after": "After",
-      "before": "Before",
       "endDateTime": "End date and time",
       "eventType": "Event Type",
-      "filters": "Filters",
       "startDateTime": "Start date and time"
     },
     "title": "Audit Log"

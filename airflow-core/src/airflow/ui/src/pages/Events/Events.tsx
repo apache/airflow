@@ -18,6 +18,7 @@
  */
 import { ButtonGroup, Code, Flex, Heading, IconButton, useDisclosure, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { MdCompress, MdExpand } from "react-icons/md";
 import { useParams, useSearchParams } from "react-router-dom";
@@ -159,13 +160,12 @@ const {
 export const Events = () => {
   const { t: translate } = useTranslation("browse");
   const { dagId, runId, taskId } = useParams();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const { onClose, onOpen, open } = useDisclosure();
 
-  // Get filter values from search params
   const afterFilter = searchParams.get(AFTER_PARAM);
   const beforeFilter = searchParams.get(BEFORE_PARAM);
   const dagIdFilter = searchParams.get(DAG_ID_PARAM);
@@ -178,36 +178,50 @@ export const Events = () => {
 
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-when"];
 
+  const resetPagination = useCallback(() => {
+    setTableURLState({
+      pagination: { ...pagination, pageIndex: 0 },
+      sorting,
+    });
+  }, [pagination, setTableURLState, sorting]);
+
+  const handleClearFilters = useCallback(() => {
+    searchParams.delete(AFTER_PARAM);
+    searchParams.delete(BEFORE_PARAM);
+    searchParams.delete(DAG_ID_PARAM);
+    searchParams.delete(EVENT_TYPE_PARAM);
+    searchParams.delete(MAP_INDEX_PARAM);
+    searchParams.delete(RUN_ID_PARAM);
+    searchParams.delete(TASK_ID_PARAM);
+    searchParams.delete(TRY_NUMBER_PARAM);
+    searchParams.delete(USER_PARAM);
+
+    resetPagination();
+    setSearchParams(searchParams);
+  }, [resetPagination, searchParams, setSearchParams]);
+
   // Convert string filters to appropriate types for API
-  const mapIndexNumber =
-    mapIndexFilter !== null && mapIndexFilter !== "" ? parseInt(mapIndexFilter, 10) : undefined;
-  const tryNumberNumber =
-    tryNumberFilter !== null && tryNumberFilter !== "" ? parseInt(tryNumberFilter, 10) : undefined;
+  const mapIndexNumber = mapIndexFilter === null ? undefined : parseInt(mapIndexFilter, 10);
+  const tryNumberNumber = tryNumberFilter === null ? undefined : parseInt(tryNumberFilter, 10);
 
   // Handle date conversion - ensure valid ISO strings
-  const afterDate =
-    afterFilter !== null && afterFilter !== "" && !isNaN(Date.parse(afterFilter)) ? afterFilter : undefined;
-  const beforeDate =
-    beforeFilter !== null && beforeFilter !== "" && !isNaN(Date.parse(beforeFilter))
-      ? beforeFilter
-      : undefined;
+  const afterDate = afterFilter !== null && !isNaN(Date.parse(afterFilter)) ? afterFilter : undefined;
+  const beforeDate = beforeFilter !== null && !isNaN(Date.parse(beforeFilter)) ? beforeFilter : undefined;
 
   const { data, error, isFetching, isLoading } = useEventLogServiceGetEventLogs(
     {
-      // Additional filters
       after: afterDate,
       before: beforeDate,
       // URL params take precedence over filters for context-specific views
-      dagId: dagId ?? (dagIdFilter !== null && dagIdFilter !== "" ? dagIdFilter : undefined),
-      event: eventTypeFilter !== null && eventTypeFilter !== "" ? eventTypeFilter : undefined,
-      // Pagination and sorting
+      dagId: dagId ?? dagIdFilter ?? undefined,
+      event: eventTypeFilter ?? undefined,
       limit: pagination.pageSize,
       mapIndex: mapIndexNumber,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
-      owner: userFilter !== null && userFilter !== "" ? userFilter : undefined,
-      runId: runId ?? (runIdFilter !== null && runIdFilter !== "" ? runIdFilter : undefined),
-      taskId: taskId ?? (taskIdFilter !== null && taskIdFilter !== "" ? taskIdFilter : undefined),
+      owner: userFilter ?? undefined,
+      runId: runId ?? runIdFilter ?? undefined,
+      taskId: taskId ?? taskIdFilter ?? undefined,
       tryNumber: tryNumberNumber,
     },
     undefined,
@@ -242,8 +256,13 @@ export const Events = () => {
         </ButtonGroup>
       </Flex>
 
-      {/* Only show filters in the main Browse > Audit Log view, not in context-specific views */}
-      {dagId === undefined && runId === undefined && taskId === undefined && <EventsFilters />}
+      {/* Show filters but conditionally hide inputs based on URL context */}
+      <EventsFilters
+        onClearFilters={handleClearFilters}
+        urlDagId={dagId}
+        urlRunId={runId}
+        urlTaskId={taskId}
+      />
 
       <ErrorAlert error={error} />
       <DataTable

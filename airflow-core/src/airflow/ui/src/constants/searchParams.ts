@@ -22,7 +22,6 @@ export enum SearchParamsKeys {
   DAG_ID = "dag_id",
   DEPENDENCIES = "dependencies",
   END_DATE = "end_date",
-  // Event log specific filters
   EVENT_TYPE = "event_type",
   EXCLUDED_EVENTS = "excluded_events",
   FAVORITE = "favorite",

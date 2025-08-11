@@ -41,54 +41,33 @@ export const getFilterCount = ({
 }: FilterOptions) => {
   let count = 0;
 
-  if (Boolean(after)) {
+  if (after !== null) {
     count += 1;
   }
-  if (Boolean(before)) {
+  if (before !== null) {
     count += 1;
   }
-  if (Boolean(dagId)) {
+  if (dagId !== null) {
     count += 1;
   }
-  if (Boolean(eventType)) {
+  if (eventType !== null) {
     count += 1;
   }
-
-  if (Boolean(mapIndex)) {
+  if (mapIndex !== null) {
     count += 1;
   }
-  if (Boolean(runId)) {
+  if (runId !== null) {
     count += 1;
   }
-  if (Boolean(taskId)) {
+  if (taskId !== null) {
     count += 1;
   }
-  if (Boolean(tryNumber)) {
+  if (tryNumber !== null) {
     count += 1;
   }
-  if (Boolean(user)) {
+  if (user !== null) {
     count += 1;
   }
 
   return count;
-};
-
-export const formatDateTimeLocalValue = (isoString: string | null) => {
-  if (isoString === null || isoString === "") {
-    return "";
-  }
-
-  try {
-    // Parse the ISO string and convert to local datetime-local format
-    const date = new Date(isoString);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    const hours = String(date.getHours()).padStart(2, "0");
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-
-    return `${year}-${month}-${day}T${hours}:${minutes}`;
-  } catch {
-    return "";
-  }
 };
