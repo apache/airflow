@@ -162,9 +162,9 @@ export const XComFilters = () => {
 
     return (
       <Box key={key} w="200px">
-        <Text fontSize="xs" marginBottom={1}>
-          {type === "search" ? "\u00A0" : translate(`common:filters.${translationKey}`)}
-        </Text>
+        <Box marginBottom={1} minHeight="1.2em">
+          {type !== "search" && <Text fontSize="xs">{translate(`common:filters.${translationKey}`)}</Text>}
+        </Box>
         {type === "search" ? (
           (() => {
             const { hotkeyDisabled } = filter;
