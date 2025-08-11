@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime
 from unittest.mock import Mock, mock_open, patch
 
 import pytest
@@ -24,9 +25,8 @@ import pytest
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.github.sensors.github import GithubTagSensor
-from airflow.utils import timezone
 
-DEFAULT_DATE = timezone.datetime(2017, 1, 1)
+DEFAULT_DATE = datetime(2017, 1, 1)
 github_client_mock = Mock(name="github_client_for_test")
 
 
@@ -47,7 +47,12 @@ class TestGithubSensor:
                 conn_id="github_app_conn",
                 conn_type="github",
                 host="https://mygithub.com/api/v3",
-                extra={"app_id": "123456", "installation_id": 654321, "key_path": "FAKE_PRIVATE_KEY.pem"},
+                extra={
+                    "app_id": "123456",
+                    "installation_id": 654321,
+                    "key_path": "FAKE_PRIVATE_KEY.pem",
+                    "token_permissions": {"issues": "write", "pull_requests": "read"},
+                },
             )
         )
 

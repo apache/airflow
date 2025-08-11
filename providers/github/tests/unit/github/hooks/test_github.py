@@ -46,7 +46,12 @@ class TestGithubHook:
                 conn_id="github_app_conn",
                 conn_type="github",
                 host="https://mygithub.com/api/v3",
-                extra={"app_id": "123456", "installation_id": 654321, "key_path": "FAKE_PRIVATE_KEY.pem"},
+                extra={
+                    "app_id": "123456",
+                    "installation_id": 654321,
+                    "key_path": "FAKE_PRIVATE_KEY.pem",
+                    "token_permissions": {"issues": "write", "pull_requests": "read"},
+                },
             )
         )
 
