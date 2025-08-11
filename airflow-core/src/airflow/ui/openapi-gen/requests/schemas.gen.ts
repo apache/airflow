@@ -3463,7 +3463,7 @@ export const $HITLDetail = {
         }
     },
     type: 'object',
-    required: ['task_instance', 'options', 'subject', 'chosen_options'],
+    required: ['task_instance', 'options', 'subject'],
     title: 'HITLDetail',
     description: 'Schema for Human-in-the-loop detail.'
 } as const;
