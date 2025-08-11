@@ -85,11 +85,6 @@ TABULAR_DATASET = {
         Value(),
     ),
 }
-TEXT_DATASET = {
-    "display_name": f"text-dataset-{ENV_ID}",
-    "metadata_schema_uri": schema.dataset.metadata.text,
-    "metadata": Value(string_value="text-dataset"),
-}
 VIDEO_DATASET = {
     "display_name": f"video-dataset-{ENV_ID}",
     "metadata_schema_uri": schema.dataset.metadata.video,
@@ -136,12 +131,6 @@ with DAG(
         region=REGION,
         project_id=PROJECT_ID,
     )
-    create_text_dataset_job = CreateDatasetOperator(
-        task_id="text_dataset",
-        dataset=TEXT_DATASET,
-        region=REGION,
-        project_id=PROJECT_ID,
-    )
     create_video_dataset_job = CreateDatasetOperator(
         task_id="video_dataset",
         dataset=VIDEO_DATASET,
@@ -155,15 +144,6 @@ with DAG(
         project_id=PROJECT_ID,
     )
     # [END how_to_cloud_vertex_ai_create_dataset_operator]
-
-    # [START how_to_cloud_vertex_ai_delete_dataset_operator]
-    delete_dataset_job = DeleteDatasetOperator(
-        task_id="delete_dataset",
-        dataset_id=create_text_dataset_job.output["dataset_id"],
-        region=REGION,
-        project_id=PROJECT_ID,
-    )
-    # [END how_to_cloud_vertex_ai_delete_dataset_operator]
 
     # [START how_to_cloud_vertex_ai_get_dataset_operator]
     get_dataset = GetDatasetOperator(
@@ -213,13 +193,15 @@ with DAG(
     )
     # [END how_to_cloud_vertex_ai_update_dataset_operator]
 
-    delete_time_series_dataset_job = DeleteDatasetOperator(
-        task_id="delete_time_series_dataset",
+    # [START how_to_cloud_vertex_ai_delete_dataset_operator]
+    delete_dataset_job = DeleteDatasetOperator(
+        task_id="delete_dataset",
         dataset_id=create_time_series_dataset_job.output["dataset_id"],
         region=REGION,
         project_id=PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,
     )
+    # [END how_to_cloud_vertex_ai_delete_dataset_operator]
 
     delete_tabular_dataset_job = DeleteDatasetOperator(
         task_id="delete_tabular_dataset",
@@ -256,8 +238,7 @@ with DAG(
         create_bucket
         # TEST BODY
         >> [
-            create_time_series_dataset_job >> delete_time_series_dataset_job,
-            create_text_dataset_job >> delete_dataset_job,
+            create_time_series_dataset_job >> delete_dataset_job,
             create_tabular_dataset_job >> get_dataset >> delete_tabular_dataset_job,
             create_image_dataset_job >> import_data_job >> export_data_job >> delete_image_dataset_job,
             create_video_dataset_job >> update_dataset_job >> delete_video_dataset_job,

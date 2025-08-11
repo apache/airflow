@@ -47,7 +47,6 @@ from airflow.exceptions import (
     AirflowClusterPolicyError,
     AirflowClusterPolicySkipDag,
     AirflowClusterPolicyViolation,
-    AirflowDagCycleException,
     AirflowDagDuplicatedIdException,
     AirflowException,
 )
@@ -55,7 +54,6 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base, StringID
 from airflow.models.dag_version import DagVersion
 from airflow.stats import Stats
-from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.docs import get_docs_url
 from airflow.utils.file import (
     correct_maybe_zipped,
@@ -67,6 +65,11 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.timeout import timeout
 from airflow.utils.types import NOTSET
+
+try:
+    from airflow.sdk.exceptions import AirflowDagCycleException
+except ImportError:
+    from airflow.exceptions import AirflowDagCycleException  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -556,7 +559,7 @@ class DagBag(LoggingMixin):
         :raises: AirflowDagCycleException if a cycle is detected.
         :raises: AirflowDagDuplicatedIdException if this dag already exists in the bag.
         """
-        check_cycle(dag)  # throws if a task cycle is found
+        dag.check_cycle()  # throws exception if a task cycle is found
 
         dag.resolve_template_files()
         dag.last_loaded = timezone.utcnow()
