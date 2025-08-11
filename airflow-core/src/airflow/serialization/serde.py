@@ -120,13 +120,6 @@ def serialize(o: object, depth: int = 0) -> U | None:
     if o is None:
         return o
 
-    # primitive types are returned as is
-    if isinstance(o, _primitives):
-        if isinstance(o, enum.Enum):
-            return o.value
-
-        return o
-
     if isinstance(o, list):
         return [serialize(d, depth + 1) for d in o]
 
@@ -158,6 +151,13 @@ def serialize(o: object, depth: int = 0) -> U | None:
         data, serialized_classname, version, is_serialized = _serializers[qn].serialize(o)
         if is_serialized:
             return encode(classname or serialized_classname, version, serialize(data, depth + 1))
+
+    # primitive types are returned as is
+    if isinstance(o, _primitives):
+        if isinstance(o, enum.Enum):
+            return o.value
+
+        return o
 
     # custom serializers
     dct = {

@@ -3273,15 +3273,15 @@ export const $ExternalViewResponse = {
             ],
             title: 'Category'
         },
+        href: {
+            type: 'string',
+            title: 'Href'
+        },
         destination: {
             type: 'string',
             enum: ['nav', 'dag', 'dag_run', 'task', 'task_instance'],
             title: 'Destination',
             default: 'nav'
-        },
-        href: {
-            type: 'string',
-            title: 'Href'
         }
     },
     additionalProperties: true,
@@ -4325,15 +4325,15 @@ export const $ReactAppResponse = {
             ],
             title: 'Category'
         },
-        destination: {
-            type: 'string',
-            enum: ['nav', 'dag', 'dag_run', 'task', 'task_instance'],
-            title: 'Destination',
-            default: 'nav'
-        },
         bundle_url: {
             type: 'string',
             title: 'Bundle Url'
+        },
+        destination: {
+            type: 'string',
+            enum: ['nav', 'dag', 'dag_run', 'task', 'task_instance', 'dashboard'],
+            title: 'Destination',
+            default: 'nav'
         }
     },
     additionalProperties: true,
@@ -5710,8 +5710,15 @@ export const $TriggerDAGRunPostBody = {
             title: 'Run After'
         },
         conf: {
-            additionalProperties: true,
-            type: 'object',
+            anyOf: [
+                {
+                    additionalProperties: true,
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Conf'
         },
         note: {
