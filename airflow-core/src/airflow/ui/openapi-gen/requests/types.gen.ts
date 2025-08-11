@@ -925,6 +925,7 @@ export type HITLDetail = {
     params?: {
         [key: string]: unknown;
     };
+    respondents?: Array<(string)> | null;
     user_id?: string | null;
     response_at?: string | null;
     chosen_options?: Array<(string)> | null;

@@ -3414,6 +3414,20 @@ export const $HITLDetail = {
             type: 'object',
             title: 'Params'
         },
+        respondents: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Respondents'
+        },
         user_id: {
             anyOf: [
                 {

@@ -118,12 +118,18 @@ def _update_hitl_detail(
             f"Human-in-the-loop detail has already been updated for Task Instance with id {ti_id_str} "
             "and is not allowed to write again.",
         )
-    
-    if hitl_detail_model.respondents and user.get_name() not in hitl_detail_model.respondents:
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN,
-            f"User={user.get_name()} is not a respondent for the task."
-        )
+
+    user_id = user.get_id()
+
+    if hitl_detail_model.respondents:
+        if isinstance(user_id, int):
+            # FabAuthManager (ab_user) store user id as integer, but common interface is string type
+            user_id = str(user_id)
+        if user_id not in hitl_detail_model.respondents:
+            log.error("User=%s[%s] is not a respondent for the task", user_id, type(user_id))
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN, f"User={user_id} is not a respondent for the task."
+            )
 
     hitl_detail_model.user_id = user.get_id()
     hitl_detail_model.response_at = timezone.utcnow()
