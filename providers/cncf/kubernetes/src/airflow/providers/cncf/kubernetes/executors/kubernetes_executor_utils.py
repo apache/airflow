@@ -391,6 +391,13 @@ def collect_pod_failure_details(pod: k8s.V1Pod) -> FailureDetails | None:
         return failure_details
 
     except Exception:
+        # Log unexpected exception for debugging
+        import logging
+
+        logging.getLogger(__name__).exception(
+            "Unexpected error while collecting pod failure details for pod %s",
+            getattr(pod.metadata, "name", "unknown"),
+        )
         # Return basic pod info if container analysis fails
         return {
             "pod_status": getattr(pod.status, "phase", None),
@@ -399,53 +406,8 @@ def collect_pod_failure_details(pod: k8s.V1Pod) -> FailureDetails | None:
         }
 
 
-def _analyze_init_containers(pod_status: k8s.V1PodStatus) -> FailureDetails | None:
-    """Analyze init container statuses for failure details."""
-    init_container_statuses = getattr(pod_status, "init_container_statuses", None)
-    if not init_container_statuses:
-        return None
-
-    waiting_info: FailureDetails | None = None
-
-    for cs in init_container_statuses:
-        state_obj = cs.state
-        if state_obj.terminated:
-            terminated_reason = getattr(state_obj.terminated, "reason", None)
-            exit_code = getattr(state_obj.terminated, "exit_code", 0)
-
-            # Only treat as failure if exit code != 0 AND reason is not "Completed"
-            if exit_code != 0 and terminated_reason != "Completed":
-                return cast(
-                    "FailureDetails",
-                    {
-                        "container_state": "terminated",
-                        "container_reason": terminated_reason,
-                        "container_message": getattr(state_obj.terminated, "message", None),
-                        "exit_code": exit_code,
-                        "container_type": "init",
-                        "container_name": getattr(cs, "name", "unknown"),
-                    },
-                )
-        elif state_obj.waiting:
-            # Record waiting state but continue looking for terminated containers
-            waiting_info = cast(
-                "FailureDetails",
-                {
-                    "container_state": "waiting",
-                    "container_reason": getattr(state_obj.waiting, "reason", None),
-                    "container_message": getattr(state_obj.waiting, "message", None),
-                    "container_type": "init",
-                    "container_name": getattr(cs, "name", "unknown"),
-                },
-            )
-
-    # If we only found waiting containers, return the last one
-    return waiting_info
-
-
-def _analyze_main_containers(pod_status: k8s.V1PodStatus) -> FailureDetails | None:
-    """Analyze main container statuses for failure details."""
-    container_statuses = getattr(pod_status, "container_statuses", None)
+def _analyze_containers(container_statuses: list | None, container_type: str) -> FailureDetails | None:
+    """Analyze container statuses for failure details."""
     if not container_statuses:
         return None
 
@@ -466,7 +428,7 @@ def _analyze_main_containers(pod_status: k8s.V1PodStatus) -> FailureDetails | No
                         "container_reason": terminated_reason,
                         "container_message": getattr(state_obj.terminated, "message", None),
                         "exit_code": exit_code,
-                        "container_type": "main",
+                        "container_type": container_type,
                         "container_name": getattr(cs, "name", "unknown"),
                     },
                 )
@@ -478,12 +440,25 @@ def _analyze_main_containers(pod_status: k8s.V1PodStatus) -> FailureDetails | No
                     "container_state": "waiting",
                     "container_reason": getattr(state_obj.waiting, "reason", None),
                     "container_message": getattr(state_obj.waiting, "message", None),
-                    "container_type": "main",
+                    "container_type": container_type,
                     "container_name": getattr(cs, "name", "unknown"),
                 },
             )
 
+    # If we only found waiting containers, return the last one
     return waiting_info
+
+
+def _analyze_init_containers(pod_status: k8s.V1PodStatus) -> FailureDetails | None:
+    """Analyze init container statuses for failure details."""
+    init_container_statuses = getattr(pod_status, "init_container_statuses", None)
+    return _analyze_containers(init_container_statuses, "init")
+
+
+def _analyze_main_containers(pod_status: k8s.V1PodStatus) -> FailureDetails | None:
+    """Analyze main container statuses for failure details."""
+    container_statuses = getattr(pod_status, "container_statuses", None)
+    return _analyze_containers(container_statuses, "main")
 
 
 class AirflowKubernetesScheduler(LoggingMixin):

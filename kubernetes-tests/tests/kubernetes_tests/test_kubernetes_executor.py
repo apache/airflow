@@ -16,9 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
 
 import pytest
+
+if TYPE_CHECKING:
+    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import FailureDetails
 
 from kubernetes_tests.test_base import (
     EXECUTOR,
@@ -116,88 +120,83 @@ class TestKubernetesExecutor(BaseK8STest):
 
         # Create a mock KubernetesExecutor instance
         executor = KubernetesExecutor()
-        executor.kube_client = Mock()
         executor.kube_scheduler = Mock()
 
-        # Create mock pod status with terminated container
-        mock_container_state = Mock()
-        mock_container_state.terminated = Mock()
-        mock_container_state.terminated.reason = "Error"
-        mock_container_state.terminated.message = "Container failed with exit code 1"
-        mock_container_state.waiting = None
-
-        mock_container_status = Mock()
-        mock_container_status.state = mock_container_state
-
-        mock_pod_status = Mock()
-        mock_pod_status.phase = "Failed"
-        mock_pod_status.reason = "PodFailed"
-        mock_pod_status.message = "Pod execution failed"
-        mock_pod_status.container_statuses = [mock_container_status]
-
-        mock_pod = Mock()
-        mock_pod.status = mock_pod_status
-
-        executor.kube_client.read_namespaced_pod.return_value = mock_pod
+        # Create test failure details
+        failure_details: FailureDetails = {
+            "pod_status": "Failed",
+            "pod_reason": "PodFailed",
+            "pod_message": "Pod execution failed",
+            "container_state": "terminated",
+            "container_reason": "Error",
+            "container_message": "Container failed with exit code 1",
+            "exit_code": 1,
+            "container_type": "main",
+            "container_name": "test-container",
+        }
 
         # Create a test task key
         task_key = TaskInstanceKey(dag_id="test_dag", task_id="test_task", run_id="test_run", try_number=1)
 
-        # Call _change_state with FAILED status
+        # Call _change_state with FAILED status and failure details
         executor._change_state(
-            key=task_key, state=TaskInstanceState.FAILED, pod_name="test-pod", namespace="test-namespace"
+            key=task_key,
+            state=TaskInstanceState.FAILED,
+            pod_name="test-pod",
+            namespace="test-namespace",
+            failure_details=failure_details,
         )
 
-        # Verify that the error log was called with expected parameters
-        mock_log.error.assert_called_once_with(
-            "Pod %s in namespace %s failed. Pod phase: %s, reason: %s, message: %s, container_state: %s, container_reason: %s, container_message: %s",
-            "test-pod",
+        # Verify that the warning log was called with expected parameters
+        mock_log.warning.assert_called_once_with(
+            "Task %s failed in pod %s/%s. Pod phase: %s, reason: %s, message: %s, "
+            "container_type: %s, container_name: %s, container_state: %s, container_reason: %s, "
+            "container_message: %s, exit_code: %s",
+            "test_dag.test_task.1",
             "test-namespace",
+            "test-pod",
             "Failed",
             "PodFailed",
             "Pod execution failed",
+            "main",
+            "test-container",
             "terminated",
             "Error",
             "Container failed with exit code 1",
+            1,
         )
 
     @pytest.mark.execution_timeout(300)
     @patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor.log")
     def test_pod_failure_logging_exception_handling(self, mock_log):
-        """Test that exceptions during pod status retrieval are handled gracefully."""
-        from kubernetes.client.rest import ApiException
-
+        """Test that failures without details are handled gracefully."""
         from airflow.models.taskinstancekey import TaskInstanceKey
         from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
         from airflow.utils.state import TaskInstanceState
 
         # Create a mock KubernetesExecutor instance
         executor = KubernetesExecutor()
-        executor.kube_client = Mock()
         executor.kube_scheduler = Mock()
-
-        # Make read_namespaced_pod raise an exception
-        executor.kube_client.read_namespaced_pod.side_effect = ApiException(status=404, reason="Not Found")
 
         # Create a test task key
         task_key = TaskInstanceKey(dag_id="test_dag", task_id="test_task", run_id="test_run", try_number=1)
 
-        # Call _change_state with FAILED status
+        # Call _change_state with FAILED status but no failure details
         executor._change_state(
-            key=task_key, state=TaskInstanceState.FAILED, pod_name="test-pod", namespace="test-namespace"
+            key=task_key,
+            state=TaskInstanceState.FAILED,
+            pod_name="test-pod",
+            namespace="test-namespace",
+            failure_details=None,
         )
 
         # Verify that the warning log was called with the correct parameters
-        mock_log.warning.assert_called_once()
-        call_args = mock_log.warning.call_args[0]
-        assert call_args[0] == "Failed to fetch pod failure reason for %s/%s: %s"
-        assert call_args[1] == "test-namespace"
-        assert call_args[2] == "test-pod"
-        # The third argument should be the exception
-        assert isinstance(call_args[3], ApiException)
-
-        # Verify that error log was not called
-        mock_log.error.assert_not_called()
+        mock_log.warning.assert_called_once_with(
+            "Task %s failed in pod %s/%s (no details available)",
+            "test_dag.test_task.1",
+            "test-namespace",
+            "test-pod",
+        )
 
     @pytest.mark.execution_timeout(300)
     @patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor.log")
