@@ -107,7 +107,7 @@ class AwsBaseWaiterTrigger(BaseTrigger):
         self.region_name = region_name
         self.verify = verify
         self.botocore_config = botocore_config
-        self._pool_lock = (Lock(),)
+        self._pool_lock = Lock()
         self._client_pool: dict[str, tuple[Any, float]] = {}
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
