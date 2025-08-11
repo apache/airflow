@@ -144,6 +144,11 @@ function environment_initialization() {
 
     set +e
 
+    # shellcheck source=scripts/in_container/configure_environment.sh
+    . "${IN_CONTAINER_DIR}/configure_environment.sh"
+    # shellcheck source=scripts/in_container/run_init_script.sh
+    . "${IN_CONTAINER_DIR}/run_init_script.sh"
+
     "${IN_CONTAINER_DIR}/check_environment.sh"
     ENVIRONMENT_EXIT_CODE=$?
     set -e
@@ -153,6 +158,7 @@ function environment_initialization() {
         echo
         exit ${ENVIRONMENT_EXIT_CODE}
     fi
+
     mkdir -p /usr/lib/google-cloud-sdk/bin
     touch /usr/lib/google-cloud-sdk/bin/gcloud
     ln -s -f /usr/bin/gcloud /usr/lib/google-cloud-sdk/bin/gcloud
@@ -177,12 +183,6 @@ function environment_initialization() {
 
         ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
     fi
-
-    # shellcheck source=scripts/in_container/configure_environment.sh
-    . "${IN_CONTAINER_DIR}/configure_environment.sh"
-
-    # shellcheck source=scripts/in_container/run_init_script.sh
-    . "${IN_CONTAINER_DIR}/run_init_script.sh"
 
     cd "${AIRFLOW_SOURCES}"
 
@@ -280,14 +280,15 @@ function check_boto_upgrade() {
 
 # Upgrade sqlalchemy to the latest version to run tests with it
 function check_upgrade_sqlalchemy() {
-    if [[ "${UPGRADE_SQLALCHEMY}" != "true" ]]; then
+    # The python version constraint is a TEMPORARY WORKAROUND to exclude all FAB tests. Is should be removed once we
+    # upgrade FAB to v5 (PR #50960).
+    if [[ "${UPGRADE_SQLALCHEMY}" != "true" || ${PYTHON_MAJOR_MINOR_VERSION} != "3.13" ]]; then
         return
     fi
     echo
     echo "${COLOR_BLUE}Upgrading sqlalchemy to the latest version to run tests with it${COLOR_RESET}"
     echo
-    # shellcheck disable=SC2086
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "sqlalchemy[asyncio]<2.1" "databricks-sqlalchemy>=2"
+    uv sync --all-packages --no-install-package apache-airflow-providers-fab --resolution highest
 }
 
 # Download minimum supported version of sqlalchemy to run tests with it

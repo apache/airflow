@@ -117,5 +117,8 @@ class AirbyteSyncTrigger(BaseTrigger):
         """
         job_run_status = hook.get_job_status(self.job_id)
         if job_run_status in (JobStatusEnum.RUNNING, JobStatusEnum.PENDING, JobStatusEnum.INCOMPLETE):
+            self.log.debug(
+                "Job run status is: %s with context: %s", job_run_status, hook.get_job_details(self.job_id)
+            )
             return True
         return False

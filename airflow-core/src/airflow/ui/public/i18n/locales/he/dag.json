@@ -19,6 +19,7 @@
   },
   "header": {
     "buttons": {
+      "advanced": "מתקדם",
       "dagDocs": "תיעוד Dag"
     }
   },
@@ -37,6 +38,11 @@
     "settings": "הגדרות רישום",
     "viewInExternal": "צפה ברישומים ב-{{name}} (ניסיון {{attempt}})",
     "warning": "WARNING"
+  },
+  "navigation": {
+    "jump": "קפיצה: Shift+{{arrow}}",
+    "navigation": "ניווט: {{arrow}}",
+    "toggleGroup": "החלפת קבוצה: רווח"
   },
   "overview": {
     "buttons": {
@@ -102,6 +108,7 @@
     "mappedTaskInstances_other": "מופעי משימות [{{count}}]",
     "overview": "סקירה כללית",
     "renderedTemplates": "תבניות מעובדות",
+    "requiredActions": "פעולות נדרשות",
     "runs": "הרצות",
     "taskInstances": "מופעי משימות",
     "tasks": "משימות",

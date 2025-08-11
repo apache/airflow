@@ -77,7 +77,9 @@ apache-airflow-providers-http package
 `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
 
 
-Release: 5.3.2
+Release: 5.3.3
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------

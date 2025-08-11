@@ -40,7 +40,11 @@ from airflow.providers.common.compat.assets import Asset
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.utils.task_group import TaskGroup
+
+try:
+    from airflow.sdk import TaskGroup
+except ImportError:
+    from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
 
 from system.openlineage.expected_events import AIRFLOW_VERSION, get_expected_event_file_path
 from system.openlineage.operator import OpenLineageTestOperator

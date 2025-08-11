@@ -103,6 +103,7 @@
     "mappedTaskInstances_other": "작업 인스턴스 [{{count}}]",
     "overview": "개요",
     "renderedTemplates": "렌더링된 템플릿",
+    "requiredActions": "필수 작업",
     "runs": "실행",
     "taskInstances": "작업 인스턴스",
     "tasks": "작업",

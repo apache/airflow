@@ -20,7 +20,9 @@ from __future__ import annotations
 import datetime
 import json
 import uuid
+from math import ceil
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import httpx
 import pytest
@@ -91,6 +93,7 @@ from airflowctl.api.datamodels.generated import (
     VariableResponse,
     VersionInfo,
 )
+from airflowctl.api.operations import BaseOperations
 from airflowctl.exceptions import AirflowCtlConnectionException
 
 if TYPE_CHECKING:
@@ -127,7 +130,6 @@ class TestBaseOperations:
     @pytest.mark.parametrize(
         "total_entries, limit, expected_response",
         [
-            (0, 0, (HelloCollectionResponse(hellos=[], total_entries=0))),
             (1, 50, (HelloCollectionResponse(hellos=[HelloResponse(name="hello")], total_entries=1))),
             (
                 150,
@@ -136,9 +138,8 @@ class TestBaseOperations:
                     HelloCollectionResponse(
                         hellos=[
                             HelloResponse(name="hello"),
-                            HelloResponse(name="hello"),
-                            HelloResponse(name="hello"),
-                        ],
+                        ]
+                        * 150,
                         total_entries=150,
                     )
                 ),
@@ -146,23 +147,49 @@ class TestBaseOperations:
             (
                 90,
                 50,
-                (
-                    HelloCollectionResponse(
-                        hellos=[HelloResponse(name="hello"), HelloResponse(name="hello")], total_entries=90
-                    )
-                ),
+                (HelloCollectionResponse(hellos=[HelloResponse(name="hello")] * 90, total_entries=90)),
             ),
         ],
     )
     def test_execute_list(self, total_entries, limit, expected_response):
-        hello_response = []
-        if total_entries != 0:
-            update = (total_entries + limit - 1) // limit
-            hello_response.extend([HelloResponse(name="hello")] * update)
-        hello_collection_response = HelloCollectionResponse(
-            hellos=hello_response, total_entries=total_entries
+        get_response_mock = []
+
+        mock_client = Mock()
+        mock_client.get.side_effect = get_response_mock
+        base_operation = BaseOperations(client=mock_client)
+
+        nb_of_pages = ceil(total_entries / limit)
+        for page in range(nb_of_pages):
+            if page == nb_of_pages - 1 and (remaining_entries := total_entries % limit) > 0:
+                # partial page
+                get_response_mock.append(
+                    Mock(
+                        content=json.dumps(
+                            {
+                                "hellos": [{"name": "hello"}] * remaining_entries,
+                                "total_entries": total_entries,
+                            }
+                        )
+                    )
+                )
+                continue
+            # page is full
+            get_response_mock.append(
+                Mock(
+                    content=json.dumps(
+                        {
+                            "hellos": [{"name": "hello"}] * limit,
+                            "total_entries": total_entries,
+                        }
+                    )
+                )
+            )
+
+        response = base_operation.execute_list(
+            path="some_fake_path", data_model=HelloCollectionResponse, limit=limit
         )
-        assert expected_response == hello_collection_response
+
+        assert expected_response == response
 
 
 class TestAssetsOperations:
@@ -706,7 +733,11 @@ class TestDagOperations:
 
     dag_stats_collection_response = DagStatsCollectionResponse(
         dags=[
-            DagStatsResponse(dag_id=dag_id, stats=[DagStatsStateResponse(state=DagRunState.RUNNING, count=1)])
+            DagStatsResponse(
+                dag_id=dag_id,
+                dag_display_name=dag_id,
+                stats=[DagStatsStateResponse(state=DagRunState.RUNNING, count=1)],
+            )
         ],
         total_entries=1,
     )
@@ -805,7 +836,7 @@ class TestDagOperations:
         response = client.dags.get_import_error(import_error_id=0)
         assert response == self.import_error_response
 
-    def test_list_import_error(self):
+    def test_list_import_errors(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/importErrors"
             return httpx.Response(
@@ -813,7 +844,7 @@ class TestDagOperations:
             )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.dags.list_import_error()
+        response = client.dags.list_import_errors()
         assert response == self.import_error_collection_response
 
     def test_get_stats(self):
@@ -871,8 +902,8 @@ class TestDagRunOperations:
         data_interval_start=datetime.datetime(2025, 1, 1, 0, 0, 0),
         data_interval_end=datetime.datetime(2025, 1, 1, 0, 0, 0),
         last_scheduling_decision=datetime.datetime(2025, 1, 1, 0, 0, 0),
-        run_type=DagRunType.MANUAL,
         run_after=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        run_type=DagRunType.MANUAL,
         state=DagRunState.RUNNING,
         triggered_by=DagRunTriggeredByType.UI,
         conf={},
@@ -896,25 +927,22 @@ class TestDagRunOperations:
     )
 
     trigger_dag_run = TriggerDAGRunPostBody(
-        dag_run_id=dag_run_id,
-        data_interval_start=datetime.datetime(2025, 1, 1, 0, 0, 0),
-        data_interval_end=datetime.datetime(2025, 1, 1, 0, 0, 0),
-        conf={},
-        note="note",
+        conf=None,
+        note=None,
     )
 
     def test_get(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == f"/api/v2/dag_runs/{self.dag_run_id}"
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}"
             return httpx.Response(200, json=json.loads(self.dag_run_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.dag_runs.get(dag_run_id=self.dag_run_id)
+        response = client.dag_runs.get(dag_id=self.dag_id, dag_run_id=self.dag_run_id)
         assert response == self.dag_run_response
 
     def test_list(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == "/api/v2/dag_runs"
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/dagRuns"
             return httpx.Response(200, json=json.loads(self.dag_run_collection_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
@@ -927,13 +955,13 @@ class TestDagRunOperations:
         )
         assert response == self.dag_run_collection_response
 
-    def test_create(self):
+    def test_trigger(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == f"/api/v2/dag_runs/{self.dag_id}"
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/dagRuns"
             return httpx.Response(200, json=json.loads(self.dag_run_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.dag_runs.create(dag_id=self.dag_id, trigger_dag_run=self.trigger_dag_run)
+        response = client.dag_runs.trigger(dag_id=self.dag_id, trigger_dag_run=self.trigger_dag_run)
         assert response == self.dag_run_response
 
 

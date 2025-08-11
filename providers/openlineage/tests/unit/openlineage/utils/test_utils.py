@@ -58,7 +58,6 @@ from airflow.timetables.events import EventsTimetable
 from airflow.timetables.trigger import CronTriggerTimetable
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
-from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import BashOperator, PythonOperator
@@ -66,10 +65,11 @@ from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_3_PLUS, AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperator, task
+    from airflow.sdk import BaseOperator, TaskGroup, task
 else:
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
     from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
+    from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
 
 BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
 PYTHON_OPERATOR_PATH = "airflow.providers.standard.operators.python"

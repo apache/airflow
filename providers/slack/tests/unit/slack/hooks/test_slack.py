@@ -463,11 +463,8 @@ class TestSlackHook:
     @pytest.mark.parametrize("title", [None, "test title"])
     @pytest.mark.parametrize("filename", [None, "foo.bar"])
     @pytest.mark.parametrize("channel", [None, "#random"])
-    @pytest.mark.parametrize("filetype", [None, "auto"])
     @pytest.mark.parametrize("snippet_type", [None, "text"])
-    def test_send_file_v1_to_v2_content(
-        self, initial_comment, title, filename, channel, filetype, snippet_type
-    ):
+    def test_send_file_v1_to_v2_content(self, initial_comment, title, filename, channel, snippet_type):
         hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
         with mock.patch.object(SlackHook, "send_file_v2") as mocked_send_file_v2:
             hook.send_file_v1_to_v2(
@@ -476,7 +473,6 @@ class TestSlackHook:
                 filename=filename,
                 initial_comment=initial_comment,
                 title=title,
-                filetype=filetype,
                 snippet_type=snippet_type,
             )
             mocked_send_file_v2.assert_called_once_with(
@@ -494,9 +490,8 @@ class TestSlackHook:
     @pytest.mark.parametrize("title", [None, "test title"])
     @pytest.mark.parametrize("filename", [None, "foo.bar"])
     @pytest.mark.parametrize("channel", [None, "#random"])
-    @pytest.mark.parametrize("filetype", [None, "auto"])
     @pytest.mark.parametrize("snippet_type", [None, "text"])
-    def test_send_file_v1_to_v2_file(self, initial_comment, title, filename, channel, filetype, snippet_type):
+    def test_send_file_v1_to_v2_file(self, initial_comment, title, filename, channel, snippet_type):
         hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
         with mock.patch.object(SlackHook, "send_file_v2") as mocked_send_file_v2:
             hook.send_file_v1_to_v2(
@@ -505,7 +500,6 @@ class TestSlackHook:
                 filename=filename,
                 initial_comment=initial_comment,
                 title=title,
-                filetype=filetype,
                 snippet_type=snippet_type,
             )
             mocked_send_file_v2.assert_called_once_with(

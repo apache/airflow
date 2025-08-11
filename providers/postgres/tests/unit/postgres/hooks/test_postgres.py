@@ -27,7 +27,6 @@ import polars as pl
 import psycopg2.extras
 import pytest
 import sqlalchemy
-from psycopg2.extras import Json
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -36,6 +35,7 @@ from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils.types import NOTSET
 
 from tests_common.test_utils.common_sql import mock_db_hook
+from tests_common.test_utils.version_compat import SQLALCHEMY_V_1_4
 
 INSERT_SQL_STATEMENT = "INSERT INTO connection (id, conn_id, conn_type, description, host, {}, login, password, port, is_encrypted, is_extra_encrypted, extra) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
 
@@ -78,7 +78,11 @@ class TestPostgresHookConn:
     def test_sqlalchemy_url(self):
         conn = Connection(login="login-conn", password="password-conn", host="host", schema="database")
         hook = PostgresHook(connection=conn)
-        assert str(hook.sqlalchemy_url) == "postgresql://login-conn:password-conn@host/database"
+        expected = "postgresql://login-conn:password-conn@host/database"
+        if SQLALCHEMY_V_1_4:
+            assert str(hook.sqlalchemy_url) == expected
+        else:
+            assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
 
     def test_sqlalchemy_url_with_sqlalchemy_query(self):
         conn = Connection(
@@ -90,10 +94,11 @@ class TestPostgresHookConn:
         )
         hook = PostgresHook(connection=conn)
 
-        assert (
-            str(hook.sqlalchemy_url)
-            == "postgresql://login-conn:password-conn@host/database?gssencmode=disable"
-        )
+        expected = "postgresql://login-conn:password-conn@host/database?gssencmode=disable"
+        if SQLALCHEMY_V_1_4:
+            assert str(hook.sqlalchemy_url) == expected
+        else:
+            assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
 
     def test_sqlalchemy_url_with_wrong_sqlalchemy_query_value(self):
         conn = Connection(
@@ -502,24 +507,6 @@ class TestPostgresHook:
         results = [line.rstrip() for line in path.read_text().splitlines()]
 
         assert sorted(input_data) == sorted(results)
-
-    @pytest.mark.parametrize(
-        "raw_cell, expected_serialized",
-        [
-            ("cell content", "cell content"),
-            (342, 342),
-            (
-                {"key1": "value2", "n_key": {"sub_key": "sub_value"}},
-                {"key1": "value2", "n_key": {"sub_key": "sub_value"}},
-            ),
-            ([1, 2, {"key1": "value2"}, "some data"], [1, 2, {"key1": "value2"}, "some data"]),
-        ],
-    )
-    def test_serialize_cell(self, raw_cell, expected_serialized):
-        if isinstance(raw_cell, Json):
-            assert expected_serialized == raw_cell.adapted
-        else:
-            assert expected_serialized == raw_cell
 
     @pytest.mark.parametrize(
         "df_type, expected_type",

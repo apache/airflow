@@ -25,11 +25,11 @@ from unittest.mock import Mock
 
 import pytest
 
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag_version import DagVersion
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import task, task_group
+from airflow.sdk.bases.operator import BaseOperator
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -1035,6 +1035,152 @@ class TestTriggerRuleDep:
             session=session,
             flag_upstream_failed=flag_upstream_failed,
             expected_reason="No strategy to evaluate trigger rule 'Unknown Trigger Rule'.",
+        )
+
+    @pytest.mark.parametrize("flag_upstream_failed, expected_ti_state", [(True, None), (False, None)])
+    def test_all_done_min_one_success_with_mixed_success_and_failure(
+        self, session, get_task_instance, flag_upstream_failed, expected_ti_state
+    ):
+        """
+        Test ALL_DONE_MIN_ONE_SUCCESS trigger rule with mixed upstream task states.
+
+        When upstream tasks have mixed states (success and failure), the trigger rule
+        should pass since all non-skipped tasks are done and at least one succeeded.
+        """
+        ti = get_task_instance(
+            TriggerRule.ALL_DONE_MIN_ONE_SUCCESS,
+            success=1,
+            skipped=0,
+            failed=1,
+            removed=0,
+            upstream_failed=0,
+            done=2,
+            normal_tasks=["upstream_success_task", "upstream_failure_task"],
+        )
+        _test_trigger_rule(
+            ti=ti,
+            session=session,
+            flag_upstream_failed=flag_upstream_failed,
+            expected_ti_state=expected_ti_state,
+        )
+
+    @pytest.mark.parametrize("flag_upstream_failed, expected_ti_state", [(True, None), (False, None)])
+    def test_all_done_min_one_success_with_all_successful_upstreams(
+        self, session, get_task_instance, flag_upstream_failed, expected_ti_state
+    ):
+        """
+        Test ALL_DONE_MIN_ONE_SUCCESS trigger rule with all upstream tasks successful.
+
+        When all upstream tasks succeed, the trigger rule should pass as the minimum
+        requirement of at least one success is satisfied.
+        """
+        ti = get_task_instance(
+            TriggerRule.ALL_DONE_MIN_ONE_SUCCESS,
+            success=2,
+            skipped=0,
+            failed=0,
+            removed=0,
+            upstream_failed=0,
+            done=2,
+            normal_tasks=["upstream_success_task_1", "upstream_success_task_2"],
+        )
+        _test_trigger_rule(
+            ti=ti,
+            session=session,
+            flag_upstream_failed=flag_upstream_failed,
+            expected_ti_state=expected_ti_state,
+        )
+
+    @pytest.mark.parametrize("flag_upstream_failed, expected_ti_state", [(True, SKIPPED), (False, None)])
+    def test_all_done_min_one_success_with_success_and_skipped_upstream(
+        self, session, get_task_instance, flag_upstream_failed, expected_ti_state
+    ):
+        """
+        Test ALL_DONE_MIN_ONE_SUCCESS trigger rule with success and skipped upstream tasks.
+
+        When upstream tasks include both successful and skipped tasks, the trigger rule
+        should fail because skipped tasks violate the "all non-skipped tasks done" requirement.
+        The task should be skipped when flag_upstream_failed is True.
+        """
+        ti = get_task_instance(
+            TriggerRule.ALL_DONE_MIN_ONE_SUCCESS,
+            success=1,
+            skipped=1,
+            failed=0,
+            removed=0,
+            upstream_failed=0,
+            done=2,
+            normal_tasks=["upstream_success_task", "upstream_skipped_task"],
+        )
+        _test_trigger_rule(
+            ti=ti,
+            session=session,
+            flag_upstream_failed=flag_upstream_failed,
+            expected_reason="requires all non-skipped upstream tasks to have completed, but found 1 skipped task(s)",
+            expected_ti_state=expected_ti_state,
+        )
+
+    @pytest.mark.parametrize(
+        "flag_upstream_failed, expected_ti_state", [(True, UPSTREAM_FAILED), (False, None)]
+    )
+    def test_all_done_min_one_success_with_all_failed_upstreams(
+        self, session, get_task_instance, flag_upstream_failed, expected_ti_state
+    ):
+        """
+        Test ALL_DONE_MIN_ONE_SUCCESS trigger rule with all upstream tasks failed.
+
+        When all upstream tasks have failed, the trigger rule should fail because
+        there are no successful tasks to satisfy the "at least one success" requirement.
+        The task should be marked as UPSTREAM_FAILED when flag_upstream_failed is True.
+        """
+        ti = get_task_instance(
+            TriggerRule.ALL_DONE_MIN_ONE_SUCCESS,
+            success=0,
+            skipped=0,
+            failed=2,
+            removed=0,
+            upstream_failed=0,
+            done=2,
+            normal_tasks=["upstream_failed_task_1", "upstream_failed_task_2"],
+        )
+        _test_trigger_rule(
+            ti=ti,
+            session=session,
+            flag_upstream_failed=flag_upstream_failed,
+            expected_reason="requires all non-skipped upstream tasks to have completed and at least one upstream task has succeeded",
+            expected_ti_state=expected_ti_state,
+        )
+
+    @pytest.mark.parametrize(
+        "flag_upstream_failed, expected_ti_state", [(True, UPSTREAM_FAILED), (False, None)]
+    )
+    def test_all_done_min_one_success_with_upstream_failed_cascade(
+        self, session, get_task_instance, flag_upstream_failed, expected_ti_state
+    ):
+        """
+        Test ALL_DONE_MIN_ONE_SUCCESS trigger rule with upstream failure cascade.
+
+        When upstream tasks are in UPSTREAM_FAILED state (cascaded from earlier failures),
+        the trigger rule should fail because there are no successful tasks to satisfy
+        the "at least one success" requirement. The task should be marked as UPSTREAM_FAILED
+        when flag_upstream_failed is True.
+        """
+        ti = get_task_instance(
+            TriggerRule.ALL_DONE_MIN_ONE_SUCCESS,
+            success=0,
+            skipped=0,
+            failed=0,
+            removed=0,
+            upstream_failed=1,
+            done=1,
+            normal_tasks=["upstream_cascaded_failure_task"],
+        )
+        _test_trigger_rule(
+            ti=ti,
+            session=session,
+            flag_upstream_failed=flag_upstream_failed,
+            expected_reason="requires all non-skipped upstream tasks to have completed and at least one upstream task has succeeded",
+            expected_ti_state=expected_ti_state,
         )
 
     def test_UpstreamTIStates(self, session, dag_maker):

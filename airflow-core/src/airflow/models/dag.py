@@ -96,7 +96,6 @@ from airflow.timetables.simple import (
     OnceTimetable,
 )
 from airflow.utils.context import Context
-from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, lock_rows, with_row_locks
@@ -1282,11 +1281,11 @@ class DAG(TaskSDKDag, LoggingMixin):
         only_running: bool = False,
         confirm_prompt: bool = False,
         dag_run_state: DagRunState = DagRunState.QUEUED,
-        run_on_latest_version: bool = False,
         session: Session = NEW_SESSION,
         dag_bag: DagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
+        run_on_latest_version: bool = False,
     ) -> list[TaskInstance]: ...  # pragma: no cover
 
     @overload
@@ -1300,11 +1299,11 @@ class DAG(TaskSDKDag, LoggingMixin):
         confirm_prompt: bool = False,
         dag_run_state: DagRunState = DagRunState.QUEUED,
         dry_run: Literal[False] = False,
-        run_on_latest_version: bool = False,
         session: Session = NEW_SESSION,
         dag_bag: DagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
+        run_on_latest_version: bool = False,
     ) -> int: ...  # pragma: no cover
 
     @overload
@@ -1319,11 +1318,11 @@ class DAG(TaskSDKDag, LoggingMixin):
         only_running: bool = False,
         confirm_prompt: bool = False,
         dag_run_state: DagRunState = DagRunState.QUEUED,
-        run_on_latest_version: bool = False,
         session: Session = NEW_SESSION,
         dag_bag: DagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
+        run_on_latest_version: bool = False,
     ) -> list[TaskInstance]: ...  # pragma: no cover
 
     @overload
@@ -1338,11 +1337,11 @@ class DAG(TaskSDKDag, LoggingMixin):
         confirm_prompt: bool = False,
         dag_run_state: DagRunState = DagRunState.QUEUED,
         dry_run: Literal[False] = False,
-        run_on_latest_version: bool = False,
         session: Session = NEW_SESSION,
         dag_bag: DagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
+        run_on_latest_version: bool = False,
     ) -> int: ...  # pragma: no cover
 
     @provide_session
@@ -1358,11 +1357,11 @@ class DAG(TaskSDKDag, LoggingMixin):
         confirm_prompt: bool = False,
         dag_run_state: DagRunState = DagRunState.QUEUED,
         dry_run: bool = False,
-        run_on_latest_version: bool = False,
         session: Session = NEW_SESSION,
         dag_bag: DagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
+        run_on_latest_version: bool = False,
     ) -> int | Iterable[TaskInstance]:
         """
         Clear a set of task instances associated with the current dag for a specified date range.
@@ -1490,16 +1489,6 @@ class DAG(TaskSDKDag, LoggingMixin):
             print("Cancelled, nothing was cleared.")
         return count
 
-    def cli(self):
-        """Exposes a CLI specific to this DAG."""
-        check_cycle(self)
-
-        from airflow.cli import cli_parser
-
-        parser = cli_parser.get_parser(dag_parser=True)
-        args = parser.parse_args()
-        args.func(args, self)
-
     @provide_session
     def create_dagrun(
         self,
@@ -1605,7 +1594,6 @@ class DAG(TaskSDKDag, LoggingMixin):
                         run_id=run_id,
                     ),
                     callback=self.deadline.callback,
-                    callback_kwargs=self.deadline.callback_kwargs or {},
                     dag_id=self.dag_id,
                     dagrun_id=orm_dagrun.id,
                 )

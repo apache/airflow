@@ -78,7 +78,9 @@ apache-airflow-providers-opensearch package
 `OpenSearch <https://opensearch.org/>`__
 
 
-Release: 1.7.1
+Release: 1.7.2
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------

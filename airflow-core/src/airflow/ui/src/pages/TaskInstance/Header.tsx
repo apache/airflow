@@ -25,7 +25,6 @@ import { MdOutlineTask } from "react-icons/md";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
-import EditableMarkdownArea from "src/components/EditableMarkdownArea";
 import EditableMarkdownButton from "src/components/EditableMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
@@ -89,24 +88,27 @@ export const Header = ({
     }
   }, [dagId, dagRunId, mapIndex, mutate, note, taskId, taskInstance.note]);
 
+  const onOpen = () => {
+    setNote(taskInstance.note ?? "");
+  };
+
   return (
     <Box ref={containerRef}>
       <HeaderCard
         actions={
           <>
-            {!Boolean(taskInstance.note) && (
-              <EditableMarkdownButton
-                header={translate("note.taskInstance")}
-                icon={<FiMessageSquare />}
-                isPending={isPending}
-                mdContent={note}
-                onConfirm={onConfirm}
-                placeholder={translate("note.placeholder")}
-                setMdContent={setNote}
-                text={translate("note.add")}
-                withText={containerWidth > 700}
-              />
-            )}
+            <EditableMarkdownButton
+              header={translate("note.taskInstance")}
+              icon={<FiMessageSquare />}
+              isPending={isPending}
+              mdContent={note}
+              onConfirm={onConfirm}
+              onOpen={onOpen}
+              placeholder={translate("note.placeholder")}
+              setMdContent={setNote}
+              text={Boolean(taskInstance.note) ? translate("note.label") : translate("note.add")}
+              withText={containerWidth > 700}
+            />
             <ClearTaskInstanceButton
               isHotkeyEnabled
               taskInstance={taskInstance}
@@ -126,9 +128,6 @@ export const Header = ({
         subTitle={<Time datetime={taskInstance.start_date} />}
         title={`${taskInstance.task_display_name}${taskInstance.map_index > -1 ? ` [${taskInstance.rendered_map_index ?? taskInstance.map_index}]` : ""}`}
       />
-      {Boolean(taskInstance.note) && (
-        <EditableMarkdownArea mdContent={note} onBlur={onConfirm} setMdContent={setNote} />
-      )}
     </Box>
   );
 };

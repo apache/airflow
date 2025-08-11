@@ -23,8 +23,9 @@
 
 Package ``apache-airflow-providers-sftp``
 
-Release: ``5.3.2``
+Release: ``5.3.4``
 
+Release Date: ``|PypiReleaseDate|``
 
 `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
 
@@ -36,7 +37,7 @@ This is a provider package for ``sftp`` provider. All classes for this provider 
 are in ``airflow.providers.sftp`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-sftp/5.3.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-sftp/5.3.4/>`_.
 
 Installation
 ------------
@@ -54,8 +55,8 @@ Requirements
 PIP package                       Version required
 ================================  ==================
 ``apache-airflow``                ``>=2.10.0``
-``apache-airflow-providers-ssh``  ``>=2.1.0``
-``paramiko``                      ``>=2.9.0``
+``apache-airflow-providers-ssh``  ``>=4.0.0``
+``paramiko``                      ``>=2.9.0,<4.0.0``
 ``asyncssh``                      ``>=2.12.0``
 ================================  ==================
 
@@ -81,4 +82,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-sftp/5.3.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-sftp/5.3.4/changelog.html>`_.

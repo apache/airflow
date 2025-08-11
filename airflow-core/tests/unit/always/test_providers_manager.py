@@ -38,7 +38,7 @@ from airflow.providers_manager import (
     ProvidersManager,
 )
 
-from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker, skip_if_not_on_main
 from tests_common.test_utils.paths import AIRFLOW_ROOT_PATH
 
 
@@ -230,6 +230,7 @@ class TestProviderManager:
             raise AssertionError("There are warnings generated during hook imports. Please fix them")
         assert [w.message for w in warning_records if "hook-class-names" in str(w.message)] == []
 
+    @skip_if_not_on_main
     @pytest.mark.execution_timeout(150)
     def test_hook_values(self):
         provider_dependencies = json.loads(
@@ -272,11 +273,15 @@ class TestProviderManager:
         assert [w.message for w in warning_records if "hook-class-names" in str(w.message)] == []
 
     def test_connection_form_widgets(self):
+        pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
+
         provider_manager = ProvidersManager()
         connections_form_widgets = list(provider_manager.connection_form_widgets.keys())
         assert len(connections_form_widgets) > 29
 
     def test_field_behaviours(self):
+        pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
+
         provider_manager = ProvidersManager()
         connections_with_field_behaviours = list(provider_manager.field_behaviours.keys())
         assert len(connections_with_field_behaviours) > 16
