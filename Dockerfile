@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.7-labs
+# syntax=docker/dockerfile:1.4
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -215,11 +215,11 @@ function install_debian_runtime_dependencies() {
 function install_python() {
     git clone --branch "${AIRFLOW_PYTHON_VERSION}" --depth 1 https://github.com/python/cpython.git
     cd cpython
-    ./configure --enable-optimizations
+    ./configure --enable-optimizations --prefix=/usr/python/
     make -s -j "$(nproc)" all
     make -s -j "$(nproc)" install
-    ln -s /usr/local/bin/python3 /usr/local/bin/python
-    ln -s /usr/local/bin/pip3 /usr/local/bin/pip
+    ln -s /usr/python/bin/python3 /usr/python/bin/python
+    ln -s /usr/python/bin/pip3 /usr/python/bin/pip
     cd ..
     rm -rf cpython
 }
@@ -1661,7 +1661,7 @@ ARG USE_CONSTRAINTS_FOR_CONTEXT_DISTRIBUTIONS="false"
 
 # By default PIP installs everything to ~/.local and it's also treated as VIRTUALENV
 ENV VIRTUAL_ENV="${AIRFLOW_USER_HOME_DIR}/.local"
-
+ENV PATH="/usr/python/bin:$PATH"
 RUN bash /scripts/docker/install_packaging_tools.sh; bash /scripts/docker/create_prod_venv.sh
 
 COPY --chown=airflow:0 ${AIRFLOW_SOURCES_FROM} ${AIRFLOW_SOURCES_TO}
@@ -1764,13 +1764,13 @@ ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD}
 
 COPY --from=airflow-build-image \
-     "/usr/local/bin/python*" "/usr/local/bin/"
+     "/usr/python/bin/python*" "/usr/python/bin/"
 
 COPY --from=airflow-build-image \
-     "/usr/local/bin/pip*" "/usr/local/bin/"
+     "/usr/python/bin/pip*" "/usr/python/bin/"
 
-COPY --parents --from=airflow-build-image \
-     "/usr/local/lib/./python*" "/usr/local/lib/"
+COPY --from=airflow-build-image \
+     "/usr/python/lib" "/usr/python/lib/"
 
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 RUN bash /scripts/docker/install_os_dependencies.sh runtime

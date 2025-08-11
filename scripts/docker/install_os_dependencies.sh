@@ -136,11 +136,11 @@ function install_debian_runtime_dependencies() {
 function install_python() {
     git clone --branch "${AIRFLOW_PYTHON_VERSION}" --depth 1 https://github.com/python/cpython.git
     cd cpython
-    ./configure --enable-optimizations
+    ./configure --enable-optimizations --prefix=/usr/python/
     make -s -j "$(nproc)" all
     make -s -j "$(nproc)" install
-    ln -s /usr/local/bin/python3 /usr/local/bin/python
-    ln -s /usr/local/bin/pip3 /usr/local/bin/pip
+    ln -s /usr/python/bin/python3 /usr/python/bin/python
+    ln -s /usr/python/bin/pip3 /usr/python/bin/pip
     cd ..
     rm -rf cpython
 }
