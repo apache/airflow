@@ -1434,6 +1434,7 @@ class DagStatsResponse(BaseModel):
     """
 
     dag_id: Annotated[str, Field(title="Dag Id")]
+    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     stats: Annotated[list[DagStatsStateResponse], Field(title="Stats")]
 
 
