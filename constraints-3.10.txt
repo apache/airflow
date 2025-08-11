@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-11T07:51:46.351424
+# This constraints file was automatically generated on 2025-08-11T13:58:54.807775
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -301,7 +301,7 @@ facebook_business==23.0.1
 fastapi-cli==0.0.8
 fastapi==0.116.1
 fastavro==1.12.0
-fasteners==0.19
+fasteners==0.20
 fastjsonschema==2.21.1
 filelock==3.18.0
 flower==2.0.1
@@ -441,7 +441,7 @@ lockfile==0.12.2
 looker-sdk==25.10.0
 lxml==6.0.0
 lz4==4.4.4
-markdown-it-py==3.0.0
+markdown-it-py==4.0.0
 marshmallow-sqlalchemy==1.4.2
 marshmallow==3.26.1
 matplotlib-inline==0.1.7
@@ -463,7 +463,7 @@ msgspec==0.19.0
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
-multidict==6.6.3
+multidict==6.6.4
 mypy_extensions==1.1.0
 mysql-connector-python==9.4.0
 mysqlclient==2.2.7
@@ -588,7 +588,7 @@ requests==2.32.4
 requests_ntlm==1.3.0
 retryhttp==1.3.3
 rich-argparse==1.7.1
-rich-toolkit==0.14.9
+rich-toolkit==0.15.0
 rich==13.9.4
 rpds-py==0.27.0
 rsa==4.9.1
