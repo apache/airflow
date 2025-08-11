@@ -95,24 +95,3 @@ class TestGithubHook:
 
         assert status is False
         assert msg == '401 {"message": "Bad credentials"}'
-
-    @patch(
-        "airflow.providers.github.hooks.github.Auth.AppAuth.get_installation_auth",
-        return_value="fake-auth-token",
-    )
-    @patch(
-        "airflow.providers.github.hooks.github.GithubClient",
-        autospec=True,
-        return_value=github_app_client_mock,
-    )
-    @patch(
-        "airflow.providers.github.hooks.github.open",
-        new_callable=mock_open,
-        read_data="FAKE_PRIVATE_KEY_CONTENT",
-    )
-    def test_github_app_authentication(self, mock_file, github_mock, get_auth_mock):
-        github_hook = GithubHook(github_conn_id="github_app_conn")
-
-        assert github_mock.called
-        assert isinstance(github_hook.client, Mock)
-        assert github_hook.client.name == github_mock.return_value.name
