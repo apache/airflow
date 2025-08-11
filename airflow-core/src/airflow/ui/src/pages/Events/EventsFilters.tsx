@@ -18,6 +18,7 @@
  */
 import { Box, HStack, Input } from "@chakra-ui/react";
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
@@ -39,6 +40,7 @@ const {
 } = SearchParamsKeys;
 
 export const EventsFilters = () => {
+  const { t: translate } = useTranslation(["browse", "common"]);
   const [searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
 
@@ -135,7 +137,7 @@ export const EventsFilters = () => {
         {/* Timestamp Range Filters */}
         <Input
           onChange={handleDateTimeChange(AFTER_PARAM)}
-          placeholder="Start date and time"
+          placeholder={translate("auditLog.filters.startDateTime")}
           size="sm"
           type="datetime-local"
           value={formatDateTimeLocalValue(afterFilter)}
@@ -143,7 +145,7 @@ export const EventsFilters = () => {
         />
         <Input
           onChange={handleDateTimeChange(BEFORE_PARAM)}
-          placeholder="End date and time"
+          placeholder={translate("auditLog.filters.endDateTime")}
           size="sm"
           type="datetime-local"
           value={formatDateTimeLocalValue(beforeFilter)}
@@ -153,7 +155,7 @@ export const EventsFilters = () => {
         {/* Event Type Filter */}
         <Input
           onChange={handleInputChange(EVENT_TYPE_PARAM)}
-          placeholder="Event type"
+          placeholder={translate("auditLog.filters.eventType")}
           size="sm"
           value={eventTypeFilter}
           width="150px"
@@ -162,7 +164,7 @@ export const EventsFilters = () => {
         {/* User Filter */}
         <Input
           onChange={handleInputChange(USER_PARAM)}
-          placeholder="User"
+          placeholder={translate("common:user")}
           size="sm"
           value={userFilter}
           width="150px"
@@ -171,7 +173,7 @@ export const EventsFilters = () => {
         {/* DAG ID Filter */}
         <Input
           onChange={handleInputChange(DAG_ID_PARAM)}
-          placeholder="DAG ID"
+          placeholder={translate("common:dagId")}
           size="sm"
           value={dagIdFilter}
           width="150px"
@@ -180,7 +182,7 @@ export const EventsFilters = () => {
         {/* Task ID Filter */}
         <Input
           onChange={handleInputChange(TASK_ID_PARAM)}
-          placeholder="Task ID"
+          placeholder={translate("common:taskId")}
           size="sm"
           value={taskIdFilter}
           width="150px"
@@ -189,7 +191,7 @@ export const EventsFilters = () => {
         {/* Run ID Filter */}
         <Input
           onChange={handleInputChange(RUN_ID_PARAM)}
-          placeholder="Run ID"
+          placeholder={translate("common:runId")}
           size="sm"
           value={runIdFilter}
           width="150px"
@@ -198,7 +200,7 @@ export const EventsFilters = () => {
         {/* Map Index Filter */}
         <Input
           onChange={handleInputChange(MAP_INDEX_PARAM)}
-          placeholder="Map Index"
+          placeholder={translate("common:mapIndex")}
           size="sm"
           type="number"
           value={mapIndexFilter}
@@ -208,7 +210,7 @@ export const EventsFilters = () => {
         {/* Try Number Filter */}
         <Input
           onChange={handleInputChange(TRY_NUMBER_PARAM)}
-          placeholder="Try Number"
+          placeholder={translate("common:tryNumber")}
           size="sm"
           type="number"
           value={tryNumberFilter}

@@ -13,15 +13,10 @@
     "filters": {
       "after": "After",
       "before": "Before",
-      "clearAll": "Clear All",
-      "dagId": "DAG ID",
+      "endDateTime": "End date and time",
       "eventType": "Event Type",
       "filters": "Filters",
-      "mapIndex": "Map Index",
-      "runId": "Run ID",
-      "taskId": "Task ID",
-      "tryNumber": "Try Number",
-      "user": "User"
+      "startDateTime": "Start date and time"
     },
     "title": "Audit Log"
   },
