@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Link } from "@chakra-ui/react";
+import { Box, Heading, Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
@@ -52,7 +52,7 @@ const taskInstanceColumns = ({
     cell: ({ row: { original } }: TaskInstanceRow) => (
       <StateBadge state={original.task_instance.state}>{getHITLState(translate, original)}</StateBadge>
     ),
-    header: translate("Required Action State"),
+    header: translate("requiredActionState"),
   },
   {
     accessorKey: "subject",
@@ -63,7 +63,7 @@ const taskInstanceColumns = ({
         </RouterLink>
       </Link>
     ),
-    header: translate("Subject"),
+    header: translate("subject"),
   },
   ...(Boolean(dagId)
     ? []
@@ -71,7 +71,7 @@ const taskInstanceColumns = ({
         {
           accessorKey: "task_instance.dag_id",
           enableSorting: false,
-          header: translate("dagId"),
+          header: translate("common:dagId"),
         },
       ]),
   ...(Boolean(runId)
@@ -90,7 +90,7 @@ const taskInstanceColumns = ({
             ) : (
               <Time datetime={original.task_instance.run_after} />
             ),
-          header: translate("dagRun_one"),
+          header: translate("common:dagRun.runAfter"),
         },
       ]),
   ...(Boolean(taskId)
@@ -102,26 +102,26 @@ const taskInstanceColumns = ({
             <TruncatedText text={original.task_instance.task_display_name} />
           ),
           enableSorting: false,
-          header: translate("taskId"),
+          header: translate("common:taskId"),
         },
       ]),
   {
     accessorKey: "rendered_map_index",
-    header: translate("mapIndex"),
+    header: translate("common:mapIndex"),
   },
   {
     accessorKey: "response_received",
-    header: translate("Response Received"),
+    header: translate("state.responseReceived"),
   },
   {
     accessorKey: "response_at",
     cell: ({ row: { original } }) => <Time datetime={original.response_at} />,
-    header: translate("Response At"),
+    header: translate("response.received"),
   },
 ];
 
 export const HITLTaskInstances = () => {
-  const { t: translate } = useTranslation();
+  const { t: translate } = useTranslation("hitl");
   const { dagId, groupId, runId, taskId } = useParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination } = tableURLState;
@@ -151,20 +151,27 @@ export const HITLTaskInstances = () => {
   });
 
   return (
-    <DataTable
-      columns={taskInstanceColumns({
-        dagId,
-        runId,
-        taskId: Boolean(groupId) ? undefined : taskId,
-        translate,
-      })}
-      data={filteredData ?? []}
-      errorMessage={<ErrorAlert error={error} />}
-      initialState={tableURLState}
-      isLoading={isLoading}
-      modelName={translate("hitl:requiredAction_other")}
-      onStateChange={setTableURLState}
-      total={filteredData?.length}
-    />
+    <Box>
+      {!Boolean(dagId) && !Boolean(runId) && !Boolean(taskId) ? (
+        <Heading size="md">
+          {filteredData?.length} {translate("requiredAction", { count: filteredData?.length })}
+        </Heading>
+      ) : undefined}
+      <DataTable
+        columns={taskInstanceColumns({
+          dagId,
+          runId,
+          taskId: Boolean(groupId) ? undefined : taskId,
+          translate,
+        })}
+        data={filteredData ?? []}
+        errorMessage={<ErrorAlert error={error} />}
+        initialState={tableURLState}
+        isLoading={isLoading}
+        modelName={translate("requiredAction_other")}
+        onStateChange={setTableURLState}
+        total={filteredData?.length}
+      />
+    </Box>
   );
 };

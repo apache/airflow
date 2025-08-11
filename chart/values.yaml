@@ -3076,6 +3076,9 @@ dags:
     # container level lifecycle hooks
     containerLifecycleHooks: {}
 
+    readinessProbe: {}
+    livenessProbe: {}
+
     # Mount additional volumes into git-sync. It can be templated like in the following example:
     #   extraVolumeMounts:
     #     - name: my-templated-extra-volume
@@ -3117,3 +3120,5 @@ logs:
     storageClassName:
     ## the name of an existing PVC to use
     existingClaim:
+    ## the subpath of the existing PVC to use
+    subPath:
