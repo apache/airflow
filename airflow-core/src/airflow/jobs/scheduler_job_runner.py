@@ -32,9 +32,10 @@ from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any, Callable
 
-from sqlalchemy import and_, delete, desc, exists, func, select, text, tuple_, update
+from sqlalchemy import and_, delete, desc, exists, func, inspect, select, text, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
+from sqlalchemy.orm.attributes import NO_VALUE
 from sqlalchemy.sql import expression
 
 from airflow import settings
@@ -131,11 +132,19 @@ class SchedulerDagBag:
 
     @staticmethod
     def _version_from_dag_run(dag_run, session):
-        if dag_run.bundle_version:
-            dag_version = dag_run.created_dag_version
-        else:
+        if not dag_run.bundle_version:
             dag_version = DagVersion.get_latest_version(dag_id=dag_run.dag_id, session=session)
-        return dag_version
+            if dag_version:
+                return dag_version
+
+        # Check if created_dag_version relationship is already loaded to avoid DetachedInstanceError
+        info = inspect(dag_run)
+        if info.attrs.created_dag_version.loaded_value is not NO_VALUE:
+            # Relationship is already loaded, safe to access
+            return dag_run.created_dag_version
+
+        # Relationship not loaded, fetch it explicitly from current session
+        return session.get(DagVersion, dag_run.created_dag_version_id)
 
     def get_dag(self, dag_run: DagRun, session: Session) -> DAG | None:
         version = self._version_from_dag_run(dag_run=dag_run, session=session)
@@ -827,7 +836,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             select(TI)
             .where(filter_for_tis)
             .options(selectinload(TI.dag_model))
-            .options(selectinload(TI.dag_run).selectinload(DagRun.consumed_asset_events))
+            .options(joinedload(TI.dag_run).selectinload(DagRun.consumed_asset_events))
+            .options(joinedload(TI.dag_run).selectinload(DagRun.created_dag_version))
             .options(joinedload(TI.dag_version))
         )
         # row lock this entire set of taskinstances to make sure the scheduler doesn't fail when we have
