@@ -60,6 +60,9 @@ from airflow.models.variable import Variable
 from airflow.typing_compat import Self
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
+from airflow.models.serialized_dag import SerializedDagModel
+from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
+from airflow.serialization.serialized_objects import LazyDeserializedDAG
 
 if TYPE_CHECKING:
     from sqlalchemy.sql import ColumnElement, Select
@@ -443,8 +446,59 @@ class _OwnersFilter(BaseParam[list[str]]):
 
     @classmethod
     def depends(cls, owners: list[str] = Query(default_factory=list)) -> _OwnersFilter:
-        return cls().set_value(owners)
+        return cls().set_value(owners)    
 
+class TimetableTypes(str, Enum):
+    """Different timetable types."""
+
+    cron = "airflow.timetables.trigger.CronTriggerTimetable"
+    multiple_cron = "airflow.timetables.trigger.MultipleCronTriggerTimetable"
+    delta = "airflow.timetables.trigger.DeltaTriggerTimetable"
+    delta_data_interval = "airflow.timetables.trigger.DeltaDataIntervalTimetable"
+    cron_data_interval = "airflow.timetables.trigger.CronDataIntervalTimetable"
+    events = "airflow.timetables.events.EventsTimetable"
+    assets = "airflow.timetables.assets.AssetOrTimeSchedule"
+    no_trigger_defined= "airflow.timetables.simple.NullTimetable"
+    dataset = "airflow.timetables.dataset.DatasetTriggerTimetable"
+
+class _TimetableTypesFilter(BaseParam[list[TimetableTypes]]):
+    """Filter on timetable type."""
+
+    def filter_from_dags(self,dags:list[DAGResponse],timetable_type: list[TimetableTypes],session)->list[DAGResponse]:
+        filtered_dags=[]
+        dags_from_iterator=dict()
+
+        for dag in dags:
+            dags_from_iterator[dag.dag_id]=dag
+  
+        serialized_dags_select = (
+                select(SerializedDagModel)
+                .join(DagModel, SerializedDagModel.dag_id == DagModel.dag_id)
+                .where(SerializedDagModel.dag_id.in_(dags_from_iterator.keys()))
+            )
+        
+        serialized_dags_results = session.scalars(serialized_dags_select).all()
+
+        for serialized_dag_model in serialized_dags_results:
+            if serialized_dag_model.data:
+                lazy_dag = LazyDeserializedDAG(data=serialized_dag_model.data)
+                timetable_class = type(lazy_dag.timetable)
+                if f"{timetable_class.__module__}.{timetable_class.__qualname__}" in timetable_type:
+                    filtered_dags.append(dags_from_iterator[serialized_dag_model.dag_id])
+
+        return filtered_dags
+    
+    def to_orm(self, select: Select) -> Select:
+        pass
+
+    @classmethod
+    def depends(
+        cls,
+        timetable_type: list[TimetableTypes] = Query(default_factory=list),
+    ) -> _TimetableTypesFilter:
+        return cls().set_value(timetable_type)
+    
+    
 
 def _safe_parse_datetime(date_to_check: str) -> datetime:
     """
