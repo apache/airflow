@@ -21,9 +21,13 @@ from cadwyn import HeadVersion, Version, VersionBundle
 
 from airflow.api_fastapi.execution_api.versions.v2025_04_28 import AddRenderedMapIndexField
 from airflow.api_fastapi.execution_api.versions.v2025_05_20 import DowngradeUpstreamMapIndexes
+from airflow.api_fastapi.execution_api.versions.v2025_08_10 import (
+    AddDagRunStateFieldAndPreviousEndpoint,
+)
 
 bundle = VersionBundle(
     HeadVersion(),
+    Version("2025-08-10", AddDagRunStateFieldAndPreviousEndpoint),
     Version("2025-05-20", DowngradeUpstreamMapIndexes),
     Version("2025-04-28", AddRenderedMapIndexField),
     Version("2025-04-11"),

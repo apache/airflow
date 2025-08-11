@@ -50,6 +50,7 @@ from airflow.sdk import DAG, BaseOperator, Connection, dag as dag_decorator, get
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
     AssetResponse,
+    DagRun,
     DagRunState,
     TaskInstance,
     TaskInstanceState,
@@ -71,12 +72,14 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetDagRunState,
     GetDRCount,
+    GetPreviousDagRun,
     GetTaskStates,
     GetTICount,
     GetVariable,
     GetXCom,
     GetXComSequenceSlice,
     OKResponse,
+    PreviousDagRunResult,
     PrevSuccessfulDagRunResult,
     SetRenderedFields,
     SetXCom,
@@ -1801,6 +1804,66 @@ class TestRuntimeTaskInstance:
             ),
         )
         assert states == {"run1": {"task1": "running"}}
+
+    def test_get_previous_dagrun_basic(self, create_runtime_ti, mock_supervisor_comms):
+        """Test that get_previous_dagrun sends the correct request without state filter."""
+
+        task = BaseOperator(task_id="hello")
+        dag_id = "test_dag"
+        runtime_ti = create_runtime_ti(task=task, dag_id=dag_id, logical_date=timezone.datetime(2025, 1, 2))
+
+        dag_run_data = DagRun(
+            dag_id=dag_id,
+            run_id="prev_run",
+            logical_date=timezone.datetime(2025, 1, 1),
+            start_date=timezone.datetime(2025, 1, 1),
+            run_after=timezone.datetime(2025, 1, 1),
+            run_type="scheduled",
+            state="success",
+            consumed_asset_events=[],
+        )
+
+        mock_supervisor_comms.send.return_value = PreviousDagRunResult(dag_run=dag_run_data)
+
+        dr = runtime_ti.get_previous_dagrun()
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=GetPreviousDagRun(dag_id="test_dag", logical_date=timezone.datetime(2025, 1, 2), state=None),
+        )
+        assert dr.dag_id == "test_dag"
+        assert dr.run_id == "prev_run"
+        assert dr.state == "success"
+
+    def test_get_previous_dagrun_with_state(self, create_runtime_ti, mock_supervisor_comms):
+        """Test that get_previous_dagrun sends the correct request with state filter."""
+
+        task = BaseOperator(task_id="hello")
+        dag_id = "test_dag"
+        runtime_ti = create_runtime_ti(task=task, dag_id=dag_id, logical_date=timezone.datetime(2025, 1, 2))
+
+        dag_run_data = DagRun(
+            dag_id=dag_id,
+            run_id="prev_success_run",
+            logical_date=timezone.datetime(2025, 1, 1),
+            start_date=timezone.datetime(2025, 1, 1),
+            run_after=timezone.datetime(2025, 1, 1),
+            run_type="scheduled",
+            state="success",
+            consumed_asset_events=[],
+        )
+
+        mock_supervisor_comms.send.return_value = PreviousDagRunResult(dag_run=dag_run_data)
+
+        dr = runtime_ti.get_previous_dagrun(state="success")
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=GetPreviousDagRun(
+                dag_id="test_dag", logical_date=timezone.datetime(2025, 1, 2), state="success"
+            ),
+        )
+        assert dr.dag_id == "test_dag"
+        assert dr.run_id == "prev_success_run"
+        assert dr.state == "success"
 
 
 class TestXComAfterTaskExecution:

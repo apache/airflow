@@ -83,6 +83,7 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetDagRunState,
     GetDRCount,
+    GetPreviousDagRun,
     GetPrevSuccessfulDagRun,
     GetTaskRescheduleStartDate,
     GetTaskStates,
@@ -1226,6 +1227,12 @@ class ActivitySubprocess(WatchedSubprocess):
                 logical_dates=msg.logical_dates,
                 run_ids=msg.run_ids,
                 states=msg.states,
+            )
+        elif isinstance(msg, GetPreviousDagRun):
+            resp = self.client.dag_runs.get_previous(
+                dag_id=msg.dag_id,
+                logical_date=msg.logical_date,
+                state=msg.state,
             )
         elif isinstance(msg, DeleteVariable):
             resp = self.client.variables.delete(msg.key)

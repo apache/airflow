@@ -853,6 +853,7 @@ class TestOpenLineageListenerAirflow3:
             task_instance.dag_run.clear_number = 0
             task_instance.dag_run.logical_date = timezone.datetime(2020, 1, 1, 1, 1, 1)
             task_instance.dag_run.run_after = timezone.datetime(2020, 1, 1, 1, 1, 1)
+            task_instance.dag_run.state = DagRunState.RUNNING
             task_instance.task = None
             task_instance.dag = None
             task_instance.task_id = "task_id"
@@ -862,6 +863,7 @@ class TestOpenLineageListenerAirflow3:
             # RuntimeTaskInstance is used when on worker
             from airflow.sdk.api.datamodels._generated import (
                 DagRun as SdkDagRun,
+                DagRunState as SdkDagRunState,
                 DagRunType,
                 TaskInstance as SdkTaskInstance,
                 TIRunContext,
@@ -887,19 +889,20 @@ class TestOpenLineageListenerAirflow3:
                 **sdk_task_instance.model_dump(exclude_unset=True),
                 task=task,
                 _ti_context_from_server=TIRunContext(
-                    dag_run=SdkDagRun(
-                        dag_id="dag_id",
-                        run_id="dag_run_run_id",
-                        logical_date=timezone.datetime(2020, 1, 1, 1, 1, 1),
-                        data_interval_start=None,
-                        data_interval_end=None,
-                        start_date=timezone.datetime(2023, 1, 1, 13, 1, 1),
-                        end_date=timezone.datetime(2023, 1, 3, 13, 1, 1),
-                        clear_number=0,
-                        run_type=DagRunType.MANUAL,
-                        run_after=timezone.datetime(2023, 1, 3, 13, 1, 1),
-                        conf=None,
-                        consumed_asset_events=[],
+                    dag_run=SdkDagRun.model_validate(
+                        {
+                            "dag_id": "dag_id_from_dagrun_not_ti",
+                            "run_id": "dag_run_run_id_from_dagrun_not_ti",
+                            "logical_date": timezone.datetime(2020, 1, 1, 1, 1, 1),
+                            "start_date": timezone.datetime(2023, 1, 1, 13, 1, 1),
+                            "end_date": timezone.datetime(2023, 1, 3, 13, 1, 1),
+                            "run_type": DagRunType.MANUAL,
+                            "run_after": timezone.datetime(2023, 1, 3, 13, 1, 1),
+                            "consumed_asset_events": [],
+                            **(
+                                {"state": SdkDagRunState.RUNNING} if "state" in SdkDagRun.model_fields else {}
+                            ),
+                        }
                     ),
                     task_reschedule_count=0,
                     max_tries=1,
