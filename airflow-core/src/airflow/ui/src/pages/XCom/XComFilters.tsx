@@ -25,6 +25,7 @@ import { useSearchParams } from "react-router-dom";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { DateTimeInput } from "src/components/DateTimeInput";
 import { SearchBar } from "src/components/SearchBar";
+import { NumberInputField, NumberInputRoot } from "src/components/ui/NumberInput";
 import { SearchParamsKeys } from "src/constants/searchParams";
 
 const FILTERS = [
@@ -56,7 +57,7 @@ const FILTERS = [
     hotkeyDisabled: true,
     key: SearchParamsKeys.MAP_INDEX,
     translationKey: "mapIndexPlaceholder",
-    type: "search",
+    type: "number",
   },
   {
     key: SearchParamsKeys.LOGICAL_DATE_GTE,
@@ -78,7 +79,12 @@ const FILTERS = [
     translationKey: "runAfterToPlaceholder",
     type: "datetime",
   },
-] as const;
+] as const satisfies ReadonlyArray<{
+  readonly hotkeyDisabled?: boolean;
+  readonly key: string;
+  readonly translationKey: string;
+  readonly type: "datetime" | "number" | "search";
+}>;
 
 export const XComFilters = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -148,12 +154,21 @@ export const XComFilters = () => {
               />
             );
           })()
-        ) : (
+        ) : type === "datetime" ? (
           <DateTimeInput
             key={`${key}-${resetKey}`}
             onChange={(event) => handleFilterChange(key)(event.target.value)}
             value={searchParams.get(key) ?? ""}
           />
+        ) : (
+          <NumberInputRoot
+            key={`${key}-${resetKey}`}
+            min={-1}
+            onValueChange={(details) => handleFilterChange(key)(details.value)}
+            value={searchParams.get(key) ?? ""}
+          >
+            <NumberInputField placeholder={translate(`common:filters.${translationKey}`)} />
+          </NumberInputRoot>
         )}
       </Box>
     );
