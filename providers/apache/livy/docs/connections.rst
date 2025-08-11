@@ -44,7 +44,7 @@ Login (optional)
 Password (optional)
     Specify the password for the Apache Livy server you would like to connect too.
 
-Extras (optional)
+Extra (optional)
     Specify headers in json format.
 
 When specifying the connection in environment variable you should specify

@@ -28,6 +28,7 @@ import inspect
 import os
 from argparse import Namespace
 from collections.abc import Callable, Iterable
+from enum import Enum
 from functools import partial
 from pathlib import Path
 from typing import Any, NamedTuple
@@ -77,16 +78,23 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
         rich.print(f"command failed due to {e}")
         sys.exit(1)
     except httpx.RemoteProtocolError as e:
+        rich.print(f"[red]Remote protocol error: {e}[/red]")
         if "Server disconnected without sending a response." in str(e):
             rich.print(
                 f"[red]Server response error: {e}. "
                 "Please check if the server is running and the API URL is correct.[/red]"
             )
     except httpx.ReadTimeout as e:
+        rich.print(f"[red]Read timeout error: {e}[/red]")
         if "timed out" in str(e):
+            rich.print("Please check if the server is running and the API ready to accept calls.[/red]")
+    except ServerResponseError as e:
+        rich.print(f"Server response error: {e}")
+        if "Client error message:" in str(e):
             rich.print(
-                f"[red]Request timed out: {e}. "
-                "Please check if the server is running and the API ready to accept calls.[/red]"
+                "[red]Client error, [/red] "
+                "Please check the command and its parameters. "
+                "If you need help, run the command with --help."
             )
 
 
@@ -338,7 +346,9 @@ class CommandFactory:
     func_map: dict[tuple, Callable]
     commands_map: dict[str, list[ActionCommand]]
     group_commands_list: list[CLICommand]
-    ouput_command_list: list[str]
+    output_command_list: list[str]
+    exclude_operation_names: list[str]
+    exclude_method_names: list[str]
 
     def __init__(self, file_path: str | Path | None = None):
         self.datamodels_extended_map = {}
@@ -348,10 +358,23 @@ class CommandFactory:
         self.commands_map = {}
         self.group_commands_list = []
         self.file_path = inspect.getfile(BaseOperations) if file_path is None else file_path
+        # Excluded Lists are in Class Level for further usage and avoid searching them
         # Exclude parameters that are not needed for CLI from datamodels
         self.excluded_parameters = ["schema_"]
         # This list is used to determine if the command/operation needs to output data
-        self.output_command_list = ["list", "get", "create", "delete"]
+        self.output_command_list = ["list", "get", "create", "delete", "update", "trigger"]
+        self.exclude_operation_names = ["LoginOperations", "VersionOperations", "BaseOperations"]
+        self.exclude_method_names = [
+            "error",
+            "__init__",
+            "__init_subclass__",
+            "_check_flag_and_exit_if_server_response_error",
+            # Excluding bulk operation. Out of scope for CLI. Should use implemented commands.
+            "bulk",
+        ]
+        self.excluded_output_keys = [
+            "total_entries",
+        ]
 
     def _inspect_operations(self) -> None:
         """Parse file and return matching Operation Method with details."""
@@ -386,24 +409,15 @@ class CommandFactory:
         with open(self.file_path, encoding="utf-8") as file:
             tree = ast.parse(file.read(), filename=self.file_path)
 
-        exclude_operation_names = ["LoginOperations", "VersionOperations"]
-        exclude_method_names = [
-            "error",
-            "__init__",
-            "__init_subclass__",
-            "_check_flag_and_exit_if_server_response_error",
-            # Excluding bulk operation. Out of scope for CLI. Should use implemented commands.
-            "bulk",
-        ]
         for node in ast.walk(tree):
             if (
                 isinstance(node, ast.ClassDef)
                 and "Operations" in node.name
-                and node.name not in exclude_operation_names
+                and node.name not in self.exclude_operation_names
                 and node.body
             ):
                 for child in node.body:
-                    if isinstance(child, ast.FunctionDef) and child.name not in exclude_method_names:
+                    if isinstance(child, ast.FunctionDef) and child.name not in self.exclude_method_names:
                         self.operations.append(get_function_details(node=child, parent_node=node))
 
     @staticmethod
@@ -561,6 +575,7 @@ class CommandFactory:
             # Walk through all args and create a dictionary such as args.abc -> {"abc": "value"}
             method_params = {}
             datamodel = None
+            datamodel_param_name = None
             args_dict = vars(args)
             for parameter in api_operation["parameters"]:
                 for parameter_key, parameter_type in parameter.items():
@@ -571,16 +586,24 @@ class CommandFactory:
                     else:
                         datamodel = getattr(generated_datamodels, parameter_type)
                         for expanded_parameter in self.datamodels_extended_map[parameter_type]:
+                            if parameter_key not in method_params:
+                                method_params[parameter_key] = {}
+                                datamodel_param_name = parameter_key
                             if expanded_parameter in self.excluded_parameters:
                                 continue
                             if expanded_parameter in args_dict.keys():
-                                method_params[self._sanitize_method_param_key(expanded_parameter)] = (
-                                    args_dict[expanded_parameter]
-                                )
+                                method_params[parameter_key][
+                                    self._sanitize_method_param_key(expanded_parameter)
+                                ] = args_dict[expanded_parameter]
 
             if datamodel:
-                method_params = datamodel.model_validate(method_params)
-                method_output = operation_method_object(method_params)
+                if datamodel_param_name:
+                    method_params[datamodel_param_name] = datamodel.model_validate(
+                        method_params[datamodel_param_name]
+                    )
+                else:
+                    method_params = datamodel.model_validate(method_params)
+                method_output = operation_method_object(**method_params)
             else:
                 method_output = operation_method_object(**method_params)
 
@@ -600,15 +623,23 @@ class CommandFactory:
                     """Check if the object is a nested dictionary."""
                     return any(isinstance(i, dict) or isinstance(i, list) for i in obj.values())
 
-                # Find result from list operation
                 if is_dict_nested(dict_obj):
-                    for _, value in dict_obj.items():
+                    iteration_dict = dict_obj.copy()
+                    for key, value in iteration_dict.items():
+                        if key in self.excluded_output_keys:
+                            del dict_obj[key]
+                            continue
+                        if isinstance(value, Enum):
+                            dict_obj[key] = value.value
                         if isinstance(value, list):
-                            return value
+                            dict_obj[key] = value
                         if isinstance(value, dict):
-                            result = check_operation_and_collect_list_of_dict(value)
-                            if result:
-                                return result
+                            dict_obj[key] = check_operation_and_collect_list_of_dict(value)
+
+                # If dict_obj only have single key return value instead of list
+                # This can happen since we are excluding some keys from user such as total_entries from list operations
+                if len(dict_obj) == 1:
+                    return dict_obj[next(iter(dict_obj.keys()))]
                 # If not nested, return the object as a list which the result should be already a dict
                 return [dict_obj]
 

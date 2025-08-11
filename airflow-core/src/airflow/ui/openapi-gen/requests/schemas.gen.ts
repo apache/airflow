@@ -1209,7 +1209,7 @@ export const $ClearTaskInstancesBody = {
         run_on_latest_version: {
             type: 'boolean',
             title: 'Run On Latest Version',
-            description: '(Experimental) Run on the latest bundle version of the DAG after clearing the task instances.',
+            description: '(Experimental) Run on the latest bundle version of the dag after clearing the task instances.',
             default: false
         }
     },
@@ -2187,7 +2187,7 @@ export const $DAGRunClearBody = {
         run_on_latest_version: {
             type: 'boolean',
             title: 'Run On Latest Version',
-            description: '(Experimental) Run on the latest bundle version of the DAG after clearing the DAG Run.',
+            description: '(Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run.',
             default: false
         }
     },
@@ -3273,15 +3273,15 @@ export const $ExternalViewResponse = {
             ],
             title: 'Category'
         },
+        href: {
+            type: 'string',
+            title: 'Href'
+        },
         destination: {
             type: 'string',
             enum: ['nav', 'dag', 'dag_run', 'task', 'task_instance'],
             title: 'Destination',
             default: 'nav'
-        },
-        href: {
-            type: 'string',
-            title: 'Href'
         }
     },
     additionalProperties: true,
@@ -4325,15 +4325,15 @@ export const $ReactAppResponse = {
             ],
             title: 'Category'
         },
-        destination: {
-            type: 'string',
-            enum: ['nav', 'dag', 'dag_run', 'task', 'task_instance'],
-            title: 'Destination',
-            default: 'nav'
-        },
         bundle_url: {
             type: 'string',
             title: 'Bundle Url'
+        },
+        destination: {
+            type: 'string',
+            enum: ['nav', 'dag', 'dag_run', 'task', 'task_instance', 'dashboard'],
+            title: 'Destination',
+            default: 'nav'
         }
     },
     additionalProperties: true,
@@ -5710,8 +5710,15 @@ export const $TriggerDAGRunPostBody = {
             title: 'Run After'
         },
         conf: {
-            additionalProperties: true,
-            type: 'object',
+            anyOf: [
+                {
+                    additionalProperties: true,
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Conf'
         },
         note: {
@@ -7152,7 +7159,7 @@ export const $LightGridTaskInstanceSummary = {
 
 export const $MenuItem = {
     type: 'string',
-    enum: ['Assets', 'Audit Log', 'Config', 'Connections', 'Dags', 'Docs', 'Plugins', 'Pools', 'Providers', 'Variables', 'XComs'],
+    enum: ['Required Actions', 'Assets', 'Audit Log', 'Config', 'Connections', 'Dags', 'Docs', 'Plugins', 'Pools', 'Providers', 'Variables', 'XComs'],
     title: 'MenuItem',
     description: 'Define all menu items defined in the menu.'
 } as const;

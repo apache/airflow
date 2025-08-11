@@ -60,6 +60,11 @@ export const Header = ({
       });
     }
   }, [dagId, dagRun.note, dagRunId, mutate, note]);
+
+  const onOpen = () => {
+    setNote(dagRun.note ?? "");
+  };
+
   const containerRef = useRef<HTMLDivElement>();
   const containerWidth = useContainerWidth(containerRef);
 
@@ -74,6 +79,7 @@ export const Header = ({
               isPending={isPending}
               mdContent={note}
               onConfirm={onConfirm}
+              onOpen={onOpen}
               placeholder={translate("note.placeholder")}
               setMdContent={setNote}
               text={Boolean(dagRun.note) ? translate("note.label") : translate("note.add")}
@@ -107,6 +113,14 @@ export const Header = ({
           { label: translate("startDate"), value: <Time datetime={dagRun.start_date} /> },
           { label: translate("endDate"), value: <Time datetime={dagRun.end_date} /> },
           { label: translate("duration"), value: getDuration(dagRun.start_date, dagRun.end_date) },
+          ...(dagRun.triggering_user_name === null
+            ? []
+            : [
+                {
+                  label: translate("dagRun.triggeringUser"),
+                  value: <Text>{dagRun.triggering_user_name}</Text>,
+                },
+              ]),
           {
             label: translate("dagRun.dagVersions"),
             value: (

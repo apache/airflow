@@ -83,7 +83,9 @@ apache-airflow-providers-apache-kafka package
 `Apache Kafka  <https://kafka.apache.org/>`__
 
 
-Release: 1.10.0
+Release: 1.10.2
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------
@@ -108,7 +110,7 @@ PIP package          Version required
 ===================  ==================
 ``apache-airflow``   ``>=2.10.0``
 ``asgiref``          ``>=2.3.0``
-``confluent-kafka``  ``>=2.3.0``
+``confluent-kafka``  ``>=2.6.0``
 ===================  ==================
 
 Cross provider package dependencies
@@ -137,5 +139,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-apache-kafka 1.10.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_kafka-1.10.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_kafka-1.10.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_kafka-1.10.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-apache-kafka 1.10.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_kafka-1.10.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_kafka-1.10.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_kafka-1.10.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-apache-kafka 1.10.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_kafka-1.10.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_kafka-1.10.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_kafka-1.10.2.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-kafka 1.10.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_kafka-1.10.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_kafka-1.10.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_kafka-1.10.2-py3-none-any.whl.sha512>`__)
