@@ -18,14 +18,14 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+from asyncio import Lock
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.helpers import prune_dict
-from asyncio import Lock
-from contextlib import asynccontextmanager
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
@@ -107,7 +107,7 @@ class AwsBaseWaiterTrigger(BaseTrigger):
         self.region_name = region_name
         self.verify = verify
         self.botocore_config = botocore_config
-        self._pool_lock = Lock(),
+        self._pool_lock = (Lock(),)
         self._client_pool: dict[str, tuple[Any, float]] = {}
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
