@@ -385,6 +385,17 @@ class TestJdbcHook:
             ),
             pytest.param(
                 {
+                    "conn_params": {
+                        "extra": json.dumps(
+                            {"sqlalchemy_scheme": "postgresql", "sqlalchemy_driver": "psycopg"}
+                        )
+                    }
+                },
+                "postgresql+psycopg://login:password@host:1234/schema",
+                id="sqlalchemy-scheme-with-driver-ppg3",
+            ),
+            pytest.param(
+                {
                     "login": "user@domain",
                     "password": "pass/word",
                     "schema": "my/db",
