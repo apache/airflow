@@ -353,7 +353,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .where(DM.bundle_name.is_not(None))
             .options(selectinload(TI.dag_model))
             .order_by(
-                nulls_first(TI.last_queueing_decision.desc(), session=session),
+                nulls_first(TI.last_queueing_decision.asc(), session=session),
                 -TI.priority_weight,
                 DR.logical_date,
                 TI.map_index,
