@@ -1,0 +1,25 @@
+{
+  "requiredAction_few": "Wymagane akcje",
+  "requiredAction_many": "Wymaganych akcji",
+  "requiredAction_one": "Wymagana akcja",
+  "requiredAction_other": "Wymagane akcje",
+  "requiredActionState": "Stan wymaganej akcji",
+  "response": {
+    "error": "Nie udało się uzyskać odpowiedzi",
+    "optionsDescription": "Wybierz opcje dla tej instancji zadania",
+    "optionsLabel": "Opcje",
+    "received": "Odpowiedź otrzymana o ",
+    "respond": "Odpowiedz",
+    "success": "Odpowiedź dla {{taskId}} została pomyślnie wysłana",
+    "title": "Instancja zadania wymagająca interwencji człowieka - {{taskId}}"
+  },
+  "state": {
+    "approvalReceived": "Zatwierdzenie otrzymane",
+    "approvalRequired": "Wymagane zatwierdzenie",
+    "choiceReceived": "Wybór otrzymany",
+    "choiceRequired": "Wymagany wybór",
+    "rejectionReceived": "Odrzucenie otrzymane",
+    "responseReceived": "Odpowiedź otrzymana",
+    "responseRequired": "Wymagana odpowiedź"
+  }
+}

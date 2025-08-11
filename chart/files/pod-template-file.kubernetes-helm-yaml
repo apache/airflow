@@ -62,6 +62,9 @@ spec:
       volumeMounts:
         - name: logs
           mountPath: {{ template "airflow_logs" . }}
+          {{- if .Values.logs.persistence.subPath }}
+          subPath: {{ .Values.logs.persistence.subPath }}
+          {{- end }}
         {{- include "airflow_config_mount" . | nindent 8 }}
         - name: config
           mountPath: {{ .Values.kerberos.configPath | quote }}
@@ -120,6 +123,9 @@ spec:
       volumeMounts:
         - mountPath: {{ template "airflow_logs" . }}
           name: logs
+          {{- if .Values.logs.persistence.subPath }}
+          subPath: {{ .Values.logs.persistence.subPath }}
+          {{- end }}
         {{- include "airflow_config_mount" . | nindent 8 }}
         {{- if or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled }}
           {{- include "airflow_dags_mount" . | nindent 8 }}
@@ -156,6 +162,9 @@ spec:
       volumeMounts:
         - name: logs
           mountPath: {{ template "airflow_logs" . }}
+          {{- if .Values.logs.persistence.subPath }}
+          subPath: {{ .Values.logs.persistence.subPath }}
+          {{- end }}
         {{- include "airflow_config_mount" . | nindent 8 }}
         - name: config
           mountPath: {{ .Values.kerberos.configPath | quote }}
