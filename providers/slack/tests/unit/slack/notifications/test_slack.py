@@ -20,8 +20,6 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
-import requests
-import os
 
 from airflow.providers.slack.notifications.slack import SlackNotifier, send_slack_notification
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -30,32 +28,7 @@ pytestmark = pytest.mark.db_test
 
 DEFAULT_HOOKS_PARAMETERS = {"base_url": None, "timeout": None, "proxy": None, "retry_handlers": None}
 
-RAW_GITHUB_ICON_URL = "https://raw.githubusercontent.com/apache/airflow/main/airflow-core/src/airflow/ui/public/pin_100.png"
-GITHUB_API_ICON_URL = "https://api.github.com/repos/apache/airflow/contents/airflow-core/src/airflow/ui/public/pin_100.png"
-
-def fetch_raw_url(link: str, fallback_link: str) -> str:
-    """
-    Fetch the image url from GitHub
-    """
-    token = os.environ.get("GITHUB_TOKEN")
-    headers = {}
-    if token:
-        headers["Authorization"] = f"token {token}"
-    else:
-        print("Warning: GITHUB_TOKEN not found, making unauthenticated request")
-    
-    response = requests.get(link, headers=headers)
-    if response.status_code == 200:
-        content = response.json()
-        if "download_url" in content:
-            return content["download_url"]
-        else:
-            return fallback_link
-    else:
-        print(f"Failed to fetch URL: {link} {response.status_code} - {response.text}")
-        return fallback_link
-
-ICON_URL = fetch_raw_url(GITHUB_API_ICON_URL, RAW_GITHUB_ICON_URL)
+ICON_URL = "https://raw.githubusercontent.com/apache/airflow/main/airflow-core/src/airflow/ui/public/pin_100.png"
 
 class TestSlackNotifier:
     @mock.patch("airflow.providers.slack.notifications.slack.SlackHook")
