@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from typing import TYPE_CHECKING
 
@@ -26,6 +27,7 @@ import sqlalchemy_jsonfield
 from sqlalchemy import (
     Column,
     ForeignKeyConstraint,
+    Index,
     Integer,
     PrimaryKeyConstraint,
     delete,
@@ -95,6 +97,10 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
             name="rtif_ti_fkey",
             ondelete="CASCADE",
         ),
+        # Performance indexes for common query patterns
+        Index("idx_rtif_dag_task", dag_id, task_id),
+        Index("idx_rtif_dag_task_run", dag_id, task_id, run_id),
+        Index("idx_rtif_covering", dag_id, task_id, run_id, map_index),
     )
     task_instance = relationship(
         "TaskInstance",
@@ -209,7 +215,31 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
 
         :param session: SqlAlchemy Session
         """
-        session.merge(self)
+        from sqlalchemy.exc import IntegrityError
+
+        try:
+            session.merge(self)
+        except IntegrityError as e:
+            # Handle duplicate key violations gracefully
+            if (
+                "duplicate key value violates unique constraint" in str(e.orig).lower()
+                or "unique constraint failed" in str(e.orig).lower()
+                or "duplicate entry" in str(e.orig).lower()
+            ):
+                # Log the duplicate and continue - this is expected in concurrent scenarios
+                logger = logging.getLogger(__name__)
+                logger.warning(
+                    "Duplicate rendered task instance fields for %s.%s (run_id=%s, map_index=%s) - "
+                    "this is expected in concurrent environments. Skipping insert.",
+                    self.dag_id,
+                    self.task_id,
+                    self.run_id,
+                    self.map_index,
+                )
+                # Don't re-raise the error, just continue
+                return
+            # Re-raise other integrity errors
+            raise
 
     @classmethod
     @provide_session

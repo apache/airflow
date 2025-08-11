@@ -369,6 +369,65 @@ class TestRenderedTaskInstanceFields:
             {"bash_command": "echo test_val_updated", "env": None, "cwd": None},
         )
 
+    def test_write_duplicate_handling(self, dag_maker, caplog):
+        """
+        Test that duplicate RTIF entries are handled gracefully without raising exceptions.
+        This simulates the race condition reported in issue #53905.
+        """
+        Variable.set(key="test_key", value="test_val")
+
+        session = settings.Session()
+
+        with dag_maker("test_duplicate_rtif"):
+            task = BashOperator(task_id="test", bash_command="echo {{ var.value.test_key }}")
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+        ti.task = task
+
+        # Create and write the first RTIF record
+        rtif1 = RTIF(ti)
+        rtif1.write()
+
+        # Verify the record was written
+        result = (
+            session.query(RTIF)
+            .filter(
+                RTIF.dag_id == rtif1.dag_id,
+                RTIF.task_id == rtif1.task_id,
+                RTIF.run_id == rtif1.run_id,
+                RTIF.map_index == rtif1.map_index,
+            )
+            .first()
+        )
+        assert result is not None
+        assert result.rendered_fields == {"bash_command": "echo test_val", "env": None, "cwd": None}
+
+        # Create a second RTIF record with the same primary key
+        # This should not raise an exception but should log a warning
+        rtif2 = RTIF(ti)
+        with caplog.at_level("WARNING"):
+            rtif2.write()  # This should not raise an exception
+
+        # Verify that a warning was logged
+        assert any("Duplicate rendered task instance fields" in record.message for record in caplog.records)
+        assert any(
+            "this is expected in concurrent environments" in record.message for record in caplog.records
+        )
+
+        # Verify that only one record exists (not duplicated)
+        results = (
+            session.query(RTIF)
+            .filter(
+                RTIF.dag_id == rtif1.dag_id,
+                RTIF.task_id == rtif1.task_id,
+                RTIF.run_id == rtif1.run_id,
+                RTIF.map_index == rtif1.map_index,
+            )
+            .all()
+        )
+        assert len(results) == 1
+
     @mock.patch.dict(os.environ, {"AIRFLOW_VAR_API_KEY": "secret"})
     def test_redact(self, dag_maker):
         from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
