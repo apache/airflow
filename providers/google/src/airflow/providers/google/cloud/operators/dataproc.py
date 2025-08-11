@@ -133,7 +133,6 @@ class ClusterGenerator:
         VMs are not deleted.
     :param storage_bucket: The storage bucket to use, setting to None lets dataproc
         generate a custom one for you
-    :param cluster_tier: The tier of the cluster
     :param init_actions_uris: List of GCS uri's containing
         dataproc initialization scripts
     :param init_action_timeout: Amount of time executable scripts in
@@ -214,6 +213,7 @@ class ClusterGenerator:
     :param secondary_worker_accelerator_type: Type of the accelerator card (GPU) to attach to the secondary workers,
         see https://cloud.google.com/dataproc/docs/reference/rest/v1/InstanceGroupConfig#acceleratorconfig
     :param secondary_worker_accelerator_count: Number of accelerator cards (GPUs) to attach to the secondary workers
+    :param cluster_tier: The tier of the cluster (e.g. "CLUSTER_TIER_STANDARD" / "CLUSTER_TIER_PREMIUM").
     """
 
     def __init__(
@@ -227,7 +227,6 @@ class ClusterGenerator:
         internal_ip_only: bool | None = None,
         tags: list[str] | None = None,
         storage_bucket: str | None = None,
-        cluster_tier: str | None = None,
         init_actions_uris: list[str] | None = None,
         init_action_timeout: str = "10m",
         metadata: dict | None = None,
@@ -263,6 +262,8 @@ class ClusterGenerator:
         secondary_worker_instance_flexibility_policy: InstanceFlexibilityPolicy | None = None,
         secondary_worker_accelerator_type: str | None = None,
         secondary_worker_accelerator_count: int | None = None,
+        *,
+        cluster_tier: str | None = None,
         **kwargs,
     ) -> None:
         self.project_id = project_id
@@ -272,7 +273,6 @@ class ClusterGenerator:
         self.num_preemptible_workers = num_preemptible_workers
         self.preemptibility = self._set_preemptibility_type(preemptibility)
         self.storage_bucket = storage_bucket
-        self.cluster_tier = cluster_tier
         self.init_actions_uris = init_actions_uris
         self.init_action_timeout = init_action_timeout
         self.metadata = metadata
@@ -311,6 +311,8 @@ class ClusterGenerator:
         self.secondary_worker_instance_flexibility_policy = secondary_worker_instance_flexibility_policy
         self.secondary_worker_accelerator_type = secondary_worker_accelerator_type
         self.secondary_worker_accelerator_count = secondary_worker_accelerator_count
+        self.cluster_tier = cluster_tier
+
 
         if self.custom_image and self.image_version:
             raise ValueError("The custom_image and image_version can't be both set")

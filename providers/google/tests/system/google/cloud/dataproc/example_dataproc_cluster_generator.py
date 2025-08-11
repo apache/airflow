@@ -74,6 +74,7 @@ CLUSTER_GENERATOR_CONFIG = ClusterGenerator(
     num_preemptible_workers=1,
     preemptibility="PREEMPTIBLE",
     internal_ip_only=False,
+    cluster_tier="CLUSTER_TIER_STANDARD",
 ).make()
 
 # [END how_to_cloud_dataproc_create_cluster_generate_cluster_config]

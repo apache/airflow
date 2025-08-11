@@ -49,6 +49,7 @@ REGION = "europe-west1"
 # [START how_to_cloud_dataproc_create_cluster]
 
 CLUSTER_CONFIG = {
+    "cluster_tier": "CLUSTER_TIER_STANDARD",
     "master_config": {
         "num_instances": 1,
         "machine_type_uri": "n1-standard-4",
