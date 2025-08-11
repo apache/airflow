@@ -43,6 +43,16 @@ from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
 from airflow.utils.sqlalchemy import is_sqlalchemy_v1
 
+USE_PSYCOPG3: bool
+try:
+    from importlib.util import find_spec
+
+    is_psycopg3 = find_spec("psycopg") is not None
+
+    USE_PSYCOPG3 = is_psycopg3 and not is_sqlalchemy_v1()
+except (ImportError, ModuleNotFoundError):
+    USE_PSYCOPG3 = False
+
 if TYPE_CHECKING:
     from sqlalchemy.engine import Engine
 
@@ -426,12 +436,17 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
         register_at_fork(after_in_child=clean_in_fork)
 
 
-DEFAULT_ENGINE_ARGS = {
-    "postgresql": {
-        "executemany_mode": "values_plus_batch",
-        "executemany_values_page_size" if is_sqlalchemy_v1() else "insertmanyvalues_page_size": 10000,
-        "executemany_batch_page_size": 2000,
-    },
+DEFAULT_ENGINE_ARGS: dict[str, dict[str, Any]] = {
+    "postgresql": (
+        {
+            "executemany_values_page_size" if is_sqlalchemy_v1() else "insertmanyvalues_page_size": 10000,
+        }
+        | (
+            {}
+            if USE_PSYCOPG3
+            else {"executemany_mode": "values_plus_batch", "executemany_batch_page_size": 2000}
+        )
+    )
 }
 
 
