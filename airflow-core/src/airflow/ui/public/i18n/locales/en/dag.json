@@ -9,7 +9,6 @@
     "cellSize": "Cell Size",
     "daily": "Daily",
     "decreaseSize": "Decrease size",
-    "error": "Error loading calendar data",
     "hourly": "Hourly",
     "increaseSize": "Increase size",
     "legend": {
@@ -23,9 +22,6 @@
         "successRate80": "80%+ Success Rate"
       }
     },
-    "less": "Less",
-    "loading": "Loading...",
-    "more": "More",
     "noData": "No data available",
     "week": "Week {{weekNumber}}"
   },

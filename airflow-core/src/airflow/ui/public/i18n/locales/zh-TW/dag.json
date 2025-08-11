@@ -23,9 +23,7 @@
         "successRate80": "80%以上成功率"
       }
     },
-    "less": "較少",
     "loading": "載入中...",
-    "more": "較多",
     "noData": "沒有可用的資料",
     "week": "第 {{weekNumber}} 週"
   },
