@@ -774,6 +774,16 @@ CONFIG_COMMANDS = (
     ),
 )
 
+CONNECTION_COMMANDS = (
+    ActionCommand(
+        name="import",
+        help="Import connections from a file. "
+        "This feature is compatible with airflow CLI `airflow connections export a.json` command. "
+        "Export it from `airflow CLI` and import it securely via this command.",
+        func=lazy_load_command("airflowctl.ctl.commands.connection_command.import_"),
+        args=(Arg(flags=("file",), metavar="FILEPATH", help="Connections JSON file"),),
+    ),
+)
 
 POOL_COMMANDS = (
     ActionCommand(
@@ -819,6 +829,11 @@ core_commands: list[CLICommand] = [
         name="config",
         help="View, lint and update configurations.",
         subcommands=CONFIG_COMMANDS,
+    ),
+    GroupCommand(
+        name="connections",
+        help="Manage Airflow connections",
+        subcommands=CONNECTION_COMMANDS,
     ),
     GroupCommand(
         name="pools",
