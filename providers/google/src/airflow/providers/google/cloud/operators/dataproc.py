@@ -313,7 +313,6 @@ class ClusterGenerator:
         self.secondary_worker_accelerator_count = secondary_worker_accelerator_count
         self.cluster_tier = cluster_tier
 
-
         if self.custom_image and self.image_version:
             raise ValueError("The custom_image and image_version can't be both set")
 
