@@ -20,7 +20,7 @@ import { Box, Button, HStack, Text, VStack } from "@chakra-ui/react";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LuX } from "react-icons/lu";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useParams } from "react-router-dom";
 
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { DateTimeInput } from "src/components/DateTimeInput";
@@ -88,10 +88,36 @@ const FILTERS = [
 
 export const XComFilters = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { dagId = "~", mapIndex = "-1", runId = "~", taskId = "~" } = useParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const { t: translate } = useTranslation(["browse", "common"]);
   const [resetKey, setResetKey] = useState(0);
+
+  const visibleFilters = useMemo(
+    () =>
+      FILTERS.filter((filter) => {
+        switch (filter.key) {
+          case SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN:
+            return dagId === "~";
+          case SearchParamsKeys.KEY_PATTERN:
+          case SearchParamsKeys.LOGICAL_DATE_GTE:
+          case SearchParamsKeys.LOGICAL_DATE_LTE:
+          case SearchParamsKeys.RUN_AFTER_GTE:
+          case SearchParamsKeys.RUN_AFTER_LTE:
+            return true;
+          case SearchParamsKeys.MAP_INDEX:
+            return mapIndex === "-1";
+          case SearchParamsKeys.RUN_ID_PATTERN:
+            return runId === "~";
+          case SearchParamsKeys.TASK_ID_PATTERN:
+            return taskId === "~";
+          default:
+            return true;
+        }
+      }),
+    [dagId, mapIndex, runId, taskId],
+  );
 
   const handleFilterChange = useCallback(
     (paramKey: string) => (value: string) => {
@@ -111,16 +137,16 @@ export const XComFilters = () => {
 
   const filterCount = useMemo(
     () =>
-      FILTERS.filter((filter) => {
+      visibleFilters.filter((filter) => {
         const value = searchParams.get(filter.key);
 
         return value !== null && value !== "";
       }).length,
-    [searchParams],
+    [searchParams, visibleFilters],
   );
 
   const handleResetFilters = useCallback(() => {
-    FILTERS.forEach((filter) => {
+    visibleFilters.forEach((filter) => {
       searchParams.delete(filter.key);
     });
     setTableURLState({
@@ -129,7 +155,7 @@ export const XComFilters = () => {
     });
     setSearchParams(searchParams);
     setResetKey((prev) => prev + 1);
-  }, [pagination, searchParams, setSearchParams, setTableURLState, sorting]);
+  }, [pagination, searchParams, setSearchParams, setTableURLState, sorting, visibleFilters]);
 
   const renderFilterInput = (filter: (typeof FILTERS)[number]) => {
     const { key, translationKey, type } = filter;
@@ -177,7 +203,7 @@ export const XComFilters = () => {
   return (
     <VStack align="start" gap={4} paddingY="4px">
       <HStack flexWrap="wrap" gap={4}>
-        {FILTERS.map(renderFilterInput)}
+        {visibleFilters.map(renderFilterInput)}
         <Box>
           <Text fontSize="xs" marginBottom={1}>
             &nbsp;
