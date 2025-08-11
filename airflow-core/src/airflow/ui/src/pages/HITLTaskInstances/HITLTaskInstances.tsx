@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Link } from "@chakra-ui/react";
+import { Box, Heading, Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
@@ -151,20 +151,27 @@ export const HITLTaskInstances = () => {
   });
 
   return (
-    <DataTable
-      columns={taskInstanceColumns({
-        dagId,
-        runId,
-        taskId: Boolean(groupId) ? undefined : taskId,
-        translate,
-      })}
-      data={filteredData ?? []}
-      errorMessage={<ErrorAlert error={error} />}
-      initialState={tableURLState}
-      isLoading={isLoading}
-      modelName={translate("requiredAction_other")}
-      onStateChange={setTableURLState}
-      total={filteredData?.length}
-    />
+    <Box>
+      {!Boolean(dagId) && !Boolean(runId) && !Boolean(taskId) ? (
+        <Heading size="md">
+          {filteredData?.length} {translate("requiredAction", { count: filteredData?.length })}
+        </Heading>
+      ) : undefined}
+      <DataTable
+        columns={taskInstanceColumns({
+          dagId,
+          runId,
+          taskId: Boolean(groupId) ? undefined : taskId,
+          translate,
+        })}
+        data={filteredData ?? []}
+        errorMessage={<ErrorAlert error={error} />}
+        initialState={tableURLState}
+        isLoading={isLoading}
+        modelName={translate("requiredAction_other")}
+        onStateChange={setTableURLState}
+        total={filteredData?.length}
+      />
+    </Box>
   );
 };
