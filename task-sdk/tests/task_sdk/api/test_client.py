@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import pickle
+from datetime import datetime
 from unittest import mock
 
 import httpx
@@ -41,6 +42,7 @@ from airflow.sdk.execution_time.comms import (
     DeferTask,
     ErrorResponse,
     OKResponse,
+    PreviousDagRunResult,
     RescheduleTask,
     TaskRescheduleStartDate,
 )
@@ -1138,6 +1140,86 @@ class TestDagRunOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
         result = client.dag_runs.get_count(dag_id="test_dag", run_ids=["run1", "run2"])
         assert result.count == 2
+
+    def test_get_previous_basic(self):
+        """Test basic get_previous functionality with dag_id and logical_date."""
+        logical_date = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dag-runs/test_dag/previous":
+                assert request.url.params["logical_date"] == logical_date.isoformat()
+                # Return complete DagRun data
+                return httpx.Response(
+                    status_code=200,
+                    json={
+                        "dag_id": "test_dag",
+                        "run_id": "prev_run",
+                        "logical_date": "2024-01-14T12:00:00+00:00",
+                        "start_date": "2024-01-14T12:05:00+00:00",
+                        "run_after": "2024-01-14T12:00:00+00:00",
+                        "run_type": "scheduled",
+                        "state": "success",
+                        "consumed_asset_events": [],
+                    },
+                )
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dag_runs.get_previous(dag_id="test_dag", logical_date=logical_date)
+
+        assert isinstance(result, PreviousDagRunResult)
+        assert result.dag_run.dag_id == "test_dag"
+        assert result.dag_run.run_id == "prev_run"
+        assert result.dag_run.state == "success"
+
+    def test_get_previous_with_state_filter(self):
+        """Test get_previous functionality with state filtering."""
+        logical_date = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dag-runs/test_dag/previous":
+                assert request.url.params["logical_date"] == logical_date.isoformat()
+                assert request.url.params["state"] == "success"
+                # Return complete DagRun data
+                return httpx.Response(
+                    status_code=200,
+                    json={
+                        "dag_id": "test_dag",
+                        "run_id": "prev_success_run",
+                        "logical_date": "2024-01-14T12:00:00+00:00",
+                        "start_date": "2024-01-14T12:05:00+00:00",
+                        "run_after": "2024-01-14T12:00:00+00:00",
+                        "run_type": "scheduled",
+                        "state": "success",
+                        "consumed_asset_events": [],
+                    },
+                )
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dag_runs.get_previous(dag_id="test_dag", logical_date=logical_date, state="success")
+
+        assert isinstance(result, PreviousDagRunResult)
+        assert result.dag_run.dag_id == "test_dag"
+        assert result.dag_run.run_id == "prev_success_run"
+        assert result.dag_run.state == "success"
+
+    def test_get_previous_not_found(self):
+        """Test get_previous when no previous DAG run exists returns None."""
+        logical_date = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dag-runs/test_dag/previous":
+                assert request.url.params["logical_date"] == logical_date.isoformat()
+                # Return None (null) when no previous DAG run found
+                return httpx.Response(status_code=200, content="null")
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dag_runs.get_previous(dag_id="test_dag", logical_date=logical_date)
+
+        assert isinstance(result, PreviousDagRunResult)
+        assert result.dag_run is None
 
 
 class TestTaskRescheduleOperations:

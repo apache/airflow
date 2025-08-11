@@ -35,7 +35,12 @@ from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
 from airflow.api_fastapi.execution_api.datamodels.connection import ConnectionResponse
 from airflow.api_fastapi.execution_api.datamodels.variable import VariableResponse
-from airflow.utils.state import IntermediateTIState, TaskInstanceState as TIState, TerminalTIState
+from airflow.utils.state import (
+    DagRunState,
+    IntermediateTIState,
+    TaskInstanceState as TIState,
+    TerminalTIState,
+)
 from airflow.utils.types import DagRunType
 
 AwareDatetimeAdapter = TypeAdapter(AwareDatetime)
@@ -292,6 +297,7 @@ class DagRun(StrictBaseModel):
     end_date: UtcDateTime | None
     clear_number: int = 0
     run_type: DagRunType
+    state: DagRunState
     conf: Annotated[dict[str, Any], Field(default_factory=dict)]
     consumed_asset_events: list[AssetEventDagRunReference]
 

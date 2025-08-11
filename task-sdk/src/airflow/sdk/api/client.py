@@ -69,6 +69,7 @@ from airflow.sdk.execution_time.comms import (
     DRCount,
     ErrorResponse,
     OKResponse,
+    PreviousDagRunResult,
     SkipDownstreamTasks,
     TaskRescheduleStartDate,
     TICount,
@@ -619,6 +620,23 @@ class DagRunOperations:
 
         resp = self.client.get("dag-runs/count", params=params)
         return DRCount(count=resp.json())
+
+    def get_previous(
+        self,
+        dag_id: str,
+        logical_date: datetime,
+        state: str | None = None,
+    ) -> PreviousDagRunResult:
+        """Get the previous DAG run before the given logical date, optionally filtered by state."""
+        params = {
+            "logical_date": logical_date.isoformat(),
+        }
+
+        if state:
+            params["state"] = state
+
+        resp = self.client.get(f"dag-runs/{dag_id}/previous", params=params)
+        return PreviousDagRunResult(dag_run=resp.json())
 
 
 class BearerAuth(httpx.Auth):
