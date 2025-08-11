@@ -927,7 +927,7 @@ export type HITLDetail = {
     };
     user_id?: string | null;
     response_at?: string | null;
-    chosen_options?: Array<(string)> | null;
+    chosen_options: Array<(string)> | null;
     params_input?: {
         [key: string]: unknown;
     };

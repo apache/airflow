@@ -84,7 +84,12 @@ class HITLOperator(BaseOperator):
             [notifiers] if isinstance(notifiers, BaseNotifier) else notifiers or []
         )
 
+        self.validate_options()
         self.validate_defaults()
+
+    def validate_options(self) -> None:
+        if not self.options:
+            raise ValueError('"options" cannot be empty.')
 
     def validate_defaults(self) -> None:
         """
