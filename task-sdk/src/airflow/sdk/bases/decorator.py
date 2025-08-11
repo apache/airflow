@@ -53,7 +53,6 @@ from airflow.sdk.definitions.mappedoperator import (
     prevent_duplicates,
 )
 from airflow.sdk.definitions.xcom_arg import XComArg
-from airflow.utils.helpers import prevent_duplicates
 from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:

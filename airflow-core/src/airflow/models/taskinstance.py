@@ -367,7 +367,7 @@ def _get_email_subject_content(
 
     else:
         from airflow.sdk.definitions._internal.templater import SandboxedEnvironment
-        from airflow.utils.context import Context
+        from airflow.sdk.definitions.context import Context
 
         if TYPE_CHECKING:
             assert task_instance.task
