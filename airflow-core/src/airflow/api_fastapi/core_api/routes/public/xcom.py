@@ -143,12 +143,14 @@ def get_xcom_entries(
     dag_display_name_pattern: QueryXComDagDisplayNamePatternSearch,
     run_id_pattern: QueryXComRunIdPatternSearch,
     task_id_pattern: QueryXComTaskIdPatternSearch,
-    map_index: Annotated[
+    map_index_filter: Annotated[
         FilterParam[int | None],
-        Depends(filter_param_factory(XComModel.map_index, int | None, filter_name="map_index")),
+        Depends(filter_param_factory(XComModel.map_index, int | None, filter_name="map_index_filter")),
     ],
     logical_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", DR))],
     run_after_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", DR))],
+    xcom_key: Annotated[str | None, Query()] = None,
+    map_index: Annotated[int | None, Query(ge=-1)] = None,
 ) -> XComCollectionResponse:
     """
     Get all XCom entries.
@@ -166,9 +168,12 @@ def get_xcom_entries(
 
     if task_id != "~":
         query = query.where(XComModel.task_id == task_id)
-
     if dag_run_id != "~":
         query = query.where(DR.run_id == dag_run_id)
+    if map_index is not None:
+        query = query.where(XComModel.map_index == map_index)
+    if xcom_key is not None:
+        query = query.where(XComModel.key == xcom_key)
 
     query, total_entries = paginated_select(
         statement=query,
@@ -178,7 +183,7 @@ def get_xcom_entries(
             dag_display_name_pattern,
             run_id_pattern,
             task_id_pattern,
-            map_index,
+            map_index_filter,
             logical_date_range,
             run_after_range,
         ],

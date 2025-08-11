@@ -4634,6 +4634,23 @@ paths:
         schema:
           type: string
           title: Task Id
+      - name: xcom_key
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Xcom Key
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: -1
+          - type: 'null'
+          title: Map Index
       - name: limit
         in: query
         required: false
@@ -4698,14 +4715,14 @@ paths:
           title: Task Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
-      - name: map_index
+      - name: map_index_filter
         in: query
         required: false
         schema:
           anyOf:
           - type: integer
           - type: 'null'
-          title: Map Index
+          title: Map Index Filter
       - name: logical_date_gte
         in: query
         required: false

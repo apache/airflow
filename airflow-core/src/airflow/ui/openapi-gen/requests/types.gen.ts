@@ -2819,6 +2819,7 @@ export type GetXcomEntriesData = {
     logicalDateGte?: string | null;
     logicalDateLte?: string | null;
     mapIndex?: number | null;
+    mapIndexFilter?: number | null;
     offset?: number;
     runAfterGte?: string | null;
     runAfterLte?: string | null;
@@ -2831,6 +2832,7 @@ export type GetXcomEntriesData = {
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
     taskIdPattern?: string | null;
+    xcomKey?: string | null;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */

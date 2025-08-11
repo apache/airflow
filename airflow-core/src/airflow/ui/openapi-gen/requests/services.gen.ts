@@ -3014,13 +3014,15 @@ export class XcomService {
      * @param data.dagId
      * @param data.dagRunId
      * @param data.taskId
+     * @param data.xcomKey
+     * @param data.mapIndex
      * @param data.limit
      * @param data.offset
      * @param data.xcomKeyPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-     * @param data.mapIndex
+     * @param data.mapIndexFilter
      * @param data.logicalDateGte
      * @param data.logicalDateLte
      * @param data.runAfterGte
@@ -3038,13 +3040,15 @@ export class XcomService {
                 task_id: data.taskId
             },
             query: {
+                xcom_key: data.xcomKey,
+                map_index: data.mapIndex,
                 limit: data.limit,
                 offset: data.offset,
                 xcom_key_pattern: data.xcomKeyPattern,
                 dag_display_name_pattern: data.dagDisplayNamePattern,
                 run_id_pattern: data.runIdPattern,
                 task_id_pattern: data.taskIdPattern,
-                map_index: data.mapIndex,
+                map_index_filter: data.mapIndexFilter,
                 logical_date_gte: data.logicalDateGte,
                 logical_date_lte: data.logicalDateLte,
                 run_after_gte: data.runAfterGte,
