@@ -303,7 +303,7 @@ Running docker-compose tests
 ............................
 
 You can use Breeze to run all docker-compose tests. Those tests are run using Production image
-and they are running test with the Quick-start docker compose we have.
+and they are running test with the Quick-start docker-compose we have.
 
 .. image:: ./images/output_testing_docker-compose-tests.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_docker-compose-tests.svg

@@ -64,10 +64,10 @@ installs required. Just open your terminal and run the following:
   echo -e "AIRFLOW_UID=$(id -u)" > .env
 
   # Initialize the database
-  docker compose up airflow-init
+  docker-compose up airflow-init
 
   # Start up all services
-  docker compose up
+  docker-compose up
 
 Once Airflow is up and running, visit the UI at ``http://localhost:8080``.
 

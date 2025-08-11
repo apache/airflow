@@ -78,6 +78,6 @@ Now you can start all services:
 
 .. code-block:: sh
 
-  docker compose up
+  docker-compose up
 
 The webserver is available at: ``https://localhost:8080``

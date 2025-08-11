@@ -38,10 +38,10 @@ The way the tests work:
    an example DAG
 
 This is done in a local environment, not in the Breeze CI image. It uses ``COMPOSE_PROJECT_NAME`` set to
-``quick-start`` to avoid conflicts with other docker compose deployments you might have.
+``quick-start`` to avoid conflicts with other docker-compose deployments you might have.
 
 The complete test can be performed using Breeze. The prerequisite to that
-is to have ``docker-compose`` (Docker Compose v1) or ``docker compose`` plugin (Docker Compose v2)
+is to have ``docker-compose`` (Docker Compose v1) or ``docker-compose`` plugin (Docker Compose v2)
 available on the path.
 
 Running complete test with breeze:
@@ -69,14 +69,14 @@ to ``ghcr.io/apache/airflow/main/prod/python3.10:latest`` which is built by defa
 when you run ``breeze prod-image build --python 3.10``. also the switches ``--skip-docker-compose-deletion``
 and ``--wait-for-containers-timeout`` can only be passed via environment variables.
 
-If you want to debug the deployment using ``docker compose`` commands after ``SKIP_DOCKER_COMPOSE_DELETION``
+If you want to debug the deployment using ``docker-compose`` commands after ``SKIP_DOCKER_COMPOSE_DELETION``
 was used, you should set ``COMPOSE_PROJECT_NAME`` to ``quick-start`` because this is what the test uses:
 
 .. code-block:: bash
 
     export COMPOSE_PROJECT_NAME=quick-start
 
-You can also add ``--project-name quick-start`` to the ``docker compose`` commands you run.
+You can also add ``--project-name quick-start`` to the ``docker-compose`` commands you run.
 When the test will be re-run it will automatically stop previous deployment and start a new one.
 
 Running Docker Compose deployment manually
@@ -94,9 +94,9 @@ and follow the instructions in the
 but make sure to use the docker-compose file from the sources in
 ``docs/apache-airflow/stable/howto/docker-compose/`` folder.
 
-Then, the usual ``docker compose`` and ``docker`` commands can be used to debug such running instances.
+Then, the usual ``docker-compose`` and ``docker`` commands can be used to debug such running instances.
 The test performs a simple API call to trigger a DAG and wait for it, but you can follow our
-documentation to connect to such running docker compose instances and test it manually.
+documentation to connect to such running docker-compose instances and test it manually.
 
 -----
 

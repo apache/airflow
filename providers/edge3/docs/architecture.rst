@@ -186,4 +186,4 @@ The following features are known missing and will be implemented in increments:
 
   - Provide scripts and guides to install edge components as service (systemd)
   - Extend Helm-Chart for needed support
-  - Provide an example docker compose for worker setup
+  - Provide an example docker-compose for worker setup

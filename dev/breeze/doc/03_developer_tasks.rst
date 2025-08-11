@@ -449,7 +449,7 @@ Sometimes you need to cleanup your docker environment (and it is recommended you
 are several reasons why you might want to do that.
 
 Breeze uses docker images heavily and those images are rebuild periodically and might leave dangling, unused
-images in docker cache. This might cause extra disk usage. Also running various docker compose commands
+images in docker cache. This might cause extra disk usage. Also running various docker-compose commands
 (for example running tests with ``breeze testing core-tests``) might create additional docker networks that might
 prevent new networks from being created. Those networks are not removed automatically by docker-compose.
 Also Breeze uses its own cache to keep information about all images.

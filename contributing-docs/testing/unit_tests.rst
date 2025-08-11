@@ -966,7 +966,7 @@ You can also run all providers but exclude the providers you would like to skip
     breeze testing providers-tests --test-type "Providers[-amazon,google]"
 
 
-Sometimes you need to inspect docker compose after tests command complete,
+Sometimes you need to inspect docker-compose after tests command complete,
 for example when test environment could not be properly set due to
 failed health-checks. This can be achieved with ``--skip-docker-compose-down``
 flag:
