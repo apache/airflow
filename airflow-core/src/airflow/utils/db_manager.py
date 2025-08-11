@@ -216,6 +216,12 @@ class RunDBManager(LoggingMixin):
             m = manager(session)
             m.upgradedb()
 
+    def downgrade(self, session):
+        """Downgrade the external database managers."""
+        for manager in self._managers:
+            m = manager(session)
+            m.downgrade()
+
     def drop_tables(self, session, connection):
         """Drop the external database managers."""
         for manager in self._managers:
