@@ -768,7 +768,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             select(TI)
             .where(filter_for_tis)
             .options(selectinload(TI.dag_model))
-            .options(selectinload(TI.dag_run).selectinload(DagRun.consumed_asset_events))
+            .options(joinedload(TI.dag_run).selectinload(DagRun.consumed_asset_events))
+            .options(joinedload(TI.dag_run).selectinload(DagRun.created_dag_version))
             .options(joinedload(TI.dag_version))
         )
         # row lock this entire set of taskinstances to make sure the scheduler doesn't fail when we have
