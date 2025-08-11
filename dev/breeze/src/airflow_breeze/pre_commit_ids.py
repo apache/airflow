@@ -97,7 +97,6 @@ PRE_COMMIT_LIST = [
     "detect-private-key",
     "doctoc",
     "end-of-file-fixer",
-    "fix-encoding-pragma",
     "flynt",
     "generate-airflow-diagrams",
     "generate-openapi-spec",
