@@ -58,7 +58,7 @@ class TextEmbeddingModelGetEmbeddingsOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("location", "project_id", "impersonation_chain", "prompt")
+    template_fields = ("location", "project_id", "impersonation_chain", "prompt", "pretrained_model")
 
     def __init__(
         self,
@@ -211,7 +211,14 @@ class SupervisedFineTuningTrainOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("location", "project_id", "impersonation_chain", "train_dataset", "validation_dataset")
+    template_fields = (
+        "location",
+        "project_id",
+        "impersonation_chain",
+        "train_dataset",
+        "validation_dataset",
+        "source_model",
+    )
 
     def __init__(
         self,
