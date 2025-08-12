@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 ADOPTED = "adopted"
 
@@ -31,7 +31,7 @@ class FailureDetails(TypedDict, total=False):
     container_reason: str | None
     container_message: str | None
     exit_code: int | None
-    container_type: str | None  # "init" or "main"
+    container_type: Literal["init", "main"] | None
     container_name: str | None
 
 
