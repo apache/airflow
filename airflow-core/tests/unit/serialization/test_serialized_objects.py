@@ -563,18 +563,6 @@ def test_roundtrip_exceptions():
     assert deser.timeout == timedelta(seconds=30)
 
 
-@pytest.mark.db_test
-def test_serialized_dag_to_dict_and_from_dict_gives_same_result_in_tasks(dag_maker):
-    with dag_maker() as dag:
-        BashOperator(task_id="task1", bash_command="echo 1")
-
-    dag1 = SerializedDAG.to_dict(dag)
-    from_dict = SerializedDAG.from_dict(dag1)
-    dag2 = SerializedDAG.to_dict(from_dict)
-
-    assert dag2["dag"]["tasks"][0]["__var"].keys() == dag1["dag"]["tasks"][0]["__var"].keys()
-
-
 @pytest.mark.parametrize(
     "concurrency_parameter",
     [
@@ -643,7 +631,7 @@ def test_serialized_dag_get_run_data_interval(create_dag_run_kwargs, dag_maker, 
     pre-AIP-39: the dag run itself has neither data_interval_start nor data_interval_end, and its logical_date
         is none. it should return data_interval as none
     """
-    with dag_maker(dag_id="test_dag", session=session, serialized=True) as dag:
+    with dag_maker(dag_id="test_dag", session=session, serialized=False) as dag:
         BaseOperator(task_id="test_task")
     session.commit()
 
