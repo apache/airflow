@@ -21,7 +21,7 @@ from collections.abc import Generator, Sequence
 from typing import TYPE_CHECKING
 
 from airflow.sdk.definitions._internal.templater import Templater
-from airflow.utils.context import context_merge
+from airflow.sdk.definitions.context import context_merge
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
