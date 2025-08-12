@@ -64,7 +64,7 @@ if TYPE_CHECKING:
         OperatorExpandArgument,
         OperatorExpandKwargsArgument,
     )
-    from airflow.sdk.api.datamodels._generated import TriggerRule
+    from airflow.sdk import TriggerRule
     from airflow.sdk import DAG, BaseOperator, BaseOperatorLink, Context, TaskGroup, XComArg
     from airflow.sdk.definitions._internal.expandinput import ExpandInput
     from airflow.sdk.definitions.operator_resources import Resources

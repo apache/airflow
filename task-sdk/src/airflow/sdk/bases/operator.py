@@ -36,8 +36,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Final, NoReturn, TypeVar, cast
 import attrs
 
 from airflow.exceptions import RemovedInAirflow4Warning
-from airflow.sdk import timezone
-from airflow.sdk.api.datamodels._generated import TriggerRule
+from airflow.sdk import TriggerRule, timezone
 from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
@@ -1111,9 +1110,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 stacklevel=2,
             )
 
-        if not TriggerRule.is_valid(trigger_rule):
+        try:
+            TriggerRule(trigger_rule)
+        except ValueError:
             raise ValueError(
-                f"The trigger_rule must be one of {TriggerRule.all_triggers()},"
+                f"The trigger_rule must be one of {[rule.value for rule in TriggerRule]},"
                 f"'{dag.dag_id if dag else ''}.{task_id}'; received '{trigger_rule}'."
             )
 

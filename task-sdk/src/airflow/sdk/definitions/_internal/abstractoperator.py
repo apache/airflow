@@ -32,7 +32,7 @@ import methodtools
 
 from airflow.configuration import conf
 from airflow.sdk import WeightRule
-from airflow.sdk.api.datamodels._generated import TriggerRule
+from airflow.sdk import TriggerRule
 from airflow.sdk.definitions._internal.mixins import DependencyMixin
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions._internal.setup_teardown import SetupTeardownContext

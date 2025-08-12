@@ -20,7 +20,11 @@ from __future__ import annotations
 import pytest
 from pendulum import datetime
 
-from airflow.sdk.api.datamodels._generated import TriggerRule
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 from airflow.utils.state import State
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS

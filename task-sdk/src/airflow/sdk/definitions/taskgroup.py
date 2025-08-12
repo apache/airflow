@@ -38,7 +38,7 @@ from airflow.exceptions import (
     DuplicateTaskIdFound,
     TaskAlreadyInTaskGroup,
 )
-from airflow.sdk.api.datamodels._generated import TriggerRule
+from airflow.sdk import TriggerRule
 from airflow.sdk.definitions._internal.node import DAGNode, validate_group_key
 from airflow.sdk.exceptions import AirflowDagCycleException
 
