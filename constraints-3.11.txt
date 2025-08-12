@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-12T02:28:52.786672
+# This constraints file was automatically generated on 2025-08-12T07:48:56.585816
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -81,11 +81,11 @@ alembic==1.16.4
 alibabacloud-adb20211201==3.1.3
 alibabacloud-credentials-api==1.0.0
 alibabacloud-credentials==1.0.2
+alibabacloud-tea-openapi==0.4.1
 alibabacloud-tea==0.4.3
 alibabacloud_endpoint_util==0.0.4
 alibabacloud_gateway_spi==0.0.3
 alibabacloud_openapi_util==0.2.2
-alibabacloud_tea_openapi==0.4.0
 alibabacloud_tea_util==0.3.13
 aliyun-python-sdk-core==2.16.0
 aliyun-python-sdk-kms==2.16.5
@@ -187,7 +187,7 @@ apache-airflow-providers-weaviate==3.2.2
 apache-airflow-providers-yandex==4.2.0
 apache-airflow-providers-ydb==2.2.2
 apache-airflow-providers-zendesk==4.10.2
-apache-beam==2.66.0
+apache-beam==2.67.0
 apispec==6.8.2
 apprise==1.9.4
 argcomplete==3.6.2
@@ -245,7 +245,7 @@ cachetools==5.5.2
 cadwyn==5.4.4
 cassandra-driver==3.29.2
 cattrs==25.1.1
-celery==5.5.3
+celery==5.5.2
 certifi==2025.8.3
 cffi==1.17.1
 chardet==5.2.0
@@ -269,7 +269,7 @@ cron-descriptor==1.4.5
 croniter==6.0.0
 cryptography==42.0.8
 curlify==3.0.0
-darabonba-core==1.0.2
+darabonba-core==1.0.3
 databricks-sql-connector==4.0.5
 databricks-sqlalchemy==1.0.2
 dataclasses-json==0.6.7
@@ -452,6 +452,7 @@ microsoft-kiota-authentication-azure==1.9.5
 microsoft-kiota-http==1.9.5
 microsoft-kiota-serialization-json==1.9.5
 microsoft-kiota-serialization-text==1.9.5
+milvus-lite==2.5.1
 mistune==3.1.3
 more-itertools==10.7.0
 msal-extensions==1.3.1
@@ -475,7 +476,7 @@ nest-asyncio==1.6.0
 numpy==1.26.4
 oauthlib==3.3.1
 objsize==0.7.1
-openai==1.99.8
+openai==1.99.9
 opencensus-context==0.1.3
 opencensus==0.11.4
 openlineage-integration-common==1.37.0
@@ -548,6 +549,7 @@ pydot==1.4.2
 pydruid==0.6.9
 pyexasol==0.27.0
 pykerberos==1.2.4
+pymilvus==2.5.14
 pymongo==4.14.0
 pymssql==2.3.7
 pyodbc==5.2.0
@@ -575,7 +577,7 @@ pyzmq==27.0.1
 qdrant-client==1.15.1
 ray==2.47.1
 reactivex==4.0.4
-redis==5.2.1
+redis==5.3.1
 redshift-connector==2.1.7
 referencing==0.36.2
 regex==2025.7.34
@@ -658,11 +660,12 @@ typing_extensions==4.14.1
 tzdata==2025.2
 tzlocal==5.3.1
 uc-micro-py==1.0.3
+ujson==5.10.0
 universal_pathlib==0.2.6
 uritemplate==4.2.0
 urllib3==2.5.0
 uuid6==2025.0.1
-uv==0.8.8
+uv==0.8.9
 uvicorn==0.35.0
 uvloop==0.21.0
 validators==0.35.0
@@ -677,7 +680,7 @@ webencodings==0.5.1
 websocket-client==1.8.0
 websockets==15.0.1
 wirerope==1.0.0
-wrapt==1.17.2
+wrapt==1.17.3
 xmlsec==1.3.16
 xmltodict==0.14.2
 yandex-query-client==0.1.4
