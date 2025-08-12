@@ -529,18 +529,6 @@ class Connection(Base, LoggingMixin):
 
         :meta private:
         """
-        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
-            from airflow.sdk import Connection as TaskSDKConnection
-
-            warnings.warn(
-                "Using Connection.to_dict from `airflow.models` is deprecated."
-                "Please use `from airflow.sdk import Connection` instead",
-                DeprecationWarning,
-                stacklevel=1,
-            )
-
-            return TaskSDKConnection.to_dict(self, prune_empty=prune_empty, validate=validate)
-
         conn = {
             "conn_id": self.conn_id,
             "conn_type": self.conn_type,
@@ -591,18 +579,6 @@ class Connection(Base, LoggingMixin):
 
     def as_json(self) -> str:
         """Convert Connection to JSON-string object."""
-        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
-            from airflow.sdk import Connection as TaskSDKConnection
-
-            warnings.warn(
-                "Using Connection.as_json from `airflow.models` is deprecated."
-                "Please use `from airflow.sdk import Connection` instead",
-                DeprecationWarning,
-                stacklevel=1,
-            )
-
-            return TaskSDKConnection.as_json(self)
-
         conn_repr = self.to_dict(prune_empty=True, validate=False)
         conn_repr.pop("conn_id", None)
         return json.dumps(conn_repr)
