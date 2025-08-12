@@ -27,6 +27,7 @@ from unittest.mock import MagicMock, PropertyMock, patch
 import anyio
 import kubernetes
 import pytest
+import pytest_asyncio
 import yaml
 from kubernetes.client import V1Deployment, V1DeploymentStatus
 from kubernetes.client.rest import ApiException
@@ -847,8 +848,8 @@ class TestAsyncKubernetesHook:
         f.set_result(return_value)
         return f
 
-    @pytest.fixture
-    def kube_config_loader(self):
+    @pytest_asyncio.fixture
+    async def kube_config_loader(self):
         with mock.patch(self.KUBE_LOADER_CONFIG) as kube_config_loader:
             kube_config_loader.return_value.load_and_set.return_value = self.mock_await_result(None)
             yield kube_config_loader

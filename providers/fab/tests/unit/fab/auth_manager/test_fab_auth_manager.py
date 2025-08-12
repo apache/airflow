@@ -706,14 +706,14 @@ class TestFabAuthManager:
             (
                 "GET",
                 [(ACTION_CAN_READ, RESOURCE_DAG)],
-                {"test_dag1", "test_dag2"},
+                {"test_dag1", "test_dag2", "Connections"},
             ),
             # Scenario 2
             # With global edit permissions on Dags
             (
                 "PUT",
                 [(ACTION_CAN_EDIT, RESOURCE_DAG)],
-                {"test_dag1", "test_dag2"},
+                {"test_dag1", "test_dag2", "Connections"},
             ),
             # Scenario 3
             # With DAG-specific permissions
@@ -750,6 +750,13 @@ class TestFabAuthManager:
                 [(ACTION_CAN_EDIT, "DAG:test_dag1"), (ACTION_CAN_EDIT, "DAG:test_dag2")],
                 {"test_dag1", "test_dag2"},
             ),
+            # Scenario 9
+            # With non-DAG related permissions
+            (
+                "GET",
+                [(ACTION_CAN_READ, "DAG:test_dag1"), (ACTION_CAN_READ, RESOURCE_CONNECTION)],
+                {"test_dag1"},
+            ),
         ],
     )
     def test_get_authorized_dag_ids(
@@ -758,6 +765,8 @@ class TestFabAuthManager:
         with dag_maker("test_dag1"):
             EmptyOperator(task_id="task1")
         with dag_maker("test_dag2"):
+            EmptyOperator(task_id="task1")
+        with dag_maker("Connections"):
             EmptyOperator(task_id="task1")
 
         auth_manager_with_appbuilder.security_manager.sync_perm_for_dag("test_dag1")
