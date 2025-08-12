@@ -278,6 +278,23 @@ class TestCallback:
         callback2 = callback_class(*args2)
         assert (hash(callback1) == hash(callback2)) == should_be_same_hash
 
+    @pytest.mark.parametrize(
+        "path, expected",
+        [
+            pytest.param("valid_path", True, id="module_no_dots"),
+            pytest.param("valid.dot.path", True, id="standard_dotpath"),
+            pytest.param("package.sub_package.module", True, id="dotpath_with_underscores"),
+            pytest.param("MyPackage.MyClass", True, id="mixed_case_path"),
+            pytest.param("invalid..path", False, id="consecutive_dots_fails"),
+            pytest.param(".invalid.path", False, id="leading_dot_fails"),
+            pytest.param("invalid.path.", False, id="trailing_dot_fails"),
+            pytest.param("1invalid.path", False, id="leading_number_fails"),
+            pytest.param(42, False, id="not_a_string"),
+        ],
+    )
+    def test_is_valid_dotpath(self, path, expected):
+        assert Callback._is_valid_dotpath(path) == expected
+
 
 class TestAsyncCallback:
     @pytest.mark.parametrize(

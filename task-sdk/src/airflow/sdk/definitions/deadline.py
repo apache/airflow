@@ -26,7 +26,7 @@ from typing import Any, cast
 from airflow.models.deadline import DeadlineReferenceType, ReferenceModels
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.serde import deserialize, serialize
-from airflow.utils.module_loading import import_string, is_valid_dotpath
+from airflow.utils.module_loading import import_string
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +124,28 @@ class Callback(ABC):
         self.path = self.get_callback_path(callback_callable)
         self.kwargs = kwargs
 
+    @staticmethod
+    def _is_valid_dotpath(path: str) -> bool:
+        """
+        Check if a string follows valid dotpath format (ie: 'package.subpackage.module').
+
+        :param path: String to check
+        """
+        import re
+
+        if not isinstance(path, str):
+            return False
+
+        # Pattern explanation:
+        # ^            - Start of string
+        # [a-zA-Z_]    - Must start with letter or underscore
+        # [a-zA-Z0-9_] - Following chars can be letters, numbers, or underscores
+        # (\.[a-zA-Z_][a-zA-Z0-9_]*)*  - Can be followed by dots and valid identifiers
+        # $            - End of string
+        pattern = r"^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*$"
+
+        return bool(re.match(pattern, path))
+
     @classmethod
     def get_callback_path(cls, _callback: str | Callable) -> str:
         """Convert callback to a string path that can be used to import it later."""
@@ -135,7 +157,7 @@ class Callback(ABC):
             # Get the reference path to the callable in the form `airflow.models.deadline.get_from_db`
             return f"{_callback.__module__}.{_callback.__qualname__}"
 
-        if not isinstance(_callback, str) or not is_valid_dotpath(_callback.strip()):
+        if not isinstance(_callback, str) or not cls._is_valid_dotpath(_callback.strip()):
             raise ImportError(f"`{_callback}` doesn't look like a valid dot path.")
 
         stripped_callback = _callback.strip()
