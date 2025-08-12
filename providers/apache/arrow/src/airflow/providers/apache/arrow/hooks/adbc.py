@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import functools
+import re
 from collections.abc import Iterable, Callable, Mapping
 from contextlib import closing
 from functools import cached_property
@@ -25,7 +26,8 @@ from typing import Any
 from urllib.parse import quote
 
 from adbc_driver_manager.dbapi import Connection, connect
-from pyarrow import Table
+from more_itertools import chunked
+from pyarrow import RecordBatch, array, schema
 
 from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks.sql import DbApiHook, T
@@ -41,6 +43,15 @@ def fetch_all_handler(cursor) -> list[tuple] | None:
     if cursor.description is not None:
         return cursor.fetch_arrow_table().to_pylist()
     return None
+
+
+def replace_placeholders(sql: str, placeholder: str) -> str:
+    # Replace each placeholder with $1, $2, $3 ... in order
+    def replacer(match, counter=[1]):
+        replacement = f"${counter[0]}"
+        counter[0] += 1
+        return replacement
+    return re.sub(placeholder, replacer, sql)
 
 
 # https://arrow.apache.org/adbc/current/python/api/adbc_driver_manager.html
@@ -183,6 +194,20 @@ class AdbcHook(DbApiHook):
         """
         return self.run(sql=sql, parameters=parameters, handler=handler)
 
+    def _run_command(self, cur, sql_statement, parameters):
+        """Run a statement using an already open cursor."""
+        if self.log_sql:
+            self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
+
+        if parameters:
+            cur.executemany(sql_statement, parameters)
+        else:
+            cur.execute(sql_statement)
+
+        # According to PEP 249, this is -1 when query result is not applicable.
+        if cur.rowcount >= 0:
+            self.log.info("Rows affected: %s", cur.rowcount)
+
     def insert_rows(
         self,
         table,
@@ -216,24 +241,51 @@ class AdbcHook(DbApiHook):
         :param autocommit: What to set the connection's autocommit setting to
             before executing the query.
         """
-        with self._create_autocommit_connection(autocommit) as conn:
-            conn.commit()
+        nb_rows = 0
 
+        with self._create_autocommit_connection(autocommit) as conn:
             table_name, schema_name = Dialect.extract_schema_from_table(table)
 
+            table_schema = conn.adbc_get_table_schema(
+                table_name=table_name,
+                db_schema_filter=schema_name,
+            )
+
+            if not target_fields:
+                target_fields = table_schema.names
+            else:
+                table_schema = schema([field for field in table_schema if field.name in target_fields])
+
             self.log.info("target fields: %s", target_fields)
+            self.log.info("table_schema: %s", table_schema)
+
+            sql = self._generate_insert_sql(
+                table,
+                target_fields,  # values not needed — parameters will come from RecordBatch
+                target_fields,
+                replace,
+                **kwargs
+            )
+
+            sql = replace_placeholders(sql, re.escape(self.dialect.placeholder))
+
+            self.log.info("sql: %s", sql)
+
+            def _to_record_batch(chunked_rows) -> RecordBatch:
+                return RecordBatch.from_arrays(
+                    [
+                        array([row[index] for row in chunked_rows], type=field.type)
+                        for index, field in enumerate(table_schema)
+                    ],
+                    schema=table_schema,
+                )
 
             with closing(conn.cursor()) as cur:
-                schema = conn.adbc_get_table_schema(
-                    table_name=table_name,
-                    db_schema_filter=schema_name,
-                )
-                data = Table.from_arrays(list(zip(*rows)), schema=schema)
-                cur.adbc_ingest(
-                    table_name=table_name,
-                    db_schema_name=schema_name,
-                    data=data,
-                    mode="append",
-                )
+                for batch in map(_to_record_batch, chunked(rows, commit_every)):
+                    cur.executemany(sql, batch)
+                    conn.commit()
 
-            self.log.info("Done loading. Loaded a total of %s rows into %s", data.num_rows, table)
+                    nb_rows += batch.num_rows
+                    self.log.info("Loaded %s rows into %s so far", nb_rows, table)
+
+        self.log.info("Done loading. Loaded a total of %s rows into %s", nb_rows, table)
