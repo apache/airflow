@@ -132,7 +132,7 @@ class HITLTrigger(BaseTrigger):
                 yield TriggerEvent(
                     HITLTriggerEventSuccessPayload(
                         chosen_options=resp.chosen_options,
-                        params_input=resp.params_input,
+                        params_input=resp.params_input or {},
                         timedout=False,
                     )
                 )
