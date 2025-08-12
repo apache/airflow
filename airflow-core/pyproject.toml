@@ -125,11 +125,8 @@ dependencies = [
     "rich-argparse>=1.0.0",
     "rich>=13.6.0",
     "setproctitle>=1.3.3",
-    # We use some deprecated features of sqlalchemy 2.0 and we should replace them before we can upgrade
-    # See https://sqlalche.me/e/b8d9 for details of deprecated features
-    # you can set environment variable SQLALCHEMY_WARN_20=1 to show all deprecation warnings.
-    # The issue tracking it is https://github.com/apache/airflow/issues/28723
-    "sqlalchemy[asyncio]>=1.4.49,<2.0",
+    # The issue tracking deprecations for sqlalchemy 2 is https://github.com/apache/airflow/issues/28723
+    "sqlalchemy[asyncio]>=1.4.49",
     "sqlalchemy-jsonfield>=1.0",
     "sqlalchemy-utils>=0.41.2",
     "svcs>=25.1.0",

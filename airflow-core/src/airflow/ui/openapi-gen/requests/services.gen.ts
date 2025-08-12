@@ -3524,8 +3524,10 @@ export class HumanInTheLoopService {
      * @param data.limit
      * @param data.offset
      * @param data.orderBy
+     * @param data.dagId
      * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.dagRunId
+     * @param data.taskId
      * @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.state
      * @param data.responseReceived
@@ -3543,8 +3545,10 @@ export class HumanInTheLoopService {
                 limit: data.limit,
                 offset: data.offset,
                 order_by: data.orderBy,
+                dag_id: data.dagId,
                 dag_id_pattern: data.dagIdPattern,
                 dag_run_id: data.dagRunId,
+                task_id: data.taskId,
                 task_id_pattern: data.taskIdPattern,
                 state: data.state,
                 response_received: data.responseReceived,

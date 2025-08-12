@@ -93,6 +93,7 @@ CREATE_SDF_DOWNLOAD_TASK_BODY_REQUEST: dict = {
 
 with DAG(
     "display_video_sdf",
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "display_video_sdf"],
