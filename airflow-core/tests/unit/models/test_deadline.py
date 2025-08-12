@@ -111,17 +111,24 @@ class TestDeadline:
         "conditions",
         [
             pytest.param({}, id="empty_conditions"),
-            pytest.param({Deadline.dagrun_id: INVALID_RUN_ID}, id="no_matches"),
-            pytest.param({Deadline.dagrun_id: RUN_ID}, id="single_condition"),
-            pytest.param({Deadline.dagrun_id: RUN_ID, Deadline.dag_id: DAG_ID}, id="multiple_conditions"),
+            pytest.param({Deadline.dagrun_id: -1}, id="no_matches"),
+            pytest.param({Deadline.dagrun_id: "valid_placeholder"}, id="single_condition"),
             pytest.param(
-                {Deadline.dagrun_id: RUN_ID, Deadline.dag_id: INVALID_DAG_ID}, id="mixed_conditions"
+                {Deadline.dagrun_id: "valid_placeholder", Deadline.dag_id: DAG_ID}, id="multiple_conditions"
+            ),
+            pytest.param(
+                {Deadline.dagrun_id: "valid_placeholder", Deadline.dag_id: INVALID_DAG_ID},
+                id="mixed_conditions",
             ),
         ],
     )
     @mock.patch("sqlalchemy.orm.Session")
-    def test_prune_deadlines(self, mock_session, conditions):
+    def test_prune_deadlines(self, mock_session, conditions, dagrun):
         """Test deadline resolution with various conditions."""
+        if Deadline.dagrun_id in conditions:
+            if conditions[Deadline.dagrun_id] == "valid_placeholder":
+                conditions[Deadline.dagrun_id] = dagrun.id
+
         expected_result = 1 if conditions else 0
         # Set up the query chain to return a list of (Deadline, DagRun) pairs
         mock_dagrun = mock.Mock(spec=DagRun, end_date=datetime.now())
@@ -141,11 +148,11 @@ class TestDeadline:
         else:
             mock_session.query.assert_not_called()
 
-    def test_orm(self, deadline_orm):
+    def test_orm(self, deadline_orm, dagrun):
         assert deadline_orm.deadline_time == DEFAULT_DATE
         assert deadline_orm.callback == TEST_ASYNC_CALLBACK
         assert deadline_orm.dag_id == DAG_ID
-        assert deadline_orm.dagrun_id == RUN_ID
+        assert deadline_orm.dagrun_id == dagrun.id
 
     def test_repr_with_callback_kwargs(self, deadline_orm):
         assert (
@@ -154,12 +161,12 @@ class TestDeadline:
             f"{deadline_orm.deadline_time} or run: {TEST_CALLBACK_PATH}({TEST_CALLBACK_KWARGS})"
         )
 
-    def test_repr_without_callback_kwargs(self):
+    def test_repr_without_callback_kwargs(self, dagrun):
         deadline_orm = Deadline(
             deadline_time=DEFAULT_DATE,
             callback=AsyncCallback(TEST_CALLBACK_PATH),
             dag_id=DAG_ID,
-            dagrun_id=RUN_ID,
+            dagrun_id=dagrun.id,
         )
 
         assert deadline_orm.callback.kwargs is None
