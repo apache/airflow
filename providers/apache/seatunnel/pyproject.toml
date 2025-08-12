@@ -9,7 +9,7 @@ authors = [
     {name = "Apache SeaTunnel Community", email = "dev@seatunnel.apache.org"},
 ]
 description = "Apache Airflow provider for Apache SeaTunnel"
-readme = "README.md"
+readme = "README.rst"
 requires-python = ">=3.7"
 classifiers = [
     "Framework :: Apache Airflow",
