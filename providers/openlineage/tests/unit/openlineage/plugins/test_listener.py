@@ -205,7 +205,7 @@ class TestOpenLineageListenerAirflow2:
             execution_date=date,  # type: ignore
         )
         if AIRFLOW_V_3_0_PLUS:
-            task_instance = TaskInstance(t, run_id=run_id, dag_version_id=dagrun.created_dag_version_id)
+            task_instance = TaskInstance(t, run_id=run_id, dag_version_id=dagrun.created_dag_version_id)  # type: ignore
         else:
             task_instance = TaskInstance(t, run_id=run_id)  # type: ignore
         return dagrun, task_instance
