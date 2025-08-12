@@ -94,7 +94,9 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
         )
 
         def running_tasks_group(
-            name: str, group_fields: Collection[Column], states: Collection[TaskInstanceState] = EXECUTION_STATES
+            name: str,
+            group_fields: Collection[Column],
+            states: Collection[TaskInstanceState] = EXECUTION_STATES,
         ) -> CTE:
             return (
                 select(*group_fields, func.count("*").label("now_running"))
@@ -117,7 +119,6 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
                         )
                     ),
                 )
-                .join(DR, TI.run_id == DR.run_id)
             )
             if limit.limit_join_model is not None:
                 query = query.join(limit.limit_join_model)
@@ -132,8 +133,12 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
 
         running_total_tis_per_dagrun = running_tasks_group("dag_run_active_tasks", [TI.dag_id, TI.run_id])
         running_tis_per_dag = running_tasks_group("active_tis_across_dag_runs", [TI.dag_id, TI.task_id])
-        running_total_tis_per_task_run = running_tasks_group("active_tis_in_one_task", [TI.dag_id, TI.run_id, TI.task_id])
-        running_tis_per_pool = running_tasks_group("pool_active_tasks", [TI.pool], [*EXECUTION_STATES, TaskInstanceState.DEFERRED])
+        running_total_tis_per_task_run = running_tasks_group(
+            "active_tis_in_one_task", [TI.dag_id, TI.run_id, TI.task_id]
+        )
+        running_tis_per_pool = running_tasks_group(
+            "pool_active_tasks", [TI.pool], [*EXECUTION_STATES, TaskInstanceState.DEFERRED]
+        )
 
         total_tis_per_dagrun_count = (
             func.row_number()
@@ -162,13 +167,13 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
                 ["dag_id", "run_id"],
                 DagModel.max_active_tasks,
                 total_tis_per_dagrun_count,
-                TI.dag_model
+                TI.dag_model,
             ),
             LimitWindowDescriptor(
                 running_tis_per_dag,
                 ["dag_id", "task_id"],
                 TI.max_active_tis_per_dag,
-                tis_per_dag_count
+                tis_per_dag_count,
             ),
             LimitWindowDescriptor(
                 running_total_tis_per_task_run,
@@ -181,7 +186,7 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
                 ["pool"],
                 Pool.slots,
                 pool_slots_taken,
-                TI.pool_model
+                TI.pool_model,
             ),
         ]
 
@@ -192,11 +197,3 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
         query = query.options(selectinload(TI.dag_model))
         query = query.limit(max_tis)
         return query
-
-    def _running_tasks_group(self, *group_fields: Column) -> CTE:
-        return (
-            select(TI, func.count("*").label("now_running"))
-            .where(TI.state.in_(EXECUTION_STATES))
-            .group_by(*group_fields)
-            .cte()
-        )
