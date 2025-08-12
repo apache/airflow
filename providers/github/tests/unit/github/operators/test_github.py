@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
 from unittest.mock import Mock, mock_open, patch
 
 import pytest
@@ -25,8 +24,9 @@ import pytest
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.github.operators.github import GithubOperator
+from airflow.sdk import timezone
 
-DEFAULT_DATE = datetime(2017, 1, 1)
+DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 github_client_mock = Mock(name="github_client_for_test")
 
 
