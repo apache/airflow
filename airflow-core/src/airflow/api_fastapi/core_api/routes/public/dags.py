@@ -90,7 +90,7 @@ def get_dags(
     last_dag_run_state: QueryLastDagRunStateFilter,
     bundle_name: QueryBundleNameFilter,
     bundle_version: QueryBundleVersionFilter,
-    is_scheduled:QueryIsDagScheduledFilter,
+    is_scheduled: QueryIsDagScheduledFilter,
     dag_run_start_date_range: Annotated[
         RangeFilter, Depends(datetime_range_filter_factory("dag_run_start_date", DagRun, "start_date"))
     ],
