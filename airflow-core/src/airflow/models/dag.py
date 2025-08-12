@@ -103,15 +103,17 @@ from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
-    from typing import Literal
+    from typing import Literal, TypeAlias
 
     from pydantic import NonNegativeInt
     from sqlalchemy.orm.query import Query
     from sqlalchemy.orm.session import Session
 
     from airflow.models.dagbag import DagBag
-    from airflow.sdk.types import Operator
-    from airflow.serialization.serialized_objects import MaybeSerializedDAG
+    from airflow.models.mappedoperator import MappedOperator
+    from airflow.serialization.serialized_objects import MaybeSerializedDAG, SerializedBaseOperator
+
+    Operator: TypeAlias = MappedOperator | SerializedBaseOperator
 
 log = logging.getLogger(__name__)
 
@@ -701,10 +703,6 @@ class DAG(TaskSDKDag, LoggingMixin):
     def dag_id(self, value: str) -> None:
         self._dag_id = value
 
-    @property
-    def timetable_summary(self) -> str:
-        return self.timetable.summary
-
     @provide_session
     def get_concurrency_reached(self, session=NEW_SESSION) -> bool:
         """Return a boolean indicating whether the max_active_tasks limit for this DAG has been reached."""
@@ -1113,7 +1111,9 @@ class DAG(TaskSDKDag, LoggingMixin):
         """
         from airflow.api.common.mark_tasks import set_state
 
-        task = self.get_task(task_id)
+        # TODO (GH-52141): get_task in scheduler needs to return scheduler types
+        # instead, but currently it inherits SDK's DAG.
+        task = cast("Operator", self.get_task(task_id))
         task.dag = self
 
         tasks_to_set_state: list[Operator | tuple[Operator, int]]

@@ -812,6 +812,7 @@ class DagMaker(Protocol):
         task_id: str,
         dag_run: DagRun | None = ...,
         dag_run_kwargs: dict | None = ...,
+        map_index: int = ...,
         **kwargs,
     ) -> TaskInstance: ...
 
@@ -1110,7 +1111,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 **kwargs,
             )
 
-        def run_ti(self, task_id, dag_run=None, dag_run_kwargs=None, **kwargs):
+        def run_ti(self, task_id, dag_run=None, dag_run_kwargs=None, map_index=-1, **kwargs):
             """
             Create a dagrun and run a specific task instance with proper task refresh.
 
@@ -1128,7 +1129,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 if dag_run_kwargs is None:
                     dag_run_kwargs = {}
                 dag_run = self.create_dagrun(**dag_run_kwargs)
-            ti = dag_run.get_task_instance(task_id=task_id)
+            ti = dag_run.get_task_instance(task_id=task_id, map_index=map_index)
             if ti is None:
                 available_task_ids = [task.task_id for task in self.dag.tasks]
                 raise ValueError(
