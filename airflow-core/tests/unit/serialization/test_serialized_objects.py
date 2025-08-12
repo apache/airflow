@@ -58,7 +58,12 @@ from airflow.sdk.definitions.asset import (
     AssetUniqueKey,
     AssetWatcher,
 )
-from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineAlertFields, DeadlineReference
+from airflow.sdk.definitions.deadline import (
+    AsyncCallback,
+    DeadlineAlert,
+    DeadlineAlertFields,
+    DeadlineReference,
+)
 from airflow.sdk.definitions.decorators import task
 from airflow.sdk.definitions.param import Param
 from airflow.sdk.definitions.taskgroup import TaskGroup
@@ -76,7 +81,7 @@ from unit.models import DEFAULT_DATE
 
 DAG_ID = "dag_id_1"
 
-TEST_CALLBACK_PATH = f"{__name__}.test_callback_for_deadline"
+TEST_CALLBACK_PATH = f"{__name__}.empty_callback_for_deadline"
 TEST_CALLBACK_KWARGS = {"arg1": "value1"}
 
 REFERENCE_TYPES = [
@@ -86,7 +91,7 @@ REFERENCE_TYPES = [
 ]
 
 
-def test_callback_for_deadline():
+async def empty_callback_for_deadline():
     """Used in a number of tests to confirm that Deadlines and DeadlineAlerts function correctly."""
     pass
 
@@ -364,7 +369,7 @@ class MockLazySelectSequence(LazySelectSequence):
             DeadlineAlert(
                 reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
                 interval=timedelta(),
-                callback="fake_callable",
+                callback=AsyncCallback("fake_callable"),
             ),
             None,
             None,
@@ -410,8 +415,7 @@ class MockLazySelectSequence(LazySelectSequence):
             DeadlineAlert(
                 reference=DeadlineReference.DAGRUN_QUEUED_AT,
                 interval=timedelta(hours=1),
-                callback="valid.callback.path",
-                callback_kwargs={"arg1": "value1"},
+                callback=AsyncCallback("valid.callback.path", kwargs={"arg1": "value1"}),
             ),
             DAT.DEADLINE_ALERT,
             equals,
@@ -445,8 +449,7 @@ def test_serialize_deserialize_deadline_alert(reference):
     original = DeadlineAlert(
         reference=reference,
         interval=timedelta(hours=1),
-        callback=test_callback_for_deadline,
-        callback_kwargs=TEST_CALLBACK_KWARGS,
+        callback=AsyncCallback(empty_callback_for_deadline, kwargs=TEST_CALLBACK_KWARGS),
     )
 
     serialized = original.serialize_deadline_alert()
@@ -456,9 +459,7 @@ def test_serialize_deserialize_deadline_alert(reference):
     deserialized = DeadlineAlert.deserialize_deadline_alert(serialized)
     assert deserialized.reference.serialize_reference() == reference.serialize_reference()
     assert deserialized.interval == original.interval
-    assert deserialized.callback_kwargs == original.callback_kwargs
-    assert isinstance(deserialized.callback, str)
-    assert deserialized.callback == TEST_CALLBACK_PATH
+    assert deserialized.callback == original.callback
 
 
 @pytest.mark.parametrize(
@@ -562,18 +563,6 @@ def test_roundtrip_exceptions():
     assert deser.timeout == timedelta(seconds=30)
 
 
-@pytest.mark.db_test
-def test_serialized_dag_to_dict_and_from_dict_gives_same_result_in_tasks(dag_maker):
-    with dag_maker() as dag:
-        BashOperator(task_id="task1", bash_command="echo 1")
-
-    dag1 = SerializedDAG.to_dict(dag)
-    from_dict = SerializedDAG.from_dict(dag1)
-    dag2 = SerializedDAG.to_dict(from_dict)
-
-    assert dag2["dag"]["tasks"][0]["__var"].keys() == dag1["dag"]["tasks"][0]["__var"].keys()
-
-
 @pytest.mark.parametrize(
     "concurrency_parameter",
     [
@@ -642,7 +631,7 @@ def test_serialized_dag_get_run_data_interval(create_dag_run_kwargs, dag_maker, 
     pre-AIP-39: the dag run itself has neither data_interval_start nor data_interval_end, and its logical_date
         is none. it should return data_interval as none
     """
-    with dag_maker(dag_id="test_dag", session=session, serialized=True) as dag:
+    with dag_maker(dag_id="test_dag", session=session, serialized=False) as dag:
         BaseOperator(task_id="test_task")
     session.commit()
 

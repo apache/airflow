@@ -23,9 +23,9 @@ import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
 
-export const FieldStringArray = ({ name, onUpdate }: FlexibleFormElementProps) => {
+export const FieldStringArray = ({ name, namespace = "default", onUpdate }: FlexibleFormElementProps) => {
   const { t: translate } = useTranslation("components");
-  const { disabled, paramsDict, setParamsDict } = useParamStore();
+  const { disabled, paramsDict, setParamsDict } = useParamStore(namespace);
   const param = paramsDict[name] ?? paramPlaceholder;
 
   const handleChange = (newValue: string) => {

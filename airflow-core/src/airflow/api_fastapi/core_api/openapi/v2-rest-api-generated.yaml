@@ -7614,6 +7614,14 @@ paths:
           default:
           - ti_id
           title: Order By
+      - name: dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
       - name: dag_id_pattern
         in: query
         required: false
@@ -7632,6 +7640,14 @@ paths:
         schema:
           type: string
           title: Dag Run Id
+      - name: task_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Task Id
       - name: task_id_pattern
         in: query
         required: false
@@ -9871,6 +9887,9 @@ components:
         dag_id:
           type: string
           title: Dag Id
+        dag_display_name:
+          type: string
+          title: Dag Display Name
         stats:
           items:
             $ref: '#/components/schemas/DagStatsStateResponse'
@@ -9879,6 +9898,7 @@ components:
       type: object
       required:
       - dag_id
+      - dag_display_name
       - stats
       title: DagStatsResponse
       description: DAG Stats serializer for responses.
@@ -10119,6 +10139,9 @@ components:
           - type: string
           - type: 'null'
           title: Category
+        href:
+          type: string
+          title: Href
         destination:
           type: string
           enum:
@@ -10129,9 +10152,6 @@ components:
           - task_instance
           title: Destination
           default: nav
-        href:
-          type: string
-          title: Href
       additionalProperties: true
       type: object
       required:
@@ -10199,6 +10219,7 @@ components:
           items:
             type: string
           type: array
+          minItems: 1
           title: Options
         subject:
           type: string
@@ -10285,6 +10306,7 @@ components:
           items:
             type: string
           type: array
+          minItems: 1
           title: Chosen Options
         params_input:
           additionalProperties: true
@@ -10869,6 +10891,9 @@ components:
           - type: string
           - type: 'null'
           title: Category
+        bundle_url:
+          type: string
+          title: Bundle Url
         destination:
           type: string
           enum:
@@ -10877,11 +10902,9 @@ components:
           - dag_run
           - task
           - task_instance
+          - dashboard
           title: Destination
           default: nav
-        bundle_url:
-          type: string
-          title: Bundle Url
       additionalProperties: true
       type: object
       required:
@@ -11179,8 +11202,6 @@ components:
         dag_id:
           type: string
           title: Dag Id
-        dag_version:
-          $ref: '#/components/schemas/DagVersionResponse'
         dag_run_id:
           type: string
           title: Dag Run Id
@@ -11308,12 +11329,15 @@ components:
           anyOf:
           - $ref: '#/components/schemas/JobResponse'
           - type: 'null'
+        dag_version:
+          anyOf:
+          - $ref: '#/components/schemas/DagVersionResponse'
+          - type: 'null'
       type: object
       required:
       - id
       - task_id
       - dag_id
-      - dag_version
       - dag_run_id
       - map_index
       - logical_date
@@ -11342,6 +11366,7 @@ components:
       - rendered_map_index
       - trigger
       - triggerer_job
+      - dag_version
       title: TaskInstanceResponse
       description: TaskInstance serializer for responses.
     TaskInstanceState:
@@ -11765,8 +11790,10 @@ components:
           - type: 'null'
           title: Run After
         conf:
-          additionalProperties: true
-          type: object
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
           title: Conf
         note:
           anyOf:
@@ -11832,6 +11859,7 @@ components:
           items:
             type: string
           type: array
+          minItems: 1
           title: Chosen Options
         params_input:
           additionalProperties: true

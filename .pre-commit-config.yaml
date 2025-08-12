@@ -31,7 +31,7 @@ repos:
       - id: check-hooks-apply
         name: Check if all hooks apply to the repository
   - repo: https://github.com/thlorenz/doctoc.git
-    rev: v2.2.0
+    rev: 70fdcd39ef919754011a827bd25f23a0b141c3c3  # frozen: v2.2.0
     hooks:
       - id: doctoc
         name: Add TOC for Markdown and RST files
@@ -240,7 +240,7 @@ repos:
         additional_dependencies: ['libcst>=1.8.1']
         files: ^(providers/.*/)?airflow/.*/(sensors|operators)/.*\.py$
   - repo: https://github.com/asottile/blacken-docs
-    rev: 1.19.1
+    rev: 78a9dcbecf4f755f65d1f3dec556bc249d723600  # frozen: 1.19.1
     hooks:
       - id: blacken-docs
         name: Run black on docs
@@ -252,7 +252,7 @@ repos:
         alias: blacken-docs
         additional_dependencies: ['black==24.10.0']
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
     hooks:
       - id: check-merge-conflict
         name: Check that merge conflicts are not being committed
@@ -289,10 +289,6 @@ repos:
           ^dev/breeze/doc/images/output.*$|
           ^.*/openapi-gen/.*$|
           ^airflow-ctl/docs/images/.*\.svg$
-      - id: fix-encoding-pragma
-        name: Remove encoding header from Python files
-        args:
-          - --remove
       - id: pretty-format-json
         name: Format JSON files
         args:
@@ -303,14 +299,14 @@ repos:
         files: ^chart/values\.schema\.json$|^chart/values_schema\.schema\.json$
         pass_filenames: true
   - repo: https://github.com/pre-commit/pygrep-hooks
-    rev: v1.10.0
+    rev: 3a6eb0fadf60b3cccfd80bad9dbb6fae7e47b316  # frozen: v1.10.0
     hooks:
       - id: rst-backticks
         name: Check if RST files use double backticks for code
       - id: python-no-log-warn
         name: Check if there are no deprecate log warn
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.37.1
+    rev: 79a6b2b1392eaf49cdd32ac4f14be1a809bbd8f7  # frozen: v1.37.1
     hooks:
       - id: yamllint
         name: Check YAML files with yamllint
@@ -328,7 +324,7 @@ repos:
           ^.*reproducible_build\.yaml$|
           ^.*pnpm-lock\.yaml$
   - repo: https://github.com/ikamensh/flynt
-    rev: '1.0.6'
+    rev: '97be693bf18bc2f050667dd282d243e2824b81e2'  # frozen: 1.0.6
     hooks:
       - id: flynt
         name: Run flynt string format converter for Python
@@ -339,7 +335,7 @@ repos:
          - --line-length
          - '99999'
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.4.1
+    rev: 63c8f8312b7559622c0d82815639671ae42132ac  # frozen: v2.4.1
     hooks:
       - id: codespell
         name: Run codespell
@@ -364,7 +360,7 @@ repos:
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: v1.11.0
+    rev: 69fa534d69454f44ddd4451b5e2da7a1c48e525b  # frozen: v1.11.0
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -441,7 +437,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.12.7']
+        additional_dependencies: ['ruff==0.12.8']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -451,7 +447,7 @@ repos:
         types_or: [python, pyi]
         args: []
         require_serial: true
-        additional_dependencies: ['ruff==0.12.7']
+        additional_dependencies: ['ruff==0.12.8']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$
       - id: replace-bad-characters
         name: Replace bad characters
@@ -1532,9 +1528,15 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/generate_openapi_spec_fab.py
         pass_filenames: false
-        files: ^airflow-core/src/airflow/api_fastapi/.*\.py$|^airflow-core/src/airflow/api_fastapi/auth/managers/simple/.*\.py$|^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
-        exclude: ^airflow-core/src/airflow/api_fastapi/execution_api/.*
+        files: ^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
         additional_dependencies: ['rich>=12.4.4', 'openapi-spec-validator>=0.7.1']
+      - id: generate-openapi-spec-keycloak
+        name: Generate the FastAPI API spec for Keycloak
+        language: python
+        entry: ./scripts/ci/pre_commit/generate_openapi_spec_keycloak.py
+        pass_filenames: false
+        files: ^providers/keycloak/src/airflow/providers/keycloak/auth_manager/.*\.py$
+        additional_dependencies: [ 'rich>=12.4.4', 'openapi-spec-validator>=0.7.1' ]
       - id: check-i18n-json
         name: Check i18n files validity
         description: Check i18n files are valid json, have no TODOs, and auto-format them
@@ -1568,7 +1570,7 @@ repos:
       - id: generate-tasksdk-datamodels
         name: Generate Datamodels for TaskSDK client
         language: python
-        entry: uv run -p 3.12 --no-dev --no-progress --active --group codegen --project apache-airflow-task-sdk --directory task-sdk -s dev/generate_task_sdk_models.py
+        entry: uv run -p 3.12 --no-progress --active --group codegen --project apache-airflow-task-sdk --directory task-sdk -s dev/generate_task_sdk_models.py
         pass_filenames: false
         files: ^airflow-core/src/airflow/api_fastapi/execution_api/.*\.py$
         require_serial: true
@@ -1609,7 +1611,7 @@ repos:
         name: Check imports in providers
         entry: ./scripts/ci/pre_commit/check_imports_in_providers.py
         language: python
-        additional_dependencies: ['rich>=12.4.4', 'ruff==0.12.7']
+        additional_dependencies: ['rich>=12.4.4', 'ruff==0.12.8']
         files: ^providers/.*/src/airflow/providers/.*version_compat.*\.py$
         require_serial: true
       - id: provider-version-compat
@@ -1681,6 +1683,7 @@ repos:
           ^airflow-core/src/airflow/models/baseoperator\.py$|
           ^airflow-core/src/airflow/models/connection\.py$|
           ^airflow-core/src/airflow/models/dag\.py$|
+          ^airflow-core/src/airflow/models/deadline\.py$|
           ^airflow-core/src/airflow/models/dagbag\.py$|
           ^airflow-core/src/airflow/models/dagrun\.py$|
           ^airflow-core/src/airflow/models/mappedoperator\.py$|

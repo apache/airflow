@@ -39,6 +39,11 @@
     "viewInExternal": "عرض السجلات في {{name}} (المحاولة {{attempt}})",
     "warning": "تحذير"
   },
+  "navigation": {
+    "jump": "الانتقال: Shift+{{arrow}}",
+    "navigation": "التنقل: {{arrow}}",
+    "toggleGroup": "تبديل المجموعة: المسافة"
+  },
   "overview": {
     "buttons": {
       "failedRun_few": "فشل تشغيلات",
@@ -123,6 +128,7 @@
     "mappedTaskInstances_zero": "لا توجد أي مثيل مهمة",
     "overview": "نظرة عامة",
     "renderedTemplates": "القوالب المعروضة",
+    "requiredActions": "إجراءات مطلوبة",
     "runs": "تشغيلات",
     "taskInstances": "مثيلات المهام",
     "tasks": "المهام",

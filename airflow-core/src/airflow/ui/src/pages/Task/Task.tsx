@@ -59,11 +59,12 @@ export const Task = () => {
 
   const groupTask = getGroupTask(dagStructure, groupId);
 
-  // Check if this task has any HITL details
   const { data: hitlData } = useHumanInTheLoopServiceGetHitlDetails(
     {
-      dagIdPattern: dagId,
+      dagId,
       dagRunId: runId,
+      taskId: Boolean(groupId) ? undefined : taskId,
+      taskIdPattern: groupId,
     },
     undefined,
     {
@@ -71,17 +72,10 @@ export const Task = () => {
     },
   );
 
-  const hasHitlForTask =
-    (hitlData?.hitl_details.filter((hitl) => hitl.task_instance.task_id === taskId).length ?? 0) > 0;
+  const hasHitlForTask = (hitlData?.total_entries ?? 0) > 0;
 
   const displayTabs = (groupId === undefined ? tabs : tabs.filter((tab) => tab.value !== "events")).filter(
-    (tab) => {
-      if (tab.value === "required_actions" && !hasHitlForTask) {
-        return false;
-      }
-
-      return true;
-    },
+    (tab) => tab.value !== "required_actions" || hasHitlForTask,
   );
 
   return (

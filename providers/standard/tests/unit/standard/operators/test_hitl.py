@@ -25,6 +25,7 @@ if not AIRFLOW_V_3_1_PLUS:
 
 import datetime
 from typing import TYPE_CHECKING, Any
+from unittest.mock import MagicMock
 
 import pytest
 from sqlalchemy import select
@@ -54,6 +55,30 @@ INTERVAL = datetime.timedelta(hours=12)
 
 
 class TestHITLOperator:
+    def test_validate_options(self) -> None:
+        hitl_op = HITLOperator(
+            task_id="hitl_test",
+            subject="This is subject",
+            options=["1", "2", "3", "4", "5"],
+            body="This is body",
+            defaults=["1"],
+            multiple=False,
+            params=ParamsDict({"input_1": 1}),
+        )
+        hitl_op.validate_defaults()
+
+    def test_validate_options_with_empty_options(self) -> None:
+        with pytest.raises(ValueError, match='"options" cannot be empty.'):
+            HITLOperator(
+                task_id="hitl_test",
+                subject="This is subject",
+                options=[],
+                body="This is body",
+                defaults=["1"],
+                multiple=False,
+                params=ParamsDict({"input_1": 1}),
+            )
+
     def test_validate_defaults(self) -> None:
         hitl_op = HITLOperator(
             task_id="hitl_test",
@@ -96,6 +121,8 @@ class TestHITLOperator:
             )
 
     def test_execute(self, dag_maker: DagMaker, session: Session) -> None:
+        notifier = MagicMock()
+
         with dag_maker("test_dag"):
             task = HITLOperator(
                 task_id="hitl_test",
@@ -105,6 +132,7 @@ class TestHITLOperator:
                 defaults=["1"],
                 multiple=False,
                 params=ParamsDict({"input_1": 1}),
+                notifiers=[notifier],
             )
         dr = dag_maker.create_dagrun()
         ti = dag_maker.run_ti(task.task_id, dr)
@@ -121,6 +149,8 @@ class TestHITLOperator:
         assert hitl_detail_model.user_id is None
         assert hitl_detail_model.chosen_options is None
         assert hitl_detail_model.params_input == {}
+
+        assert notifier.called is True
 
         registered_trigger = session.scalar(
             select(Trigger).where(Trigger.classpath == "airflow.providers.standard.triggers.hitl.HITLTrigger")
