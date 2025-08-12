@@ -199,6 +199,19 @@ class TestWasbHook:
             shared_access_key="token",
         )
 
+    def test_blob_service_client_setter_overrides_cache(self, monkeypatch):
+        hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
+        default_client = mock.MagicMock(name="default_client")
+        monkeypatch.setattr(hook, "get_conn", mock.MagicMock(return_value=default_client))
+        hook._blob_service_client = None
+        assert hook.blob_service_client is default_client
+        hook.get_conn.assert_called_once()
+        new_client = mock.MagicMock(name="new_client")
+        hook.blob_service_client = new_client
+        hook.get_conn.reset_mock()
+        assert hook.blob_service_client is new_client
+        hook.get_conn.assert_not_called()
+
     def test_managed_identity(self, mocked_default_azure_credential, mocked_blob_service_client):
         mocked_default_azure_credential.assert_not_called()
         mocked_default_azure_credential.return_value = "foo-bar"

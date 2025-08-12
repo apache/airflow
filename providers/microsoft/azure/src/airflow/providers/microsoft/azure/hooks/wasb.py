@@ -28,7 +28,6 @@ from __future__ import annotations
 
 import logging
 import os
-from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 
 from asgiref.sync import sync_to_async
@@ -602,8 +601,12 @@ class WasbAsyncHook(WasbHook):
 
     async def get_async_conn(self) -> AsyncBlobServiceClient:
         """Return the Async BlobServiceClient object."""
-        if isinstance(self._blob_service_client, AsyncBlobServiceClient):
-            return self.blob_service_client
+        if self._blob_service_client is not None:
+            if isinstance(self._blob_service_client, AsyncBlobServiceClient):
+                return self.blob_service_client
+            raise TypeError(
+                f"_blob_service_client must be AsyncBlobServiceClient, got {type(self._blob_service_client).__name__}"
+            )
 
         conn = await sync_to_async(self.get_connection)(self.conn_id)
         extra = conn.extra_dejson or {}
