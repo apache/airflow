@@ -671,6 +671,10 @@ class DAG:
         """
         return ", ".join({t.owner for t in self.tasks})
 
+    @property
+    def timetable_summary(self) -> str:
+        return self.timetable.summary
+
     def resolve_template_files(self):
         for t in self.tasks:
             # TODO: TaskSDK: move this on to BaseOperator and remove the check?
