@@ -72,7 +72,7 @@ from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models import DagModel
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dagrun import DagRun
-from airflow.api_fastapi.common.parameters import TimetableTypes,_TimetableTypesFilter
+from airflow.api_fastapi.common.parameters import _TimetableTypesFilter
 
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
 
@@ -122,7 +122,7 @@ def get_dags(
     readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
     is_favorite: QueryFavoriteFilter,
-    timetable_type: list[TimetableTypes] = Query(None)
+    timetable_type: list[str] = Query(None)
 ) -> DAGCollectionResponse:
     """Get all DAGs."""
     query = generate_dag_with_latest_run_query(

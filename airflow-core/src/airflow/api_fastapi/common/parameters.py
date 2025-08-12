@@ -448,23 +448,11 @@ class _OwnersFilter(BaseParam[list[str]]):
     def depends(cls, owners: list[str] = Query(default_factory=list)) -> _OwnersFilter:
         return cls().set_value(owners)    
 
-class TimetableTypes(str, Enum):
-    """Different timetable types."""
 
-    cron = "airflow.timetables.trigger.CronTriggerTimetable"
-    multiple_cron = "airflow.timetables.trigger.MultipleCronTriggerTimetable"
-    delta = "airflow.timetables.trigger.DeltaTriggerTimetable"
-    delta_data_interval = "airflow.timetables.trigger.DeltaDataIntervalTimetable"
-    cron_data_interval = "airflow.timetables.trigger.CronDataIntervalTimetable"
-    events = "airflow.timetables.events.EventsTimetable"
-    assets = "airflow.timetables.assets.AssetOrTimeSchedule"
-    no_trigger_defined= "airflow.timetables.simple.NullTimetable"
-    dataset = "airflow.timetables.dataset.DatasetTriggerTimetable"
-
-class _TimetableTypesFilter(BaseParam[list[TimetableTypes]]):
+class _TimetableTypesFilter(BaseParam[list[str]]):
     """Filter on timetable type."""
 
-    def filter_from_dags(self,dags:list[DAGResponse],timetable_type: list[TimetableTypes],session)->list[DAGResponse]:
+    def filter_from_dags(self,dags:list[DAGResponse],timetable_type: list[str],session)->list[DAGResponse]:
         filtered_dags=[]
         dags_from_iterator=dict()
 
@@ -494,7 +482,7 @@ class _TimetableTypesFilter(BaseParam[list[TimetableTypes]]):
     @classmethod
     def depends(
         cls,
-        timetable_type: list[TimetableTypes] = Query(default_factory=list),
+        timetable_type: list[str] = Query(default_factory=list),
     ) -> _TimetableTypesFilter:
         return cls().set_value(timetable_type)
     
