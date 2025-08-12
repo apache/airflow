@@ -162,7 +162,7 @@ class WasbHook(BaseHook):
         return self._blob_service_client
 
     @blob_service_client.setter
-    def blob_service_client(self, client: AsyncBlobServiceClient):
+    def blob_service_client(self, client: AsyncBlobServiceClient) -> None:
         """Set the cached BlobServiceClient object."""
         self._blob_service_client = client
 
