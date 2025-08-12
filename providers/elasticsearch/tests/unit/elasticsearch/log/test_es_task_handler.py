@@ -145,7 +145,7 @@ class TestElasticsearchTaskHandler:
 
         assert (
             message == "Dependencies all met for dep_context=non-requeueable"
-            " deps ti=<TaskInstance: example_bash_operator.run_after_loop owen_run_run [queued]>\n"
+            " deps ti=<TaskInstance: example_bash_operator.run_after_loop \n"
             "Starting attempt 1 of 1\nExecuting <Task(BashOperator): run_after_loop> "
             "on 2023-07-09 07:47:32+00:00"
         )

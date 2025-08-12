@@ -40,6 +40,7 @@ import pendulum
 from elasticsearch import helpers
 from elasticsearch.exceptions import NotFoundError
 
+import airflow.logging_config as alc
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
@@ -217,6 +218,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             base_log_folder=base_log_folder,
             delete_local_copy=self.delete_local_copy,
         )
+        # Airflow 3 introduce REMOTE_TASK_LOG for handling remote logging
+        # REMOTE_TASK_LOG should be explicitly set in airflow_local_settings.py when trying to use ESTaskHandler
+        # Before airflow 3.1, REMOTE_TASK_LOG is not set when trying to use ES TaskHandler.
+        if AIRFLOW_V_3_0_PLUS and alc.REMOTE_TASK_LOG is None:
+            alc.REMOTE_TASK_LOG = self.io
 
     @staticmethod
     def format_url(host: str) -> str:
@@ -342,7 +348,21 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # have the log uploaded but will not be stored in elasticsearch.
         metadata["end_of_log"] = False
         if logs_by_host:
-            if any(x[-1].message == self.end_of_log_mark for x in logs_by_host.values()):
+            # In Airflow 2.x, the log record JSON has a "message" key, e.g.:
+            # {
+            #   "message": "Dag name:dataset_consumes_1 queued_at:2025-08-12 15:05:57.703493+00:00",
+            #   "offset": 1755011166339518208,
+            #   "log_id": "dataset_consumes_1-consuming_1-manual__2025-08-12T15:05:57.691303+00:00--1-1"
+            # }
+            #
+            # In Airflow 3.x, the "message" field is renamed to "event".
+            # We check the correct attribute depending on the Airflow major version.
+            if AIRFLOW_V_3_0_PLUS:
+                end_mark_found = any(x[-1].event == self.end_of_log_mark for x in logs_by_host.values())
+            else:
+                end_mark_found = any(x[-1].message == self.end_of_log_mark for x in logs_by_host.values())
+
+            if end_mark_found:
                 metadata["end_of_log"] = True
 
         cur_ts = pendulum.now()
@@ -377,7 +397,19 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # If we hit the end of the log, remove the actual end_of_log message
         # to prevent it from showing in the UI.
         def concat_logs(hits: list[Hit]) -> str:
-            log_range = (len(hits) - 1) if hits[-1].message == self.end_of_log_mark else len(hits)
+            # In Airflow 2.x, the log record JSON has a "message" key, e.g.:
+            # {
+            #   "message": "Dag name:dataset_consumes_1 queued_at:2025-08-12 15:05:57.703493+00:00",
+            #   "offset": 1755011166339518208,
+            #   "log_id": "dataset_consumes_1-consuming_1-manual__2025-08-12T15:05:57.691303+00:00--1-1"
+            # }
+            #
+            # In Airflow 3.x, the "message" field is renamed to "event".
+            # We check the correct attribute depending on the Airflow major version.
+            if AIRFLOW_V_3_0_PLUS:
+                log_range = (len(hits) - 1) if hits[-1].event == self.end_of_log_mark else len(hits)
+            else:
+                log_range = (len(hits) - 1) if hits[-1].message == self.end_of_log_mark else len(hits)
             return "\n".join(self._format_msg(hits[i]) for i in range(log_range))
 
         if logs_by_host:
@@ -420,6 +452,17 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                 )
 
         # Just a safe-guard to preserve backwards-compatibility
+        # In Airflow 2.x, the log record JSON has a "message" key, e.g.:
+        # {
+        #   "message": "Dag name:dataset_consumes_1 queued_at:2025-08-12 15:05:57.703493+00:00",
+        #   "offset": 1755011166339518208,
+        #   "log_id": "dataset_consumes_1-consuming_1-manual__2025-08-12T15:05:57.691303+00:00--1-1"
+        # }
+        #
+        # In Airflow 3.x, the "message" field is renamed to "event".
+        # We check the correct attribute depending on the Airflow major version.
+        if AIRFLOW_V_3_0_PLUS:
+            return hit.event
         return hit.message
 
     def emit(self, record):
@@ -499,7 +542,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # so we know where to stop while auto-tailing.
         self.emit(logging.makeLogRecord({"msg": self.end_of_log_mark}))
 
-        if self.write_stdout:
+        if self.io.write_stdout:
             self.handler.close()
             sys.stdout = sys.__stdout__
 
