@@ -764,9 +764,15 @@ class CloudComposerRunAirflowCLICommandOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
             poll_interval=self.poll_interval,
         )
-        result_str = self._merge_cmd_output_result(result)
-        self.log.info("Command execution result:\n%s", result_str)
-        return result
+        exit_code = result.get("exit_info", {}).get("exit_code")
+        if exit_code == 0:
+            result_str = self._merge_cmd_output_result(result)
+            self.log.info("Command execution result:\n%s", result_str)
+            return result
+
+        error_output = "".join(line["content"] for line in result.get("error", []))
+        message = f"Airflow CLI command failed with exit code {exit_code}.\nError output:\n{error_output}"
+        raise AirflowException(message)
 
     def execute_complete(self, context: Context, event: dict) -> dict:
         if event and event["status"] == "error":
