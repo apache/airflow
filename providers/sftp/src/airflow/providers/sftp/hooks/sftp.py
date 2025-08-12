@@ -54,7 +54,7 @@ if TYPE_CHECKING:
 def handle_connection_management(func: Callable) -> Callable:
     @functools.wraps(func)
     def handle_connection_management_wrapper(self, *args: Any, **kwargs: dict[str, Any]) -> Any:
-        if not self.managed_conn:
+        if not self.use_managed_conn:
             if self.conn is None:
                 raise ConnectionNotOpenedException(
                     "Connection not open, use with hook.get_managed_conn() Managed Connection in order to create and open the connection"

@@ -145,7 +145,11 @@ class SFTPSensor(BaseSensorOperator):
         self.log.info("Poking for %s, with pattern %s", self.path, self.file_pattern)
         files_found = []
 
-        files_found = self._get_files()
+        if self.use_managed_conn:
+            files_found = self._get_files()
+        else:
+            with self.hook.get_managed_conn():
+                files_found = self._get_files()
 
         if not len(files_found):
             return False
