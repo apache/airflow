@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-11T13:55:24.387681
+# This constraints file was automatically generated on 2025-08-12T02:25:15.876836
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -31,7 +31,7 @@ PyYAML==6.0.2
 Pygments==2.19.2
 SQLAlchemy-JSONField==1.0.2
 SQLAlchemy-Utils==0.41.2
-SQLAlchemy==2.0.42
+SQLAlchemy==2.0.43
 SecretStorage==3.3.3
 Sphinx==8.2.3
 Werkzeug==3.1.3
@@ -217,7 +217,7 @@ google-cloud-bigquery-datatransfer==3.19.2
 google-cloud-bigquery==3.35.1
 google-cloud-bigtable==2.32.0
 google-cloud-build==3.31.3
-google-cloud-compute==1.34.0
+google-cloud-compute==1.35.0
 google-cloud-container==2.59.0
 google-cloud-core==2.4.3
 google-cloud-datacatalog==3.27.1
@@ -357,7 +357,7 @@ microsoft-kiota-serialization-text==1.9.5
 mistune==3.1.3
 mmh3==5.2.0
 more-itertools==10.7.0
-moto==5.1.9
+moto==5.1.10
 mpmath==1.3.0
 msal-extensions==1.3.1
 msal==1.33.0
@@ -386,12 +386,12 @@ nh3==0.3.0
 nodeenv==1.9.1
 numpy==2.2.6
 oauthlib==3.3.1
-openai==1.99.6
+openai==1.99.8
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
-openlineage-integration-common==1.36.0
-openlineage-python==1.36.0
-openlineage_sql==1.36.0
+openlineage-integration-common==1.37.0
+openlineage-python==1.37.0
+openlineage_sql==1.37.0
 openpyxl==3.1.5
 opensearch-py==3.0.0
 opentelemetry-api==1.36.0
