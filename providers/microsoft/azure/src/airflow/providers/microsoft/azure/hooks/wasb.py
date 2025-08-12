@@ -615,8 +615,9 @@ class WasbAsyncHook(WasbHook):
         tenant = self._get_field(extra, "tenant_id")
         if tenant:
             # use Active Directory auth
-            app_id = conn.login
-            app_secret = conn.password
+            app_id = conn.login or ""
+            app_secret = conn.password or ""
+
             token_credential = AsyncClientSecretCredential(
                 tenant, app_id, app_secret, **client_secret_auth_config
             )
