@@ -615,14 +615,19 @@ class _HasAssetScheduleFilter(BaseParam[bool]):
             return select
 
         if self.value:
-            # Filter DAGs that have asset-based scheduling
+            # Filter DAGs that have meaningful asset-based scheduling
+            # Note: asset_expression is a JSON field that can be:
+            # 1. SQL NULL (no value) - checked by is_not(None)
+            # 2. JSON null (stored as 'null') - checked by String cast != "null"
+            # 3. Empty objects {} or meaningful content - both pass this filter
             return select.where(
                 and_(
                     DagModel.asset_expression.is_not(None),
                     func.cast(DagModel.asset_expression, String) != "null",
                 )
             )
-        # Filter DAGs that do NOT have asset-based scheduling
+        # Filter DAGs that do NOT have meaningful asset-based scheduling
+        # Include: SQL NULL or JSON null values
         return select.where(
             or_(DagModel.asset_expression.is_(None), func.cast(DagModel.asset_expression, String) == "null")
         )
@@ -642,15 +647,16 @@ class _AssetDependencyFilter(BaseParam[str]):
         if self.value is None and self.skip_none:
             return select
 
-        # Join with DagScheduleAssetReference and AssetModel to filter by asset name/URI
-        select = select.join(
-            DagScheduleAssetReference, DagModel.dag_id == DagScheduleAssetReference.dag_id, isouter=False
-        ).join(AssetModel, DagScheduleAssetReference.asset_id == AssetModel.id, isouter=False)
+        from sqlalchemy import select as sql_select
 
-        # Filter by asset name or URI containing the search term
-        return select.where(
-            or_(AssetModel.name.ilike(f"%{self.value}%"), AssetModel.uri.ilike(f"%{self.value}%"))
+        asset_dag_subquery = (
+            sql_select(DagScheduleAssetReference.dag_id)
+            .join(AssetModel, DagScheduleAssetReference.asset_id == AssetModel.id)
+            .where(or_(AssetModel.name.ilike(f"%{self.value}%"), AssetModel.uri.ilike(f"%{self.value}%")))
+            .distinct()
         )
+
+        return select.where(DagModel.dag_id.in_(asset_dag_subquery))
 
     @classmethod
     def depends(
