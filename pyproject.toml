@@ -623,6 +623,9 @@ ignore = [
     "PT013", # silly rule prohibiting e.g. `from pytest import param`
     "PT011", # pytest.raises() is too broad, set the match parameter
     "PT019", # fixture without value is injected as parameter, use @pytest.mark.usefixtures instead
+    "PT028", # Disabled on 3.0 -- it's not worth backporting this
+    "PT030", # Disabled on 3.0 -- it's not worth backporting this
+    "PT031", # Disabled on 3.0 -- it's not worth backporting this
     # Rules below explicitly set off which could overlap with Ruff's formatter
     # as it recommended by https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules
     # Except ISC rules

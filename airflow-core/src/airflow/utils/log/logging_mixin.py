@@ -24,7 +24,7 @@ import re
 import sys
 from io import TextIOBase, UnsupportedOperation
 from logging import Handler, StreamHandler
-from typing import IO, TYPE_CHECKING, Any, Optional, TypeVar, cast
+from typing import IO, TYPE_CHECKING, Any, TypeVar, cast
 
 if TYPE_CHECKING:
     from logging import Logger
@@ -72,9 +72,9 @@ class LoggingMixin:
     # Parent logger used by this class. It should match one of the loggers defined in the
     # `logging_config_class`. By default, this attribute is used to create the final name of the logger, and
     # will prefix the `_logger_name` with a separating dot.
-    _log_config_logger_name: Optional[str] = None  # noqa: UP007
+    _log_config_logger_name: str | None = None
 
-    _logger_name: Optional[str] = None  # noqa: UP007
+    _logger_name: str | None = None
 
     def __init__(self, context=None):
         self._set_context(context)
