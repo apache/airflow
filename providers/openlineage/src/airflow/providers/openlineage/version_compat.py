@@ -36,12 +36,11 @@ AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)
 AIRFLOW_V_3_1_PLUS = get_base_airflow_version_tuple() >= (3, 1, 0)
 
 try:
-    from airflow.sdk import BaseOperator
+    from airflow.sdk import BaseOperator, timezone
+    from airflow.sdk.execution_time.timeout import timeout
 except ImportError:
     from airflow.models import BaseOperator
+    from airflow.utils import timezone  # type: ignore[no-redef, attr-defined]
+    from airflow.utils.timeout import timeout  # type: ignore[assignment]
 
-__all__ = [
-    "AIRFLOW_V_3_0_PLUS",
-    "AIRFLOW_V_3_1_PLUS",
-    "BaseOperator",
-]
+__all__ = ["AIRFLOW_V_3_0_PLUS", "AIRFLOW_V_3_1_PLUS", "BaseOperator", "timeout", "timezone"]

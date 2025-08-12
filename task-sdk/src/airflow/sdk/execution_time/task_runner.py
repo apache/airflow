@@ -40,7 +40,7 @@ from pydantic import AwareDatetime, ConfigDict, Field, JsonValue, TypeAdapter
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException
+from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException, AirflowTaskTimeout
 from airflow.listeners.listener import get_listener_manager
 from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
@@ -869,7 +869,6 @@ def run(
         AirflowSensorTimeout,
         AirflowSkipException,
         AirflowTaskTerminated,
-        AirflowTaskTimeout,
         DagRunTriggerException,
         DownstreamTasksSkipped,
         TaskDeferred,
@@ -1157,8 +1156,6 @@ def _send_task_error_email(to: Iterable[str], ti: RuntimeTaskInstance, exception
 
 def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     """Execute Task (optionally with a Timeout) and push Xcom results."""
-    from airflow.exceptions import AirflowTaskTimeout
-
     task = ti.task
     execute = task.execute
 
@@ -1187,9 +1184,9 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     _run_task_state_change_callbacks(task, "on_execute_callback", context, log)
 
     if task.execution_timeout:
-        # TODO: handle timeout in case of deferral
-        from airflow.utils.timeout import timeout
+        from airflow.sdk.execution_time.timeout import timeout
 
+        # TODO: handle timeout in case of deferral
         timeout_seconds = task.execution_timeout.total_seconds()
         try:
             # It's possible we're already timed out, so fast-fail if true

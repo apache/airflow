@@ -32,6 +32,7 @@ type Props = {
   readonly isGroup?: boolean;
   readonly isMapped?: boolean | null;
   readonly label: string;
+  readonly onClick?: () => void;
   readonly runId: string;
   readonly search: string;
   readonly taskId: string;
@@ -53,7 +54,7 @@ const onMouseLeave = (event: MouseEvent<HTMLDivElement>) => {
   });
 };
 
-const Instance = ({ dagId, instance, isGroup, isMapped, runId, search, taskId }: Props) => {
+const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, taskId }: Props) => {
   const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
   const { t: translate } = useTranslation();
   const debounceTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
@@ -108,6 +109,7 @@ const Instance = ({ dagId, instance, isGroup, isMapped, runId, search, taskId }:
       zIndex={1}
     >
       <Link
+        onClick={onClick}
         replace
         to={{
           pathname: `/dags/${dagId}/runs/${runId}/tasks/${isGroup ? "group/" : ""}${taskId}${isMapped ? "/mapped" : ""}`,

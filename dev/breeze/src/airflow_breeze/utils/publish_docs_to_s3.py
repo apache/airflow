@@ -24,6 +24,7 @@ from functools import cached_property
 
 import boto3
 
+from airflow_breeze.global_constants import PACKAGES_METADATA_EXCLUDE_NAMES
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.parallel import check_async_run_results, run_with_pool
 
@@ -31,7 +32,6 @@ PROVIDER_NAME_FORMAT = "apache-airflow-providers-{}"
 
 NON_SHORT_NAME_PACKAGES = ["docker-stack", "helm-chart", "apache-airflow", "task-sdk"]
 
-PACKAGES_METADATA_EXCLUDE_NAMES = ["docker-stack", "apache-airflow-providers"]
 
 s3_client = boto3.client("s3")
 cloudfront_client = boto3.client("cloudfront")

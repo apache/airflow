@@ -100,15 +100,18 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
     ) -> None:
         super().__init__()
         self.vault_url = vault_url
-        if connections_prefix is not None:
+        self.connections_prefix: str | None
+        if connections_prefix:
             self.connections_prefix = connections_prefix.rstrip(sep)
         else:
             self.connections_prefix = connections_prefix
-        if variables_prefix is not None:
+        self.variables_prefix: str | None
+        if variables_prefix:
             self.variables_prefix = variables_prefix.rstrip(sep)
         else:
             self.variables_prefix = variables_prefix
-        if config_prefix is not None:
+        self.config_prefix: str | None
+        if config_prefix:
             self.config_prefix = config_prefix.rstrip(sep)
         else:
             self.config_prefix = config_prefix

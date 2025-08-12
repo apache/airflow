@@ -55,6 +55,30 @@ INTERVAL = datetime.timedelta(hours=12)
 
 
 class TestHITLOperator:
+    def test_validate_options(self) -> None:
+        hitl_op = HITLOperator(
+            task_id="hitl_test",
+            subject="This is subject",
+            options=["1", "2", "3", "4", "5"],
+            body="This is body",
+            defaults=["1"],
+            multiple=False,
+            params=ParamsDict({"input_1": 1}),
+        )
+        hitl_op.validate_defaults()
+
+    def test_validate_options_with_empty_options(self) -> None:
+        with pytest.raises(ValueError, match='"options" cannot be empty.'):
+            HITLOperator(
+                task_id="hitl_test",
+                subject="This is subject",
+                options=[],
+                body="This is body",
+                defaults=["1"],
+                multiple=False,
+                params=ParamsDict({"input_1": 1}),
+            )
+
     def test_validate_defaults(self) -> None:
         hitl_op = HITLOperator(
             task_id="hitl_test",
