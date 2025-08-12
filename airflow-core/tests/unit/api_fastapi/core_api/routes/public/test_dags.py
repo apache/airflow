@@ -228,7 +228,6 @@ class TestDagEndpoint:
 
         self._create_deactivated_paused_dag(session)
         self._create_dag_tags(session)
-        self._create_asset_test_data(session)
         dag_maker.sync_dagbag_to_db()
         dag_maker.dag_model.has_task_concurrency_limits = True
         session.merge(dag_maker.dag_model)
@@ -245,25 +244,25 @@ class TestGetDags(TestDagEndpoint):
         "query_params, expected_total_entries, expected_ids",
         [
             # Filters
-            ({}, 5, [ASSET_DEP_DAG_ID, ASSET_DEP_DAG2_ID, ASSET_SCHEDULED_DAG_ID, DAG1_ID, DAG2_ID]),
-            ({"limit": 1}, 5, [ASSET_DEP_DAG_ID]),
-            ({"offset": 1}, 5, [ASSET_DEP_DAG2_ID, ASSET_SCHEDULED_DAG_ID, DAG1_ID, DAG2_ID]),
+            ({}, 2, [DAG1_ID, DAG2_ID]),
+            ({"limit": 1}, 2, [DAG1_ID]),
+            ({"offset": 1}, 2, [DAG2_ID]),
             ({"tags": ["example"]}, 1, [DAG1_ID]),
             (
                 {"exclude_stale": False},
-                6,
-                [ASSET_DEP_DAG_ID, ASSET_DEP_DAG2_ID, ASSET_SCHEDULED_DAG_ID, DAG1_ID, DAG2_ID, DAG3_ID],
+                3,
+                [DAG1_ID, DAG2_ID, DAG3_ID],
             ),
             ({"paused": True, "exclude_stale": False}, 1, [DAG3_ID]),
             (
                 {"paused": False},
-                5,
-                [ASSET_DEP_DAG_ID, ASSET_DEP_DAG2_ID, ASSET_SCHEDULED_DAG_ID, DAG1_ID, DAG2_ID],
+                2,
+                [DAG1_ID, DAG2_ID],
             ),
             (
                 {"owners": ["airflow"]},
-                5,
-                [ASSET_DEP_DAG_ID, ASSET_DEP_DAG2_ID, ASSET_SCHEDULED_DAG_ID, DAG1_ID, DAG2_ID],
+                2,
+                [DAG1_ID, DAG2_ID],
             ),
             ({"owners": ["test_owner"], "exclude_stale": False}, 1, [DAG3_ID]),
             ({"last_dag_run_state": "success", "exclude_stale": False}, 1, [DAG3_ID]),
@@ -323,48 +322,48 @@ class TestGetDags(TestDagEndpoint):
             # Sort
             (
                 {"order_by": "-dag_id"},
-                5,
-                [DAG2_ID, DAG1_ID, ASSET_SCHEDULED_DAG_ID, ASSET_DEP_DAG2_ID, ASSET_DEP_DAG_ID],
+                2,
+                [DAG2_ID, DAG1_ID],
             ),
             (
                 {"order_by": "-dag_display_name"},
-                5,
-                [DAG2_ID, ASSET_SCHEDULED_DAG_ID, ASSET_DEP_DAG2_ID, ASSET_DEP_DAG_ID, DAG1_ID],
+                2,
+                [DAG2_ID, DAG1_ID],
             ),
             (
                 {"order_by": "dag_display_name"},
-                5,
-                [DAG1_ID, ASSET_DEP_DAG_ID, ASSET_DEP_DAG2_ID, ASSET_SCHEDULED_DAG_ID, DAG2_ID],
+                2,
+                [DAG1_ID, DAG2_ID],
             ),
             (
                 {"order_by": "next_dagrun", "exclude_stale": False},
-                6,
-                [DAG3_ID, ASSET_DEP_DAG_ID, ASSET_DEP_DAG2_ID, ASSET_SCHEDULED_DAG_ID, DAG1_ID, DAG2_ID],
+                3,
+                [DAG3_ID, DAG1_ID, DAG2_ID],
             ),
             (
                 {"order_by": "last_run_state", "exclude_stale": False},
-                6,
-                [DAG1_ID, DAG3_ID, ASSET_DEP_DAG_ID, ASSET_DEP_DAG2_ID, ASSET_SCHEDULED_DAG_ID, DAG2_ID],
+                3,
+                [DAG1_ID, DAG3_ID, DAG2_ID],
             ),
             (
                 {"order_by": "-last_run_state", "exclude_stale": False},
-                6,
-                [DAG3_ID, DAG1_ID, DAG2_ID, ASSET_SCHEDULED_DAG_ID, ASSET_DEP_DAG2_ID, ASSET_DEP_DAG_ID],
+                3,
+                [DAG3_ID, DAG1_ID, DAG2_ID],
             ),
             (
                 {"order_by": "last_run_start_date", "exclude_stale": False},
-                6,
-                [DAG1_ID, DAG3_ID, ASSET_DEP_DAG_ID, ASSET_DEP_DAG2_ID, ASSET_SCHEDULED_DAG_ID, DAG2_ID],
+                3,
+                [DAG1_ID, DAG3_ID, DAG2_ID],
             ),
             (
                 {"order_by": "-last_run_start_date", "exclude_stale": False},
-                6,
-                [DAG3_ID, DAG1_ID, DAG2_ID, ASSET_SCHEDULED_DAG_ID, ASSET_DEP_DAG2_ID, ASSET_DEP_DAG_ID],
+                3,
+                [DAG3_ID, DAG1_ID, DAG2_ID],
             ),
             (
                 {"order_by": ["next_dagrun", "-dag_display_name"], "exclude_stale": False},
-                6,
-                [DAG3_ID, DAG2_ID, ASSET_SCHEDULED_DAG_ID, ASSET_DEP_DAG2_ID, ASSET_DEP_DAG_ID, DAG1_ID],
+                3,
+                [DAG3_ID, DAG2_ID, DAG1_ID],
             ),
             # Search
             ({"dag_id_pattern": "1"}, 1, [DAG1_ID]),
@@ -372,8 +371,8 @@ class TestGetDags(TestDagEndpoint):
             # Bundle filters
             (
                 {"bundle_name": "dag_maker"},
-                5,
-                [ASSET_DEP_DAG_ID, ASSET_DEP_DAG2_ID, ASSET_SCHEDULED_DAG_ID, DAG1_ID, DAG2_ID],
+                2,
+                [DAG1_ID, DAG2_ID],
             ),
             ({"bundle_name": "wrong_bundle"}, 0, []),
             ({"bundle_version": "1.0.0"}, 0, []),
@@ -389,7 +388,11 @@ class TestGetDags(TestDagEndpoint):
             ({"has_asset_schedule": False, "asset_dependency": "test_asset"}, 0, []),
         ],
     )
-    def test_get_dags(self, test_client, query_params, expected_total_entries, expected_ids):
+    def test_get_dags(self, test_client, query_params, expected_total_entries, expected_ids, session):
+        # Only create asset test data for asset-related tests to avoid affecting other tests
+        if any(param in query_params for param in ["has_asset_schedule", "asset_dependency"]):
+            self._create_asset_test_data(session)
+
         response = test_client.get("/dags", params=query_params)
         assert response.status_code == 200
         body = response.json()
