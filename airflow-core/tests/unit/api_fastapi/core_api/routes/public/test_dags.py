@@ -711,6 +711,26 @@ class TestDagDetails(TestDagEndpoint):
         response = unauthorized_test_client.get(f"/dags/{DAG1_ID}/details")
         assert response.status_code == 403
 
+    def test_dag_details_with_dag_run_timeout(self, test_client):
+        """Verify that dag_run_timeout is serialized as HH:MM:SS."""
+        dag_id = DAG2_ID
+        response = test_client.get(f"/dags/{dag_id}/details", params={})
+        assert response.status_code == 200
+
+        res_json = response.json()
+        dag_run_timeout = res_json["dag_run_timeout"]
+
+        # If a timeout exists, it should be zero-padded HH:MM:SS
+        if dag_run_timeout is not None:
+            assert isinstance(dag_run_timeout, str)
+            assert len(dag_run_timeout) == 8  # Format: HH:MM:SS
+            assert dag_run_timeout.count(":") == 2
+            hh, mm, ss = dag_run_timeout.split(":")
+            assert hh.isdigit() and mm.isdigit() and ss.isdigit()
+        else:
+            # If no timeout is set, it should be None
+            assert dag_run_timeout is None
+
 
 class TestGetDag(TestDagEndpoint):
     """Unit tests for Get DAG."""
