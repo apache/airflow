@@ -21,7 +21,7 @@ import json
 import multiprocessing
 import time
 from queue import Empty, Queue
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from kubernetes import client, watch
 from kubernetes.client.rest import ApiException
@@ -406,7 +406,9 @@ def collect_pod_failure_details(pod: k8s.V1Pod) -> FailureDetails | None:
         }
 
 
-def _analyze_containers(container_statuses: list | None, container_type: str) -> FailureDetails | None:
+def _analyze_containers(
+    container_statuses: list[k8s.V1ContainerStatus] | None, container_type: Literal["init", "main"]
+) -> FailureDetails | None:
     """Analyze container statuses for failure details."""
     if not container_statuses:
         return None
