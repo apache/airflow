@@ -39,9 +39,6 @@ from sqlalchemy import (
     exists,
     func,
     inspect,
-    lateral,
-    literal_column,
-    not_,
     or_,
     select,
     text,
@@ -413,39 +410,50 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     dag_concurrency_subquery, TI.dag_id == dag_concurrency_subquery.c.dag_id, isouter=True
                 ).where(func.coalesce(dag_concurrency_subquery.c.dag_count, 0) < per_dag_limit)
 
-            query = query.options(selectinload(TI.dag_model)).order_by(
-                -TI.priority_weight, DR.logical_date, TI.map_index
-            )
+            query = query.options(selectinload(TI.dag_model))
 
-            # Fair selection will ensure task instances are selected across multiple running DAGs
             if fts_enabled:
                 self.log.info("Scheduler fair selection is enabled")
-
                 per_dag_limit = conf.getint("scheduler", "fair_task_selection_limit_per_dag")
-
                 self.log.info("Scheduler fair selection per dag limit is %d", per_dag_limit)
 
-                _subquery_dm = select(DM.dag_id).where(not_(DM.is_paused)).distinct().subquery()
+                # Create a subquery with row numbers partitioned by dag_id.
+                #
+                # dag_id | task_id | priority_weight | rn
+                # -------|---------|-----------------|----
+                # dag1   | task1   | 100             | 1
+                # dag1   | task22  | 90              | 2
+                # dag1   | task5   | 80              | 3
+                # dag1   | task13  | 70              | 4
+                # dag2   | task3   | 95              | 1
+                # dag2   | task1   | 85              | 2
+                # dag2   | task5   | 75              | 3
+                ranked_query = (
+                    query.add_columns(
+                        func.row_number()
+                        .over(
+                            partition_by=TI.dag_id,
+                            order_by=[-TI.priority_weight, DR.logical_date, TI.map_index],
+                        )
+                        .label("rn")
+                    )
+                ).subquery()
 
-                _subquery_lateral = lateral(
-                    query.where(TI.dag_id == _subquery_dm.c.dag_id).limit(per_dag_limit)
-                ).alias("limited")
-
-                _reduced = (
-                    select(_subquery_dm, _subquery_lateral)
-                    .select_from(_subquery_dm)
-                    .join(_subquery_lateral, literal_column("true"))
-                    .alias("reduced")
+                # Select only rows where row_number <= per_dag_limit.
+                query = (
+                    select(TI)
+                    .select_from(ranked_query)
+                    .join(
+                        TI,
+                        (TI.dag_id == ranked_query.c.dag_id)
+                        & (TI.task_id == ranked_query.c.task_id)
+                        & (TI.run_id == ranked_query.c.run_id)
+                        & (TI.map_index == ranked_query.c.map_index),
+                    )
+                    .where(ranked_query.c.rn <= per_dag_limit)
                 )
-
-                query = select(TI).join(
-                    _reduced,
-                    (TI.dag_id == _reduced.c.dag_id)
-                    & (TI.task_id == _reduced.c.task_id)
-                    & (TI.run_id == _reduced.c.run_id)
-                    & (TI.state == _reduced.c.state)
-                    & (TI.map_index == _reduced.c.map_index),
-                )
+            else:
+                query = query.order_by(-TI.priority_weight, DR.logical_date, TI.map_index)
 
             if starved_pools:
                 query = query.where(TI.pool.not_in(starved_pools))
