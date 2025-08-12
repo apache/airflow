@@ -54,6 +54,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.sdk import BaseHook, BaseOperator
+from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
 from airflow.utils.state import State, TaskInstanceState
@@ -116,7 +117,8 @@ def create_trigger_in_db(session, trigger, operator=None):
     else:
         operator = BaseOperator(task_id="test_ti", dag=dag)
     session.add(dag_model)
-    SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
+
+    SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
     session.add(run)
     session.add(trigger_orm)
     session.flush()
@@ -425,7 +427,7 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder, 
     dag = DAG(dag_id="test-dag")
     dm = DagModel(dag_id="test-dag", bundle_name=bundle_name)
     session.add(dm)
-    SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
+    SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
     dag_run = DagRun(dag.dag_id, run_id="abc", run_type="none", run_after=timezone.utcnow())
     dag_version = DagVersion.get_latest_version(dag.dag_id)
     ti = TaskInstance(

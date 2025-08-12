@@ -23,7 +23,6 @@ from alembic import command
 from sqlalchemy import inspect
 
 from airflow import settings
-from airflow.api_fastapi.app import create_auth_manager
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -145,6 +144,8 @@ class RunDBManager(LoggingMixin):
     """
 
     def __init__(self):
+        from airflow.api_fastapi.app import create_auth_manager
+
         super().__init__()
         self._managers: list[BaseDBManager] = []
         managers_config = conf.get("database", "external_db_managers", fallback=None)
