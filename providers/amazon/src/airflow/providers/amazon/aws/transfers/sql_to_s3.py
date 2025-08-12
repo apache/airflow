@@ -209,6 +209,16 @@ class SqlToS3Operator(BaseOperator):
                     df[col] = np.where(df[col].isnull(), None, df[col])  # type: ignore[call-overload]
                     df[col] = df[col].astype(pd.Float64Dtype())
 
+    @staticmethod
+    def _strip_suffixes(
+        path: str,
+    ) -> str:
+        suffixes = [".json.gz", ".csv.gz", ".json", ".csv", ".parquet"]
+        for suffix in sorted(suffixes, key=len, reverse=True):
+            if path.endswith(suffix):
+                return path[: -len(suffix)]
+        return path
+
     def execute(self, context: Context) -> None:
         sql_hook = self._get_hook()
         s3_conn = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
@@ -224,9 +234,15 @@ class SqlToS3Operator(BaseOperator):
         for group_name, df in self._partition_dataframe(df=data_df):
             buf = io.BytesIO()
             self.log.info("Writing data to in-memory buffer")
-            object_key = f"{self.s3_key}_{group_name}" if group_name else self.s3_key
+            clean_key = self._strip_suffixes(self.s3_key)
+            object_key = (
+                f"{clean_key}_{group_name}{file_options.suffix}"
+                if group_name
+                else f"{clean_key}{file_options.suffix}"
+            )
 
-            if self.df_kwargs.get("compression") == "gzip":
+            if self.file_format != FILE_FORMAT.PARQUET and self.df_kwargs.get("compression") == "gzip":
+                object_key += ".gz"
                 df_kwargs = {k: v for k, v in self.df_kwargs.items() if k != "compression"}
                 with gzip.GzipFile(fileobj=buf, mode="wb", filename=object_key) as gz:
                     getattr(df, file_options.function)(gz, **df_kwargs)
@@ -237,6 +253,7 @@ class SqlToS3Operator(BaseOperator):
                     text_buf = io.TextIOWrapper(buf, encoding="utf-8", write_through=True)
                     getattr(df, file_options.function)(text_buf, **self.df_kwargs)
                     text_buf.flush()
+
             buf.seek(0)
 
             self.log.info("Uploading data to S3")
