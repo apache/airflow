@@ -789,6 +789,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         objects = (log_records.popleft() for _ in range(len(log_records)))
         session.bulk_save_objects(objects=objects, preserve_order=False)
 
+    @staticmethod
+    def _is_metrics_enabled():
+        return any(
+            [
+                conf.getboolean("metrics", "statsd_datadog_enabled", fallback=False),
+                conf.getboolean("metrics", "statsd_on", fallback=False),
+                conf.getboolean("metrics", "otel_on", fallback=False),
+            ]
+        )
+
+    @staticmethod
+    def _is_tracing_enabled():
+        return conf.getboolean("traces", "otel_on")
+
     def _process_executor_events(self, executor: BaseExecutor, session: Session) -> int:
         return SchedulerJobRunner.process_executor_events(
             executor=executor,
@@ -1256,15 +1270,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self._mark_backfills_complete,
         )
 
-        timers.call_regular_interval(
-            conf.getfloat("scheduler", "pool_metrics_interval", fallback=5.0),
-            self._emit_pool_metrics,
-        )
+        if self._is_metrics_enabled() or self._is_tracing_enabled():
+            timers.call_regular_interval(
+                conf.getfloat("scheduler", "pool_metrics_interval", fallback=5.0),
+                self._emit_pool_metrics,
+            )
 
-        timers.call_regular_interval(
-            conf.getfloat("scheduler", "running_metrics_interval", fallback=30.0),
-            self._emit_running_ti_metrics,
-        )
+        if self._is_metrics_enabled():
+            timers.call_regular_interval(
+                conf.getfloat("scheduler", "running_metrics_interval", fallback=30.0),
+                self._emit_running_ti_metrics,
+            )
 
         timers.call_regular_interval(
             conf.getfloat("scheduler", "task_instance_heartbeat_timeout_detection_interval", fallback=10.0),
@@ -1308,7 +1324,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
 
                 with create_session() as session:
-                    self._end_spans_of_externally_ended_ops(session)
+                    if self._is_tracing_enabled():
+                        self._end_spans_of_externally_ended_ops(session)
 
                     # This will schedule for as many executors as possible.
                     num_queued_tis = self._do_scheduling(session)
