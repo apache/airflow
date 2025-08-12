@@ -239,7 +239,8 @@ class TestWatchedSubprocess:
 
             warnings.warn("Warning should be captured too", stacklevel=1)
 
-        line = lineno() - 2  # Line the error should be on
+        log_lineno = lineno() - 4
+        warning_lineno = lineno() - 3
 
         instant = timezone.datetime(2024, 11, 7, 12, 34, 56, 78901)
         time_machine.move_to(instant, tick=False)
@@ -288,6 +289,8 @@ class TestWatchedSubprocess:
                 {
                     "event": "An error message",
                     "level": "error",
+                    "filename": __file__,
+                    "lineno": log_lineno,
                     "logger": "airflow.foobar",
                     "timestamp": instant.replace(tzinfo=None),
                 },
@@ -296,7 +299,7 @@ class TestWatchedSubprocess:
                     "event": "Warning should be captured too",
                     "filename": __file__,
                     "level": "warning",
-                    "lineno": line,
+                    "lineno": warning_lineno,
                     "logger": "py.warnings",
                     "timestamp": instant.replace(tzinfo=None),
                 },
@@ -317,6 +320,7 @@ class TestWatchedSubprocess:
             logging.root.info("Log on old socket")
             json.dump({"level": "info", "event": "Log on new socket"}, fp=fd)
 
+        log_lineno = lineno() - 3
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
@@ -338,7 +342,14 @@ class TestWatchedSubprocess:
         assert captured_logs == unordered(
             [
                 {"event": "Log on new socket", "level": "info", "logger": "task", "timestamp": mock.ANY},
-                {"event": "Log on old socket", "level": "info", "logger": "root", "timestamp": mock.ANY},
+                {
+                    "event": "Log on old socket",
+                    "level": "info",
+                    "logger": "root",
+                    "timestamp": mock.ANY,
+                    "filename": __file__,
+                    "lineno": log_lineno,
+                },
             ]
         )
 

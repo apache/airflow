@@ -119,6 +119,14 @@ def drop_positional_args(logger: Any, method_name: Any, event_dict: EventDict) -
     return event_dict
 
 
+def add_callsite_parameter(logger: Any, method_name: Any, event_dict: EventDict) -> EventDict:
+    record = event_dict.get("_record", None)
+    if record:
+        event_dict["filename"] = record.__dict__["pathname"]
+        event_dict["lineno"] = record.__dict__["lineno"]
+    return event_dict
+
+
 class StdBinaryStreamHandler(logging.StreamHandler):
     """A logging.StreamHandler that sends logs as binary JSON over the given stream."""
 
@@ -315,6 +323,7 @@ def configure_logging(
         drop_positional_args,
     ]
     std_lib_formatter: list[structlog.typing.Processor] = [
+        add_callsite_parameter,
         structlog.stdlib.ProcessorFormatter.remove_processors_meta,
         drop_positional_args,
     ]
