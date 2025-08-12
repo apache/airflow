@@ -3423,7 +3423,7 @@ class TestSchedulerJob:
         session = settings.Session()
         orm_dag = dag_maker.dag_model
         assert orm_dag is not None
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
@@ -3465,7 +3465,7 @@ class TestSchedulerJob:
                 SerializedDagModel.dag_id == "test_verify_integrity_if_dag_changed"
             ).delete(synchronize_session=False)
 
-        with dag_maker(dag_id="test_verify_integrity_if_dag_changed") as dag:
+        with dag_maker(dag_id="test_verify_integrity_if_dag_changed", serialized=False) as dag:
             BashOperator(task_id="dummy", bash_command="echo hi")
 
         scheduler_job = Job()
@@ -5756,7 +5756,7 @@ class TestSchedulerJob:
         """
         Test if a task instance will be added if the dag is updated
         """
-        with dag_maker(dag_id="test_scheduler_add_new_task") as dag:
+        with dag_maker(dag_id="test_scheduler_add_new_task", serialized=False) as dag:
             BashOperator(task_id="dummy", bash_command="echo test")
 
         scheduler_job = Job()
