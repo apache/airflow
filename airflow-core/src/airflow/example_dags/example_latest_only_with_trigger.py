@@ -29,7 +29,12 @@ import pendulum
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.latest_only import LatestOnlyOperator
 from airflow.sdk import DAG
-from airflow.sdk.api.datamodels._generated import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 with DAG(
     dag_id="latest_only_with_trigger",

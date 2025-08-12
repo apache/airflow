@@ -49,7 +49,7 @@ from airflow.exceptions import (
     RemovedInAirflow4Warning,
     TaskNotFound,
 )
-from airflow.sdk.api.datamodels._generated import TriggerRule
+from airflow.sdk import TriggerRule
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions._internal.node import validate_key
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet

@@ -40,6 +40,7 @@ __all__ = [
     "Param",
     "PokeReturnValue",
     "TaskGroup",
+    "TriggerRule",
     "Variable",
     "XComArg",
     "asset",
@@ -59,6 +60,7 @@ __all__ = [
 __version__ = "1.1.0"
 
 if TYPE_CHECKING:
+    from airflow.sdk.api.datamodels._generated import TriggerRule
     from airflow.sdk.bases.hook import BaseHook
     from airflow.sdk.bases.notifier import BaseNotifier
     from airflow.sdk.bases.operator import BaseOperator, chain, chain_linear, cross_downstream
@@ -102,6 +104,7 @@ __lazy_imports: dict[str, str] = {
     "PokeReturnValue": ".bases.sensor",
     "SecretCache": ".execution_time.cache",
     "TaskGroup": ".definitions.taskgroup",
+    "TriggerRule": ".api.datamodels._generated",
     "Variable": ".definitions.variable",
     "XComArg": ".definitions.xcom_arg",
     "asset": ".definitions.asset.decorators",

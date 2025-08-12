@@ -65,7 +65,7 @@ except ImportError:
 
 
 try:
-    from airflow.sdk.api.datamodels._generated import TriggerRule
+    from airflow.sdk import TriggerRule
 except ImportError:
     # Compatibility for Airflow < 3.1
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
