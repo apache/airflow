@@ -32,7 +32,7 @@ from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import and_, delete, desc, exists, func, or_, select, text, tuple_, update
+from sqlalchemy import and_, case, delete, desc, exists, func, or_, select, text, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
@@ -289,7 +289,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.info("\n\t".join(map(repr, callstack)))
             self.log.info("-" * 80)
 
-    def _executable_task_instances_to_queued(self, max_tis: int, session: Session) -> list[TI]:
+    def _executable_task_instances_to_queued(
+        self, max_tis: int, session: Session
+    ) -> tuple[Iterable[int], list[TI]]:
         """
         Find TIs that are ready for execution based on conditions.
 
@@ -334,7 +336,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         if pool_slots_free == 0:
             self.log.debug("All pools are full!")
-            return []
+            return [], []
 
         max_tis = min(max_tis, pool_slots_free)
 
@@ -353,7 +355,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .where(DM.bundle_name.is_not(None))
             .options(selectinload(TI.dag_model))
             .order_by(
-                nulls_first(TI.last_queueing_decision.asc(), session=session),
+                nulls_first(
+                    case(
+                        (  # max deprioritization is 2 minutes
+                            DR.last_queueing_decision < timezone.utcnow() - timedelta(seconds=120),
+                            None,
+                        ),
+                        else_=DR.last_queueing_decision,
+                    ).asc(),
+                    session=session,
+                ),
                 -TI.priority_weight,
                 DR.logical_date,
                 TI.map_index,
@@ -361,7 +372,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
         query = query.limit(max_tis)
-
         timer = Stats.timer("scheduler.critical_section_query_duration")
         timer.start()
 
@@ -373,13 +383,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         except OperationalError as e:
             timer.stop(send=False)
             raise e
+        dr_ids = set()
+        for ti in task_instances_to_examine:
+            dr_ids.add(ti.dag_run.id)
 
         # TODO[HA]: This was wrong before anyway, as it only looked at a sub-set of dags, not everything.
         # Stats.gauge('scheduler.tasks.pending', len(task_instances_to_examine))
 
         if not task_instances_to_examine:
             self.log.debug("No tasks to consider for execution.")
-            return []
+            return [], []
 
         # Put one task instance on each line
         task_instance_str = "\n".join(f"\t{x!r}" for x in task_instances_to_examine)
@@ -543,10 +556,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         Stats.gauge("scheduler.tasks.executable", len(executable_tis))
 
-        non_scheduled_tis = [x for x in task_instances_to_examine if x not in executable_tis]
-        for ti in non_scheduled_tis:
-            ti.last_queueing_decision = timezone.utcnow()
-
         if executable_tis:
             task_instance_str = "\n".join(f"\t{x!r}" for x in executable_tis)
             self.log.info("Setting the following tasks to queued state:\n%s", task_instance_str)
@@ -571,7 +580,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         for ti in executable_tis:
             make_transient(ti)
-        return executable_tis
+        return dr_ids, executable_tis
 
     def _enqueue_task_instances_with_queued_state(
         self, task_instances: list[TI], executor: BaseExecutor, session: Session
@@ -592,7 +601,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             workload = workloads.ExecuteTask.make(ti, generator=executor.jwt_generator)
             executor.queue_workload(workload, session=session)
 
-    def _critical_section_enqueue_task_instances(self, session: Session) -> int:
+    def _critical_section_enqueue_task_instances(self, session: Session) -> tuple[Iterable[int], int]:
         """
         Enqueues TaskInstances for execution.
 
@@ -627,9 +636,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             max_tis = min(self.job.max_tis_per_query, parallelism - num_occupied_slots)
         if max_tis <= 0:
             self.log.debug("max_tis query size is less than or equal to zero. No query will be performed!")
-            return 0
+            return [], 0
 
-        queued_tis = self._executable_task_instances_to_queued(max_tis, session=session)
+        dr_ids_seen, queued_tis = self._executable_task_instances_to_queued(max_tis, session=session)
 
         # Sort queued TIs to their respective executor
         executor_to_queued_tis = self._executor_to_tis(queued_tis)
@@ -642,7 +651,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             self._enqueue_task_instances_with_queued_state(queued_tis_per_executor, executor, session=session)
 
-        return len(queued_tis)
+        return dr_ids_seen, len(queued_tis)
 
     @staticmethod
     def _process_task_event_logs(log_records: deque[Log], session: Session):
@@ -1311,7 +1320,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     timer.start()
 
                     # Find any TIs in state SCHEDULED, try to QUEUE them (send it to the executors)
-                    num_queued_tis = self._critical_section_enqueue_task_instances(session=session)
+                    seen_dr_ids, num_queued_tis = self._critical_section_enqueue_task_instances(
+                        session=session
+                    )
 
                     # Make sure we only sent this metric if we obtained the lock, otherwise we'll skew the
                     # metric, way down
@@ -1327,7 +1338,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     raise
 
             guard.commit()
-
+        if seen_dr_ids:
+            stmt = (
+                update(DagRun)
+                .where(DagRun.id.in_(seen_dr_ids))  # ids is a Python list or tuple
+                .values(last_queueing_decision=func.current_timestamp())
+                .execution_options(synchronize_session=False)
+            )
+            session.execute(stmt)
+            session.commit()
         return num_queued_tis
 
     @retry_db_transaction
