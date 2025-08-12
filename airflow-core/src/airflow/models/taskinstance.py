@@ -367,7 +367,7 @@ def _get_email_subject_content(
 
     else:
         from airflow.sdk.definitions._internal.templater import SandboxedEnvironment
-        from airflow.utils.context import context_merge
+        from airflow.sdk.definitions.context import Context
 
         if TYPE_CHECKING:
             assert task_instance.task
@@ -381,7 +381,10 @@ def _get_email_subject_content(
         else:
             jinja_env = SandboxedEnvironment(cache_size=0)
         jinja_context = task_instance.get_template_context()
-        context_merge(jinja_context, additional_context)
+        if not jinja_context:
+            jinja_context = Context()
+        # Add additional fields to the context for email template rendering
+        jinja_context.update(additional_context)  # type: ignore[typeddict-item]
 
         def render(key: str, content: str) -> str:
             if conf.has_option("email", key):
@@ -524,7 +527,8 @@ class TaskInstance(Base, LoggingMixin):
 
     _task_display_property_value = Column("task_display_name", String(2000), nullable=True)
     dag_version_id = Column(
-        UUIDType(binary=False), ForeignKey("dag_version.id", ondelete="RESTRICT"), nullable=False
+        UUIDType(binary=False),
+        ForeignKey("dag_version.id", ondelete="RESTRICT"),
     )
     dag_version = relationship("DagVersion", back_populates="task_instances")
 

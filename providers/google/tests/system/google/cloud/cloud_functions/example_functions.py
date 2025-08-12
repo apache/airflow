@@ -80,6 +80,7 @@ else:
 
 with DAG(
     DAG_ID,
+    schedule="@once",
     default_args=default_args,
     start_date=datetime(2021, 1, 1),
     catchup=False,
