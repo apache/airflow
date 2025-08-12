@@ -47,8 +47,8 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun, DagRunType
     from airflow.models.taskinstance import TaskInstance
     from airflow.providers.standard.operators.empty import EmptyOperator
-    from airflow.sdk import Context
-    from airflow.sdk.api.datamodels._generated import TaskInstanceState as TIState, TriggerRule
+    from airflow.sdk import Context, TriggerRule
+    from airflow.sdk.api.datamodels._generated import TaskInstanceState as TIState
     from airflow.sdk.bases.operator import BaseOperator as TaskSDKBaseOperator
     from airflow.sdk.execution_time.comms import StartupDetails, ToSupervisor
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance

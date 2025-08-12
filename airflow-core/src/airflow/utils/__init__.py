@@ -45,6 +45,7 @@ __deprecated_classes = {
     "timeout": {
         "timeout": "airflow.sdk.execution_time.timeout.timeout",
     },
+    "trigger_rule": {"*": "airflow.task.trigger_rule"},
     "operator_resources": {
         "*": "airflow.sdk.definitions.operator_resources",
     },
@@ -53,9 +54,6 @@ __deprecated_classes = {
         "DB_SAFE_MINIMUM": "airflow.sdk.bases.operator.DB_SAFE_MINIMUM",
         "DB_SAFE_MAXIMUM": "airflow.sdk.bases.operator.DB_SAFE_MAXIMUM",
         "db_safe_priority": "airflow.sdk.bases.operator.db_safe_priority",
-    },
-    "trigger_rule": {
-        "TriggerRule": "airflow.sdk.definitions.trigger_rule.TriggerRule",
     },
 }
 
