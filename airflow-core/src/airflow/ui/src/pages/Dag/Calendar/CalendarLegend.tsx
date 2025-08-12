@@ -60,7 +60,7 @@ const spectrumLegendData = [
 
 const stateLegendData = [
   { color: "blue.400", labelKey: "common:states.running" },
-  { color: "scheduled.200", labelKey: "common:states.planned" },
+  { color: { _dark: "scheduled.600", _light: "scheduled.200" }, labelKey: "common:states.planned" },
   { color: "queued.600", labelKey: "common:states.queued" },
   { color: { _dark: "gray.400", _light: "gray.100" }, labelKey: "common:states.no_status" },
 ];

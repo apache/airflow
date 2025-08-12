@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Text, IconButton, Button } from "@chakra-ui/react";
+import { Box, HStack, Text, IconButton, Button, ButtonGroup } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
 import dayjs from "dayjs";
 import { useState, useMemo } from "react";
@@ -100,13 +100,17 @@ export const Calendar = () => {
                 <FiChevronLeft />
               </IconButton>
               <Text
-                _hover={{ textDecoration: "underline" }}
+                _hover={selectedDate.year() === currentDate.year() ? {} : { textDecoration: "underline" }}
                 color={selectedDate.year() === currentDate.year() ? "fg.info" : "inherit"}
-                cursor="pointer"
+                cursor={selectedDate.year() === currentDate.year() ? "default" : "pointer"}
                 fontSize="xl"
                 fontWeight="bold"
                 minWidth="120px"
-                onClick={() => setSelectedDate(currentDate.startOf("year"))}
+                onClick={() => {
+                  if (selectedDate.year() !== currentDate.year()) {
+                    setSelectedDate(currentDate.startOf("year"));
+                  }
+                }}
                 textAlign="center"
               >
                 {selectedDate.year()}
@@ -131,17 +135,31 @@ export const Calendar = () => {
                 <FiChevronLeft />
               </IconButton>
               <Text
-                _hover={{ textDecoration: "underline" }}
+                _hover={
+                  selectedDate.isSame(currentDate, "month") && selectedDate.isSame(currentDate, "year")
+                    ? {}
+                    : { textDecoration: "underline" }
+                }
                 color={
                   selectedDate.isSame(currentDate, "month") && selectedDate.isSame(currentDate, "year")
                     ? "fg.info"
                     : "inherit"
                 }
-                cursor="pointer"
+                cursor={
+                  selectedDate.isSame(currentDate, "month") && selectedDate.isSame(currentDate, "year")
+                    ? "default"
+                    : "pointer"
+                }
                 fontSize="xl"
                 fontWeight="bold"
                 minWidth="120px"
-                onClick={() => setSelectedDate(currentDate.startOf("month"))}
+                onClick={() => {
+                  if (
+                    !(selectedDate.isSame(currentDate, "month") && selectedDate.isSame(currentDate, "year"))
+                  ) {
+                    setSelectedDate(currentDate.startOf("month"));
+                  }
+                }}
                 textAlign="center"
               >
                 {selectedDate.format("MMM YYYY")}
@@ -157,24 +175,22 @@ export const Calendar = () => {
             </HStack>
           )}
 
-          <HStack gap={0}>
+          <ButtonGroup attached size="sm" variant="outline">
             <Button
-              colorScheme="blue"
+              colorPalette="blue"
               onClick={() => setGranularity("daily")}
-              size="sm"
               variant={granularity === "daily" ? "solid" : "outline"}
             >
               {translate("calendar.daily")}
             </Button>
             <Button
-              colorScheme="blue"
+              colorPalette="blue"
               onClick={() => setGranularity("hourly")}
-              size="sm"
               variant={granularity === "hourly" ? "solid" : "outline"}
             >
               {translate("calendar.hourly")}
             </Button>
-          </HStack>
+          </ButtonGroup>
         </HStack>
 
         <HStack gap={2}>

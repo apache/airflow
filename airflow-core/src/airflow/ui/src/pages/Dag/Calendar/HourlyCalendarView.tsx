@@ -79,7 +79,7 @@ export const HourlyCalendarView = ({ cellSize, data, selectedMonth, selectedYear
                 >
                   {Boolean(isFirstOfWeek) && (
                     <Text
-                      color="fg.info"
+                      color="fg.muted"
                       fontSize="sm"
                       fontWeight="bold"
                       left="0"

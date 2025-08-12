@@ -84,7 +84,10 @@ export const calculateRunCounts = (runs: Array<CalendarTimeRangeResponse>): RunC
 const PRIORITY_STATE_RULES = [
   { color: "queued.600", condition: (counts: RunCounts) => counts.queued > 0 },
   { color: "blue.400", condition: (counts: RunCounts) => counts.running > 0 },
-  { color: "scheduled.200", condition: (counts: RunCounts) => counts.planned > 0 },
+  {
+    color: { _dark: "scheduled.600", _light: "scheduled.200" },
+    condition: (counts: RunCounts) => counts.planned > 0,
+  },
 ] as const;
 
 const SUCCESS_RATE_RULES = [
@@ -95,7 +98,9 @@ const SUCCESS_RATE_RULES = [
   { color: "upstream_failed.500", threshold: 0.2 },
 ] as const;
 
-export const getCalendarCellColor = (runs: Array<CalendarTimeRangeResponse>): string => {
+export const getCalendarCellColor = (
+  runs: Array<CalendarTimeRangeResponse>,
+): string | { _dark: string; _light: string } => {
   if (runs.length === 0) {
     return "bg.muted";
   }
