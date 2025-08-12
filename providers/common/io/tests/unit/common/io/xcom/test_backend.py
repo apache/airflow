@@ -28,11 +28,11 @@ from airflow.utils import timezone
 
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, XCOM_RETURN_KEY
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, XCOM_RETURN_KEY
 
 pytestmark = [pytest.mark.db_test]
 
-if AIRFLOW_V_3_0_PLUS:
+if AIRFLOW_V_3_1_PLUS:
     from airflow.models.xcom import XComModel
     from airflow.sdk import ObjectStoragePath
     from airflow.sdk.execution_time.comms import XComResult
@@ -104,7 +104,7 @@ class TestXComObjectStorageBackend:
             run_id=task_instance.run_id,
         )
 
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_1_PLUS:
             # When using XComObjectStorageBackend, the value is stored in the db is serialized with json dumps
             # so we need to mimic that same behavior below.
             mock_supervisor_comms.send.return_value = XComResult(key="return_value", value={"key": "value"})
@@ -129,7 +129,7 @@ class TestXComObjectStorageBackend:
             run_id=task_instance.run_id,
         )
 
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_1_PLUS:
             XComModel.set(
                 key=XCOM_RETURN_KEY,
                 value=self.path,
@@ -165,7 +165,7 @@ class TestXComObjectStorageBackend:
         p = XComObjectStorageBackend._get_full_path(data)
         assert p.exists() is True
 
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_1_PLUS:
             mock_supervisor_comms.send.return_value = XComResult(
                 key=XCOM_RETURN_KEY, value={"key": "bigvaluebigvaluebigvalue" * 100}
             )
@@ -176,7 +176,7 @@ class TestXComObjectStorageBackend:
         )
         assert value == {"key": "bigvaluebigvaluebigvalue" * 100}
 
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_1_PLUS:
             qry = XComModel.get_many(
                 key=XCOM_RETURN_KEY,
                 dag_ids=task_instance.dag_id,
@@ -211,7 +211,7 @@ class TestXComObjectStorageBackend:
             run_id=task_instance.run_id,
         )
 
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_1_PLUS:
             if hasattr(mock_supervisor_comms, "send_request"):
                 # Back-compat of task-sdk. Only affects us when we manually create these objects in tests.
                 last_call = mock_supervisor_comms.send_request.call_args_list[-1]
@@ -252,7 +252,7 @@ class TestXComObjectStorageBackend:
         p = XComObjectStorageBackend._get_full_path(data)
         assert p.exists() is True
 
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_1_PLUS:
             mock_supervisor_comms.send.return_value = XComResult(
                 key=XCOM_RETURN_KEY, value={"key": "superlargevalue" * 100}
             )
@@ -262,7 +262,7 @@ class TestXComObjectStorageBackend:
         )
         assert value
 
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_1_PLUS:
             mock_supervisor_comms.send.return_value = XComResult(key=XCOM_RETURN_KEY, value=path)
             XCom.delete(
                 dag_id=task_instance.dag_id,
@@ -318,7 +318,7 @@ class TestXComObjectStorageBackend:
             run_id=task_instance.run_id,
         )
 
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_1_PLUS:
             XComModel.set(
                 key=XCOM_RETURN_KEY,
                 value=self.path + ".gz",
@@ -353,7 +353,7 @@ class TestXComObjectStorageBackend:
 
         assert data.endswith(".gz")
 
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_1_PLUS:
             mock_supervisor_comms.send.return_value = XComResult(
                 key=XCOM_RETURN_KEY, value={"key": "superlargevalue" * 100}
             )
