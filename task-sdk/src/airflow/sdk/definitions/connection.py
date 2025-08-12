@@ -126,7 +126,7 @@ class Connection:
     def get_hook(self, *, hook_params=None):
         """Return hook based on conn_type."""
         from airflow.providers_manager import ProvidersManager
-        from airflow.utils.module_loading import import_string
+        from airflow.sdk.module_loading import import_string
 
         hook = ProvidersManager().hooks.get(self.conn_type, None)
 

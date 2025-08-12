@@ -28,8 +28,8 @@ from airflow.sdk.definitions.deadline import (
     DeadlineReference,
     SyncCallback,
 )
+from airflow.sdk.module_loading import qualname
 from airflow.serialization.serde import deserialize, serialize
-from airflow.utils.module_loading import qualname
 
 UNIMPORTABLE_DOT_PATH = "valid.but.nonexistent.path"
 
