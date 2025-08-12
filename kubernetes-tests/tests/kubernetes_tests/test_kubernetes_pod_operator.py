@@ -1456,6 +1456,15 @@ def test_hide_sensitive_field_in_templated_fields_on_error(caplog, monkeypatch):
 
 
 class TestKubernetesPodOperator(BaseK8STest):
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        """Create kubernetes_default connection"""
+        connection = Connection(
+            conn_id="kubernetes_default",
+            conn_type="kubernetes",
+        )
+        create_connection_without_db(connection)
+
     @pytest.mark.parametrize(
         "active_deadline_seconds,should_fail",
         [(3, True), (60, False)],
