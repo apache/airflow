@@ -39,6 +39,11 @@
     "viewInExternal": "在 {{name}} 中檢視日誌(嘗試 {{attempt}})",
     "warning": "WARNING"
   },
+  "navigation": {
+    "jump": "跳躍: Shift+{{arrow}}",
+    "navigation": "導航: {{arrow}}",
+    "toggleGroup": "展開/收合群組: 空白鍵"
+  },
   "overview": {
     "buttons": {
       "failedRun_one": "失敗的執行",

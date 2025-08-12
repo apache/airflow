@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-openlineage``
 
-Release: ``2.6.0``
+Release: ``2.6.1``
 
 Release Date: ``|PypiReleaseDate|``
 
@@ -37,7 +37,7 @@ This is a provider package for ``openlineage`` provider. All classes for this pr
 are in ``airflow.providers.openlineage`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.6.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.6.1/>`_.
 
 Installation
 ------------
@@ -83,4 +83,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.6.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.6.1/changelog.html>`_.

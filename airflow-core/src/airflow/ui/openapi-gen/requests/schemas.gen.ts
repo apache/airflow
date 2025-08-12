@@ -2912,6 +2912,10 @@ export const $DagStatsResponse = {
             type: 'string',
             title: 'Dag Id'
         },
+        dag_display_name: {
+            type: 'string',
+            title: 'Dag Display Name'
+        },
         stats: {
             items: {
                 '$ref': '#/components/schemas/DagStatsStateResponse'
@@ -2921,7 +2925,7 @@ export const $DagStatsResponse = {
         }
     },
     type: 'object',
-    required: ['dag_id', 'stats'],
+    required: ['dag_id', 'dag_display_name', 'stats'],
     title: 'DagStatsResponse',
     description: 'DAG Stats serializer for responses.'
 } as const;
@@ -5710,8 +5714,15 @@ export const $TriggerDAGRunPostBody = {
             title: 'Run After'
         },
         conf: {
-            additionalProperties: true,
-            type: 'object',
+            anyOf: [
+                {
+                    additionalProperties: true,
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Conf'
         },
         note: {

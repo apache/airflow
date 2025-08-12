@@ -28,6 +28,7 @@ export enum SearchParamsKeys {
   OWNERS = "owners",
   PAUSED = "paused",
   POOL = "pool",
+  RESPONSE_RECEIVED = "response_received",
   RUN_ID_PATTERN = "run_id_pattern",
   RUN_TYPE = "run_type",
   SORT = "sort",
