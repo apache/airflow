@@ -38,12 +38,11 @@ def _prune_dict(val: Any, mode="strict"):
     then only ``None`` elements will be removed.  If mode is ``truthy``, then element ``x``
     will be removed if ``bool(x) is False``.
     """
-
-    def is_empty(x):
-        if mode == "strict":
-            return x is None
-        if mode == "truthy":
-            return bool(x) is False
+    if mode == "strict":
+        is_empty = lambda x: x is None
+    elif mode == "truthy":
+        is_empty = lambda x: not bool(x)
+    else:
         raise ValueError("allowable values for `mode` include 'truthy' and 'strict'")
 
     if isinstance(val, dict):
