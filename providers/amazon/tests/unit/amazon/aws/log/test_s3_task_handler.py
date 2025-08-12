@@ -28,16 +28,20 @@ from botocore.exceptions import ClientError
 from moto import mock_aws
 
 from airflow.models import DAG, DagRun, TaskInstance
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.log.s3_task_handler import S3TaskHandler
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import State, TaskInstanceState
-from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+try:
+    from airflow.sdk.timezone import datetime
+except ImportError:
+    from airflow.utils.timezone import datetime  # type: ignore[attr-defined,no-redef]
 
 
 @pytest.fixture(autouse=True)
@@ -71,9 +75,7 @@ class TestS3RemoteLogIO:
         self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
         task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
         if AIRFLOW_V_3_0_PLUS:
-            bundle_name = "testing"
-            DAG.bulk_write_to_db(bundle_name, None, [self.dag])
-            SerializedDagModel.write_dag(self.dag, bundle_name=bundle_name)
+            scheduler_dag = sync_dag_to_db(self.dag)
             dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 logical_date=date,
@@ -81,6 +83,7 @@ class TestS3RemoteLogIO:
                 run_type="manual",
             )
         else:
+            scheduler_dag = self.dag
             dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 execution_date=date,
@@ -107,7 +110,7 @@ class TestS3RemoteLogIO:
         self.conn.create_bucket(Bucket="bucket")
         yield
 
-        self.dag.clear()
+        scheduler_dag.clear()
 
         self.clear_db()
         if self.s3_task_handler.handler:
@@ -204,9 +207,7 @@ class TestS3TaskHandler:
         self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
         task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
         if AIRFLOW_V_3_0_PLUS:
-            bundle_name = "testing"
-            DAG.bulk_write_to_db(bundle_name, None, [self.dag])
-            SerializedDagModel.write_dag(self.dag, bundle_name=bundle_name)
+            scheduler_dag = sync_dag_to_db(self.dag)
             dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 logical_date=date,
@@ -214,6 +215,7 @@ class TestS3TaskHandler:
                 run_type="manual",
             )
         else:
+            scheduler_dag = self.dag
             dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 execution_date=date,
@@ -240,7 +242,7 @@ class TestS3TaskHandler:
         self.conn.create_bucket(Bucket="bucket")
         yield
 
-        self.dag.clear()
+        scheduler_dag.clear()
 
         self.clear_db()
         if self.s3_task_handler.handler:

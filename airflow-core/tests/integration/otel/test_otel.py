@@ -24,6 +24,7 @@ import subprocess
 import time
 
 import pytest
+from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
 from airflow.dag_processing.bundles.manager import DagBundlesManager
@@ -32,6 +33,7 @@ from airflow.executors.executor_utils import ExecutorName
 from airflow.models import DAG, DagBag, DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
+from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.session import create_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import State
@@ -646,7 +648,7 @@ class TestOtelIntegration:
         cls.dags = cls.serialize_and_get_dags()
 
     @classmethod
-    def serialize_and_get_dags(cls) -> dict[str, DAG]:
+    def serialize_and_get_dags(cls) -> dict[str, SerializedDAG]:
         log.info("Serializing Dags from directory %s", cls.dag_folder)
         # Load DAGs from the dag directory.
         dag_bag = DagBag(dag_folder=cls.dag_folder, include_examples=False)
@@ -654,10 +656,10 @@ class TestOtelIntegration:
         dag_ids = dag_bag.dag_ids
         assert len(dag_ids) == 3
 
-        dag_dict: dict[str, DAG] = {}
+        dag_dict: dict[str, SerializedDAG] = {}
         with create_session() as session:
             for dag_id in dag_ids:
-                dag = dag_bag.get_dag(dag_id)
+                dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag_bag.get_dag(dag_id)))
                 dag_dict[dag_id] = dag
 
                 assert dag is not None, f"DAG with ID {dag_id} not found."
@@ -669,7 +671,7 @@ class TestOtelIntegration:
                     if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
                         session.add(DagBundleModel(name="testing"))
                         session.commit()
-                    dag.bulk_write_to_db(
+                    SerializedDAG.bulk_write_to_db(
                         bundle_name="testing", bundle_version=None, dags=[dag], session=session
                     )
                 else:
@@ -744,13 +746,12 @@ class TestOtelIntegration:
             time.sleep(10)
 
             with create_session() as session:
-                tis: list[TaskInstance] = dag.get_task_instances(session=session)
-
-            for ti in tis:
-                # Skip the span_status check.
-                check_ti_state_and_span_status(
-                    task_id=ti.task_id, run_id=run_id, state=State.SUCCESS, span_status=None
-                )
+                task_ids = session.scalars(select(TaskInstance.task_id).where(TaskInstance.dag_id == dag_id))
+                for task_id in task_ids:
+                    # Skip the span_status check.
+                    check_ti_state_and_span_status(
+                        task_id=task_id, run_id=run_id, state=State.SUCCESS, span_status=None
+                    )
 
             print_ti_output_for_dag_run(dag_id=dag_id, run_id=run_id)
         finally:
@@ -818,12 +819,10 @@ class TestOtelIntegration:
             time.sleep(10)
 
             with create_session() as session:
-                tis: list[TaskInstance] = dag.get_task_instances(session=session)
-
-            for ti in tis:
-                check_ti_state_and_span_status(
-                    task_id=ti.task_id, run_id=run_id, state=State.SUCCESS, span_status=SpanStatus.ENDED
-                )
+                for ti in session.scalars(select(TaskInstance).where(TaskInstance.dag_id == dag.dag_id)):
+                    check_ti_state_and_span_status(
+                        task_id=ti.task_id, run_id=run_id, state=State.SUCCESS, span_status=SpanStatus.ENDED
+                    )
 
             print_ti_output_for_dag_run(dag_id=dag_id, run_id=run_id)
         finally:

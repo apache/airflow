@@ -48,7 +48,9 @@ from airflow.exceptions import (
     AirflowDagDuplicatedIdException,
     AirflowException,
     AirflowTaskTimeout,
+    UnknownExecutorException,
 )
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base, StringID
 from airflow.models.dag_version import DagVersion
@@ -73,10 +75,11 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from airflow import DAG
     from airflow.models import DagRun
-    from airflow.models.dag import DAG
     from airflow.models.dagwarning import DagWarning
     from airflow.models.serialized_dag import SerializedDagModel
+    from airflow.serialization.serialized_objects import SerializedDAG
     from airflow.utils.types import ArgNotSet
 
 
@@ -141,6 +144,20 @@ def timeout(seconds=1, error_message="Timeout"):
     finally:
         with contextlib.suppress(ValueError):
             signal.setitimer(signal.ITIMER_REAL, 0)
+
+
+def _validate_executor_fields(dag: DAG) -> None:
+    for task in dag.tasks:
+        if not task.executor:
+            continue
+        try:
+            ExecutorLoader.lookup_executor_name_by_str(task.executor)
+        except UnknownExecutorException:
+            raise UnknownExecutorException(
+                f"The specified executor {task.executor} for task {task.task_id} is not "
+                "configured. Review the core.executors Airflow configuration to add it or "
+                "update the executor configuration for this task."
+            )
 
 
 class DagBag(LoggingMixin):
@@ -475,11 +492,10 @@ class DagBag(LoggingMixin):
         return mods
 
     def _process_modules(self, filepath, mods, file_last_changed_on_disk):
-        from airflow.models.dag import DAG  # Avoid circular import
-        from airflow.sdk import DAG as SDKDAG
+        from airflow.sdk import DAG
         from airflow.sdk.definitions._internal.contextmanager import DagContext
 
-        top_level_dags = {(o, m) for m in mods for o in m.__dict__.values() if isinstance(o, (DAG, SDKDAG))}
+        top_level_dags = {(o, m) for m in mods for o in m.__dict__.values() if isinstance(o, DAG)}
 
         top_level_dags.update(DagContext.autoregistered_dags)
 
@@ -494,6 +510,7 @@ class DagBag(LoggingMixin):
             dag.relative_fileloc = relative_fileloc
             try:
                 dag.validate()
+                _validate_executor_fields(dag)
                 self.bag_dag(dag=dag)
             except AirflowClusterPolicySkipDag:
                 pass
@@ -642,14 +659,11 @@ def sync_bag_to_db(
     session: Session = NEW_SESSION,
 ) -> None:
     """Save attributes about list of DAG to the DB."""
-    import airflow.models.dag
     from airflow.dag_processing.collection import update_dag_parsing_results_in_db
     from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 
     dags = [
-        dag
-        if isinstance(dag, airflow.models.dag.DAG)
-        else LazyDeserializedDAG(data=SerializedDAG.to_dict(dag))
+        dag if isinstance(dag, SerializedDAG) else LazyDeserializedDAG(data=SerializedDAG.to_dict(dag))
         for dag in dagbag.dags.values()
     ]
     import_errors = {(bundle_name, rel_path): error for rel_path, error in dagbag.import_errors.items()}
@@ -671,17 +685,17 @@ class DBDagBag:
     :meta private:
     """
 
-    def __init__(self, load_op_links: bool = True):
-        self._dags: dict[str, DAG] = {}  # dag_version_id to dag
+    def __init__(self, load_op_links: bool = True) -> None:
+        self._dags: dict[str, SerializedDAG] = {}  # dag_version_id to dag
         self.load_op_links = load_op_links
 
-    def _read_dag(self, serdag: SerializedDagModel) -> DAG | None:
+    def _read_dag(self, serdag: SerializedDagModel) -> SerializedDAG | None:
         serdag.load_op_links = self.load_op_links
         if dag := serdag.dag:
             self._dags[serdag.dag_version_id] = dag
         return dag
 
-    def _get_dag(self, version_id: str, session: Session) -> DAG | None:
+    def _get_dag(self, version_id: str, session: Session) -> SerializedDAG | None:
         if dag := self._dags.get(version_id):
             return dag
         dag_version = session.get(DagVersion, version_id, options=[joinedload(DagVersion.serialized_dag)])
@@ -706,12 +720,12 @@ class DBDagBag:
         # Relationship not loaded, fetch it explicitly from current session
         return session.get(DagVersion, dag_run.created_dag_version_id)
 
-    def get_dag_for_run(self, dag_run: DagRun, session: Session) -> DAG | None:
+    def get_dag_for_run(self, dag_run: DagRun, session: Session) -> SerializedDAG | None:
         if version := self._version_from_dag_run(dag_run=dag_run, session=session):
             return self._get_dag(version_id=version.id, session=session)
         return None
 
-    def iter_all_latest_version_dags(self, *, session: Session) -> Generator[DAG, None, None]:
+    def iter_all_latest_version_dags(self, *, session: Session) -> Generator[SerializedDAG, None, None]:
         """Walk through all latest version dags available in the database."""
         from airflow.models.serialized_dag import SerializedDagModel
 
@@ -719,7 +733,7 @@ class DBDagBag:
             if dag := self._read_dag(sdm):
                 yield dag
 
-    def get_latest_version_of_dag(self, dag_id: str, *, session: Session) -> DAG | None:
+    def get_latest_version_of_dag(self, dag_id: str, *, session: Session) -> SerializedDAG | None:
         """Get the latest version of a dag by its id."""
         from airflow.models.serialized_dag import SerializedDagModel
 

@@ -51,6 +51,7 @@ from airflow.providers.common.sql.operators.sql import (
 )
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone  # type: ignore[attr-defined]
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -1117,8 +1118,12 @@ class TestSqlBranch:
                 orm_dag_bundle = DagBundleModel(name=bundle_name)
                 session.add(orm_dag_bundle)
                 session.commit()
-            DAG.bulk_write_to_db(bundle_name, None, [self.dag])
+            SerializedDAG.bulk_write_to_db(bundle_name, None, [self.scheduler_dag])
             SerializedDagModel.write_dag(self.dag, bundle_name=bundle_name)
+
+    @property
+    def scheduler_dag(self):
+        return SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(self.dag))
 
     def get_ti(self, task_id, dr=None):
         if dr is None:
@@ -1130,7 +1135,7 @@ class TestSqlBranch:
                 }
             else:
                 dagrun_kwargs = {"execution_date": DEFAULT_DATE}
-            dr = self.dag.create_dagrun(
+            dr = self.scheduler_dag.create_dagrun(
                 run_id=f"manual__{timezone.utcnow().isoformat()}",
                 run_type=DagRunType.MANUAL,
                 start_date=timezone.utcnow(),
@@ -1158,7 +1163,7 @@ class TestSqlBranch:
             dag=self.dag,
         )
         if AIRFLOW_V_3_0_PLUS:
-            self.dag.sync_to_db()
+            self.scheduler_dag.sync_to_db()
             SerializedDagModel.write_dag(self.dag, bundle_name="testing")
         return branch_op
 
@@ -1239,7 +1244,7 @@ class TestSqlBranch:
         """Check BranchSQLOperator branch operation"""
         self.branch_1.set_upstream(branch_op)
         self.branch_2.set_upstream(branch_op)
-        self.dag.clear()
+        self.scheduler_dag.clear()
 
         if AIRFLOW_V_3_0_PLUS:
             dagrun_kwargs = {
@@ -1250,7 +1255,7 @@ class TestSqlBranch:
         else:
             dagrun_kwargs = {"execution_date": DEFAULT_DATE}
 
-        dr = self.dag.create_dagrun(
+        dr = self.scheduler_dag.create_dagrun(
             run_id="manual__",
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
@@ -1290,7 +1295,7 @@ class TestSqlBranch:
         """Check BranchSQLOperator branch operation"""
         self.branch_1.set_upstream(branch_op)
         self.branch_2.set_upstream(branch_op)
-        self.dag.clear()
+        self.scheduler_dag.clear()
 
         if AIRFLOW_V_3_0_PLUS:
             dagrun_kwargs = {
@@ -1300,7 +1305,7 @@ class TestSqlBranch:
             }
         else:
             dagrun_kwargs = {"execution_date": DEFAULT_DATE}
-        dr = self.dag.create_dagrun(
+        dr = self.scheduler_dag.create_dagrun(
             run_id="manual__",
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
@@ -1338,7 +1343,7 @@ class TestSqlBranch:
         """Check BranchSQLOperator branch operation"""
         self.branch_1.set_upstream(branch_op)
         self.branch_2.set_upstream(branch_op)
-        self.dag.clear()
+        self.scheduler_dag.clear()
 
         if AIRFLOW_V_3_0_PLUS:
             dagrun_kwargs = {
@@ -1348,7 +1353,7 @@ class TestSqlBranch:
             }
         else:
             dagrun_kwargs = {"execution_date": DEFAULT_DATE}
-        dr = self.dag.create_dagrun(
+        dr = self.scheduler_dag.create_dagrun(
             run_id="manual__",
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
@@ -1396,10 +1401,10 @@ class TestSqlBranch:
         self.branch_2.set_upstream(branch_op)
         self.branch_3 = EmptyOperator(task_id="branch_3", dag=self.dag)
         self.branch_3.set_upstream(branch_op)
-        self.dag.clear()
+        self.scheduler_dag.clear()
 
         if AIRFLOW_V_3_0_PLUS:
-            self.dag.sync_to_db()
+            self.scheduler_dag.sync_to_db()
             SerializedDagModel.write_dag(self.dag, bundle_name="testing")
             dagrun_kwargs = {
                 "logical_date": DEFAULT_DATE,
@@ -1408,7 +1413,7 @@ class TestSqlBranch:
             }
         else:
             dagrun_kwargs = {"execution_date": DEFAULT_DATE}
-        dr = self.dag.create_dagrun(
+        dr = self.scheduler_dag.create_dagrun(
             run_id="manual__",
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
@@ -1444,7 +1449,7 @@ class TestSqlBranch:
         """Check BranchSQLOperator branch operation"""
         self.branch_1.set_upstream(branch_op)
         self.branch_2.set_upstream(branch_op)
-        self.dag.clear()
+        self.scheduler_dag.clear()
 
         if AIRFLOW_V_3_0_PLUS:
             dagrun_kwargs = {
@@ -1454,7 +1459,7 @@ class TestSqlBranch:
             }
         else:
             dagrun_kwargs = {"execution_date": DEFAULT_DATE}
-        self.dag.create_dagrun(
+        self.scheduler_dag.create_dagrun(
             run_id="manual__",
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
@@ -1475,7 +1480,7 @@ class TestSqlBranch:
         """Test SQL Branch with skipping all downstream dependencies"""
         branch_op >> self.branch_1 >> self.branch_2
         branch_op >> self.branch_2
-        self.dag.clear()
+        self.scheduler_dag.clear()
 
         if AIRFLOW_V_3_0_PLUS:
             dagrun_kwargs = {
@@ -1485,7 +1490,7 @@ class TestSqlBranch:
             }
         else:
             dagrun_kwargs = {"execution_date": DEFAULT_DATE}
-        dr = self.dag.create_dagrun(
+        dr = self.scheduler_dag.create_dagrun(
             run_id="manual__",
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
@@ -1516,7 +1521,7 @@ class TestSqlBranch:
         """Test skipping downstream dependency for false condition"""
         branch_op >> self.branch_1 >> self.branch_2
         branch_op >> self.branch_2
-        self.dag.clear()
+        self.scheduler_dag.clear()
 
         if AIRFLOW_V_3_0_PLUS:
             dagrun_kwargs = {
@@ -1526,7 +1531,7 @@ class TestSqlBranch:
             }
         else:
             dagrun_kwargs = {"execution_date": DEFAULT_DATE}
-        dr = self.dag.create_dagrun(
+        dr = self.scheduler_dag.create_dagrun(
             run_id="manual__",
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),

@@ -28,7 +28,7 @@ from attrs import define
 from openlineage.client.utils import RedactMixin
 from pkg_resources import parse_version
 
-from airflow.models import DAG, DagModel
+from airflow.models import DAG
 from airflow.providers.common.compat.assets import Asset
 from airflow.providers.openlineage.plugins.facets import AirflowDebugRunFacet
 from airflow.providers.openlineage.utils.utils import (
@@ -44,17 +44,20 @@ from airflow.providers.openlineage.utils.utils import (
     is_operator_disabled,
 )
 from airflow.serialization.enums import DagAttributeTypes, Encoding
-from airflow.utils import timezone  # type:ignore[attr-defined]
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import (
     BashOperator,
 )
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import timezone
+else:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from airflow.sdk.execution_time.secrets_masker import _secrets_masker
@@ -102,16 +105,16 @@ def test_get_airflow_debug_facet_logging_set_to_debug(mock_debug_mode, mock_get_
 
 
 @pytest.mark.db_test
+@pytest.mark.need_serialized_dag
 def test_get_dagrun_start_end(dag_maker):
     start_date = datetime.datetime(2022, 1, 1)
     end_date = datetime.datetime(2022, 1, 1, hour=2)
     with dag_maker("test", start_date=start_date, end_date=end_date, schedule="@once") as dag:
         pass
     dag_maker.sync_dagbag_to_db()
-    dag_model = DagModel.get_dagmodel(dag.dag_id)
 
     run_id = str(uuid.uuid1())
-    data_interval = dag.get_next_data_interval(dag_model)
+    data_interval = dag.get_next_data_interval(dag_maker.dag_model)
     if AIRFLOW_V_3_0_PLUS:
         dagrun_kwargs = {
             "logical_date": data_interval.start,

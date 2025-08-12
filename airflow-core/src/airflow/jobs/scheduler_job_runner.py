@@ -58,7 +58,7 @@ from airflow.models.asset import (
     TaskOutletAssetReference,
 )
 from airflow.models.backfill import Backfill
-from airflow.models.dag import DAG, DagModel
+from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagrun import DagRun
@@ -93,7 +93,7 @@ if TYPE_CHECKING:
     from airflow.executors.executor_utils import ExecutorName
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstanceKey
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
+    from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
     from airflow.utils.sqlalchemy import CommitProhibitorGuard
 
 TI = TaskInstance
@@ -104,7 +104,7 @@ TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT = "stuck in queued reschedule"
 """:meta private:"""
 
 
-def _get_current_dag(dag_id: str, session: Session) -> DAG | None:
+def _get_current_dag(dag_id: str, session: Session) -> SerializedDAG | None:
     serdag = SerializedDagModel.get(dag_id=dag_id, session=session)  # grabs the latest version
     if not serdag:
         return None
@@ -1377,7 +1377,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         # Send the callbacks after we commit to ensure the context is up to date when it gets run
         # cache saves time during scheduling of many dag_runs for same dag
-        cached_get_dag: Callable[[DagRun], DAG | None] = lru_cache()(
+        cached_get_dag: Callable[[DagRun], SerializedDAG | None] = lru_cache()(
             partial(self.scheduler_dag_bag.get_dag_for_run, session=session)
         )
         for dag_run, callback_to_run in callback_tuples:
@@ -1624,7 +1624,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     def _should_update_dag_next_dagruns(
         self,
-        dag: DAG,
+        dag: SerializedDAG,
         dag_model: DagModel,
         *,
         last_dag_run: DagRun | None = None,
@@ -1679,7 +1679,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         active_runs_of_dags = Counter({(dag_id, br_id): num for dag_id, br_id, num in session.execute(query)})
 
         @add_debug_span
-        def _update_state(dag: DAG, dag_run: DagRun):
+        def _update_state(dag: SerializedDAG, dag_run: DagRun):
             span = Trace.get_current_span()
             span.set_attributes(
                 {
@@ -1721,7 +1721,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
 
         # cache saves time during scheduling of many dag_runs for same dag
-        cached_get_dag: Callable[[DagRun], DAG | None] = lru_cache()(
+        cached_get_dag: Callable[[DagRun], SerializedDAG | None] = lru_cache()(
             partial(self.scheduler_dag_bag.get_dag_for_run, session=session)
         )
 
@@ -1943,7 +1943,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         return True
 
-    def _send_dag_callbacks_to_processor(self, dag: DAG, callback: DagCallbackRequest | None = None) -> None:
+    def _send_dag_callbacks_to_processor(
+        self,
+        dag: SerializedDAG,
+        callback: DagCallbackRequest | None = None,
+    ) -> None:
         if callback:
             self.job.executor.send_callback(callback)
         else:
