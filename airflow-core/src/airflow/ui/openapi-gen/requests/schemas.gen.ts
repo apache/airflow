@@ -3372,6 +3372,7 @@ export const $HITLDetail = {
                 type: 'string'
             },
             type: 'array',
+            minItems: 1,
             title: 'Options'
         },
         subject: {
@@ -3503,6 +3504,7 @@ export const $HITLDetailResponse = {
                 type: 'string'
             },
             type: 'array',
+            minItems: 1,
             title: 'Chosen Options'
         },
         params_input: {
@@ -5819,6 +5821,7 @@ export const $UpdateHITLDetailPayload = {
                 type: 'string'
             },
             type: 'array',
+            minItems: 1,
             title: 'Chosen Options'
         },
         params_input: {
