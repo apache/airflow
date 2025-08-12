@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-08T20:35:16.350551
+# This constraints file was automatically generated on 2025-08-11T23:38:44.991420
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -28,7 +28,7 @@ Jinja2==3.1.6
 Mako==1.3.10
 Markdown==3.8.2
 MarkupSafe==3.0.2
-PyAthena==3.16.0
+PyAthena==3.17.0
 PyGithub==2.7.0
 PyHive==0.7.0
 PyJWT==2.10.1
@@ -143,7 +143,7 @@ cffi==1.17.1
 cfgv==3.4.0
 cfn-lint==1.38.2
 chardet==5.2.0
-charset-normalizer==3.4.2
+charset-normalizer==3.4.3
 checksumdir==1.2.0
 ciso8601==2.3.2
 click-didyoumean==0.3.1
@@ -159,7 +159,7 @@ colorlog==6.9.0
 comm==0.2.3
 confluent-kafka==2.11.0
 connexion==2.14.2
-coverage==7.10.2
+coverage==7.10.3
 crcmod==1.7
 cron-descriptor==1.4.5
 croniter==6.0.0
@@ -199,7 +199,7 @@ fastapi-cli==0.0.8
 fastapi-cloud-cli==0.1.5
 fastapi==0.116.1
 fastavro==1.12.0
-fasteners==0.19
+fasteners==0.20
 fastjsonschema==2.21.1
 filelock==3.18.0
 flit==3.12.0
@@ -233,7 +233,7 @@ google-cloud-bigquery-storage==2.32.0
 google-cloud-bigquery==3.35.1
 google-cloud-bigtable==2.32.0
 google-cloud-build==3.31.3
-google-cloud-compute==1.34.0
+google-cloud-compute==1.35.0
 google-cloud-container==2.59.0
 google-cloud-core==2.4.3
 google-cloud-datacatalog==3.27.1
@@ -304,7 +304,7 @@ ibm-cloud-sdk-core==3.20.3
 ibmcloudant==0.9.1
 icdiff==2.0.7
 id==1.5.0
-identify==2.6.12
+identify==2.6.13
 idna==3.10
 ijson==3.4.0
 imagesize==1.4.1
@@ -356,12 +356,12 @@ lazy-object-proxy==1.11.0
 libcst==1.8.2
 limits==5.5.0
 linkify-it-py==2.0.3
-litellm==1.75.3
+litellm==1.75.5.post1
 lockfile==0.12.2
 looker-sdk==25.10.0
 lxml==5.3.2
 lz4==4.4.4
-markdown-it-py==3.0.0
+markdown-it-py==4.0.0
 marshmallow-sqlalchemy==1.4.2
 marshmallow==3.26.1
 matplotlib-inline==0.1.7
@@ -377,7 +377,7 @@ mistune==3.1.3
 mmh3==5.2.0
 mongomock==4.3.0
 more-itertools==10.7.0
-moto==5.1.9
+moto==5.1.10
 mpmath==1.3.0
 msal-extensions==1.3.1
 msal==1.33.0
@@ -387,7 +387,7 @@ msgspec==0.19.0
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
-multidict==6.6.3
+multidict==6.6.4
 mypy-boto3-appflow==1.40.0
 mypy-boto3-rds==1.40.3
 mypy-boto3-redshift-data==1.40.0
@@ -407,14 +407,14 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.3.1
 objsize==0.7.1
-openai==1.99.5
+openai==1.99.8
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
 opencensus-context==0.1.3
 opencensus==0.11.4
-openlineage-integration-common==1.36.0
-openlineage-python==1.36.0
-openlineage_sql==1.36.0
+openlineage-integration-common==1.37.0
+openlineage-python==1.37.0
+openlineage_sql==1.37.0
 openpyxl==3.1.5
 opensearch-py==3.0.0
 opentelemetry-api==1.27.0
@@ -460,7 +460,7 @@ polars==1.32.2
 portalocker==2.10.1
 pprintpp==0.4.0
 pre-commit-uv==4.1.4
-pre_commit==4.2.0
+pre_commit==4.3.0
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.22.1
@@ -550,7 +550,7 @@ rfc3339-validator==0.1.4
 rfc3986==2.0.0
 rich-argparse==1.7.1
 rich-click==1.8.9
-rich-toolkit==0.14.9
+rich-toolkit==0.15.0
 rich==13.9.4
 rignore==0.6.4
 roman-numerals-py==3.1.0
@@ -628,7 +628,7 @@ text-unidecode==1.3
 threadpoolctl==3.6.0
 thrift-sasl==0.4.3
 thrift==0.16.0
-tiktoken==0.10.0
+tiktoken==0.11.0
 time-machine==2.17.0
 tinycss2==1.4.0
 tokenizers==0.21.4
@@ -643,23 +643,23 @@ trove-classifiers==2025.8.6.13
 twine==6.1.0
 typer==0.16.0
 types-Deprecated==1.2.15.20250304
-types-Markdown==3.8.0.20250708
+types-Markdown==3.8.0.20250809
 types-PyMySQL==1.1.0.20250711
-types-PyYAML==6.0.12.20250516
-types-aiofiles==24.1.0.20250801
+types-PyYAML==6.0.12.20250809
+types-aiofiles==24.1.0.20250809
 types-certifi==2021.10.8.3
-types-cffi==1.17.0.20250805
-types-croniter==6.0.0.20250626
-types-docutils==0.21.0.20250728
+types-cffi==1.17.0.20250809
+types-croniter==6.0.0.20250809
+types-docutils==0.21.0.20250809
 types-paramiko==3.5.0.20250801
-types-protobuf==6.30.2.20250703
+types-protobuf==6.30.2.20250809
 types-pyOpenSSL==24.1.0.20240722
-types-python-dateutil==2.9.0.20250708
+types-python-dateutil==2.9.0.20250809
 types-python-slugify==8.0.2.20240310
-types-pytz==2025.2.0.20250516
+types-pytz==2025.2.0.20250809
 types-redis==4.6.0.20241004
-types-requests==2.32.4.20250611
-types-setuptools==80.9.0.20250801
+types-requests==2.32.4.20250809
+types-setuptools==80.9.0.20250809
 types-tabulate==0.9.0.20241207
 types-toml==0.10.8.20240310
 typing-inspect==0.9.0
@@ -673,7 +673,7 @@ uritemplate==4.2.0
 urllib3==2.5.0
 userpath==1.9.2
 uuid6==2025.0.1
-uv==0.8.4
+uv==0.8.8
 uvicorn==0.35.0
 uvloop==0.21.0
 validators==0.35.0
