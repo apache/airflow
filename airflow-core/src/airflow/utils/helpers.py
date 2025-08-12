@@ -24,7 +24,6 @@ import signal
 from collections.abc import Callable, Generator, Iterable, MutableMapping
 from functools import cache
 from typing import TYPE_CHECKING, Any, TypeVar, cast
-from urllib.parse import urljoin
 
 from lazy_object_proxy import Proxy
 
@@ -204,7 +203,7 @@ def build_airflow_dagrun_url(dag_id: str, run_id: str) -> str:
     http://localhost:8080/dags/hi/runs/manual__2025-02-23T18:27:39.051358+00:00_RZa1at4Q
     """
     baseurl = conf.get("api", "base_url", fallback="/")
-    return urljoin(f"{baseurl}/", f"dags/{dag_id}/runs/{run_id}")
+    return f"{baseurl.rstrip('/')}/dags/{dag_id}/runs/{run_id}")
 
 
 # The 'template' argument is typed as Any because the jinja2.Template is too
