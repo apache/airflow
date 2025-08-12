@@ -37,7 +37,7 @@ if TYPE_CHECKING:
     )
 
 
-class Context(TypedDict, total=True):
+class Context(TypedDict):
     """Jinja2 template context for task rendering."""
 
     conn: Any
