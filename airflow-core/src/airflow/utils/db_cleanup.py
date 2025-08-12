@@ -521,6 +521,7 @@ def run_cleanup(
     :param confirm: Require user input to confirm before processing deletions.
     :param skip_archive: Set to True if you don't want the purged rows preservied in an archive table.
     :param session: Session representing connection to the metadata database.
+    :param batch_size: Maximum number of rows to delete or archive in a single transaction.
     """
     clean_before_timestamp = timezone.coerce_datetime(clean_before_timestamp)
 
