@@ -913,6 +913,11 @@ class SelectiveChecks:
             get_console().print(
                 "[warning]There are no core/other files. Only tests relevant to the changed files are run.[/]"
             )
+
+        # run core tests if any changes in serialization files
+        if SelectiveCoreTestType.SERIALIZATION.value in candidate_test_types:
+            candidate_test_types.add(SelectiveCoreTestType.CORE.value)
+
         # sort according to predefined order
         sorted_candidate_test_types = sorted(candidate_test_types)
         get_console().print("[warning]Selected core test type candidates to run:[/]")
