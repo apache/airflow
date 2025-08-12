@@ -30,8 +30,10 @@ from pydantic import (
     ConfigDict,
     computed_field,
     field_validator,
+    field_serializer,
 )
 
+from airflow._shared.timezones.timezone import seconds_to_hms
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_tags import DagTagResponse
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
@@ -198,3 +200,9 @@ class DAGDetailsResponse(DAGResponse):
         if latest_dag_version is None:
             return latest_dag_version
         return DagVersionResponse.model_validate(latest_dag_version)
+
+    @field_serializer("dag_run_timeout")
+    def serialize_dag_run_timeout(self, value):
+        if value is not None:
+            return seconds_to_hms(int(value.total_seconds()))
+        return None

@@ -305,3 +305,20 @@ def from_timestamp(timestamp: int | float, tz: str | FixedTimezone | Timezone = 
             tz = local_timezone()
         result = result.in_timezone(tz)
     return result
+
+def seconds_to_hms(seconds: int) -> str:
+    """
+    Convert a given number of seconds into a zero-padded HH:MM:SS string.
+
+    For example:
+    - 4 * 60 (240 seconds) would become "00:04:00"
+    - 3752 seconds would become "01:02:32"
+
+    :param seconds: Duration in seconds.
+    :return: String formatted as HH:MM:SS
+    """
+    hours = seconds // 3600
+    minutes = (seconds % 3600) // 60
+    secs = seconds % 60
+    return f"{hours:02}:{minutes:02}:{secs:02}"
+
