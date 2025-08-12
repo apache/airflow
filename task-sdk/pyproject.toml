@@ -142,8 +142,6 @@ dev = [
     "apache-airflow-providers-common-sql",
     "apache-airflow-providers-standard",
     "apache-airflow-devel-common",
-    "pandas>=2.1.2; python_version <\"3.13\"",
-    "pandas>=2.2.3; python_version >=\"3.13\""
 ]
 docs = [
     "apache-airflow-devel-common[docs]",
