@@ -56,14 +56,13 @@ class GithubHook(BaseHook):
         host = conn.host
         extras = conn.extra_dejson or {}
 
-        if not access_token:
-            if not extras:
-                raise RuntimeError("An access token is required to authenticate to GitHub.")
-
+        if access_token:
+            auth: Auth.Auth = Auth.Token(access_token)
+        elif extras:
             key_path = extras.get("key_path")
             if key_path:
                 if not key_path.endswith(".pem"):
-                    raise RuntimeError("Unrecognised extension for key file")
+                    raise RuntimeError("Unrecognised key file")
                 with open(key_path) as key_file:
                     private_key = key_file.read()
 
@@ -75,11 +74,9 @@ class GithubHook(BaseHook):
                 raise RuntimeError("The provided app_id should be integer or string.")
             token_permissions = extras.get("token_permissions", None)
 
-            auth: Auth.Auth = Auth.AppAuth(app_id, private_key).get_installation_auth(
-                installation_id, token_permissions
-            )
+            auth = Auth.AppAuth(app_id, private_key).get_installation_auth(installation_id, token_permissions)
         else:
-            auth = Auth.Token(access_token)
+            raise RuntimeError("No access token or authentication method provided.")
 
         if not host:
             self.client = GithubClient(auth=auth)
