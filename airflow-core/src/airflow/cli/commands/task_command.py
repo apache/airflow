@@ -33,9 +33,9 @@ from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
 from airflow.exceptions import AirflowConfigException, DagRunNotFound, TaskInstanceNotFound
 from airflow.models import TaskInstance
-from airflow.models.dag import DAG as SchedulerDAG, _get_or_create_dagrun
 from airflow.models.dag_version import DagVersion
-from airflow.models.dagrun import DagRun
+from airflow.models.dagrun import DagRun, get_or_create_dagrun
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.sdk.definitions.dag import DAG, _run_task
 from airflow.sdk.definitions.param import ParamsDict
 from airflow.serialization.serialized_objects import SerializedDAG
@@ -43,11 +43,12 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import (
-    get_dag,
+    get_bagged_dag,
     get_dag_by_file_location,
     get_dags,
     suppress_logs_and_warning,
 )
+from airflow.utils.helpers import ask_yesno
 from airflow.utils.platform import getuser
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -144,7 +145,7 @@ def _get_dag_run(
         return dag_run, True
     if create_if_necessary == "db":
         scheduler_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))  # type: ignore[arg-type]
-        dag_run = _get_or_create_dagrun(
+        dag_run = get_or_create_dagrun(
             dag=scheduler_dag,
             run_id=_generate_temporary_run_id(),
             logical_date=dag_run_logical_date,
@@ -245,7 +246,7 @@ def task_failed_deps(args) -> None:
     Trigger Rule: Task's trigger rule 'all_success' requires all upstream tasks
     to have succeeded, but found 1 non-success(es).
     """
-    dag = get_dag(args.bundle_name, args.dag_id)
+    dag = get_bagged_dag(args.bundle_name, args.dag_id)
     # TODO (GH-52141): get_task in scheduler needs to return scheduler types
     # instead, but currently it inherits SDK's DAG.
     task = cast("Operator", dag.get_task(task_id=args.task_id))
@@ -271,7 +272,8 @@ def task_state(args) -> None:
     >>> airflow tasks state tutorial sleep 2015-01-01
     success
     """
-    dag = get_dag(args.bundle_name, args.dag_id, from_db=True)
+    if not (dag := SerializedDagModel.get_dag(args.dag_id)):
+        raise SystemExit(f"Can not find dag {args.dag_id!r}")
     # TODO (GH-52141): get_task in scheduler needs to return scheduler types
     # instead, but currently it inherits SDK's DAG.
     task = cast("Operator", dag.get_task(task_id=args.task_id))
@@ -284,7 +286,7 @@ def task_state(args) -> None:
 @providers_configuration_loaded
 def task_list(args, dag: DAG | None = None) -> None:
     """List the tasks within a DAG at the command line."""
-    dag = dag or get_dag(args.bundle_name, args.dag_id)
+    dag = dag or get_bagged_dag(args.bundle_name, args.dag_id)
     tasks = sorted(t.task_id for t in dag.tasks)
     print("\n".join(tasks))
 
@@ -387,7 +389,7 @@ def task_test(args, dag: DAG | None = None) -> None:
         env_vars.update(args.env_vars)
         os.environ.update(env_vars)
 
-    dag = dag or get_dag(args.bundle_name, args.dag_id)
+    dag = dag or get_bagged_dag(args.bundle_name, args.dag_id)
 
     # TODO (GH-52141): get_task in scheduler needs to return scheduler types
     # instead, but currently it inherits SDK's DAG.
@@ -429,25 +431,38 @@ def task_test(args, dag: DAG | None = None) -> None:
 def task_render(args, dag: DAG | None = None) -> None:
     """Render and displays templated fields for a given task."""
     if not dag:
-        dag = get_dag(args.bundle_name, args.dag_id)
-    # TODO (GH-52141): get_task in scheduler needs to return scheduler types
-    # instead, but currently it inherits SDK's DAG.
-    task = cast("Operator", dag.get_task(task_id=args.task_id))
+        dag = get_bagged_dag(args.bundle_name, args.dag_id)
+    serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
     ti, _ = _get_ti(
-        task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id, create_if_necessary="memory"
+        # TODO (GH-52141): get_task in scheduler needs to return scheduler types
+        # instead, but currently it inherits SDK's DAG.
+        cast("Operator", serialized_dag.get_task(task_id=args.task_id)),
+        args.map_index,
+        logical_date_or_run_id=args.logical_date_or_run_id,
+        create_if_necessary="memory",
     )
+
     with create_session() as session, set_current_task_instance_session(session=session):
-        ti.render_templates()
-    for attr in task.template_fields:
-        print(
-            textwrap.dedent(
-                f"""        # ----------------------------------------------------------
-        # property: {attr}
-        # ----------------------------------------------------------
-        """
+        context = ti.get_template_context(session=session)
+        task = dag.get_task(args.task_id)
+        # TODO (GH-52141): After sdk separation, ti.get_template_context() would
+        # contain serialized operators, but we need the real operators for
+        # rendering. This does not make sense and eventually we should rewrite
+        # this entire function so "ti" is a RuntimeTaskInstance instead, but for
+        # now we'll just manually fix it to contain the right objects.
+        context["task"] = context["ti"].task = task
+        task.render_template_fields(context)
+        for attr in context["task"].template_fields:
+            print(
+                textwrap.dedent(
+                    f"""\
+                    # ----------------------------------------------------------
+                    # property: {attr}
+                    # ----------------------------------------------------------
+                    """
+                )
+                + str(getattr(context["task"], attr))  # This shouldn't be dedented.
             )
-            + str(getattr(ti.task, attr))
-        )
 
 
 @cli_utils.action_cli(check_db=False)
@@ -470,11 +485,25 @@ def task_clear(args) -> None:
                     include_upstream=args.upstream,
                 )
 
-    SchedulerDAG.clear_dags(
+    if not args.yes:
+        tis = SerializedDAG.clear_dags(
+            dags,
+            start_date=args.start_date,
+            end_date=args.end_date,
+            only_failed=args.only_failed,
+            only_running=args.only_running,
+            dry_run=True,
+        )
+        if not tis:
+            return
+        if not ask_yesno(f"You are about to delete these {len(tis)} tasks:\n{tis}\n\nAre you sure? [y/n]"):
+            print("Cancelled, nothing was cleared.")
+            return
+
+    SerializedDAG.clear_dags(
         dags,
         start_date=args.start_date,
         end_date=args.end_date,
         only_failed=args.only_failed,
         only_running=args.only_running,
-        confirm_prompt=not args.yes,
     )
