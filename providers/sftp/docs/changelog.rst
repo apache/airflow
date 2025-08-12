@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+5.3.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix missing prefetch arg to SFTPOperator (#53906)``
+
+Misc
+~~~~
+
+* ``Limit paramiko to '< 4.0.0' till we remove DSS support (#54078)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 5.3.3
 .....
 
