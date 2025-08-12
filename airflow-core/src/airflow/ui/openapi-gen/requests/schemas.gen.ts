@@ -4752,9 +4752,6 @@ export const $TaskInstanceResponse = {
             type: 'string',
             title: 'Dag Id'
         },
-        dag_version: {
-            '$ref': '#/components/schemas/DagVersionResponse'
-        },
         dag_run_id: {
             type: 'string',
             title: 'Dag Run Id'
@@ -5000,10 +4997,20 @@ export const $TaskInstanceResponse = {
                     type: 'null'
                 }
             ]
+        },
+        dag_version: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/DagVersionResponse'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     type: 'object',
-    required: ['id', 'task_id', 'dag_id', 'dag_version', 'dag_run_id', 'map_index', 'logical_date', 'run_after', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'note', 'rendered_map_index', 'trigger', 'triggerer_job'],
+    required: ['id', 'task_id', 'dag_id', 'dag_run_id', 'map_index', 'logical_date', 'run_after', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'note', 'rendered_map_index', 'trigger', 'triggerer_job', 'dag_version'],
     title: 'TaskInstanceResponse',
     description: 'TaskInstance serializer for responses.'
 } as const;
