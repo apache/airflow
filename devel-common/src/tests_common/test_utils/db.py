@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
@@ -92,9 +93,26 @@ def initial_db_init():
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
     db.resetdb()
+
     if AIRFLOW_V_3_0_PLUS:
-        db.downgrade(to_revision="5f2621c13b39")
-        db.upgradedb(to_revision="head")
+        try:
+            from airflow.providers.fab.auth_manager.models.db import FABDBManager
+        except ModuleNotFoundError:
+            # Reasons it might fail: we're in a provider bundle without FAB, or we're on a version of Python
+            # where FAB isn't yet supported
+            pass
+        else:
+            if os.getenv("TEST_GROUP") != "providers":
+                # If we loaded the provider, and we're running core (or running via breeze where TEST_GROUP
+                # isn't specified) run the downgrade+upgrade to ensure migrations are in sync with Model
+                # classes
+                db.downgrade(to_revision="5f2621c13b39")
+                db.upgradedb(to_revision="head")
+            else:
+                # Just create the tables so they are there
+                with create_session() as session:
+                    FABDBManager(session).create_db_from_orm()
+                    session.commit()
     else:
         from flask import Flask
 

@@ -624,3 +624,19 @@ class TestCLIDBClean:
         )
         db_command.drop_archived(args)
         mock_drop_archived_records.assert_called_once_with(table_names=None, needs_confirm=expected)
+
+
+def test_get_version_revision():
+    heads: dict[str, str] = {
+        "2.10.0": "22ed7efa9da2",
+        "2.10.3": "5f2621c13b39",
+        "3.0.0": "29ce7909c52b",
+        "3.0.3": "fe199e1abd77",
+        "3.1.0": "808787349f22",
+    }
+
+    assert db_command._get_version_revision("3.1.0", heads) == "808787349f22"
+    assert db_command._get_version_revision("3.1.1", heads) == "808787349f22"
+    assert db_command._get_version_revision("2.11.1", heads) == "5f2621c13b39"
+    assert db_command._get_version_revision("2.10.1", heads) == "22ed7efa9da2"
+    assert db_command._get_version_revision("2.0.0", heads) is None
