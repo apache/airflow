@@ -955,7 +955,9 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             dag.clear(session=self.session)
             if AIRFLOW_V_3_0_PLUS:
-                dag.bulk_write_to_db(self.bundle_name, self.bundle_version, [dag], session=self.session)
+                from airflow.models.dag import DAG
+
+                DAG.bulk_write_to_db(self.bundle_name, self.bundle_version, [dag], session=self.session)
             else:
                 dag.sync_to_db(session=self.session)
 
@@ -1622,13 +1624,18 @@ def get_test_dag():
             return
 
         if AIRFLOW_V_3_0_PLUS:
-            session = settings.Session()
+            from sqlalchemy import func, select
+
+            from airflow.models.dag import DAG
             from airflow.models.dagbundle import DagBundleModel
 
-            if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
+            session = settings.Session()
+            if not session.scalar(select(func.count()).where(DagBundleModel.name == "testing")):
                 session.add(DagBundleModel(name="testing"))
-                session.commit()
-            dag.bulk_write_to_db("testing", None, [dag])
+                session.flush()
+            DAG.bulk_write_to_db("testing", None, [dag], session=session)
+            session.commit()
+            session.close()
         else:
             dag.sync_to_db()
         SerializedDagModel.write_dag(dag, bundle_name="testing")

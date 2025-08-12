@@ -669,7 +669,7 @@ class TestOtelIntegration:
                     if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
                         session.add(DagBundleModel(name="testing"))
                         session.commit()
-                    dag.bulk_write_to_db(
+                    DAG.bulk_write_to_db(
                         bundle_name="testing", bundle_version=None, dags=[dag], session=session
                     )
                 else:
