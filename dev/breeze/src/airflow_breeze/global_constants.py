@@ -200,7 +200,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "25.2"
-UV_VERSION = "0.8.4"
+UV_VERSION = "0.8.8"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -218,6 +218,8 @@ DESTINATION_LOCATIONS = [
     "s3://live-docs-airflow-apache-org/docs/",
     "s3://staging-docs-airflow-apache-org/docs/",
 ]
+
+PACKAGES_METADATA_EXCLUDE_NAMES = ["docker-stack", "apache-airflow-providers"]
 
 
 @clearable_cache
@@ -700,7 +702,7 @@ GITHUB_ACTIONS = ""
 ISSUE_ID = ""
 NUM_RUNS = ""
 
-MIN_DOCKER_VERSION = "24.0.0"
+MIN_DOCKER_VERSION = "25.0.0"
 MIN_DOCKER_COMPOSE_VERSION = "2.20.2"
 MIN_GH_VERSION = "2.70.0"
 
@@ -760,7 +762,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     },
     {
         "python-version": "3.10",
-        "airflow-version": "3.0.3",
+        "airflow-version": "3.0.4",
         "remove-providers": "",
         "run-tests": "true",
     },
