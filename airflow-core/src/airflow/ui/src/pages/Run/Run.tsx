@@ -65,7 +65,7 @@ export const Run = () => {
 
   const { data: hitlData } = useHumanInTheLoopServiceGetHitlDetails(
     {
-      dagIdPattern: dagId,
+      dagId,
       dagRunId: runId,
     },
     undefined,

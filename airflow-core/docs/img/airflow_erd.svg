@@ -776,7 +776,6 @@
 <text text-anchor="start" x="1770" y="-2634.3" font-family="Helvetica,sans-Serif" font-size="14.00">dag_version_id</text>
 <text text-anchor="start" x="1874" y="-2634.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
 <text text-anchor="start" x="1879" y="-2634.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [UUID]</text>
-<text text-anchor="start" x="1931" y="-2634.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 <polygon fill="none" stroke="black" points="1765,-2599.5 1765,-2624.5 2073,-2624.5 2073,-2599.5 1765,-2599.5"/>
 <text text-anchor="start" x="1770" y="-2609.3" font-family="Helvetica,sans-Serif" font-size="14.00">duration</text>
 <text text-anchor="start" x="1829" y="-2609.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
@@ -1883,7 +1882,7 @@
 <title>dag_version&#45;&#45;task_instance</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1232.06,-1516.92C1243.41,-1524.95 1254.51,-1533.2 1265,-1541.5 1265.8,-1542.13 1683.35,-1948.72 1684,-1949.5 1708.84,-1979.43 1733.42,-2012.05 1756.79,-2044.97"/>
 <text text-anchor="start" x="1725.79" y="-2033.77" font-family="Times,serif" font-size="14.00">0..N</text>
-<text text-anchor="start" x="1232.06" y="-1520.72" font-family="Times,serif" font-size="14.00">1</text>
+<text text-anchor="start" x="1232.06" y="-1520.72" font-family="Times,serif" font-size="14.00">{0,1}</text>
 </g>
 <!-- dag_run -->
 <g id="node34" class="node">
