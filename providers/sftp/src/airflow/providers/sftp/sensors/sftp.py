@@ -67,7 +67,7 @@ class SFTPSensor(BaseSensorOperator):
         python_callable: Callable | None = None,
         op_args: list | None = None,
         op_kwargs: dict[str, Any] | None = None,
-        managed_conn: bool = True,
+        use_managed_conn: bool = True,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
@@ -77,13 +77,13 @@ class SFTPSensor(BaseSensorOperator):
         self.hook: SFTPHook | None = None
         self.sftp_conn_id = sftp_conn_id
         self.newer_than: datetime | str | None = newer_than
-        self.managed_conn = managed_conn
+        self.use_managed_conn = use_managed_conn
         self.python_callable: Callable | None = python_callable
         self.op_args = op_args or []
         self.op_kwargs = op_kwargs or {}
         self.deferrable = deferrable
 
-    def _get_files(self):
+    def _get_files(self) -> list[str]:
         files_from_pattern = []
         actual_files_present = []
         files_found = []
@@ -140,16 +140,12 @@ class SFTPSensor(BaseSensorOperator):
         return files_found
 
     def poke(self, context: Context) -> PokeReturnValue | bool:
-        self.hook = SFTPHook(self.sftp_conn_id, managed_conn=self.managed_conn)
+        self.hook = SFTPHook(self.sftp_conn_id, use_managed_conn=self.use_managed_conn)
 
         self.log.info("Poking for %s, with pattern %s", self.path, self.file_pattern)
         files_found = []
 
-        if not self.managed_conn:
-            with self.hook.get_managed_conn():
-                files_found = self._get_files()
-        else:
-            files_found = self._get_files()
+        files_found = self._get_files()
 
         if not len(files_found):
             return False

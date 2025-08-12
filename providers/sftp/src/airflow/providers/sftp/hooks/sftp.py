@@ -51,16 +51,14 @@ if TYPE_CHECKING:
     from airflow.models.connection import Connection
 
 
-def handle_connection_management(func):
-    CONNECTION_NOT_OPEN_EXCEPTION: ConnectionNotOpenedException = ConnectionNotOpenedException(
-        "Connection not open, use with hook.get_managed_conn() Managed Connection in order to create and open the connection"
-    )
-
+def handle_connection_management(func: Callable) -> Callable:
     @functools.wraps(func)
-    def handle_connection_management_wrapper(self, *args, **kwargs):
+    def handle_connection_management_wrapper(self, *args: Any, **kwargs: dict[str, Any]) -> Any:
         if not self.managed_conn:
             if self.conn is None:
-                raise CONNECTION_NOT_OPEN_EXCEPTION
+                raise ConnectionNotOpenedException(
+                    "Connection not open, use with hook.get_managed_conn() Managed Connection in order to create and open the connection"
+                )
 
             return func(self, *args, **kwargs)
 
@@ -112,12 +110,12 @@ class SFTPHook(SSHHook):
         self,
         ssh_conn_id: str | None = "sftp_default",
         host_proxy_cmd: str | None = None,
-        managed_conn: bool = True,
+        use_managed_conn: bool = True,
         *args,
         **kwargs,
     ) -> None:
         self.conn: SFTPClient | None = None
-        self.managed_conn = managed_conn
+        self.use_managed_conn = use_managed_conn
 
         # TODO: remove support for ssh_hook when it is removed from SFTPOperator
         if kwargs.get("ssh_hook") is not None:
@@ -315,19 +313,19 @@ class SFTPHook(SSHHook):
         :param prefetch: controls whether prefetch is performed (default: True)
         """
         if isinstance(local_full_path, BytesIO):
-            self.conn.getfo(remote_full_path, local_full_path, prefetch=prefetch)  # type: ignore
+            self.conn.getfo(remote_full_path, local_full_path, prefetch=prefetch)  # type: ignore[arg-type]
         elif hasattr(local_full_path, "write"):
             self.log.info("Using streaming download for %s", remote_full_path)
             # We need to cast to pass pre-commit checks
             stream_full_path = cast("IO[bytes]", local_full_path)
-            self.conn.getfo(remote_full_path, stream_full_path, prefetch=prefetch)  # type: ignore
+            self.conn.getfo(remote_full_path, stream_full_path, prefetch=prefetch)  # type: ignore[arg-type]
         elif isinstance(local_full_path, (str, bytes, os.PathLike)):
             # It's a string path, so use get().
             self.log.info("Using standard file download for %s", remote_full_path)
-            self.conn.get(remote_full_path, local_full_path, prefetch=prefetch)  # type: ignore
+            self.conn.get(remote_full_path, local_full_path, prefetch=prefetch)  # type: ignore[arg-type]
         # If it's neither, it's an unsupported type.
         else:
-            self.conn.get(remote_full_path, local_full_path, prefetch=prefetch)  # type: ignore
+            self.conn.get(remote_full_path, local_full_path, prefetch=prefetch)
 
     @handle_connection_management
     def store_file(self, remote_full_path: str, local_full_path: str, confirm: bool = True) -> None:
@@ -831,7 +829,7 @@ class SFTPHookAsync(BaseHook):
                 sftp_client = await ssh_conn.start_sftp_client()
                 ftp_mdtm = await sftp_client.stat(path)
                 modified_time = ftp_mdtm.mtime
-                mod_time = datetime.datetime.fromtimestamp(modified_time).strftime("%Y%m%d%H%M%S")  # type: ignore
+                mod_time = datetime.datetime.fromtimestamp(modified_time).strftime("%Y%m%d%H%M%S")
                 self.log.info("Found File %s last modified: %s", str(path), str(mod_time))
                 return mod_time
             except asyncssh.SFTPNoSuchFile:
