@@ -583,7 +583,7 @@ class HITLDetailResponse(BaseModel):
 
     user_id: Annotated[str, Field(title="User Id")]
     response_at: Annotated[datetime, Field(title="Response At")]
-    chosen_options: Annotated[list[str], Field(title="Chosen Options")]
+    chosen_options: Annotated[list[str], Field(min_length=1, title="Chosen Options")]
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
 
 
@@ -927,7 +927,7 @@ class UpdateHITLDetailPayload(BaseModel):
     Schema for updating the content of a Human-in-the-loop detail.
     """
 
-    chosen_options: Annotated[list[str], Field(title="Chosen Options")]
+    chosen_options: Annotated[list[str], Field(min_length=1, title="Chosen Options")]
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
 
 
@@ -1818,7 +1818,7 @@ class HITLDetail(BaseModel):
     """
 
     task_instance: TaskInstanceResponse
-    options: Annotated[list[str], Field(title="Options")]
+    options: Annotated[list[str], Field(min_length=1, title="Options")]
     subject: Annotated[str, Field(title="Subject")]
     body: Annotated[str | None, Field(title="Body")] = None
     defaults: Annotated[list[str] | None, Field(title="Defaults")] = None
