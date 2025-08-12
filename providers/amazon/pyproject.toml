@@ -59,7 +59,7 @@ requires-python = ">=3.9"
 dependencies = [
     "apache-airflow>=2.9.0",
     "apache-airflow-providers-common-compat>=1.6.1",
-    "apache-airflow-providers-common-sql>=1.20.0",
+    "apache-airflow-providers-common-sql>=1.26.0",
     "apache-airflow-providers-http",
     # We should update minimum version of boto3 and here regularly to avoid `pip` backtracking with the number
     # of candidates to consider. Make sure to configure boto3 version here as well as in all the tools below
@@ -85,13 +85,6 @@ dependencies = [
 # The optional dependencies should be modified in place in the generated file
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
-"pandas" = [
-    # In pandas 2.2 minimal version of the sqlalchemy is 2.0
-    # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
-    # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
-    # In addition FAB also limit sqlalchemy to < 2.0
-    "pandas>=2.1.2,<2.2",
-]
 # There is conflict between boto3 and aiobotocore dependency botocore.
 # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
 # boto3 have native async support and we move away from aio aiobotocore
@@ -181,6 +174,7 @@ dev = [
     "openapi-spec-validator>=0.7.1",
     "opensearch-py>=2.2.0",
     "responses>=0.25.0",
+    "apache-airflow-providers-common-sql[pandas,polars]",
 ]
 
 # To build docs:
