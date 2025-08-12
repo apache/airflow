@@ -17,14 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-import contextlib
-import json
 import logging
-import sys
 import warnings
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Boolean, Column, Integer, String, Text, delete, select
+from sqlalchemy import Boolean, Column, Integer, String, Text
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import declared_attr, reconstructor, synonym
 
@@ -35,7 +32,6 @@ from airflow.sdk import SecretCache
 from airflow.sdk.execution_time.secrets_masker import mask_secret
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -133,46 +129,30 @@ class Variable(Base, LoggingMixin):
         """
         Get a value for an Airflow Variable Key.
 
+        .. deprecated:: 3.1
+            Use 'from airflow.sdk import Variable' instead.
+
         :param key: Variable Key
         :param default_var: Default value of the Variable if the Variable doesn't exist
         :param deserialize_json: Deserialize the value to a Python dict
         """
-        # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
-        # means SQLA etc is loaded, but we can't avoid that unless/until we add import shims as a big
-        # back-compat layer
+        warnings.warn(
+            "Using Variable.get from `airflow.models` is deprecated. "
+            "Please use `from airflow.sdk import Variable` instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        from airflow.sdk import Variable as TaskSDKVariable
+        from airflow.sdk.definitions._internal.types import NOTSET
 
-        # If this is set it means are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
-        # and should use the Task SDK API server path
-        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
-            warnings.warn(
-                "Using Variable.get from `airflow.models` is deprecated."
-                "Please use `from airflow.sdk import Variable` instead",
-                DeprecationWarning,
-                stacklevel=1,
-            )
-            from airflow.sdk import Variable as TaskSDKVariable
-            from airflow.sdk.definitions._internal.types import NOTSET
+        var_val = TaskSDKVariable.get(
+            key,
+            default=NOTSET if default_var is cls.__NO_DEFAULT_SENTINEL else default_var,
+            deserialize_json=deserialize_json,
+        )
+        if isinstance(var_val, str):
+            mask_secret(var_val, key)
 
-            var_val = TaskSDKVariable.get(
-                key,
-                default=NOTSET if default_var is cls.__NO_DEFAULT_SENTINEL else default_var,
-                deserialize_json=deserialize_json,
-            )
-            if isinstance(var_val, str):
-                mask_secret(var_val, key)
-
-            return var_val
-
-        var_val = Variable.get_variable_from_secrets(key=key)
-        if var_val is None:
-            if default_var is not cls.__NO_DEFAULT_SENTINEL:
-                return default_var
-            raise KeyError(f"Variable {key} does not exist")
-        if deserialize_json:
-            obj = json.loads(var_val)
-            mask_secret(obj, key)
-            return obj
-        mask_secret(var_val, key)
         return var_val
 
     @staticmethod
@@ -186,96 +166,38 @@ class Variable(Base, LoggingMixin):
         """
         Set a value for an Airflow Variable with a given Key.
 
-        This operation overwrites an existing variable using the session's dialect-specific upsert operation.
+        .. deprecated:: 3.1
+            Use 'from airflow.sdk import Variable' instead.
 
         :param key: Variable Key
         :param value: Value to set for the Variable
         :param description: Description of the Variable
         :param serialize_json: Serialize the value to a JSON string
-        :param session: optional session, use if provided or create a new one
+        :param session: optional session, use if provided or create a new one (ignored)
         """
-        # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
-        # means SQLA etc is loaded, but we can't avoid that unless/until we add import shims as a big
-        # back-compat layer
+        warnings.warn(
+            "Using Variable.set from `airflow.models` is deprecated. "
+            "Please use `from airflow.sdk import Variable` instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
-        # If this is set it means are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
-        # and should use the Task SDK API server path
-        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
-            warnings.warn(
-                "Using Variable.set from `airflow.models` is deprecated."
-                "Please use `from airflow.sdk import Variable` instead",
-                DeprecationWarning,
-                stacklevel=1,
-            )
-            from airflow.sdk import Variable as TaskSDKVariable
-
-            TaskSDKVariable.set(
-                key=key,
-                value=value,
-                description=description,
-                serialize_json=serialize_json,
-            )
-            return
-
-        # check if the secret exists in the custom secrets' backend.
-        Variable.check_for_write_conflict(key=key)
-        if serialize_json:
-            stored_value = json.dumps(value, indent=2)
-        else:
-            stored_value = str(value)
-
-        ctx: contextlib.AbstractContextManager
         if session is not None:
-            ctx = contextlib.nullcontext(session)
-        else:
-            ctx = create_session()
-
-        with ctx as session:
-            new_variable = Variable(key=key, val=stored_value, description=description)
-
-            val = new_variable._val
-            is_encrypted = new_variable.is_encrypted
-
-            # Import dialect-specific insert function
-            if (dialect_name := session.get_bind().dialect.name) == "postgresql":
-                from sqlalchemy.dialects.postgresql import insert
-            elif dialect_name == "mysql":
-                from sqlalchemy.dialects.mysql import insert
-            else:
-                from sqlalchemy.dialects.sqlite import insert
-
-            # Create the insert statement (common for all dialects)
-            stmt = insert(Variable).values(
-                key=key,
-                val=val,
-                description=description,
-                is_encrypted=is_encrypted,
+            warnings.warn(
+                "session parameter is ignored when routing to SDK Variable. "
+                "For database operations, use airflow.models.VariableModel (coming in a follow up).",
+                UserWarning,
+                stacklevel=2,
             )
 
-            # Apply dialect-specific upsert
-            if dialect_name == "mysql":
-                # MySQL: ON DUPLICATE KEY UPDATE
-                stmt = stmt.on_duplicate_key_update(
-                    val=val,
-                    description=description,
-                    is_encrypted=is_encrypted,
-                )
-            else:
-                # PostgreSQL and SQLite: ON CONFLICT DO UPDATE
-                stmt = stmt.on_conflict_do_update(
-                    index_elements=["key"],
-                    set_=dict(
-                        val=val,
-                        description=description,
-                        is_encrypted=is_encrypted,
-                    ),
-                )
+        from airflow.sdk import Variable as TaskSDKVariable
 
-            session.execute(stmt)
-            # invalidate key in cache for faster propagation
-            # we cannot save the value set because it's possible that it's shadowed by a custom backend
-            # (see call to check_for_write_conflict above)
-            SecretCache.invalidate_variable(key)
+        TaskSDKVariable.set(
+            key=key,
+            value=value,
+            description=description,
+            serialize_json=serialize_json,
+        )
 
     @staticmethod
     def update(
@@ -287,96 +209,64 @@ class Variable(Base, LoggingMixin):
         """
         Update a given Airflow Variable with the Provided value.
 
+        .. deprecated:: 3.1
+            Use 'from airflow.sdk import Variable' instead.
+
         :param key: Variable Key
         :param value: Value to set for the Variable
         :param serialize_json: Serialize the value to a JSON string
-        :param session: optional session, use if provided or create a new one
+        :param session: optional session, use if provided or create a new one (ignored)
         """
-        # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
-        # means SQLA etc is loaded, but we can't avoid that unless/until we add import shims as a big
-        # back-compat layer
+        warnings.warn(
+            "Using Variable.update from `airflow.models` is deprecated. "
+            "Please use `from airflow.sdk import Variable` instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
-        # If this is set it means are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
-        # and should use the Task SDK API server path
-        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
-            warnings.warn(
-                "Using Variable.update from `airflow.models` is deprecated."
-                "Please use `from airflow.sdk import Variable` instead and use `Variable.set` as it is an upsert.",
-                DeprecationWarning,
-                stacklevel=1,
-            )
-            from airflow.sdk import Variable as TaskSDKVariable
-
-            # set is an upsert command, it can handle updates too
-            TaskSDKVariable.update(
-                key=key,
-                value=value,
-                serialize_json=serialize_json,
-            )
-            return
-
-        Variable.check_for_write_conflict(key=key)
-
-        if Variable.get_variable_from_secrets(key=key) is None:
-            raise KeyError(f"Variable {key} does not exist")
-
-        ctx: contextlib.AbstractContextManager
         if session is not None:
-            ctx = contextlib.nullcontext(session)
-        else:
-            ctx = create_session()
-
-        with ctx as session:
-            obj = session.scalar(select(Variable).where(Variable.key == key))
-            if obj is None:
-                raise AttributeError(f"Variable {key} does not exist in the Database and cannot be updated.")
-
-            Variable.set(
-                key=key,
-                value=value,
-                description=obj.description,
-                serialize_json=serialize_json,
-                session=session,
+            warnings.warn(
+                "session parameter is ignored when routing to SDK Variable. "
+                "For database operations, use airflow.models.VariableModel (coming in a follow up).",
+                UserWarning,
+                stacklevel=2,
             )
+
+        from airflow.sdk import Variable as TaskSDKVariable
+
+        TaskSDKVariable.update(key=key, value=value, serialize_json=serialize_json)
 
     @staticmethod
     def delete(key: str, session: Session | None = None) -> int:
         """
         Delete an Airflow Variable for a given key.
 
+        .. deprecated:: 3.1
+            Use 'from airflow.sdk import Variable' instead.
+
         :param key: Variable Keys
-        :param session: optional session, use if provided or create a new one
+        :param session: optional session, use if provided or create a new one (ignored)
         """
-        # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
-        # means SQLA etc is loaded, but we can't avoid that unless/until we add import shims as a big
-        # back-compat layer
+        warnings.warn(
+            "Using Variable.delete from `airflow.models` is deprecated. "
+            "Please use `from airflow.sdk import Variable` instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
-        # If this is set it means are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
-        # and should use the Task SDK API server path
-        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
-            warnings.warn(
-                "Using Variable.delete from `airflow.models` is deprecated."
-                "Please use `from airflow.sdk import Variable` instead",
-                DeprecationWarning,
-                stacklevel=1,
-            )
-            from airflow.sdk import Variable as TaskSDKVariable
-
-            TaskSDKVariable.delete(
-                key=key,
-            )
-            return 1
-
-        ctx: contextlib.AbstractContextManager
         if session is not None:
-            ctx = contextlib.nullcontext(session)
-        else:
-            ctx = create_session()
+            warnings.warn(
+                "session parameter is ignored when routing to SDK Variable. "
+                "For database operations, use airflow.models.VariableModel (coming in a follow up).",
+                UserWarning,
+                stacklevel=2,
+            )
 
-        with ctx as session:
-            rows = session.execute(delete(Variable).where(Variable.key == key)).rowcount
-            SecretCache.invalidate_variable(key)
-            return rows
+        from airflow.sdk import Variable as TaskSDKVariable
+
+        TaskSDKVariable.delete(key=key)
+        # Return value for compatibility
+        return 1
 
     def rotate_fernet_key(self):
         """Rotate Fernet Key."""
