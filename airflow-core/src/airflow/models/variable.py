@@ -308,7 +308,7 @@ class Variable(Base, LoggingMixin):
             from airflow.sdk import Variable as TaskSDKVariable
 
             # set is an upsert command, it can handle updates too
-            TaskSDKVariable.set(
+            TaskSDKVariable.update(
                 key=key,
                 value=value,
                 serialize_json=serialize_json,
