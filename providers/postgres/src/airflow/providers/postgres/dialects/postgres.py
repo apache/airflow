@@ -69,19 +69,21 @@ class PostgresDialect(Dialect):
         """
         if schema is None:
             table, schema = self.extract_schema_from_table(table)
-        sql = """
-            select kcu.column_name
-            from information_schema.table_constraints tco
-                    join information_schema.key_column_usage kcu
-                        on kcu.constraint_name = tco.constraint_name
-                            and kcu.constraint_schema = tco.constraint_schema
-                            and kcu.constraint_name = tco.constraint_name
-            where tco.constraint_type = 'PRIMARY KEY'
-            and kcu.table_schema = %s
-            and kcu.table_name = %s
-        """
         pk_columns = [
-            row[0] for row in self.get_records(sql, (self.unescape_word(schema), self.unescape_word(table)))
+            row["column_name"] for row in self.get_records(
+                f"""
+                  select kcu.column_name as column_name
+                  from information_schema.table_constraints tco
+                           join information_schema.key_column_usage kcu
+                                on kcu.constraint_name = tco.constraint_name
+                                    and kcu.constraint_schema = tco.constraint_schema
+                                    and kcu.constraint_name = tco.constraint_name
+                  where tco.constraint_type = 'PRIMARY KEY'
+                    and kcu.table_schema = '{self.unescape_word(schema)}'
+                    and kcu.table_name = '{self.unescape_word(table)}'
+                  order by kcu.ordinal_position
+                  """
+            )
         ]
         return pk_columns or None
 
