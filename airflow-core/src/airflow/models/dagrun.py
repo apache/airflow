@@ -22,13 +22,7 @@ import os
 import re
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Iterator, Sequence
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    NamedTuple,
-    TypeVar,
-    overload,
-)
+from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast, overload
 
 from natsort import natsorted
 from sqlalchemy import (
@@ -93,7 +87,7 @@ from airflow.utils.types import NOTSET, DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from datetime import datetime
-    from typing import Literal
+    from typing import Literal, TypeAlias
 
     from opentelemetry.sdk.trace import Span
     from pydantic import NonNegativeInt
@@ -102,11 +96,13 @@ if TYPE_CHECKING:
 
     from airflow.models.dag import DAG
     from airflow.models.dag_version import DagVersion
+    from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.sdk import DAG as SDKDAG
-    from airflow.sdk.types import Operator
-    from airflow.serialization.serialized_objects import SerializedBaseOperator as BaseOperator
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
     from airflow.utils.types import ArgNotSet
+
+    Operator: TypeAlias = MappedOperator | SerializedBaseOperator
 
     CreatedTasks = TypeVar("CreatedTasks", Iterator["dict[str, Any]"], Iterator[TI])
 
@@ -371,7 +367,7 @@ class DagRun(Base, LoggingMixin):
         """Return the DAG versions associated with the TIs of this DagRun."""
         # when the dag is in a versioned bundle, we keep the dag version fixed
         if self.bundle_version:
-            return [self.created_dag_version]
+            return [self.created_dag_version] if self.created_dag_version is not None else []
         dag_versions = [
             dv
             for dv in dict.fromkeys(list(self._tih_dag_versions) + list(self._ti_dag_versions))
@@ -1308,7 +1304,9 @@ class DagRun(Base, LoggingMixin):
             """Populate ``ti.task`` while excluding those missing one, marking them as REMOVED."""
             for ti in tis:
                 try:
-                    ti.task = dag.get_task(ti.task_id)
+                    # TODO (GH-52141): get_task in scheduler needs to return scheduler types
+                    # instead, but currently it inherits SDK's DAG.
+                    ti.task = cast("Operator", dag.get_task(ti.task_id))
                 except TaskNotFound:
                     if ti.state != TaskInstanceState.REMOVED:
                         self.log.error("Failed to get task for ti %s. Marking it as removed.", ti)
@@ -1512,7 +1510,7 @@ class DagRun(Base, LoggingMixin):
         revised_map_index_task_ids: set[str] = set()
         for schedulable in itertools.chain(schedulable_tis, additional_tis):
             if TYPE_CHECKING:
-                assert isinstance(schedulable.task, BaseOperator)
+                assert isinstance(schedulable.task, SerializedBaseOperator)
             old_state = schedulable.state
             if not schedulable.are_dependencies_met(session=session, dep_context=dep_context):
                 old_states[schedulable.key] = old_state
@@ -1677,8 +1675,13 @@ class DagRun(Base, LoggingMixin):
         )
 
         # Create the missing tasks, including mapped tasks
-        tasks_to_create = (task for task in dag.task_dict.values() if task_filter(task))
-        tis_to_create = self._create_tasks(tasks_to_create, task_creator, session=session)
+        tis_to_create = self._create_tasks(
+            # TODO (GH-52141): task_dict in scheduler should contain scheduler
+            # types instead, but currently it inherits SDK's DAG.
+            (task for task in cast("Iterable[Operator]", dag.task_dict.values()) if task_filter(task)),
+            task_creator,
+            session=session,
+        )
         self._create_task_instances(self.dag_id, tis_to_create, created_counts, hook_is_noop, session=session)
 
     def _check_for_removed_or_restored_tasks(
@@ -1899,7 +1902,7 @@ class DagRun(Base, LoggingMixin):
             session.rollback()
 
     def _revise_map_indexes_if_mapped(
-        self, task: Operator | BaseOperator, *, dag_version_id: UUIDType, session: Session
+        self, task: Operator, *, dag_version_id: UUIDType, session: Session
     ) -> Iterator[TI]:
         """
         Check if task increased or reduced in length and handle appropriately.
@@ -1993,7 +1996,7 @@ class DagRun(Base, LoggingMixin):
         schedulable_ti_ids: list[str] = []
         for ti in schedulable_tis:
             if TYPE_CHECKING:
-                assert isinstance(ti.task, BaseOperator)
+                assert isinstance(ti.task, SerializedBaseOperator)
             if (
                 ti.task.inherits_from_empty_operator
                 and not ti.task.on_execute_callback

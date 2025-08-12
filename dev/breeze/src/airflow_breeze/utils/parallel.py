@@ -343,9 +343,9 @@ class ParallelMonitor(Thread):
             get_console().print_exception(show_locals=True)
 
 
-def print_async_summary(completed_list: list[ApplyResult]) -> None:
+def print_async_result_status(completed_list: list[ApplyResult]) -> None:
     """
-    Print summary of completed async results.
+    Print status of completed async results.
     :param completed_list: list of completed async results.
     """
     completed_list.sort(key=lambda x: x.get()[1])
@@ -374,19 +374,26 @@ class SummarizeAfter(Enum):
 
 def check_async_run_results(
     results: list[ApplyResult],
-    success: str,
+    success_message: str,
     outputs: list[Output],
     include_success_outputs: bool,
     poll_time_seconds: float = 0.2,
     skip_cleanup: bool = False,
     summarize_on_ci: SummarizeAfter = SummarizeAfter.NO_SUMMARY,
     summary_start_regexp: str | None = None,
+    terminated_on_timeout: bool = False,
 ):
     """
-    Check if all async results were success. Exits with error if not.
+    Check if all async results were success.
+
+    Exits with error if:
+
+    * exit code 1: some tasks failed
+    * exit code 2: some tasks were terminated on timeout
+
     :param results: results of parallel runs (expected in the form of Tuple: (return_code, info)
     :param outputs: outputs where results are written to
-    :param success: Success string printed when everything is OK
+    :param success_message: Success string printed when everything is OK
     :param include_success_outputs: include outputs of successful parallel runs
     :param poll_time_seconds: what's the poll time between checks
     :param skip_cleanup: whether to skip cleanup of temporary files.
@@ -395,9 +402,37 @@ def check_async_run_results(
     :param summary_start_regexp: the regexp that determines line after which
         outputs should be printed as summary, so that you do not have to look at the folded details of
         the run in CI
+    :param terminated_on_timeout: whether the run was terminated on timeout
     """
-    from airflow_breeze.utils.ci_group import ci_group
+    if terminated_on_timeout:
+        print_outputs_on_timeout(outputs, results, include_success_outputs)
+        sys.exit(2)
+    completed_list = wait_for_all_tasks_completed(poll_time_seconds, results)
+    print_async_result_status(completed_list)
+    print_logs_on_completion(include_success_outputs, outputs, results)
+    summarize_results_outside_of_folded_logs(outputs, results, summarize_on_ci, summary_start_regexp)
+    if finalize_async_tasks(outputs, results, skip_cleanup, success_message):
+        sys.exit(1)
 
+
+def print_logs_on_completion(
+    include_success_outputs: bool, outputs: list[Output], results: list[ApplyResult]
+):
+    for i, result in enumerate(results):
+        if result.get()[0] != 0:
+            message_type = MessageType.ERROR
+        else:
+            message_type = MessageType.SUCCESS
+        if message_type == MessageType.ERROR or include_success_outputs:
+            from airflow_breeze.utils.ci_group import ci_group
+
+            with ci_group(f"{outputs[i].escaped_title}", message_type):
+                os.write(1, Path(outputs[i].file_name).read_bytes())
+        else:
+            get_console().print(f"[success]{outputs[i].escaped_title} OK[/]")
+
+
+def wait_for_all_tasks_completed(poll_time_seconds: float, results: list[ApplyResult]) -> list[ApplyResult]:
     completed_number = 0
     total_number_of_results = len(results)
     completed_list = get_completed_result_list(results)
@@ -409,7 +444,7 @@ def check_async_run_results(
                 f"\n[info]Completed {completed_number} out of {total_number_of_results} "
                 f"({completed_number / total_number_of_results:.0%}).[/]\n"
             )
-            print_async_summary(completed_list)
+            print_async_result_status(completed_list)
         time.sleep(poll_time_seconds)
         completed_list = get_completed_result_list(results)
     completed_number = len(completed_list)
@@ -417,50 +452,113 @@ def check_async_run_results(
         f"\n[info]Completed {completed_number} out of {total_number_of_results} "
         f"({completed_number / total_number_of_results:.0%}).[/]\n"
     )
-    print_async_summary(completed_list)
+    return completed_list
+
+
+def finalize_async_tasks(
+    outputs: list[Output], results: list[ApplyResult], skip_cleanup: bool, success_message: str
+) -> bool:
+    """
+    Finalize async tasks by checking results and cleaning up temporary files.
+
+    :param outputs: List of Output objects containing file names and titles.
+    :param results: List of ApplyResult objects containing the results of the tasks.
+    :param skip_cleanup: Whether to skip cleanup of temporary files.
+    :param success_message: Message to print if all tasks were successful.
+    :return: True if there were errors, False otherwise.
+    """
     errors = False
-    for i, result in enumerate(results):
+    for result in results:
         if result.get()[0] != 0:
             errors = True
+    if errors:
+        get_console().print("\n[error]There were errors when running some tasks. Quitting.[/]\n")
+    else:
+        get_console().print(f"\n[success]{success_message}[/]\n")
+    if not skip_cleanup:
+        for output in outputs:
+            Path(output.file_name).unlink(missing_ok=True)
+    from airflow_breeze.utils.docker_command_utils import fix_ownership_using_docker
+
+    fix_ownership_using_docker()
+    return errors
+
+
+def summarize_results_outside_of_folded_logs(
+    outputs: list[Output],
+    results: list[ApplyResult],
+    summarize_on_ci: SummarizeAfter,
+    summary_start_regexp: str | None = None,
+):
+    """
+    Print summary of the results outside the folded logs in CI.
+
+    :param outputs: List of Output objects containing file names and titles.
+    :param results: List of ApplyResult objects containing the results of the tasks.
+    :param summarize_on_ci: Determines when to summarize the parallel jobs when they are completed in
+        CI, outside the folded CI output.
+    :param summary_start_regexp: The regexp that determines line after which
+        outputs should be printed as summary, so that you do not have to look at the folded details of
+        the run in CI.
+    """
+    if summarize_on_ci == SummarizeAfter.NO_SUMMARY:
+        return
+    regex = re.compile(summary_start_regexp) if summary_start_regexp is not None else None
+    for i, result in enumerate(results):
+        failure = result.get()[0] != 0
+        if summarize_on_ci in [
+            SummarizeAfter.BOTH,
+            SummarizeAfter.FAILURE if failure else SummarizeAfter.SUCCESS,
+        ]:
+            print_lines = False
+            for line in Path(outputs[i].file_name).read_bytes().decode(errors="ignore").splitlines():
+                if not print_lines and (regex is None or regex.match(remove_ansi_colours(line))):
+                    print_lines = True
+                    get_console().print(f"\n[info]Summary: {outputs[i].escaped_title:<30}:\n")
+                if print_lines:
+                    print(line)
+
+
+def print_outputs_on_timeout(
+    outputs: list[Output], results: list[ApplyResult], include_success_outputs: bool
+):
+    """
+    Print outputs of the tasks that were terminated on timeout.
+    This function is called when some tasks were terminated on timeout.
+    It prints the outputs of the tasks that were terminated on timeout,
+    and the outputs of the tasks that were successful if `include_success_outputs` is True.
+    :param outputs: list of Output objects containing file names and titles
+    :param results: list of ApplyResult objects containing the results of the tasks
+    :param include_success_outputs: whether to include outputs of successful tasks
+    """
+    get_console().print(
+        "\n[warning]Some tasks were terminated on timeout. "
+        "Please check the logs of the tasks (below) for more details.[/]\n"
+    )
+    for i, result in enumerate(results):
+        try:
+            exit_code = result.get(timeout=0)[0]
+        except Exception:
+            exit_code = -1
+        if exit_code != 0:
             message_type = MessageType.ERROR
         else:
             message_type = MessageType.SUCCESS
+        output = outputs[i]
         if message_type == MessageType.ERROR or include_success_outputs:
-            with ci_group(title=f"{outputs[i].escaped_title}", message_type=message_type):
-                os.write(1, Path(outputs[i].file_name).read_bytes())
+            from airflow_breeze.utils.ci_group import ci_group
+
+            with ci_group(f"{output.escaped_title}", message_type):
+                os.write(1, Path(output.file_name).read_bytes())
         else:
             get_console().print(f"[success]{outputs[i].escaped_title} OK[/]")
-    if summarize_on_ci != SummarizeAfter.NO_SUMMARY:
-        regex = re.compile(summary_start_regexp) if summary_start_regexp is not None else None
-        for i, result in enumerate(results):
-            failure = result.get()[0] != 0
-            if summarize_on_ci in [
-                SummarizeAfter.BOTH,
-                SummarizeAfter.FAILURE if failure else SummarizeAfter.SUCCESS,
-            ]:
-                print_lines = False
-                for line in Path(outputs[i].file_name).read_bytes().decode(errors="ignore").splitlines():
-                    if not print_lines and (regex is None or regex.match(remove_ansi_colours(line))):
-                        print_lines = True
-                        get_console().print(f"\n[info]Summary: {outputs[i].escaped_title:<30}:\n")
-                    if print_lines:
-                        print(line)
-    try:
-        if errors:
-            get_console().print("\n[error]There were errors when running some tasks. Quitting.[/]\n")
-            from airflow_breeze.utils.docker_command_utils import fix_ownership_using_docker
+    get_console().print(
+        "\n[warning]Some tasks were terminated on timeout. "
+        "Please check the logs of the tasks (above) for more details.[/]\n"
+    )
+    from airflow_breeze.utils.docker_command_utils import fix_ownership_using_docker
 
-            fix_ownership_using_docker()
-            sys.exit(1)
-        else:
-            get_console().print(f"\n[success]{success}[/]\n")
-            from airflow_breeze.utils.docker_command_utils import fix_ownership_using_docker
-
-            fix_ownership_using_docker()
-    finally:
-        if not skip_cleanup:
-            for output in outputs:
-                Path(output.file_name).unlink(missing_ok=True)
+    fix_ownership_using_docker()
 
 
 @contextmanager

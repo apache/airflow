@@ -301,7 +301,7 @@ with DAG(
             except AirflowNotFoundException:
                 print("Connection 'integration_test' not found... but also OK.")
 
-        command = CmdOperator(task_id="command", command="echo Parameter is {{params.mapping_count}}")
+        command = CmdOperator(task_id="command", command="echo Hello World")
 
         def python_call():
             print("Hello world")

@@ -20,21 +20,23 @@ import logging
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_PLUS
+from airflow.sdk.bases.notifier import BaseNotifier
 
 if not AIRFLOW_V_3_1_PLUS:
     raise AirflowOptionalProviderFeatureException("Human in the loop functionality needs Airflow 3.1+.")
 
 
-from collections.abc import Collection, Mapping
-from datetime import datetime, timezone
+from collections.abc import Collection, Mapping, Sequence
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.standard.exceptions import HITLTimeoutError, HITLTriggerEventError
+from airflow.providers.standard.operators.branch import BranchMixIn
 from airflow.providers.standard.triggers.hitl import HITLTrigger, HITLTriggerEventSuccessPayload
 from airflow.providers.standard.utils.skipmixin import SkipMixin
 from airflow.providers.standard.version_compat import BaseOperator
 from airflow.sdk.definitions.param import ParamsDict
 from airflow.sdk.execution_time.hitl import upsert_hitl_detail
+from airflow.sdk.timezone import utcnow
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
@@ -65,6 +67,7 @@ class HITLOperator(BaseOperator):
         defaults: str | list[str] | None = None,
         multiple: bool = False,
         params: ParamsDict | dict[str, Any] | None = None,
+        notifiers: Sequence[BaseNotifier] | BaseNotifier | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -77,8 +80,16 @@ class HITLOperator(BaseOperator):
         self.multiple = multiple
 
         self.params: ParamsDict = params if isinstance(params, ParamsDict) else ParamsDict(params or {})
+        self.notifiers: Sequence[BaseNotifier] = (
+            [notifiers] if isinstance(notifiers, BaseNotifier) else notifiers or []
+        )
 
+        self.validate_options()
         self.validate_defaults()
+
+    def validate_options(self) -> None:
+        if not self.options:
+            raise ValueError('"options" cannot be empty.')
 
     def validate_defaults(self) -> None:
         """
@@ -107,11 +118,16 @@ class HITLOperator(BaseOperator):
             multiple=self.multiple,
             params=self.serialized_params,
         )
+
         if self.execution_timeout:
-            timeout_datetime = datetime.now(timezone.utc) + self.execution_timeout
+            timeout_datetime = utcnow() + self.execution_timeout
         else:
             timeout_datetime = None
+
         self.log.info("Waiting for response")
+        for notifier in self.notifiers:
+            notifier(context)
+
         # Defer the Human-in-the-loop response checking process to HITLTrigger
         self.defer(
             trigger=HITLTrigger(
@@ -218,14 +234,15 @@ class ApprovalOperator(HITLOperator, SkipMixin):
         return ret
 
 
-class HITLBranchOperator(HITLOperator):
+class HITLBranchOperator(HITLOperator, BranchMixIn):
     """BranchOperator based on Human-in-the-loop Response."""
 
-    def __init__(self, **kwargs) -> None:
-        super().__init__(**kwargs)
+    inherits_from_skipmixin = True
 
-    def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
-        raise NotImplementedError
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
+        ret = super().execute_complete(context=context, event=event)
+        chosen_options = ret["chosen_options"]
+        return self.do_branch(context=context, branches_to_execute=chosen_options)
 
 
 class HITLEntryOperator(HITLOperator):
