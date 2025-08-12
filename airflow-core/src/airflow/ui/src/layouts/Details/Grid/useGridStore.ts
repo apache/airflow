@@ -16,30 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-export enum SearchParamsKeys {
-  DEPENDENCIES = "dependencies",
-  END_DATE = "end_date",
-  FAVORITE = "favorite",
-  LAST_DAG_RUN_STATE = "last_dag_run_state",
-  LIMIT = "limit",
-  LOG_LEVEL = "log_level",
-  NAME_PATTERN = "name_pattern",
-  OFFSET = "offset",
-  OWNERS = "owners",
-  PAUSED = "paused",
-  POOL = "pool",
-  RESPONSE_RECEIVED = "response_received",
-  RUN_ID_PATTERN = "run_id_pattern",
-  RUN_TYPE = "run_type",
-  SORT = "sort",
-  SOURCE = "log_source",
-  START_DATE = "start_date",
-  STATE = "state",
-  TAGS = "tags",
-  TAGS_MATCH_MODE = "tags_match_mode",
-  TRIGGERING_USER_NAME_PATTERN = "triggering_user_name_pattern",
-  TRY_NUMBER = "try_number",
-  VERSION_NUMBER = "version_number",
-}
+import { create } from "zustand";
 
-export type SearchParamsKeysType = Record<keyof typeof SearchParamsKeys, string>;
+export const useGridStore = create<{ isGridFocused: boolean; setIsGridFocused: (value: boolean) => void }>(
+  (set) => ({
+    // isGridFocused is shared between different pages (Run, GroupInstance, MappedInstance, TaskInstance, etc.).
+    // This will avoid many prop drilling and allow proper refocus of the grid when navigating between these pages via grid links.
+    isGridFocused: false,
+    setIsGridFocused: (value: boolean) => set({ isGridFocused: value }),
+  }),
+);
