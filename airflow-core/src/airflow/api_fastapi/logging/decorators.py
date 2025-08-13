@@ -24,10 +24,10 @@ import pendulum
 from fastapi import Request
 from pendulum.parsing.exceptions import ParserError
 
+from airflow._shared.secrets_masker import secrets_masker
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.models import Log
-from airflow.sdk.execution_time import secrets_masker
 
 logger = logging.getLogger(__name__)
 
