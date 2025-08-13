@@ -144,6 +144,8 @@ experience is continuously improving, but defining workflows as code is central 
 .. toctree::
     :hidden:
     :caption: Content
+    :titlesonly:
+    :maxdepth: 1
 
     Overview <self>
     start
