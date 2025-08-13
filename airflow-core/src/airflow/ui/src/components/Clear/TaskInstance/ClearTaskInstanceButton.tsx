@@ -43,6 +43,7 @@ const ClearTaskInstanceButton = ({
 }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { t: translate } = useTranslation();
+  const isGroup = groupTaskInstance && !taskInstance;
 
   useHotkeys(
     "shift+c",
@@ -66,15 +67,17 @@ const ClearTaskInstanceButton = ({
           })}
           icon={<CgRedo />}
           onClick={onOpen}
-          text={translate("dags:runAndTaskActions.clear.button", { type: translate("taskInstance_one") })}
+          text={translate("dags:runAndTaskActions.clear.button", {
+            type: translate(isGroup ? "taskGroup" : "taskInstance_one"),
+          })}
           withText={withText}
         />
 
-        {open && groupTaskInstance && !taskInstance ? (
+        {open && isGroup ? (
           <ClearGroupTaskInstanceDialog onClose={onClose} open={open} taskInstance={groupTaskInstance} />
         ) : undefined}
 
-        {open && taskInstance && !groupTaskInstance ? (
+        {open && !isGroup && taskInstance ? (
           <ClearTaskInstanceDialog onClose={onClose} open={open} taskInstance={taskInstance} />
         ) : undefined}
       </Box>
