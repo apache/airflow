@@ -95,7 +95,7 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "2.10.3": "5f2621c13b39",
     "3.0.0": "29ce7909c52b",
     "3.0.3": "fe199e1abd77",
-    "3.1.0": "808787349f22",
+    "3.1.0": "a169942745c2",
 }
 
 
@@ -1189,21 +1189,21 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
     config = _get_alembic_config()
     # Check if downgrade is less than 3.0.0 and requires that `ab_user` fab table is present
     if _revision_greater(config, _REVISION_HEADS_MAP["2.10.3"], to_revision):
-        unitest_mode = conf.getboolean("core", "unit_test_mode")
-        if unitest_mode:
-            try:
-                from airflow.providers.fab.auth_manager.models.db import FABDBManager
-
-                dbm = FABDBManager(session)
-                dbm.initdb()
-            except ImportError:
-                log.warning("Import error occurred while importing FABDBManager. Skipping the check.")
-                return
-        if not inspect(settings.engine).has_table("ab_user") and not unitest_mode:
-            raise AirflowException(
-                "Downgrade to revision less than 3.0.0 requires that `ab_user` table is present. "
-                "Please add FabDBManager to [core] external_db_managers and run fab migrations before proceeding"
+        try:
+            from airflow.providers.fab.auth_manager.models.db import FABDBManager
+        except ImportError:
+            # Raise the error with a new message
+            raise RuntimeError(
+                "Import error occurred while importing FABDBManager. We need that to exist before we can "
+                "downgrade to <3.0.0"
             )
+        dbm = FABDBManager(session)
+        if hasattr(dbm, "reset_to_2_x"):
+            dbm.reset_to_2_x()
+        else:
+            # Older version before we added that function, it only has a single migration so we can just
+            # created
+            dbm.create_db_from_orm()
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         if show_sql_only:
             log.warning("Generating sql scripts for manual migration.")
