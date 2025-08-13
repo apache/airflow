@@ -17,7 +17,6 @@
  * under the License.
  */
 import { Button } from "@chakra-ui/react";
-import { useTranslation } from "react-i18next";
 import { LuX } from "react-icons/lu";
 
 export const ResetButton = ({
@@ -27,8 +26,6 @@ export const ResetButton = ({
   readonly filterCount: number;
   readonly onClearFilters: () => void;
 }) => {
-  const { t: translate } = useTranslation("common");
-
   if (filterCount === 0) {
     return undefined;
   }
@@ -36,7 +33,7 @@ export const ResetButton = ({
   return (
     <Button onClick={onClearFilters} size="sm" variant="outline">
       <LuX />
-      {translate("table.filterReset", { count: filterCount })}
+      {filterCount === 1 ? "Reset Filter" : "Reset Filters"}
     </Button>
   );
 };

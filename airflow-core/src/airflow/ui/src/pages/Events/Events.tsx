@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -18,7 +20,7 @@
  */
 import { ButtonGroup, Code, Flex, Heading, IconButton, useDisclosure, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useCallback } from "react";
+import React from "react";
 import { useTranslation } from "react-i18next";
 import { MdCompress, MdExpand } from "react-icons/md";
 import { useParams, useSearchParams } from "react-router-dom";
@@ -160,7 +162,7 @@ const {
 export const Events = () => {
   const { t: translate } = useTranslation("browse");
   const { dagId, runId, taskId } = useParams();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
@@ -177,56 +179,74 @@ export const Events = () => {
   const userFilter = searchParams.get(USER_PARAM);
 
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-when"];
-
-  const resetPagination = useCallback(() => {
-    setTableURLState({
-      pagination: { ...pagination, pageIndex: 0 },
-      sorting,
-    });
-  }, [pagination, setTableURLState, sorting]);
-
-  const handleClearFilters = useCallback(() => {
-    searchParams.delete(AFTER_PARAM);
-    searchParams.delete(BEFORE_PARAM);
-    searchParams.delete(DAG_ID_PARAM);
-    searchParams.delete(EVENT_TYPE_PARAM);
-    searchParams.delete(MAP_INDEX_PARAM);
-    searchParams.delete(RUN_ID_PARAM);
-    searchParams.delete(TASK_ID_PARAM);
-    searchParams.delete(TRY_NUMBER_PARAM);
-    searchParams.delete(USER_PARAM);
-
-    resetPagination();
-    setSearchParams(searchParams);
-  }, [resetPagination, searchParams, setSearchParams]);
-
   // Convert string filters to appropriate types for API
   const mapIndexNumber = mapIndexFilter === null ? undefined : parseInt(mapIndexFilter, 10);
   const tryNumberNumber = tryNumberFilter === null ? undefined : parseInt(tryNumberFilter, 10);
-
   // Handle date conversion - ensure valid ISO strings
   const afterDate = afterFilter !== null && !isNaN(Date.parse(afterFilter)) ? afterFilter : undefined;
   const beforeDate = beforeFilter !== null && !isNaN(Date.parse(beforeFilter)) ? beforeFilter : undefined;
+  const hasTextFilters = Boolean(dagIdFilter ?? eventTypeFilter ?? userFilter ?? runIdFilter ?? taskIdFilter);
 
   const { data, error, isFetching, isLoading } = useEventLogServiceGetEventLogs(
     {
       after: afterDate,
       before: beforeDate,
-      // URL params take precedence over filters for context-specific views
-      dagId: dagId ?? dagIdFilter ?? undefined,
-      event: eventTypeFilter ?? undefined,
-      limit: pagination.pageSize,
+      // URL params take precedence for context-specific views (exact match needed)
+      dagId: dagId ?? undefined, // Remove dagIdFilter to allow partial search
+      event: undefined, // Remove eventTypeFilter to allow partial search
+      limit: hasTextFilters ? pagination.pageSize * 5 : pagination.pageSize, // Load more data for filtering
       mapIndex: mapIndexNumber,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
-      owner: userFilter ?? undefined,
-      runId: runId ?? runIdFilter ?? undefined,
-      taskId: taskId ?? taskIdFilter ?? undefined,
+      owner: undefined, // Remove userFilter to allow partial search
+      runId: runId ?? undefined, // Remove runIdFilter to allow partial search
+      taskId: taskId ?? undefined, // Remove taskIdFilter to allow partial search
       tryNumber: tryNumberNumber,
     },
     undefined,
     { enabled: !isNaN(pagination.pageSize) },
   );
+
+  const filteredData = React.useMemo(() => {
+    if (!data?.event_logs || !hasTextFilters) {
+      return data;
+    }
+
+    const filtered = data.event_logs.filter((log) => {
+      if (dagIdFilter !== null && !log.dag_id?.toLowerCase().includes(dagIdFilter.toLowerCase())) {
+        return false;
+      }
+      if (eventTypeFilter !== null && !log.event.toLowerCase().includes(eventTypeFilter.toLowerCase())) {
+        return false;
+      }
+      if (userFilter !== null && !log.owner?.toLowerCase().includes(userFilter.toLowerCase())) {
+        return false;
+      }
+      if (runIdFilter !== null && !log.run_id?.toLowerCase().includes(runIdFilter.toLowerCase())) {
+        return false;
+      }
+      if (taskIdFilter !== null && !log.task_id?.toLowerCase().includes(taskIdFilter.toLowerCase())) {
+        return false;
+      }
+
+      return true;
+    });
+
+    return {
+      ...data,
+      event_logs: filtered.slice(0, pagination.pageSize), // Apply pagination to filtered results
+      total_entries: filtered.length,
+    };
+  }, [
+    data,
+    dagIdFilter,
+    eventTypeFilter,
+    userFilter,
+    runIdFilter,
+    taskIdFilter,
+    hasTextFilters,
+    pagination.pageSize,
+  ]);
 
   return (
     <VStack alignItems="stretch" gap={4}>
@@ -256,18 +276,12 @@ export const Events = () => {
         </ButtonGroup>
       </Flex>
 
-      {/* Show filters but conditionally hide inputs based on URL context */}
-      <EventsFilters
-        onClearFilters={handleClearFilters}
-        urlDagId={dagId}
-        urlRunId={runId}
-        urlTaskId={taskId}
-      />
+      <EventsFilters urlDagId={dagId} urlRunId={runId} urlTaskId={taskId} />
 
       <ErrorAlert error={error} />
       <DataTable
         columns={eventsColumn({ dagId, open, runId, taskId }, translate)}
-        data={data ? data.event_logs : []}
+        data={filteredData ? filteredData.event_logs : []}
         displayMode="table"
         initialState={tableURLState}
         isFetching={isFetching}
@@ -275,7 +289,7 @@ export const Events = () => {
         modelName={translate("auditLog.columns.event")}
         onStateChange={setTableURLState}
         skeletonCount={undefined}
-        total={data ? data.total_entries : 0}
+        total={filteredData ? filteredData.total_entries : 0}
       />
     </VStack>
   );
