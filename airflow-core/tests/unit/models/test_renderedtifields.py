@@ -283,17 +283,19 @@ class TestRenderedTaskInstanceFields:
         for a given task_id and dag_id with mapped tasks.
         """
         with set_current_task_instance_session(session=session):
-            with dag_maker("test_delete_old_records", session=session) as dag:
+            with dag_maker("test_delete_old_records", session=session, serialized=True) as dag:
                 mapped = BashOperator.partial(task_id="mapped").expand(bash_command=["a", "b"])
             for num in range(num_runs):
                 dr = dag_maker.create_dagrun(
                     run_id=f"run_{num}", logical_date=dag.start_date + timedelta(days=num)
                 )
 
-                TaskMap.expand_mapped_task(mapped, dr.run_id, session=dag_maker.session)
+                TaskMap.expand_mapped_task(
+                    dag.task_dict[mapped.task_id], dr.run_id, session=dag_maker.session
+                )
                 session.refresh(dr)
                 for ti in dr.task_instances:
-                    ti.task = dag.get_task(ti.task_id)
+                    ti.task = mapped
                     session.add(RTIF(ti))
             session.flush()
 

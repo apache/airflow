@@ -307,7 +307,7 @@ class TestTIRunState:
         """
         from airflow.models.taskmap import TaskMap
 
-        with dag_maker(session=session):
+        with dag_maker(session=session, serialized=True):
 
             @task
             def task_1():

@@ -133,9 +133,11 @@ export const HITLTaskInstances = () => {
 
   const { data, error, isLoading } = useHumanInTheLoopServiceGetHitlDetails(
     {
-      dagIdPattern: dagId,
+      dagId,
       dagRunId: runId,
       responseReceived: Boolean(responseReceived) ? responseReceived === "true" : undefined,
+      taskId: Boolean(groupId) ? undefined : taskId,
+      taskIdPattern: groupId,
     },
     undefined,
     {
@@ -144,21 +146,11 @@ export const HITLTaskInstances = () => {
     },
   );
 
-  const filteredData = data?.hitl_details.filter((hitl) => {
-    if (taskId !== undefined) {
-      return hitl.task_instance.task_id === taskId;
-    } else if (groupId !== undefined) {
-      return hitl.task_instance.task_id.includes(groupId);
-    }
-
-    return true;
-  });
-
   return (
     <Box>
       {!Boolean(dagId) && !Boolean(runId) && !Boolean(taskId) ? (
         <Heading size="md">
-          {filteredData?.length} {translate("requiredAction", { count: filteredData?.length })}
+          {data?.total_entries} {translate("requiredAction", { count: data?.total_entries })}
         </Heading>
       ) : undefined}
       <DataTable
@@ -168,13 +160,13 @@ export const HITLTaskInstances = () => {
           taskId: Boolean(groupId) ? undefined : taskId,
           translate,
         })}
-        data={filteredData ?? []}
+        data={data?.hitl_details ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
         isLoading={isLoading}
         modelName={translate("requiredAction_other")}
         onStateChange={setTableURLState}
-        total={filteredData?.length}
+        total={data?.total_entries}
       />
     </Box>
   );
