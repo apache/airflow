@@ -35,7 +35,7 @@ class TestPostgresDialect:
                 {"column_name": "id", "identity": True},
                 {"column_name": "name"},
                 {"column_name": "firstname"},
-                {"column_name": "age"}
+                {"column_name": "age"},
             ]
 
         self.test_db_hook = MagicMock(placeholder="?", spec=DbApiHook)

@@ -56,7 +56,7 @@ class PostgresDialect(Dialect):
                     and kcu.table_name = %s
                   order by kcu.ordinal_position
                   """,
-                (self.unescape_word(schema), self.unescape_word(table))
+                (self.unescape_word(schema), self.unescape_word(table)),
             )
         ]
         return pk_columns or None
