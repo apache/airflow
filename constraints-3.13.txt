@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-12T07:48:29.489749
+# This constraints file was automatically generated on 2025-08-13T19:46:39.243964
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -176,7 +176,7 @@ apache-airflow-providers-weaviate==3.2.2
 apache-airflow-providers-zendesk==4.10.2
 apprise==1.9.4
 argcomplete==3.6.2
-asana==5.2.0
+asana==5.2.1
 asgiref==3.9.1
 asn1crypto==1.5.1
 asttokens==3.0.0
@@ -216,7 +216,7 @@ backoff==2.2.1
 bcrypt==4.3.0
 beautifulsoup4==4.13.4
 billiard==4.2.1
-bitarray==3.6.0
+bitarray==3.6.1
 black==25.1.0
 bleach==6.2.0
 blinker==1.9.0
@@ -238,7 +238,7 @@ click-plugins==1.1.1.2
 click-repl==0.3.0
 click==8.2.1
 cloudpickle==3.1.1
-cohere==5.16.3
+cohere==5.17.0
 colorlog==6.9.0
 comm==0.2.3
 crcmod==1.7
@@ -290,7 +290,7 @@ gitdb==4.0.12
 google-ads==28.0.0
 google-analytics-admin==0.24.1
 google-api-core==2.25.1
-google-api-python-client==2.178.0
+google-api-python-client==2.179.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.40.3
@@ -462,7 +462,7 @@ opsgenie-sdk==2.1.5
 oracledb==3.3.0
 oss2==2.19.1
 packaging==25.0
-pagerduty==3.1.0
+pagerduty==4.0.0
 pandas-gbq==0.29.2
 pandas-stubs==2.3.0.250703
 pandas==2.2.3
@@ -471,7 +471,7 @@ papermill==2.6.0
 paramiko==3.5.1
 parso==0.8.4
 pathspec==0.12.1
-pbr==6.1.1
+pbr==7.0.0
 pendulum==3.1.0
 pexpect==4.9.0
 pgvector==0.4.1
@@ -628,7 +628,7 @@ vine==5.1.0
 watchfiles==1.1.0
 watchtower==3.4.0
 wcwidth==0.2.13
-weaviate-client==4.16.6
+weaviate-client==4.16.7
 webencodings==0.5.1
 websocket-client==1.8.0
 websockets==15.0.1
