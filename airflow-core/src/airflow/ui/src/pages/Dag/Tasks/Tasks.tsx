@@ -81,7 +81,7 @@ export const Tasks = () => {
         onValueChange={handleOperatorSelect}
         value={[selectedOperator ?? "all"]}
       >
-        <Select.Trigger colorPalette="blue" isActive={Boolean("hi")} minW="max-content">
+        <Select.Trigger colorPalette="blue" minW="max-content">
           <Select.ValueText width="auto">
             {() => selectedOperator}
           </Select.ValueText>
