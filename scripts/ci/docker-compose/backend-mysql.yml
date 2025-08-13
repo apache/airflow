@@ -30,16 +30,21 @@ services:
       - MYSQL_ALLOW_EMPTY_PASSWORD=true
       - MYSQL_ROOT_HOST=%
       - MYSQL_DATABASE=airflow
+      - MYSQL_INITDB_SKIP_TZINFO=1
     volumes:
       - ../mysql/conf.d:/etc/mysql/conf.d:ro
       - mysql-db-volume:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysql", "-h", "localhost", "-P", "3306", "-u", "root", "-e", "SELECT 1"]
+      test: ["CMD", "mysqladmin", "status", "-h", "localhost", "-u", "root"]
       interval: 10s
       timeout: 10s
+      start_period: 30s
       retries: 5
     restart: "on-failure"
-    command: ['mysqld', '--character-set-server=utf8mb4',
-              '--collation-server=utf8mb4_unicode_ci']
+    command: [
+      'mysqld',
+      '--character-set-server=utf8mb4',
+      '--collation-server=utf8mb4_unicode_ci',
+    ]
 volumes:
   mysql-db-volume:

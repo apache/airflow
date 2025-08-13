@@ -131,6 +131,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-airflow-v-imports-in-tests                          | Check AIRFLOW_V imports in tests                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-airflow-version-checks-in-core                      | No AIRFLOW_V_* imports in airflow-core                 | *       |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-apache-license-rat                                  | Check if licenses are OK for Apache                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-base-operator-partial-arguments                     | Check BaseOperator and partial() arguments             |         |
@@ -277,8 +279,6 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | end-of-file-fixer                                         | Make sure that there is an empty line at the end       |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| fix-encoding-pragma                                       | Remove encoding header from Python files               |         |
-+-----------------------------------------------------------+--------------------------------------------------------+---------+
 | flynt                                                     | Run flynt string format converter for Python           |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | gci                                                       | Consistent import ordering for Go files                |         |
@@ -292,6 +292,8 @@ require Breeze Docker image to be built locally.
 | generate-openapi-spec                                     | Generate the FastAPI API spec                          | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-openapi-spec-fab                                 | Generate the FastAPI API spec for FAB                  | *       |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| generate-openapi-spec-keycloak                            | Generate the FastAPI API spec for Keycloak             | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-pypi-readme                                      | Generate PyPI README                                   |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+

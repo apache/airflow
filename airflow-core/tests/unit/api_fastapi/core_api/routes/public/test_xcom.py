@@ -523,7 +523,7 @@ class TestCreateXComEntry(TestXComEndpoint):
                 run_id,
                 XComCreateBody(key=TEST_XCOM_KEY, value=TEST_XCOM_VALUE),
                 404,
-                "Dag with ID: `invalid-dag-id` was not found",
+                "The Dag with ID: `invalid-dag-id` was not found",
                 id="dag-not-found",
             ),
             # Test case: Task not found in DAG

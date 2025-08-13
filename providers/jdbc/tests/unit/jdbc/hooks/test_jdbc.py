@@ -33,6 +33,8 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.jdbc.hooks.jdbc import JdbcHook, suppress_and_warn
 
+from tests_common.test_utils.version_compat import SQLALCHEMY_V_1_4
+
 jdbc_conn_mock = Mock(name="jdbc_conn")
 logger = logging.getLogger(__name__)
 
@@ -224,7 +226,11 @@ class TestJdbcHook:
         hook_params = {"driver_path": "ParamDriverPath", "driver_class": "ParamDriverClass"}
         hook = get_hook(conn_params=conn_params, hook_params=hook_params)
 
-        assert str(hook.sqlalchemy_url) == "mssql://login:password@host:1234/schema"
+        expected = "mssql://login:password@host:1234/schema"
+        if SQLALCHEMY_V_1_4:
+            assert str(hook.sqlalchemy_url) == expected
+        else:
+            assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
 
     def test_sqlalchemy_url_with_sqlalchemy_scheme_and_query(self):
         conn_params = dict(
@@ -233,7 +239,11 @@ class TestJdbcHook:
         hook_params = {"driver_path": "ParamDriverPath", "driver_class": "ParamDriverClass"}
         hook = get_hook(conn_params=conn_params, hook_params=hook_params)
 
-        assert str(hook.sqlalchemy_url) == "mssql://login:password@host:1234/schema?servicename=test"
+        expected = "mssql://login:password@host:1234/schema?servicename=test"
+        if SQLALCHEMY_V_1_4:
+            assert str(hook.sqlalchemy_url) == expected
+        else:
+            assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
 
     def test_sqlalchemy_url_with_sqlalchemy_scheme_and_wrong_query_value(self):
         conn_params = dict(extra=json.dumps(dict(sqlalchemy_scheme="mssql", sqlalchemy_query="wrong type")))

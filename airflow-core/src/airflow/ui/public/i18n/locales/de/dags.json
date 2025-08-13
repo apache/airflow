@@ -20,7 +20,8 @@
       "all": "Alle",
       "paused": "Pausiert"
     },
-    "runIdPatternFilter": "Dag Läufe suchen"
+    "runIdPatternFilter": "Dag Läufe suchen",
+    "triggeringUserNameFilter": "Suche Läufe ausgelöst von..."
   },
   "ownerLink": "Besitzer Verlinkungen zu {{owner}}",
   "runAndTaskActions": {
@@ -62,6 +63,7 @@
       "onlyFailed": "Nur fehlgeschlagene Tasks bereinigen",
       "past": "Vergangene",
       "queueNew": "Neue Tasks einplanen",
+      "runOnLatestVersion": "Mit neuester Bundle-Version ausführen",
       "upstream": "Vorangegangene"
     }
   },

@@ -72,22 +72,3 @@ def import_(args, api_client=NEW_API_CLIENT) -> None:
     except Exception as e:
         rich.print(f"[red]Failed to import connections: {e}[/red]")
         raise SystemExit
-
-
-@provide_api_client(kind=ClientKind.CLI)
-def export(args, api_client=NEW_API_CLIENT) -> None:
-    """Export connections to a file."""
-    filepath = args.file
-    try:
-        connections = api_client.connections.list()
-        connection_dict = {}
-        for conn in connections.connections:
-            connection_dict[conn.connection_id] = conn.model_dump()
-        with open(Path(args.file), "w") as var_file:
-            json.dump(connection_dict, var_file, sort_keys=True, indent=4)
-        rich.print(
-            f"[green]Export successful! {connections.total_entries} connections(s) to {filepath}[/green]"
-        )
-    except Exception as e:
-        rich.print(f"[red]Failed to export connections: {e}[/red]")
-        raise SystemExit(1)

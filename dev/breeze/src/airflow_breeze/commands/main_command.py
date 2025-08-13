@@ -26,6 +26,7 @@ from airflow_breeze.commands.ci_image_commands import ci_image
 from airflow_breeze.commands.common_options import (
     option_all_integration,
     option_answer,
+    option_auth_manager,
     option_backend,
     option_builder,
     option_db_reset,
@@ -106,6 +107,7 @@ class MainGroupWithAliases(BreezeGroup):
     context_settings={"help_option_names": ["-h", "--help"]},
 )
 @option_answer
+@option_auth_manager
 @option_backend
 @option_builder
 @option_db_reset

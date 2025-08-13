@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+1.10.2
+......
+
+Misc
+~~~~
+
+* ``Set minimum version for common.messaging to 1.0.3 (#54160)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix 'importskip' statements in tests (#54135)``
+
 1.10.1
 ......
 

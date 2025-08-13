@@ -20,6 +20,44 @@
 Changelog
 ---------
 
+2.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'get_authorized_dag_ids' in 'FabAuthManager' (#54276)``
+* ``Allow downgrading to 2.11 from 3.x (#54371)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Allow downgrading to 2.11 from 3.x (#54231)" (#54367)``
+   * ``Allow downgrading to 2.11 from 3.x (#54231)``
+
+2.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Create HITL specific permission for core-API (#54043)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: Add FAB configs for cookie security (#53542)``
+* ``Fig 'Config' menu item missing in 'FabAuthManager' (#53944)``
+
+Misc
+~~~~
+
+* ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#53941)``
+* ``Add UI for human in the loop operators (#53035)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 4 updates (#53503)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.3.1
 .....
 

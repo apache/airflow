@@ -33,12 +33,14 @@ const BAR_HEIGHT = 100;
 type Props = {
   readonly max: number;
   readonly nodes: Array<GridTask>;
+  readonly onCellClick?: () => void;
+  readonly onColumnClick?: () => void;
   readonly run: GridRunsResponse;
   readonly showVersionIndicator?: boolean;
   readonly versionNumber?: number | null;
 };
 
-export const Bar = ({ max, nodes, run, showVersionIndicator = false, versionNumber }: Props) => {
+export const Bar = ({ max, nodes, onCellClick, onColumnClick, run, showVersionIndicator = false, versionNumber }: Props) => {
   const { dagId = "", runId } = useParams();
   const [searchParams] = useSearchParams();
 
@@ -63,6 +65,7 @@ export const Bar = ({ max, nodes, run, showVersionIndicator = false, versionNumb
         alignItems="flex-end"
         height={BAR_HEIGHT}
         justifyContent="center"
+        onClick={onColumnClick}
         pb="2px"
         px="5px"
         width="18px"
@@ -88,6 +91,7 @@ export const Bar = ({ max, nodes, run, showVersionIndicator = false, versionNumb
 
       <TaskInstancesColumn
         nodes={nodes}
+        onCellClick={onCellClick}
         runId={run.run_id}
         taskInstances={gridTISummaries?.task_instances ?? []}
       />

@@ -88,6 +88,10 @@ export const Header = ({
     }
   }, [dagId, dagRunId, mapIndex, mutate, note, taskId, taskInstance.note]);
 
+  const onOpen = () => {
+    setNote(taskInstance.note ?? "");
+  };
+
   return (
     <Box ref={containerRef}>
       <HeaderCard
@@ -99,6 +103,7 @@ export const Header = ({
               isPending={isPending}
               mdContent={note}
               onConfirm={onConfirm}
+              onOpen={onOpen}
               placeholder={translate("note.placeholder")}
               setMdContent={setNote}
               text={Boolean(taskInstance.note) ? translate("note.label") : translate("note.add")}

@@ -41,7 +41,7 @@ Client Secret (required)
     The Client Secret to connect to the Airbyte server.
     You can find this information in the Settings / Applications page in Airbyte UI.
 
-Extras (optional)
+Extra (optional)
     Specify custom proxies in json format.
     Following default requests parameters are taken into account:
 
