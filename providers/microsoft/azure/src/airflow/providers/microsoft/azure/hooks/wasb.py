@@ -292,8 +292,10 @@ class WasbHook(BaseHook):
         :param delimiter: filters objects based on the delimiter (for e.g '.csv')
         """
         container = self._get_container_client(container_name)
-        if isinstance(container, AsyncContainerClient):
-            raise TypeError("WasbAsyncHook should call get_blobs_list_async function instead.")
+        if not isinstance(container, ContainerClient):
+            raise TypeError(
+                f"_get_container_client for WasbHook should return ContainerClient object, got {type(container).__name__}"
+            )
 
         blob_list = []
         blobs = container.walk_blobs(name_starts_with=prefix, include=include, delimiter=delimiter, **kwargs)
@@ -321,8 +323,10 @@ class WasbHook(BaseHook):
         :param delimiter: filters objects based on the delimiter (for e.g '.csv')
         """
         container = self._get_container_client(container_name)
-        if isinstance(container, AsyncContainerClient):
-            raise TypeError("WasbAsyncHook should call get_blobs_list_async function instead.")
+        if not isinstance(container, ContainerClient):
+            raise TypeError(
+                f"_get_container_client for WasbHook should return ContainerClient object, got {type(container).__name__}"
+            )
 
         blob_list = []
         blobs = container.list_blobs(name_starts_with=prefix, include=include, **kwargs)
@@ -740,6 +744,11 @@ class WasbAsyncHook(WasbHook):
         :param delimiter: filters objects based on the delimiter (for e.g '.csv')
         """
         container = self._get_container_client(container_name)
+        if not isinstance(container, AsyncContainerClient):
+            raise TypeError(
+                f"_get_container_client for AsyncContainerClient should return AsyncContainerClient object, got {type(container).__name__}"
+            )
+
         blob_list: list[BlobProperties | BlobPrefix] = []
         blobs = container.walk_blobs(name_starts_with=prefix, include=include, delimiter=delimiter, **kwargs)
         async for blob in blobs:
