@@ -42,16 +42,17 @@ class PostgresDialect(Dialect):
                 predicate,
                 self.get_records(
                     f"""
-                        select column_name,
-                               data_type,
-                               is_nullable,
-                               column_default,
-                               ordinal_position
-                        from information_schema.columns
-                        where table_schema = '{self.unescape_word(schema)}'
-                          and table_name = '{self.unescape_word(table)}'
-                        order by ordinal_position
-                        """,
+                            select column_name,
+                                   data_type,
+                                   is_nullable,
+                                   column_default,
+                                   ordinal_position
+                            from information_schema.columns
+                            where table_schema = ?
+                              and table_name = ?
+                            order by ordinal_position
+                            """,
+                    (self.unescape_word(schema), self.unescape_word(table)),
                 ),
             )
         )
@@ -72,18 +73,18 @@ class PostgresDialect(Dialect):
         pk_columns = [
             row["column_name"] for row in self.get_records(
                 f"""
-                  select kcu.column_name as column_name
-                  from information_schema.table_constraints tco
-                           join information_schema.key_column_usage kcu
-                                on kcu.constraint_name = tco.constraint_name
-                                    and kcu.constraint_schema = tco.constraint_schema
-                                    and kcu.constraint_name = tco.constraint_name
-                  where tco.constraint_type = 'PRIMARY KEY'
-                    and kcu.table_schema = '{self.unescape_word(schema)}'
-                    and kcu.table_name = '{self.unescape_word(table)}'
-                  order by kcu.ordinal_position
-                  """
-            )
+                      select kcu.column_name as column_name
+                      from information_schema.table_constraints tco
+                               join information_schema.key_column_usage kcu
+                                    on kcu.constraint_name = tco.constraint_name
+                                        and kcu.constraint_schema = tco.constraint_schema
+                                        and kcu.constraint_name = tco.constraint_name
+                      where tco.constraint_type = 'PRIMARY KEY'
+                        and kcu.table_schema = ?
+                        and kcu.table_name = ?
+                      order by kcu.ordinal_position
+                      """,
+                (self.unescape_word(schema), self.unescape_word(table)))
         ]
         return pk_columns or None
 
