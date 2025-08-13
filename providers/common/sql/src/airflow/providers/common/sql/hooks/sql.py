@@ -184,7 +184,9 @@ class DbApiHook(BaseHook):
         self._replace_statement_format: str | None = kwargs.get("replace_statement_format")
         self._escape_word_format: str | None = kwargs.get("escape_word_format")
         self._escape_column_names: bool | None = kwargs.get("escape_column_names")
+        self._max_log_sql_str: int | None = kwargs.get("max_log_sql_str", 1000)
         self._connection: Connection | None = kwargs.pop("connection", None)
+        
 
     def get_conn_id(self) -> str:
         return getattr(self, self.conn_name_attr)
@@ -804,10 +806,15 @@ class DbApiHook(BaseHook):
             return cast("list[tuple]", result)
         return cast("tuple", result)
 
+    def _truncate_text(self,text):
+        if self._max_log_sql_str is None or len(text) <= self._max_log_sql_str
+            return text 
+        return text[:self._max_log_sql_str] + '.......'
+
     def _run_command(self, cur, sql_statement, parameters):
         """Run a statement using an already open cursor."""
         if self.log_sql:
-            self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
+            self.log.info("Running statement: %s, parameters: %s", self._truncate_text(sql_statement), parameters)
 
         if parameters:
             cur.execute(sql_statement, parameters)
