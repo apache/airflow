@@ -40,7 +40,15 @@ type Props = {
   readonly versionNumber?: number | null;
 };
 
-export const Bar = ({ max, nodes, onCellClick, onColumnClick, run, showVersionIndicator = false, versionNumber }: Props) => {
+export const Bar = ({
+  max,
+  nodes,
+  onCellClick,
+  onColumnClick,
+  run,
+  showVersionIndicator = false,
+  versionNumber,
+}: Props) => {
   const { dagId = "", runId } = useParams();
   const [searchParams] = useSearchParams();
 

@@ -178,9 +178,9 @@ export const Grid = ({ limit }: Props) => {
                   key={dr.run_id}
                   max={max}
                   nodes={flatNodes}
-                  run={dr}
                   onCellClick={() => setMode("TI")}
                   onColumnClick={() => setMode("run")}
+                  run={dr}
                   showVersionIndicator={showVersionIndicator}
                   versionNumber={dr.dag_version_number}
                 />
