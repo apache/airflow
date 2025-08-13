@@ -23,6 +23,7 @@ import re
 import signal
 from collections.abc import Callable, Generator, Iterable, MutableMapping
 from functools import cache
+from urllib.parse import urljoin
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from lazy_object_proxy import Proxy
