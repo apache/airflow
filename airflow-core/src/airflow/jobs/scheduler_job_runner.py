@@ -1584,7 +1584,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
             asset_events = session.scalars(
-                select(AssetEvent).where(
+                select(AssetEvent)
+                .where(
                     or_(
                         AssetEvent.asset_id.in_(
                             select(DagScheduleAssetReference.asset_id).where(
@@ -1600,6 +1601,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     AssetEvent.timestamp <= triggered_date,
                     AssetEvent.timestamp > func.coalesce(cte.c.previous_dag_run_run_after, date.min),
                 )
+                .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
             ).all()
 
             dag_run = dag.create_dagrun(
