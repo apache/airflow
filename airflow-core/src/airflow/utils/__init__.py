@@ -42,6 +42,9 @@ __deprecated_classes = {
         "remove_task_decorator": "airflow.sdk.definitions._internal.decorators.remove_task_decorator",
         "fixup_decorator_warning_stack": "airflow.sdk.definitions._internal.decorators.fixup_decorator_warning_stack",
     },
+    "timeout": {
+        "timeout": "airflow.sdk.execution_time.timeout.timeout",
+    },
 }
 
 add_deprecated_classes(__deprecated_classes, __name__)
