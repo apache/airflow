@@ -350,7 +350,13 @@ class SerializedDagModel(Base):
     def hash(cls, dag_data):
         """Hash the data to get the dag_hash."""
         dag_data = cls._sort_serialized_dag_dict(dag_data)
-        data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
+        data_ = dag_data.copy()
+        # Remove fileloc from the hash so changes to fileloc
+        # does not affect the hash. In 3.0+, a combination of
+        # bundle_path and relative fileloc more correctly determines the
+        # dag file location.
+        data_["dag"].pop("fileloc", None)
+        data_json = json.dumps(data_, sort_keys=True).encode("utf-8")
         return md5(data_json).hexdigest()
 
     @classmethod
