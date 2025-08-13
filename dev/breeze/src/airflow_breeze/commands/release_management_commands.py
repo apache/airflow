@@ -875,6 +875,8 @@ def prepare_provider_documentation(
                     maybe_with_new_features=maybe_with_new_features,
                     skip_readme=skip_readme,
                 )
+
+            print(only_min_version_update, reapply_templates_only, skip_changelog)
             if not only_min_version_update and not reapply_templates_only and not skip_changelog:
                 with ci_group(
                     f"Updates changelog for last release of package '{provider_id}'",
