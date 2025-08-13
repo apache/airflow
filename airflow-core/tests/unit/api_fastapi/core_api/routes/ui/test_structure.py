@@ -571,7 +571,7 @@ class TestStructureDataEndpoint:
                     "is_mapped": None,
                     "tooltip": None,
                     "setup_teardown_type": None,
-                    "operator": "@task",
+                    "operator": "PythonOperator",
                     "asset_condition_type": None,
                 },
                 {
