@@ -137,7 +137,7 @@ class TestRedisTaskHandler:
             logs = handler.read(ti)
 
         if AIRFLOW_V_3_0_PLUS:
-            if get_base_airflow_version_tuple() < (3, 1, 0):
+            if get_base_airflow_version_tuple() < (3, 0, 4):
                 assert logs == (["Line 1\nLine 2"], {"end_of_log": True})
             else:
                 log_stream, metadata = logs

@@ -1011,7 +1011,7 @@ class TestDagRun:
     def test_wait_for_downstream(self, dag_maker, session, prev_ti_state, is_ti_schedulable):
         dag_id = "test_wait_for_downstream"
 
-        with dag_maker(dag_id=dag_id, session=session) as dag:
+        with dag_maker(dag_id=dag_id, session=session, serialized=True) as dag:
             dag_wfd_upstream = EmptyOperator(
                 task_id="upstream_task",
                 wait_for_downstream=True,
@@ -1032,6 +1032,9 @@ class TestDagRun:
         )
 
         ti = dag_run_2.get_task_instance(task_id=upstream.task_id, session=session)
+
+        # Operate on serialized operator since it is Scheduler code
+        ti.task = dag.task_dict[ti.task_id]
         prev_ti_downstream = dag_run_1.get_task_instance(task_id=downstream.task_id, session=session)
         prev_ti_upstream = ti.get_previous_ti(session=session)
         assert ti
@@ -1498,7 +1501,7 @@ def test_mapped_literal_length_increase_adds_additional_ti(dag_maker, session):
     @task
     def task_2(arg2): ...
 
-    with dag_maker(session=session):
+    with dag_maker(session=session, serialized=True):
         task_2.expand(arg2=[1, 2, 3, 4])
 
     dr = dag_maker.create_dagrun()
@@ -1517,10 +1520,10 @@ def test_mapped_literal_length_increase_adds_additional_ti(dag_maker, session):
     ]
 
     # Now "increase" the length of literal
-    with dag_maker(session=session):
+    with dag_maker(session=session, serialized=True) as dag:
         task_2.expand(arg2=[1, 2, 3, 4, 5])
 
-    dr.dag = dag_maker.dag
+    dr.dag = dag
     # Every mapped task is revised at task_instance_scheduling_decision
     dr.task_instance_scheduling_decisions()
 

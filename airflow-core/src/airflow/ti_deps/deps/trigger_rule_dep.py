@@ -21,7 +21,7 @@ import collections.abc
 import functools
 from collections import Counter
 from collections.abc import Iterator, KeysView
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, NamedTuple, cast
 
 from sqlalchemy import and_, func, or_, select
 
@@ -36,7 +36,9 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.expression import ColumnOperators
 
     from airflow import DAG
+    from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
     from airflow.ti_deps.dep_context import DepContext
     from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 
@@ -184,7 +186,9 @@ class TriggerRuleDep(BaseTIDep):
             except (NotFullyPopulated, NotMapped):
                 return None
             return ti.get_relevant_upstream_map_indexes(
-                upstream=ti.task.dag.task_dict[upstream_id],
+                # TODO (GH-52141): task_dict in scheduler should contain
+                # scheduler types instead, but currently it inherits SDK's DAG.
+                upstream=cast("MappedOperator | SerializedBaseOperator", ti.task.dag.task_dict[upstream_id]),
                 ti_count=expanded_ti_count,
                 session=session,
             )

@@ -777,6 +777,7 @@ export type DagStatsCollectionResponse = {
  */
 export type DagStatsResponse = {
     dag_id: string;
+    dag_display_name: string;
     stats: Array<DagStatsStateResponse>;
 };
 
@@ -1298,7 +1299,6 @@ export type TaskInstanceResponse = {
     id: string;
     task_id: string;
     dag_id: string;
-    dag_version: DagVersionResponse;
     dag_run_id: string;
     map_index: number;
     logical_date: string | null;
@@ -1330,6 +1330,7 @@ export type TaskInstanceResponse = {
     };
     trigger: TriggerResponse | null;
     triggerer_job: JobResponse | null;
+    dag_version: DagVersionResponse | null;
 };
 
 /**
@@ -2953,6 +2954,7 @@ export type GetHitlDetailsData = {
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
     bodySearch?: string | null;
+    dagId?: string | null;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
@@ -2967,6 +2969,7 @@ export type GetHitlDetailsData = {
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
     subjectSearch?: string | null;
+    taskId?: string | null;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */

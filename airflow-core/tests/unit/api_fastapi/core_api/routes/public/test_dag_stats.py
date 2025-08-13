@@ -36,8 +36,11 @@ from tests_common.test_utils.db import (
 pytestmark = pytest.mark.db_test
 
 DAG1_ID = "test_dag1"
+DAG1_DISPLAY_NAME = "test_dag1"
 DAG2_ID = "test_dag2"
+DAG2_DISPLAY_NAME = "test_dag2"
 DAG3_ID = "test_dag3"
+DAG3_DISPLAY_NAME = "test_dag3"
 TASK_ID = "op1"
 API_PREFIX = "/dagStats"
 
@@ -144,6 +147,7 @@ class TestGetDagStats(TestDagStatsEndpoint):
             "dags": [
                 {
                     "dag_id": DAG1_ID,
+                    "dag_display_name": DAG1_DISPLAY_NAME,
                     "stats": [
                         {
                             "state": DagRunState.QUEUED,
@@ -165,6 +169,7 @@ class TestGetDagStats(TestDagStatsEndpoint):
                 },
                 {
                     "dag_id": DAG2_ID,
+                    "dag_display_name": DAG2_DISPLAY_NAME,
                     "stats": [
                         {
                             "state": DagRunState.QUEUED,
@@ -208,6 +213,7 @@ class TestGetDagStats(TestDagStatsEndpoint):
             "dags": [
                 {
                     "dag_id": DAG1_ID,
+                    "dag_display_name": DAG1_DISPLAY_NAME,
                     "stats": [
                         {
                             "state": DagRunState.QUEUED,
@@ -229,6 +235,7 @@ class TestGetDagStats(TestDagStatsEndpoint):
                 },
                 {
                     "dag_id": DAG2_ID,
+                    "dag_display_name": DAG2_DISPLAY_NAME,
                     "stats": [
                         {
                             "state": DagRunState.QUEUED,
@@ -250,6 +257,7 @@ class TestGetDagStats(TestDagStatsEndpoint):
                 },
                 {
                     "dag_id": DAG3_ID,
+                    "dag_display_name": DAG3_DISPLAY_NAME,
                     "stats": [
                         {
                             "state": DagRunState.QUEUED,
@@ -293,6 +301,7 @@ class TestGetDagStats(TestDagStatsEndpoint):
                     "dags": [
                         {
                             "dag_id": DAG1_ID,
+                            "dag_display_name": DAG1_DISPLAY_NAME,
                             "stats": [
                                 {
                                     "state": DagRunState.QUEUED,
@@ -314,6 +323,7 @@ class TestGetDagStats(TestDagStatsEndpoint):
                         },
                         {
                             "dag_id": DAG2_ID,
+                            "dag_display_name": DAG2_DISPLAY_NAME,
                             "stats": [
                                 {
                                     "state": DagRunState.QUEUED,
@@ -335,6 +345,7 @@ class TestGetDagStats(TestDagStatsEndpoint):
                         },
                         {
                             "dag_id": DAG3_ID,
+                            "dag_display_name": DAG3_DISPLAY_NAME,
                             "stats": [
                                 {
                                     "state": DagRunState.QUEUED,
@@ -365,6 +376,7 @@ class TestGetDagStats(TestDagStatsEndpoint):
                     "dags": [
                         {
                             "dag_id": DAG1_ID,
+                            "dag_display_name": DAG1_DISPLAY_NAME,
                             "stats": [
                                 {
                                     "state": DagRunState.QUEUED,
@@ -395,6 +407,7 @@ class TestGetDagStats(TestDagStatsEndpoint):
                     "dags": [
                         {
                             "dag_id": DAG3_ID,
+                            "dag_display_name": DAG3_DISPLAY_NAME,
                             "stats": [
                                 {
                                     "state": DagRunState.QUEUED,

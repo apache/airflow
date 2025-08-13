@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+12.6.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix typo in AdminClientHook.create_subscription (#54130)``
+
+Misc
+~~~~
+
+* ``Silence mypy warnings for microsoft azure WasbAsyncHook (#54168)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 12.6.0
 ......
 

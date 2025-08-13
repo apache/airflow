@@ -1477,12 +1477,14 @@ class TestDag:
         assert dr.state == dag_run_state
 
     @pytest.mark.parametrize("dag_run_state", [DagRunState.QUEUED, DagRunState.RUNNING])
-    def test_clear_set_dagrun_state_for_mapped_task(self, session, dag_run_state):
+    def test_clear_set_dagrun_state_for_mapped_task(self, session, dag_run_state, dag_maker):
         dag_id = "test_clear_set_dagrun_state"
 
         task_id = "t1"
 
-        with DAG(dag_id, schedule=None, start_date=DEFAULT_DATE, max_active_runs=1) as dag:
+        with dag_maker(
+            dag_id, schedule=None, start_date=DEFAULT_DATE, max_active_runs=1, serialized=True
+        ) as dag:
 
             @task_decorator
             def make_arg_lists():
@@ -1493,8 +1495,7 @@ class TestDag:
 
             PythonOperator.partial(task_id=task_id, python_callable=consumer).expand(op_args=make_arg_lists())
 
-        dagrun_1 = _create_dagrun(
-            dag,
+        dagrun_1 = dag_maker.create_dagrun(
             run_type=DagRunType.BACKFILL_JOB,
             state=DagRunState.FAILED,
             start_date=DEFAULT_DATE,
@@ -1502,6 +1503,7 @@ class TestDag:
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             session=session,
         )
+
         # Get the (de)serialized MappedOperator
         mapped = dag.get_task(task_id)
         expand_mapped_task(mapped, dagrun_1.run_id, "make_arg_lists", length=2, session=session)

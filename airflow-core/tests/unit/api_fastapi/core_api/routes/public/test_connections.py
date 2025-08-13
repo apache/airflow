@@ -1246,3 +1246,48 @@ class TestBulkConnections(TestConnectionEndpoint):
     def test_should_respond_403(self, unauthorized_test_client):
         response = unauthorized_test_client.patch("/connections", json={})
         assert response.status_code == 403
+
+
+class TestPostConnectionExtraBackwardCompatibility(TestConnectionEndpoint):
+    def test_post_should_accept_empty_string_as_extra(self, test_client, session):
+        body = {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "extra": ""}
+
+        response = test_client.post("/connections", json=body)
+        assert response.status_code == 201
+
+        connection = session.query(Connection).filter_by(conn_id=TEST_CONN_ID).first()
+        assert connection is not None
+        assert connection.extra == "{}"  # Backward compatibility: treat "" as empty JSON object
+
+    @pytest.mark.parametrize(
+        "extra, expected_error_message",
+        [
+            ("[1,2,3]", "Expected JSON object in `extra` field, got non-dict JSON"),
+            ("some_string", "Encountered non-JSON in `extra` field"),
+        ],
+    )
+    def test_post_should_fail_with_non_json_object_as_extra(
+        self, test_client, extra, expected_error_message, session
+    ):
+        """JSON primitives are a valid JSON and should raise 422 validation error."""
+        body = {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "extra": extra}
+
+        response = test_client.post("/connections", json=body)
+        assert response.status_code == 422
+        assert (
+            "Value error, The `extra` field must be a valid JSON object (e.g., {'key': 'value'})"
+            in response.json()["detail"][0]["msg"]
+        )
+
+        _check_last_log(
+            session,
+            dag_id=None,
+            event="post_connection",
+            logical_date=None,
+            expected_extra={
+                "connection_id": "test_connection_id",
+                "conn_type": "test_type",
+                "extra": expected_error_message,
+                "method": "POST",
+            },
+        )

@@ -608,7 +608,9 @@ class TestGetMappedTaskInstances:
     def create_dag_runs_with_mapped_tasks(self, dag_maker, session, dags=None):
         for dag_id, dag in (dags or {}).items():
             count = dag["success"] + dag["running"]
-            with dag_maker(session=session, dag_id=dag_id, start_date=DEFAULT_DATETIME_1):
+            with dag_maker(
+                session=session, dag_id=dag_id, start_date=DEFAULT_DATETIME_1, serialized=True
+            ) as sdag:
                 task1 = BaseOperator(task_id="op1")
                 mapped = MockOperator.partial(task_id="task_2", executor="default").expand(arg2=task1.output)
 
@@ -656,7 +658,7 @@ class TestGetMappedTaskInstances:
             dagbag.sync_to_db("dags-folder", None)
             session.flush()
 
-            TaskMap.expand_mapped_task(mapped, dr.run_id, session=session)
+            TaskMap.expand_mapped_task(sdag.task_dict[mapped.task_id], dr.run_id, session=session)
 
     @pytest.fixture
     def one_task_with_mapped_tis(self, dag_maker, session):

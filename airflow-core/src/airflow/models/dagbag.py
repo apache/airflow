@@ -36,8 +36,10 @@ from typing import TYPE_CHECKING, NamedTuple
 from sqlalchemy import (
     Column,
     String,
+    inspect,
 )
 from sqlalchemy.orm import joinedload
+from sqlalchemy.orm.attributes import NO_VALUE
 from tabulate import tabulate
 
 from airflow import settings
@@ -47,7 +49,6 @@ from airflow.exceptions import (
     AirflowClusterPolicyError,
     AirflowClusterPolicySkipDag,
     AirflowClusterPolicyViolation,
-    AirflowDagCycleException,
     AirflowDagDuplicatedIdException,
     AirflowException,
 )
@@ -66,6 +67,11 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.timeout import timeout
 from airflow.utils.types import NOTSET
+
+try:
+    from airflow.sdk.exceptions import AirflowDagCycleException
+except ImportError:
+    from airflow.exceptions import AirflowDagCycleException  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -748,7 +754,14 @@ class DBDagBag:
             if dag_version:
                 return dag_version
 
-        return dag_run.created_dag_version
+        # Check if created_dag_version relationship is already loaded to avoid DetachedInstanceError
+        info = inspect(dag_run)
+        if info.attrs.created_dag_version.loaded_value is not NO_VALUE:
+            # Relationship is already loaded, safe to access
+            return dag_run.created_dag_version
+
+        # Relationship not loaded, fetch it explicitly from current session
+        return session.get(DagVersion, dag_run.created_dag_version_id)
 
     def get_dag_for_run(self, dag_run: DagRun, session: Session) -> DAG | None:
         version = self._version_from_dag_run(dag_run=dag_run, session=session)
