@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {Heading, Skeleton, Box, createListCollection, CollectionItem} from "@chakra-ui/react";
+import {Heading, Skeleton, Box, type CollectionItem} from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
@@ -28,7 +28,7 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { useState } from "react";
 
 import { TaskCard } from "./TaskCard";
-import { Select } from "src/components/ui";
+import {AttrSelectFilter} from "src/pages/Dag/Tasks/AttrSelectFilter.tsx";
 
 const cardDef = (dagId: string): CardDef<TaskResponse> => ({
   card: ({ row }) => <TaskCard dagId={dagId} task={row} />,
@@ -51,22 +51,16 @@ export const Tasks = () => {
   });
 
 
-  const operatorList = data?.tasks?.map((task) => ({label: task.operator_name, value: task.operator_name}))
-  const totalOperatorList = [{ value: "", label: "All Operators" }, ...(operatorList ?? [])]
-  const operatorCollection = createListCollection({items: totalOperatorList})
-
-  const filterTasks = (tasks: Array<TaskResponse>) => {
-    debugger;
-    if (Boolean(selectedOperator)) {
-      return tasks.filter((task: TaskResponse) => task.operator_name == selectedOperator)
-    } else {
-      return tasks
-    }
-  }
+  const filterTasks = (tasks: Array<TaskResponse>) => 
+    // debugger;
+     selectedOperator == translate("allOperators") || !Boolean(selectedOperator) ? tasks : tasks.filter((task: TaskResponse) => task.operator_name == selectedOperator)
+  
 
   const handleOperatorSelect = (value: CollectionItem) => {
     setSelectedOperator(value.value[0])
   }
+
+  const operatorNames: Array<string> = data?.tasks?.map((task) => (task.operator_name)).filter(item => item !== null) || []
 
   return (
     <Box>
@@ -75,25 +69,11 @@ export const Tasks = () => {
         {translate("task", { count: data?.total_entries ?? 0 })}
       </Heading>
 
-      <Select.Root
-        collection={operatorCollection}
-        maxW="200px"
-        onValueChange={handleOperatorSelect}
-        value={[selectedOperator ?? "all"]}
-      >
-        <Select.Trigger colorPalette="blue" minW="max-content">
-          <Select.ValueText width="auto">
-            {() => selectedOperator}
-          </Select.ValueText>
-        </Select.Trigger>
-        <Select.Content>
-          {operatorCollection.items.map((option) => (
-            <Select.Item item={option} key={option.label}>
-              {option.label}
-            </Select.Item>
-          ))}
-        </Select.Content>
-      </Select.Root>
+      <AttrSelectFilter
+        handleOperatorSelect={handleOperatorSelect}
+        operatorNames={operatorNames ?? []}
+        selectedOperator={selectedOperator}
+      />
 
       <DataTable
         cardDef={cardDef(dagId)}
