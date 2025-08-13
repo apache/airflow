@@ -65,7 +65,7 @@ export const TaskLogPreview = ({
           <Button fontSize="sm" onClick={() => setIsExpanded(!isExpanded)} size="sm" variant="ghost">
             {isExpanded
               ? translate("overview.failedLogs.hideLogs")
-              : translate("overview.failedLogs.expandLogs")}
+              : translate("overview.failedLogs.showLogs")}
           </Button>
           <ClearTaskInstanceButton taskInstance={taskInstance} withText={false} />
           <Link asChild color="fg.info" fontSize="sm">
