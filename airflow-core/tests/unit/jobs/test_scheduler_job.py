@@ -50,6 +50,7 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.executor_utils import ExecutorName
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+from airflow.models import Deadline
 from airflow.models.asset import (
     AssetActive,
     AssetAliasModel,
@@ -64,6 +65,7 @@ from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
+from airflow.models.deadline import DeadlineCallbackState
 from airflow.models.log import Log
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
@@ -88,6 +90,7 @@ from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_backfills,
     clear_db_dags,
+    clear_db_deadline,
     clear_db_import_errors,
     clear_db_jobs,
     clear_db_pools,
@@ -190,6 +193,7 @@ class TestSchedulerJob:
         clear_db_import_errors()
         clear_db_jobs()
         clear_db_assets()
+        clear_db_deadline()
 
     @pytest.fixture(autouse=True)
     def per_test(self) -> Generator:
@@ -460,7 +464,7 @@ class TestSchedulerJob:
         scheduler_job = Job(executor=executor)
         self.job_runner = SchedulerJobRunner(scheduler_job)
         self.job_runner.scheduler_dag_bag = mock.MagicMock()
-        self.job_runner.scheduler_dag_bag.get_dag.side_effect = Exception("failed")
+        self.job_runner.scheduler_dag_bag.get_dag_for_run.side_effect = Exception("failed")
 
         session = settings.Session()
 
@@ -976,7 +980,7 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
         self.job_runner.scheduler_dag_bag = mock.MagicMock()
-        self.job_runner.scheduler_dag_bag.get_dag.return_value = None
+        self.job_runner.scheduler_dag_bag.get_dag_for_run.return_value = None
 
         dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
 
@@ -2016,11 +2020,15 @@ class TestSchedulerJob:
         # Second executor called for ti3
         mock_executors[1].try_adopt_task_instances.assert_called_once_with([ti3])
 
+    @staticmethod
+    def mock_failure_callback(context):
+        pass
+
     @conf_vars({("scheduler", "num_stuck_in_queued_retries"): "2"})
     def test_handle_stuck_queued_tasks_multiple_attempts(self, dag_maker, session, mock_executors):
         """Verify that tasks stuck in queued will be rescheduled up to N times."""
         with dag_maker("test_fail_stuck_queued_tasks_multiple_executors"):
-            EmptyOperator(task_id="op1")
+            EmptyOperator(task_id="op1", on_failure_callback=TestSchedulerJob.mock_failure_callback)
             EmptyOperator(task_id="op2", executor="default_exec")
 
         def _queue_tasks(tis):
@@ -2086,16 +2094,19 @@ class TestSchedulerJob:
             "stuck in queued tries exceeded",
         ]
 
-        mock_executors[0].fail.assert_not_called()  # just demoing that we don't fail with executor method
+        mock_executors[
+            0
+        ].send_callback.assert_called_once()  # this should only be called for the task that has a callback
         states = [x.state for x in dr.get_task_instances(session=session)]
         assert states == ["failed", "failed"]
+        mock_executors[0].fail.assert_called()
 
     @conf_vars({("scheduler", "num_stuck_in_queued_retries"): "2"})
     def test_handle_stuck_queued_tasks_reschedule_sensors(self, dag_maker, session, mock_executors):
         """Reschedule sensors go in and out of running repeatedly using the same try_number
         Make sure that they get three attempts per reschedule, not 3 attempts per try_number"""
         with dag_maker("test_fail_stuck_queued_tasks_multiple_executors"):
-            EmptyOperator(task_id="op1")
+            EmptyOperator(task_id="op1", on_failure_callback=TestSchedulerJob.mock_failure_callback)
             EmptyOperator(task_id="op2", executor="default_exec")
 
         def _queue_tasks(tis):
@@ -2185,9 +2196,12 @@ class TestSchedulerJob:
             "stuck in queued tries exceeded",
         ]
 
-        mock_executors[0].fail.assert_not_called()  # just demoing that we don't fail with executor method
+        mock_executors[
+            0
+        ].send_callback.assert_called_once()  # this should only be called for the task that has a callback
         states = [x.state for x in dr.get_task_instances(session=session)]
         assert states == ["failed", "failed"]
+        mock_executors[0].fail.assert_called()
 
     def test_revoke_task_not_imp_tolerated(self, dag_maker, session, caplog):
         """Test that if executor no implement revoke_task then we don't blow up."""
@@ -3472,7 +3486,7 @@ class TestSchedulerJob:
         dr = drs[0]
 
         self.job_runner._schedule_dag_run(dag_run=dr, session=session)
-        len(self.job_runner.scheduler_dag_bag.get_dag(dr, session).tasks) == 1
+        len(self.job_runner.scheduler_dag_bag.get_dag_for_run(dr, session).tasks) == 1
         dag_version_1 = DagVersion.get_latest_version(dr.dag_id, session=session)
         assert dr.dag_versions[-1].id == dag_version_1.id
 
@@ -3490,7 +3504,7 @@ class TestSchedulerJob:
         assert len(drs) == 1
         dr = drs[0]
         assert dr.dag_versions[-1].id == dag_version_2.id
-        assert len(self.job_runner.scheduler_dag_bag.get_dag(dr, session).tasks) == 2
+        assert len(self.job_runner.scheduler_dag_bag.get_dag_for_run(dr, session).tasks) == 2
 
         if SQLALCHEMY_V_1_4:
             tis_count = (
@@ -4335,7 +4349,7 @@ class TestSchedulerJob:
         # assert len(self.job_runner.scheduler_dag_bag._dags) == 1  # sanity check
         # Get serialized dag
         dr = DagRun.find(dag_id=dag.dag_id)[0]
-        s_dag_2 = self.job_runner.scheduler_dag_bag.get_dag(dr, session=session)
+        s_dag_2 = self.job_runner.scheduler_dag_bag.get_dag_for_run(dr, session=session)
         custom_task = s_dag_2.task_dict["custom_task"]
         # Test that custom_task has no Operator Links (after de-serialization) in the Scheduling Loop
         assert not custom_task.operator_extra_links
@@ -6691,6 +6705,44 @@ class TestSchedulerJob:
             dag_run=dag_run,
             last_ti=dag_run.get_task_instance(task_id="test_task"),
         )
+
+    @mock.patch("airflow.models.Deadline.handle_miss")
+    def test_process_expired_deadlines(self, mock_handle_miss, session):
+        """Verify all expired and unhandled deadlines (and only those) are processed by the scheduler."""
+        scheduler_job = Job(executor=MockExecutor())
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=1)
+
+        past_date = timezone.utcnow() - timedelta(minutes=5)
+        future_date = timezone.utcnow() + timedelta(minutes=5)
+        callback_path = "builtins.print"
+
+        handled_deadlines = []
+        for state in DeadlineCallbackState:
+            deadline = Deadline(deadline_time=past_date, callback=callback_path)
+            deadline.callback_state = state
+            handled_deadlines.append(deadline)
+        expired_deadline1 = Deadline(deadline_time=past_date, callback=callback_path)
+        expired_deadline2 = Deadline(deadline_time=past_date, callback=callback_path)
+        future_deadline = Deadline(deadline_time=future_date, callback=callback_path)
+
+        session.add_all([expired_deadline1, expired_deadline2, future_deadline] + handled_deadlines)
+        session.flush()
+
+        self.job_runner._execute()
+
+        # Assert that all deadlines which are both expired and unhandled get processed.
+        assert mock_handle_miss.call_count == 2
+
+    @mock.patch("airflow.models.Deadline.handle_miss")
+    def test_process_expired_deadlines_no_deadlines_found(self, mock_handle_miss, session):
+        """Test handling when there are no deadlines to process."""
+        scheduler_job = Job(executor=MockExecutor())
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=1)
+
+        self.job_runner._execute()
+
+        # The handler should not be called, but no exceptions should be raised either.`
+        mock_handle_miss.assert_not_called()
 
 
 @pytest.mark.need_serialized_dag

@@ -28,6 +28,7 @@
 {{- $containerLifecycleHooks := or .Values.workers.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $safeToEvict := dict "cluster-autoscaler.kubernetes.io/safe-to-evict" (.Values.workers.safeToEvict | toString) }}
 {{- $podAnnotations := mergeOverwrite (deepCopy .Values.airflowPodAnnotations) $safeToEvict .Values.workers.podAnnotations }}
+{{- $schedulerName := or .Values.workers.schedulerName .Values.schedulerName }}
 apiVersion: v1
 kind: Pod
 metadata:
@@ -61,6 +62,9 @@ spec:
       volumeMounts:
         - name: logs
           mountPath: {{ template "airflow_logs" . }}
+          {{- if .Values.logs.persistence.subPath }}
+          subPath: {{ .Values.logs.persistence.subPath }}
+          {{- end }}
         {{- include "airflow_config_mount" . | nindent 8 }}
         - name: config
           mountPath: {{ .Values.kerberos.configPath | quote }}
@@ -119,6 +123,9 @@ spec:
       volumeMounts:
         - mountPath: {{ template "airflow_logs" . }}
           name: logs
+          {{- if .Values.logs.persistence.subPath }}
+          subPath: {{ .Values.logs.persistence.subPath }}
+          {{- end }}
         {{- include "airflow_config_mount" . | nindent 8 }}
         {{- if or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled }}
           {{- include "airflow_dags_mount" . | nindent 8 }}
@@ -155,6 +162,9 @@ spec:
       volumeMounts:
         - name: logs
           mountPath: {{ template "airflow_logs" . }}
+          {{- if .Values.logs.persistence.subPath }}
+          subPath: {{ .Values.logs.persistence.subPath }}
+          {{- end }}
         {{- include "airflow_config_mount" . | nindent 8 }}
         - name: config
           mountPath: {{ .Values.kerberos.configPath | quote }}
@@ -205,8 +215,8 @@ spec:
   securityContext: {{ $securityContext | nindent 4 }}
   nodeSelector: {{- toYaml $nodeSelector | nindent 4 }}
   affinity: {{- toYaml $affinity | nindent 4 }}
-  {{- if .Values.schedulerName }}
-  schedulerName: {{ .Values.schedulerName }}
+  {{- if $schedulerName }}
+  schedulerName: {{ $schedulerName }}
   {{- end }}
   terminationGracePeriodSeconds: {{ .Values.workers.terminationGracePeriodSeconds }}
   tolerations: {{- toYaml $tolerations | nindent 4 }}

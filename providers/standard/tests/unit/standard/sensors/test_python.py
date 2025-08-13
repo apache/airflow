@@ -24,8 +24,8 @@ import pytest
 
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.providers.standard.sensors.python import PythonSensor
-from airflow.sensors.base import PokeReturnValue
 
+from tests_common.test_utils.version_compat import PokeReturnValue
 from unit.standard.operators.test_python import BasePythonTest
 
 pytestmark = pytest.mark.db_test

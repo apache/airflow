@@ -223,9 +223,9 @@ def clear_task_instances(
     :meta private:
     """
     task_instance_ids: list[str] = []
-    from airflow.jobs.scheduler_job_runner import SchedulerDagBag
+    from airflow.models.dagbag import DBDagBag
 
-    scheduler_dagbag = SchedulerDagBag()
+    scheduler_dagbag = DBDagBag(load_op_links=False)
 
     for ti in tis:
         task_instance_ids.append(ti.id)
@@ -236,7 +236,10 @@ def clear_task_instances(
             ti.state = TaskInstanceState.RESTARTING
         else:
             dr = ti.dag_run
-            ti_dag = scheduler_dagbag.get_dag(dag_run=dr, session=session, latest=run_on_latest_version)
+            if run_on_latest_version:
+                ti_dag = scheduler_dagbag.get_latest_version_of_dag(ti.dag_id, session=session)
+            else:
+                ti_dag = scheduler_dagbag.get_dag_for_run(dag_run=dr, session=session)
             if not ti_dag:
                 log.warning("No serialized dag found for dag '%s'", dr.dag_id)
             task_id = ti.task_id
@@ -279,7 +282,10 @@ def clear_task_instances(
             if dr.state in State.finished_dr_states:
                 dr.state = dag_run_state
                 dr.start_date = timezone.utcnow()
-                dr_dag = scheduler_dagbag.get_dag(dag_run=dr, session=session, latest=run_on_latest_version)
+                if run_on_latest_version:
+                    dr_dag = scheduler_dagbag.get_latest_version_of_dag(dr.dag_id, session=session)
+                else:
+                    dr_dag = scheduler_dagbag.get_dag_for_run(dag_run=dr, session=session)
                 if not dr_dag:
                     log.warning("No serialized dag found for dag '%s'", dr.dag_id)
                 if dr_dag and not dr_dag.disable_bundle_versioning and run_on_latest_version:
@@ -361,7 +367,7 @@ def _get_email_subject_content(
 
     else:
         from airflow.sdk.definitions._internal.templater import SandboxedEnvironment
-        from airflow.utils.context import context_merge
+        from airflow.sdk.definitions.context import Context
 
         if TYPE_CHECKING:
             assert task_instance.task
@@ -375,7 +381,10 @@ def _get_email_subject_content(
         else:
             jinja_env = SandboxedEnvironment(cache_size=0)
         jinja_context = task_instance.get_template_context()
-        context_merge(jinja_context, additional_context)
+        if not jinja_context:
+            jinja_context = Context()
+        # Add additional fields to the context for email template rendering
+        jinja_context.update(additional_context)  # type: ignore[typeddict-item]
 
         def render(key: str, content: str) -> str:
             if conf.has_option("email", key):
@@ -518,7 +527,8 @@ class TaskInstance(Base, LoggingMixin):
 
     _task_display_property_value = Column("task_display_name", String(2000), nullable=True)
     dag_version_id = Column(
-        UUIDType(binary=False), ForeignKey("dag_version.id", ondelete="RESTRICT"), nullable=False
+        UUIDType(binary=False),
+        ForeignKey("dag_version.id", ondelete="RESTRICT"),
     )
     dag_version = relationship("DagVersion", back_populates="task_instances")
 

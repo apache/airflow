@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeAlias, TypeGuard
 
 import attrs
 import methodtools
+from lazy_object_proxy import Proxy
 
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.abstractoperator import (
@@ -52,7 +53,6 @@ from airflow.sdk.definitions._internal.expandinput import (
 from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.task.priority_strategy import PriorityWeightStrategy, validate_and_load_priority_weight_strategy
-from airflow.utils.helpers import is_container, prevent_duplicates
 
 if TYPE_CHECKING:
     import datetime
@@ -67,13 +67,13 @@ if TYPE_CHECKING:
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.definitions._internal.expandinput import ExpandInput
+    from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.param import ParamsDict
+    from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.triggers.base import StartTriggerArgs
-    from airflow.utils.context import Context
     from airflow.utils.operator_resources import Resources
-    from airflow.utils.task_group import TaskGroup
     from airflow.utils.trigger_rule import TriggerRule
 
 TaskStateChangeCallbackAttrType: TypeAlias = TaskStateChangeCallback | list[TaskStateChangeCallback] | None
@@ -111,6 +111,16 @@ def validate_mapping_kwargs(op: type[BaseOperator], func: ValidationSource, valu
     raise TypeError(f"{op.__name__}.{func}() got {error}")
 
 
+def _is_container(obj: Any) -> bool:
+    """Test if an object is a container (iterable) but not a string."""
+    if isinstance(obj, Proxy):
+        # Proxy of any object is considered a container because it implements __iter__
+        # to forward the call to the lazily initialized object
+        # Unwrap Proxy before checking __iter__ to evaluate the proxied object
+        obj = obj.__wrapped__
+    return hasattr(obj, "__iter__") and not isinstance(obj, str)
+
+
 def ensure_xcomarg_return_value(arg: Any) -> None:
     from airflow.sdk.definitions.xcom_arg import XComArg
 
@@ -118,7 +128,7 @@ def ensure_xcomarg_return_value(arg: Any) -> None:
         for operator, key in arg.iter_references():
             if key != BaseXCom.XCOM_RETURN_KEY:
                 raise ValueError(f"cannot map over XCom with custom key {key!r} from {operator}")
-    elif not is_container(arg):
+    elif not _is_container(arg):
         return
     elif isinstance(arg, Mapping):
         for v in arg.values():
@@ -142,6 +152,21 @@ def is_mappable_value(value: Any) -> TypeGuard[Collection]:
     if isinstance(value, (bytearray, bytes, str)):
         return False
     return True
+
+
+def prevent_duplicates(kwargs1: dict[str, Any], kwargs2: Mapping[str, Any], *, fail_reason: str) -> None:
+    """
+    Ensure *kwargs1* and *kwargs2* do not contain common keys.
+
+    :raises TypeError: If common keys are found.
+    """
+    duplicated_keys = set(kwargs1).intersection(kwargs2)
+    if not duplicated_keys:
+        return
+    if len(duplicated_keys) == 1:
+        raise TypeError(f"{fail_reason} argument: {duplicated_keys.pop()}")
+    duplicated_keys_display = ", ".join(sorted(duplicated_keys))
+    raise TypeError(f"{fail_reason} arguments: {duplicated_keys_display}")
 
 
 @attrs.define(kw_only=True, repr=False)

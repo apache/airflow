@@ -26,6 +26,26 @@
 Changelog
 ---------
 
+1.7.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix hardcoded value of FlinkKubernetesSensor._log_driver() namespace for pod retrieval (#53653)``
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Making another brittle test related to log assertion more robust (#53747)``
+
 1.7.1
 .....
 

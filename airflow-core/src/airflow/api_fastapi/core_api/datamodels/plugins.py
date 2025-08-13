@@ -69,6 +69,9 @@ class AppBuilderMenuItemResponse(BaseModel):
     category: str | None = None
 
 
+BaseDestinationLiteral = Literal["nav", "dag", "dag_run", "task", "task_instance"]
+
+
 class BaseUIResponse(BaseModel):
     """Base serializer for UI Plugin responses."""
 
@@ -79,7 +82,6 @@ class BaseUIResponse(BaseModel):
     icon_dark_mode: str | None = None
     url_route: str | None = None
     category: str | None = None
-    destination: Literal["nav", "dag", "dag_run", "task", "task_instance"] = "nav"
 
 
 class ExternalViewResponse(BaseUIResponse):
@@ -88,6 +90,7 @@ class ExternalViewResponse(BaseUIResponse):
     model_config = ConfigDict(extra="allow")
 
     href: str
+    destination: BaseDestinationLiteral = "nav"
 
 
 class ReactAppResponse(BaseUIResponse):
@@ -96,6 +99,7 @@ class ReactAppResponse(BaseUIResponse):
     model_config = ConfigDict(extra="allow")
 
     bundle_url: str
+    destination: Literal[BaseDestinationLiteral, "dashboard"] = "nav"
 
 
 class PluginResponse(BaseModel):

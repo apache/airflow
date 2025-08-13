@@ -37,6 +37,7 @@ from airflow.sdk.bases.operator import (
     parse_retries,
 )
 from airflow.sdk.definitions._internal.contextmanager import DagContext, TaskGroupContext
+from airflow.sdk.definitions._internal.decorators import remove_task_decorator
 from airflow.sdk.definitions._internal.expandinput import (
     EXPAND_INPUT_EMPTY,
     DictOfListsExpandInput,
@@ -45,11 +46,13 @@ from airflow.sdk.definitions._internal.expandinput import (
 )
 from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.asset import Asset
-from airflow.sdk.definitions.mappedoperator import MappedOperator, ensure_xcomarg_return_value
+from airflow.sdk.definitions.context import KNOWN_CONTEXT_KEYS
+from airflow.sdk.definitions.mappedoperator import (
+    MappedOperator,
+    ensure_xcomarg_return_value,
+    prevent_duplicates,
+)
 from airflow.sdk.definitions.xcom_arg import XComArg
-from airflow.utils.context import KNOWN_CONTEXT_KEYS
-from airflow.utils.decorators import remove_task_decorator
-from airflow.utils.helpers import prevent_duplicates
 from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
