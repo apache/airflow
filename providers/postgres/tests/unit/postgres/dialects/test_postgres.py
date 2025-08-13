@@ -32,8 +32,8 @@ class TestPostgresDialect:
             assert "hollywood" in parameters, "Missing 'schema' in parameters"
             assert "actors" in parameters, "Missing 'table' in parameters"
             if "kcu." in sql:
-                return [("id",)]
-            return [("id","name","firstname","age")]
+                return [{"column_name": "id"}]
+            return [{"column_name": "id", "identity": True},{"column_name": "name"},{"column_name": "firstname"},{"column_name": "age"}]
 
         self.test_db_hook = MagicMock(placeholder="?", spec=DbApiHook)
         self.test_db_hook.get_records.side_effect = get_records

@@ -66,8 +66,8 @@ class PostgresDialect(Dialect):
         if schema is None:
             table, schema = self.extract_schema_from_table(table)
         column_names = list(
-            column["column_name"]
-            for column in filter(
+            row["column_name"]
+            for row in filter(
                 predicate,
                 self.get_records(
                     f"""
