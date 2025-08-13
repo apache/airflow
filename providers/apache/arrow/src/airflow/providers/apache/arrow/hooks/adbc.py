@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import functools
 import re
 from collections.abc import Iterable, Callable, Mapping
@@ -27,7 +28,7 @@ from urllib.parse import quote
 
 from adbc_driver_manager.dbapi import Connection, connect
 from more_itertools import chunked
-from pyarrow import RecordBatch, array, schema
+from pyarrow import RecordBatch, Schema, array, schema
 
 from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks.sql import DbApiHook, T
@@ -210,6 +211,16 @@ class AdbcHook(DbApiHook):
 
         return sql_statement
 
+    @classmethod
+    def _to_record_batch(cls, rows, schema: Schema) -> RecordBatch:
+        return RecordBatch.from_arrays(
+            [
+                array([row[index] for row in rows], type=field.type)
+                for index, field in enumerate(schema)
+            ],
+            schema=schema,
+        )
+
     def insert_rows(
         self,
         table,
@@ -258,9 +269,8 @@ class AdbcHook(DbApiHook):
             else:
                 table_schema = schema([field for field in table_schema if field.name in target_fields])
 
-            if self.log_sql:
-                self.log.info("target fields: %s", target_fields)
-                self.log.info("table_schema: %s", table_schema)
+            self.log.info("target fields: %s", target_fields)
+            self.log.info("table_schema: %s", table_schema)
 
             sql = self._generate_insert_sql(
                 table,
@@ -270,18 +280,31 @@ class AdbcHook(DbApiHook):
                 **kwargs
             )
 
-            def _to_record_batch(chunked_rows) -> RecordBatch:
-                return RecordBatch.from_arrays(
-                    [
-                        array([row[index] for row in chunked_rows], type=field.type)
-                        for index, field in enumerate(table_schema)
-                    ],
-                    schema=table_schema,
-                )
-
             with closing(conn.cursor()) as cur:
-                for batch in map(_to_record_batch, chunked(rows, commit_every)):
-                    cur.executemany(sql, batch)
+                use_native_bind = hasattr(cur, "bind")
+
+                if use_native_bind:
+                    self.log.info("Native Arrow bind supported!")
+                elif self.supports_executemany or executemany:
+                    if fast_executemany:
+                        with contextlib.suppress(AttributeError):
+                            # Try to set the fast_executemany attribute
+                            cur.fast_executemany = True
+                            self.log.info(
+                                "Fast_executemany is enabled for conn_id '%s'!",
+                                self.get_conn_id(),
+                            )
+
+                for chunked_rows in chunked(rows, commit_every):
+                    batch = self._to_record_batch(rows=chunked_rows, schema=table_schema)
+
+                    # Prefer native Arrow bind if supported
+                    if use_native_bind:
+                        cur.bind(batch)
+                        cur.execute(sql)
+                    else:
+                        cur.executemany(sql, batch)
+
                     conn.commit()
 
                     nb_rows += batch.num_rows
