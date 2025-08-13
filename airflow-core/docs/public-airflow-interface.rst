@@ -26,9 +26,8 @@ Public Interface for Airflow 3.0+
    `Airflow 2.11 Public Interface Documentation <https://airflow.apache.org/docs/apache-airflow/2.11.0/public-airflow-interface.html>`_
    for the legacy interface.
 
-
-
-**Public Interface of Airflow**
+Public Interface of Airflow
+...........................
 
 The Public Interface of Apache Airflow is the collection of interfaces and behaviors in Apache Airflow
 whose changes are governed by semantic versioning. A user interacts with Airflow's public interface
@@ -45,7 +44,8 @@ from task code is no longer allowed. Instead, use the :doc:`Stable REST API <sta
 
 For comprehensive Task SDK documentation, see the `Task SDK Reference <https://airflow.apache.org/docs/task-sdk/stable/>`_.
 
-**Using Airflow Public Interfaces**
+Using Airflow Public Interfaces
+===============================
 
 .. note::
 
@@ -87,7 +87,8 @@ in details (such as output format and available flags) so if you want to rely on
 way, the Stable REST API is recommended.
 
 
-**Using the Public Interface for Dag authors**
+Using the Public Interface for Dag authors
+==========================================
 
 The primary interface for Dag authors is the :doc:`airflow.sdk namespace <core-concepts/taskflow>`.
 This provides a stable, well-defined interface for creating DAGs and tasks that is not subject to internal
@@ -139,7 +140,8 @@ All DAGs should update imports to use ``airflow.sdk`` instead of referencing int
 Legacy import paths (e.g., ``airflow.models.dag.DAG``, ``airflow.decorator.task``) are deprecated and will be
 removed in a future Airflow version.
 
-**Dags**
+Dags
+====
 
 The DAG is Airflow's core entity that represents a recurring workflow. You can create a DAG by
 instantiating the :class:`~airflow.sdk.DAG` class in your DAG file. Dags can also have parameters
@@ -151,7 +153,7 @@ from the airflow.sdk namespace.
 Airflow has a set of example dags that you can use to learn how to write dags
 
 .. toctree::
-  :hidden:
+  :includehidden:
   :glob:
   :maxdepth: 1
 
@@ -178,7 +180,8 @@ References for the modules used in dags are here:
 
 .. _pythonapi:operators:
 
-**Operators**
+Operators
+=========
 
 The base classes :class:`~airflow.sdk.BaseOperator` and :class:`~airflow.sdk.BaseSensorOperator` are public and may be extended to make new operators.
 
@@ -187,7 +190,8 @@ from the airflow.sdk namespace.
 
 Subclasses of BaseOperator which are published in Apache Airflow are public in *behavior* but not in *structure*.  That is to say, the Operator's parameters and behavior is governed by semver but the methods are subject to change at any time.
 
-**Task Instances**
+Task Instances
+==============
 
 Task instances are the individual runs of a single task in a DAG (in a DAG Run). Task instances are accessed through
 the Task Context via :func:`~airflow.sdk.get_current_context`. Direct database access is not possible.
@@ -196,7 +200,8 @@ the Task Context via :func:`~airflow.sdk.get_current_context`. Direct database a
    Task Context is part of the airflow.sdk namespace.
    For detailed API documentation, see the `Task SDK Reference <https://airflow.apache.org/docs/task-sdk/stable/>`_.
 
-**Task Instance Keys**
+Task Instance Keys
+==================
 
 Task instance keys are unique identifiers of task instances in a DAG (in a DAG Run). A key is a tuple that consists of
 ``dag_id``, ``task_id``, ``run_id``, ``try_number``, and ``map_index``.
@@ -232,7 +237,8 @@ Example of accessing task instance information through Task Context:
 
 .. _pythonapi:hooks:
 
-**Hooks**
+Hooks
+=====
 
 Hooks are interfaces to external platforms and databases, implementing a common
 interface when possible and acting as building blocks for operators. All hooks
@@ -242,13 +248,14 @@ Airflow has a set of Hooks that are considered public. You are free to extend th
 by extending them:
 
 .. toctree::
-  :hidden:
+  :includehidden:
   :glob:
   :maxdepth: 1
 
   _api/airflow/hooks/index
 
-**Public Airflow utilities**
+Public Airflow utilities
+========================
 
 When writing or extending Hooks and Operators, Dag authors and developers can
 use the following classes:
@@ -298,29 +305,32 @@ Reference for classes used for the utilities are here:
    For detailed API documentation, see the `Task SDK Reference <https://airflow.apache.org/docs/task-sdk/stable/>`_.
 
 
-**Public Exceptions**
+Public Exceptions
+=================
 
 When writing the custom Operators and Hooks, you can handle and raise public Exceptions that Airflow
 exposes:
 
 .. toctree::
-  :hidden:
+  :includehidden:
   :glob:
   :maxdepth: 1
 
   _api/airflow/exceptions/index
 
-**Public Utility classes**
+Public Utility classes
+======================
 
 .. toctree::
-  :hidden:
+  :includehidden:
   :glob:
   :maxdepth: 1
 
   _api/airflow/utils/state/index
 
 
-**Using Public Interface to extend Airflow capabilities**
+Using Public Interface to extend Airflow capabilities
+=====================================================
 
 Airflow uses Plugin mechanism to extend Airflow platform capabilities. They allow to extend
 Airflow UI but also they are the way to expose the below customizations (Triggers, Timetables, Listeners, etc.).
@@ -332,7 +342,8 @@ that do not require plugins - you can read more about them in :doc:`howto/custom
 
 Here are the ways how Plugins can be used to extend Airflow:
 
-**Triggers**
+Triggers
+========
 
 Airflow uses Triggers to implement ``asyncio`` compatible Deferrable Operators.
 All Triggers derive from :class:`~airflow.triggers.base.BaseTrigger`.
@@ -341,7 +352,7 @@ Airflow has a set of Triggers that are considered public. You are free to extend
 by extending them:
 
 .. toctree::
-  :hidden:
+  :includehidden:
   :glob:
   :maxdepth: 1
 
@@ -349,7 +360,8 @@ by extending them:
 
 You can read more about Triggers in :doc:`authoring-and-scheduling/deferring`.
 
-**Timetables**
+Timetables
+==========
 
 Custom timetable implementations provide Airflow's scheduler additional logic to
 schedule DAG runs in ways not possible with built-in schedule expressions.
@@ -359,14 +371,15 @@ Airflow has a set of Timetables that are considered public. You are free to exte
 by extending them:
 
 .. toctree::
-  :hidden:
+  :includehidden:
   :maxdepth: 1
 
   _api/airflow/timetables/index
 
 You can read more about Timetables in :doc:`howto/timetable`.
 
-**Listeners**
+Listeners
+=========
 
 Listeners enable you to respond to DAG/Task lifecycle events.
 
@@ -379,14 +392,16 @@ can be implemented to respond to DAG/Task lifecycle events.
 
 You can read more about Listeners in :doc:`administration-and-deployment/listeners`.
 
-**Extra Links**
+Extra Links
+===========
 
 Extra links are dynamic links that could be added to Airflow independently from custom Operators. Normally
 they can be defined by the Operators, but plugins allow you to override the links on a global level.
 
 You can read more about the Extra Links in :doc:`/howto/define-extra-link`.
 
-**Using Public Interface to integrate with external services and applications**
+Using Public Interface to integrate with external services and applications
+===========================================================================
 
 
 Tasks in Airflow can orchestrate external services via Hooks and Operators. The core functionality of
@@ -394,7 +409,8 @@ Airflow (such as authentication) can also be extended to leverage external servi
 You can read more about providers :doc:`providers <apache-airflow-providers:index>` and core
 extensions they can provide in :doc:`providers <apache-airflow-providers:core-extensions/index>`.
 
-**Executors**
+Executors
+=========
 
 Executors are the mechanism by which task instances get run. All executors are
 derived from :class:`~airflow.executors.base_executor.BaseExecutor`. There are several
@@ -413,7 +429,8 @@ You can read more about executors and how to write your own in :doc:`core-concep
   of people did, but there were some hard-coded behaviours that preferred in-built
   executors, and custom executors could not provide full functionality that built-in executors had.
 
-**Secrets Backends**
+Secrets Backends
+================
 
 Airflow can be configured to rely on secrets backends to retrieve
 :class:`~airflow.sdk.Connection` and :class:`~airflow.sdk.Variable`.
@@ -422,7 +439,7 @@ All secrets backends derive from :class:`~airflow.secrets.base_secrets.BaseSecre
 All Secrets Backend implementations are public. You can extend their functionality:
 
 .. toctree::
-  :hidden:
+  :includehidden:
   :glob:
   :maxdepth: 1
 
@@ -432,7 +449,8 @@ You can read more about Secret Backends in :doc:`security/secrets/secrets-backen
 You can also find all the available Secrets Backends implemented in community providers
 in :doc:`apache-airflow-providers:core-extensions/secrets-backends`.
 
-**Auth managers**
+Auth managers
+=============
 
 Auth managers are responsible of user authentication and user authorization in Airflow. All auth managers are
 derived from :class:`~airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager`.
@@ -442,19 +460,22 @@ public, but the different implementations of auth managers are not (i.e. FabAuth
 
 You can read more about auth managers and how to write your own in :doc:`core-concepts/auth-manager/index`.
 
-**Connections**
+Connections
+===========
 
 When creating Hooks, you can add custom Connections. You can read more
 about connections in :doc:`apache-airflow-providers:core-extensions/connections` for available
 Connections implemented in the community providers.
 
-**Extra Links**
+Extra Links
+===========
 
 When creating Hooks, you can add custom Extra Links that are displayed when the tasks are run.
 You can find out more about extra links in :doc:`apache-airflow-providers:core-extensions/extra-links`
 that also shows available extra links implemented in the community providers.
 
-**Logging and Monitoring**
+Logging and Monitoring
+======================
 
 You can extend the way how logs are written by Airflow. You can find out more about log writing in
 :doc:`administration-and-deployment/logging-monitoring/index`.
@@ -462,7 +483,8 @@ You can extend the way how logs are written by Airflow. You can find out more ab
 The :doc:`apache-airflow-providers:core-extensions/logging` that also shows available log writers
 implemented in the community providers.
 
-**Decorators**
+Decorators
+==========
 Dag authors can use decorators to author dags using the :doc:`TaskFlow <core-concepts/taskflow>` concept.
 All Decorators derive from :class:`~airflow.sdk.bases.decorator.TaskDecorator`.
 
@@ -481,21 +503,25 @@ by extending them:
 
 You can read more about creating custom Decorators in :doc:`howto/create-custom-decorator`.
 
-**Email notifications**
+Email notifications
+===================
 
 Airflow has a built-in way of sending email notifications and it allows to extend it by adding custom
 email notification classes. You can read more about email notifications in :doc:`howto/email-config`.
 
-**Notifications**
+Notifications
+=============
 Airflow has a built-in extensible way of sending notifications using the various ``on_*_callback``. You can read more
 about notifications in :doc:`howto/notifications`.
 
-**Cluster Policies**
+Cluster Policies
+================
 
 Cluster Policies are the way to dynamically apply cluster-wide policies to the dags being parsed or tasks
 being executed. You can read more about Cluster Policies in :doc:`administration-and-deployment/cluster-policies`.
 
-**Lineage**
+Lineage
+=======
 
 Airflow can help track origins of data, what happens to it and where it moves over time. You can read more
 about lineage in :doc:`administration-and-deployment/lineage`.
@@ -503,7 +529,8 @@ about lineage in :doc:`administration-and-deployment/lineage`.
 
 
 
-**What is not part of the Public Interface of Apache Airflow?**
+What is not part of the Public Interface of Apache Airflow?
+===========================================================
 
 Everything not mentioned in this document should be considered as non-Public Interface.
 
