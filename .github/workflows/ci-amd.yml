@@ -185,7 +185,7 @@ jobs:
       - name: Install pre-commit, uv, and pre-commit-uv
         shell: bash
         env:
-          UV_VERSION: "0.8.8"  # Keep this comment to allow automatic replacement of uv version
+          UV_VERSION: "0.8.9"  # Keep this comment to allow automatic replacement of uv version
           PRE_COMMIT_VERSION: "4.3.0"  # Keep this comment to allow automatic replacement of pre-commit version
           PRE_COMMIT_UV_VERSION: "4.1.4"  # Keep this comment to allow automatic replacement of pre-commit-uv version
         run: |
