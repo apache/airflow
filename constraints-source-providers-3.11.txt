@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-13T09:14:40.730377
+# This constraints file was automatically generated on 2025-08-13T15:25:15.948211
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -442,7 +442,7 @@ paramiko==3.5.1
 parso==0.8.4
 pathable==0.4.4
 pathspec==0.12.1
-pbr==6.1.1
+pbr==7.0.0
 pdbr==0.9.2
 pdpyras==5.4.1
 pendulum==3.1.0
@@ -682,7 +682,7 @@ uvloop==0.21.0
 validators==0.35.0
 vertica-python==1.4.0
 vine==5.1.0
-virtualenv==20.33.1
+virtualenv==20.34.0
 watchfiles==1.1.0
 watchtower==3.4.0
 wcwidth==0.2.13
