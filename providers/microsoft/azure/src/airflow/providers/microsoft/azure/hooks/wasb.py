@@ -227,13 +227,12 @@ class WasbHook(BaseHook):
             **extra,
         )
 
-    # TODO: rework the interface as it might also return AsyncContainerClient
-    def _get_container_client(self, container_name: str) -> ContainerClient:
+    def _get_container_client(self, container_name: str) -> AsyncContainerClient | ContainerClient:
         """
         Instantiate a container client.
 
         :param container_name: The name of the container
-        :return: ContainerClient
+        :return: AsyncContainerClient | ContainerClient
         """
         return self.blob_service_client.get_container_client(container_name)
 
@@ -293,6 +292,9 @@ class WasbHook(BaseHook):
         :param delimiter: filters objects based on the delimiter (for e.g '.csv')
         """
         container = self._get_container_client(container_name)
+        if isinstance(container, AsyncContainerClient):
+            raise TypeError("WasbAsyncHook should call get_blobs_list_async function instead.")
+
         blob_list = []
         blobs = container.walk_blobs(name_starts_with=prefix, include=include, delimiter=delimiter, **kwargs)
         for blob in blobs:
@@ -319,8 +321,12 @@ class WasbHook(BaseHook):
         :param delimiter: filters objects based on the delimiter (for e.g '.csv')
         """
         container = self._get_container_client(container_name)
+        if isinstance(container, AsyncContainerClient):
+            raise TypeError("WasbAsyncHook should call get_blobs_list_async function instead.")
+
         blob_list = []
         blobs = container.list_blobs(name_starts_with=prefix, include=include, **kwargs)
+
         for blob in blobs:
             if blob.name.endswith(endswith):
                 blob_list.append(blob.name)
@@ -604,7 +610,7 @@ class WasbAsyncHook(WasbHook):
         """Return the Async BlobServiceClient object."""
         if self._blob_service_client is not None:
             if isinstance(self._blob_service_client, AsyncBlobServiceClient):
-                return self.blob_service_client
+                return self._blob_service_client
             raise TypeError(
                 f"_blob_service_client must be AsyncBlobServiceClient, got {type(self._blob_service_client).__name__}"
             )
@@ -616,7 +622,7 @@ class WasbAsyncHook(WasbHook):
         connection_string = self._get_field(extra, "connection_string")
         if connection_string:
             # connection_string auth takes priority
-            self.blob_service_client = AsyncBlobServiceClient.from_connection_string(
+            self.blob_service_client: AsyncBlobServiceClient = AsyncBlobServiceClient.from_connection_string(
                 connection_string, **extra
             )
             return self.blob_service_client
@@ -713,18 +719,6 @@ class WasbAsyncHook(WasbHook):
         except ResourceNotFoundError:
             return False
         return True
-
-    # TODO: rework the interface as in parent Hook it returns ContainerClient
-    def _get_container_client(self, container_name: str) -> AsyncContainerClient:  # type: ignore[override]
-        """
-        Instantiate a container client.
-
-        :param container_name: the name of the container
-        """
-        if self.blob_service_client is None:
-            raise AirflowException("BlobServiceClient is not initialized")
-
-        return self.blob_service_client.get_container_client(container_name)
 
     async def get_blobs_list_async(
         self,
