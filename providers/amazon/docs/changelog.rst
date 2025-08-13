@@ -26,6 +26,85 @@
 Changelog
 ---------
 
+9.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add MwaaTaskSensor to Amazon Provider Package (#51719)``
+* ``Support executor_config on Lambda Executor (#53994)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix AWS Lambda executor error handling for DLQ vs task failures (#53990)``
+
+Misc
+~~~~
+
+* ``Set minimum version for common.messaging to 1.0.3 (#54160)``
+* ``Use timezone from new TaskSDK public API where possible (#53949)``
+* ``Use timezone from new TaskSDK public API where possible (second part) (#53986)``
+* ``Refactor bundle view_url to not instantiate bundle on server components (#52876)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add missing PR number in amazon changelog (#53880)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``SageMaker Unified Studios System Tests Update (#54038)``
+   * ``Do not run export operations in 'example_dynamodb_to_s3' (#54158)``
+   * ``Add system test for Lambda executor Dead Letter Queue (DLQ) processing (#54042)``
+   * ``Fix 'importskip' statements in tests (#54135)``
+   * ``Increase timeout to delete tables in 'example_s3_to_dynamodb' (#54096)``
+
+9.11.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add full support for AWS SSM Run Command in Airflow (#52769)``
+* ``Enhancement: AWS Provider sql to s3 operator pd.read_sql kwargs (#53399)``
+* ``Support HA schedulers for the Lambda Executor (#53396)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix variable name in EKS command for token expiration timestamp (#53720)``
+* ``Fix EMR operator parameter documentation and naming (#53446)``
+* ``remove ECS Operator retry mechanism on task failed to start (#53083)``
+* ``Resolve OOM When Reading Large Logs in Webserver (#49470)``
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Fix unreachable code mypy warnings in amazon provider (#53414)``
+* ``Refactoring get con part dbapihook in providers (#53335)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Cleanup type ignores in amazon provider where possible (#53239)``
+* ``Use standard library ''typing'' imports for Python 3.10+ (#53158)``
+* ``Always build xmlsec and lxml packages from sources in our images (#53137)``
+* ``Improve mypy typing for RedshiftHook (#53099)``
+* ``Make amazon provider compatible with mypy 1.16.1 (#53088)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Change import in provider example dag (#53772)``
+   * ``Deprecate decorators from Core (#53629)``
+   * ``Replace 'mock.patch("utcnow")' with time_machine. (#53642)``
+   * ``Fix typos 'aiflow' -> 'airflow' (#53603)``
+   * ``Add support to example_emr_eks for LambdaExecutor environment (#53394)``
+   * ``Cleanup mypy ignore in eks_test_utils (#53325)``
+   * ``Handle ruff PT028 changes (#53235)``
+   * ``Create connection with API instead of directly through Session (#53161)``
+   * ``Make dag_version_id in TI non-nullable (#50825)``
+   * ``Changing import path to 'airflow.sdk' in Amazon provider package (#50659)``
+
 9.10.0
 ......
 

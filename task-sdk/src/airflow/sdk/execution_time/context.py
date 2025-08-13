@@ -167,12 +167,11 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
     # enabled only if SecretCache.init() has been called first
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
 
-    var_val = None
     backends = ensure_secrets_backend_loaded()
     # iterate over backends if not in cache (or expired)
     for secrets_backend in backends:
         try:
-            var_val = secrets_backend.get_variable(key=key)  # type: ignore[assignment]
+            var_val = secrets_backend.get_variable(key=key)
             if var_val is not None:
                 if deserialize_json:
                     import json
@@ -272,7 +271,9 @@ class ConnectionAccessor:
     """Wrapper to access Connection entries in template."""
 
     def __getattr__(self, conn_id: str) -> Any:
-        return _get_connection(conn_id)
+        from airflow.sdk.definitions.connection import Connection
+
+        return Connection.get(conn_id)
 
     def __repr__(self) -> str:
         return "<ConnectionAccessor (dynamic access)>"
@@ -612,14 +613,14 @@ class TriggeringAssetEventsAccessor(
 
 @cache  # Prevent multiple API access.
 def get_previous_dagrun_success(ti_id: UUID) -> PrevSuccessfulDagRunResponse:
+    from airflow.sdk.execution_time import task_runner
     from airflow.sdk.execution_time.comms import (
         GetPrevSuccessfulDagRun,
         PrevSuccessfulDagRunResponse,
         PrevSuccessfulDagRunResult,
     )
-    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-    msg = SUPERVISOR_COMMS.send(GetPrevSuccessfulDagRun(ti_id=ti_id))
+    msg = task_runner.SUPERVISOR_COMMS.send(GetPrevSuccessfulDagRun(ti_id=ti_id))
 
     if TYPE_CHECKING:
         assert isinstance(msg, PrevSuccessfulDagRunResult)

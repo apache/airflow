@@ -129,7 +129,7 @@ class LoggingMixin:
             set_context(self.log, context)
 
 
-class ExternalLoggingMixin:
+class ExternalLoggingMixin(metaclass=abc.ABCMeta):
     """Define a log handler based on an external service (e.g. ELK, StackDriver)."""
 
     @property
@@ -153,7 +153,7 @@ class ExternalLoggingMixin:
 # base implementation for IO-implementing classes, it's impossible to make them work with
 # IO generics (and apparently it has not even been intended)
 # See more: https://giters.com/python/typeshed/issues/6077
-class StreamLogWriter(TextIOBase, IO[str]):  # type: ignore[misc]
+class StreamLogWriter(TextIOBase, IO[str]):
     """
     Allows to redirect stdout and stderr to logger.
 

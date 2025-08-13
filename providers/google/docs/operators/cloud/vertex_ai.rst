@@ -756,6 +756,10 @@ Interacting with Ray on Vertex AI Cluster
 To create a Ray cluster you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.ray.CreateRayClusterOperator`.
 
+Please note that you need to specify python_version and ray_version in :class:`~airflow.providers.google.cloud.operators.vertex_ai.ray.CreateRayClusterOperator`.
+Currently supported versions of ray package in ray cluster are: 2.9.3, 2.33, 2.42.
+For more information you can check: https://github.com/googleapis/python-aiplatform/blob/main/setup.py#L101
+
 .. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_ray.py
     :language: python
     :dedent: 4
@@ -856,6 +860,19 @@ To delete experiment run you can use
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_delete_experiment_run_operator]
     :end-before: [END how_to_cloud_vertex_ai_delete_experiment_run_operator]
+
+Use Private Service Connect interface
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You can configure Private Service Connect interface connections for
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomContainerTrainingJobOperator`,
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomPythonPackageTrainingJobOperator`,
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomTrainingJobOperator` and
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.ray.CreateRayClusterOperator`
+operators in Vertex AI. For doing it you must first configure the PSC interface by following the provided
+`documentation <https://cloud.google.com/vertex-ai/docs/general/vpc-psc-i-setup>`__.
+Then, specify the PSC configuration in the ``psc_interface_config`` parameter.
+
 
 Reference
 ^^^^^^^^^

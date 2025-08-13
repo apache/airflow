@@ -28,6 +28,7 @@ from contextlib import redirect_stdout
 from typing import TYPE_CHECKING, Protocol, cast
 
 from airflow import settings
+from airflow._shared.timezones import timezone
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
 from airflow.exceptions import AirflowConfigException, DagRunNotFound, TaskInstanceNotFound
@@ -41,7 +42,7 @@ from airflow.sdk.execution_time.secrets_masker import RedactedIO
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
-from airflow.utils import cli as cli_utils, timezone
+from airflow.utils import cli as cli_utils
 from airflow.utils.cli import (
     get_dag,
     get_dag_by_file_location,
@@ -60,9 +61,11 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm.session import Session
 
-    from airflow.models.operator import Operator
+    from airflow.models.mappedoperator import MappedOperator
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
 
     CreateIfNecessary = Literal[False, "db", "memory"]
+    Operator = MappedOperator | SerializedBaseOperator
 
 log = logging.getLogger(__name__)
 
@@ -244,7 +247,9 @@ def task_failed_deps(args) -> None:
     to have succeeded, but found 1 non-success(es).
     """
     dag = get_dag(args.bundle_name, args.dag_id)
-    task = dag.get_task(task_id=args.task_id)
+    # TODO (GH-52141): get_task in scheduler needs to return scheduler types
+    # instead, but currently it inherits SDK's DAG.
+    task = cast("Operator", dag.get_task(task_id=args.task_id))
     ti, _ = _get_ti(task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id)
     dep_context = DepContext(deps=SCHEDULER_QUEUED_DEPS)
     failed_deps = list(ti.get_failed_dep_statuses(dep_context=dep_context))
@@ -268,7 +273,9 @@ def task_state(args) -> None:
     success
     """
     dag = get_dag(args.bundle_name, args.dag_id, from_db=True)
-    task = dag.get_task(task_id=args.task_id)
+    # TODO (GH-52141): get_task in scheduler needs to return scheduler types
+    # instead, but currently it inherits SDK's DAG.
+    task = cast("Operator", dag.get_task(task_id=args.task_id))
     ti, _ = _get_ti(task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id)
     print(ti.state)
 
@@ -381,7 +388,10 @@ def task_test(args, dag: DAG | None = None) -> None:
 
     dag = dag or get_dag(args.bundle_name, args.dag_id)
 
-    task = dag.get_task(task_id=args.task_id)
+    # TODO (GH-52141): get_task in scheduler needs to return scheduler types
+    # instead, but currently it inherits SDK's DAG.
+    task = cast("Operator", dag.get_task(task_id=args.task_id))
+
     # Add CLI provided task_params to task.params
     if args.task_params:
         passed_in_params = json.loads(args.task_params)
@@ -395,7 +405,7 @@ def task_test(args, dag: DAG | None = None) -> None:
     )
     try:
         with redirect_stdout(RedactedIO()):
-            _run_task(ti=ti, run_triggerer=True)
+            _run_task(ti=ti, task=task, run_triggerer=True)
         if ti.state == State.FAILED and args.post_mortem:
             debugger = _guess_debugger()
             debugger.set_trace()
@@ -416,7 +426,9 @@ def task_render(args, dag: DAG | None = None) -> None:
     """Render and displays templated fields for a given task."""
     if not dag:
         dag = get_dag(args.bundle_name, args.dag_id)
-    task = dag.get_task(task_id=args.task_id)
+    # TODO (GH-52141): get_task in scheduler needs to return scheduler types
+    # instead, but currently it inherits SDK's DAG.
+    task = cast("Operator", dag.get_task(task_id=args.task_id))
     ti, _ = _get_ti(
         task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id, create_if_necessary="memory"
     )

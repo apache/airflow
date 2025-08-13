@@ -21,6 +21,7 @@ import uuid
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, Protocol, TypeAlias
 
+from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
@@ -71,7 +72,7 @@ class RuntimeTaskInstanceProtocol(Protocol):
         self,
         task_ids: str | list[str] | None = None,
         dag_id: str | None = None,
-        key: str = "return_value",
+        key: str = BaseXCom.XCOM_RETURN_KEY,
         include_prior_dates: bool = False,
         *,
         map_indexes: int | Iterable[int] | None | ArgNotSet = NOTSET,
@@ -84,6 +85,8 @@ class RuntimeTaskInstanceProtocol(Protocol):
     def get_template_context(self) -> Context: ...
 
     def get_first_reschedule_date(self, first_try_number) -> AwareDatetime | None: ...
+
+    def get_previous_dagrun(self, state: str | None = None) -> DagRunProtocol | None: ...
 
     @staticmethod
     def get_ti_count(

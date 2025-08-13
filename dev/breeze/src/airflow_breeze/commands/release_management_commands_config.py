@@ -382,6 +382,8 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--airflow-site-directory",
                 "--include-not-ready-providers",
                 "--include-removed-providers",
+                "--head-repo",
+                "--head-ref",
             ],
         },
     ],
@@ -393,6 +395,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--excluded-pr-list",
                 "--github-token",
                 "--only-available-in-dist",
+                "--no-include-browser-link",
             ],
         }
     ],
@@ -405,8 +408,12 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze release-management generate-providers-metadata": [
         {
             "name": "Generate providers metadata flags",
-            "options": ["--refresh-constraints", "--github-token"],
-        }
+            "options": ["--refresh-constraints-and-airflow-releases", "--github-token"],
+        },
+        {
+            "name": "Debug options",
+            "options": ["--provider-id", "--provider-version"],
+        },
     ],
     "breeze release-management start-rc-process": [
         {

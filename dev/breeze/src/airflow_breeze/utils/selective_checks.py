@@ -124,6 +124,7 @@ class FileGroupForCi(Enum):
     TESTS_UTILS_FILES = "test_utils_files"
     ASSET_FILES = "asset_files"
     UNIT_TEST_FILES = "unit_test_files"
+    DEVEL_TOML_FILES = "devel_toml_files"
 
 
 class AllProvidersSentinel:
@@ -294,6 +295,9 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         FileGroupForCi.AIRFLOW_CTL_FILES: [
             r"^airflow-ctl/src/airflowctl/.*\.py$",
             r"^airflow-ctl/tests/.*\.py$",
+        ],
+        FileGroupForCi.DEVEL_TOML_FILES: [
+            r"^devel-common/pyproject\.toml$",
         ],
     }
 )
@@ -706,6 +710,18 @@ class SelectiveChecks:
     def mypy_checks(self) -> list[str]:
         checks_to_run: list[str] = []
         if (
+            self._matching_files(FileGroupForCi.DEVEL_TOML_FILES, CI_FILE_GROUP_MATCHES)
+            and self._default_branch == "main"
+        ):
+            return [
+                "mypy-airflow-core",
+                "mypy-providers",
+                "mypy-dev",
+                "mypy-task-sdk",
+                "mypy-devel-common",
+                "mypy-airflow-ctl",
+            ]
+        if (
             self._matching_files(FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES, CI_FILE_GROUP_MATCHES)
             or self.full_tests_needed
         ):
@@ -913,6 +929,11 @@ class SelectiveChecks:
             get_console().print(
                 "[warning]There are no core/other files. Only tests relevant to the changed files are run.[/]"
             )
+
+        # run core tests if any changes in serialization files
+        if SelectiveCoreTestType.SERIALIZATION.value in candidate_test_types:
+            candidate_test_types.add(SelectiveCoreTestType.CORE.value)
+
         # sort according to predefined order
         sorted_candidate_test_types = sorted(candidate_test_types)
         get_console().print("[warning]Selected core test type candidates to run:[/]")

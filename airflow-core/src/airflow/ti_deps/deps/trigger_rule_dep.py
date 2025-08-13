@@ -21,14 +21,14 @@ import collections.abc
 import functools
 from collections import Counter
 from collections.abc import Iterator, KeysView
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, NamedTuple, cast
 
 from sqlalchemy import and_, func, or_, select
 
 from airflow.models.taskinstance import PAST_DEPENDS_MET
+from airflow.sdk.definitions.taskgroup import MappedTaskGroup
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.trigger_rule import TriggerRule as TR
 
 if TYPE_CHECKING:
@@ -36,7 +36,9 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.expression import ColumnOperators
 
     from airflow import DAG
+    from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
     from airflow.ti_deps.dep_context import DepContext
     from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 
@@ -139,12 +141,12 @@ class TriggerRuleDep(BaseTIDep):
             This extra closure allows us to query the database only when needed,
             and at most once.
             """
-            from airflow.models.baseoperator import BaseOperator
+            from airflow.models.mappedoperator import get_mapped_ti_count
 
             if TYPE_CHECKING:
                 assert ti.task
 
-            return BaseOperator.get_mapped_ti_count(ti.task, ti.run_id, session=session)
+            return get_mapped_ti_count(ti.task, ti.run_id, session=session)
 
         def _iter_expansion_dependencies(task_group: MappedTaskGroup) -> Iterator[str]:
             from airflow.sdk.definitions.mappedoperator import MappedOperator
@@ -184,7 +186,9 @@ class TriggerRuleDep(BaseTIDep):
             except (NotFullyPopulated, NotMapped):
                 return None
             return ti.get_relevant_upstream_map_indexes(
-                upstream=ti.task.dag.task_dict[upstream_id],
+                # TODO (GH-52141): task_dict in scheduler should contain
+                # scheduler types instead, but currently it inherits SDK's DAG.
+                upstream=cast("MappedOperator | SerializedBaseOperator", ti.task.dag.task_dict[upstream_id]),
                 ti_count=expanded_ti_count,
                 session=session,
             )
@@ -430,6 +434,17 @@ class TriggerRuleDep(BaseTIDep):
                 elif trigger_rule == TR.ALL_SKIPPED:
                     if success or failed or upstream_failed:
                         new_state = TaskInstanceState.SKIPPED
+                elif trigger_rule == TR.ALL_DONE_MIN_ONE_SUCCESS:
+                    # For this trigger rule, skipped tasks are not considered "done"
+                    non_skipped_done = success + failed + upstream_failed + removed
+                    non_skipped_upstream = upstream - skipped
+
+                    if skipped > 0:
+                        # There are skipped tasks, so not all tasks are "done" for this rule
+                        new_state = TaskInstanceState.SKIPPED
+                    elif non_skipped_done >= non_skipped_upstream and success == 0:
+                        # All non-skipped tasks are done but no successes
+                        new_state = TaskInstanceState.UPSTREAM_FAILED
                 elif trigger_rule == TR.ALL_DONE_SETUP_SUCCESS:
                     if upstream_done and upstream_setup and skipped_setup >= upstream_setup:
                         # when there is an upstream setup and they have all skipped, then skip
@@ -570,6 +585,41 @@ class TriggerRuleDep(BaseTIDep):
                             f"Task's trigger rule '{trigger_rule}' requires at least one upstream setup task "
                             f"be successful, but found {upstream_setup - success_setup} task(s) that were "
                             f"not. upstream_states={upstream_states}, "
+                            f"upstream_task_ids={task.upstream_task_ids}"
+                        )
+                    )
+            elif trigger_rule == TR.ALL_DONE_MIN_ONE_SUCCESS:
+                # For this trigger rule, skipped tasks are not considered "done"
+                non_skipped_done = success + failed + upstream_failed + removed
+                non_skipped_upstream = upstream - skipped
+                if ti.map_index > -1:
+                    non_skipped_upstream -= removed
+                    non_skipped_done -= removed
+
+                if skipped > 0:
+                    yield self._failing_status(
+                        reason=(
+                            f"Task's trigger rule '{trigger_rule}' requires all non-skipped upstream tasks to have "
+                            f"completed, but found {skipped} skipped task(s). "
+                            f"upstream_states={upstream_states}, "
+                            f"upstream_task_ids={task.upstream_task_ids}"
+                        )
+                    )
+                elif non_skipped_done < non_skipped_upstream:
+                    yield self._failing_status(
+                        reason=(
+                            f"Task's trigger rule '{trigger_rule}' requires all non-skipped upstream tasks to have "
+                            f"completed, but found {non_skipped_upstream - non_skipped_done} task(s) that were not done. "
+                            f"upstream_states={upstream_states}, "
+                            f"upstream_task_ids={task.upstream_task_ids}"
+                        )
+                    )
+                elif success == 0:
+                    yield self._failing_status(
+                        reason=(
+                            f"Task's trigger rule '{trigger_rule}' requires all non-skipped upstream tasks to have "
+                            f"completed and at least one upstream task has succeeded, but found "
+                            f"{success} successful task(s). upstream_states={upstream_states}, "
                             f"upstream_task_ids={task.upstream_task_ids}"
                         )
                     )

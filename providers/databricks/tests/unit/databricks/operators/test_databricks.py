@@ -25,6 +25,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
+# Do not run the tests when FAB / Flask is not installed
+pytest.importorskip("flask_session")
+
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG
 from airflow.providers.common.compat.openlineage.facet import (
@@ -565,42 +568,6 @@ class TestDatabricksCreateJobsOperator:
 
         db_mock.reset_job.assert_called_once_with(JOB_ID, expected)
         assert return_result == JOB_ID
-
-    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
-    def test_exec_update_job_permission(self, db_mock_class):
-        """
-        Test job permission update.
-        """
-        json = {
-            "name": JOB_NAME,
-            "tags": TAGS,
-            "tasks": TASKS,
-            "job_clusters": JOB_CLUSTERS,
-            "email_notifications": EMAIL_NOTIFICATIONS,
-            "webhook_notifications": WEBHOOK_NOTIFICATIONS,
-            "timeout_seconds": TIMEOUT_SECONDS,
-            "schedule": SCHEDULE,
-            "max_concurrent_runs": MAX_CONCURRENT_RUNS,
-            "git_source": GIT_SOURCE,
-            "access_control_list": ACCESS_CONTROL_LIST,
-        }
-        op = DatabricksCreateJobsOperator(task_id=TASK_ID, json=json)
-        db_mock = db_mock_class.return_value
-        db_mock.find_job_id_by_name.return_value = JOB_ID
-
-        op.execute({})
-
-        expected = utils.normalise_json_content({"access_control_list": ACCESS_CONTROL_LIST})
-
-        db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID,
-            retry_limit=op.databricks_retry_limit,
-            retry_delay=op.databricks_retry_delay,
-            retry_args=None,
-            caller="DatabricksCreateJobsOperator",
-        )
-
-        db_mock.update_job_permission.assert_called_once_with(JOB_ID, expected)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_exec_update_job_permission_with_empty_acl(self, db_mock_class):
@@ -2364,7 +2331,7 @@ class TestDatabricksNotebookOperator:
 
         with pytest.raises(AirflowException) as exec_info:
             operator.monitor_databricks_job()
-        exception_message = "Task failed. Final state FAILED. Reason: FAILURE"
+        exception_message = "Task failed. Final state FAILED. Reason: FAILURE. Errors: []"
         assert exception_message == str(exec_info.value)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
@@ -2410,7 +2377,7 @@ class TestDatabricksNotebookOperator:
 
         with pytest.raises(AirflowException) as exc_info:
             operator.monitor_databricks_job()
-        exception_message = "Task failed. Final state FAILED. Reason: FAILURE"
+        exception_message = "Task failed. Final state FAILED. Reason: FAILURE. Errors: []"
         assert exception_message == str(exc_info.value)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")

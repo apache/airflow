@@ -36,10 +36,10 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import aliased
 from sqlalchemy.sql.expression import ClauseElement, Executable, tuple_
 
+from airflow._shared.timezones import timezone
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.utils import timezone
 from airflow.utils.db import reflect_tables
 from airflow.utils.helpers import ask_yesno
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -521,6 +521,7 @@ def run_cleanup(
     :param confirm: Require user input to confirm before processing deletions.
     :param skip_archive: Set to True if you don't want the purged rows preservied in an archive table.
     :param session: Session representing connection to the metadata database.
+    :param batch_size: Maximum number of rows to delete or archive in a single transaction.
     """
     clean_before_timestamp = timezone.coerce_datetime(clean_before_timestamp)
 

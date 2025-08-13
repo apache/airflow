@@ -48,11 +48,10 @@ from airflow.providers.openlineage.utils.utils import (
     is_selective_lineage_enabled,
     print_warning,
 )
+from airflow.providers.openlineage.version_compat import timeout, timezone
 from airflow.settings import configure_orm
 from airflow.stats import Stats
-from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.timeout import timeout
 
 if TYPE_CHECKING:
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
@@ -105,11 +104,11 @@ class OpenLineageListener:
     else:
 
         @hookimpl
-        def on_task_instance_running(
+        def on_task_instance_running(  # type: ignore[misc]
             self,
             previous_state: TaskInstanceState,
             task_instance: TaskInstance,
-            session: Session,  # type: ignore[valid-type]
+            session: Session,
         ) -> None:
             from airflow.providers.openlineage.utils.utils import is_ti_rescheduled_already
 
@@ -257,11 +256,11 @@ class OpenLineageListener:
     else:
 
         @hookimpl
-        def on_task_instance_success(
+        def on_task_instance_success(  # type: ignore[misc]
             self,
             previous_state: TaskInstanceState,
             task_instance: TaskInstance,
-            session: Session,  # type: ignore[valid-type]
+            session: Session,
         ) -> None:
             self.log.debug("OpenLineage listener got notification about task instance success")
             task = task_instance.task
@@ -386,12 +385,12 @@ class OpenLineageListener:
     else:
 
         @hookimpl
-        def on_task_instance_failed(
+        def on_task_instance_failed(  # type: ignore[misc]
             self,
             previous_state: TaskInstanceState,
             task_instance: TaskInstance,
             error: None | str | BaseException,
-            session: Session,  # type: ignore[valid-type]
+            session: Session,
         ) -> None:
             self.log.debug("OpenLineage listener got notification about task instance failure")
             task = task_instance.task

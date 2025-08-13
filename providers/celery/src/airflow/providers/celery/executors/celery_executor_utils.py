@@ -45,12 +45,11 @@ import airflow.settings as settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor
-from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS, timeout
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
-from airflow.utils.timeout import timeout
 
 try:
     from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
@@ -60,12 +59,13 @@ except ImportError:
 log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from typing import TypeAlias
+
     from celery.result import AsyncResult
 
     from airflow.executors import workloads
     from airflow.executors.base_executor import EventBufferValueType
     from airflow.models.taskinstance import TaskInstanceKey
-    from airflow.typing_compat import TypeAlias
 
     # We can't use `if AIRFLOW_V_3_0_PLUS` conditions in type checks, so unfortunately we just have to define
     # the type as the union of both kinds
@@ -285,7 +285,7 @@ def send_task_to_executor(
 
     # The type is right for the version, but the type cannot be defined correctly for Airflow 2 and 3
     # concurrently;
-    return key, args, result  # type: ignore[return-value]
+    return key, args, result
 
 
 def fetch_celery_task_state(async_result: AsyncResult) -> tuple[str, str | ExceptionWithTraceback, Any]:

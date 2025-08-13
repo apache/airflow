@@ -28,9 +28,8 @@ from airflow.models.taskmap import TaskMap
 from airflow.utils import timezone
 from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.xcom import XCOM_RETURN_KEY
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS, XCOM_RETURN_KEY
 from unit.standard.operators.test_python import BasePythonTest
 
 if AIRFLOW_V_3_0_PLUS:
@@ -38,15 +37,20 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.bases.decorator import DecoratedMappedOperator
     from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput
     from airflow.sdk.definitions.mappedoperator import MappedOperator
+
 else:
-    from airflow.decorators import setup, task as task_decorator, teardown
+    from airflow.decorators import (  # type: ignore[attr-defined,no-redef]
+        setup,
+        task as task_decorator,
+        teardown,
+    )
     from airflow.decorators.base import DecoratedMappedOperator  # type: ignore[no-redef]
     from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
     from airflow.models.dag import DAG  # type: ignore[assignment]
     from airflow.models.expandinput import DictOfListsExpandInput
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.xcom_arg import XComArg
-    from airflow.utils.task_group import TaskGroup
+    from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
 
 pytestmark = pytest.mark.db_test
 
@@ -773,7 +777,7 @@ def test_partial_mapped_decorator() -> None:
 
 
 def test_mapped_decorator_unmap_merge_op_kwargs(dag_maker, session):
-    with dag_maker(session=session):
+    with dag_maker(session=session, serialized=True):
 
         @task_decorator
         def task1():
@@ -784,17 +788,21 @@ def test_mapped_decorator_unmap_merge_op_kwargs(dag_maker, session):
 
         task2.partial(arg1=1).expand(arg2=task1())
 
-    run = dag_maker.create_dagrun()
+    run = dag_maker.create_dagrun(session=session)
 
     # Run task1.
     dec = run.task_instance_scheduling_decisions(session=session)
     assert [ti.task_id for ti in dec.schedulable_tis] == ["task1"]
-    dec.schedulable_tis[0].run(session=session)
+    ti = dec.schedulable_tis[0]
+    dag_maker.run_ti(task_id=ti.task_id, dag_run=run, session=session)
 
     # Expand task2.
     dec = run.task_instance_scheduling_decisions(session=session)
     assert [ti.task_id for ti in dec.schedulable_tis] == ["task2"]
     ti = dec.schedulable_tis[0]
+
+    # Use the real task for unmapping to mimic actual execution path
+    ti.task = dag_maker.dag.task_dict[ti.task_id]
 
     if AIRFLOW_V_3_0_PLUS:
         unmapped = ti.task.unmap((ti.get_template_context(session),))
@@ -879,7 +887,7 @@ def test_upstream_exception_produces_none_xcom(dag_maker, session):
 
     result = None
 
-    with dag_maker(session=session) as dag:
+    with dag_maker(session=session, serialized=True) as dag:
 
         @dag.task()
         def up1() -> str:
@@ -901,11 +909,11 @@ def test_upstream_exception_produces_none_xcom(dag_maker, session):
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert len(decision.schedulable_tis) == 2  # "up1" and "up2"
     for ti in decision.schedulable_tis:
-        ti.run(session=session)
+        dag_maker.run_ti(ti.task_id, dag_run=dr, session=session)
 
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert len(decision.schedulable_tis) == 1  # "down"
-    decision.schedulable_tis[0].run(session=session)
+    dag_maker.run_ti(decision.schedulable_tis[0].task_id, dag_run=dr, session=session)
     assert result == "'example' None"
 
 
@@ -916,7 +924,7 @@ def test_multiple_outputs_produces_none_xcom_when_task_is_skipped(dag_maker, ses
 
     result = None
 
-    with dag_maker(session=session) as dag:
+    with dag_maker(session=session, serialized=True) as dag:
 
         @dag.task()
         def up1() -> str:
@@ -940,16 +948,16 @@ def test_multiple_outputs_produces_none_xcom_when_task_is_skipped(dag_maker, ses
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert len(decision.schedulable_tis) == 2  # "up1" and "up2"
     for ti in decision.schedulable_tis:
-        ti.run(session=session)
+        dag_maker.run_ti(ti.task_id, dag_run=dr, session=session)
 
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert len(decision.schedulable_tis) == 1  # "down"
     if multiple_outputs:
-        decision.schedulable_tis[0].run(session=session)
+        dag_maker.run_ti(decision.schedulable_tis[0].task_id, dag_run=dr, session=session)
         assert result == "'example' None"
     else:
         with pytest.raises(XComNotFound):
-            decision.schedulable_tis[0].run(session=session)
+            dag_maker.run_ti(decision.schedulable_tis[0].task_id, dag_run=dr, session=session)
 
 
 @pytest.mark.filterwarnings("error")
@@ -986,7 +994,7 @@ def test_task_decorator_asset(dag_maker, session):
     if AIRFLOW_V_3_0_PLUS:
         session.add(AssetActive.for_asset(asset))
 
-    with dag_maker(session=session) as dag:
+    with dag_maker(session=session, serialized=True) as dag:
 
         @dag.task()
         def up1() -> Asset:
@@ -1008,15 +1016,18 @@ def test_task_decorator_asset(dag_maker, session):
     dr: DagRun = dag_maker.create_dagrun()
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert len(decision.schedulable_tis) == 1  # "up1"
-    decision.schedulable_tis[0].run(session=session)
+    ti = decision.schedulable_tis[0]
+    dag_maker.run_ti(ti.task_id, dag_run=dr, session=session)
 
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert len(decision.schedulable_tis) == 1  # "up2"
-    decision.schedulable_tis[0].run(session=session)
+    ti = decision.schedulable_tis[0]
+    dag_maker.run_ti(ti.task_id, dag_run=dr, session=session)
 
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert len(decision.schedulable_tis) == 1  # "down"
-    decision.schedulable_tis[0].run(session=session)
+    ti = decision.schedulable_tis[0]
+    dag_maker.run_ti(ti.task_id, dag_run=dr, session=session)
     assert result == uri
 
 

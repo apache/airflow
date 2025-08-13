@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 from abc import ABCMeta, abstractmethod
 from functools import cache
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
 
 from jwt import InvalidTokenError
 from sqlalchemy import select
@@ -36,7 +36,6 @@ from airflow.api_fastapi.auth.tokens import (
 from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
 from airflow.configuration import conf
 from airflow.models import DagModel
-from airflow.typing_compat import Literal
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -130,6 +129,15 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         The user is redirected to this URL when logging out. If None is returned (by default), no redirection
         is performed. This redirection is usually needed to invalidate resources when logging out, such as a
         session.
+        """
+        return None
+
+    def get_url_refresh(self) -> str | None:
+        """
+        Return the URL to refresh the authentication token.
+
+        This is used to refresh the authentication token when it expires.
+        The default implementation returns None, which means that the auth manager does not support refresh token.
         """
         return None
 

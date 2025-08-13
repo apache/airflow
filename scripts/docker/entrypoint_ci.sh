@@ -15,10 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
-    set -x
-fi
+function set_verbose() {
+    if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
+        set -x
+    else
+        set +x
+    fi
+}
 
+set_verbose
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 . "${AIRFLOW_SOURCES:-/opt/airflow}"/scripts/in_container/_in_container_script_init.sh
 
@@ -130,7 +135,7 @@ function environment_initialization() {
     CI=${CI:="false"}
 
     # Added to have run-tests on path
-    export PATH=${PATH}:${AIRFLOW_SOURCES}
+    export PATH=${PATH}:${AIRFLOW_SOURCES}:/usr/local/go/bin/
 
     mkdir -pv "${AIRFLOW_HOME}/logs/"
 
@@ -138,6 +143,11 @@ function environment_initialization() {
     export AIRFLOW__CELERY__WORKER_CONCURRENCY=8
 
     set +e
+
+    # shellcheck source=scripts/in_container/configure_environment.sh
+    . "${IN_CONTAINER_DIR}/configure_environment.sh"
+    # shellcheck source=scripts/in_container/run_init_script.sh
+    . "${IN_CONTAINER_DIR}/run_init_script.sh"
 
     "${IN_CONTAINER_DIR}/check_environment.sh"
     ENVIRONMENT_EXIT_CODE=$?
@@ -148,6 +158,7 @@ function environment_initialization() {
         echo
         exit ${ENVIRONMENT_EXIT_CODE}
     fi
+
     mkdir -p /usr/lib/google-cloud-sdk/bin
     touch /usr/lib/google-cloud-sdk/bin/gcloud
     ln -s -f /usr/bin/gcloud /usr/lib/google-cloud-sdk/bin/gcloud
@@ -172,12 +183,6 @@ function environment_initialization() {
 
         ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
     fi
-
-    # shellcheck source=scripts/in_container/configure_environment.sh
-    . "${IN_CONTAINER_DIR}/configure_environment.sh"
-
-    # shellcheck source=scripts/in_container/run_init_script.sh
-    . "${IN_CONTAINER_DIR}/run_init_script.sh"
 
     cd "${AIRFLOW_SOURCES}"
 
@@ -267,26 +272,23 @@ function check_boto_upgrade() {
     echo
     echo "${COLOR_BLUE}Upgrading boto3, botocore to latest version to run Amazon tests with them${COLOR_RESET}"
     echo
-    set -x
     # shellcheck disable=SC2086
     ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} aiobotocore s3fs || true
     # shellcheck disable=SC2086
     ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "boto3<1.38.3" "botocore<1.38.3"
-    set +x
 }
 
 # Upgrade sqlalchemy to the latest version to run tests with it
 function check_upgrade_sqlalchemy() {
-    if [[ "${UPGRADE_SQLALCHEMY}" != "true" ]]; then
+    # The python version constraint is a TEMPORARY WORKAROUND to exclude all FAB tests. Is should be removed once we
+    # upgrade FAB to v5 (PR #50960).
+    if [[ "${UPGRADE_SQLALCHEMY}" != "true" || ${PYTHON_MAJOR_MINOR_VERSION} != "3.13" ]]; then
         return
     fi
     echo
     echo "${COLOR_BLUE}Upgrading sqlalchemy to the latest version to run tests with it${COLOR_RESET}"
     echo
-    set -x
-    # shellcheck disable=SC2086
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "sqlalchemy[asyncio]<2.1" "databricks-sqlalchemy>=2"
-    set +x
+    uv sync --all-packages --no-install-package apache-airflow-providers-fab --resolution highest
 }
 
 # Download minimum supported version of sqlalchemy to run tests with it
@@ -350,13 +352,19 @@ function check_force_lowest_dependencies() {
             exit 0
         fi
         cd "${AIRFLOW_SOURCES}/providers/${provider_id/.//}" || exit 1
-        uv sync --resolution lowest-direct
+        # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
+        # (binary lxml embeds its own libxml2, while xmlsec uses system one).
+        # See https://bugs.launchpad.net/lxml/+bug/2110068
+        uv sync --resolution lowest-direct --no-binary-package lxml --no-binary-package xmlsec --all-extras
     else
         echo
         echo "${COLOR_BLUE}Forcing dependencies to lowest versions for Airflow.${COLOR_RESET}"
         echo
         cd "${AIRFLOW_SOURCES}/airflow-core"
-        uv sync --resolution lowest-direct
+        # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
+        # (binary lxml embeds its own libxml2, while xmlsec uses system one).
+        # See https://bugs.launchpad.net/lxml/+bug/2110068
+        uv sync --resolution lowest-direct --no-binary-package lxml --no-binary-package xmlsec --all-extras
     fi
 }
 

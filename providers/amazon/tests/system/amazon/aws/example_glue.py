@@ -21,6 +21,9 @@ from typing import TYPE_CHECKING
 
 import boto3
 
+if TYPE_CHECKING:
+    from botocore.client import BaseClient
+
 from airflow.providers.amazon.aws.operators.glue import GlueJobOperator
 from airflow.providers.amazon.aws.operators.glue_crawler import GlueCrawlerOperator
 from airflow.providers.amazon.aws.operators.s3 import (
@@ -34,24 +37,17 @@ from airflow.providers.amazon.aws.sensors.glue_crawler import GlueCrawlerSensor
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-if TYPE_CHECKING:
-    from airflow.decorators import task
-    from airflow.models.baseoperator import chain
-    from airflow.models.dag import DAG
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import DAG, chain, task
 else:
-    if AIRFLOW_V_3_0_PLUS:
-        from airflow.sdk import DAG, chain, task
-    else:
-        # Airflow 2.10 compat
-        from airflow.decorators import task
-        from airflow.models.baseoperator import chain
-        from airflow.models.dag import DAG
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
+    from airflow.models.baseoperator import chain  # type: ignore[attr-defined,no-redef]
+    from airflow.models.dag import DAG  # type: ignore[attr-defined,no-redef,assignment]
+
 from airflow.utils.trigger_rule import TriggerRule
 
-from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
-
-if TYPE_CHECKING:
-    from botocore.client import BaseClient
+from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, get_role_name, prune_logs
 
 DAG_ID = "example_glue"
 
@@ -81,11 +77,6 @@ print('There are %s items in the table' % datasource.count())
 
 datasource.toDF().write.format('csv').mode("append").save('s3://{bucket_name}/output')
 """
-
-
-@task
-def get_role_name(arn: str) -> str:
-    return arn.split("/")[-1]
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)

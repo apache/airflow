@@ -20,6 +20,8 @@ from __future__ import annotations
 
 import collections.abc
 import contextlib
+import functools
+import inspect
 import logging
 import re
 import sys
@@ -27,12 +29,16 @@ from collections.abc import Callable, Generator, Iterable, Iterator
 from enum import Enum
 from functools import cache, cached_property
 from re import Pattern
-from typing import TYPE_CHECKING, Any, TextIO, TypeAlias, TypeVar
+from typing import TYPE_CHECKING, Any, Protocol, TextIO, TypeAlias, TypeVar, overload
 
 from airflow import settings
 
 if TYPE_CHECKING:
-    from airflow.typing_compat import TypeGuard
+    from typing import TypeGuard
+
+    class _V1EnvVarLike(Protocol):
+        def to_dict(self) -> dict[str, Any]: ...
+
 
 V1EnvVar = TypeVar("V1EnvVar")
 Redactable: TypeAlias = str | V1EnvVar | dict[Any, Any] | tuple[Any, ...] | list[Any]
@@ -114,9 +120,32 @@ def mask_secret(secret: str | dict | Iterable, name: str | None = None) -> None:
     _secrets_masker().add_mask(secret, name)
 
 
-def redact(value: Redactable, name: str | None = None, max_depth: int | None = None) -> Redacted:
-    """Redact any secrets found in ``value``."""
-    return _secrets_masker().redact(value, name, max_depth)
+def redact(
+    value: Redactable, name: str | None = None, max_depth: int | None = None, replacement: str = "***"
+) -> Redacted:
+    """Redact any secrets found in ``value`` with the given replacement."""
+    return _secrets_masker().redact(value, name, max_depth, replacement=replacement)
+
+
+@overload
+def merge(new_value: str, old_value: str, name: str | None = None, max_depth: int | None = None) -> str: ...
+
+
+@overload
+def merge(new_value: dict, old_value: dict, name: str | None = None, max_depth: int | None = None) -> str: ...
+
+
+def merge(
+    new_value: Redacted, old_value: Redactable, name: str | None = None, max_depth: int | None = None
+) -> Redacted:
+    """
+    Merge a redacted value with its original unredacted counterpart.
+
+    Takes a user-modified redacted value and merges it with the original unredacted value.
+    For sensitive fields that still contain "***" (unchanged), the original value is restored.
+    For fields that have been updated by the user, the new value is preserved.
+    """
+    return _secrets_masker().merge(new_value, old_value, name, max_depth)
 
 
 @cache
@@ -149,12 +178,13 @@ def reset_secrets_masker() -> None:
 def _get_v1_env_var_type() -> type:
     try:
         from kubernetes.client import V1EnvVar
+
+        return V1EnvVar
     except ImportError:
         return type("V1EnvVar", (), {})
-    return V1EnvVar
 
 
-def _is_v1_env_var(v: Any) -> TypeGuard[V1EnvVar]:
+def _is_v1_env_var(v: Any) -> TypeGuard[_V1EnvVarLike]:
     return isinstance(v, _get_v1_env_var_type())
 
 
@@ -171,6 +201,29 @@ class SecretsMasker(logging.Filter):
     def __init__(self):
         super().__init__()
         self.patterns = set()
+
+    @classmethod
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+
+        if cls._redact is not SecretsMasker._redact:
+            sig = inspect.signature(cls._redact)
+            # Compat for older versions of the OpenLineage plugin which subclasses this -- call the method
+            # without the replacement character
+            for param in sig.parameters.values():
+                if param.name == "replacement" or param.kind == param.VAR_KEYWORD:
+                    break
+            else:
+                # Block only runs if no break above.
+
+                f = cls._redact
+
+                @functools.wraps(f)
+                def _redact(*args, replacement: str = "***", **kwargs):
+                    return f(*args, **kwargs)
+
+                cls._redact = _redact
+                ...
 
     @cached_property
     def _record_attrs_to_ignore(self) -> Iterable[str]:
@@ -225,21 +278,35 @@ class SecretsMasker(logging.Filter):
 
     # Default on `max_depth` is to support versions of the OpenLineage plugin (not the provider) which called
     # this function directly. New versions of that provider, and this class itself call it with a value
-    def _redact_all(self, item: Redactable, depth: int, max_depth: int = MAX_RECURSION_DEPTH) -> Redacted:
+    def _redact_all(
+        self,
+        item: Redactable,
+        depth: int,
+        max_depth: int = MAX_RECURSION_DEPTH,
+        *,
+        replacement: str = "***",
+    ) -> Redacted:
         if depth > max_depth or isinstance(item, str):
-            return "***"
+            return replacement
         if isinstance(item, dict):
             return {
-                dict_key: self._redact_all(subval, depth + 1, max_depth) for dict_key, subval in item.items()
+                dict_key: self._redact_all(subval, depth + 1, max_depth, replacement=replacement)
+                for dict_key, subval in item.items()
             }
         if isinstance(item, (tuple, set)):
             # Turn set in to tuple!
-            return tuple(self._redact_all(subval, depth + 1, max_depth) for subval in item)
+            return tuple(
+                self._redact_all(subval, depth + 1, max_depth, replacement=replacement) for subval in item
+            )
         if isinstance(item, list):
-            return list(self._redact_all(subval, depth + 1, max_depth) for subval in item)
+            return list(
+                self._redact_all(subval, depth + 1, max_depth, replacement=replacement) for subval in item
+            )
         return item
 
-    def _redact(self, item: Redactable, name: str | None, depth: int, max_depth: int) -> Redacted:
+    def _redact(
+        self, item: Redactable, name: str | None, depth: int, max_depth: int, replacement: str = "***"
+    ) -> Redacted:
         # Avoid spending too much effort on redacting on deeply nested
         # structures. This also avoid infinite recursion if a structure has
         # reference to self.
@@ -247,37 +314,49 @@ class SecretsMasker(logging.Filter):
             return item
         try:
             if name and should_hide_value_for_key(name):
-                return self._redact_all(item, depth, max_depth)
+                return self._redact_all(item, depth, max_depth, replacement=replacement)
             if isinstance(item, dict):
                 to_return = {
-                    dict_key: self._redact(subval, name=dict_key, depth=(depth + 1), max_depth=max_depth)
+                    dict_key: self._redact(
+                        subval, name=dict_key, depth=(depth + 1), max_depth=max_depth, replacement=replacement
+                    )
                     for dict_key, subval in item.items()
                 }
                 return to_return
             if isinstance(item, Enum):
-                return self._redact(item=item.value, name=name, depth=depth, max_depth=max_depth)
+                return self._redact(
+                    item=item.value, name=name, depth=depth, max_depth=max_depth, replacement=replacement
+                )
             if _is_v1_env_var(item):
-                tmp: dict = item.to_dict()  # type: ignore[attr-defined] # V1EnvVar has a to_dict method
+                tmp = item.to_dict()
                 if should_hide_value_for_key(tmp.get("name", "")) and "value" in tmp:
-                    tmp["value"] = "***"
+                    tmp["value"] = replacement
                 else:
-                    return self._redact(item=tmp, name=name, depth=depth, max_depth=max_depth)
+                    return self._redact(
+                        item=tmp, name=name, depth=depth, max_depth=max_depth, replacement=replacement
+                    )
                 return tmp
             if isinstance(item, str):
                 if self.replacer:
                     # We can't replace specific values, but the key-based redacting
                     # can still happen, so we can't short-circuit, we need to walk
                     # the structure.
-                    return self.replacer.sub("***", str(item))
+                    return self.replacer.sub(replacement, str(item))
                 return item
             if isinstance(item, (tuple, set)):
                 # Turn set in to tuple!
                 return tuple(
-                    self._redact(subval, name=None, depth=(depth + 1), max_depth=max_depth) for subval in item
+                    self._redact(
+                        subval, name=None, depth=(depth + 1), max_depth=max_depth, replacement=replacement
+                    )
+                    for subval in item
                 )
             if isinstance(item, list):
                 return [
-                    self._redact(subval, name=None, depth=(depth + 1), max_depth=max_depth) for subval in item
+                    self._redact(
+                        subval, name=None, depth=(depth + 1), max_depth=max_depth, replacement=replacement
+                    )
+                    for subval in item
                 ]
             return item
         # I think this should never happen, but it does not hurt to leave it just in case
@@ -287,14 +366,102 @@ class SecretsMasker(logging.Filter):
             log.warning(
                 "Unable to redact value of type %s, please report this via "
                 "<https://github.com/apache/airflow/issues>. Error was: %s: %s",
-                item,
+                type(item),
                 type(exc).__name__,
                 exc,
                 extra={self.ALREADY_FILTERED_FLAG: True},
             )
-            return item
+            # Rather than expose sensitive info, lets play it safe
+            return "<redaction-failed>"
 
-    def redact(self, item: Redactable, name: str | None = None, max_depth: int | None = None) -> Redacted:
+    def _merge(
+        self,
+        new_item: Redacted,
+        old_item: Redactable,
+        *,
+        name: str | None,
+        depth: int,
+        max_depth: int,
+        force_sensitive: bool = False,
+        replacement: str,
+    ) -> Redacted:
+        """Merge a redacted item with its original unredacted counterpart."""
+        if depth > max_depth:
+            if isinstance(new_item, str) and new_item == "***":
+                return old_item
+            return new_item
+
+        try:
+            # Determine if we should treat this as sensitive
+            is_sensitive = force_sensitive or (name is not None and should_hide_value_for_key(name))
+
+            if isinstance(new_item, dict) and isinstance(old_item, dict):
+                merged = {}
+                for key in new_item.keys():
+                    if key in old_item:
+                        # For dicts, pass the key as name unless we're in sensitive mode
+                        child_name = None if is_sensitive else key
+                        merged[key] = self._merge(
+                            new_item[key],
+                            old_item[key],
+                            name=child_name,
+                            depth=depth + 1,
+                            max_depth=max_depth,
+                            force_sensitive=is_sensitive,
+                            replacement=replacement,
+                        )
+                    else:
+                        merged[key] = new_item[key]
+                return merged
+
+            if isinstance(new_item, (list, tuple)) and type(old_item) is type(new_item):
+                merged_list = []
+                for i in range(len(new_item)):
+                    if i < len(old_item):
+                        # In sensitive mode, check if individual item is redacted
+                        if is_sensitive and isinstance(new_item[i], str) and new_item[i] == "***":
+                            merged_list.append(old_item[i])
+                        else:
+                            merged_list.append(
+                                self._merge(
+                                    new_item[i],
+                                    old_item[i],
+                                    name=None,
+                                    depth=depth + 1,
+                                    max_depth=max_depth,
+                                    force_sensitive=is_sensitive,
+                                    replacement=replacement,
+                                )
+                            )
+                    else:
+                        merged_list.append(new_item[i])
+
+                if isinstance(new_item, list):
+                    return list(merged_list)
+                return tuple(merged_list)
+
+            if isinstance(new_item, set) and isinstance(old_item, set):
+                # Sets are unordered, we cannot restore original items.
+                return new_item
+
+            if _is_v1_env_var(new_item) and _is_v1_env_var(old_item):
+                # TODO: Handle Kubernetes V1EnvVar objects if needed
+                return new_item
+
+            if is_sensitive and isinstance(new_item, str) and new_item == "***":
+                return old_item
+            return new_item
+
+        except (TypeError, AttributeError, ValueError):
+            return new_item
+
+    def redact(
+        self,
+        item: Redactable,
+        name: str | None = None,
+        max_depth: int | None = None,
+        replacement: str = "***",
+    ) -> Redacted:
         """
         Redact an any secrets found in ``item``, if it is a string.
 
@@ -302,7 +469,34 @@ class SecretsMasker(logging.Filter):
         :func:`should_hide_value_for_key`) then all string values in the item
         is redacted.
         """
-        return self._redact(item, name, depth=0, max_depth=max_depth or self.MAX_RECURSION_DEPTH)
+        return self._redact(
+            item, name, depth=0, max_depth=max_depth or self.MAX_RECURSION_DEPTH, replacement=replacement
+        )
+
+    def merge(
+        self,
+        new_item: Redacted,
+        old_item: Redactable,
+        name: str | None = None,
+        max_depth: int | None = None,
+        replacement: str = "***",
+    ) -> Redacted:
+        """
+        Merge a redacted item with its original unredacted counterpart.
+
+        Takes a user-modified redacted item and merges it with the original unredacted item.
+        For sensitive fields that still contain "***" (or whatever the ``replacement`` is specified as), the
+        original value is restored. For fields that have been updated, the new value is preserved.
+        """
+        return self._merge(
+            new_item,
+            old_item,
+            name=name,
+            depth=0,
+            max_depth=max_depth or self.MAX_RECURSION_DEPTH,
+            force_sensitive=False,
+            replacement=replacement,
+        )
 
     @cached_property
     def _mask_adapter(self) -> None | Callable:
@@ -375,7 +569,6 @@ class SecretsMasker(logging.Filter):
                     if pattern not in self.patterns and (not name or should_hide_value_for_key(name)):
                         self.patterns.add(pattern)
                         new_mask = True
-
             if new_mask:
                 self.replacer = re.compile("|".join(self.patterns))
 

@@ -32,10 +32,12 @@ const BAR_HEIGHT = 100;
 type Props = {
   readonly max: number;
   readonly nodes: Array<GridTask>;
+  readonly onCellClick?: () => void;
+  readonly onColumnClick?: () => void;
   readonly run: GridRunsResponse;
 };
 
-export const Bar = ({ max, nodes, run }: Props) => {
+export const Bar = ({ max, nodes, onCellClick, onColumnClick, run }: Props) => {
   const { dagId = "", runId } = useParams();
   const [searchParams] = useSearchParams();
 
@@ -55,6 +57,7 @@ export const Bar = ({ max, nodes, run }: Props) => {
         alignItems="flex-end"
         height={BAR_HEIGHT}
         justifyContent="center"
+        onClick={onColumnClick}
         pb="2px"
         px="5px"
         width="18px"
@@ -65,7 +68,7 @@ export const Bar = ({ max, nodes, run }: Props) => {
           color="white"
           dagId={dagId}
           flexDir="column"
-          height={`${((run.duration ?? 0) / max) * BAR_HEIGHT}px`}
+          height={`${(run.duration / max) * BAR_HEIGHT}px`}
           justifyContent="flex-end"
           label={run.run_after}
           minHeight="14px"
@@ -79,6 +82,7 @@ export const Bar = ({ max, nodes, run }: Props) => {
       </Flex>
       <TaskInstancesColumn
         nodes={nodes}
+        onCellClick={onCellClick}
         runId={run.run_id}
         taskInstances={gridTISummaries?.task_instances ?? []}
       />

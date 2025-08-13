@@ -92,6 +92,11 @@ on:  # yamllint disable-line rule:truthy
         required: false
         default: "false"
         type: string
+      upgrade-sqlalchemy:
+        description: "Whether to upgrade SQLAlchemy or not (true/false)"
+        required: false
+        default: "false"
+        type: string
       upgrade-boto:
         description: "Whether to upgrade boto or not (true/false)"
         required: false
@@ -120,13 +125,20 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to use uv"
         required: true
         type: string
+      default-branch:
+        description: "The default branch of the repository"
+        required: true
+        type: string
 permissions:
   contents: read
 jobs:
   tests:
     timeout-minutes: 65
+    # yamllint disable rule:line-length
     name: "\
-      ${{ inputs.test-scope }}-${{ inputs.test-group }}:\
+      ${{ inputs.test-scope == 'All' && '' || inputs.test-scope == 'Quarantined' && 'Qrnt' || inputs.test-scope }}\
+      ${{ inputs.test-scope == 'All' && '' || '-' }}\
+      ${{ inputs.test-group == 'providers' && 'prov' || inputs.test-group}}:\
       ${{ inputs.test-name }}${{ inputs.test-name-separator }}${{ matrix.backend-version }}:\
       ${{ matrix.python-version}}:${{ matrix.test-types.description }}"
     runs-on: ${{ fromJSON(inputs.runners) }}
@@ -159,8 +171,11 @@ jobs:
       PARALLEL_TEST_TYPES: ${{ matrix.test-types.test_types }}
       PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python-version }}"
       UPGRADE_BOTO: "${{ inputs.upgrade-boto }}"
+      UPGRADE_SQLALCHEMY: "${{ inputs.upgrade-sqlalchemy }}"
       AIRFLOW_MONITOR_DELAY_TIME_IN_SECONDS: "${{inputs.monitor-delay-time-in-seconds}}"
       VERBOSE: "true"
+      DEFAULT_BRANCH: "${{ inputs.default-branch }}"
+      TOTAL_TEST_TIMEOUT: "3600"  # 60 minutes in seconds
     if: inputs.test-group == 'core' || inputs.skip-providers-tests != 'true'
     steps:
       - name: "Cleanup repo"
@@ -179,6 +194,8 @@ jobs:
       - name: >
           Migration Tests: ${{ matrix.python-version }}:${{ env.PARALLEL_TEST_TYPES }}
         uses: ./.github/actions/migration_tests
+        with:
+          python-version: ${{ matrix.python-version }}
         if: inputs.run-migration-tests == 'true' && inputs.test-group == 'core'
       - name: >
           ${{ inputs.test-group }}:${{ inputs.test-scope }} Tests ${{ inputs.test-name }} ${{ matrix.backend-version }}

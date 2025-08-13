@@ -23,8 +23,9 @@ import itertools
 import logging
 import os
 import sys
+import warnings
 import weakref
-from collections import abc
+from collections import abc, defaultdict, deque
 from collections.abc import Callable, Collection, Iterable, MutableSet
 from datetime import datetime, timedelta
 from inspect import signature
@@ -46,16 +47,17 @@ from airflow.exceptions import (
     DuplicateTaskIdFound,
     FailFastDagInvalidTriggerRule,
     ParamValidationError,
+    RemovedInAirflow4Warning,
     TaskNotFound,
 )
 from airflow.sdk.bases.operator import BaseOperator
-from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 from airflow.sdk.definitions._internal.node import validate_key
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 from airflow.sdk.definitions.asset import AssetAll, BaseAsset
 from airflow.sdk.definitions.context import Context
 from airflow.sdk.definitions.deadline import DeadlineAlert
 from airflow.sdk.definitions.param import DagParam, ParamsDict
+from airflow.sdk.exceptions import AirflowDagCycleException
 from airflow.timetables.base import Timetable
 from airflow.timetables.simple import (
     AssetTriggeredTimetable,
@@ -63,20 +65,21 @@ from airflow.timetables.simple import (
     NullTimetable,
     OnceTimetable,
 )
-from airflow.utils.dag_cycle_tester import check_cycle
-from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
     from re import Pattern
+    from typing import TypeAlias
 
     from pendulum.tz.timezone import FixedTimezone, Timezone
 
-    from airflow.sdk.definitions.abstractoperator import Operator
     from airflow.sdk.definitions.decorators import TaskDecoratorCollection
     from airflow.sdk.definitions.edges import EdgeInfoType
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.typing_compat import Self
+
+    Operator: TypeAlias = BaseOperator | MappedOperator
 
 log = logging.getLogger(__name__)
 
@@ -215,7 +218,7 @@ else:
 
 def _default_start_date(instance: DAG):
     # Find start date inside default_args for compat with Airflow 2.
-    from airflow.utils import timezone
+    from airflow.sdk import timezone
 
     if date := instance.default_args.get("start_date"):
         if not isinstance(date, datetime):
@@ -454,7 +457,7 @@ class DAG:
     )
 
     def __attrs_post_init__(self):
-        from airflow.utils import timezone
+        from airflow.sdk import timezone
 
         # Apply the timezone we settled on to end_date if it wasn't supplied
         if isinstance(_end_date := self.default_args.get("end_date"), str):
@@ -466,6 +469,12 @@ class DAG:
             self.default_args["start_date"] = timezone.convert_to_utc(start_date)
         if end_date := self.default_args.get("end_date", None):
             self.default_args["end_date"] = timezone.convert_to_utc(end_date)
+        if self.access_control is not None:
+            warnings.warn(
+                "The airflow.security.permissions module is deprecated; please see https://airflow.apache.org/docs/apache-airflow/stable/security/deprecated_permissions.html",
+                RemovedInAirflow4Warning,
+                stacklevel=2,
+            )
 
     @params.validator
     def _validate_params(self, _, params: ParamsDict):
@@ -526,7 +535,7 @@ class DAG:
     def _extract_tz(instance):
         import pendulum
 
-        from airflow.utils import timezone
+        from airflow.sdk import timezone
 
         start_date = instance.start_date or instance.default_args.get("start_date")
 
@@ -662,6 +671,10 @@ class DAG:
         """
         return ", ".join({t.owner for t in self.tasks})
 
+    @property
+    def timetable_summary(self) -> str:
+        return self.timetable.summary
+
     def resolve_template_files(self):
         for t in self.tasks:
             # TODO: TaskSDK: move this on to BaseOperator and remove the check?
@@ -771,12 +784,20 @@ class DAG:
         :param include_direct_upstream: Include all tasks directly upstream of matched
             and downstream (if include_downstream = True) tasks
         """
-        from airflow.models.mappedoperator import MappedOperator
+        from typing import TypeGuard
+
+        from airflow.sdk.definitions.mappedoperator import MappedOperator
+        from airflow.serialization.serialized_objects import SerializedBaseOperator
+
+        def is_task(obj) -> TypeGuard[Operator]:
+            if isinstance(obj, SerializedBaseOperator):
+                return True  # TODO (GH-52141): Split DAG implementation to straight this up.
+            return isinstance(obj, (BaseOperator, MappedOperator))
 
         # deep-copying self.task_dict and self.task_group takes a long time, and we don't want all
         # the tasks anyway, so we copy the tasks manually later
         memo = {id(self.task_dict): None, id(self.task_group): None}
-        dag = copy.deepcopy(self, memo)  # type: ignore
+        dag = copy.deepcopy(self, memo)
 
         if isinstance(task_ids, str):
             matched_tasks = [t for t in self.tasks if task_ids in t.task_id]
@@ -807,7 +828,7 @@ class DAG:
         direct_upstreams: list[Operator] = []
         if include_direct_upstream:
             for t in itertools.chain(matched_tasks, also_include):
-                upstream = (u for u in t.upstream_list if isinstance(u, (BaseOperator, MappedOperator)))
+                upstream = (u for u in t.upstream_list if is_task(u))
                 direct_upstreams.extend(upstream)
 
         # Make sure to not recursively deepcopy the dag or task_group while copying the task.
@@ -840,7 +861,7 @@ class DAG:
             proxy = weakref.proxy(copied)
 
             for child in group.children.values():
-                if isinstance(child, AbstractOperator):
+                if is_task(child):
                     if child.task_id in dag.task_dict:
                         task = copied.children[child.task_id] = dag.task_dict[child.task_id]
                         task.task_group = proxy
@@ -893,7 +914,7 @@ class DAG:
 
     @property
     def task(self) -> TaskDecoratorCollection:
-        from airflow.decorators import task
+        from airflow.sdk.definitions.decorators import task
 
         return cast("TaskDecoratorCollection", functools.partial(task, dag=self))
 
@@ -935,8 +956,8 @@ class DAG:
         ) or task_id in self.task_group.used_group_ids:
             raise DuplicateTaskIdFound(f"Task id '{task_id}' has already been added to the DAG")
         self.task_dict[task_id] = task
-        # TODO: Task-SDK: this type ignore shouldn't be needed!
-        task.dag = self  # type: ignore[assignment]
+
+        task.dag = self
         # Add task_id to used_group_ids to prevent group_id and task_id collisions.
         self.task_group.used_group_ids.add(task_id)
 
@@ -959,9 +980,50 @@ class DAG:
         if tg:
             tg._remove(task)
 
+    def check_cycle(self) -> None:
+        """
+        Check to see if there are any cycles in the DAG.
+
+        :raises AirflowDagCycleException: If cycle is found in the DAG.
+        """
+        # default of int is 0 which corresponds to CYCLE_NEW
+        CYCLE_NEW = 0
+        CYCLE_IN_PROGRESS = 1
+        CYCLE_DONE = 2
+
+        visited: dict[str, int] = defaultdict(int)
+        path_stack: deque[str] = deque()
+        task_dict = self.task_dict
+
+        def _check_adjacent_tasks(task_id, current_task):
+            """Return first untraversed child task, else None if all tasks traversed."""
+            for adjacent_task in current_task.get_direct_relative_ids():
+                if visited[adjacent_task] == CYCLE_IN_PROGRESS:
+                    msg = f"Cycle detected in DAG: {self.dag_id}. Faulty task: {task_id}"
+                    raise AirflowDagCycleException(msg)
+                if visited[adjacent_task] == CYCLE_NEW:
+                    return adjacent_task
+            return None
+
+        for dag_task_id in self.task_dict.keys():
+            if visited[dag_task_id] == CYCLE_DONE:
+                continue
+            path_stack.append(dag_task_id)
+            while path_stack:
+                current_task_id = path_stack[-1]
+                if visited[current_task_id] == CYCLE_NEW:
+                    visited[current_task_id] = CYCLE_IN_PROGRESS
+                task = task_dict[current_task_id]
+                child_to_check = _check_adjacent_tasks(current_task_id, task)
+                if not child_to_check:
+                    visited[current_task_id] = CYCLE_DONE
+                    path_stack.pop()
+                else:
+                    path_stack.append(child_to_check)
+
     def cli(self):
         """Exposes a CLI specific to this DAG."""
-        check_cycle(self)
+        self.check_cycle()
 
         from airflow.cli import cli_parser
 
@@ -1037,9 +1099,9 @@ class DAG:
         from airflow.configuration import secrets_backend_list
         from airflow.models.dag import DAG as SchedulerDAG, _get_or_create_dagrun
         from airflow.models.dagrun import DagRun
+        from airflow.sdk import timezone
         from airflow.secrets.local_filesystem import LocalFilesystemBackend
         from airflow.serialization.serialized_objects import SerializedDAG
-        from airflow.utils import timezone
         from airflow.utils.state import DagRunState, State, TaskInstanceState
         from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -1089,7 +1151,7 @@ class DAG:
                 dags=[self],
                 start_date=logical_date,
                 end_date=logical_date,
-                dag_run_state=False,  # type: ignore
+                dag_run_state=False,
             )
 
             log.debug("Getting dagrun for dag %s", self.dag_id)
@@ -1099,6 +1161,14 @@ class DAG:
                 self.timetable.infer_manual_data_interval(run_after=logical_date) if logical_date else None
             )
             scheduler_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(self))  # type: ignore[arg-type]
+            # Preserve callback functions from original DAG since they're lost during serialization
+            # and yes it is a hack for now! It is a tradeoff for code simplicity.
+            # Without it, we need "Scheduler DAG" (Serialized dag) for the scheduler bits
+            #   -- dep check, scheduling tis
+            # and need real dag to get and run callbacks without having to load the dag model
+
+            scheduler_dag.on_success_callback = self.on_success_callback
+            scheduler_dag.on_failure_callback = self.on_failure_callback
 
             dr: DagRun = _get_or_create_dagrun(
                 dag=scheduler_dag,
@@ -1120,9 +1190,7 @@ class DAG:
             # don't care about otel in dag.test and starting the span during dagrun update
             # is not functioning properly in this context anyway.
             dr.start_dr_spans_if_needed(tis=[])
-            dr.dag = self  # type: ignore[assignment]
 
-            tasks = self.task_dict
             log.debug("starting dagrun")
             # Instead of starting a scheduler, we run the minimal loop possible to check
             # for task readiness and dependency management.
@@ -1157,7 +1225,7 @@ class DAG:
                     time.sleep(1)
 
                 for ti in scheduled_tis:
-                    ti.task = tasks[ti.task_id]
+                    task = self.task_dict[ti.task_id]
 
                     mark_success = (
                         re.compile(mark_success_pattern).fullmatch(ti.task_id) is not None
@@ -1193,24 +1261,25 @@ class DAG:
                             add_logger_if_needed(ti)
                             if mark_success:
                                 ti.set_state(State.SUCCESS)
-                                log.info("[DAG TEST] Marking success for %s on %s", ti.task, ti.logical_date)
+                                log.info("[DAG TEST] Marking success for %s on %s", task, ti.logical_date)
                             else:
-                                _run_task(ti=ti, run_triggerer=True)
+                                _run_task(ti=ti, task=task, run_triggerer=True)
                         except Exception:
                             log.exception("Task failed; ti=%s", ti)
                 if use_executor:
                     executor.heartbeat()
-                    from airflow.jobs.scheduler_job_runner import SchedulerDagBag, SchedulerJobRunner
+                    from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+                    from airflow.models.dagbag import DBDagBag
 
                     SchedulerJobRunner.process_executor_events(
-                        executor=executor, job_id=None, scheduler_dag_bag=SchedulerDagBag(), session=session
+                        executor=executor, job_id=None, scheduler_dag_bag=DBDagBag(), session=session
                     )
             if use_executor:
                 executor.end()
         return dr
 
 
-def _run_task(*, ti, run_triggerer=False):
+def _run_task(*, ti, task, run_triggerer=False):
     """
     Run a single task instance, and push result to Xcom for downstream tasks.
 
@@ -1237,13 +1306,13 @@ def _run_task(*, ti, run_triggerer=False):
                 ti=TaskInstanceSDK(
                     id=ti.id,
                     task_id=ti.task_id,
-                    dag_id=ti.task.dag_id,
+                    dag_id=ti.dag_id,
                     run_id=ti.run_id,
                     try_number=ti.try_number,
                     map_index=ti.map_index,
                     dag_version_id=ti.dag_version_id,
                 ),
-                task=ti.task,
+                task=task,
             )
 
             msg = taskrun_result.msg
@@ -1368,6 +1437,8 @@ if TYPE_CHECKING:
 
 
 def dag(dag_id_or_func=None, __DAG_class=DAG, __warnings_stacklevel_delta=2, **decorator_kwargs):
+    from airflow.sdk.definitions._internal.decorators import fixup_decorator_warning_stack
+
     # TODO: Task-SDK: remove __DAG_class
     # __DAG_class is a temporary hack to allow the dag decorator in airflow.models.dag to continue to
     # return SchedulerDag objects

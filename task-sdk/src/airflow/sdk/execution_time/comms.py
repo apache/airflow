@@ -70,7 +70,9 @@ from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     BundleInfo,
     ConnectionResponse,
+    DagRun,
     DagRunStateResponse,
+    HITLDetailRequest,
     InactiveAssetsResponse,
     PrevSuccessfulDagRunResponse,
     TaskInstance,
@@ -83,6 +85,7 @@ from airflow.sdk.api.datamodels._generated import (
     TISkippedDownstreamTasksStatePayload,
     TISuccessStatePayload,
     TriggerDAGRunPayload,
+    UpdateHITLDetailPayload,
     VariableResponse,
     XComResponse,
     XComSequenceIndexResponse,
@@ -95,6 +98,7 @@ try:
 except ImportError:
     # Available on Unix and Windows (so "everywhere") but lets be safe
     recv_fds = None  # type: ignore[assignment]
+
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger as Logger
@@ -228,15 +232,16 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         length = int.from_bytes(len_bytes, byteorder="big")
 
         buffer = bytearray(length)
-        nread = self.socket.recv_into(buffer)
-        if nread != length:
-            raise RuntimeError(
-                f"unable to read full response in child. (We read {nread}, but expected {length})"
-            )
-        if nread == 0:
-            raise EOFError(f"Request socket closed before response was complete ({self.id_counter=})")
+        mv = memoryview(buffer)
 
-        resp = self.resp_decoder.decode(buffer)
+        pos = 0
+        while pos < length:
+            nread = self.socket.recv_into(mv[pos:])
+            if nread == 0:
+                raise EOFError(f"Request socket closed before response was complete ({self.id_counter=})")
+            pos += nread
+
+        resp = self.resp_decoder.decode(mv)
         if maxfds:
             return resp, fds or []
         return resp
@@ -304,7 +309,7 @@ class AssetEventSourceTaskInstance:
     def xcom_pull(
         self,
         *,
-        key: str = "return_value",  # TODO: Make this a constant; see RuntimeTaskInstance.
+        key: str = "return_value",
         default: Any = None,
     ) -> Any:
         from airflow.sdk.execution_time.xcom import XCom
@@ -491,6 +496,13 @@ class DagRunStateResult(DagRunStateResponse):
         return cls(**dr_state_response.model_dump(exclude_defaults=True), type="DagRunStateResult")
 
 
+class PreviousDagRunResult(BaseModel):
+    """Response containing previous DAG run information."""
+
+    dag_run: DagRun | None = None
+    type: Literal["PreviousDagRunResult"] = "PreviousDagRunResult"
+
+
 class PrevSuccessfulDagRunResult(PrevSuccessfulDagRunResponse):
     type: Literal["PrevSuccessfulDagRunResult"] = "PrevSuccessfulDagRunResult"
 
@@ -557,6 +569,18 @@ class SentFDs(BaseModel):
     fds: list[int]
 
 
+class CreateHITLDetailPayload(HITLDetailRequest):
+    """Add the input request part of a Human-in-the-loop response."""
+
+    type: Literal["CreateHITLDetailPayload"] = "CreateHITLDetailPayload"
+
+
+class HITLDetailRequestResult(HITLDetailRequest):
+    """Response to CreateHITLDetailPayload request."""
+
+    type: Literal["HITLDetailRequestResult"] = "HITLDetailRequestResult"
+
+
 ToTask = Annotated[
     AssetResult
     | AssetEventsResult
@@ -576,7 +600,10 @@ ToTask = Annotated[
     | XComSequenceIndexResult
     | XComSequenceSliceResult
     | InactiveAssetsResult
-    | OKResponse,
+    | CreateHITLDetailPayload
+    | HITLDetailRequestResult
+    | OKResponse
+    | PreviousDagRunResult,
     Field(discriminator="type"),
 ]
 
@@ -680,6 +707,7 @@ class GetXComSequenceSlice(BaseModel):
     start: int | None
     stop: int | None
     step: int | None
+    include_prior_dates: bool = False
     type: Literal["GetXComSequenceSlice"] = "GetXComSequenceSlice"
 
 
@@ -772,6 +800,13 @@ class GetDagRunState(BaseModel):
     type: Literal["GetDagRunState"] = "GetDagRunState"
 
 
+class GetPreviousDagRun(BaseModel):
+    dag_id: str
+    logical_date: AwareDatetime
+    state: str | None = None
+    type: Literal["GetPreviousDagRun"] = "GetPreviousDagRun"
+
+
 class GetAssetByName(BaseModel):
     name: str
     type: Literal["GetAssetByName"] = "GetAssetByName"
@@ -838,6 +873,19 @@ class GetDRCount(BaseModel):
     type: Literal["GetDRCount"] = "GetDRCount"
 
 
+class GetHITLDetailResponse(BaseModel):
+    """Get the response content part of a Human-in-the-loop response."""
+
+    ti_id: UUID
+    type: Literal["GetHITLDetailResponse"] = "GetHITLDetailResponse"
+
+
+class UpdateHITLDetail(UpdateHITLDetailPayload):
+    """Update the response content part of an existing Human-in-the-loop response."""
+
+    type: Literal["UpdateHITLDetail"] = "UpdateHITLDetail"
+
+
 ToSupervisor = Annotated[
     DeferTask
     | DeleteXCom
@@ -849,6 +897,7 @@ ToSupervisor = Annotated[
     | GetDagRunState
     | GetDRCount
     | GetPrevSuccessfulDagRun
+    | GetPreviousDagRun
     | GetTaskRescheduleStartDate
     | GetTICount
     | GetTaskStates
@@ -868,6 +917,9 @@ ToSupervisor = Annotated[
     | TaskState
     | TriggerDagRun
     | DeleteVariable
-    | ResendLoggingFD,
+    | ResendLoggingFD
+    | CreateHITLDetailPayload
+    | UpdateHITLDetail
+    | GetHITLDetailResponse,
     Field(discriminator="type"),
 ]

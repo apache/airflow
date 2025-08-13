@@ -20,6 +20,7 @@ import asyncio
 from unittest import mock
 
 import pytest
+import pytest_asyncio
 
 # For no Pydantic environment, we need to skip the tests
 pytest.importorskip("google.cloud.aiplatform_v1")
@@ -112,24 +113,24 @@ def custom_training_job_trigger():
     )
 
 
-@pytest.fixture
-def custom_job_async_hook():
+@pytest_asyncio.fixture
+async def custom_job_async_hook():
     return CustomJobAsyncHook(
         gcp_conn_id=TEST_CONN_ID,
         impersonation_chain=TEST_IMPERSONATION_CHAIN,
     )
 
 
-@pytest.fixture
-def pipeline_job_async_hook():
+@pytest_asyncio.fixture
+async def pipeline_job_async_hook():
     return PipelineJobAsyncHook(
         gcp_conn_id=TEST_CONN_ID,
         impersonation_chain=TEST_IMPERSONATION_CHAIN,
     )
 
 
-@pytest.fixture
-def pipeline_service_async_client():
+@pytest_asyncio.fixture
+async def pipeline_service_async_client():
     return PipelineServiceAsyncClient(
         credentials=mock.MagicMock(),
     )
@@ -222,7 +223,7 @@ class TestBaseVertexAIJobTrigger:
                 mock_wait_job.side_effect = mock.AsyncMock(return_value=mock_job)
 
                 generator = self.trigger.run()
-                event_actual = await generator.asend(None)  # type:ignore[attr-defined]
+                event_actual = await generator.asend(None)
 
         mock_wait_job.assert_awaited_once()
         mock_serialize_job.assert_called_once_with(mock_job)
@@ -243,7 +244,7 @@ class TestBaseVertexAIJobTrigger:
                 mock_wait_job.side_effect = AirflowException(TEST_ERROR_MESSAGE)
 
                 generator = self.trigger.run()
-                event_actual = await generator.asend(None)  # type:ignore[attr-defined]
+                event_actual = await generator.asend(None)
 
         assert event_actual == TriggerEvent(
             {

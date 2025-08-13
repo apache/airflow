@@ -78,7 +78,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "3.0.2",
+            "default": "3.0.3",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -93,7 +93,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "3.0.2",
+            "default": "3.0.3",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -695,6 +695,12 @@
             "x-docsSection": "Airflow",
             "default": true
         },
+        "allowJobLaunching": {
+            "description": "Whether various Airflow components launch jobs.",
+            "type": "boolean",
+            "x-docsSection": "Airflow",
+            "default": false
+        },
         "images": {
             "description": "Images.",
             "type": "object",
@@ -941,7 +947,7 @@
                         "tag": {
                             "description": "The gitSync image tag.",
                             "type": "string",
-                            "default": "v4.3.0"
+                            "default": "v4.4.2"
                         },
                         "pullPolicy": {
                             "description": "The gitSync image pull policy.",
@@ -1820,7 +1826,7 @@
                         "query": {
                             "description": "Query to use for KEDA autoscaling. Must return a single integer.",
                             "type": "string",
-                            "default": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }}) FROM task_instance WHERE (state='running' OR state='queued') {{- if or (contains \"CeleryKubernetesExecutor\" .Values.executor) (contains \"KubernetesExecutor\" .Values.executor) }} AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}' {{- end }}"
+                            "default": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }}) FROM task_instance WHERE (state='running' OR state='queued') {{- if contains \"CeleryKubernetesExecutor\" .Values.executor }} AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}' {{- else if contains \"KubernetesExecutor\" .Values.executor }} AND executor != 'KubernetesExecutor' {{- end }}"
                         },
                         "usePgbouncer": {
                             "description": "Weather to use PGBouncer to connect to the database or not when it is enabled. This configuration will be ignored if PGBouncer is not enabled.",
@@ -2291,6 +2297,15 @@
                         "type": "string"
                     }
                 },
+                "schedulerName": {
+                    "description": "Specify kube scheduler name for Airflow Celery workers objects and pods created with pod-template-file.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null,
+                    "x-docsSection": "Common"
+                },
                 "labels": {
                     "description": "Labels to add to the Airflow Celery workers objects and pods created with pod-template-file.",
                     "type": "object",
@@ -2530,6 +2545,89 @@
                             }
                         }
                     ]
+                },
+                "useWorkerDedicatedServiceAccounts": {
+                    "description": "One common Service Account for all workers will be created if flag is set to false. If true, dedicated Service Accounts for every worker type will be created.",
+                    "type": "boolean",
+                    "default": false
+                },
+                "celery": {
+                    "description": "Airflow Celery Workers configuration.",
+                    "type": "object",
+                    "x-docsSection": "Workers",
+                    "properties": {
+                        "serviceAccount": {
+                            "description": "Create ServiceAccount.",
+                            "type": "object",
+                            "properties": {
+                                "automountServiceAccountToken": {
+                                    "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "create": {
+                                    "description": "Specifies whether a ServiceAccount should be created.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "name": {
+                                    "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "annotations": {
+                                    "description": "Annotations to add to the Airflow Celery worker Kubernetes ServiceAccount.",
+                                    "type": "object",
+                                    "default": {},
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "kubernetes": {
+                    "description": "Airflow pod-template-file configuration.",
+                    "type": "object",
+                    "x-docsSection": "Workers",
+                    "properties": {
+                        "serviceAccount": {
+                            "description": "Create ServiceAccount.",
+                            "type": "object",
+                            "properties": {
+                                "automountServiceAccountToken": {
+                                    "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "create": {
+                                    "description": "Specifies whether a ServiceAccount should be created.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "name": {
+                                    "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "annotations": {
+                                    "description": "Annotations to add to the worker Kubernetes ServiceAccount.",
+                                    "type": "object",
+                                    "default": {},
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         },
@@ -9028,6 +9126,16 @@
                                 }
                             ]
                         },
+                        "livenessProbe": {
+                            "description": "Liveness probe configuration for git sync container.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.Probe"
+                        },
+                        "readinessProbe": {
+                            "description": "Readiness probe configuration for git sync container.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.Probe"
+                        },
                         "emptyDirConfig": {
                             "description": "Configuration for dags empty dir volume.",
                             "type": "object",
@@ -9141,25 +9249,21 @@
                             "type": "array",
                             "default": [],
                             "items": {
-                                "type": "object",
-                                "properties": {
-                                    "name": {
-                                        "type": "string"
-                                    },
-                                    "value": {
-                                        "type": "string"
-                                    }
-                                },
-                                "required": [
-                                    "name",
-                                    "value"
-                                ],
-                                "additionalProperties": false
+                                "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
                             },
                             "examples": [
                                 {
                                     "name": "GIT_SYNC_TIMEOUT",
                                     "value": "60"
+                                },
+                                {
+                                    "name": "GIT_SYNC_USERNAME",
+                                    "valueFrom": {
+                                        "secretKeyRef": {
+                                            "name": "git-secret",
+                                            "key": "username"
+                                        }
+                                    }
                                 }
                             ]
                         },
@@ -9236,6 +9340,14 @@
                         },
                         "existingClaim": {
                             "description": "The name of an existing PVC to use.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "subPath": {
+                            "description": "The subpath of the existing PVC to use.",
                             "type": [
                                 "string",
                                 "null"

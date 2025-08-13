@@ -19,15 +19,16 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 
 import {
   UseDagRunServiceGetDagRunsKeyFn,
   useDagRunServiceTriggerDagRun,
   useDagServiceGetDagsUiKey,
-  UseGridServiceGridDataKeyFn,
   UseTaskInstanceServiceGetTaskInstancesKeyFn,
   UseGridServiceGetGridRunsKeyFn,
 } from "openapi/queries";
+import type { TriggerDagRunResponse } from "openapi/requests/types.gen";
 import type { DagRunTriggerParams } from "src/components/TriggerDag/TriggerDAGForm";
 import { toaster } from "src/components/ui";
 
@@ -35,12 +36,13 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
   const { t: translate } = useTranslation("components");
-  const onSuccess = async () => {
+  const navigate = useNavigate();
+
+  const onSuccess = async (dagRun: TriggerDagRunResponse) => {
     const queryKeys = [
       [useDagServiceGetDagsUiKey],
       UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
       UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
-      UseGridServiceGridDataKeyFn({ dagId }, [{ dagId }]),
       UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
     ];
 
@@ -52,6 +54,8 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
       type: "success",
     });
     onSuccessConfirm();
+
+    navigate(`/dags/${dagRun.dag_id}/runs/${dagRun.dag_run_id}`);
   };
 
   const onError = (_error: unknown) => {

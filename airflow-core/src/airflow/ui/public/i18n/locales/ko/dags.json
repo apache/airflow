@@ -6,14 +6,22 @@
       "warning": "실행 및 작업를 포함하여 Dag과(와) 관련된 모든 메타데이터가 제거됩니다."
     }
   },
+  "favoriteDag": "Dag 즐겨찾기",
   "filters": {
     "allRunTypes": "모든 실행 유형",
     "allStates": "모든 상태",
+    "favorite": {
+      "all": "전체",
+      "favorite": "즐겨찾기",
+      "unfavorite": "즐겨찾기 해제"
+    },
     "paused": {
       "active": "활성",
       "all": "모두",
       "paused": "일시 중지됨"
-    }
+    },
+    "runIdPatternFilter": "Dag 실행 검색",
+    "triggeringUserNameFilter": "트리거한 사용자로 검색"
   },
   "ownerLink": "{{owner}}의 소유자 링크",
   "runAndTaskActions": {
@@ -55,6 +63,7 @@
       "onlyFailed": "실패한 작업만 지우기",
       "past": "과거",
       "queueNew": "새 작업 대기열에 추가",
+      "runOnLatestVersion": "최신 번들 버전으로 실행",
       "upstream": "업스트림"
     }
   },
@@ -83,5 +92,6 @@
       "desc": "다음 Dag 실행으로 정렬 (최신-이전)"
     },
     "placeholder": "정렬 기준"
-  }
+  },
+  "unfavoriteDag": "Dag 즐겨찾기 해제"
 }

@@ -23,9 +23,9 @@ import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 import type { FlexibleFormElementProps } from ".";
 import { JsonEditor } from "../JsonEditor";
 
-export const FieldAdvancedArray = ({ name, onUpdate }: FlexibleFormElementProps) => {
+export const FieldAdvancedArray = ({ name, namespace = "default", onUpdate }: FlexibleFormElementProps) => {
   const { t: translate } = useTranslation("components");
-  const { paramsDict, setParamsDict } = useParamStore();
+  const { disabled, paramsDict, setParamsDict } = useParamStore(namespace);
   const param = paramsDict[name] ?? paramPlaceholder;
   // Determine the expected type based on schema
   const expectedType = param.schema.items?.type ?? "object";
@@ -71,6 +71,7 @@ export const FieldAdvancedArray = ({ name, onUpdate }: FlexibleFormElementProps)
 
   return (
     <JsonEditor
+      editable={!Boolean(disabled)}
       id={`element_${name}`}
       onChange={handleChange}
       value={JSON.stringify(param.value ?? [], undefined, 2)}

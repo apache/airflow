@@ -35,6 +35,7 @@ from sqlalchemy import delete, func, insert, select, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, load_only
 
+from airflow._shared.timezones.timezone import utcnow
 from airflow.assets.manager import asset_manager
 from airflow.models.asset import (
     AssetActive,
@@ -56,7 +57,6 @@ from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, Asset
 from airflow.triggers.base import BaseEventTrigger
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.sqlalchemy import with_row_locks
-from airflow.utils.timezone import utcnow
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
@@ -200,7 +200,7 @@ def _serialize_dag_capturing_errors(
         if not dag_was_updated:
             # Check and update DagCode
             DagCode.update_source_code(dag.dag_id, dag.fileloc)
-        elif "FabAuthManager" in conf.get("core", "auth_manager"):
+        if "FabAuthManager" in conf.get("core", "auth_manager"):
             _sync_dag_perms(dag, session=session)
 
         return []

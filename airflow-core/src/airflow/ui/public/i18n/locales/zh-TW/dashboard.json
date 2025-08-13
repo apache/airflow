@@ -1,4 +1,10 @@
 {
+  "favorite": {
+    "favoriteDags_one": "第 {{ count }} 個最愛的 Dag",
+    "favoriteDags_other": "前 {{ count }} 個最愛的 Dag",
+    "noDagRuns": "此 Dag 尚未被觸發過。",
+    "noFavoriteDags": "尚無最愛的 Dag 。請點擊 Dag 列表旁的星號圖示，將 Dag 加入最愛。"
+  },
   "group": "群組",
   "health": {
     "dagProcessor": "Dag 處理器",
@@ -30,6 +36,7 @@
     "activeDags": "啟用中的 Dags",
     "failedDags": "失敗的 Dags",
     "queuedDags": "排隊中的 Dags",
+    "requiredActions": "待回應的任務實例",
     "runningDags": "執行中的 Dags",
     "stats": "統計"
   },

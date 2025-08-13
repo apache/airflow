@@ -66,7 +66,7 @@ def rpcapi_v2(body: dict[str, Any]) -> APIResponse:
     # Note: Except the method map this _was_ a 100% copy of internal API module
     #       airflow.api_internal.endpoints.rpc_api_endpoint.internal_airflow_api()
     # As of rework for FastAPI in Airflow 3.0, this is updated and to be removed in the future.
-    from airflow.api_internal.endpoints.rpc_api_endpoint import (  # type: ignore[attr-defined]
+    from airflow.api_internal.endpoints.rpc_api_endpoint import (
         # Note: This is just for compatibility with Airflow 2.10, not working for Airflow 3 / main as removed
         initialize_method_map,
     )

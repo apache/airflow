@@ -22,16 +22,20 @@ import logging
 import os
 from unittest import mock
 
+import pandas as pd
+import polars as pl
 import psycopg2.extras
 import pytest
 import sqlalchemy
-from psycopg2.extras import Json
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.postgres.dialects.postgres import PostgresDialect
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils.types import NOTSET
+
+from tests_common.test_utils.common_sql import mock_db_hook
+from tests_common.test_utils.version_compat import SQLALCHEMY_V_1_4
 
 INSERT_SQL_STATEMENT = "INSERT INTO connection (id, conn_id, conn_type, description, host, {}, login, password, port, is_encrypted, is_extra_encrypted, extra) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
 
@@ -74,7 +78,11 @@ class TestPostgresHookConn:
     def test_sqlalchemy_url(self):
         conn = Connection(login="login-conn", password="password-conn", host="host", schema="database")
         hook = PostgresHook(connection=conn)
-        assert str(hook.sqlalchemy_url) == "postgresql://login-conn:password-conn@host/database"
+        expected = "postgresql://login-conn:password-conn@host/database"
+        if SQLALCHEMY_V_1_4:
+            assert str(hook.sqlalchemy_url) == expected
+        else:
+            assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
 
     def test_sqlalchemy_url_with_sqlalchemy_query(self):
         conn = Connection(
@@ -86,10 +94,11 @@ class TestPostgresHookConn:
         )
         hook = PostgresHook(connection=conn)
 
-        assert (
-            str(hook.sqlalchemy_url)
-            == "postgresql://login-conn:password-conn@host/database?gssencmode=disable"
-        )
+        expected = "postgresql://login-conn:password-conn@host/database?gssencmode=disable"
+        if SQLALCHEMY_V_1_4:
+            assert str(hook.sqlalchemy_url) == expected
+        else:
+            assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
 
     def test_sqlalchemy_url_with_wrong_sqlalchemy_query_value(self):
         conn = Connection(
@@ -500,22 +509,34 @@ class TestPostgresHook:
         assert sorted(input_data) == sorted(results)
 
     @pytest.mark.parametrize(
-        "raw_cell, expected_serialized",
+        "df_type, expected_type",
         [
-            ("cell content", "cell content"),
-            (342, 342),
-            (
-                {"key1": "value2", "n_key": {"sub_key": "sub_value"}},
-                {"key1": "value2", "n_key": {"sub_key": "sub_value"}},
-            ),
-            ([1, 2, {"key1": "value2"}, "some data"], [1, 2, {"key1": "value2"}, "some data"]),
+            ("pandas", pd.DataFrame),
+            ("polars", pl.DataFrame),
         ],
     )
-    def test_serialize_cell(self, raw_cell, expected_serialized):
-        if isinstance(raw_cell, Json):
-            assert expected_serialized == raw_cell.adapted
-        else:
-            assert expected_serialized == raw_cell
+    @mock.patch("airflow.providers.postgres.hooks.postgres.PostgresHook._get_polars_df")
+    @mock.patch("pandas.io.sql.read_sql")
+    @mock.patch("airflow.providers.postgres.hooks.postgres.PostgresHook.get_sqlalchemy_engine")
+    def test_get_df_with_df_type(
+        self, mock_get_engine, mock_read_sql, mock_polars_df, df_type, expected_type
+    ):
+        hook = mock_db_hook(PostgresHook)
+        mock_read_sql.return_value = pd.DataFrame()
+        mock_polars_df.return_value = pl.DataFrame()
+        sql = "SELECT * FROM table"
+        if df_type == "pandas":
+            mock_conn = mock.MagicMock()
+            mock_engine = mock.MagicMock()
+            mock_engine.connect.return_value.__enter__.return_value = mock_conn
+            mock_get_engine.return_value = mock_engine
+            df = hook.get_df(sql, df_type="pandas")
+            mock_read_sql.assert_called_once_with(sql, con=mock_conn, params=None)
+            assert isinstance(df, expected_type)
+        elif df_type == "polars":
+            df = hook.get_df(sql, df_type="polars")
+            mock_polars_df.assert_called_once_with(sql, None)
+            assert isinstance(df, expected_type)
 
     def test_insert_rows(self):
         table = "table"

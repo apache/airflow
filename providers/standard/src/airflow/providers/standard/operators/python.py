@@ -51,9 +51,8 @@ from airflow.exceptions import (
 from airflow.models.variable import Variable
 from airflow.providers.standard.hooks.package_index import PackageIndexHook
 from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv, write_python_script
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator, context_merge
 from airflow.utils import hashlib_wrapper
-from airflow.utils.context import context_copy_partial, context_merge
 from airflow.utils.file import get_unique_dag_module_name
 from airflow.utils.operator_helpers import KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
@@ -62,7 +61,7 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.providers.standard.operators.branch import BaseBranchOperator
     from airflow.providers.standard.utils.skipmixin import SkipMixin
 else:
-    from airflow.models.skipmixin import SkipMixin  # type: ignore[no-redef]
+    from airflow.models.skipmixin import SkipMixin
     from airflow.operators.branch import BaseBranchOperator  # type: ignore[no-redef]
 
 
@@ -330,7 +329,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
                 self.skip(
                     dag_run=context["dag_run"],
                     tasks=to_skip,
-                    execution_date=cast("DateTime", dag_run.logical_date),  # type: ignore[call-arg, union-attr]
+                    execution_date=cast("DateTime", dag_run.logical_date),  # type: ignore[call-arg]
                     map_index=context["ti"].map_index,
                 )
 
@@ -487,7 +486,8 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
 
     def execute(self, context: Context) -> Any:
         serializable_keys = set(self._iter_serializable_context_keys())
-        serializable_context = context_copy_partial(context, serializable_keys)
+        new = {k: v for k, v in context.items() if k in serializable_keys}
+        serializable_context = cast("Context", new)
         return super().execute(context=serializable_context)
 
     def get_python_source(self):
@@ -861,6 +861,15 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             self.log.info("New Python virtual environment created in %s", venv_path)
             return venv_path
 
+    def _cleanup_python_pycache_dir(self, cache_dir_path: Path) -> None:
+        try:
+            shutil.rmtree(cache_dir_path)
+            self.log.debug("The directory %s has been deleted.", cache_dir_path)
+        except FileNotFoundError:
+            self.log.warning("Fail to delete %s. The directory does not exist.", cache_dir_path)
+        except PermissionError:
+            self.log.warning("Permission denied to delete the directory %s.", cache_dir_path)
+
     def _retrieve_index_urls_from_connection_ids(self):
         """Retrieve index URLs from Package Index connections."""
         if self.index_urls is None:
@@ -880,9 +889,13 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
 
         with TemporaryDirectory(prefix="venv") as tmp_dir:
             tmp_path = Path(tmp_dir)
+            custom_pycache_prefix = Path(sys.pycache_prefix or "")
+            r_path = tmp_path.relative_to(tmp_path.anchor)
+            venv_python_cache_dir = Path.cwd() / custom_pycache_prefix / r_path
             self._prepare_venv(tmp_path)
             python_path = tmp_path / "bin" / "python"
             result = self._execute_python_callable_in_subprocess(python_path)
+            self._cleanup_python_pycache_dir(venv_python_cache_dir)
             return result
 
     def _iter_serializable_context_keys(self):

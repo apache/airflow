@@ -34,6 +34,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from airflow import settings
+from airflow._shared.timezones import timezone
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -67,6 +68,7 @@ from airflow.sdk import BaseSensorOperator, task, task_group
 from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
 from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.sdk.definitions.param import process_params
+from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
 )
@@ -78,14 +80,11 @@ from airflow.ti_deps.dependencies_states import RUNNABLE_STATES
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
-from airflow.utils import timezone
 from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
-from airflow.utils.xcom import XCOM_RETURN_KEY
 
 from tests_common.test_utils import db
 from tests_common.test_utils.db import clear_db_connections, clear_db_runs
@@ -1247,8 +1246,15 @@ class TestTaskInstance:
         assert completed == expect_completed
         assert ti.state == expect_state
 
-    def test_respects_prev_dagrun_dep(self, create_task_instance):
-        ti = create_task_instance()
+    def test_respects_prev_dagrun_dep(self, dag_maker, session):
+        with dag_maker("test_respects_prev_dagrun_dep", serialized=True) as dag:
+            EmptyOperator(task_id="t")
+
+        dr = dag_maker.create_dagrun(session=session)
+        ti = dr.get_task_instance(task_id="t", session=session)
+
+        # Operate on serialized task
+        ti.task = dag.task_dict[ti.task_id]
         failing_status = [TIDepStatus("test fail status name", False, "test fail reason")]
         passing_status = [TIDepStatus("test pass status name", True, "test passing reason")]
         with patch(
@@ -1302,7 +1308,7 @@ class TestTaskInstance:
         ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
         ti.task = task
         ti.run()
-        assert ti.xcom_pull(task_ids=task_id, key=XCOM_RETURN_KEY) is None
+        assert ti.xcom_pull(task_ids=task_id) is None
 
     def test_check_and_change_state_before_execution(self, create_task_instance, testing_dag_bundle):
         expected_external_executor_id = "banana"
@@ -2925,7 +2931,7 @@ class TestMappedTaskInstanceReceiveValue:
     def test_map_xcom(self, upstream_return, expected_outputs, dag_maker, session):
         outputs = []
 
-        with dag_maker(dag_id="xcom", session=session) as dag:
+        with dag_maker(dag_id="xcom", session=session, serialized=True) as dag:
 
             @dag.task
             def emit():
@@ -2939,23 +2945,25 @@ class TestMappedTaskInstanceReceiveValue:
 
         dag_run = dag_maker.create_dagrun()
         emit_ti = dag_run.get_task_instance("emit", session=session)
-        emit_ti.refresh_from_task(dag.get_task("emit"))
-        emit_ti.run()
+        emit_ti.refresh_from_task(dag_maker.dag.get_task("emit"))
+        dag_maker.run_ti(emit_ti.task_id, dag_run=dag_run, session=session)
 
         show_task = dag.get_task("show")
-        mapped_tis, max_map_index = TaskMap.expand_mapped_task(show_task, dag_run.run_id, session=session)
+        mapped_tis, max_map_index = TaskMap.expand_mapped_task(
+            dag.task_dict[show_task.task_id], dag_run.run_id, session=session
+        )
         assert max_map_index + 1 == len(mapped_tis) == len(upstream_return)
 
         for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
             ti.refresh_from_task(show_task)
-            ti.run()
+            dag_maker.run_ti(ti.task_id, dag_run=dag_run, map_index=ti.map_index, session=session)
         assert outputs == expected_outputs
 
     def test_map_literal_cross_product(self, dag_maker, session):
         """Test a mapped task with literal cross product args expand properly."""
         outputs = []
 
-        with dag_maker(dag_id="product_same_types", session=session) as dag:
+        with dag_maker(dag_id="product_same_types", session=session, serialized=True) as dag:
 
             @dag.task
             def show(a, b):
@@ -2983,14 +2991,14 @@ class TestMappedTaskInstanceReceiveValue:
         )
         for ti in tis:
             ti.refresh_from_task(show_task)
-            ti.run()
+            dag_maker.run_ti(ti.task_id, map_index=ti.map_index, dag_run=dag_run, session=session)
         assert outputs == [(2, 5), (2, 10), (4, 5), (4, 10), (8, 5), (8, 10)]
 
     def test_map_in_group(self, tmp_path: pathlib.Path, dag_maker, session):
         out = tmp_path.joinpath("out")
         out.touch()
 
-        with dag_maker(dag_id="in_group", session=session) as dag:
+        with dag_maker(dag_id="in_group", session=session, serialized=True) as dag:
 
             @dag.task
             def envs():
@@ -3012,7 +3020,7 @@ class TestMappedTaskInstanceReceiveValue:
         for task_id in ["dynamic.envs", "dynamic.cmds"]:
             ti = original_tis[task_id]
             ti.refresh_from_task(dag.get_task(task_id))
-            ti.run()
+            dag_maker.run_ti(ti.task_id, map_index=ti.map_index, dag_run=dag_run, session=session)
 
         bash_task = dag.get_task("dynamic.bash")
         mapped_bash_tis, max_map_index = TaskMap.expand_mapped_task(
@@ -3021,7 +3029,7 @@ class TestMappedTaskInstanceReceiveValue:
         assert max_map_index == 3  # 2 * 2 mapped tasks.
         for ti in sorted(mapped_bash_tis, key=operator.attrgetter("map_index")):
             ti.refresh_from_task(bash_task)
-            ti.run()
+            dag_maker.run_ti(ti.task_id, map_index=ti.map_index, dag_run=dag_run, session=session)
 
         with out.open() as f:
             out_lines = [line.strip() for line in f]

@@ -16,13 +16,18 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeAlias, cast
 
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
+from airflow.serialization.serialized_objects import SerializedBaseOperator
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from airflow.models.mappedoperator import MappedOperator
     from airflow.sdk import DAG
-    from airflow.sdk.types import Operator
+
+    Operator: TypeAlias = MappedOperator | SerializedBaseOperator
 
 
 def dag_edges(dag: DAG):
@@ -60,7 +65,7 @@ def dag_edges(dag: DAG):
 
     def collect_edges(task_group):
         """Update edges_to_add and edges_to_skip according to TaskGroups."""
-        if isinstance(task_group, AbstractOperator):
+        if isinstance(task_group, (AbstractOperator, SerializedBaseOperator)):
             return
 
         for target_id in task_group.downstream_group_ids:
@@ -107,11 +112,17 @@ def dag_edges(dag: DAG):
     edges = set()
     setup_teardown_edges = set()
 
-    tasks_to_trace: list[Operator] = dag.roots
+    # TODO (GH-52141): 'roots' in scheduler needs to return scheduler types
+    # instead, but currently it inherits SDK's DAG.
+    tasks_to_trace = cast("list[Operator]", dag.roots)
     while tasks_to_trace:
         tasks_to_trace_next: list[Operator] = []
         for task in tasks_to_trace:
-            for child in task.downstream_list:
+            # TODO (GH-52141): downstream_list on DAGNode needs to be able to
+            # return scheduler types when used in scheduler, but SDK types when
+            # used at runtime. This means DAGNode needs to be rewritten as a
+            # generic class.
+            for child in cast("Iterable[Operator]", task.downstream_list):
                 edge = (task.task_id, child.task_id)
                 if task.is_setup and child.is_teardown:
                     setup_teardown_edges.add(edge)

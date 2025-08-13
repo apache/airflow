@@ -15,6 +15,7 @@
   "backfill_other": "Backfills",
   "browse": {
     "auditLog": "Audit Log",
+    "requiredActions": "Required Actions",
     "xcoms": "XComs"
   },
   "collapseDetailsPanel": "Collapse Details Panel",
@@ -60,6 +61,7 @@
   },
   "dagRun_one": "Dag Run",
   "dagRun_other": "Dag Runs",
+  "dagRunId": "Dag Run ID",
   "dagWarnings": "Dag warnings/errors",
   "defaultToGraphView": "Default to graph view",
   "defaultToGridView": "Default to grid view",
@@ -78,9 +80,10 @@
     "notFound": "Page Not Found",
     "title": "Error"
   },
-  "expand":{
+  "expand": {
     "collapse": "Collapse",
     "expand": "Expand",
+    "hotkey": "e",
     "tooltip": "Press {{hotkey}} to toggle expand"
   },
   "expression": {
@@ -153,6 +156,11 @@
   },
   "selectLanguage": "Select Language",
   "showDetailsPanel": "Show Details Panel",
+  "source": {
+    "hide": "Hide Source",
+    "hotkey": "s",
+    "show": "Show Source"
+  },
   "sourceAssetEvent_one": "Source Asset Event",
   "sourceAssetEvent_other": "Source Asset Events",
   "startDate": "Start Date",
@@ -232,6 +240,11 @@
     "lastHour": "Last Hour",
     "pastWeek": "Past Week"
   },
+  "timestamp": {
+    "hide": "Hide Timestamps",
+    "hotkey": "t",
+    "show": "Show Timestamps"
+  },
   "timezone": "Timezone",
   "timezoneModal": {
     "current-timezone": "Current time in",
@@ -281,6 +294,7 @@
   "tryNumber": "Try Number",
   "user": "User",
   "wrap": {
+    "hotkey": "w",
     "tooltip": "Press {{hotkey}} to toggle wrap",
     "unwrap": "Unwrap",
     "wrap": "Wrap"

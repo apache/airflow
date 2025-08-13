@@ -23,18 +23,16 @@ import itertools
 import logging
 import math
 import operator
-import os
 import uuid
 from collections import defaultdict
 from collections.abc import Collection, Iterable
 from datetime import timedelta
 from functools import cache
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import quote
 
 import attrs
 import dill
-import jinja2
 import lazy_object_proxy
 import uuid6
 from sqlalchemy import (
@@ -70,6 +68,7 @@ from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
 from sqlalchemy_utils import UUIDType
 
 from airflow import settings
+from airflow._shared.timezones import timezone
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
 from airflow.exceptions import (
@@ -80,18 +79,19 @@ from airflow.exceptions import (
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies
+
+# Import HITLDetail at runtime so SQLAlchemy can resolve the relationship
+from airflow.models.hitl import HITLDetail  # noqa: F401
 from airflow.models.log import Log
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
-from airflow.models.xcom import LazyXComSelectSequence, XComModel
+from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComSelectSequence, XComModel
 from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
-from airflow.utils import timezone
-from airflow.utils.email import send_email
-from airflow.utils.helpers import prune_dict, render_template_to_string
+from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
@@ -100,7 +100,6 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import ExecutorConfigType, ExtendedJSON, UtcDateTime
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.xcom import XCOM_RETURN_KEY
 
 TR = TaskReschedule
 
@@ -109,6 +108,7 @@ log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from datetime import datetime
+    from typing import Literal, TypeAlias
 
     import pendulum
     from sqlalchemy.engine import Connection as SAConnection, Engine
@@ -117,18 +117,18 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.elements import BooleanClauseList
     from sqlalchemy.sql.expression import ColumnOperators
 
-    from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG as SchedulerDAG, DagModel
     from airflow.models.dagrun import DagRun
+    from airflow.models.mappedoperator import MappedOperator
     from airflow.sdk.api.datamodels._generated import AssetProfile
-    from airflow.sdk.definitions._internal.abstractoperator import Operator
     from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
     from airflow.sdk.definitions.dag import DAG
-    from airflow.sdk.definitions.taskgroup import MappedTaskGroup
+    from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
-    from airflow.typing_compat import Literal
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
     from airflow.utils.context import Context
-    from airflow.utils.task_group import TaskGroup
+
+    Operator: TypeAlias = MappedOperator | SerializedBaseOperator
 
 
 PAST_DEPENDS_MET = "past_depends_met"
@@ -199,6 +199,7 @@ def clear_task_instances(
     tis: list[TaskInstance],
     session: Session,
     dag_run_state: DagRunState | Literal[False] = DagRunState.QUEUED,
+    run_on_latest_version: bool = False,
 ) -> None:
     """
     Clear a set of task instances, but make sure the running ones get killed.
@@ -213,13 +214,14 @@ def clear_task_instances(
     :param session: current session
     :param dag_run_state: state to set finished DagRuns to.
         If set to False, DagRuns state will not be changed.
+    :param run_on_latest_version: whether to run on latest serialized DAG and Bundle version
 
     :meta private:
     """
     task_instance_ids: list[str] = []
-    from airflow.jobs.scheduler_job_runner import SchedulerDagBag
+    from airflow.models.dagbag import DBDagBag
 
-    scheduler_dagbag = SchedulerDagBag()
+    scheduler_dagbag = DBDagBag(load_op_links=False)
 
     for ti in tis:
         task_instance_ids.append(ti.id)
@@ -230,12 +232,16 @@ def clear_task_instances(
             ti.state = TaskInstanceState.RESTARTING
         else:
             dr = ti.dag_run
-            ti_dag = scheduler_dagbag.get_dag(dag_run=dr, session=session)
+            if run_on_latest_version:
+                ti_dag = scheduler_dagbag.get_latest_version_of_dag(ti.dag_id, session=session)
+            else:
+                ti_dag = scheduler_dagbag.get_dag_for_run(dag_run=dr, session=session)
             if not ti_dag:
                 log.warning("No serialized dag found for dag '%s'", dr.dag_id)
             task_id = ti.task_id
             if ti_dag and ti_dag.has_task(task_id):
-                task = ti_dag.get_task(task_id)
+                # TODO (GH-52141): Make dag a db-backed object so it only returns db-backed tasks.
+                task = cast("Operator", ti_dag.get_task(task_id))
                 ti.refresh_from_task(task)
                 if TYPE_CHECKING:
                     assert ti.task
@@ -273,12 +279,15 @@ def clear_task_instances(
             if dr.state in State.finished_dr_states:
                 dr.state = dag_run_state
                 dr.start_date = timezone.utcnow()
-                dr_dag = scheduler_dagbag.get_dag(dag_run=dr, session=session)
+                if run_on_latest_version:
+                    dr_dag = scheduler_dagbag.get_latest_version_of_dag(dr.dag_id, session=session)
+                else:
+                    dr_dag = scheduler_dagbag.get_dag_for_run(dag_run=dr, session=session)
                 if not dr_dag:
                     log.warning("No serialized dag found for dag '%s'", dr.dag_id)
-                if dr_dag and not dr_dag.disable_bundle_versioning:
+                if dr_dag and not dr_dag.disable_bundle_versioning and run_on_latest_version:
                     bundle_version = dr.dag_model.bundle_version
-                    if bundle_version is not None:
+                    if bundle_version is not None and run_on_latest_version:
                         dr.bundle_version = bundle_version
                 if dag_run_state == DagRunState.QUEUED:
                     dr.last_scheduling_decision = None
@@ -294,100 +303,6 @@ def _creator_note(val):
     if isinstance(val, dict):
         return TaskInstanceNote(**val)
     return TaskInstanceNote(*val)
-
-
-def _get_email_subject_content(
-    *,
-    task_instance: TaskInstance | RuntimeTaskInstanceProtocol,
-    exception: BaseException,
-    task: BaseOperator | None = None,
-) -> tuple[str, str, str]:
-    """
-    Get the email subject content for exceptions.
-
-    :param task_instance: the task instance
-    :param exception: the exception sent in the email
-    :param task:
-
-    :meta private:
-    """
-    # For a ti from DB (without ti.task), return the default value
-    if task is None:
-        task = getattr(task_instance, "task")
-    use_default = task is None
-    exception_html = str(exception).replace("\n", "<br>")
-
-    default_subject = "Airflow alert: {{ti}}"
-    # For reporting purposes, we report based on 1-indexed,
-    # not 0-indexed lists (i.e. Try 1 instead of
-    # Try 0 for the first attempt).
-    default_html_content = (
-        "Try {{try_number}} out of {{max_tries + 1}}<br>"
-        "Exception:<br>{{exception_html}}<br>"
-        'Log: <a href="{{ti.log_url}}">Link</a><br>'
-        "Host: {{ti.hostname}}<br>"
-        'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
-    )
-
-    default_html_content_err = (
-        "Try {{try_number}} out of {{max_tries + 1}}<br>"
-        "Exception:<br>Failed attempt to attach error logs<br>"
-        'Log: <a href="{{ti.log_url}}">Link</a><br>'
-        "Host: {{ti.hostname}}<br>"
-        'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
-    )
-
-    additional_context: dict[str, Any] = {
-        "exception": exception,
-        "exception_html": exception_html,
-        "try_number": task_instance.try_number,
-        "max_tries": task_instance.max_tries,
-    }
-
-    if use_default:
-        default_context = {"ti": task_instance, **additional_context}
-        jinja_env = jinja2.Environment(
-            loader=jinja2.FileSystemLoader(os.path.dirname(__file__)), autoescape=True
-        )
-        subject = jinja_env.from_string(default_subject).render(**default_context)
-        html_content = jinja_env.from_string(default_html_content).render(**default_context)
-        html_content_err = jinja_env.from_string(default_html_content_err).render(**default_context)
-
-    else:
-        from airflow.sdk.definitions._internal.templater import SandboxedEnvironment
-        from airflow.utils.context import context_merge
-
-        if TYPE_CHECKING:
-            assert task_instance.task
-
-        # Use the DAG's get_template_env() to set force_sandboxed. Don't add
-        # the flag to the function on task object -- that function can be
-        # overridden, and adding a flag breaks backward compatibility.
-        dag = task_instance.task.get_dag()
-        if dag:
-            jinja_env = dag.get_template_env(force_sandboxed=True)
-        else:
-            jinja_env = SandboxedEnvironment(cache_size=0)
-        jinja_context = task_instance.get_template_context()
-        context_merge(jinja_context, additional_context)
-
-        def render(key: str, content: str) -> str:
-            if conf.has_option("email", key):
-                path = conf.get_mandatory_value("email", key)
-                try:
-                    with open(path) as f:
-                        content = f.read()
-                except FileNotFoundError:
-                    log.warning("Could not find email template file '%s'. Using defaults...", path)
-                except OSError:
-                    log.exception("Error while using email template %s. Using defaults...", path)
-            return render_template_to_string(jinja_env.from_string(content), jinja_context)
-
-        subject = render("subject_template", default_subject)
-        html_content = render("html_content_template", default_html_content)
-        html_content_err = render("html_content_template", default_html_content_err)
-
-    return subject, html_content, html_content_err
 
 
 def _log_state(*, task_instance: TaskInstance, lead_msg: str = "") -> None:
@@ -512,7 +427,8 @@ class TaskInstance(Base, LoggingMixin):
 
     _task_display_property_value = Column("task_display_name", String(2000), nullable=True)
     dag_version_id = Column(
-        UUIDType(binary=False), ForeignKey("dag_version.id", ondelete="RESTRICT"), nullable=False
+        UUIDType(binary=False),
+        ForeignKey("dag_version.id", ondelete="RESTRICT"),
     )
     dag_version = relationship("DagVersion", back_populates="task_instances")
 
@@ -553,6 +469,8 @@ class TaskInstance(Base, LoggingMixin):
     triggerer_job = association_proxy("trigger", "triggerer_job")
     dag_run = relationship("DagRun", back_populates="task_instances", lazy="joined", innerjoin=True)
     rendered_task_instance_fields = relationship("RenderedTaskInstanceFields", lazy="noload", uselist=False)
+    hitl_detail = relationship("HITLDetail", lazy="noload", uselist=False)
+
     run_after = association_proxy("dag_run", "run_after")
     logical_date = association_proxy("dag_run", "logical_date")
     task_instance_note = relationship(
@@ -673,22 +591,6 @@ class TaskInstance(Base, LoggingMixin):
         if self.map_index >= 0:
             return str(self.map_index)
         return None
-
-    @classmethod
-    def from_runtime_ti(cls, runtime_ti: RuntimeTaskInstanceProtocol) -> TaskInstance:
-        if runtime_ti.map_index is None:
-            runtime_ti.map_index = -1
-        ti = TaskInstance(
-            run_id=runtime_ti.run_id,
-            task=runtime_ti.task,  # type: ignore[arg-type]
-            map_index=runtime_ti.map_index,
-            dag_version_id=runtime_ti.dag_version_id,
-        )
-
-        if TYPE_CHECKING:
-            assert ti
-            assert isinstance(ti, TaskInstance)
-        return ti
 
     def to_runtime_ti(self, context_from_server) -> RuntimeTaskInstanceProtocol:
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
@@ -840,7 +742,7 @@ class TaskInstance(Base, LoggingMixin):
         self.pool_slots = task.pool_slots
         with contextlib.suppress(Exception):
             # This method is called from the different places, and sometimes the TI is not fully initialized
-            self.priority_weight = self.task.weight_rule.get_weight(self)  # type: ignore[arg-type]
+            self.priority_weight = self.task.weight_rule.get_weight(self)
         self.run_as_user = task.run_as_user
         # Do not set max_tries to task.retries here because max_tries is a cumulative
         # value that needs to be stored in the db.
@@ -1018,18 +920,7 @@ class TaskInstance(Base, LoggingMixin):
     def get_failed_dep_statuses(self, dep_context: DepContext | None = None, session: Session = NEW_SESSION):
         """Get failed Dependencies."""
         if TYPE_CHECKING:
-            assert isinstance(self.task, BaseOperator)
-
-        if not hasattr(self.task, "deps"):
-            # These deps are not on BaseOperator since they are only needed and evaluated
-            # in the scheduler and not needed at the Runtime.
-            from airflow.serialization.serialized_objects import SerializedBaseOperator
-
-            serialized_op = SerializedBaseOperator.deserialize_operator(
-                SerializedBaseOperator.serialize_operator(self.task)
-            )
-            setattr(self.task, "deps", serialized_op.deps)  # type: ignore[union-attr]
-
+            assert self.task is not None
         dep_context = dep_context or DepContext()
         for dep in dep_context.deps | self.task.deps:
             for dep_status in dep.get_dep_statuses(self, session, dep_context):
@@ -1177,7 +1068,7 @@ class TaskInstance(Base, LoggingMixin):
         ti: TaskInstance = task_instance
         task = task_instance.task
         if TYPE_CHECKING:
-            assert task
+            assert isinstance(task, Operator)  # TODO (GH-52141): This shouldn't be needed.
         ti.refresh_from_task(task, pool_override=pool)
         ti.test_mode = test_mode
         ti.refresh_from_db(session=session, lock_for_update=True)
@@ -1266,7 +1157,7 @@ class TaskInstance(Base, LoggingMixin):
 
         # Closing all pooled connections to prevent
         # "max number of connections reached"
-        settings.engine.dispose()  # type: ignore
+        settings.engine.dispose()
         if verbose:
             if mark_success:
                 cls.logger().info("Marking success for %s on %s", ti.task, ti.logical_date)
@@ -1377,7 +1268,7 @@ class TaskInstance(Base, LoggingMixin):
             log.info("[DAG TEST] Marking success for %s ", self.task_id)
             return None
 
-        taskrun_result = _run_task(ti=self)
+        taskrun_result = _run_task(ti=self, task=self.task)
         if taskrun_result is not None and taskrun_result.error:
             raise taskrun_result.error
         return None
@@ -1541,7 +1432,7 @@ class TaskInstance(Base, LoggingMixin):
 
         # TODO: TaskSDK add start_trigger_args to SDK definitions
         if TYPE_CHECKING:
-            assert self.task is None or isinstance(self.task, BaseOperator)
+            assert self.task is not None
 
         timeout: timedelta | None
         if exception is not None:
@@ -1551,7 +1442,7 @@ class TaskInstance(Base, LoggingMixin):
             timeout = exception.timeout
         elif self.task is not None and self.task.start_trigger_args is not None:
             context = self.get_template_context()
-            start_trigger_args = self.task.expand_start_trigger_args(context=context, session=session)
+            start_trigger_args = self.task.expand_start_trigger_args(context=context)
             if start_trigger_args is None:
                 raise TaskDeferralError(
                     "A none 'None' start_trigger_args has been change to 'None' during expandion"
@@ -1622,6 +1513,21 @@ class TaskInstance(Base, LoggingMixin):
         raise_on_defer: bool = False,
     ) -> None:
         """Run TaskInstance (only kept for tests)."""
+        # This method is only used in ti.run and dag.test and task.test.
+        # So doing the s10n/de-s10n dance to operator on Serialized task for the scheduler dep check part.
+        from airflow.serialization.serialized_objects import SerializedDAG
+
+        original_task = self.task
+        if TYPE_CHECKING:
+            assert original_task is not None
+            assert original_task.dag is not None
+
+        serialized_task = SerializedDAG.deserialize_dag(
+            SerializedDAG.serialize_dag(original_task.dag)
+        ).task_dict[original_task.task_id]
+        # TODO (GH-52141): task_dict in scheduler should contain scheduler
+        # types instead, but currently it inherits SDK's DAG.
+        self.task = cast("Operator", serialized_task)
         res = self.check_and_change_state_before_execution(
             verbose=verbose,
             ignore_all_deps=ignore_all_deps,
@@ -1634,21 +1540,11 @@ class TaskInstance(Base, LoggingMixin):
             pool=pool,
             session=session,
         )
+        self.task = original_task
         if not res:
             return
 
         self._run_raw_task(mark_success=mark_success)
-
-    def dry_run(self) -> None:
-        """Only Renders Templates for the TI."""
-        if TYPE_CHECKING:
-            assert self.task
-
-        self.task = self.task.prepare_for_execution()
-        self.render_templates()
-        if TYPE_CHECKING:
-            assert isinstance(self.task, BaseOperator)
-        self.task.dry_run()
 
     @classmethod
     def fetch_handle_failure_context(
@@ -1707,12 +1603,11 @@ class TaskInstance(Base, LoggingMixin):
         # only mark task instance as FAILED if the next task instance
         # try_number exceeds the max_tries ... or if force_fail is truthy
 
-        task: BaseOperator | None = None
+        task: SerializedBaseOperator | None = None
         try:
-            if getattr(ti, "task", None) and context:
-                if TYPE_CHECKING:
-                    assert isinstance(ti.task, BaseOperator)
-                task = ti.task.unmap((context, session))
+            if (orig_task := getattr(ti, "task", None)) and context:
+                # TODO (GH-52141): Move runtime unmap into task runner.
+                task = orig_task.unmap((context, session))
         except Exception:
             cls.logger().error("Unable to unmap task to determine if we need to send an alert email")
 
@@ -1781,7 +1676,7 @@ class TaskInstance(Base, LoggingMixin):
         if test_mode is None:
             test_mode = self.test_mode
         failure_context = TaskInstance.fetch_handle_failure_context(
-            ti=self,  # type: ignore[arg-type]
+            ti=self,
             error=error,
             test_mode=test_mode,
             session=session,
@@ -1790,14 +1685,19 @@ class TaskInstance(Base, LoggingMixin):
 
         _log_state(task_instance=self)
         if (
-            failure_context["task"]
-            and failure_context["email_for_state"](failure_context["task"])
-            and failure_context["task"].email
+            (failure_task := failure_context["task"])
+            and failure_context["email_for_state"](failure_task)
+            and (failure_email := failure_task.email)
         ):
             try:
-                self.email_alert(error, failure_context["task"])
+                import structlog
+
+                from airflow.sdk.execution_time.task_runner import _send_task_error_email
+
+                log = structlog.get_logger(logger_name="task")
+                _send_task_error_email(failure_email, self, error, log=log)
             except Exception:
-                log.exception("Failed to send email to: %s", failure_context["task"].email)
+                log.exception("Failed to send email to: %s", failure_email)
 
         if not test_mode:
             TaskInstance.save_to_db(failure_context["ti"], session)
@@ -1818,6 +1718,7 @@ class TaskInstance(Base, LoggingMixin):
 
         return bool(self.task.retries and self.try_number <= self.max_tries)
 
+    # TODO (GH-52141): We should remove this entire function (only makes sense at runtime).
     def get_template_context(
         self,
         session: Session | None = None,
@@ -1829,21 +1730,17 @@ class TaskInstance(Base, LoggingMixin):
         :param session: SQLAlchemy ORM Session
         :param ignore_param_exceptions: flag to suppress value exceptions while initializing the ParamsDict
         """
-        if TYPE_CHECKING:
-            assert self.task
-            assert isinstance(self.task.dag, SchedulerDAG)
-
         # Do not use provide_session here -- it expunges everything on exit!
         if not session:
             session = settings.Session()
 
-        from airflow.models.abstractoperator import NotMapped
-        from airflow.models.baseoperator import BaseOperator
+        from airflow.models.mappedoperator import get_mapped_ti_count
         from airflow.sdk.api.datamodels._generated import (
             DagRun as DagRunSDK,
             PrevSuccessfulDagRunResponse,
             TIRunContext,
         )
+        from airflow.sdk.definitions._internal.abstractoperator import NotMapped
         from airflow.sdk.definitions.param import process_params
         from airflow.sdk.execution_time.context import InletEventsAccessors
         from airflow.utils.context import (
@@ -1852,11 +1749,7 @@ class TaskInstance(Base, LoggingMixin):
             VariableAccessor,
         )
 
-        task = self.task
         if TYPE_CHECKING:
-            assert self.task
-            assert task
-            assert task.dag
             assert session
 
         def _get_dagrun(session: Session) -> DagRun:
@@ -1876,11 +1769,11 @@ class TaskInstance(Base, LoggingMixin):
                 return dag_run
             return session.merge(dag_run, load=False)
 
+        task: Any = self.task
+        dag = task.dag
         dag_run = _get_dagrun(session)
 
-        validated_params = process_params(
-            self.task.dag, task, dag_run.conf, suppress_exception=ignore_param_exceptions
-        )
+        validated_params = process_params(dag, task, dag_run.conf, suppress_exception=ignore_param_exceptions)
         ti_context_from_server = TIRunContext(
             dag_run=DagRunSDK.model_validate(dag_run, from_attributes=True),
             max_tries=self.max_tries,
@@ -1946,9 +1839,7 @@ class TaskInstance(Base, LoggingMixin):
         )
 
         try:
-            expanded_ti_count: int | None = BaseOperator.get_mapped_ti_count(
-                task, self.run_id, session=session
-            )
+            expanded_ti_count: int | None = get_mapped_ti_count(task, self.run_id, session=session)
             context["expanded_ti_count"] = expanded_ti_count
             if expanded_ti_count:
                 setattr(
@@ -1956,7 +1847,7 @@ class TaskInstance(Base, LoggingMixin):
                     "_upstream_map_indexes",
                     {
                         upstream.task_id: self.get_relevant_upstream_map_indexes(
-                            upstream,
+                            cast("Operator", upstream),
                             expanded_ti_count,
                             session=session,
                         )
@@ -1968,9 +1859,9 @@ class TaskInstance(Base, LoggingMixin):
 
         return context
 
-    def render_templates(
-        self, context: Context | None = None, jinja_env: jinja2.Environment | None = None
-    ) -> Operator:
+    # TODO (GH-52141): We should remove this entire function (only makes sense at runtime).
+    # This is intentionally left untyped so Mypy complains less about this dead code.
+    def render_templates(self, context=None, jinja_env=None):
         """
         Render templates in the operator fields.
 
@@ -1984,48 +1875,15 @@ class TaskInstance(Base, LoggingMixin):
             context = self.get_template_context()
         original_task = self.task
 
-        ti = context["ti"]
-
-        if TYPE_CHECKING:
-            assert original_task
-            assert self.task
-            assert ti.task
-
         # If self.task is mapped, this call replaces self.task to point to the
         # unmapped BaseOperator created by this function! This is because the
         # MappedOperator is useless for template rendering, and we need to be
         # able to access the unmapped task instead.
         original_task.render_template_fields(context, jinja_env)
         if isinstance(self.task, MappedOperator):
-            self.task = context["ti"].task  # type: ignore[assignment]
+            self.task = context["ti"].task
 
         return original_task
-
-    def get_email_subject_content(
-        self, exception: BaseException, task: BaseOperator | None = None
-    ) -> tuple[str, str, str]:
-        """
-        Get the email subject content for exceptions.
-
-        :param exception: the exception sent in the email
-        :param task:
-        """
-        return _get_email_subject_content(task_instance=self, exception=exception, task=task)
-
-    def email_alert(self, exception, task: BaseOperator) -> None:
-        """
-        Send alert email with exception information.
-
-        :param exception: the exception
-        :param task: task related to the exception
-        """
-        subject, html_content, html_content_err = self.get_email_subject_content(exception, task=task)
-        if TYPE_CHECKING:
-            assert task.email
-        try:
-            send_email(task.email, subject, html_content)
-        except Exception:
-            send_email(task.email, subject, html_content_err)
 
     def set_duration(self) -> None:
         """Set task instance duration."""
@@ -2307,10 +2165,10 @@ class TaskInstance(Base, LoggingMixin):
         :return: Specific map index or map indexes to pull, or ``None`` if we
             want to "whole" return value (i.e. no mapped task groups involved).
         """
-        from airflow.models.baseoperator import BaseOperator
+        from airflow.models.mappedoperator import get_mapped_ti_count
 
         if TYPE_CHECKING:
-            assert self.task
+            assert self.task is not None
 
         # This value should never be None since we already know the current task
         # is in a mapped task group, and should have been expanded, despite that,
@@ -2332,7 +2190,7 @@ class TaskInstance(Base, LoggingMixin):
         # should use a "partial" value. Let's break down the mapped ti count
         # between the ancestor and further expansion happened inside it.
 
-        ancestor_ti_count = BaseOperator.get_mapped_ti_count(common_ancestor, self.run_id, session=session)
+        ancestor_ti_count = get_mapped_ti_count(common_ancestor, self.run_id, session=session)
         ancestor_map_index = self.map_index * ancestor_ti_count // ti_count
 
         # If the task is NOT further expanded inside the common ancestor, we
