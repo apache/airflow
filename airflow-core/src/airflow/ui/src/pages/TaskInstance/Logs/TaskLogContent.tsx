@@ -79,9 +79,14 @@ const ScrollToButton = ({
 
 export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }: Props) => {
   const hash = location.hash.replace("#", "");
-  const parentRef = useRef(null);
+  // this must be the actual scrollable element
+  const parentRef = useRef<HTMLDivElement | null>(null);
+
+  // reversed for newest-first display
+  const reversedLogs = useMemo(() => [...parsedLogs].reverse(), [parsedLogs]);
+
   const rowVirtualizer = useVirtualizer({
-    count: parsedLogs.length,
+    count: reversedLogs.length,
     estimateSize: () => 20,
     getScrollElement: () => parentRef.current,
     overscan: 10,
@@ -94,15 +99,62 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
     return parsedLogs.length > 1 && contentHeight > containerHeight;
   }, [rowVirtualizer, parsedLogs]);
 
+  // sync hash -> index with reversed array
   useLayoutEffect(() => {
-    if (location.hash && !isLoading) {
-      rowVirtualizer.scrollToIndex(Math.min(Number(hash) + 5, parsedLogs.length - 1));
-    }
-  }, [isLoading, rowVirtualizer, hash, parsedLogs]);
+    if (location.hash && !isLoading && reversedLogs.length > 0) {
+      const origIndex = Number(hash) || 0;
+      const targetIndex = Math.max(0, Math.min(reversedLogs.length - 1, reversedLogs.length - 1 - origIndex));
 
+      // compute offset so item appears at top of container
+      const el = parentRef.current;
+      const total = rowVirtualizer.getTotalSize();
+      const clientH = el?.clientHeight ?? 0;
+      const virtualItem = rowVirtualizer
+        .getVirtualItems()
+        .find((virtualRow) => virtualRow.index === targetIndex);
+      const anchor = virtualItem?.start ?? 0;
+      const offset = Math.max(0, Math.min(total - clientH, anchor));
+
+      if (el) {
+        // force both DOM and virtualizer
+        el.scrollTop = offset;
+        if (typeof rowVirtualizer.scrollToOffset === "function") {
+          rowVirtualizer.scrollToOffset(offset);
+        } else {
+          rowVirtualizer.scrollToIndex(Math.min(targetIndex + 5, reversedLogs.length - 1), {
+            align: "start",
+          });
+        }
+      } else {
+        rowVirtualizer.scrollToIndex(Math.min(targetIndex + 5, reversedLogs.length - 1), { align: "start" });
+      }
+    }
+  }, [isLoading, rowVirtualizer, hash, reversedLogs]);
+
+  // robust scroll-to handler with multiple fallbacks
   const handleScrollTo = (to: "bottom" | "top") => {
-    if (parsedLogs.length > 0) {
-      rowVirtualizer.scrollToIndex(to === "bottom" ? parsedLogs.length - 1 : 0);
+    if (reversedLogs.length === 0) {
+      return;
+    }
+
+    if (to === "top") {
+      // Scroll to the first item
+      rowVirtualizer.scrollToIndex(0, { align: "start" });
+
+      return;
+    }
+
+    // === bottom ===
+    // Step 1: Scroll virtualizer to last item
+    rowVirtualizer.scrollToIndex(reversedLogs.length - 1, { align: "end" });
+
+    // Step 2: After rendering, force the DOM scroll to bottom
+    const el = rowVirtualizer.scrollElement ?? parentRef.current;
+
+    if (el) {
+      requestAnimationFrame(() => {
+        el.scrollTop = el.scrollHeight;
+      });
     }
   };
 
@@ -113,50 +165,66 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
     <Box display="flex" flexDirection="column" flexGrow={1} h="100%" minHeight={0} position="relative">
       <ErrorAlert error={error ?? logError} />
       <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
-      <Code
-        css={{
-          "& *::selection": {
-            bg: "blue.subtle",
-          },
-        }}
-        data-testid="virtualized-list"
+
+      {/* IMPORTANT: parentRef must be the actual scrollable container */}
+      <Box
+        data-testid="virtual-scroll-container"
         flexGrow={1}
-        h="auto"
+        minHeight={0}
         overflow="auto"
         position="relative"
         py={3}
         ref={parentRef}
-        textWrap={wrap ? "pre" : "nowrap"}
         width="100%"
       >
-        <VStack alignItems="flex-start" gap={0} h={`${rowVirtualizer.getTotalSize()}px`}>
-          {rowVirtualizer.getVirtualItems().map((virtualRow) => (
-            <Box
-              _ltr={{
-                left: 0,
-                right: "auto",
-              }}
-              _rtl={{
-                left: "auto",
-                right: 0,
-              }}
-              bgColor={
-                Boolean(hash) && virtualRow.index === Number(hash) - 1 ? "blue.emphasized" : "transparent"
-              }
-              data-index={virtualRow.index}
-              data-testid={`virtualized-item-${virtualRow.index}`}
-              key={virtualRow.key}
-              position="absolute"
-              ref={rowVirtualizer.measureElement}
-              top={0}
-              transform={`translateY(${virtualRow.start}px)`}
-              width={wrap ? "100%" : "max-content"}
-            >
-              {parsedLogs[virtualRow.index] ?? undefined}
-            </Box>
-          ))}
-        </VStack>
-      </Code>
+        <Code
+          css={{
+            "& *::selection": {
+              bg: "blue.subtle",
+            },
+          }}
+          data-testid="virtualized-list"
+          display="block"
+          textWrap={wrap ? "pre" : "nowrap"}
+          width="100%"
+        >
+          <VStack
+            alignItems="flex-start"
+            gap={0}
+            h={`${rowVirtualizer.getTotalSize()}px`}
+            position="relative"
+          >
+            {rowVirtualizer.getVirtualItems().map((virtualRow) => (
+              <Box
+                _ltr={{
+                  left: 0,
+                  right: "auto",
+                }}
+                _rtl={{
+                  left: "auto",
+                  right: 0,
+                }}
+                bgColor={
+                  Boolean(reversedLogs[virtualRow.index]) &&
+                  parsedLogs.length - 1 - virtualRow.index === Number(hash)
+                    ? "blue.emphasized"
+                    : "transparent"
+                }
+                data-index={parsedLogs.length - 1 - virtualRow.index}
+                data-testid={`virtualized-item-${virtualRow.index}`}
+                key={virtualRow.key}
+                position="absolute"
+                ref={rowVirtualizer.measureElement}
+                top={0}
+                transform={`translateY(${virtualRow.start}px)`}
+                width={wrap ? "100%" : "max-content"}
+              >
+                {reversedLogs[virtualRow.index] ?? undefined}
+              </Box>
+            ))}
+          </VStack>
+        </Code>
+      </Box>
 
       {showScrollButtons ? (
         <>
