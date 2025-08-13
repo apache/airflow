@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+4.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``AIP-82: Add RedisPubSubMessageQueueProvider (#53556)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.2.0
 .....
 

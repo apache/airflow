@@ -30,6 +30,7 @@ import type { GridTask } from "./utils";
 type Props = {
   depth?: number;
   nodes: Array<GridTask>;
+  onRowClick?: () => void;
 };
 
 const onMouseEnter = (event: MouseEvent<HTMLDivElement>) => {
@@ -48,7 +49,9 @@ const onMouseLeave = (event: MouseEvent<HTMLDivElement>) => {
   });
 };
 
-export const TaskNames = ({ nodes }: Props) => {
+const indent = (depth: number) => `${depth * 0.75 + 0.5}rem`;
+
+export const TaskNames = ({ nodes, onRowClick }: Props) => {
   const { t: translate } = useTranslation("dag");
   const { toggleGroupId } = useOpenGroups();
   const { dagId = "", groupId, taskId } = useParams();
@@ -59,6 +62,7 @@ export const TaskNames = ({ nodes }: Props) => {
       bg={node.id === taskId || node.id === groupId ? "blue.muted" : undefined}
       borderBottomWidth={1}
       borderColor={node.isGroup ? "border.emphasized" : "border.muted"}
+      cursor="pointer"
       id={node.id.replaceAll(".", "-")}
       key={node.id}
       maxHeight="20px"
@@ -69,6 +73,7 @@ export const TaskNames = ({ nodes }: Props) => {
       {node.isGroup ? (
         <Link asChild data-testid={node.id} display="block" width="100%">
           <RouterLink
+            onClick={onRowClick}
             replace
             style={{ outline: "none" }}
             to={{
@@ -83,7 +88,7 @@ export const TaskNames = ({ nodes }: Props) => {
                 isGroup={true}
                 isMapped={Boolean(node.is_mapped)}
                 label={node.label}
-                paddingLeft={node.depth * 3 + 2}
+                paddingLeft={indent(node.depth)}
                 setupTeardownType={node.setup_teardown_type}
               />
               <chakra.span
@@ -114,6 +119,7 @@ export const TaskNames = ({ nodes }: Props) => {
       ) : (
         <Link asChild data-testid={node.id} display="inline">
           <RouterLink
+            onClick={onRowClick}
             replace
             to={{
               pathname: `/dags/${dagId}/tasks/${node.id}`,
@@ -125,7 +131,7 @@ export const TaskNames = ({ nodes }: Props) => {
               fontWeight="normal"
               isMapped={Boolean(node.is_mapped)}
               label={node.label}
-              paddingLeft={node.depth * 3 + 2}
+              paddingLeft={indent(node.depth)}
               setupTeardownType={node.setup_teardown_type}
             />
           </RouterLink>

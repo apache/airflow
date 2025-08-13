@@ -62,6 +62,7 @@ PARAMETERS = {"level": "ad", "date_preset": "yesterday"}
 
 with DAG(
     DAG_ID,
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "facebook_ads_to_gcs"],

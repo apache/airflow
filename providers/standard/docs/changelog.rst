@@ -35,6 +35,46 @@
 Changelog
 ---------
 
+1.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat(HITL): add 'notifiers' to HITLOperator (#54128)``
+* ``feat(HITL): add HITLBranchOperator (#53960)``
+* ``feat(HITL): improve hitl trigger logging message (#53850)``
+* ``feat(HITL): add "timedout" column to HITLTriggerEventSuccessPayload (#53852)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Restore 'execute_complete' functionality 'TimeSensor' when 'deferrable=True' (#53669)``
+* ``Fix several deprecation warnings related to airflow.sdk (#53791)``
+* ``Fix pycache_cleanup path handling in PythonVirtualenvOperator (#54214)``
+* ``fix(HITL): guard empty options or chosen_options when writing response (#54355)``
+
+Misc
+~~~~
+
+* ``refactor(HITL): replace timezone usage with airflow.sdk.timezone (#53962)``
+* ``refactor(HITL): make default options class variables to avoid typo (#53849)``
+* ``Add a warning about python interpreter using with uv (#54262)``
+* ``Introduce 'StdoutCaptureManager' to isolate stdout from 'logging' logs (#54065)``
+* ``Move some items in 'airflow.utils.context' to appropriate places (#53600)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix BranchPythonOperator doc (#54205)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Documentation for Human-in-the-loop operator (#53694)``
+   * ``Correct HITL version warnings to avoid confusion (#53876)``
+   * ``Move functions in 'airflow.utils.decorator' to more appropriate places (#53420)``
+   * ``Prepare release for Aug 2025 1st wave of providers (#54193)``
+
 1.5.0
 .....
 
@@ -49,8 +89,8 @@ Bug Fixes
 
 * ``Fix key error in _handle_execution_date_fn for ExternalTaskSensor (#53728)``
 * ``fix: Type mismatch for DateInterval in latest only operator (#53541)``
-* ``fix(hitl): Fix HITLEntryOperator "options" and "defaults" handling (#53184)``
-* ``fix(hitl): handle hitl details when task instance is retried (#53824)``
+* ``fix(HITL): Fix HITLEntryOperator "options" and "defaults" handling (#53184)``
+* ``fix(HITL): handle hitl details when task instance is retried (#53824)``
 
 Misc
 ~~~~

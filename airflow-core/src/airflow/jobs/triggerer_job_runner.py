@@ -49,6 +49,8 @@ from airflow.sdk.execution_time.comms import (
     CommsDecoder,
     ConnectionResult,
     DagRunStateResult,
+    DeleteVariable,
+    DeleteXCom,
     DRCount,
     ErrorResponse,
     GetConnection,
@@ -59,6 +61,9 @@ from airflow.sdk.execution_time.comms import (
     GetTICount,
     GetVariable,
     GetXCom,
+    OKResponse,
+    PutVariable,
+    SetXCom,
     TaskStatesResult,
     TICount,
     UpdateHITLDetail,
@@ -240,7 +245,8 @@ ToTriggerRunner = Annotated[
     | TICount
     | TaskStatesResult
     | HITLDetailResponseResult
-    | ErrorResponse,
+    | ErrorResponse
+    | OKResponse,
     Field(discriminator="type"),
 ]
 """
@@ -252,8 +258,12 @@ code).
 ToTriggerSupervisor = Annotated[
     messages.TriggerStateChanges
     | GetConnection
+    | DeleteVariable
     | GetVariable
+    | PutVariable
+    | DeleteXCom
     | GetXCom
+    | SetXCom
     | GetTICount
     | GetTaskStates
     | GetDagRunState
@@ -419,6 +429,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 dump_opts = {"exclude_unset": True, "by_alias": True}
             else:
                 resp = conn
+        elif isinstance(msg, DeleteVariable):
+            resp = self.client.variables.delete(msg.key)
         elif isinstance(msg, GetVariable):
             var = self.client.variables.get(msg.key)
             if isinstance(var, VariableResponse):
@@ -427,6 +439,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 dump_opts = {"exclude_unset": True}
             else:
                 resp = var
+        elif isinstance(msg, PutVariable):
+            self.client.variables.set(msg.key, msg.value, msg.description)
+        elif isinstance(msg, DeleteXCom):
+            self.client.xcoms.delete(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
         elif isinstance(msg, GetXCom):
             xcom = self.client.xcoms.get(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
             if isinstance(xcom, XComResponse):
@@ -435,6 +451,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 dump_opts = {"exclude_unset": True}
             else:
                 resp = xcom
+        elif isinstance(msg, SetXCom):
+            self.client.xcoms.set(
+                msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.value, msg.map_index, msg.mapped_length
+            )
         elif isinstance(msg, GetDRCount):
             dr_count = self.client.dag_runs.get_count(
                 dag_id=msg.dag_id,
@@ -583,6 +603,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             self.running_triggers.union(x[0] for x in self.events)
             .union(self.cancelling_triggers)
             .union(trigger[0] for trigger in self.failed_triggers)
+            .union(trigger.id for trigger in self.creating_triggers)
         )
         # Work out the two difference sets
         new_trigger_ids = requested_trigger_ids - known_trigger_ids

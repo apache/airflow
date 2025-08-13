@@ -28,6 +28,7 @@ export enum SearchParamsKeys {
   OWNERS = "owners",
   PAUSED = "paused",
   POOL = "pool",
+  RESPONSE_RECEIVED = "response_received",
   RUN_ID_PATTERN = "run_id_pattern",
   RUN_TYPE = "run_type",
   SORT = "sort",
@@ -36,6 +37,7 @@ export enum SearchParamsKeys {
   STATE = "state",
   TAGS = "tags",
   TAGS_MATCH_MODE = "tags_match_mode",
+  TRIGGERING_USER_NAME_PATTERN = "triggering_user_name_pattern",
   TRY_NUMBER = "try_number",
   VERSION_NUMBER = "version_number",
 }

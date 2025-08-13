@@ -36,8 +36,10 @@ from typing import TYPE_CHECKING, NamedTuple
 from sqlalchemy import (
     Column,
     String,
+    inspect,
 )
 from sqlalchemy.orm import joinedload
+from sqlalchemy.orm.attributes import NO_VALUE
 from tabulate import tabulate
 
 from airflow import settings
@@ -47,15 +49,14 @@ from airflow.exceptions import (
     AirflowClusterPolicyError,
     AirflowClusterPolicySkipDag,
     AirflowClusterPolicyViolation,
-    AirflowDagCycleException,
     AirflowDagDuplicatedIdException,
     AirflowException,
+    AirflowTaskTimeout,
 )
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base, StringID
 from airflow.models.dag_version import DagVersion
 from airflow.stats import Stats
-from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.docs import get_docs_url
 from airflow.utils.file import (
     correct_maybe_zipped,
@@ -65,8 +66,12 @@ from airflow.utils.file import (
 )
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.timeout import timeout
 from airflow.utils.types import NOTSET
+
+try:
+    from airflow.sdk.exceptions import AirflowDagCycleException
+except ImportError:
+    from airflow.exceptions import AirflowDagCycleException  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -116,6 +121,30 @@ class FileLoadStat(NamedTuple):
     task_num: int
     dags: str
     warning_num: int
+
+
+@contextlib.contextmanager
+def timeout(seconds=1, error_message="Timeout"):
+    import logging
+
+    log = logging.getLogger(__name__)
+    error_message = error_message + ", PID: " + str(os.getpid())
+
+    def handle_timeout(signum, frame):
+        """Log information and raises AirflowTaskTimeout."""
+        log.error("Process timed out, PID: %s", str(os.getpid()))
+        raise AirflowTaskTimeout(error_message)
+
+    try:
+        try:
+            signal.signal(signal.SIGALRM, handle_timeout)
+            signal.setitimer(signal.ITIMER_REAL, seconds)
+        except ValueError:
+            log.warning("timeout can't be used in the current context", exc_info=True)
+        yield
+    finally:
+        with contextlib.suppress(ValueError):
+            signal.setitimer(signal.ITIMER_REAL, 0)
 
 
 class DagBag(LoggingMixin):
@@ -556,7 +585,7 @@ class DagBag(LoggingMixin):
         :raises: AirflowDagCycleException if a cycle is detected.
         :raises: AirflowDagDuplicatedIdException if this dag already exists in the bag.
         """
-        check_cycle(dag)  # throws if a task cycle is found
+        dag.check_cycle()  # throws exception if a task cycle is found
 
         dag.resolve_template_files()
         dag.last_loaded = timezone.utcnow()
@@ -715,7 +744,7 @@ class DagBag(LoggingMixin):
         )
 
 
-class SchedulerDagBag:
+class DBDagBag:
     """
     Internal class for retrieving and caching dags in the scheduler.
 
@@ -749,7 +778,14 @@ class SchedulerDagBag:
             if dag_version:
                 return dag_version
 
-        return dag_run.created_dag_version
+        # Check if created_dag_version relationship is already loaded to avoid DetachedInstanceError
+        info = inspect(dag_run)
+        if info.attrs.created_dag_version.loaded_value is not NO_VALUE:
+            # Relationship is already loaded, safe to access
+            return dag_run.created_dag_version
+
+        # Relationship not loaded, fetch it explicitly from current session
+        return session.get(DagVersion, dag_run.created_dag_version_id)
 
     def get_dag_for_run(self, dag_run: DagRun, session: Session) -> DAG | None:
         version = self._version_from_dag_run(dag_run=dag_run, session=session)
