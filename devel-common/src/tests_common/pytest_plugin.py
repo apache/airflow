@@ -1811,7 +1811,7 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
         yield
         return
 
-    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
     if next(request.node.iter_markers("enable_redact"), None):
         with pytest.MonkeyPatch.context() as mp_ctx:
@@ -1819,11 +1819,12 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
             yield
         return
 
-    target = (
-        "airflow.sdk.execution_time.secrets_masker.SecretsMasker.redact"
-        if AIRFLOW_V_3_0_PLUS
-        else "airflow.utils.log.secrets_masker.SecretsMasker.redact"
-    )
+    if AIRFLOW_V_3_1_PLUS:
+        target = "airflow.sdk.secrets_masker.SecretsMasker.redact"
+    elif AIRFLOW_V_3_0_PLUS:
+        target = "airflow.sdk.execution_time.secrets_masker.SecretsMasker.redact"
+    else:
+        target = "airflow.utils.log.secrets_masker.SecretsMasker.redact"
 
     mocked_redact = mocker.patch(target)
     mocked_redact.side_effect = lambda item, *args, **kwargs: item

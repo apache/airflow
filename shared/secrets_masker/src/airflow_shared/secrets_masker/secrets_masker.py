@@ -31,8 +31,6 @@ from functools import cache, cached_property
 from re import Pattern
 from typing import TYPE_CHECKING, Any, Protocol, TextIO, TypeAlias, TypeVar, overload
 
-from airflow import settings
-
 if TYPE_CHECKING:
     from typing import TypeGuard
 
@@ -257,6 +255,8 @@ class SecretsMasker(logging.Filter):
             self._redact_exception_with_context(exception.__cause__)
 
     def filter(self, record) -> bool:
+        from airflow import settings
+
         if settings.MASK_SECRETS_IN_LOGS is not True:
             return True
 

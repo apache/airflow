@@ -105,7 +105,7 @@ def redact_jwt(logger: Any, method_name: str, event_dict: EventDict) -> EventDic
 
 
 def mask_logs(logger: Any, method_name: str, event_dict: EventDict) -> EventDict:
-    from airflow.sdk.execution_time.secrets_masker import redact
+    from airflow.sdk.secrets_masker import redact
 
     event_dict = redact(event_dict)  # type: ignore[assignment]
     return event_dict

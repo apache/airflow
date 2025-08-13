@@ -253,7 +253,7 @@ class DagFileProcessorManager(LoggingMixin):
         By processing them in separate processes, we can get parallelism and isolation
         from potentially harmful user code.
         """
-        from airflow.sdk.execution_time.secrets_masker import reset_secrets_masker
+        from airflow._shared.secrets_masker.secrets_masker import reset_secrets_masker
 
         reset_secrets_masker()
 

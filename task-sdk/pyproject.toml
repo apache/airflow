@@ -89,6 +89,8 @@ path = "src/airflow/sdk/__init__.py"
 
 [tool.hatch.build.targets.sdist.force-include]
 "../shared/timezones/src/airflow_shared/timezones" = "src/airflow/sdk/_shared/timezones"
+"../shared/secrets_masker/src/airflow_shared/secrets_masker" = "src/airflow/sdk/_shared/secrets_masker"
+"../shared/secrets-masker/src/airflow_shared/secrets-masker" = "src/airflow/sdk/_shared/secrets-masker"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/airflow"]
@@ -231,4 +233,5 @@ tmp_path_retention_policy = "failed"
 [tool.airflow]
 shared_distributions = [
     "apache-airflow-shared-timezones",
+    "apache-airflow-shared-secrets_masker",
 ]

@@ -212,6 +212,7 @@ exclude = [
 
 [tool.hatch.build.targets.sdist.force-include]
 "../shared/timezones/src/airflow_shared/timezones" = "src/airflow/_shared/timezones"
+"../shared/secrets_masker/src/airflow_shared/secrets_masker" = "src/airflow/_shared/secrets_masker"
 
 [tool.hatch.build.targets.custom]
 path = "./hatch_build.py"
