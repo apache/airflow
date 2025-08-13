@@ -120,7 +120,8 @@ class TestDagEndpoint:
         # Create assets
         asset1 = AssetModel(uri="test://asset1", name="test_asset_1", group="test-group")
         asset2 = AssetModel(uri="s3://bucket/dataset", name="dataset_asset", group="test-group")
-        session.add_all([asset1, asset2])
+        asset3 = AssetModel(uri="test://scheduled_asset", name="scheduled_asset", group="test-group")
+        session.add_all([asset1, asset2, asset3])
         session.commit()
 
         # Create a DAG with asset-based scheduling
@@ -134,7 +135,7 @@ class TestDagEndpoint:
             is_stale=False,
             is_paused=False,
             owners="airflow",
-            asset_expression={"any": [{"uri": "test://asset1"}]},  # Non-null asset expression
+            asset_expression={"any": [{"uri": "test://scheduled_asset"}]},
             max_active_tasks=16,
             max_active_runs=16,
             max_consecutive_failed_dag_runs=0,
@@ -185,7 +186,8 @@ class TestDagEndpoint:
         # Create asset dependencies
         asset_ref1 = DagScheduleAssetReference(dag_id=ASSET_DEP_DAG_ID, asset_id=asset1.id)
         asset_ref2 = DagScheduleAssetReference(dag_id=ASSET_DEP_DAG2_ID, asset_id=asset2.id)
-        session.add_all([asset_ref1, asset_ref2])
+        asset_ref3 = DagScheduleAssetReference(dag_id=ASSET_SCHEDULED_DAG_ID, asset_id=asset3.id)
+        session.add_all([asset_ref1, asset_ref2, asset_ref3])
         session.commit()
 
     @pytest.fixture(autouse=True)
@@ -377,7 +379,7 @@ class TestGetDags(TestDagEndpoint):
             ({"bundle_name": "wrong_bundle"}, 0, []),
             ({"bundle_version": "1.0.0"}, 0, []),
             # Asset filters
-            ({"has_asset_schedule": True}, 3, [ASSET_SCHEDULED_DAG_ID, ASSET_DEP_DAG_ID, ASSET_DEP_DAG2_ID]),
+            ({"has_asset_schedule": True}, 3, [ASSET_DEP_DAG_ID, ASSET_DEP_DAG2_ID, ASSET_SCHEDULED_DAG_ID]),
             ({"has_asset_schedule": False}, 2, [DAG1_ID, DAG2_ID]),
             ({"asset_dependency": "test_asset"}, 1, [ASSET_DEP_DAG_ID]),
             ({"asset_dependency": "dataset"}, 1, [ASSET_DEP_DAG2_ID]),
@@ -400,14 +402,7 @@ class TestGetDags(TestDagEndpoint):
         assert body["total_entries"] == expected_total_entries
         actual_ids = [dag["dag_id"] for dag in body["dags"]]
 
-        # For asset filter tests (but not sort tests), order doesn't matter, so use set comparison
-        if (
-            any(param in query_params for param in ["has_asset_schedule", "asset_dependency"])
-            and "order_by" not in query_params
-        ):
-            assert set(actual_ids) == set(expected_ids)
-        else:
-            assert actual_ids == expected_ids
+        assert actual_ids == expected_ids
 
     @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
     def test_get_dags_should_call_authorized_dag_ids(self, mock_get_authorized_dag_ids, test_client):

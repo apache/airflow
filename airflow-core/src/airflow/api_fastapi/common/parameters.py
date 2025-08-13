@@ -34,7 +34,7 @@ from typing import (
 from fastapi import Depends, HTTPException, Query, status
 from pendulum.parsing.exceptions import ParserError
 from pydantic import AfterValidator, BaseModel, NonNegativeInt
-from sqlalchemy import Column, String, and_, case, func, not_, or_, select
+from sqlalchemy import Column, and_, case, func, not_, or_, select as sql_select
 from sqlalchemy.inspection import inspect
 
 from airflow._shared.timezones import timezone
@@ -130,7 +130,7 @@ class _FavoriteFilter(BaseParam[bool]):
         else:
             select_stmt = select_stmt.where(
                 not_(
-                    select(DagFavorite)
+                    sql_select(DagFavorite)
                     .where(and_(DagFavorite.dag_id == DagModel.dag_id, DagFavorite.user_id == self.user_id))
                     .exists()
                 )
@@ -615,23 +615,14 @@ class _HasAssetScheduleFilter(BaseParam[bool]):
         if self.value is None and self.skip_none:
             return select
 
+        asset_ref_subquery = sql_select(DagScheduleAssetReference.dag_id).distinct()
+
         if self.value:
-            # Filter DAGs that have meaningful asset-based scheduling
-            # Note: asset_expression is a JSON field that can be:
-            # 1. SQL NULL (no value) - checked by is_not(None)
-            # 2. JSON null (stored as 'null') - checked by String cast != "null"
-            # 3. Empty objects {} or meaningful content - both pass this filter
-            return select.where(
-                and_(
-                    DagModel.asset_expression.is_not(None),
-                    func.cast(DagModel.asset_expression, String) != "null",
-                )
-            )
-        # Filter DAGs that do NOT have meaningful asset-based scheduling
-        # Include: SQL NULL or JSON null values
-        return select.where(
-            or_(DagModel.asset_expression.is_(None), func.cast(DagModel.asset_expression, String) == "null")
-        )
+            # Filter DAGs that have asset-based scheduling
+            return select.where(DagModel.dag_id.in_(asset_ref_subquery))
+
+        # Filter DAGs that do NOT have asset-based scheduling
+        return select.where(DagModel.dag_id.notin_(asset_ref_subquery))
 
     @classmethod
     def depends(
@@ -647,8 +638,6 @@ class _AssetDependencyFilter(BaseParam[str]):
     def to_orm(self, select: Select) -> Select:
         if self.value is None and self.skip_none:
             return select
-
-        from sqlalchemy import select as sql_select
 
         asset_dag_subquery = (
             sql_select(DagScheduleAssetReference.dag_id)
