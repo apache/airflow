@@ -55,7 +55,7 @@ __all__ = [
     "teardown",
 ]
 
-__version__ = "1.0.4"
+__version__ = "1.0.5"
 
 if TYPE_CHECKING:
     from airflow.sdk.bases.notifier import BaseNotifier
