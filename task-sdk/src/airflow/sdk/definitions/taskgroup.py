@@ -526,6 +526,8 @@ class TaskGroup(DAGNode):
 
         :return: list of tasks in topological order
         """
+        from airflow.sdk.exceptions import AirflowDagCycleException
+
         # This uses a modified version of Kahn's Topological Sort algorithm to
         # not have to pre-compute the "in-degree" of the nodes.
         graph_unsorted = copy.copy(self.children)

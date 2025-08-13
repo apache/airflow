@@ -986,6 +986,8 @@ class DAG:
 
         :raises AirflowDagCycleException: If cycle is found in the DAG.
         """
+        from airflow.sdk.exceptions import AirflowDagCycleException
+
         # default of int is 0 which corresponds to CYCLE_NEW
         CYCLE_NEW = 0
         CYCLE_IN_PROGRESS = 1

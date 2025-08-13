@@ -123,6 +123,10 @@ class FileLoadStat(NamedTuple):
     warning_num: int
 
 
+class AirflowDagCycleException(AirflowException):
+    """Raise when there is a cycle in DAG definition."""
+
+
 class DagBag(LoggingMixin):
     """
     A dagbag is a collection of dags, parsed out of a folder tree and has high level configuration settings.
