@@ -26,13 +26,7 @@ from __future__ import annotations
 import pendulum
 
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import DAG, task
-
-try:
-    from airflow.sdk import TriggerRule
-except ImportError:
-    # Compatibility for Airflow < 3.1
-    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
+from airflow.sdk import DAG, TriggerRule, task
 
 with DAG(
     dag_id="example_nested_branch_dag",
