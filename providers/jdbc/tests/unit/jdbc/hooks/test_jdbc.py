@@ -283,7 +283,15 @@ class TestJdbcHook:
 
     def test_dialect_name_when_host_is_jdbc_url(self):
         jdbc_hook = get_hook(
-            conn_params=dict(extra={"driver_class": "com.sap.db.jdbc.Driver", "driver_path": "/usr/local/lib/java/ngdbc.jar", "placeholder": "?", "sqlalchemy_scheme": "hana", "replace_statement_format": "UPSERT {} {} VALUES ({}) WITH PRIMARY KEY"}),
+            conn_params=dict(
+                extra={
+                    "driver_class": "com.sap.db.jdbc.Driver",
+                    "driver_path": "/usr/local/lib/java/ngdbc.jar",
+                    "placeholder": "?",
+                    "sqlalchemy_scheme": "hana",
+                    "replace_statement_format": "UPSERT {} {} VALUES ({}) WITH PRIMARY KEY",
+                }
+            ),
             conn_type="jdbc",
             login=None,
             password=None,
