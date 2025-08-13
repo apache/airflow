@@ -260,7 +260,7 @@ class MSGraphAsyncOperator(BaseOperator):
     @classmethod
     def append_result(
         cls,
-        results: list[Any],
+        results: Any,
         result: Any,
         append_result_as_list_if_absent: bool = False,
     ) -> list[Any]:

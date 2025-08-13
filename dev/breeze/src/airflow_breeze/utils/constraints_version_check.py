@@ -88,10 +88,14 @@ def count_versions_between(releases: dict[str, Any], current_version: str, lates
     if current == latest:
         return 0
 
-    valid_versions = [
-        v for v in releases.keys() if releases[v] and is_valid_version(version_str=v, latest_version=latest)
+    versions_between = [
+        v
+        for v in releases.keys()
+        if releases[v]
+        and is_valid_version(version_str=v, latest_version=latest)
+        and current < version.parse(v) <= latest
     ]
-    return max(len(valid_versions), 1) if current < latest else 0
+    return len(versions_between)
 
 
 def get_status_emoji(constraint_date, latest_date, is_latest_version):

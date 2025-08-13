@@ -44,7 +44,7 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator, ShortCircuitOperator
 from airflow.sdk import BaseOperator, setup, task, task_group, teardown
-from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
+from airflow.sdk.definitions.deadline import AsyncCallback, DeadlineAlert, DeadlineReference
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
 from airflow.triggers.base import StartTriggerArgs
@@ -69,7 +69,7 @@ TI = TaskInstance
 DEFAULT_DATE = pendulum.instance(_DEFAULT_DATE)
 
 
-def test_callback_for_deadline():
+async def empty_callback_for_deadline():
     """Used in a number of tests to confirm that Deadlines and DeadlineAlerts function correctly."""
     pass
 
@@ -1001,7 +1001,7 @@ class TestDagRun:
     def test_wait_for_downstream(self, dag_maker, session, prev_ti_state, is_ti_schedulable):
         dag_id = "test_wait_for_downstream"
 
-        with dag_maker(dag_id=dag_id, session=session) as dag:
+        with dag_maker(dag_id=dag_id, session=session, serialized=True) as dag:
             dag_wfd_upstream = EmptyOperator(
                 task_id="upstream_task",
                 wait_for_downstream=True,
@@ -1022,6 +1022,9 @@ class TestDagRun:
         )
 
         ti = dag_run_2.get_task_instance(task_id=upstream.task_id, session=session)
+
+        # Operate on serialized operator since it is Scheduler code
+        ti.task = dag.task_dict[ti.task_id]
         prev_ti_downstream = dag_run_1.get_task_instance(task_id=downstream.task_id, session=session)
         prev_ti_upstream = ti.get_previous_ti(session=session)
         assert ti
@@ -1294,7 +1297,7 @@ class TestDagRun:
             deadline=DeadlineAlert(
                 reference=DeadlineReference.FIXED_DATETIME(future_date),
                 interval=datetime.timedelta(hours=1),
-                callback=test_callback_for_deadline,
+                callback=AsyncCallback(empty_callback_for_deadline),
             ),
         ) as dag:
             ...
@@ -1474,7 +1477,7 @@ def test_mapped_literal_length_increase_adds_additional_ti(dag_maker, session):
     @task
     def task_2(arg2): ...
 
-    with dag_maker(session=session):
+    with dag_maker(session=session, serialized=True):
         task_2.expand(arg2=[1, 2, 3, 4])
 
     dr = dag_maker.create_dagrun()
@@ -1493,10 +1496,10 @@ def test_mapped_literal_length_increase_adds_additional_ti(dag_maker, session):
     ]
 
     # Now "increase" the length of literal
-    with dag_maker(session=session):
+    with dag_maker(session=session, serialized=True) as dag:
         task_2.expand(arg2=[1, 2, 3, 4, 5])
 
-    dr.dag = dag_maker.dag
+    dr.dag = dag
     # Every mapped task is revised at task_instance_scheduling_decision
     dr.task_instance_scheduling_decisions()
 

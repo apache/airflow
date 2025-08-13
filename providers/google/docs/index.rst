@@ -88,7 +88,7 @@ Google services including:
   - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 
-Release: 17.0.0
+Release: 17.1.0
 
 Release Date: ``|PypiReleaseDate|``
 
@@ -128,7 +128,7 @@ PIP package                                 Version required
 ``google-api-python-client``                ``>=2.0.2``
 ``google-auth``                             ``>=2.29.0``
 ``google-auth-httplib2``                    ``>=0.0.1``
-``google-cloud-aiplatform[evaluation]``     ``>=1.73.0``
+``google-cloud-aiplatform[evaluation]``     ``>=1.98.0``
 ``ray[default]``                            ``>=2.42.0; python_version < "3.13"``
 ``google-cloud-bigquery-storage``           ``>=2.31.0; python_version < "3.13"``
 ``google-cloud-alloydb``                    ``>=0.4.0``
@@ -230,5 +230,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-google 17.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-17.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-17.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-17.0.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-google 17.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-17.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-17.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-17.0.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-google 17.1.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-17.1.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-17.1.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-17.1.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-google 17.1.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-17.1.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-17.1.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-17.1.0-py3-none-any.whl.sha512>`__)
