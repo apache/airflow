@@ -112,7 +112,7 @@ def upgrade():
     # Delete the pickled data from the xcom table so that we can update the column type
     conn.execute(text(f"DELETE FROM xcom WHERE value IS NOT NULL AND {condition}"))
 
-    # Update the value column type to JSON
+    # Update the values from nan to nan string
     if dialect == "postgresql":
         conn.execute(
             text("""
