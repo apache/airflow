@@ -59,7 +59,8 @@ requires-python = "~=3.9"
 dependencies = [
     "apache-airflow>=2.10.0",
     "apache-airflow-providers-common-sql>=1.20.0",
-    "adbc-driver-manager>=1.6.0",
+    "adbc-driver-manager>=1.7.0",
+    "pyarrow>=21.0.0",
 ]
 
 [dependency-groups]
