@@ -1594,7 +1594,6 @@ class DAG(TaskSDKDag, LoggingMixin):
                         run_id=run_id,
                     ),
                     callback=self.deadline.callback,
-                    dag_id=self.dag_id,
                     dagrun_id=orm_dagrun.id,
                 )
             )
