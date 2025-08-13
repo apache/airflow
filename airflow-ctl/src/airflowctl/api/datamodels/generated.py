@@ -583,7 +583,7 @@ class HITLDetailResponse(BaseModel):
 
     user_id: Annotated[str, Field(title="User Id")]
     response_at: Annotated[datetime, Field(title="Response At")]
-    chosen_options: Annotated[list[str], Field(title="Chosen Options")]
+    chosen_options: Annotated[list[str], Field(min_length=1, title="Chosen Options")]
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
 
 
@@ -927,7 +927,7 @@ class UpdateHITLDetailPayload(BaseModel):
     Schema for updating the content of a Human-in-the-loop detail.
     """
 
-    chosen_options: Annotated[list[str], Field(title="Chosen Options")]
+    chosen_options: Annotated[list[str], Field(min_length=1, title="Chosen Options")]
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
 
 
@@ -1618,7 +1618,6 @@ class TaskInstanceResponse(BaseModel):
     id: Annotated[str, Field(title="Id")]
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
-    dag_version: DagVersionResponse
     dag_run_id: Annotated[str, Field(title="Dag Run Id")]
     map_index: Annotated[int, Field(title="Map Index")]
     logical_date: Annotated[datetime | None, Field(title="Logical Date")] = None
@@ -1648,6 +1647,7 @@ class TaskInstanceResponse(BaseModel):
     rendered_fields: Annotated[dict[str, Any] | None, Field(title="Rendered Fields")] = None
     trigger: TriggerResponse | None = None
     triggerer_job: JobResponse | None = None
+    dag_version: DagVersionResponse | None = None
 
 
 class TaskResponse(BaseModel):
@@ -1818,7 +1818,7 @@ class HITLDetail(BaseModel):
     """
 
     task_instance: TaskInstanceResponse
-    options: Annotated[list[str], Field(title="Options")]
+    options: Annotated[list[str], Field(min_length=1, title="Options")]
     subject: Annotated[str, Field(title="Subject")]
     body: Annotated[str | None, Field(title="Body")] = None
     defaults: Annotated[list[str] | None, Field(title="Defaults")] = None

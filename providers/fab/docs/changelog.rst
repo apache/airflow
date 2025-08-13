@@ -20,6 +20,20 @@
 Changelog
 ---------
 
+2.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'get_authorized_dag_ids' in 'FabAuthManager' (#54276)``
+* ``Allow downgrading to 2.11 from 3.x (#54371)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Allow downgrading to 2.11 from 3.x (#54231)" (#54367)``
+   * ``Allow downgrading to 2.11 from 3.x (#54231)``
+
 2.4.0
 .....
 
