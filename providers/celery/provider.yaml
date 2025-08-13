@@ -360,7 +360,7 @@ config:
         version_added: ~
         type: string
         example: "21600"
-        default: ~
+        default: "86400"
       sentinel_kwargs:
         description: |
           The sentinel_kwargs parameter allows passing additional options to the Sentinel client.
