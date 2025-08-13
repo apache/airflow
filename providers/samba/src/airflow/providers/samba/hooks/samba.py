@@ -54,7 +54,7 @@ class SambaHook(BaseHook):
         self,
         samba_conn_id: str = default_conn_name,
         share: str | None = None,
-        share_type: Literal["posix", "windows"] = None,
+        share_type: Literal["posix", "windows"] | None = None,
     ) -> None:
         super().__init__()
         conn = self.get_connection(samba_conn_id)
