@@ -1143,11 +1143,96 @@ def _run_task_state_change_callbacks(
             log.exception("Failed to run task callback", kind=kind, index=i, callback=callback)
 
 
-def _send_task_error_email(to: Iterable[str], ti: RuntimeTaskInstance, exception: BaseException) -> None:
-    from airflow.models.taskinstance import _get_email_subject_content
+def _get_email_subject_content(
+    *,
+    task_instance: RuntimeTaskInstance,
+    exception: BaseException | str | None,
+    log: Logger,
+) -> tuple[str, str, str]:
+    """
+    Get the email subject content for exceptions.
+
+    :param task_instance: the task instance
+    :param exception: the exception sent in the email
+    :param task:
+
+    :meta private:
+    """
+    from airflow.sdk.definitions._internal.templater import SandboxedEnvironment
+    from airflow.sdk.definitions.context import Context
+    from airflow.utils.helpers import render_template_to_string
+
+    exception_html = str(exception).replace("\n", "<br>")
+
+    default_subject = "Airflow alert: {{ti}}"
+    # For reporting purposes, we report based on 1-indexed,
+    # not 0-indexed lists (i.e. Try 1 instead of
+    # Try 0 for the first attempt).
+    default_html_content = (
+        "Try {{try_number}} out of {{max_tries + 1}}<br>"
+        "Exception:<br>{{exception_html}}<br>"
+        'Log: <a href="{{ti.log_url}}">Link</a><br>'
+        "Host: {{ti.hostname}}<br>"
+        'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+    )
+
+    default_html_content_err = (
+        "Try {{try_number}} out of {{max_tries + 1}}<br>"
+        "Exception:<br>Failed attempt to attach error logs<br>"
+        'Log: <a href="{{ti.log_url}}">Link</a><br>'
+        "Host: {{ti.hostname}}<br>"
+        'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+    )
+
+    additional_context: dict[str, Any] = {
+        "exception": exception,
+        "exception_html": exception_html,
+        "try_number": task_instance.try_number,
+        "max_tries": task_instance.max_tries,
+    }
+
+    # Use the DAG's get_template_env() to set force_sandboxed. Don't add
+    # the flag to the function on task object -- that function can be
+    # overridden, and adding a flag breaks backward compatibility.
+    dag = task_instance.task.get_dag()
+    if dag:
+        jinja_env = dag.get_template_env(force_sandboxed=True)
+    else:
+        jinja_env = SandboxedEnvironment(cache_size=0)
+    jinja_context = task_instance.get_template_context()
+    if not jinja_context:
+        jinja_context = Context()
+    # Add additional fields to the context for email template rendering
+    jinja_context.update(additional_context)  # type: ignore[typeddict-item]
+
+    def render(key: str, content: str) -> str:
+        if conf.has_option("email", key):
+            path = conf.get_mandatory_value("email", key)
+            try:
+                with open(path) as f:
+                    content = f.read()
+            except FileNotFoundError:
+                log.warning("Could not find email template file. Using defaults...", file=path)
+            except OSError:
+                log.exception("Error while using email template. Using defaults...", file=path)
+        return render_template_to_string(jinja_env.from_string(content), jinja_context)
+
+    subject = render("subject_template", default_subject)
+    html_content = render("html_content_template", default_html_content)
+    html_content_err = render("html_content_template", default_html_content_err)
+
+    return subject, html_content, html_content_err
+
+
+def _send_task_error_email(
+    to: Iterable[str],
+    ti: RuntimeTaskInstance,
+    exception: BaseException | str | None,
+    log: Logger,
+) -> None:
     from airflow.utils.email import send_email
 
-    subject, content, err = _get_email_subject_content(task_instance=ti, exception=exception)
+    subject, content, err = _get_email_subject_content(task_instance=ti, exception=exception, log=log)
     try:
         send_email(to, subject, content)
     except Exception:
@@ -1303,7 +1388,7 @@ def finalize(
         except Exception:
             log.exception("error calling listener")
         if error and task.email_on_retry and task.email:
-            _send_task_error_email(task.email, ti, error)
+            _send_task_error_email(task.email, ti, error, log)
     elif state == TaskInstanceState.FAILED:
         _run_task_state_change_callbacks(task, "on_failure_callback", context, log)
         try:
@@ -1313,7 +1398,7 @@ def finalize(
         except Exception:
             log.exception("error calling listener")
         if error and task.email_on_failure and task.email:
-            _send_task_error_email(task.email, ti, error)
+            _send_task_error_email(task.email, ti, error, log)
 
     try:
         get_listener_manager().hook.before_stopping(component=TaskRunnerMarker())
