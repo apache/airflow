@@ -48,8 +48,8 @@ class PostgresDialect(Dialect):
                                    column_default,
                                    ordinal_position
                             from information_schema.columns
-                            where table_schema = ?
-                              and table_name = ?
+                            where table_schema = %s
+                              and table_name = %s
                             order by ordinal_position
                             """,
                     (self.unescape_word(schema), self.unescape_word(table)),
@@ -80,8 +80,8 @@ class PostgresDialect(Dialect):
                                         and kcu.constraint_schema = tco.constraint_schema
                                         and kcu.constraint_name = tco.constraint_name
                       where tco.constraint_type = 'PRIMARY KEY'
-                        and kcu.table_schema = ?
-                        and kcu.table_name = ?
+                        and kcu.table_schema = %s
+                        and kcu.table_name = %s
                       order by kcu.ordinal_position
                       """,
                 (self.unescape_word(schema), self.unescape_word(table)))
