@@ -1265,12 +1265,18 @@ class TaskInstance(Base, LoggingMixin):
 
         delay = self.task.retry_delay
         if self.task.retry_exponential_backoff:
-            # If the min_backoff calculation is below 1, it will be converted to 0 via int. Thus,
-            # we must round up prior to converting to an int, otherwise a divide by zero error
-            # will occur in the modded_hash calculation.
-            # this probably gives unexpected results if a task instance has previously been cleared,
-            # because try_number can increase without bound
-            min_backoff = math.ceil(delay.total_seconds() * (2 ** (self.try_number - 1)))
+            try:
+                # If the min_backoff calculation is below 1, it will be converted to 0 via int. Thus,
+                # we must round up prior to converting to an int, otherwise a divide by zero error
+                # will occur in the modded_hash calculation.
+                # this probably gives unexpected results if a task instance has previously been cleared,
+                # because try_number can increase without bound
+                min_backoff = math.ceil(delay.total_seconds() * (2 ** (self.try_number - 1)))
+            except OverflowError:
+                min_backoff = MAX_RETRY_DELAY
+                self.log.warning(
+                    "OverflowError occurred while calculating min_backoff, using MAX_RETRY_DELAY for min_backoff."
+                )
 
             # In the case when delay.total_seconds() is 0, min_backoff will not be rounded up to 1.
             # To address this, we impose a lower bound of 1 on min_backoff. This effectively makes
