@@ -48,6 +48,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.sdk import BaseOperator
+from airflow.sdk.bases.operator_resources import Resources
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
@@ -78,7 +79,6 @@ from airflow.serialization.serialized_objects import (
 from airflow.timetables.base import DataInterval
 from airflow.triggers.base import BaseTrigger
 from airflow.utils.db import LazySelectSequence
-from airflow.utils.operator_resources import Resources
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
 

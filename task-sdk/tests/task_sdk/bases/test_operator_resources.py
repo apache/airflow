@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.utils.operator_resources import Resources
+from airflow.sdk.bases.operator_resources import Resources
 
 
 class TestResources:
