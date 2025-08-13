@@ -38,9 +38,8 @@ Use a dictionary that maps Param names to either a :class:`~airflow.sdk.definiti
 .. code-block::
    :emphasize-lines: 7-10
 
-    from airflow.sdk import DAG
-    from airflow.sdk import task
-    from airflow.sdk import Param
+    from airflow.sdk import DAG, task, Param, get_current_context
+    import logging
 
     with DAG(
         "the_dag",
@@ -51,15 +50,18 @@ Use a dictionary that maps Param names to either a :class:`~airflow.sdk.definiti
     ) as dag:
 
         @task.python
-        def example_task(params: dict):
+        def example_task():
+            ctx = get_current_context()
+            logger = logging.getLogger("airflow.task")
+
             # This will print the default value, 6:
-            dag.log.info(dag.params['my_int_param'])
+            logger.info(ctx["dag"].params["my_int_param"])
 
             # This will print the manually-provided value, 42:
-            dag.log.info(params['my_int_param'])
+            logger.info(ctx["params"]["my_int_param"])
 
             # This will print the default value, 5, since it wasn't provided manually:
-            dag.log.info(params['x'])
+            logger.info(ctx["params"]["x"])
 
         example_task()
 
