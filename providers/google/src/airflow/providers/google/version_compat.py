@@ -61,7 +61,7 @@ else:
 try:
     from airflow.sdk.execution_time.timeout import timeout
 except ImportError:
-    from airflow.utils.timeout import timeout  # type: ignore[assignment]  # type: ignore[assignment]
+    from airflow.utils.timeout import timeout  # type: ignore[attr-defined,no-redef]
 
 # Explicitly export these imports to protect them from being removed by linters
 __all__ = [

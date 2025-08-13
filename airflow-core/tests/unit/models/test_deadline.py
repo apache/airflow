@@ -36,9 +36,8 @@ from tests_common.test_utils import db
 from unit.models import DEFAULT_DATE
 
 DAG_ID = "dag_id_1"
-RUN_ID = 1
 INVALID_DAG_ID = "invalid_dag_id"
-INVALID_RUN_ID = 2
+INVALID_RUN_ID = -1
 
 REFERENCE_TYPES = [
     pytest.param(DeadlineReference.DAGRUN_LOGICAL_DATE, id="logical_date"),
@@ -82,7 +81,6 @@ def deadline_orm(dagrun, session):
     deadline = Deadline(
         deadline_time=DEFAULT_DATE,
         callback=AsyncCallback(TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
-        dag_id=DAG_ID,
         dagrun_id=dagrun.id,
     )
     session.add(deadline)
@@ -102,7 +100,6 @@ class TestDeadline:
 
     def test_add_deadline(self, dagrun, deadline_orm, session):
         result = session.scalars(select(Deadline)).first()
-        assert result.dag_id == deadline_orm.dag_id
         assert result.dagrun_id == deadline_orm.dagrun_id
         assert result.deadline_time == deadline_orm.deadline_time
         assert result.callback == deadline_orm.callback
@@ -114,10 +111,14 @@ class TestDeadline:
             pytest.param({Deadline.dagrun_id: -1}, id="no_matches"),
             pytest.param({Deadline.dagrun_id: "valid_placeholder"}, id="single_condition"),
             pytest.param(
-                {Deadline.dagrun_id: "valid_placeholder", Deadline.dag_id: DAG_ID}, id="multiple_conditions"
+                {
+                    Deadline.dagrun_id: "valid_placeholder",
+                    Deadline.deadline_time: datetime.now() + timedelta(days=365),
+                },
+                id="multiple_conditions",
             ),
             pytest.param(
-                {Deadline.dagrun_id: "valid_placeholder", Deadline.dag_id: INVALID_DAG_ID},
+                {Deadline.dagrun_id: "valid_placeholder", Deadline.callback_state: "invalid"},
                 id="mixed_conditions",
             ),
         ],
@@ -151,29 +152,27 @@ class TestDeadline:
     def test_orm(self, deadline_orm, dagrun):
         assert deadline_orm.deadline_time == DEFAULT_DATE
         assert deadline_orm.callback == TEST_ASYNC_CALLBACK
-        assert deadline_orm.dag_id == DAG_ID
         assert deadline_orm.dagrun_id == dagrun.id
 
-    def test_repr_with_callback_kwargs(self, deadline_orm):
+    def test_repr_with_callback_kwargs(self, deadline_orm, dagrun):
         assert (
-            repr(deadline_orm)
-            == f"[DagRun Deadline] Dag: {deadline_orm.dag_id} Run: {deadline_orm.dagrun_id} needed by "
-            f"{deadline_orm.deadline_time} or run: {TEST_CALLBACK_PATH}({TEST_CALLBACK_KWARGS})"
+            repr(deadline_orm) == f"[DagRun Deadline] Dag: {DAG_ID} Run: {dagrun.id} needed by "
+            f"{DEFAULT_DATE} or run: {TEST_CALLBACK_PATH}({TEST_CALLBACK_KWARGS})"
         )
 
-    def test_repr_without_callback_kwargs(self, dagrun):
+    def test_repr_without_callback_kwargs(self, deadline_orm, dagrun, session):
         deadline_orm = Deadline(
             deadline_time=DEFAULT_DATE,
             callback=AsyncCallback(TEST_CALLBACK_PATH),
-            dag_id=DAG_ID,
             dagrun_id=dagrun.id,
         )
+        session.add(deadline_orm)
+        session.flush()
 
         assert deadline_orm.callback.kwargs is None
         assert (
-            repr(deadline_orm)
-            == f"[DagRun Deadline] Dag: {deadline_orm.dag_id} Run: {deadline_orm.dagrun_id} needed by "
-            f"{deadline_orm.deadline_time} or run: {TEST_CALLBACK_PATH}()"
+            repr(deadline_orm) == f"[DagRun Deadline] Dag: {DAG_ID} Run: {dagrun.id} needed by "
+            f"{DEFAULT_DATE} or run: {TEST_CALLBACK_PATH}()"
         )
 
     @pytest.mark.db_test
@@ -193,7 +192,6 @@ class TestDeadline:
         deadline_orm = Deadline(
             deadline_time=DEFAULT_DATE,
             callback=TEST_SYNC_CALLBACK,
-            dag_id=DAG_ID,
             dagrun_id=dagrun.id,
         )
         session.add(deadline_orm)

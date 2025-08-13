@@ -51,6 +51,7 @@ from airflow.exceptions import (
     AirflowClusterPolicyViolation,
     AirflowDagDuplicatedIdException,
     AirflowException,
+    AirflowTaskTimeout,
 )
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base, StringID
@@ -65,7 +66,6 @@ from airflow.utils.file import (
 )
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.timeout import timeout
 from airflow.utils.types import NOTSET
 
 try:
@@ -121,6 +121,30 @@ class FileLoadStat(NamedTuple):
     task_num: int
     dags: str
     warning_num: int
+
+
+@contextlib.contextmanager
+def timeout(seconds=1, error_message="Timeout"):
+    import logging
+
+    log = logging.getLogger(__name__)
+    error_message = error_message + ", PID: " + str(os.getpid())
+
+    def handle_timeout(signum, frame):
+        """Log information and raises AirflowTaskTimeout."""
+        log.error("Process timed out, PID: %s", str(os.getpid()))
+        raise AirflowTaskTimeout(error_message)
+
+    try:
+        try:
+            signal.signal(signal.SIGALRM, handle_timeout)
+            signal.setitimer(signal.ITIMER_REAL, seconds)
+        except ValueError:
+            log.warning("timeout can't be used in the current context", exc_info=True)
+        yield
+    finally:
+        with contextlib.suppress(ValueError):
+            signal.setitimer(signal.ITIMER_REAL, 0)
 
 
 class DagBag(LoggingMixin):
