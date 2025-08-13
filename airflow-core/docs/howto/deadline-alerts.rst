@@ -20,7 +20,7 @@ Deadline Alerts
 ===============
 
 The :class:`~airflow.sdk.definitions.deadline.DeadlineAlert` feature is the next evolution of
-the old SLA.  Deadline Alerts allow you to set time thresholds for your DAG runs and automatically
+the old SLA.  Deadline Alerts allow you to set time thresholds for your Dag runs and automatically
 respond when those thresholds are exceeded. You can set up Deadline Alerts by choosing a built-in
 reference point, setting an interval, and defining a response using either Airflow's Notifiers or
 a custom callback function.
@@ -28,12 +28,11 @@ a custom callback function.
 Creating a Deadline Alert
 -------------------------
 
-Creating a Deadline Alert requires three mandatory and one optional parameter:
+Creating a Deadline Alert requires three mandatory parameters:
 
 * Reference: When to start counting from
 * Interval: How far before or after the reference point to trigger the alert
-* Callback: What to do when the deadline is exceeded
-* Callback Kwargs:  Optional values to pass to the Callback when it is run
+* Callback: A Callback object which contains a path to a callable and optional kwargs to pass to it if the deadline is exceeded
 
 Here is how Deadlines are calculated:
 
@@ -44,7 +43,7 @@ Here is how Deadlines are calculated:
         |                                     |
      Start time                          Trigger point
 
-Below is an example DAG implementation. If the DAG has not finished 15 minutes after it was queued, send a Slack message:
+Below is an example Dag implementation. If the Dag has not finished 15 minutes after it was queued, send a Slack message:
 
 .. code-block:: python
 
@@ -64,7 +63,7 @@ Below is an example DAG implementation. If the DAG has not finished 15 minutes a
                 kwargs={
                     "slack_conn_id": "slack_default",
                     "channel": "#alerts",
-                    "text": "DAG 'slack_deadline_alert' still running after 30 minutes.",
+                    "text": "Dag 'slack_deadline_alert' still running after 30 minutes.",
                     "username": "Airflow Alerts",
                 },
             ),
@@ -86,16 +85,16 @@ Using Built-in References
 Airflow provides several built-in reference points that you can use with DeadlineAlert:
 
 ``DeadlineReference.DAGRUN_QUEUED_AT``
-    Measures time from when the DagRun was queued. Useful for monitoring resource constraints.
+    Measures time from when the Dag run was queued. Useful for monitoring resource constraints.
 
 ``DeadlineReference.DAGRUN_LOGICAL_DATE``
-    References when the DAG run was scheduled to start. For example, setting an interval of
-    ``timedelta(minutes=15)`` would trigger the alert if the DAG hasn't completed 15 minutes
+    References when the Dag run was scheduled to start. For example, setting an interval of
+    ``timedelta(minutes=15)`` would trigger the alert if the Dag hasn't completed 15 minutes
     after it was scheduled to start, regardless of when (or if) it actually began executing.
-    Useful for ensuring scheduled DAGs complete before their next scheduled run.
+    Useful for ensuring scheduled Dags complete before their next scheduled run.
 
 ``DeadlineReference.FIXED_DATETIME``
-    Specifies a fixed point in time. Useful when DAGs must complete by a specific time.
+    Specifies a fixed point in time. Useful when Dags must complete by a specific time.
 
 Here's an example using a fixed datetime:
 
@@ -113,7 +112,7 @@ Here's an example using a fixed datetime:
                 kwargs={
                     "slack_conn_id": "slack_default",
                     "channel": "#alerts",
-                    "text": "DAG 'slack_deadline_alert' still running after 30 minutes.",
+                    "text": "Dag 'slack_deadline_alert' still running after 30 minutes.",
                     "username": "Airflow Alerts",
                 },
             ),
@@ -142,7 +141,7 @@ or a :class:`~airflow.sdk.definitions.deadline.SyncCallback`.
 Using Built-in Notifiers
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-Here's an example using the Slack Notifier if the DagRun has not finished within 30 minutes of it being queued:
+Here's an example using the Slack Notifier if the Dag run has not finished within 30 minutes of it being queued:
 
 .. code-block:: python
 
@@ -152,11 +151,11 @@ Here's an example using the Slack Notifier if the DagRun has not finished within
             reference=DeadlineReference.DAGRUN_QUEUED_AT,
             interval=timedelta(minutes=30),
             callback=AsyncCallback(
-                SlackNotifier,
+                SlackWebhookNotifier,
                 kwargs={
                     "slack_conn_id": "slack_default",
                     "channel": "#alerts",
-                    "text": "DAG 'slack_deadline_alert' still running after 30 minutes.",
+                    "text": "Dag 'slack_deadline_alert' still running after 30 minutes.",
                     "username": "Airflow Alerts",
                 },
             ),
@@ -167,10 +166,10 @@ Here's an example using the Slack Notifier if the DagRun has not finished within
 Creating Custom Callbacks
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-You can create custom callbacks for more complex handling. The ``callback_kwargs`` specified in
-the ``DeadlineAlert`` are passed to the callback function, if any are provided.  **Synchronous callbacks**
-(standard python methods) can be defined in the dag bundle and are run in the Executor.  **Asynchronous
-callbacks** must be defined somewhere in the Triggerer's system path.
+You can create custom callbacks for more complex handling. The ``kwargs`` specified in the ``Callback``
+are passed to the callback function, if any are provided.  **Synchronous callbacks** (standard python
+methods) can be defined in the dag bundle and are run in the Executor.  **Asynchronous callbacks** must
+be defined somewhere in the Triggerer's system path.
 
 .. note::
     Regarding Async Custom Deadline callbacks:
@@ -192,7 +191,7 @@ A **custom synchronous callback** might look like this:
 
     def custom_synchronous_callback(**kwargs):
         """Handle deadline violation with custom logic."""
-        print(f"Deadline exceeded for DAG {kwargs.get("dag_id")}!")
+        print(f"Deadline exceeded for Dag {kwargs.get("dag_id")}!")
         print(f"Alert type: {kwargs.get("alert_type")}")
         # Additional custom handling here
 
@@ -211,19 +210,22 @@ A **custom synchronous callback** might look like this:
         EmptyOperator(task_id="example_task")
 
 A **custom asynchronous callback** is only slightly more work.  Note in the following example that
-the custom callback code is placed in a separate file, and must be imported in the DAG file.
+the custom callback code is placed in a separate file, and must be imported in the Dag file.
+
+Place this method in ``/files/plugins/deadline_callbacks.py``:
 
 .. code-block:: python
 
-    # Place this method in `/files/plugins/deadline_callbacks.py`
     async def custom_async_callback(**kwargs):
         """Handle deadline violation with custom logic."""
-        print(f"Deadline exceeded for DAG {kwargs.get("dag_id")}!")
+        print(f"Deadline exceeded for Dag {kwargs.get("dag_id")}!")
         print(f"Alert type: {kwargs.get("alert_type")}")
         # Additional custom handling here
 
+Place this in a Dag file:
 
-    # Place this in a dag file
+.. code-block:: python
+
     from datetime import timedelta
 
     from deadline_callbacks import custom_async_callback
@@ -257,7 +259,7 @@ For example:
 
 .. code-block:: python
 
-    next_meeting = datetime(2025, 06, 26, 9, 30)
+    next_meeting = datetime(2025, 6, 26, 9, 30)
 
     DeadlineAlert(
         reference=DeadlineReference.FIXED_DATETIME(next_meeting),
@@ -268,7 +270,7 @@ For example:
 This will trigger the alert 2 hours before the next meeting starts.
 
 For ``DAGRUN_LOGICAL_DATE``, the interval is typically positive, setting a deadline relative
-to when the DAG was scheduled to run. Here's an example:
+to when the Dag was scheduled to run. Here's an example:
 
 .. code-block:: python
 
@@ -278,8 +280,8 @@ to when the DAG was scheduled to run. Here's an example:
         callback=notify_team,
     )
 
-In this case, if a DAG is scheduled to run daily at midnight, the deadline would be triggered
-if the DAG hasn't completed by 1:00 AM. This is useful for ensuring that scheduled jobs complete
+In this case, if a Dag is scheduled to run daily at midnight, the deadline would be triggered
+if the Dag hasn't completed by 1:00 AM. This is useful for ensuring that scheduled jobs complete
 within a certain timeframe after their intended start time.
 
 The flexibility of combining different references with positive or negative intervals allows
