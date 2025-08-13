@@ -102,7 +102,6 @@ def get_task_instance(
     query = (
         select(TI)
         .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
-        .join(TI.dag_run)
         .options(joinedload(TI.rendered_task_instance_fields))
         .options(joinedload(TI.dag_version))
         .options(joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)))
@@ -364,7 +363,6 @@ def get_mapped_task_instance(
     query = (
         select(TI)
         .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id, TI.map_index == map_index)
-        .join(TI.dag_run)
         .options(joinedload(TI.rendered_task_instance_fields))
         .options(joinedload(TI.dag_version))
         .options(joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)))
@@ -544,7 +542,7 @@ def get_task_instances_batch(
         TI,
     ).set_value([body.order_by] if body.order_by else None)
 
-    query = select(TI).join(TI.dag_run)
+    query = select(TI)
     task_instance_select, total_entries = paginated_select(
         statement=query,
         filters=[

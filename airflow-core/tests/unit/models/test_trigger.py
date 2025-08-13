@@ -34,6 +34,7 @@ from airflow.models import Deadline, TaskInstance, Trigger
 from airflow.models.asset import AssetEvent, AssetModel, asset_trigger_association_table
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk.definitions.deadline import AsyncCallback
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.triggers.base import (
     BaseTrigger,
@@ -78,22 +79,25 @@ def clear_db(session):
     session.commit()
 
 
-def test_fetch_trigger_ids_with_non_task_associations(session):
+def test_fetch_trigger_ids_with_non_task_associations(session, create_task_instance):
     # Create triggers
     asset_trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger1", kwargs={})
     deadline_trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger2", kwargs={})
     other_trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger3", kwargs={})
     session.bulk_save_objects((asset_trigger, deadline_trigger, other_trigger))
 
+    # Create deadline association
+    dagrun_id = create_task_instance().dag_run.id
+    deadline = Deadline(
+        deadline_time=DEFAULT_DATE, callback=AsyncCallback("classpath.log.error"), dagrun_id=dagrun_id
+    )
+    deadline.trigger = deadline_trigger
+    session.add(deadline)
+
     # Create asset association
     asset = AssetModel("test")
     asset.triggers.append(asset_trigger)
     session.add(asset)
-
-    # Create deadline association
-    deadline = Deadline(deadline_time=DEFAULT_DATE, callback="classpath.log.error")
-    deadline.trigger = deadline_trigger
-    session.add(deadline)
 
     session.commit()
     results = Trigger.fetch_trigger_ids_with_non_task_associations()
@@ -150,7 +154,11 @@ def test_clean_unused(session, create_task_instance):
     assert session.query(AssetModel).count() == 1
 
     # Create deadline with trigger
-    deadline = Deadline(deadline_time=DEFAULT_DATE, callback="classpath.callback")
+    deadline = Deadline(
+        deadline_time=DEFAULT_DATE,
+        callback=AsyncCallback("classpath.callback"),
+        dagrun_id=task_instance.dag_run.id,
+    )
     deadline.trigger = trigger6
     session.add(deadline)
     session.commit()
@@ -183,7 +191,11 @@ def test_submit_event(mock_deadline_submit_event, session, create_task_instance)
     session.add(asset)
 
     # Create a deadline with the same trigger
-    deadline = Deadline(deadline_time=DEFAULT_DATE, callback="classpath.callback")
+    deadline = Deadline(
+        deadline_time=DEFAULT_DATE,
+        callback=AsyncCallback("classpath.callback"),
+        dagrun_id=task_instance.dag_run.id,
+    )
     deadline.trigger = trigger
     session.add(deadline)
     session.commit()
@@ -199,9 +211,9 @@ def test_submit_event(mock_deadline_submit_event, session, create_task_instance)
     # commit changes made by submit event and expire all cache to read from db.
     session.flush()
     # Check that the task instance is now scheduled
-    updated_task_instance = session.query(TaskInstance).one()
-    assert updated_task_instance.state == State.SCHEDULED
-    assert updated_task_instance.next_kwargs == {"event": payload, "cheesecake": True}
+    session.refresh(task_instance)
+    assert task_instance.state == State.SCHEDULED
+    assert task_instance.next_kwargs == {"event": payload, "cheesecake": True}
     # Check that the asset has received an event
     assert session.query(AssetEvent).filter_by(asset_id=asset.id).count() == 1
     asset_event = session.query(AssetEvent).filter_by(asset_id=asset.id).first()
@@ -450,7 +462,9 @@ def test_get_sorted_triggers_same_priority_weight(session, create_task_instance)
     asset.triggers.extend([trigger_asset])
     session.add(asset)
     # Create deadline with trigger
-    deadline = Deadline(deadline_time=DEFAULT_DATE, callback="classpath.callback")
+    deadline = Deadline(
+        deadline_time=DEFAULT_DATE, callback=AsyncCallback("classpath.callback"), dagrun_id=TI_old.dag_run.id
+    )
     deadline.trigger = trigger_deadline
     session.add(deadline)
     session.commit()

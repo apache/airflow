@@ -10239,6 +10239,7 @@ components:
           items:
             type: string
           type: array
+          minItems: 1
           title: Options
         subject:
           type: string
@@ -10325,6 +10326,7 @@ components:
           items:
             type: string
           type: array
+          minItems: 1
           title: Chosen Options
         params_input:
           additionalProperties: true
@@ -11220,8 +11222,6 @@ components:
         dag_id:
           type: string
           title: Dag Id
-        dag_version:
-          $ref: '#/components/schemas/DagVersionResponse'
         dag_run_id:
           type: string
           title: Dag Run Id
@@ -11349,12 +11349,15 @@ components:
           anyOf:
           - $ref: '#/components/schemas/JobResponse'
           - type: 'null'
+        dag_version:
+          anyOf:
+          - $ref: '#/components/schemas/DagVersionResponse'
+          - type: 'null'
       type: object
       required:
       - id
       - task_id
       - dag_id
-      - dag_version
       - dag_run_id
       - map_index
       - logical_date
@@ -11383,6 +11386,7 @@ components:
       - rendered_map_index
       - trigger
       - triggerer_job
+      - dag_version
       title: TaskInstanceResponse
       description: TaskInstance serializer for responses.
     TaskInstanceState:
@@ -11875,6 +11879,7 @@ components:
           items:
             type: string
           type: array
+          minItems: 1
           title: Chosen Options
         params_input:
           additionalProperties: true

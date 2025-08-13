@@ -31,7 +31,7 @@ from collections.abc import Collection, Generator, Iterable, Iterator, Mapping, 
 from functools import cache, cached_property
 from inspect import signature
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypeVar, Union, cast, overload
+from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypeAlias, TypeVar, Union, cast, overload
 
 import attrs
 import lazy_object_proxy
@@ -108,7 +108,6 @@ if TYPE_CHECKING:
     from airflow.models.mappedoperator import MappedOperator as SchedulerMappedOperator
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk import DAG as SdkDag, BaseOperatorLink
-    from airflow.sdk.types import Operator
     from airflow.serialization.json_schema import Validator
     from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
     from airflow.triggers.base import BaseEventTrigger
@@ -122,6 +121,9 @@ if TYPE_CHECKING:
         from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator  # noqa: TC004
     except ImportError:
         pass
+
+    SchedulerOperator: TypeAlias = "SchedulerMappedOperator | SerializedBaseOperator"
+    SdkOperator: TypeAlias = BaseOperator | MappedOperator
 
 DEFAULT_OPERATOR_DEPS = frozenset(
     (
@@ -669,7 +671,8 @@ class BaseSerialization:
     @classmethod
     def serialize_to_json(
         cls,
-        object_to_serialize: BaseOperator | MappedOperator | SerializedBaseOperator | DAG,
+        # TODO (GH-52141): When can we remove SerializedBaseOperator here?
+        object_to_serialize: BaseOperator | MappedOperator | SerializedBaseOperator | SdkDag,
         decorated_fields: set,
     ) -> dict[str, Any]:
         """Serialize an object to JSON."""
@@ -758,7 +761,7 @@ class BaseSerialization:
             return var.to_dict()
         elif isinstance(var, MappedOperator):
             return cls._encode(SerializedBaseOperator.serialize_mapped_operator(var), type_=DAT.OP)
-        elif isinstance(var, (BaseOperator, SerializedBaseOperator)):
+        elif isinstance(var, BaseOperator):
             var._needs_expansion = var.get_needs_expansion()
             return cls._encode(SerializedBaseOperator.serialize_operator(var), type_=DAT.OP)
         elif isinstance(var, cls._datetime_types):
@@ -1085,7 +1088,7 @@ class DependencyDetector:
     """
 
     @staticmethod
-    def detect_task_dependencies(task: Operator) -> list[DagDependency]:
+    def detect_task_dependencies(task: SdkOperator) -> list[DagDependency]:
         """Detect dependencies caused by tasks."""
         from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
         from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
@@ -1161,7 +1164,7 @@ class DependencyDetector:
         return deps
 
     @staticmethod
-    def detect_dag_dependencies(dag: DAG | None) -> Iterable[DagDependency]:
+    def detect_dag_dependencies(dag: SdkDag | None) -> Iterable[DagDependency]:
         """Detect dependencies set directly on the DAG object."""
         if not dag:
             return
@@ -1197,6 +1200,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
     _needs_expansion: bool
     _task_display_name: str | None
     depends_on_past: bool
+    email: str | Sequence[str] | None
     execution_timeout: datetime.timedelta | None
     executor: str | None
     executor_config: dict | None
@@ -1205,6 +1209,8 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
     is_setup: bool
     is_teardown: bool
     on_execute_callback: Sequence
+    on_failure_callback: Sequence
+    on_retry_callback: Sequence
     on_success_callback: Sequence
     outlets: Sequence
     pool: str
@@ -1372,11 +1378,11 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         return serialized_op
 
     @classmethod
-    def serialize_operator(cls, op: BaseOperator | MappedOperator | SerializedBaseOperator) -> dict[str, Any]:
+    def serialize_operator(cls, op: BaseOperator | MappedOperator) -> dict[str, Any]:
         return cls._serialize_node(op)
 
     @classmethod
-    def _serialize_node(cls, op: BaseOperator | MappedOperator | SerializedBaseOperator) -> dict[str, Any]:
+    def _serialize_node(cls, op: BaseOperator | MappedOperator) -> dict[str, Any]:
         """Serialize operator into a JSON object."""
         serialize_op = cls.serialize_to_json(op, cls._decorated_fields)
 
@@ -1580,7 +1586,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         setattr(op, "start_from_trigger", bool(encoded_op.get("start_from_trigger", False)))
 
     @staticmethod
-    def set_task_dag_references(task: Operator, dag: DAG) -> None:
+    def set_task_dag_references(task: SchedulerOperator, dag: DAG) -> None:
         """
         Handle DAG references on an operator.
 
@@ -1655,7 +1661,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         return op
 
     @classmethod
-    def detect_dependencies(cls, op: Operator) -> set[DagDependency]:
+    def detect_dependencies(cls, op: SdkOperator) -> set[DagDependency]:
         """Detect between DAG dependencies for the operator."""
         dependency_detector = DependencyDetector()
         deps = set(dependency_detector.detect_task_dependencies(op))
@@ -1899,7 +1905,7 @@ class SerializedDAG(DAG, BaseSerialization):
     _json_schema = lazy_object_proxy.Proxy(load_dag_schema)
 
     @classmethod
-    def serialize_dag(cls, dag: DAG) -> dict:
+    def serialize_dag(cls, dag: SdkDag) -> dict:
         """Serialize a DAG into a JSON object."""
         try:
             serialized_dag = cls.serialize_to_json(dag, cls._decorated_fields)
@@ -1982,7 +1988,9 @@ class SerializedDAG(DAG, BaseSerialization):
             tg = TaskGroupSerialization.deserialize_task_group(
                 encoded_dag["task_group"],
                 None,
-                dag.task_dict,
+                # TODO (GH-52141): SerializedDAG's task_dict should contain
+                # scheduler types instead, but currently it inherits SDK's DAG.
+                cast("dict[str, SchedulerOperator]", dag.task_dict),
                 dag,
             )
             object.__setattr__(dag, "task_group", tg)
@@ -2006,8 +2014,10 @@ class SerializedDAG(DAG, BaseSerialization):
         for k in keys_to_set_none:
             setattr(dag, k, None)
 
+        # TODO (GH-52141): SerializedDAG's task_dict should contain scheduler
+        # types instead, but currently it inherits SDK's DAG.
         for task in dag.task_dict.values():
-            SerializedBaseOperator.set_task_dag_references(task, dag)
+            SerializedBaseOperator.set_task_dag_references(cast("SchedulerOperator", task), dag)
 
         return dag
 
@@ -2209,7 +2219,7 @@ class TaskGroupSerialization(BaseSerialization):
         cls,
         encoded_group: dict[str, Any],
         parent_group: TaskGroup | None,
-        task_dict: dict[str, Operator],
+        task_dict: dict[str, SchedulerOperator],
         dag: SerializedDAG,
     ) -> TaskGroup:
         """Deserializes a TaskGroup from a JSON object."""
@@ -2232,7 +2242,7 @@ class TaskGroupSerialization(BaseSerialization):
                 **kwargs,
             )
 
-        def set_ref(task: Operator) -> Operator:
+        def set_ref(task: SchedulerOperator) -> SchedulerOperator:
             task.task_group = weakref.proxy(group)
             return task
 
