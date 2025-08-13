@@ -19,34 +19,30 @@
 
 import {Select} from "src/components/ui";
 import {type CollectionItem, createListCollection} from "@chakra-ui/react";
-import {useTranslation} from "react-i18next";
 
 type Props = {
-  readonly allValue: string;
   readonly handleSelect: (value: CollectionItem) => void;
   readonly placeholderText: string;
+  readonly selectedValue: string | undefined;
   readonly values: Array<string>;
-  readonly selectedValue: string;
 };
 
 
 export const AttrSelectFilter = ({
-  allValue,
   handleSelect,
   placeholderText,
-  values,
   selectedValue,
+  values,
 }: Props) => {
 
-  const totalThingList = [ allValue, ...(values ?? [])]
-  const thingCollection = createListCollection({items: totalThingList})
+  const thingCollection = createListCollection({items: values ?? []})
 
   return (
   <Select.Root
     collection={thingCollection}
     maxW="200px"
     onValueChange={handleSelect}
-    value={[selectedValue]}
+    value={selectedValue === undefined ? [] : [selectedValue]}
   >
     <Select.Trigger colorPalette="blue" minW="max-content" >
       <Select.ValueText placeholder={placeholderText} width="auto">

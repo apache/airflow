@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {Heading, Skeleton, Box, type CollectionItem} from "@chakra-ui/react";
+import {Heading, Skeleton, Box, type CollectionItem, HStack} from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
@@ -29,6 +29,7 @@ import { useState } from "react";
 
 import { TaskCard } from "./TaskCard";
 import {AttrSelectFilter} from "src/pages/Dag/Tasks/AttrSelectFilter.tsx";
+import {ResetButton} from "src/pages/DagsList/DagsFilters/ResetButton.tsx";
 
 const cardDef = (dagId: string): CardDef<TaskResponse> => ({
   card: ({ row }) => <TaskCard dagId={dagId} task={row} />,
@@ -37,10 +38,22 @@ const cardDef = (dagId: string): CardDef<TaskResponse> => ({
   },
 });
 
+const getFilterCount = ({ selectedOperator }) => {
+  let count = 0;
+
+  if (selectedOperator !== undefined) {
+    count += 1;
+  }
+
+  return count;
+};
+
+
+
 export const Tasks = () => {
   const { t: translate } = useTranslation();
   const { dagId = "" } = useParams();
-  const [selectedOperator, setSelectedOperator] = useState("");
+  const [selectedOperator, setSelectedOperator] = useState();
   const {
     data,
     error: tasksError,
@@ -50,16 +63,19 @@ export const Tasks = () => {
     dagId,
   });
 
-  const operatorAllValue = translate("allOperators")
   const filterTasks = (tasks: Array<TaskResponse>) =>
     // debugger;
-     selectedOperator == operatorAllValue || !Boolean(selectedOperator) ? tasks : tasks.filter((task: TaskResponse) => task.operator_name == selectedOperator)
+     selectedOperator ? tasks.filter((task: TaskResponse) => task.operator_name === selectedOperator) : tasks
 
+  const onClearFilters = () => {
+    setSelectedOperator(undefined)
+  };
 
-  const handleOperatorSelect = (value: CollectionItem) => {
-    setSelectedOperator(value.value[0])
+  const handleOperatorSelect = (value: { value: Array<string>}) => {
+    setSelectedOperator(value.value[0] as string | undefined)
   }
-  const operatorNames: Array<string> = data?.tasks?.map((task) => (task.operator_name)).filter(item => item !== null) || []
+  const operatorNames: Array<string> = data?.tasks.map((task) => (task.operator_name)).filter(item => item !== null)
+  const filterCount = getFilterCount({selectedOperator})
 
   return (
     <Box>
@@ -68,13 +84,18 @@ export const Tasks = () => {
         {translate("task", { count: data?.total_entries ?? 0 })}
       </Heading>
 
+      <HStack justifyContent="space-between">
       <AttrSelectFilter
-        allValue={operatorAllValue}
         handleSelect={handleOperatorSelect}
         placeholderText={translate("selectOperator")}
-        values={operatorNames ?? []}
         selectedValue={selectedOperator}
+        values={operatorNames}
       />
+
+      <Box>
+        <ResetButton filterCount={filterCount} onClearFilters={onClearFilters} />
+      </Box>
+      </HStack>
 
       <DataTable
         cardDef={cardDef(dagId)}
