@@ -383,13 +383,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         pool_num_starving_tasks: dict[str, int] = Counter()
 
-        fts_enabled = conf.getboolean("scheduler", "enable_fair_task_selection")
-
         for loop_count in itertools.count(start=1):
             num_starved_pools = len(starved_pools)
             num_starved_dags = len(starved_dags)
             num_starved_tasks = len(starved_tasks)
             num_starved_tasks_task_dagrun_concurrency = len(starved_tasks_task_dagrun_concurrency)
+
+            dag_concurrency_subquery = self.__get_current_dag_concurrency(states=EXECUTION_STATES)
 
             query = (
                 select(TI)
@@ -400,60 +400,47 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .where(~DM.is_paused)
                 .where(TI.state == TaskInstanceState.SCHEDULED)
                 .where(DM.bundle_name.is_not(None))
+                .join(dag_concurrency_subquery, TI.dag_id == dag_concurrency_subquery.c.dag_id, isouter=True)
+                .where(func.coalesce(dag_concurrency_subquery.c.dag_count, 0) < DM.max_active_tasks)
+                .options(selectinload(TI.dag_model))
             )
 
-            if fts_enabled:
-                dag_concurrency_subquery = self.__get_current_dag_concurrency(states=EXECUTION_STATES)
-                per_dag_limit = conf.getint("scheduler", "fair_task_selection_limit_per_dag")
-
-                query = query.join(
-                    dag_concurrency_subquery, TI.dag_id == dag_concurrency_subquery.c.dag_id, isouter=True
-                ).where(func.coalesce(dag_concurrency_subquery.c.dag_count, 0) < per_dag_limit)
-
-            query = query.options(selectinload(TI.dag_model))
-
-            if fts_enabled:
-                self.log.info("Scheduler fair selection is enabled")
-                per_dag_limit = conf.getint("scheduler", "fair_task_selection_limit_per_dag")
-                self.log.info("Scheduler fair selection per dag limit is %d", per_dag_limit)
-
-                # Create a subquery with row numbers partitioned by dag_id.
-                #
-                # dag_id | task_id | priority_weight | rn
-                # -------|---------|-----------------|----
-                # dag1   | task1   | 100             | 1
-                # dag1   | task22  | 90              | 2
-                # dag1   | task5   | 80              | 3
-                # dag1   | task13  | 70              | 4
-                # dag2   | task3   | 95              | 1
-                # dag2   | task1   | 85              | 2
-                # dag2   | task5   | 75              | 3
-                ranked_query = (
-                    query.add_columns(
-                        func.row_number()
-                        .over(
-                            partition_by=TI.dag_id,
-                            order_by=[-TI.priority_weight, DR.logical_date, TI.map_index],
-                        )
-                        .label("rn")
+            # Create a subquery with row numbers partitioned by run_id.
+            #
+            # dag_id | task_id | priority_weight | rn
+            # -------|---------|-----------------|----
+            # dag1   | task1   | 100             | 1
+            # dag1   | task22  | 90              | 2
+            # dag1   | task5   | 80              | 3
+            # dag1   | task13  | 70              | 4
+            # dag2   | task3   | 95              | 1
+            # dag2   | task1   | 85              | 2
+            # dag2   | task5   | 75              | 3
+            ranked_query = (
+                query.add_columns(
+                    func.row_number()
+                    .over(
+                        partition_by=TI.run_id,
+                        order_by=[-TI.priority_weight, DR.logical_date, TI.map_index],
                     )
-                ).subquery()
-
-                # Select only rows where row_number <= per_dag_limit.
-                query = (
-                    select(TI)
-                    .select_from(ranked_query)
-                    .join(
-                        TI,
-                        (TI.dag_id == ranked_query.c.dag_id)
-                        & (TI.task_id == ranked_query.c.task_id)
-                        & (TI.run_id == ranked_query.c.run_id)
-                        & (TI.map_index == ranked_query.c.map_index),
-                    )
-                    .where(ranked_query.c.rn <= per_dag_limit)
+                    .label("rn"),
+                    DM.max_active_tasks.label("dr_max_active_tasks"),
                 )
-            else:
-                query = query.order_by(-TI.priority_weight, DR.logical_date, TI.map_index)
+            ).subquery()
+
+            # Select only rows where row_number <= per_dag_run_limit.
+            query = (
+                select(TI)
+                .select_from(ranked_query)
+                .join(
+                    TI,
+                    (TI.dag_id == ranked_query.c.dag_id)
+                    & (TI.task_id == ranked_query.c.task_id)
+                    & (TI.run_id == ranked_query.c.run_id)
+                    & (TI.map_index == ranked_query.c.map_index),
+                )
+                .where(ranked_query.c.rn <= ranked_query.c.dr_max_active_tasks)
+            )
 
             if starved_pools:
                 query = query.where(TI.pool.not_in(starved_pools))
@@ -572,16 +559,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     current_active_tasks_per_dag_run,
                     dag_max_active_tasks,
                 )
-                if current_active_tasks_per_dag_run >= dag_max_active_tasks:
-                    self.log.info(
-                        "Not executing %s since the number of tasks running or queued "
-                        "from DAG %s is >= to the DAG's max_active_tasks limit of %s",
-                        task_instance,
-                        dag_id,
-                        dag_max_active_tasks,
-                    )
-                    starved_dags.add(dag_id)
-                    continue
 
                 if task_instance.dag_model.has_task_concurrency_limits:
                     # Many dags don't have a task_concurrency, so where we can avoid loading the full
