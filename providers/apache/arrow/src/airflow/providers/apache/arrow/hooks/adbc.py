@@ -196,11 +196,13 @@ class AdbcHook(DbApiHook):
 
     def _run_command(self, cur, sql_statement, parameters):
         """Run a statement using an already open cursor."""
+        sql_statement = replace_placeholders(sql_statement, re.escape(self.dialect.placeholder))
+
         if self.log_sql:
             self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
 
         if parameters:
-            cur.executemany(sql_statement, parameters)
+            cur.execute(sql_statement, parameters)
         else:
             cur.execute(sql_statement)
 
