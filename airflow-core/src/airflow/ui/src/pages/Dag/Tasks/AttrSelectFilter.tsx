@@ -22,36 +22,39 @@ import {type CollectionItem, createListCollection} from "@chakra-ui/react";
 import {useTranslation} from "react-i18next";
 
 type Props = {
-  readonly handleOperatorSelect: (value: CollectionItem) => void;
-  readonly operatorNames: Array<string>;
-  readonly selectedOperator: string;
+  readonly allValue: string;
+  readonly handleSelect: (value: CollectionItem) => void;
+  readonly placeholderText: string;
+  readonly values: Array<string>;
+  readonly selectedValue: string;
 };
 
 
 export const AttrSelectFilter = ({
-  handleOperatorSelect,
-  operatorNames,
-  selectedOperator,
+  allValue,
+  handleSelect,
+  placeholderText,
+  values,
+  selectedValue,
 }: Props) => {
-  const { t: translate } = useTranslation();
 
-  const totalOperatorList = [ translate("allOperators"), ...(operatorNames ?? [])]
-  const operatorCollection = createListCollection({items: totalOperatorList})
+  const totalThingList = [ allValue, ...(values ?? [])]
+  const thingCollection = createListCollection({items: totalThingList})
 
   return (
   <Select.Root
-    collection={operatorCollection}
+    collection={thingCollection}
     maxW="200px"
-    onValueChange={handleOperatorSelect}
-    value={[selectedOperator]}
+    onValueChange={handleSelect}
+    value={[selectedValue]}
   >
     <Select.Trigger colorPalette="blue" minW="max-content" >
-      <Select.ValueText placeholder={translate("selectOperator")} width="auto">
-        {() => selectedOperator}
+      <Select.ValueText placeholder={placeholderText} width="auto">
+        {() => selectedValue}
       </Select.ValueText>
     </Select.Trigger>
     <Select.Content>
-      {operatorCollection.items.map((option) => (
+      {thingCollection.items.map((option) => (
         <Select.Item item={option} key={option}>
           {option}
         </Select.Item>

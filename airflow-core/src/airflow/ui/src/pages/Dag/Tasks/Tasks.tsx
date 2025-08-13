@@ -50,16 +50,15 @@ export const Tasks = () => {
     dagId,
   });
 
-
-  const filterTasks = (tasks: Array<TaskResponse>) => 
+  const operatorAllValue = translate("allOperators")
+  const filterTasks = (tasks: Array<TaskResponse>) =>
     // debugger;
-     selectedOperator == translate("allOperators") || !Boolean(selectedOperator) ? tasks : tasks.filter((task: TaskResponse) => task.operator_name == selectedOperator)
-  
+     selectedOperator == operatorAllValue || !Boolean(selectedOperator) ? tasks : tasks.filter((task: TaskResponse) => task.operator_name == selectedOperator)
+
 
   const handleOperatorSelect = (value: CollectionItem) => {
     setSelectedOperator(value.value[0])
   }
-
   const operatorNames: Array<string> = data?.tasks?.map((task) => (task.operator_name)).filter(item => item !== null) || []
 
   return (
@@ -70,9 +69,11 @@ export const Tasks = () => {
       </Heading>
 
       <AttrSelectFilter
-        handleOperatorSelect={handleOperatorSelect}
-        operatorNames={operatorNames ?? []}
-        selectedOperator={selectedOperator}
+        allValue={operatorAllValue}
+        handleSelect={handleOperatorSelect}
+        placeholderText={translate("selectOperator")}
+        values={operatorNames ?? []}
+        selectedValue={selectedOperator}
       />
 
       <DataTable
