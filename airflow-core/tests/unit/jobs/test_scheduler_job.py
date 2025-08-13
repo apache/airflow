@@ -74,6 +74,7 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import task
 from airflow.sdk.definitions.asset import Asset, AssetAlias
+from airflow.sdk.definitions.deadline import AsyncCallback
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.timetables.base import DataInterval
 from airflow.traces.tracer import Trace
@@ -6707,23 +6708,36 @@ class TestSchedulerJob:
         )
 
     @mock.patch("airflow.models.Deadline.handle_miss")
-    def test_process_expired_deadlines(self, mock_handle_miss, session):
+    def test_process_expired_deadlines(self, mock_handle_miss, session, dag_maker):
         """Verify all expired and unhandled deadlines (and only those) are processed by the scheduler."""
         scheduler_job = Job(executor=MockExecutor())
         self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=1)
 
         past_date = timezone.utcnow() - timedelta(minutes=5)
         future_date = timezone.utcnow() + timedelta(minutes=5)
-        callback_path = "builtins.print"
+        callback_path = "classpath.notify"
+
+        # Create a test Dag run for Deadline
+        with dag_maker(dag_id="test_deadline_dag"):
+            EmptyOperator(task_id="empty")
+        dagrun_id = dag_maker.create_dagrun().id
 
         handled_deadlines = []
         for state in DeadlineCallbackState:
-            deadline = Deadline(deadline_time=past_date, callback=callback_path)
+            deadline = Deadline(
+                deadline_time=past_date, callback=AsyncCallback(callback_path), dagrun_id=dagrun_id
+            )
             deadline.callback_state = state
             handled_deadlines.append(deadline)
-        expired_deadline1 = Deadline(deadline_time=past_date, callback=callback_path)
-        expired_deadline2 = Deadline(deadline_time=past_date, callback=callback_path)
-        future_deadline = Deadline(deadline_time=future_date, callback=callback_path)
+        expired_deadline1 = Deadline(
+            deadline_time=past_date, callback=AsyncCallback(callback_path), dagrun_id=dagrun_id
+        )
+        expired_deadline2 = Deadline(
+            deadline_time=past_date, callback=AsyncCallback(callback_path), dagrun_id=dagrun_id
+        )
+        future_deadline = Deadline(
+            deadline_time=future_date, callback=AsyncCallback(callback_path), dagrun_id=dagrun_id
+        )
 
         session.add_all([expired_deadline1, expired_deadline2, future_deadline] + handled_deadlines)
         session.flush()
