@@ -621,8 +621,6 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
                 self.log.warning(
                     "Unable to find AWS Connection ID '%s', switching to empty.", self.aws_conn_id
                 )
-            except Exception:
-                raise
 
         return AwsConnectionWrapper(
             conn=connection,
