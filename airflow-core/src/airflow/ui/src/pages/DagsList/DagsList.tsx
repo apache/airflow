@@ -28,7 +28,7 @@ import {
   Box,
 } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useCallback, useState, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
@@ -203,9 +203,7 @@ export const DagsList = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
 
   const { pagination, sorting } = tableURLState;
-  const [dagDisplayNamePattern, setDagDisplayNamePattern] = useState(
-    searchParams.get(NAME_PATTERN) ?? undefined,
-  );
+  const dagDisplayNamePattern = searchParams.get(NAME_PATTERN) ?? undefined;
 
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "dag_display_name";
@@ -223,7 +221,6 @@ export const DagsList = () => {
       searchParams.delete(NAME_PATTERN);
     }
     setSearchParams(searchParams);
-    setDagDisplayNamePattern(value);
   };
 
   let paused = defaultShowPaused;
