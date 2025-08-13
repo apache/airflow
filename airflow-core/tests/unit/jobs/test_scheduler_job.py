@@ -74,6 +74,7 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import task
 from airflow.sdk.definitions.asset import Asset, AssetAlias
+from airflow.sdk.definitions.deadline import AsyncCallback
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.timetables.base import DataInterval
 from airflow.traces.tracer import Trace
@@ -2020,11 +2021,15 @@ class TestSchedulerJob:
         # Second executor called for ti3
         mock_executors[1].try_adopt_task_instances.assert_called_once_with([ti3])
 
+    @staticmethod
+    def mock_failure_callback(context):
+        pass
+
     @conf_vars({("scheduler", "num_stuck_in_queued_retries"): "2"})
     def test_handle_stuck_queued_tasks_multiple_attempts(self, dag_maker, session, mock_executors):
         """Verify that tasks stuck in queued will be rescheduled up to N times."""
         with dag_maker("test_fail_stuck_queued_tasks_multiple_executors"):
-            EmptyOperator(task_id="op1")
+            EmptyOperator(task_id="op1", on_failure_callback=TestSchedulerJob.mock_failure_callback)
             EmptyOperator(task_id="op2", executor="default_exec")
 
         def _queue_tasks(tis):
@@ -2090,16 +2095,19 @@ class TestSchedulerJob:
             "stuck in queued tries exceeded",
         ]
 
-        mock_executors[0].fail.assert_not_called()  # just demoing that we don't fail with executor method
+        mock_executors[
+            0
+        ].send_callback.assert_called_once()  # this should only be called for the task that has a callback
         states = [x.state for x in dr.get_task_instances(session=session)]
         assert states == ["failed", "failed"]
+        mock_executors[0].fail.assert_called()
 
     @conf_vars({("scheduler", "num_stuck_in_queued_retries"): "2"})
     def test_handle_stuck_queued_tasks_reschedule_sensors(self, dag_maker, session, mock_executors):
         """Reschedule sensors go in and out of running repeatedly using the same try_number
         Make sure that they get three attempts per reschedule, not 3 attempts per try_number"""
         with dag_maker("test_fail_stuck_queued_tasks_multiple_executors"):
-            EmptyOperator(task_id="op1")
+            EmptyOperator(task_id="op1", on_failure_callback=TestSchedulerJob.mock_failure_callback)
             EmptyOperator(task_id="op2", executor="default_exec")
 
         def _queue_tasks(tis):
@@ -2189,9 +2197,12 @@ class TestSchedulerJob:
             "stuck in queued tries exceeded",
         ]
 
-        mock_executors[0].fail.assert_not_called()  # just demoing that we don't fail with executor method
+        mock_executors[
+            0
+        ].send_callback.assert_called_once()  # this should only be called for the task that has a callback
         states = [x.state for x in dr.get_task_instances(session=session)]
         assert states == ["failed", "failed"]
+        mock_executors[0].fail.assert_called()
 
     def test_revoke_task_not_imp_tolerated(self, dag_maker, session, caplog):
         """Test that if executor no implement revoke_task then we don't blow up."""
@@ -3413,7 +3424,7 @@ class TestSchedulerJob:
         session = settings.Session()
         orm_dag = dag_maker.dag_model
         assert orm_dag is not None
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
@@ -3455,7 +3466,7 @@ class TestSchedulerJob:
                 SerializedDagModel.dag_id == "test_verify_integrity_if_dag_changed"
             ).delete(synchronize_session=False)
 
-        with dag_maker(dag_id="test_verify_integrity_if_dag_changed") as dag:
+        with dag_maker(dag_id="test_verify_integrity_if_dag_changed", serialized=False) as dag:
             BashOperator(task_id="dummy", bash_command="echo hi")
 
         scheduler_job = Job()
@@ -5746,7 +5757,7 @@ class TestSchedulerJob:
         """
         Test if a task instance will be added if the dag is updated
         """
-        with dag_maker(dag_id="test_scheduler_add_new_task") as dag:
+        with dag_maker(dag_id="test_scheduler_add_new_task", serialized=False) as dag:
             BashOperator(task_id="dummy", bash_command="echo test")
 
         scheduler_job = Job()
@@ -6697,23 +6708,36 @@ class TestSchedulerJob:
         )
 
     @mock.patch("airflow.models.Deadline.handle_miss")
-    def test_process_expired_deadlines(self, mock_handle_miss, session):
+    def test_process_expired_deadlines(self, mock_handle_miss, session, dag_maker):
         """Verify all expired and unhandled deadlines (and only those) are processed by the scheduler."""
         scheduler_job = Job(executor=MockExecutor())
         self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=1)
 
         past_date = timezone.utcnow() - timedelta(minutes=5)
         future_date = timezone.utcnow() + timedelta(minutes=5)
-        callback_path = "builtins.print"
+        callback_path = "classpath.notify"
+
+        # Create a test Dag run for Deadline
+        with dag_maker(dag_id="test_deadline_dag"):
+            EmptyOperator(task_id="empty")
+        dagrun_id = dag_maker.create_dagrun().id
 
         handled_deadlines = []
         for state in DeadlineCallbackState:
-            deadline = Deadline(deadline_time=past_date, callback=callback_path)
+            deadline = Deadline(
+                deadline_time=past_date, callback=AsyncCallback(callback_path), dagrun_id=dagrun_id
+            )
             deadline.callback_state = state
             handled_deadlines.append(deadline)
-        expired_deadline1 = Deadline(deadline_time=past_date, callback=callback_path)
-        expired_deadline2 = Deadline(deadline_time=past_date, callback=callback_path)
-        future_deadline = Deadline(deadline_time=future_date, callback=callback_path)
+        expired_deadline1 = Deadline(
+            deadline_time=past_date, callback=AsyncCallback(callback_path), dagrun_id=dagrun_id
+        )
+        expired_deadline2 = Deadline(
+            deadline_time=past_date, callback=AsyncCallback(callback_path), dagrun_id=dagrun_id
+        )
+        future_deadline = Deadline(
+            deadline_time=future_date, callback=AsyncCallback(callback_path), dagrun_id=dagrun_id
+        )
 
         session.add_all([expired_deadline1, expired_deadline2, future_deadline] + handled_deadlines)
         session.flush()

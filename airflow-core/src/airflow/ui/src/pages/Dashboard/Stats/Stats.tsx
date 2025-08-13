@@ -67,7 +67,7 @@ export const Stats = () => {
             icon={<FiClock />}
             isLoading={isStatsLoading}
             label={translate("stats.requiredActions")}
-            link="required_actions"
+            link="required_actions?response_received=false"
           />
         ) : undefined}
 
