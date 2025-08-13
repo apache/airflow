@@ -161,14 +161,14 @@ class TestSambaHook:
             ("start/path/without/slash/windows", "windows", r"\\ip\share\start\path\without\slash\windows"),
             # Windows path -> Windows path, explicit path_type (windows)
             (
-                    r"\start\path\with\backslash\windows",
-                    "windows",
-                    r"\\ip\share\start\path\with\backslash\windows",
+                r"\start\path\with\backslash\windows",
+                "windows",
+                r"\\ip\share\start\path\with\backslash\windows",
             ),
             (
-                    r"start\path\without\backslash\windows",
-                    "windows",
-                    r"\\ip\share\start\path\without\backslash\windows",
+                r"start\path\without\backslash\windows",
+                "windows",
+                r"\\ip\share\start\path\without\backslash\windows",
             ),
         ],
     )
