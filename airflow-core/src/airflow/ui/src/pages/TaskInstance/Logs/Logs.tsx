@@ -144,7 +144,7 @@ export const Logs = () => {
     const element = document.createElement("a");
 
     element.href = URL.createObjectURL(file);
-    element.download = `taskInstanceLogs.txt`;
+    element.download = `${dagId}-${taskId}-${runId}-${mapIndex}-${tryNumber}.txt`;
     document.body.append(element);
     element.click();
   };
