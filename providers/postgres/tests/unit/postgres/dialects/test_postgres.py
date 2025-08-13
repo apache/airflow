@@ -19,8 +19,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from sqlalchemy.engine import Inspector
-
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.postgres.dialects.postgres import PostgresDialect
 
@@ -33,7 +31,12 @@ class TestPostgresDialect:
             assert "actors" in parameters, "Missing 'table' in parameters"
             if "kcu." in sql:
                 return [{"column_name": "id"}]
-            return [{"column_name": "id", "identity": True},{"column_name": "name"},{"column_name": "firstname"},{"column_name": "age"}]
+            return [
+                {"column_name": "id", "identity": True},
+                {"column_name": "name"},
+                {"column_name": "firstname"},
+                {"column_name": "age"}
+            ]
 
         self.test_db_hook = MagicMock(placeholder="?", spec=DbApiHook)
         self.test_db_hook.get_records.side_effect = get_records

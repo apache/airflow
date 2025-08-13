@@ -42,8 +42,9 @@ class PostgresDialect(Dialect):
         if schema is None:
             table, schema = self.extract_schema_from_table(table)
         pk_columns = [
-            row["column_name"] for row in self.get_records(
-                f"""
+            row["column_name"]
+            for row in self.get_records(
+                """
                   select kcu.column_name as column_name
                   from information_schema.table_constraints tco
                            join information_schema.key_column_usage kcu
@@ -55,7 +56,8 @@ class PostgresDialect(Dialect):
                     and kcu.table_name = %s
                   order by kcu.ordinal_position
                   """,
-                (self.unescape_word(schema), self.unescape_word(table)))
+                (self.unescape_word(schema), self.unescape_word(table))
+            )
         ]
         return pk_columns or None
 
@@ -70,7 +72,7 @@ class PostgresDialect(Dialect):
             for row in filter(
                 predicate,
                 self.get_records(
-                    f"""
+                    """
                         select column_name,
                                data_type,
                                is_nullable,
