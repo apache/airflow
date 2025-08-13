@@ -196,19 +196,19 @@ class AdbcHook(DbApiHook):
 
     def _run_command(self, cur, sql_statement, parameters):
         """Run a statement using an already open cursor."""
+        if parameters:
+            sql_statement = replace_placeholders(sql_statement, re.escape(self.dialect.placeholder))
+
+        super()._run_command(cur, sql_statement, parameters)
+
+    def _generate_insert_sql(self, table, values, target_fields=None, replace: bool = False, **kwargs) -> str:
+        sql_statement = super()._generate_insert_sql(table, values, target_fields=target_fields, replace=replace, **kwargs)
         sql_statement = replace_placeholders(sql_statement, re.escape(self.dialect.placeholder))
 
         if self.log_sql:
-            self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
+            self.log.info("Running statement: %s", sql_statement)
 
-        if parameters:
-            cur.execute(sql_statement, parameters)
-        else:
-            cur.execute(sql_statement)
-
-        # According to PEP 249, this is -1 when query result is not applicable.
-        if cur.rowcount >= 0:
-            self.log.info("Rows affected: %s", cur.rowcount)
+        return sql_statement
 
     def insert_rows(
         self,
@@ -258,8 +258,9 @@ class AdbcHook(DbApiHook):
             else:
                 table_schema = schema([field for field in table_schema if field.name in target_fields])
 
-            self.log.info("target fields: %s", target_fields)
-            self.log.info("table_schema: %s", table_schema)
+            if self.log_sql:
+                self.log.info("target fields: %s", target_fields)
+                self.log.info("table_schema: %s", table_schema)
 
             sql = self._generate_insert_sql(
                 table,
@@ -268,10 +269,6 @@ class AdbcHook(DbApiHook):
                 replace,
                 **kwargs
             )
-
-            sql = replace_placeholders(sql, re.escape(self.dialect.placeholder))
-
-            self.log.info("sql: %s", sql)
 
             def _to_record_batch(chunked_rows) -> RecordBatch:
                 return RecordBatch.from_arrays(
