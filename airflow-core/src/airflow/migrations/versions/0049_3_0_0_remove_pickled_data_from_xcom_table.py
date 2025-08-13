@@ -47,7 +47,7 @@ def upgrade():
     # 1. Create an archived table (`_xcom_archive`) to store the current "pickled" data in the xcom table
     # 2. Extract and archive the pickled data using the condition
     # 3. Delete the pickled data from the xcom table so that we can update the column type
-    # 4. Sanitize NaN values in JSON
+    # 4. Sanitize NaN values in JSON (convert to string)
     # 5. Update the XCom.value column type to JSON from LargeBinary/LongBlob
 
     conn = op.get_bind()
@@ -117,7 +117,7 @@ def upgrade():
         conn.execute(
             text("""
                 UPDATE xcom
-                SET value = convert_to(replace(convert_from(value, 'UTF8'), 'NaN', 'null'), 'UTF8')
+                SET value = convert_to(replace(convert_from(value, 'UTF8'), 'NaN', '"nan"'), 'UTF8')
                 WHERE value IS NOT NULL AND get_byte(value, 0) != 128
             """)
         )
@@ -136,7 +136,7 @@ def upgrade():
         conn.execute(
             text("""
                 UPDATE xcom
-                SET value = CONVERT(REPLACE(CONVERT(value USING utf8mb4), 'NaN', 'null') USING BINARY)
+                SET value = CONVERT(REPLACE(CONVERT(value USING utf8mb4), 'NaN', '"nan"') USING BINARY)
                 WHERE value IS NOT NULL AND HEX(SUBSTRING(value, 1, 1)) != '80'
             """)
         )
@@ -150,7 +150,7 @@ def upgrade():
         conn.execute(
             text("""
                 UPDATE xcom
-                SET value = CAST(REPLACE(CAST(value AS TEXT), 'NaN', 'null') AS BLOB)
+                SET value = CAST(REPLACE(CAST(value AS TEXT), 'NaN', '"nan"') AS BLOB)
                 WHERE value IS NOT NULL AND hex(substr(value, 1, 1)) != '80'
             """)
         )
