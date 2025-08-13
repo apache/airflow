@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-13T06:06:03.729667
+# This constraints file was automatically generated on 2025-08-13T09:16:31.161652
 # via `uv pip install --resolution highest` for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -271,7 +271,7 @@ click-repl==0.3.0
 click==8.1.8
 clickclick==20.10.2
 cloudpickle==3.0.0
-cohere==5.16.3
+cohere==5.17.0
 colorama==0.4.6
 colorful==0.5.7
 colorlog==6.9.0
