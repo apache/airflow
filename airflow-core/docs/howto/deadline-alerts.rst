@@ -19,11 +19,9 @@
 Deadline Alerts
 ===============
 
-The :class:`~airflow.sdk.definitions.deadline.DeadlineAlert` feature is the next evolution of
-the old SLA.  Deadline Alerts allow you to set time thresholds for your Dag runs and automatically
-respond when those thresholds are exceeded. You can set up Deadline Alerts by choosing a built-in
-reference point, setting an interval, and defining a response using either Airflow's Notifiers or
-a custom callback function.
+Deadline Alerts allow you to set time thresholds for your Dag runs and automatically respond when those
+thresholds are exceeded. You can set up Deadline Alerts by choosing a built-in reference point, setting
+an interval, and defining a response using either Airflow's Notifiers or a custom callback function.
 
 Creating a Deadline Alert
 -------------------------
