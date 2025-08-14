@@ -79,9 +79,15 @@ export const Gantt = ({ limit }: Props) => {
   const { colorMode } = useColorMode();
   const ref = useRef();
 
-  // Get theme-aware colors for grid lines
-  const [lightGridColor, darkGridColor] = useToken("colors", ["gray.200", "gray.800"]);
+  // Get theme-aware colors for grid lines and selection
+  const [lightGridColor, darkGridColor, lightSelectedColor, darkSelectedColor] = useToken("colors", [
+    "gray.200",
+    "gray.800",
+    "blue.200",
+    "blue.800",
+  ]);
   const gridColor = colorMode === "light" ? lightGridColor : darkGridColor;
+  const selectedItemColor = colorMode === "light" ? lightSelectedColor : darkSelectedColor;
 
   const { data: gridRuns, isLoading: runsLoading } = useGridRuns({ limit });
   const { data: dagStructure, isLoading: structureLoading } = useGridStructure({ limit });
@@ -180,8 +186,7 @@ export const Gantt = ({ limit }: Props) => {
                   ? []
                   : [
                       {
-                        backgroundColor: system.tokens.categoryMap.get("colors")?.get(`blue.300`)
-                          ?.value as string,
+                        backgroundColor: selectedItemColor,
                         borderWidth: 0,
                         drawTime: "beforeDatasetsDraw",
                         type: "box",
