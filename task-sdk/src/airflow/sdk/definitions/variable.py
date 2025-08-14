@@ -67,6 +67,12 @@ class Variable:
             log.exception(e)
 
     @classmethod
+    def update(
+        cls, key: str, value: Any, description: str | None = None, serialize_json: bool = False
+    ) -> None:
+        return cls.set(key, value, description, serialize_json=serialize_json)
+
+    @classmethod
     def delete(cls, key: str) -> None:
         from airflow.sdk.exceptions import AirflowRuntimeError
         from airflow.sdk.execution_time.context import _delete_variable
