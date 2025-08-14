@@ -317,12 +317,20 @@ class TestPatchDag(TestDagEndpoint):
     """Unit tests for Patch DAG."""
 
     @pytest.mark.parametrize(
-        "query_params, dag_id, body, expected_status_code, expected_is_paused, expected_tags",
+        "query_params, dag_id, body, expected_status_code, expected_is_paused, expected_tags, expected_display_name",
         [
-            ({}, "fake_dag_id", {"is_paused": True}, 404, None, []),
-            ({"update_mask": ["field_1", "is_paused"]}, DAG1_ID, {"is_paused": True}, 400, None, []),
-            ({}, DAG1_ID, {"is_paused": True}, 200, True, ["example", "tag_2"]),
-            ({}, DAG1_ID, {"is_paused": False}, 200, False, ["example", "tag_2"]),
+            ({}, "fake_dag_id", {"is_paused": True}, 404, None, [], "fake_dag_display_name"),
+            (
+                {"update_mask": ["field_1", "is_paused"]},
+                DAG1_ID,
+                {"is_paused": True},
+                400,
+                None,
+                [],
+                DAG1_DISPLAY_NAME,
+            ),
+            ({}, DAG1_ID, {"is_paused": True}, 200, True, ["example", "tag_2"], DAG1_DISPLAY_NAME),
+            ({}, DAG1_ID, {"is_paused": False}, 200, False, ["example", "tag_2"], DAG1_DISPLAY_NAME),
             (
                 {"update_mask": ["is_paused"]},
                 DAG1_ID,
@@ -330,6 +338,7 @@ class TestPatchDag(TestDagEndpoint):
                 200,
                 True,
                 ["example", "tag_2"],
+                DAG1_DISPLAY_NAME,
             ),
             (
                 {"update_mask": ["is_paused"]},
@@ -338,6 +347,7 @@ class TestPatchDag(TestDagEndpoint):
                 200,
                 False,
                 ["example", "tag_2"],
+                DAG1_DISPLAY_NAME,
             ),
         ],
     )
@@ -350,6 +360,7 @@ class TestPatchDag(TestDagEndpoint):
         expected_status_code,
         expected_is_paused,
         expected_tags,
+        expected_display_name,
         session,
     ):
         response = test_client.patch(f"/dags/{dag_id}", json=body, params=query_params)
@@ -366,6 +377,7 @@ class TestPatchDag(TestDagEndpoint):
             for tag in tags:
                 assert tag["name"] in expected_tags
                 assert tag["dag_id"] == dag_id
+                assert tag["dag_display_name"] == expected_display_name
 
     def test_patch_dag_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch(f"/dags/{DAG1_ID}", json={"is_paused": True})
