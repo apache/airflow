@@ -197,6 +197,7 @@ def get_extra_schemas() -> dict[str, dict]:
     """Get all the extra schemas that are not part of the main FastAPI app."""
     from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
     from airflow.executors.workloads import BundleInfo
+    from airflow.jobs.job import JobState
     from airflow.utils.state import TaskInstanceState, TerminalTIState
 
     return {
@@ -206,6 +207,7 @@ def get_extra_schemas() -> dict[str, dict]:
         # as that has different payload requirements
         "TerminalTIState": {"type": "string", "enum": list(TerminalTIState)},
         "TaskInstanceState": {"type": "string", "enum": list(TaskInstanceState)},
+        "JobState": {"type": "string", "enum": list(JobState)},
     }
 
 

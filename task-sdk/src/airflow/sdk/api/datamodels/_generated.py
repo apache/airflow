@@ -472,6 +472,13 @@ class TaskInstanceState(str, Enum):
     DEFERRED = "deferred"
 
 
+class JobState(str, Enum):
+    RUNNING = "running"
+    SUCCESS = "success"
+    RESTARTING = "restarting"
+    FAILED = "failed"
+
+
 class AssetEventDagRunReference(BaseModel):
     """
     Schema for AssetEvent model used in DagRun.
