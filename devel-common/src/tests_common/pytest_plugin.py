@@ -865,7 +865,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
     # This fixture is "called" early on in the pytest collection process, and
     # if we import airflow.* here the wrong (non-test) config will be loaded
     # and "baked" in to various constants
-    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
     want_serialized = False
     want_activate_assets = True  # Only has effect if want_serialized=True on Airflow 3.
@@ -887,7 +887,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             from airflow.models import DagBag
 
             # Keep all the serialized dags we've created in this test
-            self.dagbag = DagBag(os.devnull, include_examples=False, read_dags_from_db=False)
+            self.dagbag = DagBag(os.devnull, include_examples=False)
 
         def __enter__(self):
             self.serialized_model = None
@@ -926,8 +926,6 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
             from airflow.models.asset import AssetModel, DagScheduleAssetReference, TaskOutletAssetReference
-
-            from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
             if AIRFLOW_V_3_1_PLUS:
                 from airflow.models.asset import TaskInletAssetReference
@@ -1123,8 +1121,6 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             Returns the created TaskInstance.
             """
-            from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
-
             if dag_run is None:
                 if dag_run_kwargs is None:
                     dag_run_kwargs = {}
@@ -1155,14 +1151,14 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             return ti
 
         def sync_dagbag_to_db(self):
-            if not AIRFLOW_V_3_0_PLUS:
-                self.dagbag.sync_to_db()
-                return
+            if AIRFLOW_V_3_1_PLUS:
+                from airflow.models.dagbag import sync_bag_to_db
 
-            self.dagbag.sync_to_db(
-                self.bundle_name,
-                None,
-            )
+                sync_bag_to_db(self.dagbag, self.bundle_name, None)
+            elif AIRFLOW_V_3_0_PLUS:
+                self.dagbag.sync_to_db(self.bundle_name, None)
+            else:
+                self.dagbag.sync_to_db()
 
         def __call__(
             self,
@@ -1857,15 +1853,20 @@ def hook_lineage_collector():
 
 
 @pytest.fixture
-def clean_dags_and_dagruns():
+def clean_dags_dagruns_and_dagbundles():
     """Fixture that cleans the database before and after every test."""
-    from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+    from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
     clear_db_runs()
     clear_db_dags()
+    if AIRFLOW_V_3_0_PLUS:
+        clear_db_dag_bundles()
     yield  # Test runs here
     clear_db_dags()
     clear_db_runs()
+    if AIRFLOW_V_3_0_PLUS:
+        clear_db_dag_bundles()
 
 
 @pytest.fixture
@@ -2544,13 +2545,16 @@ def mock_xcom_backend():
 
 @pytest.fixture
 def testing_dag_bundle():
-    from airflow.models.dagbundle import DagBundleModel
-    from airflow.utils.session import create_session
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-    with create_session() as session:
-        if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
-            testing = DagBundleModel(name="testing")
-            session.add(testing)
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.models.dagbundle import DagBundleModel
+        from airflow.utils.session import create_session
+
+        with create_session() as session:
+            if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
+                testing = DagBundleModel(name="testing")
+                session.add(testing)
 
 
 @pytest.fixture

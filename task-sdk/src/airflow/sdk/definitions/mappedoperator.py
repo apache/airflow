@@ -21,7 +21,7 @@ import contextlib
 import copy
 import warnings
 from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeAlias, TypeGuard
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeGuard
 
 import attrs
 import methodtools
@@ -43,7 +43,7 @@ from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_WEIGHT_RULE,
     AbstractOperator,
     NotMapped,
-    TaskStateChangeCallback,
+    TaskStateChangeCallbackAttrType,
 )
 from airflow.sdk.definitions._internal.expandinput import (
     DictOfListsExpandInput,
@@ -64,19 +64,13 @@ if TYPE_CHECKING:
         OperatorExpandArgument,
         OperatorExpandKwargsArgument,
     )
-    from airflow.sdk.bases.operator import BaseOperator
-    from airflow.sdk.bases.operatorlink import BaseOperatorLink
+    from airflow.sdk import DAG, BaseOperator, BaseOperatorLink, Context, TaskGroup, XComArg
     from airflow.sdk.definitions._internal.expandinput import ExpandInput
-    from airflow.sdk.definitions.context import Context
-    from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.param import ParamsDict
-    from airflow.sdk.definitions.taskgroup import TaskGroup
-    from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.triggers.base import StartTriggerArgs
     from airflow.utils.operator_resources import Resources
     from airflow.utils.trigger_rule import TriggerRule
 
-TaskStateChangeCallbackAttrType: TypeAlias = TaskStateChangeCallback | list[TaskStateChangeCallback] | None
 ValidationSource = Literal["expand"] | Literal["partial"]
 
 
@@ -287,12 +281,7 @@ class OperatorPartial:
 class MappedOperator(AbstractOperator):
     """Object representing a mapped operator in a DAG."""
 
-    # This attribute serves double purpose. For a "normal" operator instance
-    # loaded from DAG, this holds the underlying non-mapped operator class that
-    # can be used to create an unmapped operator for execution. For an operator
-    # recreated from a serialized DAG, however, this holds the serialized data
-    # that can be used to unmap this into a SerializedBaseOperator.
-    operator_class: type[BaseOperator] | dict[str, Any]
+    operator_class: type[BaseOperator]
 
     _is_mapped: bool = attrs.field(init=False, default=True)
 
@@ -358,7 +347,7 @@ class MappedOperator(AbstractOperator):
             self.task_group.add(self)
         if self.dag:
             self.dag.add_task(self)
-        XComArg.apply_upstream_relationship(self, self.expand_input.value)
+        XComArg.apply_upstream_relationship(self, self._get_specified_expand_input().value)
         for k, v in self.partial_kwargs.items():
             if k in self.template_fields:
                 XComArg.apply_upstream_relationship(self, v)
@@ -389,11 +378,6 @@ class MappedOperator(AbstractOperator):
     @property
     def operator_name(self) -> str:
         return self._operator_name
-
-    @property
-    def inherits_from_empty_operator(self) -> bool:
-        """Implementing an empty Operator."""
-        return self._is_empty
 
     @property
     def roots(self) -> Sequence[AbstractOperator]:
@@ -743,50 +727,26 @@ class MappedOperator(AbstractOperator):
         """
         Get the "normal" Operator after applying the current mapping.
 
-        The *resolve* argument is only used if ``operator_class`` is a real
-        class, i.e. if this operator is not serialized. If ``operator_class`` is
-        not a class (i.e. this DAG has been deserialized), this returns a
-        SerializedBaseOperator that "looks like" the actual unmapping result.
-
         :meta private:
         """
-        if isinstance(self.operator_class, type):
-            if isinstance(resolve, Mapping):
-                kwargs = resolve
-            elif resolve is not None:
-                kwargs, _ = self._expand_mapped_kwargs(*resolve)
-            else:
-                raise RuntimeError("cannot unmap a non-serialized operator without context")
-            kwargs = self._get_unmap_kwargs(kwargs, strict=self._disallow_kwargs_override)
-            is_setup = kwargs.pop("is_setup", False)
-            is_teardown = kwargs.pop("is_teardown", False)
-            on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun", False)
-            kwargs["task_id"] = self.task_id
-            op = self.operator_class(**kwargs, _airflow_from_mapped=True)
-            op.is_setup = is_setup
-            op.is_teardown = is_teardown
-            op.on_failure_fail_dagrun = on_failure_fail_dagrun
-            op.downstream_task_ids = self.downstream_task_ids
-            op.upstream_task_ids = self.upstream_task_ids
-            return op
-
-        # TODO (GH-52141): Move this bottom part to the db-backed mapped operator implementation.
-
-        # After a mapped operator is serialized, there's no real way to actually
-        # unmap it since we've lost access to the underlying operator class.
-        # This tries its best to simply "forward" all the attributes on this
-        # mapped operator to a new SerializedBaseOperator instance.
-        from typing import cast
-
-        from airflow.serialization.serialized_objects import SerializedBaseOperator
-
-        sop = SerializedBaseOperator(task_id=self.task_id, params=self.params, _airflow_from_mapped=True)
-        for partial_attr, value in self.partial_kwargs.items():
-            setattr(sop, partial_attr, value)
-        SerializedBaseOperator.populate_operator(sop, self.operator_class)
-        if self.dag is not None:  # For Mypy; we only serialize tasks in a DAG so the check always satisfies.
-            SerializedBaseOperator.set_task_dag_references(sop, self.dag)  # type: ignore[arg-type]
-        return cast("BaseOperator", sop)
+        if isinstance(resolve, Mapping):
+            kwargs = resolve
+        elif resolve is not None:
+            kwargs, _ = self._expand_mapped_kwargs(*resolve)
+        else:
+            raise RuntimeError("cannot unmap a non-serialized operator without context")
+        kwargs = self._get_unmap_kwargs(kwargs, strict=self._disallow_kwargs_override)
+        is_setup = kwargs.pop("is_setup", False)
+        is_teardown = kwargs.pop("is_teardown", False)
+        on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun", False)
+        kwargs["task_id"] = self.task_id
+        op = self.operator_class(**kwargs, _airflow_from_mapped=True)
+        op.is_setup = is_setup
+        op.is_teardown = is_teardown
+        op.on_failure_fail_dagrun = on_failure_fail_dagrun
+        op.downstream_task_ids = self.downstream_task_ids
+        op.upstream_task_ids = self.upstream_task_ids
+        return op
 
     def _get_specified_expand_input(self) -> ExpandInput:
         """Input received from the expand call on the operator."""
@@ -798,6 +758,7 @@ class MappedOperator(AbstractOperator):
         # we don't need to create a copy of the MappedOperator here.
         return self
 
+    # TODO (GH-52141): Do we need this in the SDK?
     def iter_mapped_dependencies(self) -> Iterator[AbstractOperator]:
         """Upstream dependencies that provide XComs used by this task for task mapping."""
         from airflow.sdk.definitions.xcom_arg import XComArg

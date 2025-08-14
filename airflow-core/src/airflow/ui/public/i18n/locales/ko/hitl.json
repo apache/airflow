@@ -19,5 +19,6 @@
     "rejectionReceived": "거절 수신됨",
     "responseReceived": "응답 수신됨",
     "responseRequired": "응답 필요"
-  }
+  },
+  "subject": "제목"
 }
