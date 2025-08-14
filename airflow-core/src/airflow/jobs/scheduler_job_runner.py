@@ -169,6 +169,16 @@ def _is_parent_process() -> bool:
     return multiprocessing.current_process().name == "MainProcess"
 
 
+def _get_current_dr_task_concurrency(states: Iterable[TaskInstanceState]) -> Query:
+    """Get the dag_run IDs and how many tasks are in the provided states for each one."""
+    return (
+        select(TI.run_id, func.count("*").label("dr_count"))
+        .where(TI.state.in_(states))
+        .group_by(TI.run_id)
+        .subquery()
+    )
+
+
 class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     """
     SchedulerJobRunner runs for a specific time interval and schedules jobs that are ready to run.
@@ -307,17 +317,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.info("\n\t".join(map(repr, callstack)))
             self.log.info("-" * 80)
 
-    def __print_tis_selection(self, tis: list[TI]) -> None:
-        self.log.info("TaskInstance selection is: %s", dict(Counter(ti.dag_id for ti in tis)))
-
-    def __get_current_dr_concurrency(self, states: Iterable[TaskInstanceState]) -> Query:
-        return (
-            select(TI.run_id, func.count("*").label("dr_count"))
-            .where(TI.state.in_(states))
-            .group_by(TI.run_id)
-            .subquery()
-        )
-
     def _executable_task_instances_to_queued(self, max_tis: int, session: Session) -> list[TI]:
         """
         Find TIs that are ready for execution based on conditions.
@@ -389,7 +388,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             num_starved_tasks = len(starved_tasks)
             num_starved_tasks_task_dagrun_concurrency = len(starved_tasks_task_dagrun_concurrency)
 
-            dr_concurrency_subquery = self.__get_current_dr_concurrency(states=EXECUTION_STATES)
+            dr_task_concurrency_subquery = _get_current_dr_task_concurrency(states=EXECUTION_STATES)
 
             query = (
                 select(TI)
@@ -400,16 +399,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .where(~DM.is_paused)
                 .where(TI.state == TaskInstanceState.SCHEDULED)
                 .where(DM.bundle_name.is_not(None))
-                .join(dr_concurrency_subquery, TI.run_id == dr_concurrency_subquery.c.run_id, isouter=True)
-                .where(func.coalesce(dr_concurrency_subquery.c.dr_count, 0) < DM.max_active_tasks)
+                .join(
+                    dr_task_concurrency_subquery,
+                    TI.run_id == dr_task_concurrency_subquery.c.run_id,
+                    isouter=True,
+                )
+                .where(func.coalesce(dr_task_concurrency_subquery.c.dr_count, 0) < DM.max_active_tasks)
                 .options(selectinload(TI.dag_model))
                 .order_by(-TI.priority_weight, DR.logical_date, TI.map_index)
             )
 
             # Create a subquery with row numbers partitioned by run_id.
             #
-            # dag_id | task_id | priority_weight | rn
-            # -------|---------|-----------------|----
+            # dag_id | task_id | priority_weight | row_num
+            # -------|---------|-----------------|--------
             # dag1   | task1   | 100             | 1
             # dag1   | task22  | 90              | 2
             # dag1   | task5   | 80              | 3
@@ -424,12 +427,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         partition_by=TI.run_id,
                         order_by=[-TI.priority_weight, DR.logical_date, TI.map_index],
                     )
-                    .label("rn"),
+                    .label("row_num"),
                     DM.max_active_tasks.label("dr_max_active_tasks"),
                 )
             ).subquery()
 
-            # Select only rows where row_number <= per_dag_run_limit.
+            # Select only rows where row_number <= max_active_tasks.
             query = (
                 select(TI)
                 .select_from(ranked_query)
@@ -440,7 +443,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     & (TI.run_id == ranked_query.c.run_id)
                     & (TI.map_index == ranked_query.c.map_index),
                 )
-                .where(ranked_query.c.rn <= ranked_query.c.dr_max_active_tasks)
+                .where(ranked_query.c.row_num <= ranked_query.c.dr_max_active_tasks)
             )
 
             if starved_pools:
@@ -465,8 +468,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             try:
                 query = with_row_locks(query, of=TI, session=session, skip_locked=True)
                 task_instances_to_examine: list[TI] = session.scalars(query).all()
-                self.log.info("Length of the tis to examine is %d", len(task_instances_to_examine))
-                self.__print_tis_selection(task_instances_to_examine)
+
+                self.log.debug("Length of the tis to examine is %d", len(task_instances_to_examine))
+                self.log.debug(
+                    "TaskInstance selection is: %s",
+                    dict(Counter(ti.dag_id for ti in task_instances_to_examine)),
+                )
 
                 timer.stop(send=True)
             except OperationalError as e:
