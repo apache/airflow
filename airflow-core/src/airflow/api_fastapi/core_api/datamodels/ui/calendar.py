@@ -21,12 +21,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from airflow.version_compat import AIRFLOW_V_3_1_PLUS
-
-if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk.definitions.state import DagRunState
-else:
-    from airflow.utils.state import DagRunState  # type: ignore[no-redef]
+from airflow.utils.state import DagRunState
 
 
 class CalendarTimeRangeResponse(BaseModel):
