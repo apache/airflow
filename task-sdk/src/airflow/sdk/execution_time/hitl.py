@@ -27,7 +27,7 @@ from airflow.sdk.execution_time.comms import (
 )
 
 if TYPE_CHECKING:
-    from airflow.api_fastapi.execution_api.datamodels.hitl import HITLDetailResponse
+    from airflow.sdk.api.datamodels._generated import HITLDetailResponse
 
 
 def upsert_hitl_detail(
