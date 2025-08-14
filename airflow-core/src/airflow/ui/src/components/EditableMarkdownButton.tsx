@@ -71,11 +71,12 @@ const EditableMarkdownButton = ({
           <Box
             bg="blue.500"
             borderRadius="full"
-            height="2.5"
+            height={2.5}
             position="absolute"
-            right="-0.5"
-            top="-0.5"
-            width="2.5"
+            right={-0.5}
+            top={-0.5}
+            width={2.5}
+
             zIndex={1}
           />
         )}
