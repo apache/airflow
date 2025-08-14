@@ -310,11 +310,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def __print_tis_selection(self, tis: list[TI]) -> None:
         self.log.info("TaskInstance selection is: %s", dict(Counter(ti.dag_id for ti in tis)))
 
-    def __get_current_dag_concurrency(self, states: Iterable[TaskInstanceState]) -> Query:
+    def __get_current_dr_concurrency(self, states: Iterable[TaskInstanceState]) -> Query:
         return (
-            select(TI.dag_id, func.count("*").label("dag_count"))
+            select(TI.run_id, func.count("*").label("dr_count"))
             .where(TI.state.in_(states))
-            .group_by(TI.dag_id)
+            .group_by(TI.run_id)
             .subquery()
         )
 
@@ -389,7 +389,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             num_starved_tasks = len(starved_tasks)
             num_starved_tasks_task_dagrun_concurrency = len(starved_tasks_task_dagrun_concurrency)
 
-            dag_concurrency_subquery = self.__get_current_dag_concurrency(states=EXECUTION_STATES)
+            dr_concurrency_subquery = self.__get_current_dr_concurrency(states=EXECUTION_STATES)
 
             query = (
                 select(TI)
@@ -400,8 +400,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .where(~DM.is_paused)
                 .where(TI.state == TaskInstanceState.SCHEDULED)
                 .where(DM.bundle_name.is_not(None))
-                .join(dag_concurrency_subquery, TI.dag_id == dag_concurrency_subquery.c.dag_id, isouter=True)
-                .where(func.coalesce(dag_concurrency_subquery.c.dag_count, 0) < DM.max_active_tasks)
+                .join(dr_concurrency_subquery, TI.run_id == dr_concurrency_subquery.c.run_id, isouter=True)
+                .where(func.coalesce(dr_concurrency_subquery.c.dr_count, 0) < DM.max_active_tasks)
                 .options(selectinload(TI.dag_model))
             )
 
