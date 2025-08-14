@@ -142,7 +142,7 @@ def _update_hitl_detail(
                 status.HTTP_403_FORBIDDEN, f"User={user_id} is not a respondent for the task."
             )
 
-    hitl_detail_model.user_id = user_id
+    hitl_detail_model.user_id = user.get_id()
     hitl_detail_model.response_at = timezone.utcnow()
     hitl_detail_model.chosen_options = update_hitl_detail_payload.chosen_options
     hitl_detail_model.params_input = update_hitl_detail_payload.params_input
