@@ -48,7 +48,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.sdk import BaseOperator
-from airflow.sdk.bases.operator_resources import Resources
+from airflow.sdk.definitions.operator_resources import Resources
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
