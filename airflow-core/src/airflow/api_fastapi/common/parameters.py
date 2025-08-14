@@ -540,16 +540,16 @@ class RangeFilter(BaseParam[Range]):
             self.value.lower_bound is not None or self.value.upper_bound is not None
         )
 
+
 class _IsDagScheduledFilter(BaseParam[bool]):
     """Filter on timetable_description."""
 
     def to_orm(self, select: Select) -> Select:
-        if not self.value is None and self.skip_none:
+        if self.value is not None and self.skip_none:
             if not self.value:
-                return select.where(DagModel.timetable_description.ilike("%Never%"))
-            else:
-                return select.where(DagModel.timetable_description.not_like("%Never%"))
-            
+                return select.where(DagModel.timetable_description.ilike("Never%"))
+            return select.where(DagModel.timetable_description.not_like("Never%"))
+
         return select
 
     @classmethod
