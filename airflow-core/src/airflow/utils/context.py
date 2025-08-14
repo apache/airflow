@@ -114,8 +114,8 @@ class ConnectionAccessor(ConnectionAccessorSDK):
         return Connection.get_connection_from_secrets(conn_id)
 
     def get(self, conn_id: str, default_conn: Any = None) -> Any:
-        from airflow.exceptions import AirflowNotFoundException
         from airflow.models.connection import Connection
+        from airflow.sdk.exceptions import AirflowNotFoundException
 
         try:
             return Connection.get_connection_from_secrets(conn_id)

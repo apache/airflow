@@ -33,13 +33,12 @@ import attrs
 import methodtools
 
 from airflow.configuration import conf
-from airflow.exceptions import (
-    AirflowException,
+from airflow.sdk.definitions._internal.node import DAGNode, validate_group_key
+from airflow.sdk.exceptions import (
+    AirflowDagCycleException,
     DuplicateTaskIdFound,
     TaskAlreadyInTaskGroup,
 )
-from airflow.sdk.definitions._internal.node import DAGNode, validate_group_key
-from airflow.sdk.exceptions import AirflowDagCycleException
 from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
@@ -260,7 +259,7 @@ class TaskGroup(DAGNode):
                     )
                 task.dag = self.dag
             if task.children:
-                raise AirflowException("Cannot add a non-empty TaskGroup")
+                raise RuntimeError("Cannot add a non-empty TaskGroup")
 
         self.children[key] = task
         return task
@@ -317,7 +316,7 @@ class TaskGroup(DAGNode):
             # Handles setting relationship between a TaskGroup and a task
             for task in other.roots:
                 if not isinstance(task, DAGNode):
-                    raise AirflowException(
+                    raise RuntimeError(
                         "Relationships can only be set between TaskGroup "
                         f"or operators; received {task.__class__.__name__}"
                     )

@@ -19,10 +19,10 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow.exceptions import AirflowSkipException
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.utils.weekday import WeekDay
 from airflow.sdk import chain, dag, task
+from airflow.sdk.exceptions import AirflowSkipException
 from airflow.utils.trigger_rule import TriggerRule
 
 

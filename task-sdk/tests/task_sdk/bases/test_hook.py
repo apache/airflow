@@ -19,9 +19,8 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.exceptions import AirflowNotFoundException
 from airflow.sdk import BaseHook
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.exceptions import AirflowNotFoundException, ErrorType
 from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse, GetConnection
 
 from tests_common.test_utils.config import conf_vars
