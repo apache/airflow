@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
+import { Box, useToken } from "@chakra-ui/react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -39,6 +39,7 @@ import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
+import { useColorMode } from "src/context/colorMode";
 import { useOpenGroups } from "src/context/openGroups";
 import { useTimezone } from "src/context/timezone";
 import { flattenNodes } from "src/layouts/Details/Grid/utils";
@@ -75,7 +76,12 @@ export const Gantt = ({ limit }: Props) => {
   const { openGroupIds } = useOpenGroups();
   const { t: translate } = useTranslation("common");
   const { selectedTimezone } = useTimezone();
+  const { colorMode } = useColorMode();
   const ref = useRef();
+
+  // Get theme-aware colors for grid lines
+  const [lightGridColor, darkGridColor] = useToken("colors", ["gray.200", "gray.800"]);
+  const gridColor = colorMode === "light" ? lightGridColor : darkGridColor;
 
   const { data: gridRuns, isLoading: runsLoading } = useGridRuns({ limit });
   const { data: dagStructure, isLoading: structureLoading } = useGridStructure({ limit });
@@ -215,6 +221,10 @@ export const Gantt = ({ limit }: Props) => {
           responsive: true,
           scales: {
             x: {
+              grid: {
+                color: gridColor,
+                display: true,
+              },
               max: formatDate(selectedRun?.end_date, selectedTimezone),
               min: formatDate(selectedRun?.start_date, selectedTimezone),
               position: "top",
@@ -230,6 +240,7 @@ export const Gantt = ({ limit }: Props) => {
             },
             y: {
               grid: {
+                color: gridColor,
                 display: true,
               },
               stacked: true,
