@@ -121,12 +121,6 @@ export const Grid = ({ limit }: Props) => {
     tasks: flatNodes,
   });
 
-  useEffect(() => {
-    if (gridRef.current && gridRuns && flatNodes.length > 0) {
-      setGridFocus(true);
-    }
-  }, [gridRuns, flatNodes.length, setGridFocus]);
-
   return (
     <Flex
       _focus={{

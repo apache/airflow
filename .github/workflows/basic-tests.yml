@@ -258,9 +258,11 @@ jobs:
           python-version: ${{steps.breeze.outputs.host-python-version}}
           skip-pre-commits: ${{ inputs.skip-pre-commits }}
       - name: "Autoupdate all pre-commits"
-        run: pre-commit autoupdate
+        run: pre-commit autoupdate --freeze
       - name: "Autoupdate Lucas-C/pre-commit-hooks to bleeding edge"
         run: pre-commit autoupdate --bleeding-edge --freeze --repo https://github.com/Lucas-C/pre-commit-hooks
+      - name: "Check if there are any changes in pre-commit hooks"
+        run: git diff --exit-code
       - name: "Run automated upgrade for black"
         run: >
           pre-commit run

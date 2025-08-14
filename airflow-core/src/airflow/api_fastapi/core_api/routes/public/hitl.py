@@ -28,10 +28,12 @@ from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessE
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     QueryHITLDetailBodySearch,
+    QueryHITLDetailDagIdFilter,
     QueryHITLDetailDagIdPatternSearch,
     QueryHITLDetailDagRunIdFilter,
     QueryHITLDetailResponseReceivedFilter,
     QueryHITLDetailSubjectSearch,
+    QueryHITLDetailTaskIdFilter,
     QueryHITLDetailTaskIdPatternSearch,
     QueryHITLDetailUserIdFilter,
     QueryLimit,
@@ -301,9 +303,11 @@ def get_hitl_details(
     session: SessionDep,
     # ti related filter
     readable_ti_filter: ReadableTIFilterDep,
+    dag_id: QueryHITLDetailDagIdFilter,
     dag_id_pattern: QueryHITLDetailDagIdPatternSearch,
     dag_run_id: QueryHITLDetailDagRunIdFilter,
-    task_id: QueryHITLDetailTaskIdPatternSearch,
+    task_id: QueryHITLDetailTaskIdFilter,
+    task_id_pattern: QueryHITLDetailTaskIdPatternSearch,
     ti_state: QueryTIStateFilter,
     # hitl detail related filter
     response_received: QueryHITLDetailResponseReceivedFilter,
@@ -322,9 +326,11 @@ def get_hitl_details(
         filters=[
             # ti related filter
             readable_ti_filter,
+            dag_id,
             dag_id_pattern,
             dag_run_id,
             task_id,
+            task_id_pattern,
             ti_state,
             # hitl detail related filter
             response_received,

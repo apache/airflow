@@ -27,6 +27,7 @@
   "backfill_zero": "لا يوجد أي إعادة ملء",
   "browse": {
     "auditLog": "سجل المراجعة",
+    "requiredActions": "إجراءات مطلوبة",
     "xcoms": "(XComs) إكس كوم"
   },
   "collapseDetailsPanel": "طي لوحة التفاصيل",
@@ -84,6 +85,7 @@
   "dagRun_other": "مثيلات تشغيل لDag",
   "dagRun_two": "مثيلا تشغيل لDag",
   "dagRun_zero": "لا يوجد أي مثيل تشغيل لDag",
+  "dagRunId": "معرف تشغيل الDag",
   "dagWarnings": "تحذيرات الDag",
   "defaultToGraphView": "عرض الرسم البياني تلقائياً",
   "defaultToGridView": "عرض الشبكة تلقائياً",
