@@ -1154,6 +1154,14 @@ class BulkUpdateActionBulkTaskInstanceBody(BaseModel):
     entities: Annotated[
         list[BulkTaskInstanceBody], Field(description="A list of entities to be updated.", title="Entities")
     ]
+    update_mask: Annotated[
+        list[str] | None,
+        Field(
+            description="A list of field names to update for each entity. Only these fields will be applied from the request body to the database model. Any extra fields provided will be ignored.",
+            examples=[["value"], ["description"], ["value", "description"]],
+            title="Update Mask",
+        ),
+    ] = None
     action_on_non_existence: BulkActionNotOnExistence | None = "fail"
 
 
@@ -1167,6 +1175,14 @@ class BulkUpdateActionConnectionBody(BaseModel):
     entities: Annotated[
         list[ConnectionBody], Field(description="A list of entities to be updated.", title="Entities")
     ]
+    update_mask: Annotated[
+        list[str] | None,
+        Field(
+            description="A list of field names to update for each entity. Only these fields will be applied from the request body to the database model. Any extra fields provided will be ignored.",
+            examples=[["value"], ["description"], ["value", "description"]],
+            title="Update Mask",
+        ),
+    ] = None
     action_on_non_existence: BulkActionNotOnExistence | None = "fail"
 
 
@@ -1180,6 +1196,14 @@ class BulkUpdateActionPoolBody(BaseModel):
     entities: Annotated[
         list[PoolBody], Field(description="A list of entities to be updated.", title="Entities")
     ]
+    update_mask: Annotated[
+        list[str] | None,
+        Field(
+            description="A list of field names to update for each entity. Only these fields will be applied from the request body to the database model. Any extra fields provided will be ignored.",
+            examples=[["value"], ["description"], ["value", "description"]],
+            title="Update Mask",
+        ),
+    ] = None
     action_on_non_existence: BulkActionNotOnExistence | None = "fail"
 
 
@@ -1193,6 +1217,14 @@ class BulkUpdateActionVariableBody(BaseModel):
     entities: Annotated[
         list[VariableBody], Field(description="A list of entities to be updated.", title="Entities")
     ]
+    update_mask: Annotated[
+        list[str] | None,
+        Field(
+            description="A list of field names to update for each entity. Only these fields will be applied from the request body to the database model. Any extra fields provided will be ignored.",
+            examples=[["value"], ["description"], ["value", "description"]],
+            title="Update Mask",
+        ),
+    ] = None
     action_on_non_existence: BulkActionNotOnExistence | None = "fail"
 
 
