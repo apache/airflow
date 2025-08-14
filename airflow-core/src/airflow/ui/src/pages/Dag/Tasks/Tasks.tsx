@@ -38,25 +38,6 @@ const cardDef = (dagId: string): CardDef<TaskResponse> => ({
   },
 });
 
-const getFilterCount: ({
-  selectedOperators,
-  selectedTriggerRules,
-}: {
-  selectedOperators: Array<string> | undefined;
-  selectedTriggerRules: Array<string> | undefined;
-}) => number = ({ selectedOperators, selectedTriggerRules }) => {
-  let count = 0;
-
-  if (Array.isArray(selectedOperators) && selectedOperators.length > 0) {
-    count += 1;
-  }
-  if (Array.isArray(selectedTriggerRules) && selectedTriggerRules.length > 0) {
-    count += 1;
-  }
-
-  return count;
-};
-
 export const Tasks = () => {
   const { t: translate } = useTranslation();
   const { dagId = "" } = useParams();
@@ -82,7 +63,6 @@ export const Tasks = () => {
   const allTriggerRules: Array<string> = [
     ...new Set(data?.tasks.map((task) => task.trigger_rule).filter((item) => item !== null) ?? []),
   ];
-  const filterCount = getFilterCount({ selectedOperators, selectedTriggerRules });
 
   const filterTasks = (
     tasks: Array<TaskResponse>,
@@ -95,7 +75,6 @@ export const Tasks = () => {
         (triggerRuleNames.length === 0 || triggerRuleNames.includes(task.trigger_rule as string)),
     );
 
-  // debugger;
   const filteredTasks = filterTasks(
     data ? data.tasks : [],
     selectedOperators ?? [],
@@ -123,7 +102,7 @@ export const Tasks = () => {
           values={allTriggerRules}
         />
         <Box>
-          <ResetButton filterCount={filterCount} onClearFilters={onClearFilters} />
+          <ResetButton filterCount={2} onClearFilters={onClearFilters} />
         </Box>
       </HStack>
 
