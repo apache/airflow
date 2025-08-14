@@ -235,7 +235,7 @@ class BuildProdParams(CommonBuildParams):
         self._req_arg("DOCKER_CONTEXT_FILES", self.docker_context_files)
         self._req_arg("INSTALL_DISTRIBUTIONS_FROM_CONTEXT", self.install_distributions_from_context)
         self._req_arg("INSTALL_POSTGRES_CLIENT", self.install_postgres_client)
-        self._req_arg("PYTHON_BASE_IMAGE", self.python_base_image)
+        self._req_arg("BASE_IMAGE", self.python_base_image)
         self._req_arg(
             "AIRFLOW_PYTHON_VERSION", ALL_PYTHON_VERSION_TO_PATCH_VERSION.get(self.python, self.python)
         )

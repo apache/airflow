@@ -31,8 +31,9 @@ export DOCKER_BUILDKIT=1
 
 docker build . \
     --pull \
-    --build-arg PYTHON_BASE_IMAGE="python:3.10-slim-bookworm" \
+    --build-arg BASE_IMAGE="debian:bookworm-slim" \
     --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
+    --build-arg AIRFLOW_PYTHON_VERSION="v3.10.10" \
     --build-arg ADDITIONAL_PYTHON_DEPS="mpi4py==3.1.6" \
     --build-arg ADDITIONAL_DEV_APT_DEPS="libopenmpi-dev" \
     --build-arg ADDITIONAL_RUNTIME_APT_DEPS="openmpi-common" \
