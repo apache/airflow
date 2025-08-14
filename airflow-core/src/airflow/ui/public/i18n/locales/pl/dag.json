@@ -40,7 +40,7 @@
     "warning": "WARNING"
   },
   "navigation": {
-    "jump": "Strona: Shift+{{arrow}}",
+    "jump": "Przeskocz: Shift+{{arrow}}",
     "navigation": "Przewijanie: {{arrow}}",
     "toggleGroup": "Przełącz grupę: Space"
   },
