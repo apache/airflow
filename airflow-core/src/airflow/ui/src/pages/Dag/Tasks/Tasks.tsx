@@ -38,12 +38,12 @@ const cardDef = (dagId: string): CardDef<TaskResponse> => ({
   },
 });
 
-const getFilterCount: ({ selectedOperator }: { selectedOperator: string | null | undefined }) => number = ({
-  selectedOperator,
+const getFilterCount: ({ selectedOperators }: { selectedOperators: Array<string> | undefined }) => number = ({
+  selectedOperators,
 }) => {
   let count = 0;
 
-  if (Boolean(selectedOperator)) {
+  if (Array.isArray(selectedOperators) && selectedOperators.length > 0) {
     count += 1;
   }
 
@@ -53,7 +53,7 @@ const getFilterCount: ({ selectedOperator }: { selectedOperator: string | null |
 export const Tasks = () => {
   const { t: translate } = useTranslation();
   const { dagId = "" } = useParams();
-  const [selectedOperator, setSelectedOperator] = useState<string | undefined>(undefined);
+  const [selectedOperators, setSelectedOperators] = useState<Array<string> | undefined>(undefined);
   const {
     data,
     error: tasksError,
@@ -63,20 +63,29 @@ export const Tasks = () => {
     dagId,
   });
 
-  const filterTasks = (tasks: Array<TaskResponse>, operatorName: string | undefined) =>
-    // debugger;
-    Boolean(operatorName) ? tasks.filter((task: TaskResponse) => task.operator_name === operatorName) : tasks;
-
   const onClearFilters = () => {
-    setSelectedOperator(undefined);
+    setSelectedOperators(undefined);
   };
 
-  const handleOperatorSelect = (value: { value: Array<string> }) => {
-    setSelectedOperator(value.value[0] as string | undefined);
+  const handleOperatorSelect = (values: Array<string>) => {
+    setSelectedOperators(values);
   };
-  const operatorNames: Array<string> =
-    data?.tasks.map((task) => task.operator_name).filter((item) => item !== null) ?? [];
-  const filterCount = getFilterCount({ selectedOperator });
+  const allOperatorNames: Array<string> = [
+    ...new Set(data?.tasks.map((task) => task.operator_name).filter((item) => item !== null) ?? []),
+  ];
+  const filterCount = getFilterCount({ selectedOperators });
+
+  const filterTasks = (tasks: Array<TaskResponse>, operatorNames: Array<string>) => {
+    // debugger;
+    const filtered =
+      operatorNames.length > 0
+        ? tasks.filter((task: TaskResponse) => operatorNames.includes(task.operator_name as string))
+        : tasks;
+
+    return filtered;
+  };
+  // debugger;
+  const filteredTasks = filterTasks(data ? data.tasks : [], selectedOperators ?? []);
 
   return (
     <Box>
@@ -89,8 +98,8 @@ export const Tasks = () => {
         <AttrSelectFilter
           handleSelect={handleOperatorSelect}
           placeholderText={translate("selectOperator")}
-          selectedValue={selectedOperator}
-          values={operatorNames}
+          selectedValues={selectedOperators}
+          values={allOperatorNames}
         />
 
         <Box>
@@ -101,7 +110,7 @@ export const Tasks = () => {
       <DataTable
         cardDef={cardDef(dagId)}
         columns={[]}
-        data={filterTasks(data ? data.tasks : [], selectedOperator)}
+        data={filteredTasks}
         displayMode="card"
         isFetching={isFetching}
         isLoading={isLoading}

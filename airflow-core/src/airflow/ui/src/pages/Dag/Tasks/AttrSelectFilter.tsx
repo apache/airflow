@@ -17,29 +17,37 @@
  * under the License.
  */
 import { type CollectionItem, createListCollection } from "@chakra-ui/react";
+import type { SelectValueChangeDetails } from "@chakra-ui/react";
 
 import { Select } from "src/components/ui";
 
 type Props = {
-  readonly handleSelect: (value: CollectionItem) => void;
+  readonly handleSelect: (values: Array<CollectionItem>) => void;
   readonly placeholderText: string;
-  readonly selectedValue: string | undefined;
+  readonly selectedValues: Array<string> | undefined;
   readonly values: Array<string> | undefined;
 };
 
-export const AttrSelectFilter = ({ handleSelect, placeholderText, selectedValue, values }: Props) => {
+export const AttrSelectFilter = ({ handleSelect, placeholderText, selectedValues, values }: Props) => {
   const thingCollection = createListCollection({ items: values ?? [] });
+
+  const handleValueChange = (details: SelectValueChangeDetails) => {
+    if (Array.isArray(details.value)) {
+      handleSelect(details.value);
+    }
+  };
 
   return (
     <Select.Root
       collection={thingCollection}
       maxW="200px"
-      onValueChange={handleSelect}
-      value={selectedValue === undefined ? [] : [selectedValue]}
+      multiple
+      onValueChange={handleValueChange}
+      value={selectedValues}
     >
       <Select.Trigger colorPalette="blue" minW="max-content">
         <Select.ValueText placeholder={placeholderText} width="auto">
-          {() => selectedValue}
+          {() => selectedValues?.join(", ") ?? undefined}
         </Select.ValueText>
       </Select.Trigger>
       <Select.Content>
