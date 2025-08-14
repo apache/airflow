@@ -90,6 +90,7 @@ from tests_common.test_utils.config import conf_vars, env_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_backfills,
+    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_deadline,
     clear_db_import_errors,
@@ -5873,7 +5874,7 @@ class TestSchedulerJob:
         assert ti1.next_method == "__fail__"
         assert ti2.state == State.DEFERRED
 
-    def test_retry_on_db_error_when_update_timeout_triggers(self, dag_maker, session):
+    def test_retry_on_db_error_when_update_timeout_triggers(self, dag_maker, testing_dag_bundle, session):
         """
         Tests that it will retry on DB error like deadlock when updating timeout triggers.
         """
@@ -5913,8 +5914,9 @@ class TestSchedulerJob:
                 # Create a Task Instance for the task that is allegedly deferred
                 # but past its timeout, and one that is still good.
                 # We don't actually need a linked trigger here; the code doesn't check.
-                dag.sync_to_db()
-                SerializedDagModel.write_dag(dag=dag, bundle_name="testing")
+                bundle_name = "testing"
+                DAG.bulk_write_to_db(bundle_name, None, [dag])
+                SerializedDagModel.write_dag(dag=dag, bundle_name=bundle_name)
                 session.flush()
                 dr1 = dag_maker.create_dagrun()
                 dr2 = dag_maker.create_dagrun(
@@ -6813,6 +6815,7 @@ class TestSchedulerJobQueriesCount:
         clear_db_pools()
         clear_db_backfills()
         clear_db_dags()
+        clear_db_dag_bundles()
         clear_db_import_errors()
         clear_db_jobs()
         clear_db_serialized_dags()
