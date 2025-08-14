@@ -429,6 +429,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
                     .label("row_num"),
                     DM.max_active_tasks.label("dr_max_active_tasks"),
+                    # Create columns for the order_by checks here for sqlite.
+                    TI.priority_weight.label("priority_weight_for_ordering"),
+                    DR.logical_date.label("logical_date_for_ordering"),
+                    TI.map_index.label("map_index_for_ordering"),
                 )
             ).subquery()
 
@@ -444,6 +448,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     & (TI.map_index == ranked_query.c.map_index),
                 )
                 .where(ranked_query.c.row_num <= ranked_query.c.dr_max_active_tasks)
+                # Add the order_by columns from the ranked query for sqlite.
+                .order_by(
+                    -ranked_query.c.priority_weight_for_ordering,
+                    ranked_query.c.logical_date_for_ordering,
+                    ranked_query.c.map_index_for_ordering,
+                )
             )
 
             if starved_pools:
