@@ -46,17 +46,7 @@ __deprecated_classes = {
         "timeout": "airflow.sdk.execution_time.timeout.timeout",
     },
     "operator_resources": {
-        "Resources": "airflow.sdk.definitions.operator_resources.Resources",
-        "Resource": "airflow.sdk.definitions.operator_resources.Resource",
-        "MB": "airflow.sdk.definitions.operator_resources.MB",
-        "GB": "airflow.sdk.definitions.operator_resources.GB",
-        "TB": "airflow.sdk.definitions.operator_resources.TB",
-        "PB": "airflow.sdk.definitions.operator_resources.PB",
-        "EB": "airflow.sdk.definitions.operator_resources.EB",
-        "CpuResource": "airflow.sdk.definitions.operator_resources.CpuResource",
-        "RamResource": "airflow.sdk.definitions.operator_resources.RamResource",
-        "DiskResource": "airflow.sdk.definitions.operator_resources.DiskResource",
-        "GpuResource": "airflow.sdk.definitions.operator_resources.GpuResource",
+        "*": "airflow.sdk.definitions.operator_resources",
     },
 }
 
