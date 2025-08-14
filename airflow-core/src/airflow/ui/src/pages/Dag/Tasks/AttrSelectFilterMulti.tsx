@@ -28,7 +28,7 @@ type Props = {
   readonly values: Array<string> | undefined;
 };
 
-export const AttrSelectFilter = ({ handleSelect, placeholderText, selectedValues, values }: Props) => {
+export const AttrSelectFilterMulti = ({ handleSelect, placeholderText, selectedValues, values }: Props) => {
   const thingCollection = createListCollection({ items: values ?? [] });
 
   const handleValueChange = (details: SelectValueChangeDetails) => {

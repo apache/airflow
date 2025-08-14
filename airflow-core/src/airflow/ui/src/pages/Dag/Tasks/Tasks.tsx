@@ -26,7 +26,7 @@ import type { TaskResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import type { CardDef } from "src/components/DataTable/types";
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { AttrSelectFilter } from "src/pages/Dag/Tasks/AttrSelectFilter.tsx";
+import { AttrSelectFilterMulti } from "src/pages/Dag/Tasks/AttrSelectFilterMulti.tsx";
 import { ResetButton } from "src/pages/DagsList/DagsFilters/ResetButton.tsx";
 
 import { TaskCard } from "./TaskCard";
@@ -95,13 +95,12 @@ export const Tasks = () => {
       </Heading>
 
       <HStack justifyContent="space-between">
-        <AttrSelectFilter
+        <AttrSelectFilterMulti
           handleSelect={handleOperatorSelect}
           placeholderText={translate("selectOperator")}
           selectedValues={selectedOperators}
           values={allOperatorNames}
         />
-
         <Box>
           <ResetButton filterCount={filterCount} onClearFilters={onClearFilters} />
         </Box>
