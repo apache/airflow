@@ -43,17 +43,17 @@ from airflow.jobs.triggerer_job_runner import (
     messages,
 )
 from airflow.models import DagModel, DagRun, TaskInstance, Trigger
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.variable import Variable
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
-from airflow.sdk import BaseHook
+from airflow.sdk import BaseHook, BaseOperator
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
 from airflow.utils.state import State, TaskInstanceState
@@ -94,6 +94,8 @@ def clean_database():
 
 def create_trigger_in_db(session, trigger, operator=None):
     bundle_name = "testing"
+    session.merge(DagBundleModel(name=bundle_name))
+    session.flush()
     dag_model = DagModel(dag_id="test_dag", bundle_name=bundle_name)
     dag = DAG(dag_id=dag_model.dag_id, schedule="@daily", start_date=pendulum.datetime(2023, 1, 1))
     date = pendulum.datetime(2023, 1, 1)
@@ -1020,7 +1022,7 @@ def test_update_triggers_prevents_duplicate_creation_queue_entries(session, supe
     if they are already queued for creation.
     """
     trigger = TimeDeltaTrigger(datetime.timedelta(days=7))
-    dag_model, run, trigger_orm, task_instance = create_trigger_in_db(session, trigger)
+    _, _, trigger_orm, _ = create_trigger_in_db(session, trigger)
 
     supervisor = supervisor_builder()
 
@@ -1053,7 +1055,7 @@ def test_update_triggers_prevents_duplicate_creation_queue_entries_with_multiple
     trigger1 = TimeDeltaTrigger(datetime.timedelta(days=7))
     trigger2 = TimeDeltaTrigger(datetime.timedelta(days=14))
 
-    dag_model1, run1, trigger_orm1, task_instance1 = create_trigger_in_db(session, trigger1)
+    _, _, trigger_orm1, _ = create_trigger_in_db(session, trigger1)
 
     with dag_maker("test_dag_2"):
         EmptyOperator(task_id="test_ti_2")
