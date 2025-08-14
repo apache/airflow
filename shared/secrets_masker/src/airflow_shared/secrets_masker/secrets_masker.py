@@ -149,7 +149,11 @@ def merge(
 @cache
 def _secrets_masker() -> SecretsMasker:
     for flt in logging.getLogger("airflow.task").filters:
-        if isinstance(flt, SecretsMasker):
+        # Use class name comparison instead of isinstance() to handle module instance mismatch.
+        # When using symlinks, the same class can be imported via different module paths
+        # (e.g., airflow._shared vs airflow.sdk._shared), creating different class objects
+        # that fail isinstance() checks even though they're functionally identical.
+        if type(flt).__name__ == "SecretsMasker":
             return flt
     raise RuntimeError(
         "Logging Configuration Error! No SecretsMasker found! If you have custom logging, please make "
