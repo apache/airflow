@@ -3078,6 +3078,7 @@ export type UpdateXcomEntryData = {
     dagRunId: string;
     requestBody: XComUpdateBody;
     taskId: string;
+    updateMask?: Array<(string)> | null;
     xcomKey: string;
 };
 
