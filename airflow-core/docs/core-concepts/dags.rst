@@ -835,9 +835,9 @@ Deadline Alerts
 
 .. versionadded:: 3.1
 
-Deadline Alerts allow you to set time thresholds for your DAG runs and automatically respond when those
+Deadline Alerts allow you to set time thresholds for your Dag runs and automatically respond when those
 thresholds are exceeded. You can set deadlines relative to a fixed datetime, use one of the available
-calculated references (like DAG queue time or start time), or implement your own custom reference.
+calculated references (like Dag queue time or start time), or implement your own custom reference.
 When a deadline is exceeded, it triggers a callback which can notify you or take other actions.
 
 Here's a simple example using the existing email Notifier:
@@ -856,13 +856,13 @@ Here's a simple example using the existing email Notifier:
             interval=timedelta(minutes=30),
             callback=SmtpNotifier(
                 to="team@example.com",
-                subject="[Alert] DAG {{ dag.dag_id }} exceeded time threshold",
-                html_content="The DAG has been running for more than 30 minutes since being queued.",
+                subject="[Alert] Dag {{ dag.dag_id }} exceeded time threshold",
+                html_content="The Dag has been running for more than 30 minutes since being queued.",
             ),
         ),
     ):
         EmptyOperator(task_id="task1")
 
-This example will send an email notification if the DAG hasn't finished 30 minutes after it was queued.
+This example will send an email notification if the Dag hasn't finished 30 minutes after it was queued.
 
 For more information on implementing and configuring Deadline Alerts, see :doc:`/howto/deadline-alerts`.

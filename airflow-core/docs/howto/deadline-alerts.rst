@@ -165,8 +165,8 @@ Creating Custom Callbacks
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 You can create custom callbacks for more complex handling. The ``kwargs`` specified in the ``Callback``
-are passed to the callback function, if any are provided.  **Synchronous callbacks** (standard python
-methods) can be defined in the dag bundle and are run in the Executor.  **Asynchronous callbacks** must
+are passed to the callback function, if any are provided. **Synchronous callbacks** (standard python
+methods) can be defined in the dag bundle and are run in the Executor. **Asynchronous callbacks** must
 be defined somewhere in the Triggerer's system path.
 
 .. note::
