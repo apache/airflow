@@ -16,7 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {Heading, Skeleton, Box, type CollectionItem, HStack} from "@chakra-ui/react";
+import { Heading, Skeleton, Box, HStack } from "@chakra-ui/react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
@@ -25,11 +26,10 @@ import type { TaskResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import type { CardDef } from "src/components/DataTable/types";
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { useState } from "react";
+import { AttrSelectFilter } from "src/pages/Dag/Tasks/AttrSelectFilter.tsx";
+import { ResetButton } from "src/pages/DagsList/DagsFilters/ResetButton.tsx";
 
 import { TaskCard } from "./TaskCard";
-import {AttrSelectFilter} from "src/pages/Dag/Tasks/AttrSelectFilter.tsx";
-import {ResetButton} from "src/pages/DagsList/DagsFilters/ResetButton.tsx";
 
 const cardDef = (dagId: string): CardDef<TaskResponse> => ({
   card: ({ row }) => <TaskCard dagId={dagId} task={row} />,
@@ -38,22 +38,22 @@ const cardDef = (dagId: string): CardDef<TaskResponse> => ({
   },
 });
 
-const getFilterCount = ({ selectedOperator }) => {
+const getFilterCount: ({ selectedOperator }: { selectedOperator: string | null | undefined }) => number = ({
+  selectedOperator,
+}) => {
   let count = 0;
 
-  if (selectedOperator !== undefined) {
+  if (Boolean(selectedOperator)) {
     count += 1;
   }
 
   return count;
 };
 
-
-
 export const Tasks = () => {
   const { t: translate } = useTranslation();
   const { dagId = "" } = useParams();
-  const [selectedOperator, setSelectedOperator] = useState();
+  const [selectedOperator, setSelectedOperator] = useState<string | undefined>(undefined);
   const {
     data,
     error: tasksError,
@@ -63,19 +63,20 @@ export const Tasks = () => {
     dagId,
   });
 
-  const filterTasks = (tasks: Array<TaskResponse>) =>
+  const filterTasks = (tasks: Array<TaskResponse>, operatorName: string | undefined) =>
     // debugger;
-     selectedOperator ? tasks.filter((task: TaskResponse) => task.operator_name === selectedOperator) : tasks
+    Boolean(operatorName) ? tasks.filter((task: TaskResponse) => task.operator_name === operatorName) : tasks;
 
   const onClearFilters = () => {
-    setSelectedOperator(undefined)
+    setSelectedOperator(undefined);
   };
 
-  const handleOperatorSelect = (value: { value: Array<string>}) => {
-    setSelectedOperator(value.value[0] as string | undefined)
-  }
-  const operatorNames: Array<string> = data?.tasks.map((task) => (task.operator_name)).filter(item => item !== null)
-  const filterCount = getFilterCount({selectedOperator})
+  const handleOperatorSelect = (value: { value: Array<string> }) => {
+    setSelectedOperator(value.value[0] as string | undefined);
+  };
+  const operatorNames: Array<string> =
+    data?.tasks.map((task) => task.operator_name).filter((item) => item !== null) ?? [];
+  const filterCount = getFilterCount({ selectedOperator });
 
   return (
     <Box>
@@ -85,22 +86,22 @@ export const Tasks = () => {
       </Heading>
 
       <HStack justifyContent="space-between">
-      <AttrSelectFilter
-        handleSelect={handleOperatorSelect}
-        placeholderText={translate("selectOperator")}
-        selectedValue={selectedOperator}
-        values={operatorNames}
-      />
+        <AttrSelectFilter
+          handleSelect={handleOperatorSelect}
+          placeholderText={translate("selectOperator")}
+          selectedValue={selectedOperator}
+          values={operatorNames}
+        />
 
-      <Box>
-        <ResetButton filterCount={filterCount} onClearFilters={onClearFilters} />
-      </Box>
+        <Box>
+          <ResetButton filterCount={filterCount} onClearFilters={onClearFilters} />
+        </Box>
       </HStack>
 
       <DataTable
         cardDef={cardDef(dagId)}
         columns={[]}
-        data={filterTasks(data ? data.tasks : [])}
+        data={filterTasks(data ? data.tasks : [], selectedOperator)}
         displayMode="card"
         isFetching={isFetching}
         isLoading={isLoading}

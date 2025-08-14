@@ -16,47 +16,39 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { type CollectionItem, createListCollection } from "@chakra-ui/react";
 
-import {Select} from "src/components/ui";
-import {type CollectionItem, createListCollection} from "@chakra-ui/react";
+import { Select } from "src/components/ui";
 
 type Props = {
   readonly handleSelect: (value: CollectionItem) => void;
   readonly placeholderText: string;
   readonly selectedValue: string | undefined;
-  readonly values: Array<string>;
+  readonly values: Array<string> | undefined;
 };
 
-
-export const AttrSelectFilter = ({
-  handleSelect,
-  placeholderText,
-  selectedValue,
-  values,
-}: Props) => {
-
-  const thingCollection = createListCollection({items: values ?? []})
+export const AttrSelectFilter = ({ handleSelect, placeholderText, selectedValue, values }: Props) => {
+  const thingCollection = createListCollection({ items: values ?? [] });
 
   return (
-  <Select.Root
-    collection={thingCollection}
-    maxW="200px"
-    onValueChange={handleSelect}
-    value={selectedValue === undefined ? [] : [selectedValue]}
-  >
-    <Select.Trigger colorPalette="blue" minW="max-content" >
-      <Select.ValueText placeholder={placeholderText} width="auto">
-        {() => selectedValue}
-      </Select.ValueText>
-    </Select.Trigger>
-    <Select.Content>
-      {thingCollection.items.map((option) => (
-        <Select.Item item={option} key={option}>
-          {option}
-        </Select.Item>
-      ))}
-    </Select.Content>
-  </Select.Root>
-
-    );
+    <Select.Root
+      collection={thingCollection}
+      maxW="200px"
+      onValueChange={handleSelect}
+      value={selectedValue === undefined ? [] : [selectedValue]}
+    >
+      <Select.Trigger colorPalette="blue" minW="max-content">
+        <Select.ValueText placeholder={placeholderText} width="auto">
+          {() => selectedValue}
+        </Select.ValueText>
+      </Select.Trigger>
+      <Select.Content>
+        {thingCollection.items.map((option) => (
+          <Select.Item item={option} key={option}>
+            {option}
+          </Select.Item>
+        ))}
+      </Select.Content>
+    </Select.Root>
+  );
 };
