@@ -238,9 +238,9 @@ export const Gantt = ({ limit }: Props) => {
               ticks: {
                 align: "start",
                 callback: (value) => formatDate(value, selectedTimezone, "HH:mm:ss"),
-                maxRotation: 10,
+                maxRotation: 8,
                 maxTicksLimit: 8,
-                minRotation: 10,
+                minRotation: 8,
               },
               type: "time",
             },
@@ -257,6 +257,9 @@ export const Gantt = ({ limit }: Props) => {
           },
         }}
         ref={ref}
+        style={{
+          paddingTop: data.length === 1 ? 14.5 : 1.5,
+        }}
       />
     </Box>
   );
