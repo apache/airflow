@@ -53,7 +53,7 @@ Bug Fixes
 - Fix ``AttributeError`` when reading logs for previous task attempts with ``TaskInstanceHistory`` (#54114)
 - Skip database queries for spans and metrics when tracing/metrics are disabled (#54404)
 - UI: Fix Graph view edge rendering issues for nested task groups with excessive bends and misalignment (#54412)
-- Allow database downgrade from Airflow 3.x to 2.11 (#54399)
+- Allow database downgrade from Airflow 3.x to 2.11 (#54399, #54508)
 - Reduce excessive warning logs when multiple deferred tasks are queued in triggerer (#54441)
 - Fix log retrieval failures for in-progress tasks by properly configuring JWT authentication (#54444)
 - Fix DAG import errors for invalid access control roles to persist consistently in UI (#54432)
