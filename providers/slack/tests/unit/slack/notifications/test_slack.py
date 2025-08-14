@@ -28,6 +28,7 @@ pytestmark = pytest.mark.db_test
 
 DEFAULT_HOOKS_PARAMETERS = {"base_url": None, "timeout": None, "proxy": None, "retry_handlers": None}
 
+ICON_URL = "https://raw.githubusercontent.com/apache/airflow/main/airflow-core/src/airflow/ui/public/pin_100.png"
 
 class TestSlackNotifier:
     @mock.patch("airflow.providers.slack.notifications.slack.SlackHook")
@@ -64,8 +65,7 @@ class TestSlackNotifier:
                 "channel": "#general",
                 "username": "Airflow",
                 "text": "test",
-                "icon_url": "https://raw.githubusercontent.com/apache/airflow/main/airflow-core"
-                "/src/airflow/ui/public/pin_100.png",
+                "icon_url": ICON_URL,
                 "attachments": "[]",
                 "blocks": "[]",
                 "unfurl_links": True,
@@ -87,8 +87,7 @@ class TestSlackNotifier:
                 "channel": "#general",
                 "username": "Airflow",
                 "text": "test",
-                "icon_url": "https://raw.githubusercontent.com/apache/airflow/main/airflow-core"
-                "/src/airflow/ui/public/pin_100.png",
+                "icon_url": ICON_URL,
                 "attachments": "[]",
                 "blocks": "[]",
                 "unfurl_links": True,
@@ -114,8 +113,7 @@ class TestSlackNotifier:
                 "channel": "#test-test_slack_notifier",
                 "username": "Airflow",
                 "text": "test Airflow",
-                "icon_url": "https://raw.githubusercontent.com/apache/airflow/main/airflow-core"
-                "/src/airflow/ui/public/pin_100.png",
+                "icon_url": ICON_URL,
                 "attachments": '[{"image_url": "test_slack_notifier.png"}]',
                 "blocks": "[]",
                 "unfurl_links": True,
@@ -140,8 +138,7 @@ class TestSlackNotifier:
                 "channel": "#general",
                 "username": "Airflow",
                 "text": "test",
-                "icon_url": "https://raw.githubusercontent.com/apache/airflow/main/airflow-core"
-                "/src/airflow/ui/public/pin_100.png",
+                "icon_url": ICON_URL,
                 "attachments": "[]",
                 "blocks": "[]",
                 "unfurl_links": False,
