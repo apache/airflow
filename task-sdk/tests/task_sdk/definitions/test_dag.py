@@ -24,7 +24,7 @@ from typing import Any
 
 import pytest
 
-from airflow.exceptions import DuplicateTaskIdFound, RemovedInAirflow4Warning
+from airflow.sdk.exceptions import DuplicateTaskIdFound, RemovedInAirflow4Warning
 from airflow.sdk import Context, Label, TaskGroup
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions.dag import DAG, dag as dag_decorator

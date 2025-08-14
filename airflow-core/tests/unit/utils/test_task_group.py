@@ -34,6 +34,7 @@ from airflow.sdk import (
     teardown,
 )
 from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.sdk.exceptions import TaskAlreadyInTaskGroup
 from airflow.utils.dag_edges import dag_edges
 
 from unit.models import DEFAULT_DATE

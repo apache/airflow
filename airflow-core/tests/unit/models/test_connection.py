@@ -24,9 +24,9 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+from airflow.sdk.exceptions import AirflowNotFoundException, AirflowRuntimeError, ErrorType
 from airflow.sdk.execution_time.comms import ErrorResponse
 
 from tests_common.test_utils.db import clear_db_connections
