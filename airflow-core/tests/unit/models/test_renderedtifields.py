@@ -403,6 +403,7 @@ class TestRenderedTaskInstanceFields:
                 "cwd": "val 3",
             }
 
+    @pytest.mark.execution_timeout(120)
     def test_rtif_deletion_stale_data_error(self, dag_maker, session):
         """
         Here we verify bad behavior.  When we rerun a task whose RTIF
