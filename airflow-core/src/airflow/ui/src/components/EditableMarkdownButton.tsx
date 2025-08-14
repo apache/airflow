@@ -77,7 +77,6 @@ const EditableMarkdownButton = ({
             top={-0.5}
             width={2.5}
 
-            zIndex={1}
           />
         )}
       </Box>
