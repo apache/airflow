@@ -33,11 +33,12 @@ from sqlalchemy_utils import UUIDType
 
 from airflow._shared.secrets_masker import mask_secret
 from airflow.configuration import ensure_secrets_loaded
-from airflow.exceptions import AirflowException, AirflowNotFoundException
+from airflow.exceptions import AirflowException
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
 from airflow.models.team import Team
 from airflow.sdk import SecretCache
+from airflow.sdk.exceptions import AirflowNotFoundException
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string

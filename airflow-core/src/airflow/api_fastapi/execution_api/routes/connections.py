@@ -23,8 +23,8 @@ from fastapi import APIRouter, Depends, HTTPException, Path, status
 
 from airflow.api_fastapi.execution_api.datamodels.connection import ConnectionResponse
 from airflow.api_fastapi.execution_api.deps import JWTBearerDep
-from airflow.exceptions import AirflowNotFoundException
 from airflow.models.connection import Connection
+from airflow.sdk.exceptions import AirflowNotFoundException
 
 
 async def has_connection_access(
