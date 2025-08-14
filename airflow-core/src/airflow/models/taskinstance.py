@@ -87,6 +87,7 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComSelectSequence, XComModel
+from airflow.sdk.definitions._internal.expandinput import NotFullyPopulated
 from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
@@ -1861,7 +1862,7 @@ class TaskInstance(Base, LoggingMixin):
                         for upstream in task.upstream_list
                     },
                 )
-        except NotMapped:
+        except (NotMapped, NotFullyPopulated):
             pass
 
         return context
@@ -2275,6 +2276,19 @@ class TaskInstance(Base, LoggingMixin):
                     / 1_000_000
                 ),
             }
+        )
+
+    @classmethod
+    def get_current_max_mapping(cls, dag_id: str, task_id: str, run_id: str, session: Session) -> int:
+        return max(
+            session.scalar(
+                select(func.max(TaskInstance.map_index)).where(
+                    TaskInstance.dag_id == dag_id,
+                    TaskInstance.task_id == task_id,
+                    TaskInstance.run_id == run_id,
+                )
+            ),
+            0,
         )
 
 

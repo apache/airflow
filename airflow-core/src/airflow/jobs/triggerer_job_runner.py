@@ -45,6 +45,7 @@ from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
 from airflow.models.trigger import Trigger
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
+from airflow.sdk.definitions import enable_lazy_task_expansion
 from airflow.sdk.execution_time.comms import (
     CommsDecoder,
     ConnectionResult,
@@ -159,12 +160,19 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             sys.exit(os.EX_SOFTWARE)
 
     def _execute(self) -> int | None:
+        from airflow.jobs.expand_task_job_runner import task_expansion_run
+
         self.log.info("Starting the triggerer")
         try:
             # Kick off runner sub-process without DB access
             self.trigger_runner = TriggerRunnerSupervisor.start(
                 job=self.job, capacity=self.capacity, logger=log
             )
+
+            if enable_lazy_task_expansion:
+                task_expansion_run(
+                    self.job.heartrate, self.trigger_runner
+                )  # TODO: job shouldn't be started here
 
             # Run the main DB comms loop in this process
             self.trigger_runner.run()
