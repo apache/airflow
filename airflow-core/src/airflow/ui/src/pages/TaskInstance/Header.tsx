@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Box } from "@chakra-ui/react";
-import { useCallback, useRef, useState, useEffect } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiMessageSquare } from "react-icons/fi";
 import { MdOutlineTask } from "react-icons/md";
@@ -64,9 +64,7 @@ export const Header = ({
 
   const [note, setNote] = useState<string | null>(taskInstance.note);
 
-  useEffect(() => {
-    setNote(taskInstance.note);
-  }, [taskInstance.note]);
+  const hasContent = Boolean(taskInstance.note?.trim());
 
   const dagId = taskInstance.dag_id;
   const dagRunId = taskInstance.dag_run_id;
@@ -105,12 +103,12 @@ export const Header = ({
               header={translate("note.taskInstance")}
               icon={<FiMessageSquare />}
               isPending={isPending}
-              mdContent={note}
+              mdContent={taskInstance.note}
               onConfirm={onConfirm}
               onOpen={onOpen}
               placeholder={translate("note.placeholder")}
               setMdContent={setNote}
-              text={Boolean(taskInstance.note) ? translate("note.label") : translate("note.add")}
+              text={hasContent ? translate("note.label") : translate("note.add")}
               withText={containerWidth > 700}
             />
             <ClearTaskInstanceButton

@@ -17,7 +17,7 @@
  * under the License.
  */
 import { HStack, Text, Box } from "@chakra-ui/react";
-import { useCallback, useState, useRef, useEffect } from "react";
+import { useCallback, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { FiBarChart, FiMessageSquare } from "react-icons/fi";
 
@@ -43,9 +43,7 @@ export const Header = ({
   const { t: translate } = useTranslation();
   const [note, setNote] = useState<string | null>(dagRun.note);
 
-  useEffect(() => {
-    setNote(dagRun.note);
-  }, [dagRun.note]);
+  const hasContent = Boolean(dagRun.note?.trim());
 
   const dagId = dagRun.dag_id;
   const dagRunId = dagRun.dag_run_id;
@@ -81,12 +79,12 @@ export const Header = ({
               header={translate("note.dagRun")}
               icon={<FiMessageSquare />}
               isPending={isPending}
-              mdContent={note}
+              mdContent={dagRun.note}
               onConfirm={onConfirm}
               onOpen={onOpen}
               placeholder={translate("note.placeholder")}
               setMdContent={setNote}
-              text={Boolean(dagRun.note) ? translate("note.label") : translate("note.add")}
+              text={hasContent ? translate("note.label") : translate("note.add")}
               withText={containerWidth > 700}
             />
             <ClearRunButton dagRun={dagRun} isHotkeyEnabled withText={containerWidth > 700} />
