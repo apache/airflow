@@ -198,7 +198,7 @@ def task_maker(dag_maker, session, dag_id: str, task_num: int, max_active_tasks:
     tis_list = []
     for i in range(task_num):
         task_tis[f"ti{i}"] = dag_run.get_task_instance(dag_tasks[f"op{i}"].task_id, session)
-        # add
+        # Add to the list.
         tis_list.append(task_tis[f"ti{i}"])
 
     for ti in tis_list:
@@ -1127,7 +1127,7 @@ class TestSchedulerJob:
             ("core", "default_pool_task_slot_count"): "64",
         }
     )
-    def test_per_dr_limit_during_task_queueing(self, dag_maker, mock_executors):
+    def test_per_dr_limit_applied_in_task_query(self, dag_maker, mock_executors):
         scheduler_job = Job()
         scheduler_job.executor.parallelism = 100
         scheduler_job.executor.slots_available = 70
