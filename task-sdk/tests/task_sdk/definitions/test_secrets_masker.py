@@ -30,6 +30,7 @@ from unittest.mock import patch
 import pytest
 
 from airflow.models import Connection
+from airflow.sdk.api.datamodels._generated import JobState
 from airflow.sdk.execution_time.secrets_masker import (
     RedactedIO,
     SecretsMasker,
@@ -39,7 +40,7 @@ from airflow.sdk.execution_time.secrets_masker import (
     reset_secrets_masker,
     should_hide_value_for_key,
 )
-from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
 
