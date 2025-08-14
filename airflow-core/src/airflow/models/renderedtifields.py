@@ -236,7 +236,6 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
                     self.run_id,
                     self.map_index,
                 )
-                # Don't re-raise the error, just continue
                 return
             # Re-raise other integrity errors
             raise
