@@ -96,10 +96,9 @@ def clean_database():
 def create_trigger_in_db(session, trigger, operator=None):
     bundle_name = "testing"
 
-    if session.query(DagBundleModel).filter(DagBundleModel.name == bundle_name).count() == 0:
-        testing_bundle = DagBundleModel(name=bundle_name)
-        session.add(testing_bundle)
-        session.flush()
+    testing_bundle = DagBundleModel(name=bundle_name)
+    session.merge(testing_bundle)
+    session.flush()
 
     dag_model = DagModel(dag_id="test_dag", bundle_name=bundle_name)
     dag = DAG(dag_id=dag_model.dag_id, schedule="@daily", start_date=pendulum.datetime(2023, 1, 1))
