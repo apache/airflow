@@ -1889,7 +1889,7 @@ class DagModel(Base):
     # associated zip.
     fileloc = Column(String(2000))
     relative_fileloc = Column(String(2000))
-    bundle_name = Column(StringID(), ForeignKey("dag_bundle.name"), nullable=True)
+    bundle_name = Column(StringID(), ForeignKey("dag_bundle.name"), nullable=False)
     # The version of the bundle the last time the DAG was processed
     bundle_version = Column(String(200), nullable=True)
     # String representing the owners
