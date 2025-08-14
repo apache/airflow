@@ -786,11 +786,12 @@ class DAG:
         """
         from typing import TypeGuard
 
+        from airflow.models.mappedoperator import MappedOperator as DbMappedOperator
         from airflow.sdk.definitions.mappedoperator import MappedOperator
         from airflow.serialization.serialized_objects import SerializedBaseOperator
 
         def is_task(obj) -> TypeGuard[Operator]:
-            if isinstance(obj, SerializedBaseOperator):
+            if isinstance(obj, (DbMappedOperator, SerializedBaseOperator)):
                 return True  # TODO (GH-52141): Split DAG implementation to straight this up.
             return isinstance(obj, (BaseOperator, MappedOperator))
 

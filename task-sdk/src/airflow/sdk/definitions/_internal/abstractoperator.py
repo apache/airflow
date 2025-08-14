@@ -26,7 +26,7 @@ from collections.abc import (
     Iterable,
     Iterator,
 )
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias
 
 import methodtools
 
@@ -50,6 +50,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.taskgroup import MappedTaskGroup
 
 TaskStateChangeCallback = Callable[[Context], None]
+TaskStateChangeCallbackAttrType: TypeAlias = TaskStateChangeCallback | list[TaskStateChangeCallback] | None
 
 DEFAULT_OWNER: str = conf.get_mandatory_value("operators", "default_owner")
 DEFAULT_POOL_SLOTS: int = 1
@@ -154,10 +155,6 @@ class AbstractOperator(Templater, DAGNode):
     def operator_name(self) -> str:
         raise NotImplementedError()
 
-    @property
-    def inherits_from_empty_operator(self) -> bool:
-        raise NotImplementedError()
-
     _is_sensor: bool = False
     _is_mapped: bool = False
     _can_skip_downstream: bool = False
@@ -215,6 +212,14 @@ class AbstractOperator(Templater, DAGNode):
                 f"'{self.task_id}' because it is not a teardown task."
             )
         self._on_failure_fail_dagrun = value
+
+    @property
+    def inherits_from_empty_operator(self):
+        """Used to determine if an Operator is inherited from EmptyOperator."""
+        # This looks like `isinstance(self, EmptyOperator) would work, but this also
+        # needs to cope when `self` is a Serialized instance of a EmptyOperator or one
+        # of its subclasses (which don't inherit from anything but BaseOperator).
+        return getattr(self, "_is_empty", False)
 
     @property
     def inherits_from_skipmixin(self):

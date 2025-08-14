@@ -46,9 +46,7 @@ from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallback
 from airflow.exceptions import AirflowException, SerializationError, TaskDeferred
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, _get_model_data_interval
-from airflow.models.expandinput import (
-    create_expand_input,
-)
+from airflow.models.expandinput import create_expand_input
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.xcom import XComModel
 from airflow.models.xcom_arg import SchedulerXComArg, deserialize_xcom_arg
@@ -102,14 +100,13 @@ from airflow.utils.types import NOTSET, ArgNotSet
 if TYPE_CHECKING:
     from inspect import Parameter
 
-    from sqlalchemy.orm import Session
-
     from airflow.models import DagRun
     from airflow.models.expandinput import SchedulerExpandInput
     from airflow.models.mappedoperator import MappedOperator as SchedulerMappedOperator
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk import DAG as SdkDag, BaseOperatorLink
     from airflow.serialization.json_schema import Validator
+    from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
     from airflow.triggers.base import BaseEventTrigger
     from airflow.typing_compat import Self
@@ -126,7 +123,7 @@ if TYPE_CHECKING:
     SchedulerOperator: TypeAlias = "SchedulerMappedOperator | SerializedBaseOperator"
     SdkOperator: TypeAlias = BaseOperator | MappedOperator
 
-DEFAULT_OPERATOR_DEPS = frozenset(
+DEFAULT_OPERATOR_DEPS: frozenset[BaseTIDep] = frozenset(
     (
         NotInRetryPeriodDep(),
         PrevDagrunDep(),
@@ -612,12 +609,12 @@ class BaseSerialization:
     SERIALIZER_VERSION = 2
 
     @classmethod
-    def to_json(cls, var: DAG | SerializedBaseOperator | dict | list | set | tuple) -> str:
+    def to_json(cls, var: DAG | SchedulerOperator | dict | list | set | tuple) -> str:
         """Stringify DAGs and operators contained by var and returns a JSON string of var."""
         return json.dumps(cls.to_dict(var), ensure_ascii=True)
 
     @classmethod
-    def to_dict(cls, var: DAG | SerializedBaseOperator | dict | list | set | tuple) -> dict:
+    def to_dict(cls, var: DAG | SchedulerOperator | dict | list | set | tuple) -> dict:
         """Stringify DAGs and operators contained by var and returns a dict of var."""
         # Don't call on this class directly - only SerializedDAG or
         # SerializedBaseOperator should be used as the "entrypoint"
@@ -672,8 +669,8 @@ class BaseSerialization:
     @classmethod
     def serialize_to_json(
         cls,
-        # TODO (GH-52141): When can we remove SerializedBaseOperator here?
-        object_to_serialize: BaseOperator | MappedOperator | SerializedBaseOperator | SdkDag,
+        # TODO (GH-52141): When can we remove scheduler constructs here?
+        object_to_serialize: SdkOperator | SchedulerOperator | SdkDag | DAG,
         decorated_fields: set,
     ) -> dict[str, Any]:
         """Serialize an object to JSON."""
@@ -721,6 +718,8 @@ class BaseSerialization:
 
         :meta private:
         """
+        from airflow.models.mappedoperator import MappedOperator as SchedulerMappedOperator
+
         if cls._is_primitive(var):
             # enum.IntEnum is an int instance, it causes json dumps error so we use its value.
             if isinstance(var, enum.Enum):
@@ -760,9 +759,9 @@ class BaseSerialization:
             return cls._encode(DeadlineAlert.serialize_deadline_alert(var), type_=DAT.DEADLINE_ALERT)
         elif isinstance(var, Resources):
             return var.to_dict()
-        elif isinstance(var, MappedOperator):
+        elif isinstance(var, (MappedOperator, SchedulerMappedOperator)):
             return cls._encode(SerializedBaseOperator.serialize_mapped_operator(var), type_=DAT.OP)
-        elif isinstance(var, BaseOperator):
+        elif isinstance(var, (BaseOperator, SerializedBaseOperator)):
             var._needs_expansion = var.get_needs_expansion()
             return cls._encode(SerializedBaseOperator.serialize_operator(var), type_=DAT.OP)
         elif isinstance(var, cls._datetime_types):
@@ -1253,6 +1252,13 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         self.deps = DEFAULT_OPERATOR_DEPS
         self._operator_name: str | None = None
 
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, (SerializedBaseOperator, BaseOperator)):
+            return NotImplemented
+        return self.task_type == other.task_type and all(
+            getattr(self, c, None) == getattr(other, c, None) for c in BaseOperator._comps
+        )
+
     @property
     def node_id(self) -> str:
         return self.task_id
@@ -1353,7 +1359,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         raise AttributeError(f"'{self.task_type}' object has no attribute '{name}'")
 
     @classmethod
-    def serialize_mapped_operator(cls, op: MappedOperator) -> dict[str, Any]:
+    def serialize_mapped_operator(cls, op: MappedOperator | SchedulerMappedOperator) -> dict[str, Any]:
         serialized_op = cls._serialize_node(op)
         # Handle expand_input and op_kwargs_expand_input.
         expansion_kwargs = op._get_specified_expand_input()
@@ -1379,11 +1385,11 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         return serialized_op
 
     @classmethod
-    def serialize_operator(cls, op: BaseOperator | MappedOperator) -> dict[str, Any]:
+    def serialize_operator(cls, op: SdkOperator | SchedulerOperator) -> dict[str, Any]:
         return cls._serialize_node(op)
 
     @classmethod
-    def _serialize_node(cls, op: BaseOperator | MappedOperator) -> dict[str, Any]:
+    def _serialize_node(cls, op: SdkOperator | SchedulerOperator) -> dict[str, Any]:
         """Serialize operator into a JSON object."""
         serialize_op = cls.serialize_to_json(op, cls._decorated_fields)
 
@@ -1443,11 +1449,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         return serialize_op
 
     @classmethod
-    def populate_operator(
-        cls,
-        op: SchedulerMappedOperator | SerializedBaseOperator,
-        encoded_op: dict[str, Any],
-    ) -> None:
+    def populate_operator(cls, op: SchedulerOperator, encoded_op: dict[str, Any]) -> None:
         """
         Populate operator attributes with serialized values.
 
@@ -1611,12 +1613,9 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
             dag.task_dict[task_id].upstream_task_ids.add(task.task_id)
 
     @classmethod
-    def deserialize_operator(
-        cls,
-        encoded_op: dict[str, Any],
-    ) -> SchedulerMappedOperator | SerializedBaseOperator:
+    def deserialize_operator(cls, encoded_op: dict[str, Any]) -> SchedulerOperator:
         """Deserializes an operator from a JSON object."""
-        op: SchedulerMappedOperator | SerializedBaseOperator
+        op: SchedulerOperator
         if encoded_op.get("_is_mapped", False):
             # Most of these will be loaded later, these are just some stand-ins.
             op_data = {k: v for k, v in encoded_op.items() if k in BaseOperator.get_serialized_fields()}
@@ -1630,26 +1629,18 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
             op = SchedulerMappedOperator(
                 operator_class=op_data,
-                expand_input=EXPAND_INPUT_EMPTY,
-                partial_kwargs={},
                 task_id=encoded_op["task_id"],
-                params={},
                 operator_extra_links=BaseOperator.operator_extra_links,
                 template_ext=BaseOperator.template_ext,
                 template_fields=BaseOperator.template_fields,
                 template_fields_renderers=BaseOperator.template_fields_renderers,
                 ui_color=BaseOperator.ui_color,
                 ui_fgcolor=BaseOperator.ui_fgcolor,
-                is_empty=False,
                 is_sensor=encoded_op.get("_is_sensor", False),
                 can_skip_downstream=encoded_op.get("_can_skip_downstream", False),
                 task_module=encoded_op["_task_module"],
                 task_type=encoded_op["task_type"],
                 operator_name=operator_name,
-                dag=None,
-                task_group=None,
-                start_date=None,
-                end_date=None,
                 disallow_kwargs_override=encoded_op["_disallow_kwargs_override"],
                 expand_input_attr=encoded_op["_expand_input_attr"],
                 start_trigger_args=encoded_op.get("start_trigger_args", None),
@@ -1754,7 +1745,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
     def inherits_from_skipmixin(self) -> bool:
         return self._can_skip_downstream
 
-    def expand_start_from_trigger(self, *, context: Context, session: Session) -> bool:
+    def expand_start_from_trigger(self, *, context: Context) -> bool:
         """
         Get the start_from_trigger value of the current abstract operator.
 
@@ -2409,7 +2400,11 @@ class LazyDeserializedDAG(pydantic.BaseModel):
 
 @attrs.define()
 class XComOperatorLink(LoggingMixin):
-    """A generic operator link class that can retrieve link only using XCOMs. Used while deserializing operators."""
+    """
+    Generic operator link class that can retrieve link only using XCOMs.
+
+    Used while deserializing operators.
+    """
 
     name: str
     xcom_key: str
@@ -2450,12 +2445,10 @@ def create_scheduler_operator(op: BaseOperator | SerializedBaseOperator) -> Seri
 def create_scheduler_operator(op: MappedOperator | SchedulerMappedOperator) -> SchedulerMappedOperator: ...
 
 
-def create_scheduler_operator(
-    op: BaseOperator | MappedOperator | SerializedBaseOperator | SchedulerMappedOperator,
-) -> SerializedBaseOperator | SchedulerMappedOperator:
+def create_scheduler_operator(op: SdkOperator | SchedulerOperator) -> SchedulerOperator:
     from airflow.models.mappedoperator import MappedOperator as SchedulerMappedOperator
 
-    if isinstance(op, (SchedulerMappedOperator, SerializedBaseOperator)):
+    if isinstance(op, (SerializedBaseOperator, SchedulerMappedOperator)):
         return op
     if isinstance(op, BaseOperator):
         d = SerializedBaseOperator.serialize_operator(op)

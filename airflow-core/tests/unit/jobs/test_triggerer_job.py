@@ -61,6 +61,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import (
     clear_db_connections,
+    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_runs,
     clear_db_variables,
@@ -79,18 +80,21 @@ def clean_database():
     clear_db_connections()
     clear_db_runs()
     clear_db_dags()
+    clear_db_dag_bundles()
     clear_db_xcom()
     clear_db_variables()
     yield  # Test runs here
     clear_db_connections()
     clear_db_runs()
     clear_db_dags()
+    clear_db_dag_bundles()
     clear_db_xcom()
     clear_db_variables()
 
 
 def create_trigger_in_db(session, trigger, operator=None):
-    dag_model = DagModel(dag_id="test_dag")
+    bundle_name = "testing"
+    dag_model = DagModel(dag_id="test_dag", bundle_name=bundle_name)
     dag = DAG(dag_id=dag_model.dag_id, schedule="@daily", start_date=pendulum.datetime(2023, 1, 1))
     date = pendulum.datetime(2023, 1, 1)
     run = DagRun(
@@ -107,7 +111,7 @@ def create_trigger_in_db(session, trigger, operator=None):
     else:
         operator = BaseOperator(task_id="test_ti", dag=dag)
     session.add(dag_model)
-    SerializedDagModel.write_dag(dag, bundle_name="testing")
+    SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
     session.add(run)
     session.add(trigger_orm)
     session.flush()
@@ -207,7 +211,7 @@ def supervisor_builder(mocker, session):
 
 
 @patch("airflow.jobs.triggerer_job_runner.DagBag")
-def test_trigger_lifecycle(mock_dag_bag_cls, spy_agency: SpyAgency, session):
+def test_trigger_lifecycle(mock_dag_bag_cls, spy_agency: SpyAgency, session, testing_dag_bundle):
     """
     Checks that the triggerer will correctly see a new Trigger in the database
     and send it to the trigger runner, and then delete it when it vanishes.
@@ -401,7 +405,7 @@ class TestTriggerRunner:
 
 @pytest.mark.asyncio
 @patch("airflow.jobs.triggerer_job_runner.DagBag")
-async def test_trigger_create_race_condition_38599(mock_dag_bag_cls, session, supervisor_builder):
+async def test_trigger_create_race_condition_38599(mock_dag_bag_cls, session, supervisor_builder, testing_dag_bundle):
     """
     This verifies the resolution of race condition documented in github issue #38599.
     More details in the issue description.
@@ -424,10 +428,12 @@ async def test_trigger_create_race_condition_38599(mock_dag_bag_cls, session, su
     trigger_orm = Trigger.from_object(trigger)
     session.add(trigger_orm)
     session.flush()
+
+    bundle_name = "testing"
     dag = DAG(dag_id="test-dag")
-    dm = DagModel(dag_id="test-dag")
+    dm = DagModel(dag_id="test-dag", bundle_name=bundle_name)
     session.add(dm)
-    SerializedDagModel.write_dag(dag, bundle_name="testing")
+    SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
     dag_run = DagRun(
         dag.dag_id, run_id="abc", run_type="manual", start_date=timezone.utcnow(), run_after=timezone.utcnow()
     )

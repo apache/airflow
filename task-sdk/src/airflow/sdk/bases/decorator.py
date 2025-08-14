@@ -564,12 +564,6 @@ class DecoratedMappedOperator(MappedOperator):
     def __hash__(self):
         return id(self)
 
-    def __attrs_post_init__(self):
-        # The magic super() doesn't work here, so we use the explicit form.
-        # Not using super(..., self) to work around pyupgrade bug.
-        super(DecoratedMappedOperator, DecoratedMappedOperator).__attrs_post_init__(self)
-        XComArg.apply_upstream_relationship(self, self.op_kwargs_expand_input.value)
-
     def _expand_mapped_kwargs(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         # We only use op_kwargs_expand_input so this must always be empty.
         if self.expand_input is not EXPAND_INPUT_EMPTY:
