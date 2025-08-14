@@ -2933,6 +2933,7 @@ export type UpdateXcomEntryData = {
     dagRunId: string;
     requestBody: XComUpdateBody;
     taskId: string;
+    updateMask?: Array<(string)> | null;
     xcomKey: string;
 };
 
@@ -3073,6 +3074,7 @@ export type UpdateHitlDetailData = {
     mapIndex?: number;
     requestBody: UpdateHITLDetailPayload;
     taskId: string;
+    updateMask?: Array<(string)> | null;
 };
 
 export type UpdateHitlDetailResponse = HITLDetailResponse;
@@ -3085,6 +3087,26 @@ export type GetHitlDetailData = {
 };
 
 export type GetHitlDetailResponse = HITLDetail;
+
+export type UpdateMappedTiHitlDetailData = {
+    dagId: string;
+    dagRunId: string;
+    mapIndex: number;
+    requestBody: UpdateHITLDetailPayload;
+    taskId: string;
+    updateMask?: Array<(string)> | null;
+};
+
+export type UpdateMappedTiHitlDetailResponse = HITLDetailResponse;
+
+export type GetMappedTiHitlDetailData = {
+    dagId: string;
+    dagRunId: string;
+    mapIndex: number;
+    taskId: string;
+};
+
+export type GetMappedTiHitlDetailResponse = HITLDetail;
 
 export type GetHitlDetailsData = {
     /**
