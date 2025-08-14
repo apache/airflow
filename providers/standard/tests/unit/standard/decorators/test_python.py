@@ -48,7 +48,7 @@ else:
     from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
     from airflow.models.dag import DAG  # type: ignore[assignment]
     from airflow.models.expandinput import DictOfListsExpandInput
-    from airflow.models.mappedoperator import MappedOperator
+    from airflow.models.mappedoperator import MappedOperator  # type: ignore[assignment,no-redef]
     from airflow.models.xcom_arg import XComArg
     from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
 
