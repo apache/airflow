@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -16,11 +18,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, ButtonGroup, Code, Flex, Heading, IconButton, useDisclosure } from "@chakra-ui/react";
+import { ButtonGroup, Code, Flex, Heading, IconButton, useDisclosure, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import React from "react";
 import { useTranslation } from "react-i18next";
 import { MdCompress, MdExpand } from "react-icons/md";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import { useEventLogServiceGetEventLogs } from "openapi/queries";
 import type { EventLogResponse } from "openapi/requests/types.gen";
@@ -29,6 +32,9 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import Time from "src/components/Time";
+import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+
+import { EventsFilters } from "./EventsFilters";
 
 type EventsColumn = {
   dagId?: string;
@@ -141,31 +147,109 @@ const eventsColumn = (
   },
 ];
 
+const {
+  AFTER: AFTER_PARAM,
+  BEFORE: BEFORE_PARAM,
+  DAG_ID: DAG_ID_PARAM,
+  EVENT_TYPE: EVENT_TYPE_PARAM,
+  MAP_INDEX: MAP_INDEX_PARAM,
+  RUN_ID: RUN_ID_PARAM,
+  TASK_ID: TASK_ID_PARAM,
+  TRY_NUMBER: TRY_NUMBER_PARAM,
+  USER: USER_PARAM,
+}: SearchParamsKeysType = SearchParamsKeys;
+
 export const Events = () => {
   const { t: translate } = useTranslation("browse");
   const { dagId, runId, taskId } = useParams();
+  const [searchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const { onClose, onOpen, open } = useDisclosure();
 
+  const afterFilter = searchParams.get(AFTER_PARAM);
+  const beforeFilter = searchParams.get(BEFORE_PARAM);
+  const dagIdFilter = searchParams.get(DAG_ID_PARAM);
+  const eventTypeFilter = searchParams.get(EVENT_TYPE_PARAM);
+  const mapIndexFilter = searchParams.get(MAP_INDEX_PARAM);
+  const runIdFilter = searchParams.get(RUN_ID_PARAM);
+  const taskIdFilter = searchParams.get(TASK_ID_PARAM);
+  const tryNumberFilter = searchParams.get(TRY_NUMBER_PARAM);
+  const userFilter = searchParams.get(USER_PARAM);
+
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-when"];
+  // Convert string filters to appropriate types for API
+  const mapIndexNumber = mapIndexFilter === null ? undefined : parseInt(mapIndexFilter, 10);
+  const tryNumberNumber = tryNumberFilter === null ? undefined : parseInt(tryNumberFilter, 10);
+  // Handle date conversion - ensure valid ISO strings
+  const afterDate = afterFilter !== null && !isNaN(Date.parse(afterFilter)) ? afterFilter : undefined;
+  const beforeDate = beforeFilter !== null && !isNaN(Date.parse(beforeFilter)) ? beforeFilter : undefined;
+  const hasTextFilters = Boolean(dagIdFilter ?? eventTypeFilter ?? userFilter ?? runIdFilter ?? taskIdFilter);
 
   const { data, error, isFetching, isLoading } = useEventLogServiceGetEventLogs(
     {
-      dagId,
-      limit: pagination.pageSize,
+      after: afterDate,
+      before: beforeDate,
+      // URL params take precedence for context-specific views (exact match needed)
+      dagId: dagId ?? undefined, // Remove dagIdFilter to allow partial search
+      event: undefined, // Remove eventTypeFilter to allow partial search
+      limit: hasTextFilters ? pagination.pageSize * 5 : pagination.pageSize, // Load more data for filtering
+      mapIndex: mapIndexNumber,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
-      runId,
-      taskId,
+      owner: undefined, // Remove userFilter to allow partial search
+      runId: runId ?? undefined, // Remove runIdFilter to allow partial search
+      taskId: taskId ?? undefined, // Remove taskIdFilter to allow partial search
+      tryNumber: tryNumberNumber,
     },
     undefined,
     { enabled: !isNaN(pagination.pageSize) },
   );
 
+  const filteredData = React.useMemo(() => {
+    if (!data?.event_logs || !hasTextFilters) {
+      return data;
+    }
+
+    const filtered = data.event_logs.filter((log) => {
+      if (dagIdFilter !== null && !log.dag_id?.toLowerCase().includes(dagIdFilter.toLowerCase())) {
+        return false;
+      }
+      if (eventTypeFilter !== null && !log.event.toLowerCase().includes(eventTypeFilter.toLowerCase())) {
+        return false;
+      }
+      if (userFilter !== null && !log.owner?.toLowerCase().includes(userFilter.toLowerCase())) {
+        return false;
+      }
+      if (runIdFilter !== null && !log.run_id?.toLowerCase().includes(runIdFilter.toLowerCase())) {
+        return false;
+      }
+      if (taskIdFilter !== null && !log.task_id?.toLowerCase().includes(taskIdFilter.toLowerCase())) {
+        return false;
+      }
+
+      return true;
+    });
+
+    return {
+      ...data,
+      event_logs: filtered.slice(0, pagination.pageSize), // Apply pagination to filtered results
+      total_entries: filtered.length,
+    };
+  }, [
+    data,
+    dagIdFilter,
+    eventTypeFilter,
+    userFilter,
+    runIdFilter,
+    taskIdFilter,
+    hasTextFilters,
+    pagination.pageSize,
+  ]);
+
   return (
-    <Box>
+    <VStack alignItems="stretch" gap={4}>
       <Flex alignItems="center" justifyContent="space-between">
         {dagId === undefined && runId === undefined && taskId === undefined ? (
           <Heading size="md">{translate("auditLog.title")}</Heading>
@@ -191,10 +275,13 @@ export const Events = () => {
           </IconButton>
         </ButtonGroup>
       </Flex>
+
+      <EventsFilters urlDagId={dagId} urlRunId={runId} urlTaskId={taskId} />
+
       <ErrorAlert error={error} />
       <DataTable
         columns={eventsColumn({ dagId, open, runId, taskId }, translate)}
-        data={data ? data.event_logs : []}
+        data={filteredData ? filteredData.event_logs : []}
         displayMode="table"
         initialState={tableURLState}
         isFetching={isFetching}
@@ -202,8 +289,8 @@ export const Events = () => {
         modelName={translate("auditLog.columns.event")}
         onStateChange={setTableURLState}
         skeletonCount={undefined}
-        total={data ? data.total_entries : 0}
+        total={filteredData ? filteredData.total_entries : 0}
       />
-    </Box>
+    </VStack>
   );
 };

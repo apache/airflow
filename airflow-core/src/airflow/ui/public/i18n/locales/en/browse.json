@@ -10,6 +10,11 @@
       "user": "User",
       "when": "When"
     },
+    "filters": {
+      "endDateTime": "End date and time",
+      "eventType": "Event Type",
+      "startDateTime": "Start date and time"
+    },
     "title": "Audit Log"
   },
   "xcom": {
