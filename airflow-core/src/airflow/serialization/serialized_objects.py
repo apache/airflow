@@ -31,7 +31,7 @@ from collections.abc import Collection, Generator, Iterable, Iterator, Mapping, 
 from functools import cache, cached_property
 from inspect import signature
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypeAlias, TypeVar, Union, cast, overload
+from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypeAlias, TypeVar, cast, overload
 
 import attrs
 import lazy_object_proxy
@@ -2282,7 +2282,7 @@ def _has_kubernetes() -> bool:
 
 
 AssetT = TypeVar("AssetT", bound=BaseAsset)
-MaybeSerializedDAG = Union[DAG, "LazyDeserializedDAG"]
+MaybeSerializedDAG: TypeAlias = "DAG | LazyDeserializedDAG"
 
 
 class LazyDeserializedDAG(pydantic.BaseModel):
