@@ -57,7 +57,6 @@ def _patch_ti_validate_request(
     update_mask: list[str] | None = Query(None),
 ) -> tuple[DAG, list[TI], dict]:
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
-
     if not dag.has_task(task_id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Task '{task_id}' not found in DAG '{dag_id}'")
 

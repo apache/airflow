@@ -53,6 +53,7 @@ from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 from tests_common.test_utils.mock_security_manager import MockSecurityManager
 from tests_common.test_utils.permissions import _resource_name
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
     create_user,
     create_user_scope,
@@ -952,7 +953,8 @@ def test_override_role_vm(app_builder):
     assert {"Airflow"} == test_security_manager.VIEWER_VMS
 
 
-def test_create_dag_specific_permissions(session, security_manager, monkeypatch, sample_dags):
+@pytest.mark.skipif(AIRFLOW_V_3_1_PLUS, reason="Different dag bag setup")
+def test_create_dag_specific_permissions_airflow2(security_manager, monkeypatch, sample_dags):
     access_control = (
         {"Public": {"DAGs": {permissions.ACTION_CAN_READ}}}
         if hasattr(permissions, "resource_name")
@@ -995,6 +997,50 @@ def test_create_dag_specific_permissions(session, security_manager, monkeypatch,
     )
 
     del dagbag_mock.dags["has_access_control"]
+    with assert_queries_count(2):  # two query to get all perms; dagbag is mocked
+        # The extra query happens at permission check
+        security_manager.create_dag_specific_permissions()
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="Different dag bag setup")
+def test_create_dag_specific_permissions_airflow3(session, security_manager, monkeypatch, sample_dags):
+    access_control = (
+        {"Public": {"DAGs": {permissions.ACTION_CAN_READ}}}
+        if hasattr(permissions, "resource_name")
+        else {"Public": {permissions.ACTION_CAN_READ}}
+    )
+
+    import airflow.providers.fab.auth_manager.security_manager
+
+    _iter_dags_mock = mock.Mock(return_value=sample_dags)
+    monkeypatch.setitem(
+        airflow.providers.fab.auth_manager.security_manager.override.__dict__, "_iter_dags", _iter_dags_mock
+    )
+    security_manager._sync_dag_view_permissions = mock.Mock()
+
+    for dag in sample_dags:
+        dag_resource_name = _resource_name(dag.dag_id, permissions.RESOURCE_DAG)
+        all_perms = security_manager.get_all_permissions()
+        assert ("can_read", dag_resource_name) not in all_perms
+        assert ("can_edit", dag_resource_name) not in all_perms
+
+    security_manager.create_dag_specific_permissions()
+
+    assert _iter_dags_mock.mock_calls == [mock.call()]
+
+    for dag in sample_dags:
+        dag_resource_name = _resource_name(dag.dag_id, permissions.RESOURCE_DAG)
+        all_perms = security_manager.get_all_permissions()
+        assert ("can_read", dag_resource_name) in all_perms
+        assert ("can_edit", dag_resource_name) in all_perms
+
+    security_manager._sync_dag_view_permissions.assert_called_once_with(
+        "has_access_control",
+        access_control,
+    )
+
+    _iter_dags_mock.reset_mock(return_value=True)
+    _iter_dags_mock.return_value = (d for d in sample_dags if d.dag_id != "has_access_control")
     with assert_queries_count(2):  # two query to get all perms; dagbag is mocked
         # The extra query happens at permission check
         security_manager.create_dag_specific_permissions()
