@@ -716,7 +716,7 @@ def _install_airflow_and_optionally_providers_together(
 ):
     console.print("[bright_blue]Installing airflow and optionally providers together")
     base_install_cmd = [
-        "/usr/local/bin/uv",
+        "uv",
         "pip",
         "install",
     ]
@@ -772,7 +772,7 @@ def _install_airflow_ctl_with_constraints(installation_spec: InstallationSpec, g
         f"{installation_spec.airflow_ctl_distribution} with constraints"
     )
     base_install_airflow_ctl_cmd = [
-        "/usr/local/bin/uv",
+        "uv",
         "pip",
         "install",
     ]
@@ -812,7 +812,7 @@ def _install_only_airflow_airflow_core_task_sdk_with_constraints(
         installation_spec.airflow_ctl_constraints_location,
     )
     base_install_airflow_cmd = [
-        "/usr/local/bin/uv",
+        "uv",
         "pip",
         "install",
     ]

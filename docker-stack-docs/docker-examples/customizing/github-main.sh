@@ -30,7 +30,8 @@ export DOCKER_BUILDKIT=1
 
 docker build . \
     --pull \
-    --build-arg PYTHON_BASE_IMAGE="python:3.10-slim-bookworm" \
+    --build-arg BASE_IMAGE="debian:bookworm-slim" \
+    --build-arg AIRFLOW_PYTHON_VERSION="v3.10.18" \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow @ https://github.com/apache/airflow/archive/main.tar.gz" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-main" \
     --tag "my-github-main:0.0.1"
