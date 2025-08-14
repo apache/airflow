@@ -559,6 +559,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     current_active_tasks_per_dag_run,
                     dag_max_active_tasks,
                 )
+                if current_active_tasks_per_dag_run >= dag_max_active_tasks:
+                    self.log.info(
+                        "Not executing %s since the number of tasks running or queued "
+                        "from DAG %s is >= to the DAG's max_active_tasks limit of %s",
+                        task_instance,
+                        dag_id,
+                        dag_max_active_tasks,
+                    )
+                    starved_dags.add(dag_id)
+                    continue
 
                 if task_instance.dag_model.has_task_concurrency_limits:
                     # Many dags don't have a task_concurrency, so where we can avoid loading the full
@@ -628,7 +638,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         # But we need to check for None to make mypy happy.
                         assert executor_obj.name
                     if executor_slots_available[executor_obj.name] <= 0:
-                        self.log.info(
+                        self.log.debug(
                             "Not scheduling %s since its executor %s does not currently have any more "
                             "available slots",
                             task_instance.task_id,
