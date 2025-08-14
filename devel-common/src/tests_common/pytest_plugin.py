@@ -812,6 +812,7 @@ class DagMaker(Protocol):
         task_id: str,
         dag_run: DagRun | None = ...,
         dag_run_kwargs: dict | None = ...,
+        map_index: int = ...,
         **kwargs,
     ) -> TaskInstance: ...
 
@@ -1110,7 +1111,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 **kwargs,
             )
 
-        def run_ti(self, task_id, dag_run=None, dag_run_kwargs=None, **kwargs):
+        def run_ti(self, task_id, dag_run=None, dag_run_kwargs=None, map_index=-1, **kwargs):
             """
             Create a dagrun and run a specific task instance with proper task refresh.
 
@@ -1128,7 +1129,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 if dag_run_kwargs is None:
                     dag_run_kwargs = {}
                 dag_run = self.create_dagrun(**dag_run_kwargs)
-            ti = dag_run.get_task_instance(task_id=task_id)
+            ti = dag_run.get_task_instance(task_id=task_id, map_index=map_index)
             if ti is None:
                 available_task_ids = [task.task_id for task in self.dag.tasks]
                 raise ValueError(
@@ -1856,15 +1857,20 @@ def hook_lineage_collector():
 
 
 @pytest.fixture
-def clean_dags_and_dagruns():
+def clean_dags_dagruns_and_dagbundles():
     """Fixture that cleans the database before and after every test."""
-    from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+    from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
     clear_db_runs()
     clear_db_dags()
+    if AIRFLOW_V_3_0_PLUS:
+        clear_db_dag_bundles()
     yield  # Test runs here
     clear_db_dags()
     clear_db_runs()
+    if AIRFLOW_V_3_0_PLUS:
+        clear_db_dag_bundles()
 
 
 @pytest.fixture
@@ -2543,13 +2549,16 @@ def mock_xcom_backend():
 
 @pytest.fixture
 def testing_dag_bundle():
-    from airflow.models.dagbundle import DagBundleModel
-    from airflow.utils.session import create_session
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-    with create_session() as session:
-        if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
-            testing = DagBundleModel(name="testing")
-            session.add(testing)
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.models.dagbundle import DagBundleModel
+        from airflow.utils.session import create_session
+
+        with create_session() as session:
+            if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
+                testing = DagBundleModel(name="testing")
+                session.add(testing)
 
 
 @pytest.fixture

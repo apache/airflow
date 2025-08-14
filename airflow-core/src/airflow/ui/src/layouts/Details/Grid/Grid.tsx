@@ -35,6 +35,7 @@ import { Bar } from "./Bar";
 import { DurationAxis } from "./DurationAxis";
 import { DurationTick } from "./DurationTick";
 import { TaskNames } from "./TaskNames";
+import { useGridStore } from "./useGridStore";
 import { flattenNodes } from "./utils";
 
 dayjs.extend(dayjsDuration);
@@ -59,7 +60,7 @@ type Props = {
 export const Grid = ({ limit }: Props) => {
   const { t: translate } = useTranslation("dag");
   const gridRef = useRef<HTMLDivElement>(null);
-  const [isGridFocused, setIsGridFocused] = useState(false);
+  const { isGridFocused, setIsGridFocused } = useGridStore();
 
   const [selectedIsVisible, setSelectedIsVisible] = useState<boolean | undefined>();
   const [hasActiveRun, setHasActiveRun] = useState<boolean | undefined>();
@@ -104,14 +105,17 @@ export const Grid = ({ limit }: Props) => {
 
   const { flatNodes } = useMemo(() => flattenNodes(dagStructure, openGroupIds), [dagStructure, openGroupIds]);
 
-  const setGridFocus = useCallback((focused: boolean) => {
-    setIsGridFocused(focused);
-    if (focused) {
-      gridRef.current?.focus();
-    } else {
-      gridRef.current?.blur();
-    }
-  }, []);
+  const setGridFocus = useCallback(
+    (focused: boolean) => {
+      setIsGridFocused(focused);
+      if (focused) {
+        gridRef.current?.focus();
+      } else {
+        gridRef.current?.blur();
+      }
+    },
+    [setIsGridFocused],
+  );
 
   const { mode, setMode } = useNavigation({
     enabled: isGridFocused,

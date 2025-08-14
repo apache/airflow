@@ -288,7 +288,7 @@ To learn more about how Operators and Extractors work together under the hood, c
 When testing an Extractor, we want to firstly verify if ``OperatorLineage`` object is being created,
 specifically verifying that the object is being built with the correct input and output datasets and relevant facets.
 This is done in OpenLineage via pytest, with appropriate mocking and patching for connections and objects.
-Check out `example tests <https://github.com/apache/airflow/blob/main/providers/openlineage/tests/openlineage/extractors/test_base.py>`_.
+Check out `example tests <https://github.com/apache/airflow/blob/main/providers/openlineage/tests/unit/openlineage/extractors/test_base.py>`_.
 
 Testing each facet is also important, as data or graphs in the UI can render incorrectly if the facets are wrong.
 For example, if the facet name is created incorrectly in the Extractor, then the Operator's task will not show up in the lineage graph,
@@ -370,8 +370,8 @@ like extracting column level lineage and inputs/outputs from SQL query with SQL 
             return lineage_metadata
 
 For more examples of OpenLineage Extractors, check out the source code of
-`BashExtractor <https://github.com/apache/airflow/blob/main/providers/amazon/aws/src/airflow/providers/openlineage/extractors/bash.py>`_ or
-`PythonExtractor <https://github.com/apache/airflow/blob/main/providers/amazon/aws/src/airflow/providers/openlineage/extractors/python.py>`_.
+`BashExtractor <https://github.com/apache/airflow/blob/main/providers/openlineage/src/airflow/providers/openlineage/extractors/bash.py>`_ or
+`PythonExtractor <https://github.com/apache/airflow/blob/main/providers/openlineage/src/airflow/providers/openlineage/extractors/python.py>`_.
 
 .. _custom_facets:openlineage:
 
