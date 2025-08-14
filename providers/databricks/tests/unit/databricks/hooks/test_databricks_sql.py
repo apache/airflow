@@ -127,8 +127,8 @@ def test_get_sqlalchemy_engine():
     hook = DatabricksSqlHook(
         databricks_conn_id=DEFAULT_CONN_ID, http_path=HTTP_PATH, catalog=CATALOG, schema=SCHEMA
     )
-    hook.get_sqlalchemy_engine()
-    assert hook.sqlalchemy_url.render_as_string(hide_password=False) == (
+    engine = hook.get_sqlalchemy_engine()
+    assert engine.url.render_as_string(hide_password=False) == (
         f"databricks://token:{TOKEN}@{HOST}?"
         f"catalog={CATALOG}&http_path={quote_plus(HTTP_PATH)}&schema={SCHEMA}"
     )
