@@ -25,7 +25,6 @@ from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 import attrs
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 
 log = logging.getLogger(__name__)
@@ -195,7 +194,7 @@ class Connection:
         hook = ProvidersManager().hooks.get(self.conn_type, None)
 
         if hook is None:
-            raise AirflowException(f'Unknown hook type "{self.conn_type}"')
+            raise RuntimeError(f'Unknown hook type "{self.conn_type}"')
         try:
             hook_class = import_string(hook.hook_class_name)
         except ImportError:
@@ -214,7 +213,7 @@ class Connection:
     def _handle_connection_error(cls, e: AirflowRuntimeError, conn_id: str) -> None:
         """Handle connection retrieval errors."""
         if e.error.error == ErrorType.CONNECTION_NOT_FOUND:
-            raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined") from None
+            raise RuntimeError(f"The conn_id `{conn_id}` isn't defined") from None
         raise
 
     @classmethod
@@ -324,7 +323,7 @@ class Connection:
         """
         schemes_count_in_uri = uri.count("://")
         if schemes_count_in_uri > 2:
-            raise AirflowException(f"Invalid connection string: {uri}.")
+            raise RuntimeError(f"Invalid connection string: {uri}.")
         host_with_protocol = schemes_count_in_uri == 2
         uri_parts = urlsplit(uri)
         conn_type = uri_parts.scheme
@@ -333,7 +332,7 @@ class Connection:
         if host_with_protocol:
             uri_splits = rest_of_the_url.split("://", 1)
             if "@" in uri_splits[0] or ":" in uri_splits[0]:
-                raise AirflowException(f"Invalid connection string: {uri}.")
+                raise RuntimeError(f"Invalid connection string: {uri}.")
         uri_parts = urlsplit(rest_of_the_url)
         protocol = uri_parts.scheme if host_with_protocol else None
         host = _parse_netloc_to_hostname(uri_parts)

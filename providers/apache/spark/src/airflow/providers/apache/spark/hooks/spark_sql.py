@@ -104,7 +104,7 @@ class SparkSqlHook(BaseHook):
 
         try:
             conn = self.get_connection(conn_id)
-        except AirflowNotFoundException:
+        except (AirflowNotFoundException, RuntimeError):
             conn = None
         if conn:
             options = conn.extra_dejson

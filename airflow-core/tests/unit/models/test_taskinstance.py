@@ -70,6 +70,10 @@ from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetRespo
 from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.definitions.taskgroup import TaskGroup
+from airflow.sdk.exceptions import (
+    AirflowFailException,
+    AirflowSkipException,
+)
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
 )

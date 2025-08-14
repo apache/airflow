@@ -41,7 +41,6 @@ from airflow.exceptions import (
     AirflowClusterPolicyError,
     AirflowClusterPolicySkipDag,
     AirflowClusterPolicyViolation,
-    AirflowDagCycleException,
     AirflowDagDuplicatedIdException,
     AirflowException,
     AirflowTaskTimeout,
@@ -588,6 +587,7 @@ class DagBag(LoggingMixin):
         except Exception as e:
             self.log.exception(e)
             raise AirflowClusterPolicyError(e)
+        from airflow.sdk.exceptions import AirflowDagCycleException
 
         try:
             prev_dag = self.dags.get(dag.dag_id)

@@ -301,7 +301,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     conn_data["keytab"] = self._create_keytab_path_from_base64_keytab(
                         base64_keytab, conn_data["principal"]
                     )
-        except AirflowException:
+        except (AirflowException, RuntimeError):
             self.log.info(
                 "Could not load connection string %s, defaulting to %s", self._conn_id, conn_data["master"]
             )

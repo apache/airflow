@@ -129,7 +129,7 @@ with DAG(
         try:
             conn = BaseHook.get_connection("integration_test")
             print(f"Got connection {conn}")
-        except AirflowNotFoundException:
+        except (AirflowNotFoundException, RuntimeError):
             print("Connection not found... but also OK.")
 
     @task_group(prefix_group_id=False)

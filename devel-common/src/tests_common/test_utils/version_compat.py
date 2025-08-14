@@ -47,6 +47,10 @@ if AIRFLOW_V_3_1_PLUS:
 
     XCOM_RETURN_KEY = BaseXCom.XCOM_RETURN_KEY
 else:
+    from airflow.exceptions import (  # type: ignore[no-redef, attr-defined, assignment]
+        AirflowFailException,
+        AirflowSensorTimeout,
+    )
     from airflow.sensors.base import PokeReturnValue  # type: ignore[no-redef]
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
     from airflow.utils.decorators import remove_task_decorator  # type: ignore[no-redef]
@@ -65,6 +69,14 @@ def get_sqlalchemy_version_tuple() -> tuple[int, int, int]:
 SQLALCHEMY_V_1_4 = (1, 4, 0) <= get_sqlalchemy_version_tuple() < (2, 0, 0)
 SQLALCHEMY_V_2_0 = (2, 0, 0) <= get_sqlalchemy_version_tuple() < (2, 1, 0)
 
+try:
+    from airflow.sdk.exceptions import AirflowFailException, AirflowSensorTimeout
+except ImportError:
+    from airflow.exceptions import (  # type: ignore[no-redef, attr-defined]
+        AirflowFailException,
+        AirflowSensorTimeout,
+    )
+
 
 __all__ = [
     "AIRFLOW_V_3_0_PLUS",
@@ -79,4 +91,6 @@ __all__ = [
     "PokeReturnValue",
     "remove_task_decorator",
     "timezone",
+    "AirflowFailException",
+    "AirflowSensorTimeout",
 ]

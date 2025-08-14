@@ -309,7 +309,7 @@ with DAG(
             try:
                 conn = BaseHook.get_connection("integration_test")
                 print(f"Got connection {conn}")
-            except AirflowNotFoundException:
+            except (AirflowNotFoundException, RuntimeError):
                 print("Connection 'integration_test' not found... but also OK.")
 
         command = CmdOperator(task_id="command", command="echo Hello World")

@@ -620,7 +620,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         if self.aws_conn_id:
             try:
                 connection = self.get_connection(self.aws_conn_id)
-            except AirflowNotFoundException:
+            except (AirflowNotFoundException, RuntimeError):
                 self.log.warning(
                     "Unable to find AWS Connection ID '%s', switching to empty.", self.aws_conn_id
                 )

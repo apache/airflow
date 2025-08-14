@@ -23,10 +23,9 @@ from urllib.parse import urlparse
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
-from airflow.sdk import Connection
 from airflow.sdk.configuration import initialize_secrets_backends
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk import Connection
+from airflow.sdk.exceptions import AirflowException, ErrorType
 from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse
 from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
@@ -76,7 +75,7 @@ class TestConnections:
             conn_type="unknown_type",
         )
 
-        with pytest.raises(AirflowException, match='Unknown hook type "unknown_type"'):
+        with pytest.raises(RuntimeError, match='Unknown hook type "unknown_type"'):
             conn.get_hook()
 
     def test_get_uri(self):
@@ -127,7 +126,7 @@ class TestConnections:
         error_response = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
         mock_supervisor_comms.send.return_value = error_response
 
-        with pytest.raises(AirflowNotFoundException, match="The conn_id `mysql_conn` isn't defined"):
+        with pytest.raises(RuntimeError, match="The conn_id `mysql_conn` isn't defined"):
             _ = Connection.get(conn_id="mysql_conn")
 
     def test_to_dict(self):
