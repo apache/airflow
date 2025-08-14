@@ -403,6 +403,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .join(dr_concurrency_subquery, TI.run_id == dr_concurrency_subquery.c.run_id, isouter=True)
                 .where(func.coalesce(dr_concurrency_subquery.c.dr_count, 0) < DM.max_active_tasks)
                 .options(selectinload(TI.dag_model))
+                .order_by(-TI.priority_weight, DR.logical_date, TI.map_index)
             )
 
             # Create a subquery with row numbers partitioned by run_id.
