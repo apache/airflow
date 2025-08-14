@@ -36,7 +36,7 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagRun, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag_version import DagVersion
-from airflow.models.dagbag import DagBag
+from airflow.models.dagbag import DagBag, sync_bag_to_db
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
@@ -103,7 +103,7 @@ class TestTaskInstanceEndpoint:
         with_ti_history=False,
     ):
         """Method to create task instances using kwargs and default arguments"""
-        dag = self.dagbag.get_latest_version_of_dag(dag_id, session)
+        dag = self.dagbag.get_latest_version_of_dag(dag_id, session=session)
         tasks = dag.tasks
         counter = len(tasks)
         if task_instances is not None:
@@ -655,7 +655,7 @@ class TestGetMappedTaskInstances:
             DagBundlesManager().sync_bundles_to_db()
             dagbag = DagBag(os.devnull, include_examples=False)
             dagbag.dags = {dag_id: dag_maker.dag}
-            dagbag.sync_to_db("dags-folder", None)
+            sync_bag_to_db(dagbag, "dags-folder", None)
             session.flush()
 
             TaskMap.expand_mapped_task(sdag.task_dict[mapped.task_id], dr.run_id, session=session)
