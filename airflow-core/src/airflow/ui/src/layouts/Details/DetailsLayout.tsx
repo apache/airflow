@@ -132,7 +132,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
               {dagView === "graph" ? (
                 <Graph />
               ) : (
-                <HStack>
+                <HStack gap={0}>
                   <Grid limit={limit} />
                   {showGantt ? <Gantt limit={limit} /> : undefined}
                 </HStack>
