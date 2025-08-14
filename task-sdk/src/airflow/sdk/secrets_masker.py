@@ -19,9 +19,13 @@ from __future__ import annotations
 
 # We don't want to `import *` here to avoid the risk of making adding too much to Public python API
 from airflow.sdk._shared.secrets_masker.secrets_masker import (
+    DEFAULT_SENSITIVE_FIELDS,
+    Redactable,
+    Redacted,
     RedactedIO,
     SecretsMasker,
     _is_v1_env_var,
+    _secrets_masker,
     get_min_secret_length,
     get_sensitive_variables_fields,
     mask_secret,
@@ -42,4 +46,8 @@ __all__ = [
     "RedactedIO",
     "merge",
     "should_hide_value_for_key",
+    "_secrets_masker",
+    "DEFAULT_SENSITIVE_FIELDS",
+    "Redactable",
+    "Redacted",
 ]
