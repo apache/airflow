@@ -39,6 +39,11 @@
     "viewInExternal": "Zobacz logi w {{name}} (próba {{attempt}})",
     "warning": "WARNING"
   },
+  "navigation": {
+    "jump": "Strona: Shift+{{arrow}}",
+    "navigation": "Przewijanie: {{arrow}}",
+    "toggleGroup": "Przełącz grupę: Space"
+  },
   "overview": {
     "buttons": {
       "failedRun_few": "Nieudane wykonania",
