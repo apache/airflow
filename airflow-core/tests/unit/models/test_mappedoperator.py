@@ -49,6 +49,7 @@ if TYPE_CHECKING:
 
 
 @patch("airflow.sdk.definitions._internal.abstractoperator.AbstractOperator.render_template")
+@pytest.mark.usefixtures("testing_dag_bundle")
 def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template, caplog):
     class UnrenderableClass:
         def __bool__(self):
@@ -69,7 +70,7 @@ def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template
         unrenderable_values = [UnrenderableClass(), UnrenderableClass()]
         mapped = CustomOperator.partial(task_id="task_2").expand(arg=unrenderable_values)
         task1 >> mapped
-    dag.sync_to_db()
+    DAG.bulk_write_to_db("testing", None, [dag])
     SerializedDagModel.write_dag(dag, bundle_name="testing")
     dag.test()
     assert (
