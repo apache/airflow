@@ -156,7 +156,8 @@
     "users": "Users"
   },
   "selectLanguage": "Select Language",
-  "selectOperator": "Select Operator",
+  "selectOperator": "Select Operators",
+  "selectTriggerRules": "Select trigger rules",
   "showDetailsPanel": "Show Details Panel",
   "source": {
     "hide": "Hide Source",

@@ -38,12 +38,19 @@ const cardDef = (dagId: string): CardDef<TaskResponse> => ({
   },
 });
 
-const getFilterCount: ({ selectedOperators }: { selectedOperators: Array<string> | undefined }) => number = ({
+const getFilterCount: ({
   selectedOperators,
-}) => {
+  selectedTriggerRules,
+}: {
+  selectedOperators: Array<string> | undefined;
+  selectedTriggerRules: Array<string> | undefined;
+}) => number = ({ selectedOperators, selectedTriggerRules }) => {
   let count = 0;
 
   if (Array.isArray(selectedOperators) && selectedOperators.length > 0) {
+    count += 1;
+  }
+  if (Array.isArray(selectedTriggerRules) && selectedTriggerRules.length > 0) {
     count += 1;
   }
 
@@ -54,6 +61,7 @@ export const Tasks = () => {
   const { t: translate } = useTranslation();
   const { dagId = "" } = useParams();
   const [selectedOperators, setSelectedOperators] = useState<Array<string> | undefined>(undefined);
+  const [selectedTriggerRules, setSelectedTriggerRules] = useState<Array<string> | undefined>(undefined);
   const {
     data,
     error: tasksError,
@@ -65,27 +73,34 @@ export const Tasks = () => {
 
   const onClearFilters = () => {
     setSelectedOperators(undefined);
+    setSelectedTriggerRules(undefined);
   };
 
-  const handleOperatorSelect = (values: Array<string>) => {
-    setSelectedOperators(values);
-  };
   const allOperatorNames: Array<string> = [
     ...new Set(data?.tasks.map((task) => task.operator_name).filter((item) => item !== null) ?? []),
   ];
-  const filterCount = getFilterCount({ selectedOperators });
+  const allTriggerRules: Array<string> = [
+    ...new Set(data?.tasks.map((task) => task.trigger_rule).filter((item) => item !== null) ?? []),
+  ];
+  const filterCount = getFilterCount({ selectedOperators, selectedTriggerRules });
 
-  const filterTasks = (tasks: Array<TaskResponse>, operatorNames: Array<string>) => {
-    // debugger;
-    const filtered =
-      operatorNames.length > 0
-        ? tasks.filter((task: TaskResponse) => operatorNames.includes(task.operator_name as string))
-        : tasks;
+  const filterTasks = (
+    tasks: Array<TaskResponse>,
+    operatorNames: Array<string>,
+    triggerRuleNames: Array<string>,
+  ) =>
+    tasks.filter(
+      (task) =>
+        (operatorNames.length === 0 || operatorNames.includes(task.operator_name as string)) &&
+        (triggerRuleNames.length === 0 || triggerRuleNames.includes(task.trigger_rule as string)),
+    );
 
-    return filtered;
-  };
   // debugger;
-  const filteredTasks = filterTasks(data ? data.tasks : [], selectedOperators ?? []);
+  const filteredTasks = filterTasks(
+    data ? data.tasks : [],
+    selectedOperators ?? [],
+    selectedTriggerRules ?? [],
+  );
 
   return (
     <Box>
@@ -94,12 +109,18 @@ export const Tasks = () => {
         {translate("task", { count: data?.total_entries ?? 0 })}
       </Heading>
 
-      <HStack justifyContent="space-between">
+      <HStack>
         <AttrSelectFilterMulti
-          handleSelect={handleOperatorSelect}
+          handleSelect={setSelectedOperators}
           placeholderText={translate("selectOperator")}
           selectedValues={selectedOperators}
           values={allOperatorNames}
+        />
+        <AttrSelectFilterMulti
+          handleSelect={setSelectedTriggerRules}
+          placeholderText={translate("selectTriggerRules")}
+          selectedValues={selectedTriggerRules}
+          values={allTriggerRules}
         />
         <Box>
           <ResetButton filterCount={filterCount} onClearFilters={onClearFilters} />
