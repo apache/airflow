@@ -806,7 +806,7 @@ class DbApiHook(BaseHook):
             return cast("list[tuple]", result)
         return cast("tuple", result)
 
-    def _truncate_text(self,text):
+    def _truncate_text(self,text:str) -> str:
         if self._max_log_sql_str is None or len(text) <= self._max_log_sql_str
             return text 
         return text[:self._max_log_sql_str] + '.......'
