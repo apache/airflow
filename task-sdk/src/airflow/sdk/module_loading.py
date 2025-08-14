@@ -58,3 +58,25 @@ def qualname(o: object | Callable) -> str:
         return f"{module}.{name}"
 
     return name
+
+
+def is_valid_dotpath(path: str) -> bool:
+    """
+    Check if a string follows valid dotpath format (ie: 'package.subpackage.module').
+
+    :param path: String to check
+    """
+    import re
+
+    if not isinstance(path, str):
+        return False
+
+    # Pattern explanation:
+    # ^            - Start of string
+    # [a-zA-Z_]    - Must start with letter or underscore
+    # [a-zA-Z0-9_] - Following chars can be letters, numbers, or underscores
+    # (\.[a-zA-Z_][a-zA-Z0-9_]*)*  - Can be followed by dots and valid identifiers
+    # $            - End of string
+    pattern = r"^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*$"
+
+    return bool(re.match(pattern, path))
