@@ -70,6 +70,7 @@ type Props = {
 
 const CHART_PADDING = 36;
 const CHART_ROW_HEIGHT = 20;
+const MIN_BAR_WIDTH = 10;
 
 export const Gantt = ({ limit }: Props) => {
   const { dagId = "", groupId: selectedGroupId, runId, taskId: selectedTaskId } = useParams();
@@ -79,7 +80,6 @@ export const Gantt = ({ limit }: Props) => {
   const { colorMode } = useColorMode();
   const ref = useRef();
 
-  // Get theme-aware colors for grid lines and selection
   const [lightGridColor, darkGridColor, lightSelectedColor, darkSelectedColor] = useToken("colors", [
     "gray.200",
     "gray.800",
@@ -168,6 +168,7 @@ export const Gantt = ({ limit }: Props) => {
               ),
               data,
               maxBarThickness: CHART_ROW_HEIGHT,
+              minBarLength: MIN_BAR_WIDTH,
             },
           ],
           labels: [],
