@@ -35,11 +35,7 @@ from sqlalchemy.exc import IntegrityError
 
 from airflow import settings
 from airflow._shared.timezones import timezone
-from airflow.exceptions import (
-    AirflowException,
-    AirflowFailException,
-    AirflowSkipException,
-)
+from airflow.exceptions import AirflowException
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
 from airflow.models.connection import Connection
 from airflow.models.dag_version import DagVersion
@@ -70,6 +66,10 @@ from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetRespo
 from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.definitions.taskgroup import TaskGroup
+from airflow.sdk.exceptions import (
+    AirflowFailException,
+    AirflowSkipException,
+)
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
 )
@@ -2530,7 +2530,7 @@ class TestTaskInstance:
             )
         ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
         ti.task = task
-        with contextlib.suppress(AirflowException):
+        with contextlib.suppress(AirflowFailException):
             ti.run()
         assert ti.state == State.FAILED
 

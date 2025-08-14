@@ -112,7 +112,7 @@ class EmrHook(AwsBaseHook):
         if self.emr_conn_id:
             try:
                 emr_conn = self.get_connection(self.emr_conn_id)
-            except AirflowNotFoundException:
+            except (AirflowNotFoundException, RuntimeError):
                 warnings.warn(
                     f"Unable to find {self.hook_name} Connection ID {self.emr_conn_id!r}, "
                     "using an empty initial configuration. If you want to get rid of this warning "

@@ -41,7 +41,6 @@ from pydantic import AwareDatetime, ConfigDict, Field, JsonValue, TypeAdapter
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException, AirflowTaskTimeout
 from airflow.listeners.listener import get_listener_manager
 from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
@@ -58,7 +57,13 @@ from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
-from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+from airflow.sdk.exceptions import (
+    AirflowException,
+    AirflowInactiveAssetInInletOrOutletException,
+    AirflowRuntimeError,
+    AirflowTaskTimeout,
+    ErrorType,
+)
 from airflow.sdk.execution_time.callback_runner import create_executable_runner
 from airflow.sdk.execution_time.comms import (
     AssetEventDagRunReferenceResult,
@@ -114,9 +119,9 @@ if TYPE_CHECKING:
     from pendulum.datetime import DateTime
     from structlog.typing import FilteringBoundLogger as Logger
 
-    from airflow.exceptions import DagRunTriggerException, TaskDeferred
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions.context import Context
+    from airflow.sdk.exceptions import DagRunTriggerException, TaskDeferred
     from airflow.sdk.types import OutletEventAccessorsProtocol
 
 
@@ -878,8 +883,7 @@ def run(
     """Run the task in this process."""
     import signal
 
-    from airflow.exceptions import (
-        AirflowException,
+    from airflow.sdk.exceptions import (
         AirflowFailException,
         AirflowRescheduleException,
         AirflowSensorTimeout,
@@ -991,7 +995,7 @@ def run(
         )
         state = TaskInstanceState.FAILED
         error = e
-    except (AirflowTaskTimeout, AirflowException, AirflowRuntimeError) as e:
+    except (AirflowTaskTimeout, AirflowException, AirflowRuntimeError, RuntimeError) as e:
         # We should allow retries if the task has defined it.
         log.exception("Task failed with exception")
         msg, state = _handle_current_task_failed(ti)
@@ -1114,8 +1118,8 @@ def _handle_trigger_dag_run(
     ti.xcom_push(key="trigger_run_id", value=drte.dag_run_id)
 
     if drte.deferrable:
-        from airflow.exceptions import TaskDeferred
         from airflow.providers.standard.triggers.external_task import DagStateTrigger
+        from airflow.sdk.exceptions import TaskDeferred
 
         defer = TaskDeferred(
             trigger=DagStateTrigger(

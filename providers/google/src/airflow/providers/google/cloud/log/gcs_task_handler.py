@@ -93,7 +93,7 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
         if conn_id:
             try:
                 return GCSHook(gcp_conn_id=conn_id)
-            except AirflowNotFoundException:
+            except (AirflowNotFoundException, RuntimeError):
                 pass
         return None
 
