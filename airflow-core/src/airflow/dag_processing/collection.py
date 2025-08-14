@@ -76,10 +76,9 @@ def _create_orm_dags(
     bundle_name: str, dags: Iterable[MaybeSerializedDAG], *, session: Session
 ) -> Iterator[DagModel]:
     for dag in dags:
-        orm_dag = DagModel(dag_id=dag.dag_id)
+        orm_dag = DagModel(dag_id=dag.dag_id, bundle_name=bundle_name)
         if dag.is_paused_upon_creation is not None:
             orm_dag.is_paused = dag.is_paused_upon_creation
-        orm_dag.bundle_name = bundle_name
         log.info("Creating ORM DAG for %s", dag.dag_id)
         session.add(orm_dag)
         yield orm_dag
