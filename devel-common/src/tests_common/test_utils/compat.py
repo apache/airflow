@@ -63,6 +63,7 @@ except ImportError:
     # Compatibility for Airflow < 3.1
     from airflow.utils.xcom import XCOM_RETURN_KEY  # type: ignore[no-redef,attr-defined]
 
+
 if TYPE_CHECKING:
     from airflow.models import Connection
     from airflow.models.asset import (
