@@ -104,13 +104,11 @@ if TYPE_CHECKING:
     from airflow.serialization.serialized_objects import SerializedBaseOperator
     from airflow.utils.types import ArgNotSet
 
-    Operator: TypeAlias = MappedOperator | SerializedBaseOperator
-
     CreatedTasks = TypeVar("CreatedTasks", Iterator["dict[str, Any]"], Iterator[TI])
-
-    AttributeValueType = (
+    AttributeValueType: TypeAlias = (
         str | bool | int | float | Sequence[str] | Sequence[bool] | Sequence[int] | Sequence[float]
     )
+    Operator: TypeAlias = MappedOperator | SerializedBaseOperator
 
 RUN_ID_REGEX = r"^(?:manual|scheduled|asset_triggered)__(?:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00)$"
 
@@ -1485,15 +1483,15 @@ class DagRun(Base, LoggingMixin):
             If the ti does not need expansion, either because the task is not
             mapped, or has already been expanded, *None* is returned.
             """
+            from airflow.models.mappedoperator import is_mapped
+
             if TYPE_CHECKING:
                 assert ti.task
 
             if ti.map_index >= 0:  # Already expanded, we're good.
                 return None
 
-            from airflow.sdk.definitions.mappedoperator import MappedOperator as TaskSDKMappedOperator
-
-            if isinstance(ti.task, TaskSDKMappedOperator):
+            if is_mapped(ti.task):
                 # If we get here, it could be that we are moving from non-mapped to mapped
                 # after task instance clearing or this ti is not yet expanded. Safe to clear
                 # the db references.
@@ -1516,7 +1514,7 @@ class DagRun(Base, LoggingMixin):
         revised_map_index_task_ids: set[str] = set()
         for schedulable in itertools.chain(schedulable_tis, additional_tis):
             if TYPE_CHECKING:
-                assert isinstance(schedulable.task, SerializedBaseOperator)
+                assert isinstance(schedulable.task, Operator)
             old_state = schedulable.state
             if not schedulable.are_dependencies_met(session=session, dep_context=dep_context):
                 old_states[schedulable.key] = old_state
@@ -2002,25 +2000,23 @@ class DagRun(Base, LoggingMixin):
         empty_ti_ids: list[str] = []
         schedulable_ti_ids: list[str] = []
         for ti in schedulable_tis:
+            task = ti.task
             if TYPE_CHECKING:
-                assert isinstance(ti.task, SerializedBaseOperator)
+                assert isinstance(task, Operator)
             if (
-                ti.task.inherits_from_empty_operator
-                and not ti.task.on_execute_callback
-                and not ti.task.on_success_callback
-                and not ti.task.outlets
-                and not ti.task.inlets
+                task.inherits_from_empty_operator
+                and not task.on_execute_callback
+                and not task.on_success_callback
+                and not task.outlets
+                and not task.inlets
             ):
                 empty_ti_ids.append(ti.id)
             # check "start_trigger_args" to see whether the operator supports start execution from triggerer
             # if so, we'll then check "start_from_trigger" to see whether this feature is turned on and defer
             # this task.
             # if not, we'll add this "ti" into "schedulable_ti_ids" and later execute it to run in the worker
-            elif ti.task.start_trigger_args is not None:
-                context = ti.get_template_context()
-                start_from_trigger = ti.task.expand_start_from_trigger(context=context, session=session)
-
-                if start_from_trigger:
+            elif task.start_trigger_args is not None:
+                if task.expand_start_from_trigger(context=ti.get_template_context()):
                     ti.start_date = timezone.utcnow()
                     if ti.state != TaskInstanceState.UP_FOR_RESCHEDULE:
                         ti.try_number += 1

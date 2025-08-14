@@ -93,6 +93,7 @@ class TestDagRun:
         db.clear_db_runs()
         db.clear_db_pools()
         db.clear_db_dags()
+        db.clear_db_dag_bundles()
         db.clear_db_variables()
         db.clear_db_assets()
         db.clear_db_xcom()
@@ -443,7 +444,7 @@ class TestDagRun:
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
         assert callback is None
 
-    def test_on_success_callback_when_task_skipped(self, session):
+    def test_on_success_callback_when_task_skipped(self, session, testing_dag_bundle):
         mock_on_success = mock.MagicMock()
         mock_on_success.__name__ = "mock_on_success"
 
@@ -455,6 +456,15 @@ class TestDagRun:
         )
 
         _ = EmptyOperator(task_id="test_state_succeeded1", dag=dag)
+
+        # Create DagModel directly with bundle_name
+        dag_model = DagModel(
+            dag_id=dag.dag_id,
+            bundle_name="testing",
+        )
+        session.merge(dag_model)
+        session.flush()
+
         dag.sync_to_db()
         SerializedDagModel.write_dag(dag, bundle_name="testing")
 
@@ -1040,7 +1050,7 @@ class TestDagRun:
         assert (upstream.task_id in schedulable_tis) == is_ti_schedulable
 
     @pytest.mark.parametrize("state", [DagRunState.QUEUED, DagRunState.RUNNING])
-    def test_next_dagruns_to_examine_only_unpaused(self, session, state):
+    def test_next_dagruns_to_examine_only_unpaused(self, session, state, testing_dag_bundle):
         """
         Check that "next_dagruns_to_examine" ignores runs from paused/inactive DAGs
         and gets running/queued dagruns
@@ -1050,6 +1060,7 @@ class TestDagRun:
 
         orm_dag = DagModel(
             dag_id=dag.dag_id,
+            bundle_name="testing",
             has_task_concurrency_limits=False,
             next_dagrun=DEFAULT_DATE,
             next_dagrun_create_after=DEFAULT_DATE + datetime.timedelta(days=1),
@@ -1090,13 +1101,21 @@ class TestDagRun:
         assert runs == []
 
     @mock.patch.object(Stats, "timing")
-    def test_no_scheduling_delay_for_nonscheduled_runs(self, stats_mock, session):
+    def test_no_scheduling_delay_for_nonscheduled_runs(self, stats_mock, session, testing_dag_bundle):
         """
         Tests that dag scheduling delay stat is not called if the dagrun is not a scheduled run.
         This case is manual run. Simple test for coherence check.
         """
         dag = DAG(dag_id="test_dagrun_stats", schedule=datetime.timedelta(days=1), start_date=DEFAULT_DATE)
         dag_task = EmptyOperator(task_id="dummy", dag=dag)
+
+        # Create DagModel directly with bundle_name
+        dag_model = DagModel(
+            dag_id=dag.dag_id,
+            bundle_name="testing",
+        )
+        session.merge(dag_model)
+        session.flush()
 
         dag.sync_to_db(session=session)
         SerializedDagModel.write_dag(dag, bundle_name="testing")
@@ -1117,7 +1136,7 @@ class TestDagRun:
             ("@once", False),
         ],
     )
-    def test_emit_scheduling_delay(self, session, schedule, expected):
+    def test_emit_scheduling_delay(self, session, schedule, expected, testing_dag_bundle):
         """
         Tests that dag scheduling delay stat is set properly once running scheduled dag.
         dag_run.update_state() invokes the _emit_true_scheduling_delay_stats_for_finished_state method.
@@ -1128,7 +1147,12 @@ class TestDagRun:
 
         try:
             info = dag.next_dagrun_info(None)
-            orm_dag_kwargs = {"dag_id": dag.dag_id, "has_task_concurrency_limits": False, "is_stale": False}
+            orm_dag_kwargs = {
+                "dag_id": dag.dag_id,
+                "bundle_name": "testing",
+                "has_task_concurrency_limits": False,
+                "is_stale": False,
+            }
             if info is not None:
                 orm_dag_kwargs.update(
                     {

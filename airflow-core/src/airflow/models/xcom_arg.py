@@ -17,20 +17,18 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from functools import singledispatch
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeAlias, cast
 
 import attrs
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from airflow.models.referencemixin import ReferenceMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.sdk.definitions._internal.types import ArgNotSet
-from airflow.sdk.definitions.mappedoperator import MappedOperator
-from airflow.sdk.definitions.xcom_arg import (
-    XComArg,
-)
+from airflow.sdk.definitions.xcom_arg import XComArg
 from airflow.utils.db import exists_query
 from airflow.utils.state import State
 from airflow.utils.types import NOTSET
@@ -39,11 +37,13 @@ __all__ = ["XComArg", "get_task_map_length"]
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG as SchedulerDAG
-    from airflow.models.operator import Operator
+    from airflow.models.mappedoperator import MappedOperator
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
     from airflow.typing_compat import Self
 
+    Operator: TypeAlias = MappedOperator | SerializedBaseOperator
 
-@attrs.define
+
 class SchedulerXComArg:
     @classmethod
     def _deserialize(cls, data: dict[str, Any], dag: SchedulerDAG) -> Self:
@@ -57,7 +57,33 @@ class SchedulerXComArg:
         dicts to the correct ``_deserialize`` information, so this function does
         not need to validate whether the incoming data contains correct keys.
         """
-        raise NotImplementedError()
+        raise NotImplementedError("This class should not be instantiated directly")
+
+    @classmethod
+    def iter_xcom_references(cls, arg: Any) -> Iterator[tuple[Operator, str]]:
+        """
+        Return XCom references in an arbitrary value.
+
+        Recursively traverse ``arg`` and look for XComArg instances in any
+        collection objects, and instances with ``template_fields`` set.
+        """
+        from airflow.models.mappedoperator import MappedOperator
+        from airflow.serialization.serialized_objects import SerializedBaseOperator
+
+        if isinstance(arg, ReferenceMixin):
+            yield from arg.iter_references()
+        elif isinstance(arg, (tuple, set, list)):
+            for elem in arg:
+                yield from cls.iter_xcom_references(elem)
+        elif isinstance(arg, dict):
+            for elem in arg.values():
+                yield from cls.iter_xcom_references(elem)
+        elif isinstance(arg, (MappedOperator, SerializedBaseOperator)):
+            for attr in arg.template_fields:
+                yield from cls.iter_xcom_references(getattr(arg, attr))
+
+    def iter_references(self) -> Iterator[tuple[Operator, str]]:
+        raise NotImplementedError("This class should not be instantiated directly")
 
 
 @attrs.define
@@ -67,7 +93,11 @@ class SchedulerPlainXComArg(SchedulerXComArg):
 
     @classmethod
     def _deserialize(cls, data: dict[str, Any], dag: SchedulerDAG) -> Self:
-        return cls(dag.get_task(data["task_id"]), data["key"])
+        # TODO (GH-52141): SchedulerDAG should return scheduler operator instead.
+        return cls(cast("Operator", dag.get_task(data["task_id"])), data["key"])
+
+    def iter_references(self) -> Iterator[tuple[Operator, str]]:
+        yield self.operator, self.key
 
 
 @attrs.define
@@ -86,6 +116,9 @@ class SchedulerMapXComArg(SchedulerXComArg):
         # in the UI, and displaying a function object is useless.
         return cls(deserialize_xcom_arg(data["arg"], dag), data["callables"])
 
+    def iter_references(self) -> Iterator[tuple[Operator, str]]:
+        yield from self.arg.iter_references()
+
 
 @attrs.define
 class SchedulerConcatXComArg(SchedulerXComArg):
@@ -94,6 +127,10 @@ class SchedulerConcatXComArg(SchedulerXComArg):
     @classmethod
     def _deserialize(cls, data: dict[str, Any], dag: SchedulerDAG) -> Self:
         return cls([deserialize_xcom_arg(arg, dag) for arg in data["args"]])
+
+    def iter_references(self) -> Iterator[tuple[Operator, str]]:
+        for arg in self.args:
+            yield from arg.iter_references()
 
 
 @attrs.define
@@ -108,6 +145,10 @@ class SchedulerZipXComArg(SchedulerXComArg):
             fillvalue=data.get("fillvalue", NOTSET),
         )
 
+    def iter_references(self) -> Iterator[tuple[Operator, str]]:
+        for arg in self.args:
+            yield from arg.iter_references()
+
 
 @singledispatch
 def get_task_map_length(xcom_arg: SchedulerXComArg, run_id: str, *, session: Session) -> int | None:
@@ -117,15 +158,15 @@ def get_task_map_length(xcom_arg: SchedulerXComArg, run_id: str, *, session: Ses
 
 @get_task_map_length.register
 def _(xcom_arg: SchedulerPlainXComArg, run_id: str, *, session: Session):
+    from airflow.models.mappedoperator import is_mapped
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskmap import TaskMap
     from airflow.models.xcom import XComModel
 
     dag_id = xcom_arg.operator.dag_id
     task_id = xcom_arg.operator.task_id
-    is_mapped = xcom_arg.operator.is_mapped or isinstance(xcom_arg.operator, MappedOperator)
 
-    if is_mapped:
+    if is_mapped(xcom_arg.operator):
         unfinished_ti_exists = exists_query(
             TaskInstance.dag_id == dag_id,
             TaskInstance.run_id == run_id,

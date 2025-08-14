@@ -39,6 +39,11 @@
     "viewInExternal": "{{name}}에서 로그 보기 (시도 {{attempt}})",
     "warning": "경고"
   },
+  "navigation": {
+    "jump": "이동: Shift+{{arrow}}",
+    "navigation": "탐색: {{arrow}}",
+    "toggleGroup": "그룹 전환: Space"
+  },
   "overview": {
     "buttons": {
       "failedRun_one": "실패한 실행",
