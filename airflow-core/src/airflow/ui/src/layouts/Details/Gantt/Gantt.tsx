@@ -29,6 +29,7 @@ import {
   Tooltip,
   Legend,
   TimeScale,
+  type TooltipItem,
 } from "chart.js";
 import "chart.js/auto";
 import "chartjs-adapter-dayjs-4/dist/chartjs-adapter-dayjs-4.esm";
@@ -47,7 +48,7 @@ import { useGridRuns } from "src/queries/useGridRuns";
 import { useGridStructure } from "src/queries/useGridStructure";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries";
 import { system } from "src/theme";
-import { getDuration } from "src/utils";
+import { getDuration, isStatePending, useAutoRefresh } from "src/utils";
 import { formatDate } from "src/utils/datetimeUtils";
 
 ChartJS.register(
@@ -92,6 +93,7 @@ export const Gantt = ({ limit }: Props) => {
   const { data: gridRuns, isLoading: runsLoading } = useGridRuns({ limit });
   const { data: dagStructure, isLoading: structureLoading } = useGridStructure({ limit });
   const selectedRun = gridRuns?.find((run) => run.run_id === runId);
+  const refetchInterval = useAutoRefresh({ dagId });
 
   // Get grid summaries for groups (which have min/max times)
   const { data: gridTiSummaries, isLoading: summariesLoading } = useGridTiSummaries({
@@ -101,161 +103,184 @@ export const Gantt = ({ limit }: Props) => {
   });
 
   // Get individual task instances for tasks (which have start/end times)
-  const { data: taskInstancesData, isLoading: tiLoading } = useTaskInstanceServiceGetTaskInstances({
-    dagId,
-    dagRunId: runId ?? "~",
-  });
+  const { data: taskInstancesData, isLoading: tiLoading } = useTaskInstanceServiceGetTaskInstances(
+    {
+      dagId,
+      dagRunId: runId ?? "~",
+    },
+    undefined,
+    {
+      enabled: Boolean(dagId),
+      refetchInterval: (query) =>
+        query.state.data?.task_instances.some((ti) => isStatePending(ti.state)) ? refetchInterval : false,
+    },
+  );
 
   const { flatNodes } = useMemo(() => flattenNodes(dagStructure, openGroupIds), [dagStructure, openGroupIds]);
 
   const isLoading = runsLoading || structureLoading || summariesLoading || tiLoading;
 
-  const gridSummaries = gridTiSummaries?.task_instances ?? [];
-  const taskInstances = taskInstancesData?.task_instances ?? [];
+  const data = useMemo(() => {
+    if (isLoading || runId === undefined) {
+      return [];
+    }
+
+    const gridSummaries = gridTiSummaries?.task_instances ?? [];
+    const taskInstances = taskInstancesData?.task_instances ?? [];
+
+    return flatNodes
+      .map((node) => {
+        const gridSummary = gridSummaries.find((ti) => ti.task_id === node.id);
+
+        if (node.isGroup && gridSummary) {
+          // Group node - use min/max times from grid summary
+          return {
+            isGroup: true,
+            state: gridSummary.state,
+            x: [
+              formatDate(gridSummary.min_start_date, selectedTimezone, "YYYY-MM-DD HH:mm:ss.SSS"),
+              formatDate(gridSummary.max_end_date, selectedTimezone, "YYYY-MM-DD HH:mm:ss.SSS"),
+            ],
+            y: gridSummary.task_id,
+          };
+        } else if (!node.isGroup) {
+          // Individual task - use individual task instance data
+          const taskInstance = taskInstances.find((ti) => ti.task_id === node.id);
+
+          if (taskInstance) {
+            return {
+              isGroup: false,
+              state: taskInstance.state,
+              x: [
+                formatDate(taskInstance.start_date, selectedTimezone, "YYYY-MM-DD HH:mm:ss.SSS"),
+                formatDate(taskInstance.end_date, selectedTimezone, "YYYY-MM-DD HH:mm:ss.SSS"),
+              ],
+              y: taskInstance.task_id,
+            };
+          }
+        }
+
+        return undefined;
+      })
+      .filter((item) => item !== undefined);
+  }, [flatNodes, gridTiSummaries, taskInstancesData, selectedTimezone, isLoading, runId]);
+
+  const chartData = useMemo(
+    () => ({
+      datasets: [
+        {
+          backgroundColor: data.map(
+            (dataItem) =>
+              system.tokens.categoryMap.get("colors")?.get(`${dataItem.state}.600`)?.value as string,
+          ),
+          data,
+          maxBarThickness: CHART_ROW_HEIGHT,
+          minBarLength: MIN_BAR_WIDTH,
+        },
+      ],
+      labels: [],
+    }),
+    [data],
+  );
+
+  const fixedHeight = data.length * CHART_ROW_HEIGHT + CHART_PADDING;
+  const selectedId = selectedTaskId ?? selectedGroupId;
+
+  const chartOptions = useMemo(
+    () => ({
+      animation: {
+        duration: 100,
+      },
+      indexAxis: "y" as const,
+      maintainAspectRatio: false,
+      plugins: {
+        annotation: {
+          annotations:
+            selectedId === undefined
+              ? []
+              : [
+                  {
+                    backgroundColor: selectedItemColor,
+                    borderWidth: 0,
+                    drawTime: "beforeDatasetsDraw" as const,
+                    type: "box" as const,
+                    xMax: "max" as const,
+                    xMin: "min" as const,
+                    yMax: data.findIndex((dataItem) => dataItem.y === selectedId) + 0.5,
+                    yMin: data.findIndex((dataItem) => dataItem.y === selectedId) - 0.5,
+                  },
+                ],
+        },
+        legend: {
+          display: false,
+        },
+        tooltip: {
+          callbacks: {
+            afterBody(tooltipItems: Array<TooltipItem<"bar">>) {
+              const taskInstance = data.find((dataItem) => dataItem.y === tooltipItems[0]?.label);
+              const startDate = formatDate(taskInstance?.x[0], selectedTimezone);
+              const endDate = formatDate(taskInstance?.x[1], selectedTimezone);
+
+              return [
+                `${translate("startDate")}: ${startDate}`,
+                `${translate("endDate")}: ${endDate}`,
+                `${translate("duration")}: ${getDuration(taskInstance?.x[0], taskInstance?.x[1])}`,
+              ];
+            },
+            label(tooltipItem: TooltipItem<"bar">) {
+              const { label } = tooltipItem;
+              const taskInstance = data.find((dataItem) => dataItem.y === label);
+
+              return `${translate("state")}: ${translate(`states.${taskInstance?.state}`)}`;
+            },
+          },
+        },
+      },
+      resizeDelay: 100,
+      responsive: true,
+      scales: {
+        x: {
+          grid: {
+            color: gridColor,
+            display: true,
+          },
+          max: formatDate(selectedRun?.end_date, selectedTimezone),
+          min: formatDate(selectedRun?.start_date, selectedTimezone),
+          position: "top" as const,
+          stacked: true,
+          ticks: {
+            align: "start" as const,
+            callback: (value: number | string) => formatDate(value, selectedTimezone, "HH:mm:ss"),
+            maxRotation: 8,
+            maxTicksLimit: 8,
+            minRotation: 8,
+          },
+          type: "time" as const,
+        },
+        y: {
+          grid: {
+            color: gridColor,
+            display: true,
+          },
+          stacked: true,
+          ticks: {
+            display: false,
+          },
+        },
+      },
+    }),
+    [data, selectedId, selectedItemColor, gridColor, selectedRun, selectedTimezone, translate],
+  );
 
   if (isLoading || runId === undefined) {
     return undefined;
   }
 
-  const data = flatNodes
-    .map((node) => {
-      const gridSummary = gridSummaries.find((ti) => ti.task_id === node.id);
-
-      if (node.isGroup && gridSummary) {
-        // Group node - use min/max times from grid summary
-        return {
-          isGroup: true,
-          state: gridSummary.state,
-          x: [
-            formatDate(gridSummary.min_start_date, selectedTimezone, "YYYY-MM-DD HH:mm:ss.SSS"),
-            formatDate(gridSummary.max_end_date, selectedTimezone, "YYYY-MM-DD HH:mm:ss.SSS"),
-          ],
-          y: gridSummary.task_id,
-        };
-      } else if (!node.isGroup) {
-        // Individual task - use individual task instance data
-        const taskInstance = taskInstances.find((ti) => ti.task_id === node.id);
-
-        if (taskInstance) {
-          return {
-            isGroup: false,
-            state: taskInstance.state,
-            x: [
-              formatDate(taskInstance.start_date, selectedTimezone, "YYYY-MM-DD HH:mm:ss.SSS"),
-              formatDate(taskInstance.end_date, selectedTimezone, "YYYY-MM-DD HH:mm:ss.SSS"),
-            ],
-            y: taskInstance.task_id,
-          };
-        }
-      }
-
-      return undefined;
-    })
-    .filter((item) => item !== undefined);
-
-  const fixedHeight = data.length * CHART_ROW_HEIGHT + CHART_PADDING;
-  const selectedId = selectedTaskId ?? selectedGroupId;
-
   return (
     <Box height={`${fixedHeight}px`} minW="500px" ml={-2} mt={36} w="100%">
       <Bar
-        data={{
-          datasets: [
-            {
-              backgroundColor: data.map(
-                (dataItem) =>
-                  system.tokens.categoryMap.get("colors")?.get(`${dataItem.state}.600`)?.value as string,
-              ),
-              data,
-              maxBarThickness: CHART_ROW_HEIGHT,
-              minBarLength: MIN_BAR_WIDTH,
-            },
-          ],
-          labels: [],
-        }}
-        datasetIdKey="id"
-        options={{
-          animation: {
-            duration: 100,
-          },
-          indexAxis: "y",
-          maintainAspectRatio: false,
-          plugins: {
-            annotation: {
-              annotations:
-                selectedId === undefined
-                  ? []
-                  : [
-                      {
-                        backgroundColor: selectedItemColor,
-                        borderWidth: 0,
-                        drawTime: "beforeDatasetsDraw",
-                        type: "box",
-                        xMax: "max",
-                        xMin: "min",
-                        yMax: data.findIndex((dataItem) => dataItem.y === selectedId) + 0.5,
-                        yMin: data.findIndex((dataItem) => dataItem.y === selectedId) - 0.5,
-                      },
-                    ],
-            },
-            legend: {
-              display: false,
-            },
-            tooltip: {
-              callbacks: {
-                afterBody(tooltipItems) {
-                  const taskInstance = data.find((dataItem) => dataItem.y === tooltipItems[0]?.label);
-                  const startDate = formatDate(taskInstance?.x[0], selectedTimezone);
-                  const endDate = formatDate(taskInstance?.x[1], selectedTimezone);
-
-                  return [
-                    `${translate("startDate")}: ${startDate}`,
-                    `${translate("endDate")}: ${endDate}`,
-                    `${translate("duration")}: ${getDuration(taskInstance?.x[0], taskInstance?.x[1])}`,
-                  ];
-                },
-                label(tooltipItem) {
-                  const { label } = tooltipItem;
-                  const taskInstance = data.find((dataItem) => dataItem.y === label);
-
-                  return `${translate("state")}: ${translate(`states.${taskInstance?.state}`)}`;
-                },
-              },
-            },
-          },
-          resizeDelay: 100,
-          responsive: true,
-          scales: {
-            x: {
-              grid: {
-                color: gridColor,
-                display: true,
-              },
-              max: formatDate(selectedRun?.end_date, selectedTimezone),
-              min: formatDate(selectedRun?.start_date, selectedTimezone),
-              position: "top",
-              stacked: true,
-              ticks: {
-                align: "start",
-                callback: (value) => formatDate(value, selectedTimezone, "HH:mm:ss"),
-                maxRotation: 8,
-                maxTicksLimit: 8,
-                minRotation: 8,
-              },
-              type: "time",
-            },
-            y: {
-              grid: {
-                color: gridColor,
-                display: true,
-              },
-              stacked: true,
-              ticks: {
-                display: false,
-              },
-            },
-          },
-        }}
+        data={chartData}
+        options={chartOptions}
         ref={ref}
         style={{
           paddingTop: data.length === 1 ? 14.5 : 1.5,
