@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -86,8 +88,9 @@ export const PanelButtons = ({
   showGantt,
 }: Props) => {
   const { t: translate } = useTranslation(["components", "dag"]);
-  const { dagId = "" } = useParams();
+  const { dagId = "", runId, taskId } = useParams();
   const { fitView } = useReactFlow();
+  const shouldShowToggleButtons = Boolean(runId ?? taskId);
   const [dependencies, setDependencies, removeDependencies] = useLocalStorage<Dependency>(
     `dependencies-${dagId}`,
     "tasks",
@@ -267,11 +270,13 @@ export const PanelButtons = ({
                           </Select.Content>
                         </Select.Positioner>
                       </Select.Root>
-                      <VStack alignItems="flex-start" px={1}>
-                        <Checkbox checked={showGantt} onChange={() => setShowGantt(!showGantt)} size="sm">
-                          {translate("dag:panel.buttons.showGantt")}
-                        </Checkbox>
-                      </VStack>
+                      {shouldShowToggleButtons ? (
+                        <VStack alignItems="flex-start" px={1}>
+                          <Checkbox checked={showGantt} onChange={() => setShowGantt(!showGantt)} size="sm">
+                            {translate("dag:panel.buttons.showGantt")}
+                          </Checkbox>
+                        </VStack>
+                      ) : undefined}
                     </>
                   )}
                 </Popover.Body>
