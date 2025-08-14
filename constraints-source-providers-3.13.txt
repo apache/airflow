@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-13T19:43:22.177600
+# This constraints file was automatically generated on 2025-08-14T02:23:33.737487
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -207,7 +207,7 @@ google-api-python-client==2.179.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.40.3
-google-cloud-aiplatform==1.108.0
+google-cloud-aiplatform==1.109.0
 google-cloud-alloydb==0.4.8
 google-cloud-appengine-logging==1.6.2
 google-cloud-audit-log==0.3.2
@@ -251,7 +251,7 @@ google-cloud-videointelligence==2.16.2
 google-cloud-vision==3.10.2
 google-cloud-workflows==1.18.2
 google-crc32c==1.7.1
-google-genai==1.29.0
+google-genai==1.30.0
 google-resumable-media==2.7.2
 googleapis-common-protos==1.70.0
 graphql-core==3.2.6
@@ -550,7 +550,7 @@ smbprotocol==1.15.0
 smmap==5.0.2
 sniffio==1.3.1
 snowballstemmer==3.0.1
-snowflake-connector-python==3.16.0
+snowflake-connector-python==3.17.0
 snowflake-sqlalchemy==1.7.6
 sortedcontainers==2.4.0
 soupsieve==2.7
