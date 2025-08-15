@@ -610,6 +610,11 @@ class FileTaskHandler(logging.Handler):
         local_logs: list[RawLogStream] = []
         executor_logs: list[RawLogStream] = []
         served_logs: list[RawLogStream] = []
+        is_in_not_finished_state = ti.state in (
+            TaskInstanceState.RUNNING,
+            TaskInstanceState.DEFERRED,
+            TaskInstanceState.UP_FOR_RETRY
+        )
         with suppress(NotImplementedError):
             sources, logs = self._read_remote_logs(ti, try_number, metadata)
             if not logs:
@@ -644,7 +649,9 @@ class FileTaskHandler(logging.Handler):
             worker_log_full_path = Path(self.local_base, worker_log_rel_path)
             sources, local_logs = self._read_from_local(worker_log_full_path)
             source_list.extend(sources)
-        if ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED) and not has_k8s_exec_pod:
+        if is_in_not_finished_state and not has_k8s_exec_pod:
+            # While task instance is still running and we don't have either executor nor remote logs, look for served logs
+            # This is for cases when users have not setup remote logging nor shared drive for logs
             sources, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
             source_list.extend(sources)
         elif ti.state not in State.unfinished and not (local_logs or remote_logs):
