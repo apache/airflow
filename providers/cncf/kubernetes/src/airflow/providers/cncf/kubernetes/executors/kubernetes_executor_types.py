@@ -16,9 +16,25 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 ADOPTED = "adopted"
+
+
+class FailureDetails(TypedDict, total=False):
+    """Detailed information about pod/container failure."""
+
+    pod_status: str | None
+    pod_reason: str | None
+    pod_message: str | None
+    container_state: str | None
+    container_reason: str | None
+    container_message: str | None
+    exit_code: int | None
+    container_type: Literal["init", "main"] | None
+    container_name: str | None
+
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
@@ -31,11 +47,15 @@ if TYPE_CHECKING:
     # TaskInstance key, command, configuration, pod_template_file
     KubernetesJobType = tuple[TaskInstanceKey, CommandType, Any, str | None]
 
-    # key, pod state, pod_name, namespace, resource_version
-    KubernetesResultsType = tuple[TaskInstanceKey, TaskInstanceState | str | None, str, str, str]
+    # key, pod state, pod_name, namespace, resource_version, failure_details
+    KubernetesResultsType = tuple[
+        TaskInstanceKey, TaskInstanceState | str | None, str, str, str, FailureDetails | None
+    ]
 
-    # pod_name, namespace, pod state, annotations, resource_version
-    KubernetesWatchType = tuple[str, str, TaskInstanceState | str | None, dict[str, str], str]
+    # pod_name, namespace, pod state, annotations, resource_version, failure_details
+    KubernetesWatchType = tuple[
+        str, str, TaskInstanceState | str | None, dict[str, str], str, FailureDetails | None
+    ]
 
 ALL_NAMESPACES = "ALL_NAMESPACES"
 POD_EXECUTOR_DONE_KEY = "airflow_executor_done"
