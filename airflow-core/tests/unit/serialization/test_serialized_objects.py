@@ -48,7 +48,6 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.sdk import BaseOperator
-from airflow.sdk.definitions.operator_resources import Resources
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
@@ -66,6 +65,7 @@ from airflow.sdk.definitions.deadline import (
     DeadlineReference,
 )
 from airflow.sdk.definitions.decorators import task
+from airflow.sdk.definitions.operator_resources import Resources
 from airflow.sdk.definitions.param import Param
 from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
