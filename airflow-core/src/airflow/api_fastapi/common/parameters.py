@@ -34,7 +34,7 @@ from typing import (
 from fastapi import Depends, HTTPException, Query, status
 from pendulum.parsing.exceptions import ParserError
 from pydantic import AfterValidator, BaseModel, NonNegativeInt
-from sqlalchemy import Column, and_, case, func, not_, or_, select
+from sqlalchemy import Column, and_, case, func, not_, or_, select, text
 from sqlalchemy.inspection import inspect
 
 from airflow._shared.timezones import timezone
@@ -55,6 +55,7 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.hitl import HITLDetail
 from airflow.models.pool import Pool
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.variable import Variable
 from airflow.models.xcom import XComModel
@@ -448,6 +449,38 @@ class _OwnersFilter(BaseParam[list[str]]):
         return cls().set_value(owners)
 
 
+class _TimetableTypesFilter(BaseParam[list[str]]):
+    """Filter on timetable type."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.skip_none is False:
+            raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
+
+        if not self.value:  # No filter provided
+            return select
+
+        select = select.join(SerializedDagModel, SerializedDagModel.dag_id == DagModel.dag_id)
+
+        # JSON path for timetable type
+        json_path = "$.dag.timetable.__type"
+
+        conditions = [
+            text(f"json_extract(serialized_dag.data, '{json_path}') = :timetable_type_{i}").bindparams(
+                **{f"timetable_type_{i}": t_type}
+            )
+            for i, t_type in enumerate(self.value)
+        ]
+
+        return select.where(or_(*conditions))
+
+    @classmethod
+    def depends(
+        cls,
+        timetable_type: list[str] = Query(default_factory=list),
+    ) -> _TimetableTypesFilter:
+        return cls().set_value(timetable_type)
+
+
 def _safe_parse_datetime(date_to_check: str) -> datetime:
     """
     Parse datetime and raise error for invalid dates.
@@ -607,6 +640,7 @@ QueryDagIdPatternSearchWithNone = Annotated[
 ]
 QueryTagsFilter = Annotated[_TagsFilter, Depends(_TagsFilter.depends)]
 QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter.depends)]
+QueryTimeTableTypesFilter = Annotated[_TimetableTypesFilter, Depends(_TimetableTypesFilter.depends)]
 
 # DagRun
 QueryLastDagRunStateFilter = Annotated[
