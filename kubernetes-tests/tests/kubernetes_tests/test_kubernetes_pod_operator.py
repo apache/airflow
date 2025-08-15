@@ -552,10 +552,11 @@ class TestKubernetesPodOperatorSystem:
                 task_id=str(uuid4()),
                 in_cluster=False,
                 do_xcom_push=False,
+                log_prefix=False,
             )
             context = create_context(k)
             k.execute(context=context)
-            mock_logger.info.assert_any_call("[%s] %s", "base", StringContainingId("retrieved from mount"))
+            mock_logger.info.assert_any_call("%s", StringContainingId("retrieved from mount"))
             actual_pod = self.api_client.sanitize_for_serialization(k.pod)
             self.expected_pod["spec"]["containers"][0]["args"] = args
             self.expected_pod["spec"]["containers"][0]["volumeMounts"] = [
@@ -1427,6 +1428,80 @@ class TestKubernetesPodOperatorSystem:
             < calls_args.find(marker_from_init_container_to_log_2)
             < calls_args.find(marker_from_main_container)
         )
+
+    @pytest.mark.parametrize(
+        "log_prefix_enabled, log_formatter, expected_log_message_check",
+        [
+            pytest.param(
+                True,
+                None,
+                lambda marker, record_message: f"[base] {marker}" in record_message,
+                id="log_prefix_enabled",
+            ),
+            pytest.param(
+                False,
+                None,
+                lambda marker, record_message: marker in record_message and "[base]" not in record_message,
+                id="log_prefix_disabled",
+            ),
+            pytest.param(
+                False,  # Ignored when log_formatter is provided
+                lambda container_name, message: f"CUSTOM[{container_name}]: {message}",
+                lambda marker, record_message: f"CUSTOM[base]: {marker}" in record_message,
+                id="custom_log_formatter",
+            ),
+        ],
+    )
+    def test_log_output_configurations(
+        self, mock_get_connection, log_prefix_enabled, log_formatter, expected_log_message_check
+    ):
+        """
+        Tests various log output configurations (log_prefix, log_formatter)
+        for KubernetesPodOperator.
+        """
+        from airflow.providers.cncf.kubernetes.utils.pod_manager import PodLoggingStatus
+
+        marker = f"test_log_{uuid4()}"
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="busybox",
+            cmds=["sh", "-cx"],
+            arguments=[f"echo {marker}"],
+            labels={"test_label": "test"},
+            task_id=str(uuid4()),
+            in_cluster=False,
+            do_xcom_push=False,
+            get_logs=True,
+            log_prefix=log_prefix_enabled,
+            log_formatter=log_formatter,
+        )
+        context = create_context(k)
+        logger = logging.getLogger("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager")
+        with mock.patch.object(logger, "info") as mock_info:
+            with mock.patch.object(PodManager, "fetch_container_logs") as mock_fetch_logs:
+                # Mock the fetch_container_logs to simulate log output
+                def side_effect(
+                    pod,
+                    container_name,
+                    follow,
+                    since_time=None,
+                    post_termination_timeout=120,
+                    log_prefix=True,
+                    log_formatter=None,
+                ):
+                    log_message = marker
+                    if log_formatter:
+                        log_message = log_formatter(container_name, marker)
+                    else:
+                        log_message = f"[{container_name}] {marker}" if log_prefix else marker
+                    logger.info(log_message)
+                    return PodLoggingStatus(last_log_time=pendulum.now(), running=False)
+
+                mock_fetch_logs.side_effect = side_effect
+                k.execute(context)
+
+            captured_messages = [call_args[0][0] for call_args in mock_info.call_args_list if call_args]
+            assert any(expected_log_message_check(marker, msg) for msg in captured_messages)
 
 
 # TODO: Task SDK: https://github.com/apache/airflow/issues/45438
