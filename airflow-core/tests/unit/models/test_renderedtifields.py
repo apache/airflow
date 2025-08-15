@@ -22,6 +22,7 @@ from __future__ import annotations
 import os
 from collections import Counter
 from datetime import date, timedelta
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pendulum
@@ -37,10 +38,14 @@ from airflow.models.taskmap import TaskMap
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import task as task_decorator
+from airflow.utils.state import TaskInstanceState
 from airflow.utils.task_instance_session import set_current_task_instance_session
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_fields
+
+if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstance
 
 pytestmark = pytest.mark.db_test
 
@@ -403,7 +408,6 @@ class TestRenderedTaskInstanceFields:
                 "cwd": "val 3",
             }
 
-    @pytest.mark.execution_timeout(120)
     def test_rtif_deletion_stale_data_error(self, dag_maker, session):
         """
         Here we verify bad behavior.  When we rerun a task whose RTIF
@@ -419,31 +423,33 @@ class TestRenderedTaskInstanceFields:
                 ],
             )
 
-        def run_task(date):
+        def popuate_rtif(date):
             run_id = f"abc_{date.to_date_string()}"
             dr = session.scalar(select(DagRun).where(DagRun.logical_date == date, DagRun.run_id == run_id))
             if not dr:
                 dr = dag_maker.create_dagrun(logical_date=date, run_id=run_id)
-            ti = dr.task_instances[0]
-            ti.state = None
-            ti.try_number += 1
-            session.commit()
-            ti.task = task
-            ti.run()
+            ti: TaskInstance = dr.task_instances[0]
+            ti.state = TaskInstanceState.SUCCESS
+
+            rtif = RTIF(ti=ti, render_templates=False, rendered_fields={"a": "1"})
+            session.merge(rtif)
+            session.flush()
             return dr
 
         base_date = pendulum.datetime(2021, 1, 1)
         exec_dates = [base_date.add(days=x) for x in range(40)]
-        for date_ in exec_dates:
-            run_task(date=date_)
+        for when in exec_dates:
+            popuate_rtif(date=when)
 
         session.commit()
         session.expunge_all()
 
-        # find oldest date
-        date = session.scalar(
-            select(DagRun.logical_date).join(RTIF.dag_run).order_by(DagRun.logical_date).limit(1)
-        )
-        date = pendulum.instance(date)
-        # rerun the old date. this will fail
-        run_task(date=date)
+        # find oldest dag run
+        dr = session.scalar(select(DagRun).join(RTIF.dag_run).order_by(DagRun.run_after).limit(1))
+        assert dr
+        ti: TaskInstance = dr.task_instances[0]
+        ti.state = None
+        session.flush()
+        # rerun the old run. this will shouldn't fail
+        ti.task = task
+        ti.run()
