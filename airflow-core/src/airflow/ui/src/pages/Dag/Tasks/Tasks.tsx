@@ -26,6 +26,7 @@ import type { TaskResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import type { CardDef } from "src/components/DataTable/types";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { AttrSelectFilter } from "src/pages/Dag/Tasks/AttrSelectFilter.tsx";
 import { AttrSelectFilterMulti } from "src/pages/Dag/Tasks/AttrSelectFilterMulti.tsx";
 import { ResetButton } from "src/pages/DagsList/DagsFilters/ResetButton.tsx";
 
@@ -44,6 +45,7 @@ export const Tasks = () => {
   const [selectedOperators, setSelectedOperators] = useState<Array<string> | undefined>(undefined);
   const [selectedTriggerRules, setSelectedTriggerRules] = useState<Array<string> | undefined>(undefined);
   const [selectedRetryValues, setSelectedRetryValues] = useState<Array<string> | undefined>(undefined);
+  const [selectedMapped, setSelectedMapped] = useState<string | undefined>(undefined);
   const {
     data,
     error: tasksError,
@@ -56,6 +58,8 @@ export const Tasks = () => {
   const onClearFilters = () => {
     setSelectedOperators(undefined);
     setSelectedTriggerRules(undefined);
+    setSelectedRetryValues(undefined);
+    setSelectedMapped(undefined);
   };
 
   const allOperatorNames: Array<string> = [
@@ -69,13 +73,16 @@ export const Tasks = () => {
       data?.tasks.map((task) => task.retries?.toString()).filter((item) => item !== undefined) ?? [],
     ),
   ];
+  const allMappedValues = ["true", "false"];
 
   const filterTasks = ({
+    mapped,
     operatorNames,
     retryValues,
     tasks,
     triggerRuleNames,
   }: {
+    mapped: string | undefined;
     operatorNames: Array<string>;
     retryValues: Array<string>;
     tasks: Array<TaskResponse>;
@@ -83,12 +90,15 @@ export const Tasks = () => {
   }) =>
     tasks.filter(
       (task) =>
-        (operatorNames.length === 0 || operatorNames.includes(task.operator_name as string)) &&
-        (triggerRuleNames.length === 0 || triggerRuleNames.includes(task.trigger_rule as string)) &&
-        (retryValues.length === 0 || retryValues.includes(task.retries?.toString() as string)),
+        ((operatorNames.length === 0 || operatorNames.includes(task.operator_name as string)) &&
+          (triggerRuleNames.length === 0 || triggerRuleNames.includes(task.trigger_rule as string)) &&
+          (retryValues.length === 0 || retryValues.includes(task.retries?.toString() as string)) &&
+          mapped === undefined) ||
+        task.is_mapped?.toString() === mapped,
     );
 
   const filteredTasks = filterTasks({
+    mapped: selectedMapped,
     operatorNames: selectedOperators ?? [],
     retryValues: selectedRetryValues ?? [],
     tasks: data ? data.tasks : [],
@@ -120,6 +130,12 @@ export const Tasks = () => {
           placeholderText={translate("selectRetryValues")}
           selectedValues={selectedRetryValues}
           values={allRetryValues}
+        />
+        <AttrSelectFilter
+          handleSelect={setSelectedMapped}
+          placeholderText="Select mapped"
+          selectedValue={selectedMapped}
+          values={allMappedValues}
         />
         <Box>
           <ResetButton filterCount={2} onClearFilters={onClearFilters} />
