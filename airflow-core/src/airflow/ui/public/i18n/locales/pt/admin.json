@@ -12,7 +12,7 @@
     "title": "Configuração do Airflow"
   },
   "connections": {
-    "add":"Adicionar Conexão",
+    "add": "Adicionar Conexão",
     "columns": {
       "connectionId": "ID da Conexão",
       "connectionType": "Tipo de Conexão",
