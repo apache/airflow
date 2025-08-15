@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-14T19:45:50.056660
+# This constraints file was automatically generated on 2025-08-15T13:50:34.652969
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -147,7 +147,7 @@ cfgv==3.4.0
 cfn-lint==1.38.3
 chardet==5.2.0
 charset-normalizer==3.4.3
-checksumdir==1.2.0
+checksumdir==1.3.0
 ciso8601==2.3.2
 click-didyoumean==0.3.1
 click-plugins==1.1.1.2
@@ -360,7 +360,7 @@ lazy-object-proxy==1.11.0
 libcst==1.8.2
 limits==5.5.0
 linkify-it-py==2.0.3
-litellm==1.75.5.post1
+litellm==1.75.7
 lockfile==0.12.2
 looker-sdk==25.10.0
 lxml==6.0.0
@@ -586,7 +586,7 @@ smbprotocol==1.15.0
 smmap==5.0.2
 sniffio==1.3.1
 snowballstemmer==3.0.1
-snowflake-connector-python==3.17.0
+snowflake-connector-python==3.17.1
 snowflake-snowpark-python==1.36.0
 snowflake-sqlalchemy==1.7.6
 sortedcontainers==2.4.0
