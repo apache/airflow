@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="256px" height="256px" viewBox="0 0 256 256" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Apache SeaTunnel</title>
+    <g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g>
+            <circle fill="#1CB8FF" cx="128" cy="128" r="128"/>
+            <path d="M69,76 C69,64.954305 77.954305,56 89,56 L167,56 C178.045695,56 187,64.954305 187,76 L187,180 C187,191.045695 178.045695,200 167,200 L89,200 C77.954305,200 69,191.045695 69,180 L69,76 Z" stroke="#FFFFFF" stroke-width="8"/>
+            <path d="M84,88 L172,88" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round"/>
+            <path d="M84,116 L172,116" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round"/>
+            <path d="M84,144 L172,144" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round"/>
+            <path d="M84,172 L172,172" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round"/>
+        </g>
+    </g>
+</svg> 
