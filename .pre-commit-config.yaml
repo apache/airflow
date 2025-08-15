@@ -1605,7 +1605,7 @@ repos:
         language: python
         pass_filenames: false
         files:
-          ^airflow-ctl/src/airflowctl/api/operations.py|airflow-ctl/src/airflowctl/ctl/commands/.*\.py$
+          ^airflow-ctl/src/airflowctl/ctl/cli_config.py$|airflow-ctl/src/airflowctl/api/operations.py|airflow-ctl/src/airflowctl/ctl/commands/.*\.py
         additional_dependencies: ['rich>=12.4.4', 'argcomplete>=1.10']
       - id: check-imports-in-providers
         name: Check imports in providers
