@@ -22,13 +22,20 @@ import type { SelectValueChangeDetails } from "@chakra-ui/react";
 import { Select } from "src/components/ui";
 
 type Props = {
+  readonly displayPrefix: string | undefined;
   readonly handleSelect: (values: Array<CollectionItem>) => void;
   readonly placeholderText: string;
   readonly selectedValues: Array<string> | undefined;
   readonly values: Array<string> | undefined;
 };
 
-export const AttrSelectFilterMulti = ({ handleSelect, placeholderText, selectedValues, values }: Props) => {
+export const AttrSelectFilterMulti = ({
+  displayPrefix,
+  handleSelect,
+  placeholderText,
+  selectedValues,
+  values,
+}: Props) => {
   const thingCollection = createListCollection({ items: values ?? [] });
 
   const handleValueChange = (details: SelectValueChangeDetails) => {
@@ -36,7 +43,13 @@ export const AttrSelectFilterMulti = ({ handleSelect, placeholderText, selectedV
       handleSelect(details.value);
     }
   };
+  let displayValue = selectedValues?.join(", ") ?? undefined;
 
+  if (displayValue !== undefined && displayPrefix !== undefined) {
+    displayValue = `${displayPrefix}: ${displayValue}`;
+  }
+
+  // debugger;
   return (
     <Select.Root
       collection={thingCollection}
@@ -47,7 +60,7 @@ export const AttrSelectFilterMulti = ({ handleSelect, placeholderText, selectedV
     >
       <Select.Trigger colorPalette="blue" minW="max-content">
         <Select.ValueText placeholder={placeholderText} width="auto">
-          {() => selectedValues?.join(", ") ?? undefined}
+          {() => displayValue}
         </Select.ValueText>
       </Select.Trigger>
       <Select.Content>

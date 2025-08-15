@@ -117,18 +117,21 @@ export const Tasks = () => {
 
       <HStack>
         <AttrSelectFilterMulti
+          displayPrefix={undefined}
           handleSelect={setSelectedOperators}
           placeholderText={translate("selectOperator")}
           selectedValues={selectedOperators}
           values={allOperatorNames}
         />
         <AttrSelectFilterMulti
+          displayPrefix={undefined}
           handleSelect={setSelectedTriggerRules}
           placeholderText={translate("selectTriggerRules")}
           selectedValues={selectedTriggerRules}
           values={allTriggerRules}
         />
         <AttrSelectFilterMulti
+          displayPrefix="Retries"
           handleSelect={setSelectedRetryValues}
           placeholderText={translate("selectRetryValues")}
           selectedValues={selectedRetryValues}
