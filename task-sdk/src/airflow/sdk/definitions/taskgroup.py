@@ -36,6 +36,7 @@ from airflow.configuration import conf
 from airflow.sdk.exceptions import (
     AirflowException,
     AirflowDagCycleException,
+    AirflowException,
     DuplicateTaskIdFound,
     TaskAlreadyInTaskGroup,
 )
