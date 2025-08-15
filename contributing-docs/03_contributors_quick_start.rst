@@ -445,6 +445,26 @@ see in CI in your local environment.
 
    Once the package is installed, execute the breeze command again to resume image building.
 
+   If you encounter an error such as
+
+   .. code-block:: text
+
+      jinja2.exceptions.TemplateNotFound: '/index.html' not found in search path: '/opt/airflow/airflow-core/src/airflow/ui/dist'
+
+   you may need to compile the UI assets before starting the Breeze environment. To do so, run the following command **before** executing step 4:
+
+   .. code-block:: bash
+
+      breeze compile-ui-assets
+
+   After running this, verify that the compiled UI assets have been added to ``/airflow/.build/ui``.
+
+   Then, proceed with:
+
+   .. code-block:: bash
+
+      breeze --python 3.10 --backend postgres
+
 
 5. When you enter the Breeze environment you should see a prompt similar to ``root@e4756f6ac886:/opt/airflow#``. This
    means that you are inside the Breeze container and ready to run most of the development tasks. You can leave

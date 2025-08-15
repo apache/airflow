@@ -830,3 +830,40 @@ if it fails for ``N`` number of times consecutively.
 we can also provide and override these configuration from Dag argument:
 
 - ``max_consecutive_failed_dag_runs``: Overrides :ref:`config:core__max_consecutive_failed_dag_runs_per_dag`.
+
+Deadline Alerts
+---------------
+
+.. versionadded:: 3.1
+
+Deadline Alerts allow you to set time thresholds for your Dag runs and automatically respond when those
+thresholds are exceeded. You can set deadlines relative to a fixed datetime, use one of the available
+calculated references (like Dag queue time or start time), or implement your own custom reference.
+When a deadline is exceeded, it triggers a callback which can notify you or take other actions.
+
+Here's a simple example using the existing email Notifier:
+
+.. code-block:: python
+
+    from datetime import timedelta
+    from airflow import DAG
+    from airflow.providers.smtp.notifications.smtp import SmtpNotifier
+    from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
+
+    with DAG(
+        dag_id="email_deadline",
+        deadline=DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_QUEUED_AT,
+            interval=timedelta(minutes=30),
+            callback=SmtpNotifier(
+                to="team@example.com",
+                subject="[Alert] Dag {{ dag.dag_id }} exceeded time threshold",
+                html_content="The Dag has been running for more than 30 minutes since being queued.",
+            ),
+        ),
+    ):
+        EmptyOperator(task_id="task1")
+
+This example will send an email notification if the Dag hasn't finished 30 minutes after it was queued.
+
+For more information on implementing and configuring Deadline Alerts, see :doc:`/howto/deadline-alerts`.

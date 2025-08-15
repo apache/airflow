@@ -153,7 +153,7 @@ is periodically executed and rescheduled until it succeeds.
 SLAs
 ----
 
-The SLA feature from Airflow 2 has been removed in 3.0 and will be replaced with a new implementation in Airflow 3.1
+The SLA feature from Airflow 2 has been removed in 3.0 and was replaced in Airflow 3.1 with :doc:`Deadlines Alerts <../howto/deadline-alerts>`.
 
 Special Exceptions
 ------------------
