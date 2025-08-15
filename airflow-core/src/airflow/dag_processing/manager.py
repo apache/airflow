@@ -1025,9 +1025,8 @@ class DagFileProcessorManager(LoggingMixin):
     def _emit_running_dags_metric(self):
         """Emit executor.running_dags gauge."""
         with create_session() as session:
-            running_dags = (
-                session.query(func.count(DagRun.dag_id)).filter(DagRun.state == DagRunState.RUNNING).scalar()
-            )
+            stmt = select(func.count()).select_from(DagRun).where(DagRun.state == DagRunState.RUNNING)
+            running_dags = session.scalar(stmt)
             Stats.gauge("executor.running_dags", running_dags)
 
     def _kill_timed_out_processors(self):
