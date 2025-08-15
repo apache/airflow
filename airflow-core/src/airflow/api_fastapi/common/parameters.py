@@ -586,6 +586,16 @@ QueryPausedFilter = Annotated[
     FilterParam[bool | None],
     Depends(filter_param_factory(DagModel.is_paused, bool | None, filter_name="paused")),
 ]
+QueryHasImportErrorsFilter = Annotated[
+    FilterParam[bool | None],
+    Depends(
+        filter_param_factory(
+            DagModel.has_import_errors,
+            bool | None,
+            filter_name="has_import_errors",
+        )
+    ),
+]
 QueryFavoriteFilter = Annotated[_FavoriteFilter, Depends(_FavoriteFilter.depends)]
 QueryExcludeStaleFilter = Annotated[_ExcludeStaleFilter, Depends(_ExcludeStaleFilter.depends)]
 QueryDagIdPatternSearch = Annotated[

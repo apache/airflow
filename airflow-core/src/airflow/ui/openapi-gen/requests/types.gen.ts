@@ -2317,6 +2317,7 @@ export type GetDagsData = {
     dagRunStartDateLte?: string | null;
     dagRunState?: Array<(string)>;
     excludeStale?: boolean;
+    hasImportErrors?: boolean | null;
     isFavorite?: boolean | null;
     lastDagRunState?: DagRunState | null;
     limit?: number;
