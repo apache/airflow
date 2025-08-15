@@ -28,8 +28,8 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.extra_links import ExtraLinkCollectionResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import DagAccessEntity, requires_access_dag
-from airflow.exceptions import TaskNotFound
 from airflow.models import DagRun
+from airflow.sdk.exceptions import TaskNotFound
 
 if TYPE_CHECKING:
     from airflow.models.mappedoperator import MappedOperator
