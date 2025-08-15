@@ -93,11 +93,10 @@ export const Tasks = () => {
   }) =>
     tasks.filter(
       (task) =>
-        ((operatorNames.length === 0 || operatorNames.includes(task.operator_name as string)) &&
-          (triggerRuleNames.length === 0 || triggerRuleNames.includes(task.trigger_rule as string)) &&
-          (retryValues.length === 0 || retryValues.includes(task.retries?.toString() as string)) &&
-          mapped === undefined) ||
-        task.is_mapped?.toString() === mapped,
+        (operatorNames.length === 0 || operatorNames.includes(task.operator_name as string)) &&
+        (triggerRuleNames.length === 0 || triggerRuleNames.includes(task.trigger_rule as string)) &&
+        (retryValues.length === 0 || retryValues.includes(task.retries?.toString() as string)) &&
+        (mapped === undefined || task.is_mapped?.toString() === mapped),
     );
 
   const filteredTasks = filterTasks({
