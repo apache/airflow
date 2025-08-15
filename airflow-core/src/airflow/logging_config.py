@@ -73,7 +73,10 @@ def load_logging_config() -> tuple[dict[str, Any], str]:
     else:
         modpath = logging_class_path.rsplit(".", 1)[0]
         try:
-            mod = import_string(modpath)
+            # Import here to avoid circular imports
+            from importlib import import_module
+
+            mod = import_module(modpath)
             REMOTE_TASK_LOG = getattr(mod, "REMOTE_TASK_LOG")
             DEFAULT_REMOTE_CONN_ID = getattr(mod, "DEFAULT_REMOTE_CONN_ID", None)
         except Exception as err:
