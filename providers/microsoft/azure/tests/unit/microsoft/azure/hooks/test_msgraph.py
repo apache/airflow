@@ -212,6 +212,16 @@ class TestKiotaRequestAdapterHook:
 
             assert hook.api_version == APIVersion.v1.value
 
+    def test_api_version_when_none_is_explicitly_passed_as_api_version(self):
+        with patch(
+            f"{BASEHOOK_PATCH_PATH}.get_connection",
+            side_effect=get_airflow_connection,
+        ):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api", api_version=None)
+            actual = hook.api_version
+
+            assert actual == APIVersion.v1.value
+
     def test_get_api_version_when_empty_config_dict(self):
         with patch(
             f"{BASEHOOK_PATCH_PATH}.get_connection",

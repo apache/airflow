@@ -209,6 +209,13 @@ class KiotaRequestAdapterHook(BaseHook):
             return f"{connection.schema}://{connection.host}"
         return self.host
 
+    def get_base_url(self, host: str, api_version: str, config: dict) -> str:
+        base_url = config.get("base_url", urljoin(host, api_version)).strip()
+
+        if not base_url.endswith("/"):
+            return f"{base_url}/"
+        return base_url
+
     @staticmethod
     def format_no_proxy_url(url: str) -> str:
         if "://" not in url:
@@ -255,7 +262,7 @@ class KiotaRequestAdapterHook(BaseHook):
             config = connection.extra_dejson if connection.extra else {}
             api_version = self.get_api_version(config)
             host = self.get_host(connection)  # type: ignore[arg-type]
-            base_url = config.get("base_url", urljoin(host, api_version))
+            base_url = self.get_base_url(host, api_version, config)
             authority = config.get("authority")
             proxies = self.get_proxies(config)
             httpx_proxies = self.to_httpx_proxies(proxies=proxies)
@@ -468,7 +475,7 @@ class KiotaRequestAdapterHook(BaseHook):
                 header_name=RequestInformation.CONTENT_TYPE_HEADER, header_value="application/json"
             )
             request_information.content = json.dumps(data).encode("utf-8")
-        print("Request Information:", request_information.url)
+        self.log.info("Request Information: %s", request_information.url)
         return request_information
 
     @staticmethod
