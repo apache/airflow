@@ -71,9 +71,7 @@ export const Dashboard = () => {
           </Accordion.Root>
         ) : undefined}
         <Heading order={2} size="2xl">
-          {typeof instanceName === "string" && instanceName.trim() !== ""
-            ? instanceName
-            : translate("welcome")}
+          {typeof instanceName === "string" && instanceName !== "" ? instanceName : translate("welcome")}
         </Heading>
         <Box order={3}>
           <Stats />
