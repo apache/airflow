@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, cast
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions._internal.setup_teardown import SetupTeardownContext
 from airflow.sdk.definitions.decorators.task_group import _TaskGroupFactory
+from airflow.sdk.exceptions import AirflowException
 
 if TYPE_CHECKING:
     from airflow.sdk.bases.decorator import _TaskDecorator
@@ -51,7 +52,7 @@ def setup_task(func: Callable) -> Callable:
     if isinstance(func, types.FunctionType):
         func = python_task(func)
     if isinstance(func, _TaskGroupFactory):
-        raise RuntimeError("Task groups cannot be marked as setup or teardown.")
+        raise AirflowException("Task groups cannot be marked as setup or teardown.")
     func = cast("_TaskDecorator", func)
     func.is_setup = True
     return func
@@ -76,7 +77,7 @@ def teardown_task(_func=None, *, on_failure_fail_dagrun: bool = False) -> Callab
         if isinstance(func, types.FunctionType):
             func = python_task(func)
         if isinstance(func, _TaskGroupFactory):
-            raise RuntimeError("Task groups cannot be marked as setup or teardown.")
+            raise AirflowException("Task groups cannot be marked as setup or teardown.")
         func = cast("_TaskDecorator", func)
 
         func.is_teardown = True
@@ -101,9 +102,9 @@ class ContextWrapper(list):
             if isinstance(task, BaseOperator):
                 operators.append(task)
                 if not task.is_setup and not task.is_teardown:
-                    raise RuntimeError("Only setup/teardown tasks can be used as context managers.")
+                    raise AirflowException("Only setup/teardown tasks can be used as context managers.")
             elif not task.operator.is_setup and not task.operator.is_teardown:
-                raise RuntimeError("Only setup/teardown tasks can be used as context managers.")
+                raise AirflowException("Only setup/teardown tasks can be used as context managers.")
         if not operators:
             # means we have XComArgs
             operators = [task.operator for task in self.tasks]

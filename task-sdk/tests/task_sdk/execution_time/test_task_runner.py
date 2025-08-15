@@ -60,6 +60,7 @@ from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION
 from airflow.sdk.definitions.asset import Asset, AssetAlias, Dataset, Model
 from airflow.sdk.definitions.param import DagParam
 from airflow.sdk.exceptions import (
+    AirflowException,
     AirflowFailException,
     AirflowSensorTimeout,
     AirflowSkipException,
@@ -454,12 +455,12 @@ def test_run_raises_system_exit(time_machine, create_runtime_ti, mock_supervisor
 
 
 def test_run_raises_airflow_exception(time_machine, create_runtime_ti, mock_supervisor_comms):
-    """Test running a basic task that exits with RuntimeError."""
+    """Test running a basic task that exits with AirflowException."""
 
     task = PythonOperator(
         task_id="af_exception_task",
         python_callable=lambda: (_ for _ in ()).throw(
-            RuntimeError("Oops! I am failing with RuntimeError!"),
+            AirflowException("Oops! I am failing with AirflowException!"),
         ),
     )
 
@@ -2565,7 +2566,7 @@ class TestTaskRunnerCallsListeners:
         [
             ValueError("oops"),
             SystemExit("oops"),
-            RuntimeError("oops"),
+            AirflowException("oops"),
         ],
     )
     def test_task_runner_calls_listeners_failed(self, mocked_parse, mock_supervisor_comms, exception):
@@ -2702,7 +2703,7 @@ class TestTaskRunnerCallsCallbacks:
 
         class FailingOperator(BaseOperator):
             def execute(self, context):
-                raise RuntimeError("Failing task")
+                raise AirflowException("Failing task")
 
         task = FailingOperator(task_id="failing_task", on_failure_callback=failure_callback)
         runtime_ti = create_runtime_ti(dag_id="dag", task=task)
@@ -2784,7 +2785,7 @@ class TestTaskRunnerCallsCallbacks:
         class FailureOperator(BaseOperator):
             def execute(self, context):
                 time.sleep(0.01)  # Add small delay to ensure measurable duration
-                raise RuntimeError("Test failure")
+                raise AirflowException("Test failure")
 
         failure_task = FailureOperator(task_id="failure_task", on_failure_callback=failure_callback)
         failure_runtime_ti = create_runtime_ti(dag_id="dag", task=failure_task)

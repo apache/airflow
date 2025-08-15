@@ -66,7 +66,7 @@ from airflow.sdk.api.datamodels._generated import (
     XComSequenceIndexResponse,
     XComSequenceSliceResponse,
 )
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.exceptions import AirflowException, ErrorType
 from airflow.sdk.execution_time.comms import (
     CreateHITLDetailPayload,
     DRCount,
