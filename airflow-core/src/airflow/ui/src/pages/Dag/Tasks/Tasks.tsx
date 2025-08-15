@@ -43,6 +43,7 @@ export const Tasks = () => {
   const { dagId = "" } = useParams();
   const [selectedOperators, setSelectedOperators] = useState<Array<string> | undefined>(undefined);
   const [selectedTriggerRules, setSelectedTriggerRules] = useState<Array<string> | undefined>(undefined);
+  const [selectedRetryValues, setSelectedRetryValues] = useState<Array<string> | undefined>(undefined);
   const {
     data,
     error: tasksError,
@@ -63,23 +64,36 @@ export const Tasks = () => {
   const allTriggerRules: Array<string> = [
     ...new Set(data?.tasks.map((task) => task.trigger_rule).filter((item) => item !== null) ?? []),
   ];
+  const allRetryValues: Array<string> = [
+    ...new Set(
+      data?.tasks.map((task) => task.retries?.toString()).filter((item) => item !== undefined) ?? [],
+    ),
+  ];
 
-  const filterTasks = (
-    tasks: Array<TaskResponse>,
-    operatorNames: Array<string>,
-    triggerRuleNames: Array<string>,
-  ) =>
+  const filterTasks = ({
+    operatorNames,
+    retryValues,
+    tasks,
+    triggerRuleNames,
+  }: {
+    operatorNames: Array<string>;
+    retryValues: Array<string>;
+    tasks: Array<TaskResponse>;
+    triggerRuleNames: Array<string>;
+  }) =>
     tasks.filter(
       (task) =>
         (operatorNames.length === 0 || operatorNames.includes(task.operator_name as string)) &&
-        (triggerRuleNames.length === 0 || triggerRuleNames.includes(task.trigger_rule as string)),
+        (triggerRuleNames.length === 0 || triggerRuleNames.includes(task.trigger_rule as string)) &&
+        (retryValues.length === 0 || retryValues.includes(task.retries?.toString() as string)),
     );
 
-  const filteredTasks = filterTasks(
-    data ? data.tasks : [],
-    selectedOperators ?? [],
-    selectedTriggerRules ?? [],
-  );
+  const filteredTasks = filterTasks({
+    operatorNames: selectedOperators ?? [],
+    retryValues: selectedRetryValues ?? [],
+    tasks: data ? data.tasks : [],
+    triggerRuleNames: selectedTriggerRules ?? [],
+  });
 
   return (
     <Box>
@@ -100,6 +114,12 @@ export const Tasks = () => {
           placeholderText={translate("selectTriggerRules")}
           selectedValues={selectedTriggerRules}
           values={allTriggerRules}
+        />
+        <AttrSelectFilterMulti
+          handleSelect={setSelectedRetryValues}
+          placeholderText={translate("selectRetryValues")}
+          selectedValues={selectedRetryValues}
+          values={allRetryValues}
         />
         <Box>
           <ResetButton filterCount={2} onClearFilters={onClearFilters} />

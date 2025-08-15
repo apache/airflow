@@ -157,6 +157,7 @@
   },
   "selectLanguage": "Select Language",
   "selectOperator": "Select Operators",
+  "selectRetryValues": "Select retry values",
   "selectTriggerRules": "Select trigger rules",
   "showDetailsPanel": "Show Details Panel",
   "source": {
