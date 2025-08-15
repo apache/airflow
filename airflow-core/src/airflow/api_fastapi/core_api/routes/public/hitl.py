@@ -119,9 +119,8 @@ def _update_hitl_detail(
             "and is not allowed to write again.",
         )
 
-    user_id = user.get_id()
-
     if hitl_detail_model.respondents:
+        user_id = user.get_id()
         if isinstance(user_id, int):
             # FabAuthManager (ab_user) store user id as integer, but common interface is string type
             user_id = str(user_id)
