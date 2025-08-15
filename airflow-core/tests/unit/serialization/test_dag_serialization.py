@@ -172,7 +172,6 @@ serialized_simple_dag_ground_truth = {
                     "retries": 1,
                     "retry_delay": 300.0,
                     "max_retry_delay": 600.0,
-                    "downstream_task_ids": [],
                     "ui_color": "#f0ede4",
                     "ui_fgcolor": "#000",
                     "template_ext": [".sh", ".bash"],
@@ -184,11 +183,9 @@ serialized_simple_dag_ground_truth = {
                     "bash_command": "echo {{ task.task_id }}",
                     "task_type": "BashOperator",
                     "_task_module": "airflow.providers.standard.operators.bash",
-                    "owner": "airflow",
-                    "pool": "default_pool",
-                    "is_setup": False,
-                    "is_teardown": False,
-                    "on_failure_fail_dagrun": False,
+                    "_task_display_name": "my_bash_task",
+                    "owner": "airflow1",
+                    "pool": "pool1",
                     "executor_config": {
                         "__type": "dict",
                         "__var": {
@@ -238,20 +235,13 @@ serialized_simple_dag_ground_truth = {
                     "retries": 1,
                     "retry_delay": 300.0,
                     "max_retry_delay": 600.0,
-                    "downstream_task_ids": [],
                     "_operator_extra_links": {"Google Custom": "_link_CustomOpLink"},
                     "ui_color": "#fff",
                     "ui_fgcolor": "#000",
-                    "template_ext": [],
                     "template_fields": ["bash_command"],
-                    "template_fields_renderers": {},
                     "task_type": "CustomOperator",
                     "_operator_name": "@custom",
                     "_task_module": "tests_common.test_utils.mock_operators",
-                    "pool": "default_pool",
-                    "is_setup": False,
-                    "is_teardown": False,
-                    "on_failure_fail_dagrun": False,
                     "_needs_expansion": False,
                     "weight_rule": "downstream",
                     "start_trigger_args": None,
@@ -332,11 +322,13 @@ def make_simple_dag():
         BashOperator(
             task_id="bash_task",
             bash_command="echo {{ task.task_id }}",
-            owner="airflow",
+            owner="airflow1",
             executor_config={"pod_override": executor_config_pod},
             doc_md="### Task Tutorial Documentation",
             inlets=[Asset("asset-1"), AssetAlias(name="alias-name")],
             outlets=Asset("asset-2"),
+            pool="pool1",
+            task_display_name="my_bash_task",
         )
     return dag
 
@@ -2501,7 +2493,6 @@ def test_operator_expand_serde():
         "task_type": "BashOperator",
         "start_trigger_args": None,
         "start_from_trigger": False,
-        "downstream_task_ids": [],
         "expand_input": {
             "type": "dict-of-lists",
             "value": {
@@ -2516,7 +2507,6 @@ def test_operator_expand_serde():
             },
         },
         "task_id": "a",
-        "operator_extra_links": [],
         "template_fields": ["bash_command", "env", "cwd"],
         "template_ext": [".sh", ".bash"],
         "template_fields_renderers": {"bash_command": "bash", "env": "json"},
@@ -2533,7 +2523,6 @@ def test_operator_expand_serde():
         "task_type": "BashOperator",
         "start_trigger_args": None,
         "start_from_trigger": False,
-        "downstream_task_ids": [],
         "task_id": "a",
         "template_ext": [".sh", ".bash"],
         "template_fields": ["bash_command", "env", "cwd"],
@@ -2559,7 +2548,6 @@ def test_operator_expand_xcomarg_serde():
         "_is_mapped": True,
         "_task_module": "tests_common.test_utils.mock_operators",
         "task_type": "MockOperator",
-        "downstream_task_ids": [],
         "expand_input": {
             "type": "dict-of-lists",
             "value": {
@@ -2575,9 +2563,6 @@ def test_operator_expand_xcomarg_serde():
         "partial_kwargs": {},
         "task_id": "task_2",
         "template_fields": ["arg1", "arg2"],
-        "template_ext": [],
-        "template_fields_renderers": {},
-        "operator_extra_links": [],
         "ui_color": "#fff",
         "ui_fgcolor": "#000",
         "_disallow_kwargs_override": False,
@@ -2616,7 +2601,6 @@ def test_operator_expand_kwargs_literal_serde(strict):
         "_is_mapped": True,
         "_task_module": "tests_common.test_utils.mock_operators",
         "task_type": "MockOperator",
-        "downstream_task_ids": [],
         "expand_input": {
             "type": "list-of-dicts",
             "value": [
@@ -2635,9 +2619,6 @@ def test_operator_expand_kwargs_literal_serde(strict):
         "partial_kwargs": {},
         "task_id": "task_2",
         "template_fields": ["arg1", "arg2"],
-        "template_ext": [],
-        "template_fields_renderers": {},
-        "operator_extra_links": [],
         "ui_color": "#fff",
         "ui_fgcolor": "#000",
         "_disallow_kwargs_override": strict,
@@ -2681,7 +2662,6 @@ def test_operator_expand_kwargs_xcomarg_serde(strict):
         "_is_mapped": True,
         "_task_module": "tests_common.test_utils.mock_operators",
         "task_type": "MockOperator",
-        "downstream_task_ids": [],
         "expand_input": {
             "type": "list-of-dicts",
             "value": {
@@ -2692,9 +2672,6 @@ def test_operator_expand_kwargs_xcomarg_serde(strict):
         "partial_kwargs": {},
         "task_id": "task_2",
         "template_fields": ["arg1", "arg2"],
-        "template_ext": [],
-        "template_fields_renderers": {},
-        "operator_extra_links": [],
         "ui_color": "#fff",
         "ui_fgcolor": "#000",
         "_disallow_kwargs_override": strict,
@@ -2737,22 +2714,8 @@ def test_task_resources_serde():
     }
 
 
-@pytest.fixture(params=[None, timedelta(hours=1)])
-def default_task_execution_timeout(request):
-    """
-    Mock setting core.default_task_execution_timeout in airflow.cfg.
-    """
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
-
-    DEFAULT_TASK_EXECUTION_TIMEOUT = request.param
-    with mock.patch.dict(
-        SerializedBaseOperator._CONSTRUCTOR_PARAMS, {"execution_timeout": DEFAULT_TASK_EXECUTION_TIMEOUT}
-    ):
-        yield DEFAULT_TASK_EXECUTION_TIMEOUT
-
-
 @pytest.mark.parametrize("execution_timeout", [None, timedelta(hours=1)])
-def test_task_execution_timeout_serde(execution_timeout, default_task_execution_timeout):
+def test_task_execution_timeout_serde(execution_timeout):
     """
     Test task execution_timeout serialization/deserialization.
     """
@@ -2762,7 +2725,7 @@ def test_task_execution_timeout_serde(execution_timeout, default_task_execution_
         task = EmptyOperator(task_id="task1", execution_timeout=execution_timeout)
 
     serialized = BaseSerialization.serialize(task)
-    if execution_timeout != default_task_execution_timeout:
+    if execution_timeout:
         assert "execution_timeout" in serialized["__var"]
 
     deserialized = BaseSerialization.deserialize(serialized)
@@ -2792,11 +2755,7 @@ def test_taskflow_expand_serde():
         "_task_module": "airflow.providers.standard.decorators.python",
         "task_type": "_PythonDecoratedOperator",
         "_operator_name": "@task",
-        "downstream_task_ids": [],
         "partial_kwargs": {
-            "is_setup": False,
-            "is_teardown": False,
-            "on_failure_fail_dagrun": False,
             "op_args": [],
             "op_kwargs": {
                 "__type": "dict",
@@ -2817,11 +2776,9 @@ def test_taskflow_expand_serde():
                 },
             },
         },
-        "operator_extra_links": [],
         "ui_color": "#ffefeb",
         "ui_fgcolor": "#000",
         "task_id": "x",
-        "template_ext": [],
         "template_fields": ["templates_dict", "op_args", "op_kwargs"],
         "template_fields_renderers": {
             "templates_dict": "json",
@@ -2848,9 +2805,6 @@ def test_taskflow_expand_serde():
         },
     )
     assert deserialized.partial_kwargs == {
-        "is_setup": False,
-        "is_teardown": False,
-        "on_failure_fail_dagrun": False,
         "op_args": [],
         "op_kwargs": {"arg1": [1, 2, {"a": "b"}]},
         "retry_delay": timedelta(seconds=30),
@@ -2873,9 +2827,6 @@ def test_taskflow_expand_serde():
         },
     )
     assert pickled.partial_kwargs == {
-        "is_setup": False,
-        "is_teardown": False,
-        "on_failure_fail_dagrun": False,
         "op_args": [],
         "op_kwargs": {"arg1": [1, 2, {"a": "b"}]},
         "retry_delay": timedelta(seconds=30),
@@ -2908,11 +2859,7 @@ def test_taskflow_expand_kwargs_serde(strict):
         "python_callable_name": qualname(x),
         "start_trigger_args": None,
         "start_from_trigger": False,
-        "downstream_task_ids": [],
         "partial_kwargs": {
-            "is_setup": False,
-            "is_teardown": False,
-            "on_failure_fail_dagrun": False,
             "op_args": [],
             "op_kwargs": {
                 "__type": "dict",
@@ -2927,11 +2874,9 @@ def test_taskflow_expand_kwargs_serde(strict):
                 "__var": {"task_id": "op1", "key": "return_value"},
             },
         },
-        "operator_extra_links": [],
         "ui_color": "#ffefeb",
         "ui_fgcolor": "#000",
         "task_id": "x",
-        "template_ext": [],
         "template_fields": ["templates_dict", "op_args", "op_kwargs"],
         "template_fields_renderers": {
             "templates_dict": "json",
@@ -2953,9 +2898,6 @@ def test_taskflow_expand_kwargs_serde(strict):
         value=_XComRef({"task_id": "op1", "key": XCOM_RETURN_KEY}),
     )
     assert deserialized.partial_kwargs == {
-        "is_setup": False,
-        "is_teardown": False,
-        "on_failure_fail_dagrun": False,
         "op_args": [],
         "op_kwargs": {"arg1": [1, 2, {"a": "b"}]},
         "retry_delay": timedelta(seconds=30),
@@ -2975,9 +2917,6 @@ def test_taskflow_expand_kwargs_serde(strict):
         _XComRef({"task_id": "op1", "key": XCOM_RETURN_KEY}),
     )
     assert pickled.partial_kwargs == {
-        "is_setup": False,
-        "is_teardown": False,
-        "on_failure_fail_dagrun": False,
         "op_args": [],
         "op_kwargs": {"arg1": [1, 2, {"a": "b"}]},
         "retry_delay": timedelta(seconds=30),
@@ -3055,13 +2994,10 @@ def test_mapped_task_with_operator_extra_links_property():
         "partial_kwargs": {},
         "_disallow_kwargs_override": False,
         "_expand_input_attr": "expand_input",
-        "downstream_task_ids": [],
         "_operator_extra_links": {"airflow": "_link_AirflowLink2"},
         "ui_color": "#fff",
         "ui_fgcolor": "#000",
-        "template_ext": [],
         "template_fields": [],
-        "template_fields_renderers": {},
         "task_type": "_DummyOperator",
         "_task_module": "unit.serialization.test_dag_serialization",
         "_is_mapped": True,
@@ -3139,8 +3075,8 @@ def test_handle_v1_serdag():
                         "_task_type": "BashOperator",
                         # Slightly difference from v2-10-stable here, we manually changed this path
                         "_task_module": "airflow.providers.standard.operators.bash",
-                        "owner": "airflow",
-                        "pool": "default_pool",
+                        "owner": "airflow1",
+                        "pool": "pool1",
                         "is_setup": False,
                         "is_teardown": False,
                         "on_failure_fail_dagrun": False,
