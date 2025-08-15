@@ -46,7 +46,7 @@
     "error_one": "1 Erro",
     "errorAndWarning": "1 Erro e {{warningText}}",
     "warning_one": "1 Aviso",
-    "warning_other": "{{count}} Avisos"  
+    "warning_other": "{{count}} Avisos"
   },
   "durationChart": {
     "duration": "Duração (segundos)",
