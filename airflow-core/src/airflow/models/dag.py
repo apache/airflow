@@ -1649,17 +1649,21 @@ class DAG(TaskSDKDag, LoggingMixin):
         dag_op.update_dag_asset_expression(orm_dags=orm_dags, orm_assets=orm_assets)
         session.flush()
 
+    @classmethod
     @provide_session
-    def sync_to_db(self, session=NEW_SESSION):
+    def sync_dag_to_db(cls, dag: MaybeSerializedDAG, *, session: Session = NEW_SESSION) -> None:
         """
         Save attributes about this DAG to the DB.
 
+        This is a wrapper to :func:`.bulk_write_to_db` assuming the dag has
+        already previously saved a DagModel entry. Really only used in tests.
+
         :return: None
         """
-        # TODO: AIP-66 should this be in the model?
-        bundle_name = self.get_bundle_name(session=session)
-        bundle_version = self.get_bundle_version(session=session)
-        self.bulk_write_to_db(bundle_name, bundle_version, [self], session=session)
+        bundle_name, bundle_version = session.execute(
+            select(DagModel.bundle_name, DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id)
+        ).one()
+        cls.bulk_write_to_db(bundle_name, bundle_version, [dag], session=session)
 
     @staticmethod
     @provide_session

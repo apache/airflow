@@ -666,14 +666,13 @@ class TestOtelIntegration:
                 if AIRFLOW_V_3_0_PLUS:
                     from airflow.models.dagbundle import DagBundleModel
 
-                    if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
-                        session.add(DagBundleModel(name="testing"))
-                        session.commit()
+                    session.merge(DagBundleModel(name="testing"))
+                    session.flush()
                     DAG.bulk_write_to_db(
                         bundle_name="testing", bundle_version=None, dags=[dag], session=session
                     )
                 else:
-                    dag.sync_to_db(session=session)
+                    dag.sync_to_db(session=session)  # type: ignore[attr-defined]
                 # Manually serialize the dag and write it to the db to avoid a db error.
                 SerializedDagModel.write_dag(dag, bundle_name="testing", session=session)
 

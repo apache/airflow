@@ -42,17 +42,15 @@ if TYPE_CHECKING:
     from itsdangerous import URLSafeSerializer
     from sqlalchemy.orm import Session
 
-    from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG, ScheduleArg
     from airflow.models.dagrun import DagRun, DagRunType
     from airflow.models.taskinstance import TaskInstance
     from airflow.providers.standard.operators.empty import EmptyOperator
-    from airflow.sdk import Context
+    from airflow.sdk import BaseOperator, Context
     from airflow.sdk.api.datamodels._generated import TaskInstanceState as TIState
-    from airflow.sdk.bases.operator import BaseOperator as TaskSDKBaseOperator
     from airflow.sdk.execution_time.comms import StartupDetails, ToSupervisor
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
-    from airflow.sdk.types import DagRunProtocol
+    from airflow.sdk.types import DagRunProtocol, Operator
     from airflow.timetables.base import DataInterval
     from airflow.typing_compat import Self
     from airflow.utils.state import DagRunState, TaskInstanceState
@@ -959,7 +957,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
                 DAG.bulk_write_to_db(self.bundle_name, self.bundle_version, [dag], session=self.session)
             else:
-                dag.sync_to_db(session=self.session)
+                dag.sync_to_db(session=self.session)  # type: ignore[attr-defined]
 
             if dag.access_control and "FabAuthManager" in conf.get("core", "auth_manager"):
                 if AIRFLOW_V_3_0_PLUS:
@@ -1637,7 +1635,7 @@ def get_test_dag():
             session.commit()
             session.close()
         else:
-            dag.sync_to_db()
+            dag.sync_to_db()  # type: ignore[attr-defined]
         SerializedDagModel.write_dag(dag, bundle_name="testing")
 
         return dag
@@ -2106,7 +2104,7 @@ def mocked_parse(spy_agency):
             )
     """
 
-    def set_dag(what: StartupDetails, dag_id: str, task: TaskSDKBaseOperator) -> RuntimeTaskInstance:
+    def set_dag(what: StartupDetails, dag_id: str, task: BaseOperator) -> RuntimeTaskInstance:
         from airflow.sdk.definitions.dag import DAG
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, parse
 
@@ -2185,7 +2183,7 @@ class RunTaskCallable(Protocol):
 
     def __call__(
         self,
-        task: TaskSDKBaseOperator,
+        task: BaseOperator,
         dag_id: str = ...,
         run_id: str = ...,
         logical_date: datetime | None = None,
@@ -2229,7 +2227,7 @@ def create_runtime_ti(mocked_parse):
     timezone = _import_timezone()
 
     def _create_task_instance(
-        task: BaseOperator,
+        task: Operator,
         dag_id: str = "test_dag",
         run_id: str = "test_run",
         logical_date: str | datetime = "2024-12-01T01:00:00Z",
@@ -2256,14 +2254,18 @@ def create_runtime_ti(mocked_parse):
             task.dag = dag
             task = dag.task_dict[task.task_id]
 
+        if TYPE_CHECKING:
+            assert task.dag is not None
+
         data_interval_start = None
         data_interval_end = None
 
         if task.dag.timetable:
             if run_type == DagRunType.MANUAL:
-                data_interval_start, data_interval_end = task.dag.timetable.infer_manual_data_interval(
-                    run_after=logical_date
-                )
+                if logical_date:
+                    data_interval_start, data_interval_end = task.dag.timetable.infer_manual_data_interval(
+                        run_after=timezone.coerce_datetime(logical_date),
+                    )
             else:
                 drinfo = task.dag.timetable.next_dagrun_info(
                     last_automated_data_interval=None,
@@ -2490,7 +2492,7 @@ def run_task(create_runtime_ti, mock_supervisor_comms, spy_agency) -> RunTaskCal
 
         def __call__(
             self,
-            task: TaskSDKBaseOperator,
+            task: BaseOperator,
             dag_id: str = "test_dag",
             run_id: str = "test_run",
             logical_date: datetime | None = None,

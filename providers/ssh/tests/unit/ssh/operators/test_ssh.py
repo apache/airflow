@@ -26,11 +26,12 @@ import pytest
 from paramiko.client import SSHClient
 
 from airflow.exceptions import AirflowException, AirflowSkipException, AirflowTaskTimeout
-from airflow.models import TaskInstance
+from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
-from airflow.utils.timezone import datetime
+from airflow.sdk.timezone import datetime
 from airflow.utils.types import NOTSET
 
 from tests_common.test_utils.config import conf_vars
@@ -262,7 +263,7 @@ class TestSSHOperator:
         with pytest.raises(AirflowException, match="SSH operator error: exit status = 1"):
             task.execute(None)
 
-    def test_push_ssh_exit_to_xcom(self, request, dag_maker):
+    def test_push_ssh_exit_to_xcom(self, request, dag_maker, session):
         # Test pulls the value previously pushed to xcom and checks if it's the same
         command = "not_a_real_command"
         ssh_exit_code = random.randrange(1, 100)
@@ -272,8 +273,17 @@ class TestSSHOperator:
             task = SSHOperator(task_id="push_xcom", ssh_hook=self.hook, command=command)
         dr = dag_maker.create_dagrun(run_id="push_xcom")
         if AIRFLOW_V_3_0_PLUS:
-            dag.sync_to_db()
-            SerializedDagModel.write_dag(dag, bundle_name="testing")
+            from airflow.models.dagbundle import DagBundleModel
+
+            session.merge(DagBundleModel(name="testing"))
+            session.flush()
+            DAG.bulk_write_to_db(
+                bundle_name="testing",
+                bundle_version=None,
+                dags=[dag],
+                session=session,
+            )
+            SerializedDagModel.write_dag(dag, bundle_name="testing", session=session)
             dag_version = DagVersion.get_latest_version(dag.dag_id)
             ti = TaskInstance(task=task, run_id=dr.run_id, dag_version_id=dag_version.id)
         else:

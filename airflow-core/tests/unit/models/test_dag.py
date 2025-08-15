@@ -50,7 +50,6 @@ from airflow.models.asset import (
     AssetModel,
     TaskOutletAssetReference,
 )
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import (
     DAG,
     DagModel,
@@ -67,7 +66,7 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk import TaskGroup, setup, task as task_decorator, teardown
+from airflow.sdk import BaseOperator, TaskGroup, setup, task as task_decorator, teardown
 from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
 from airflow.sdk.definitions._internal.templater import NativeEnvironment, SandboxedEnvironment
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
@@ -587,7 +586,7 @@ class TestDag:
         session.add(orm_dag)
         session.flush()
 
-        dag.sync_to_db()
+        DAG.sync_dag_to_db(dag)
         with create_session() as session:
             assert {"tag-1", "tag-2"} == {
                 repr(t) for t in session.query(DagTag).filter(DagTag.dag_id == "dag-test-dagtag").all()
@@ -1001,7 +1000,12 @@ class TestDag:
         session.add(orm_dag)
         session.flush()
 
-        dag.sync_to_db(session=session)
+        DAG.bulk_write_to_db(
+            bundle_name=bundle_name,
+            bundle_version=None,
+            dags=[dag],
+            session=session,
+        )
         SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
         assert not dag.get_is_paused()
 
@@ -1014,12 +1018,10 @@ class TestDag:
         add_failed_dag_run(dag, "2", TEST_DATE + timedelta(days=1))
         assert dag.get_is_paused()
 
-    def test_dag_is_deactivated_upon_dagfile_deletion(self, dag_maker):
+    def test_dag_is_deactivated_upon_dagfile_deletion(self, dag_maker, session):
         dag_id = "old_existing_dag"
-        with dag_maker(dag_id, schedule=None, is_paused_upon_creation=True) as dag:
+        with dag_maker(dag_id, schedule=None, is_paused_upon_creation=True, session=session):
             ...
-        session = settings.Session()
-        dag.sync_to_db(session=session)
 
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
 
@@ -1184,7 +1186,7 @@ class TestDag:
             state=State.SUCCESS,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
-        dag.sync_to_db()
+        DAG.sync_dag_to_db(dag)
         with create_session() as session:
             model = session.get(DagModel, dag.dag_id)
 
@@ -1316,7 +1318,7 @@ class TestDag:
         )
         session.add(orm_dag)
         session.flush()
-        dag.sync_to_db()
+        DAG.sync_dag_to_db(dag)
         assert DagModel.get_dagmodel(dag_id) is not None
 
         paused_dag_ids = DagModel.get_paused_dag_ids([dag_id])
@@ -1538,8 +1540,6 @@ class TestDag:
     def test_dag_test_basic(self, testing_dag_bundle):
         dag = DAG(dag_id="test_local_testing_conn_file", schedule=None, start_date=DEFAULT_DATE)
         bundle_name = "testing"
-        DAG.bulk_write_to_db(bundle_name, None, [dag])
-        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
 
         mock_object = mock.MagicMock()
 
@@ -1550,8 +1550,9 @@ class TestDag:
 
         with dag:
             check_task()
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+
+        DAG.bulk_write_to_db(bundle_name, None, [dag])
+        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
 
         dag.test()
         mock_object.assert_called_once()
@@ -1559,8 +1560,7 @@ class TestDag:
     def test_dag_test_with_dependencies(self, testing_dag_bundle):
         dag = DAG(dag_id="test_local_testing_conn_file", schedule=None, start_date=DEFAULT_DATE)
         bundle_name = "testing"
-        DAG.bulk_write_to_db(bundle_name, None, [dag])
-        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
+
         mock_object = mock.MagicMock()
 
         @task_decorator
@@ -1575,8 +1575,8 @@ class TestDag:
         with dag:
             check_task_2(check_task())
 
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        DAG.bulk_write_to_db(bundle_name, None, [dag])
+        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
 
         dag.test()
         mock_object.assert_called_with("output of first task")
@@ -1604,8 +1604,6 @@ class TestDag:
         mock_task_object_1 = mock.MagicMock()
         mock_task_object_2 = mock.MagicMock()
         bundle_name = "testing"
-        DAG.bulk_write_to_db(bundle_name, None, [dag])
-        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
 
         @task_decorator
         def check_task():
@@ -1619,8 +1617,8 @@ class TestDag:
 
         with dag:
             check_task_2(check_task())
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        DAG.bulk_write_to_db(bundle_name, None, [dag])
+        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
         dr = dag.test()
 
         ti1 = dr.get_task_instance("check_task")
@@ -2048,7 +2046,7 @@ my_postgres_conn:
         session.add(orm_dag)
         session.flush()
         assert dag.owner_links == {"owner1": "https://mylink.com", "owner2": "mailto:someone@yoursite.com"}
-        dag.sync_to_db(session=session)
+        DAG.sync_dag_to_db(dag, session=session)
 
         expected_owners = {"dag": {"owner1": "https://mylink.com", "owner2": "mailto:someone@yoursite.com"}}
         orm_dag_owners = DagOwnerAttributes.get_all(session)
@@ -2056,7 +2054,7 @@ my_postgres_conn:
 
         # Test dag owner links are removed completely
         dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE)
-        dag.sync_to_db(session=session)
+        DAG.sync_dag_to_db(dag, session=session)
 
         orm_dag_owners = session.query(DagOwnerAttributes).all()
         assert not orm_dag_owners
@@ -2383,7 +2381,7 @@ class TestDagModel:
         session.merge(dag_model)
         session.flush()
 
-        dag.sync_to_db(session=session)
+        DAG.sync_dag_to_db(dag, session=session)
 
         assert dag.fileloc == str(file_path)
         assert dag.relative_fileloc == str(rel_path)
@@ -2412,7 +2410,7 @@ class TestDagModel:
         session.merge(dag_model)
         session.flush()
 
-        dag.sync_to_db()
+        DAG.sync_dag_to_db(dag, session=session)
         assert dag._processor_dags_folder is None
         SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
         sdm = SerializedDagModel.get(dag.dag_id, session)

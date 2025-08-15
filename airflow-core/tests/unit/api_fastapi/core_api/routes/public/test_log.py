@@ -275,7 +275,7 @@ class TestTaskInstancesLog:
         # Recreate DAG without tasks
         dagbag = create_dag_bag()
         dag = DAG(self.DAG_ID, schedule=None, start_date=timezone.parse(self.default_time))
-        dag.sync_to_db()
+        DAG.sync_dag_to_db(dag)
         SerializedDagModel.write_dag(dag, bundle_name="testing")
 
         self.app.dependency_overrides[dag_bag_from_app] = lambda: dagbag

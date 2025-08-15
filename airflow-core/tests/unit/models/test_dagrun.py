@@ -465,7 +465,7 @@ class TestDagRun:
         session.merge(dag_model)
         session.flush()
 
-        dag.sync_to_db()
+        DAG.sync_dag_to_db(dag, session=session)
         SerializedDagModel.write_dag(dag, bundle_name="testing")
 
         initial_task_states = {
@@ -1117,7 +1117,7 @@ class TestDagRun:
         session.merge(dag_model)
         session.flush()
 
-        dag.sync_to_db(session=session)
+        DAG.sync_dag_to_db(dag, session=session)
         SerializedDagModel.write_dag(dag, bundle_name="testing")
 
         initial_task_states = {

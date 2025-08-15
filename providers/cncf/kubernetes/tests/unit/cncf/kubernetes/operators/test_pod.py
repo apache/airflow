@@ -121,8 +121,8 @@ def create_context(task, persist_to_db=False, map_index=None):
             session.flush()
             session.add(DagModel(dag_id=dag.dag_id, bundle_name=bundle_name))
             session.commit()
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+            DAG.bulk_write_to_db(bundle_name, bundle_version=None, dags=[dag], session=session)
+            SerializedDagModel.write_dag(dag, bundle_name, session=session)
         dag_run = DagRun(
             run_id=DagRun.generate_run_id(
                 run_type=DagRunType.MANUAL, logical_date=DEFAULT_DATE, run_after=DEFAULT_DATE

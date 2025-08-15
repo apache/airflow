@@ -18,24 +18,16 @@
 from __future__ import annotations
 
 import datetime
+import importlib.util
 import inspect
 from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
 
-try:
-    import importlib.util
-
-    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
-        raise ImportError
-
-    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
-except ImportError:
-    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
-from airflow import DAG
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.models import Connection
+from airflow.models.connection import Connection
+from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.common.sql.operators.sql import (
@@ -51,7 +43,7 @@ from airflow.providers.common.sql.operators.sql import (
 )
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils import timezone  # type: ignore[attr-defined]
+from airflow.sdk import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -63,6 +55,13 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
+
+try:
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 
 pytestmark = pytest.mark.db_test
 
@@ -1109,16 +1108,18 @@ class TestSqlBranch:
         self.branch_1 = EmptyOperator(task_id="branch_1", dag=self.dag)
         self.branch_2 = EmptyOperator(task_id="branch_2", dag=self.dag)
         self.branch_3 = None
+        self._sync_dag()
+
+    def _sync_dag(self):
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dagbundle import DagBundleModel
 
             with create_session() as session:
                 bundle_name = "testing"
-                orm_dag_bundle = DagBundleModel(name=bundle_name)
-                session.add(orm_dag_bundle)
-                session.commit()
-            DAG.bulk_write_to_db(bundle_name, None, [self.dag])
-            SerializedDagModel.write_dag(self.dag, bundle_name=bundle_name)
+                session.merge(DagBundleModel(name=bundle_name))
+                session.flush()
+                DAG.bulk_write_to_db(bundle_name, None, [self.dag], session=session)
+                SerializedDagModel.write_dag(self.dag, bundle_name=bundle_name, session=session)
 
     def get_ti(self, task_id, dr=None):
         if dr is None:
@@ -1157,9 +1158,7 @@ class TestSqlBranch:
             follow_task_ids_if_false=["branch_2"],
             dag=self.dag,
         )
-        if AIRFLOW_V_3_0_PLUS:
-            self.dag.sync_to_db()
-            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
+        self._sync_dag()
         return branch_op
 
     def test_unsupported_conn_type(self):
@@ -1399,9 +1398,8 @@ class TestSqlBranch:
         self.branch_3.set_upstream(branch_op)
         self.dag.clear()
 
+        self._sync_dag()
         if AIRFLOW_V_3_0_PLUS:
-            self.dag.sync_to_db()
-            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
             dagrun_kwargs = {
                 "logical_date": DEFAULT_DATE,
                 "run_after": DEFAULT_DATE,
