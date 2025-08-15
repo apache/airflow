@@ -36,10 +36,6 @@ class AirflowBadRequest(AirflowException):
     status_code = HTTPStatus.BAD_REQUEST
 
 
-class TaskNotFound(AirflowException):
-    """Raise when a Task is not available in the system."""
-
-
 class AirflowConfigException(AirflowException):
     """Raise when there is configuration problem."""
 

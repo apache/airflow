@@ -1657,6 +1657,11 @@ repos:
           ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/hitl\.py$|
           ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/variables\.py$|
           ^airflow-core/src/airflow/api_fastapi/core_api/routes/public/dag_run\.py$|
+          ^airflow-core/src/airflow/api_fastapi/core_api/routes/public/extra_links\.py$|
+          ^airflow-core/src/airflow/api_fastapi/core_api/routes/public/task_instances\.py$|
+          ^airflow-core/src/airflow/api_fastapi/core_api/routes/public/log\.py$|
+          ^airflow-core/src/airflow/api_fastapi/core_api/routes/public/tasks\.py$|
+          ^airflow-core/src/airflow/api_fastapi/core_api/routes/public/xcom\.py$|
           ^airflow-core/src/airflow/api_fastapi/core_api/routes/ui/grid\.py$|
           ^airflow-core/src/airflow/api_fastapi/core_api/routes/ui/structure\.py$|
           ^airflow-core/src/airflow/api_fastapi/core_api/services/ui/connections\.py$|
@@ -1701,6 +1706,7 @@ repos:
           ^airflow-core/src/airflow/serialization/dag\.py$|
           ^airflow-core/src/airflow/serialization/enums\.py$|
           ^airflow-core/src/airflow/serialization/serialized_objects\.py$|
+          ^airflow-core/src/airflow/ti_deps/dep_context\.py$|
           ^airflow-core/src/airflow/task/task_runner/bash_task_runner\.py$|
           ^airflow-core/src/airflow/task/task_runner/standard_task_runner\.py$|
           ^airflow-core/src/airflow/utils/dag_cycle_tester\.py$|

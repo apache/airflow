@@ -24,7 +24,7 @@ from typing import Any
 
 import attrs
 
-from airflow.sdk.exceptions import AirflowNotFoundException, AirflowRuntimeError, ErrorType
+from airflow.sdk.exceptions import AirflowException, AirflowNotFoundException, AirflowRuntimeError, ErrorType
 
 log = logging.getLogger(__name__)
 
@@ -130,7 +130,7 @@ class Connection:
         hook = ProvidersManager().hooks.get(self.conn_type, None)
 
         if hook is None:
-            raise RuntimeError(f'Unknown hook type "{self.conn_type}"')
+            raise AirflowException(f'Unknown hook type "{self.conn_type}"')
         try:
             hook_class = import_string(hook.hook_class_name)
         except ImportError:
