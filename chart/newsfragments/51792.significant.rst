@@ -1,4 +1,4 @@
-StatsD metrics aggregation now supports configurable TTL-enabled LRU cache to prevent memory growth in long-running daemons. 
+StatsD metrics aggregation now supports configurable TTL-enabled LRU cache to prevent memory growth in long-running daemons.
 
 The Helm chart now includes new configuration options for StatsD aggregation management:
 
