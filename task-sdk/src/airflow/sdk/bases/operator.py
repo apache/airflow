@@ -98,6 +98,9 @@ __all__ = [
     "cross_downstream",
 ]
 
+# TODO: Task-SDK
+AirflowException = RuntimeError
+
 
 class TriggerFailureReason(str, Enum):
     """
@@ -161,7 +164,7 @@ def parse_retries(retries: Any) -> int | None:
     try:
         parsed_retries = int(retries)
     except (TypeError, ValueError):
-        raise RuntimeError(f"'retries' type must be int, not {type(retries).__name__}")
+        raise AirflowException(f"'retries' type must be int, not {type(retries).__name__}")
     return parsed_retries
 
 
@@ -390,7 +393,7 @@ class ExecutorSafeguard:
                 if not cls.test_mode and sentinel is not self:
                     message = f"{self.__class__.__name__}.{func.__name__} cannot be called outside of the Task Runner!"
                     if not self.allow_nested_operators:
-                        raise RuntimeError(message)
+                        raise AirflowException(message)
                     self.log.warning(message)
 
                     # Now that we've logged, set sentinel so that `super()` calls don't log again
