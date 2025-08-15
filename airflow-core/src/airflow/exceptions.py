@@ -25,22 +25,10 @@ from http import HTTPStatus
 
 from typing import TYPE_CHECKING, Any, NamedTuple
 
+from airflow.sdk.exceptions import AirflowException, AirflowNotFoundException
+
 if TYPE_CHECKING:
     from airflow.models import DagRun
-
-
-class AirflowException(Exception):
-    """
-    Base class for all Airflow's errors.
-
-    Each custom exception should be derived from this class.
-    """
-
-    status_code = HTTPStatus.INTERNAL_SERVER_ERROR
-
-    def serialize(self):
-        cls = self.__class__
-        return f"{cls.__module__}.{cls.__name__}", (str(self),), {}
 
 
 class AirflowBadRequest(AirflowException):
@@ -53,22 +41,12 @@ class TaskNotFound(AirflowException):
     """Raise when a Task is not available in the system."""
 
 
-class AirflowNotFoundException(AirflowException):
-    """Raise when the requested object/resource is not available in the system."""
-
-    status_code = HTTPStatus.NOT_FOUND
-
-
 class AirflowConfigException(AirflowException):
     """Raise when there is configuration problem."""
 
 
 class InvalidStatsNameException(AirflowException):
     """Raise when name of the stats is invalid."""
-
-
-class AirflowFailException(AirflowException):
-    """Raise when the task should be failed without retrying."""
 
 
 class AirflowOptionalProviderFeatureException(AirflowException):
