@@ -126,18 +126,7 @@ def _update_hitl_detail(
             # FabAuthManager (ab_user) store user id as integer, but common interface is string type
             user_id = str(user_id)
         if user_id not in hitl_detail_model.respondents:
-            log.error("User=%s[%s] is not a respondent for the task", user_id, type(user_id))
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN, f"User={user_id} is not a respondent for the task."
-            )
-    user_id = user.get_id()
-
-    if hitl_detail_model.respondents:
-        if isinstance(user_id, int):
-            # FabAuthManager (ab_user) store user id as integer, but common interface is string type
-            user_id = str(user_id)
-        if user_id not in hitl_detail_model.respondents:
-            log.error("User=%s[%s] is not a respondent for the task", user_id, type(user_id))
+            log.error("User=%s is not a respondent for the task", user_id)
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN, f"User={user_id} is not a respondent for the task."
             )
