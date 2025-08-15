@@ -20,18 +20,6 @@ from __future__ import annotations
 from enum import Enum
 
 
-class JobState(str, Enum):
-    """All possible states that a Job can be in."""
-
-    RUNNING = "running"
-    SUCCESS = "success"
-    RESTARTING = "restarting"
-    FAILED = "failed"
-
-    def __str__(self) -> str:
-        return self.value
-
-
 class TerminalTIState(str, Enum):
     """States that a Task Instance can be in that indicate it has reached a terminal state."""
 
