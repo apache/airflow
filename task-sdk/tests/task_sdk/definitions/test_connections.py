@@ -25,7 +25,7 @@ import pytest
 
 from airflow.configuration import initialize_secrets_backends
 from airflow.sdk import Connection
-from airflow.sdk.exceptions import AirflowNotFoundException, ErrorType
+from airflow.sdk.exceptions import AirflowException, AirflowNotFoundException, ErrorType
 from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
@@ -67,7 +67,7 @@ class TestConnections:
         assert hook_instance == "mock_hook_instance"
 
     def test_get_hook_invalid_type(self, mock_providers_manager):
-        """Test that get_hook raises RuntimeError for unknown hook type."""
+        """Test that get_hook raises AirflowException for unknown hook type."""
         mock_providers_manager.return_value.hooks = {}
 
         conn = Connection(
@@ -75,7 +75,7 @@ class TestConnections:
             conn_type="unknown_type",
         )
 
-        with pytest.raises(RuntimeError, match='Unknown hook type "unknown_type"'):
+        with pytest.raises(AirflowException, match='Unknown hook type "unknown_type"'):
             conn.get_hook()
 
     def test_get_uri(self):
