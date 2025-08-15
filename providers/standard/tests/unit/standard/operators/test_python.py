@@ -68,9 +68,13 @@ try:
     from airflow.sdk import timezone
 except ImportError:
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET, DagRunType
 
 from tests_common.test_utils.db import clear_db_runs

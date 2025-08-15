@@ -40,7 +40,12 @@ from airflow.providers.google.cloud.sensors.dataflow import (
     DataflowJobStatusSensor,
 )
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "dataflow_native_go_async"

@@ -46,7 +46,11 @@ else:
         # Airflow 2.10 compat
         from airflow.models.baseoperator import chain
         from airflow.models.dag import DAG
-from airflow.utils.trigger_rule import TriggerRule
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
