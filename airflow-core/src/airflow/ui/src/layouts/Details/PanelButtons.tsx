@@ -88,9 +88,9 @@ export const PanelButtons = ({
   showGantt,
 }: Props) => {
   const { t: translate } = useTranslation(["components", "dag"]);
-  const { dagId = "", runId, taskId } = useParams();
+  const { dagId = "", runId } = useParams();
   const { fitView } = useReactFlow();
-  const shouldShowToggleButtons = Boolean(runId ?? taskId);
+  const shouldShowToggleButtons = Boolean(runId);
   const [dependencies, setDependencies, removeDependencies] = useLocalStorage<Dependency>(
     `dependencies-${dagId}`,
     "tasks",
