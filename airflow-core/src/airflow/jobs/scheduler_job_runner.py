@@ -897,7 +897,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ti.set_state(state)
                     continue
                 ti.task = task
-                if task.on_retry_callback or task.on_failure_callback:
+                if task.has_on_retry_callback or task.has_on_failure_callback:
                     # Only log the error/extra info here, since the `ti.handle_failure()` path will log it
                     # too, which would lead to double logging
                     cls.logger().error(msg)
@@ -2033,7 +2033,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     exc_info=True,
                 )
             else:
-                if task.on_failure_callback:
+                if task.has_on_failure_callback:
                     if inspect(ti).detached:
                         ti = session.merge(ti)
                     request = TaskCallbackRequest(

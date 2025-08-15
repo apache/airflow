@@ -1540,6 +1540,7 @@ repos:
           ^airflow-core/tests/unit/core/test_configuration\.py$|
           ^airflow-core/tests/unit/models/test_renderedtifields\.py$|
           ^airflow-core/tests/unit/models/test_variable\.py$
+
       - id: check-sdk-imports
         name: Check for SDK imports in core files
         entry: ./scripts/ci/prek/check_sdk_imports.py
@@ -1638,3 +1639,10 @@ repos:
           ^airflow-core/src/airflow/utils/trigger_rule\.py$|
           ^airflow-core/src/airflow/utils/types\.py$
         ## ONLY ADD PREK HOOKS HERE THAT REQUIRE CI IMAGE
+      - id: check-schema-defaults
+        name: Check schema defaults match server-side defaults
+        entry: ./scripts/ci/prek/check_schema_defaults.py
+        language: python
+        files: ^airflow-core/src/airflow/serialization/schema\.json$|^airflow-core/src/airflow/serialization/serialized_objects\.py$
+        pass_filenames: false
+        require_serial: true
