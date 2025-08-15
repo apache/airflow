@@ -66,7 +66,7 @@ from airflow.sdk.api.datamodels._generated import (
     XComSequenceIndexResponse,
     XComSequenceSliceResponse,
 )
-from airflow.sdk.exceptions import AirflowException, ErrorType
+from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     CreateHITLDetailPayload,
     DRCount,
@@ -422,7 +422,7 @@ class XComOperations:
         if not (content_range := resp.headers["Content-Range"]) or not content_range.startswith(
             "map_indexes "
         ):
-            raise AirflowException(f"Unable to parse Content-Range header from HEAD {resp.request.url}")
+            raise RuntimeError(f"Unable to parse Content-Range header from HEAD {resp.request.url}")
         return int(content_range[len("map_indexes ") :])
 
     def get(
