@@ -66,9 +66,9 @@ if TYPE_CHECKING:
     )
     from airflow.sdk import DAG, BaseOperator, BaseOperatorLink, Context, TaskGroup, XComArg
     from airflow.sdk.definitions._internal.expandinput import ExpandInput
+    from airflow.sdk.definitions.operator_resources import Resources
     from airflow.sdk.definitions.param import ParamsDict
     from airflow.triggers.base import StartTriggerArgs
-    from airflow.utils.operator_resources import Resources
     from airflow.utils.trigger_rule import TriggerRule
 
 ValidationSource = Literal["expand"] | Literal["partial"]
