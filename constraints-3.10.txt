@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-15T13:53:47.799867
+# This constraints file was automatically generated on 2025-08-15T19:46:39.811609
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -67,7 +67,7 @@ a2wsgi==1.10.10
 adal==1.2.7
 adlfs==2024.12.0
 aenum==3.1.16
-aiobotocore==2.24.0
+aiobotocore==2.24.1
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
 aiohttp-cors==0.8.1
