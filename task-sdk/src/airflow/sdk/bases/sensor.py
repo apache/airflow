@@ -178,7 +178,7 @@ class BaseSensorOperator(BaseOperator):
 
     def poke(self, context: Context) -> bool | PokeReturnValue:
         """Override when deriving this class."""
-        raise RuntimeError("Override me.")
+        raise AirflowException("Override me.")
 
     def execute(self, context: Context) -> Any:
         started_at: datetime.datetime | float
@@ -255,7 +255,7 @@ class BaseSensorOperator(BaseOperator):
             return super().resume_execution(next_method, next_kwargs, context)
         except TaskDeferralTimeout as e:
             raise AirflowSensorTimeout(*e.args) from e
-        except (RuntimeError, TaskDeferralError) as e:
+        except (AirflowException, TaskDeferralError) as e:
             if self.soft_fail:
                 raise AirflowSkipException(str(e)) from e
             raise
