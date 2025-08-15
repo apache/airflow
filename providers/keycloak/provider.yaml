@@ -21,11 +21,11 @@ name: Keycloak
 description: |
   ``Keycloak Provider``
 
-state: not-ready
+state: ready
 source-date-epoch: 1741121853
 # note that those versions are maintained by release manager - do not update them manually
 versions:
-  - 1.0.0
+  - 0.0.1
 
 auth-managers:
   - airflow.providers.keycloak.auth_manager.keycloak_auth_manager.KeycloakAuthManager
@@ -39,14 +39,14 @@ config:
           Client ID configured in Keycloak to integrate with Airflow.
           This client must follow the standard OpenID Connect authentication flow.
         type: string
-        version_added: 1.0.0
+        version_added: 0.0.1
         example: ~
         default: ~
       client_secret:
         description: |
           Secret associated to the client configured in Keycloak to integrate with Airflow.
         type: string
-        version_added: 1.0.0
+        version_added: 0.0.1
         example: ~
         default: ~
       realm:
@@ -54,7 +54,7 @@ config:
           Realm configured in Keycloak associated to Airflow.
           This realm define all users, roles and groups used in Airflow.
         type: string
-        version_added: 1.0.0
+        version_added: 0.0.1
         example: ~
         default: ~
       server_url:
@@ -64,6 +64,6 @@ config:
           If the Airflow API server and Keycloak are running in Docker,
           set "http://host.docker.internal:<PORT>" (default value).
         type: string
-        version_added: 1.0.0
+        version_added: 0.0.1
         example: ~
         default: "http://host.docker.internal:48080"

@@ -1,0 +1,23 @@
+{
+  "requiredAction_one": "פעולה נדרשת",
+  "requiredAction_other": "פעולות נדרשות",
+  "requiredActionState": "מצב פעולה נדרשת",
+  "response": {
+    "error": "התגובה נכשלה",
+    "optionsDescription": "בחר את האפשרויות למופע המשימה הזה",
+    "optionsLabel": "אפשרויות",
+    "received": "תגובה התקבלה ב",
+    "respond": "הגב",
+    "success": "התגובה של {{taskId}} הצליחה",
+    "title": "מופע משימה ידנית - {{taskId}}"
+  },
+  "state": {
+    "approvalReceived": "האישור התקבל",
+    "approvalRequired": "נדרש אישור",
+    "choiceReceived": "הבחירה התקבלה",
+    "choiceRequired": "נדרשת בחירה",
+    "rejectionReceived": "הדחייה התקבלה",
+    "responseReceived": "התגובה התקבלה",
+    "responseRequired": "נדרשת תגובה"
+  }
+}

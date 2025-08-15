@@ -57,6 +57,8 @@
     "remark-gfm": "^4.0.1",
     "use-debounce": "^10.0.4",
     "usehooks-ts": "^3.1.1",
+    "node-sql-parser": "^5.3.10",
+    "yaml": "^2.6.1",
     "zustand": "^5.0.4"
   },
   "devDependencies": {

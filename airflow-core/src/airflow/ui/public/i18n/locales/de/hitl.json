@@ -1,0 +1,24 @@
+{
+  "requiredAction_one": "Erforderliche Interaktion",
+  "requiredAction_other": "Erforderliche Interaktionen",
+  "requiredActionState": "Status der Interaktion",
+  "response": {
+    "error": "Senden der Antwort fehlgeschlagen",
+    "optionsDescription": "Wählen Sie Ihre Optionen für diesen Task",
+    "optionsLabel": "Optionen",
+    "received": "Antwort empfangen um ",
+    "respond": "Antworten",
+    "success": "{{taskId}} Interaktion erfolgreich",
+    "title": "Erforderliche Interaktion - {{taskId}}"
+  },
+  "state": {
+    "approvalReceived": "Genehmigung erhalten",
+    "approvalRequired": "Genehmigung erforderlich",
+    "choiceReceived": "Auswahl getroffen",
+    "choiceRequired": "Auswahl erforderlich",
+    "rejectionReceived": "Ablehnung erhalten",
+    "responseReceived": "Antwort erhalten",
+    "responseRequired": "Antwort erforderlich"
+  },
+  "subject": "Betreff"
+}

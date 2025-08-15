@@ -82,6 +82,14 @@ class TestGetDagRuns(TestPublicDagEndpoint):
             # Search
             ({"dag_id_pattern": "1"}, [DAG1_ID], 6),
             ({"dag_display_name_pattern": "test_dag2"}, [DAG2_ID], 5),
+            # Bundle filters
+            ({"bundle_name": "dag_maker"}, [DAG1_ID, DAG2_ID], 11),
+            ({"bundle_name": "wrong_bundle"}, [], 0),
+            ({"bundle_version": "some_commit_hash"}, [DAG1_ID, DAG2_ID], 11),
+            ({"bundle_version": "wrong_version"}, [], 0),
+            ({"bundle_name": "dag_maker", "bundle_version": "some_commit_hash"}, [DAG1_ID, DAG2_ID], 11),
+            ({"bundle_name": "dag_maker", "bundle_version": "wrong_version"}, [], 0),
+            ({"bundle_name": "wrong_bundle", "bundle_version": "some_commit_hash"}, [], 0),
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")

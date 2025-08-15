@@ -28,6 +28,17 @@ Changelog
 ---------
 
 
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add OAuth 2 / XOAUTH2 support via 'auth_type' & token/credential extras (#53554)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.1.2
 .....
 

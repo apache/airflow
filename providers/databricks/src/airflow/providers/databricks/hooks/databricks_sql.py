@@ -179,7 +179,6 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
 
         :return: the extracted sqlalchemy.engine.URL object.
         """
-        conn = self.get_conn()
         url_query = {
             "http_path": self._http_path,
             "catalog": self.catalog,
@@ -189,9 +188,8 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         return URL.create(
             drivername="databricks",
             username="token",
-            password=conn.password,
-            host=conn.host,
-            port=conn.port,
+            password=self._get_token(raise_error=True),
+            host=self.host,
             query=url_query,
         )
 

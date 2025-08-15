@@ -17,27 +17,39 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.utils.operator_resources import Resources
+import pytest
+
+from tests_common.test_utils.stream_capture_manager import (
+    CombinedCaptureManager,
+    StderrCaptureManager,
+    StdoutCaptureManager,
+    StreamCaptureManager,
+)
 
 
-class TestResources:
-    def test_resource_eq(self):
-        r = Resources(cpus=0.1, ram=2048)
-        assert r not in [{}, [], None]
-        assert r == r
+@pytest.fixture
+def stdout_capture():
+    """Fixture that captures stdout only."""
+    return StdoutCaptureManager()
 
-        r2 = Resources(cpus=0.1, ram=2048)
-        assert r == r2
-        assert r2 == r
 
-        r3 = Resources(cpus=0.2, ram=2048)
-        assert r != r3
+@pytest.fixture
+def stderr_capture():
+    """Fixture that captures stderr only."""
+    return StderrCaptureManager()
 
-    def test_to_dict(self):
-        r = Resources(cpus=0.1, ram=2048, disk=1024, gpus=1)
-        assert r.to_dict() == {
-            "cpus": {"name": "CPU", "qty": 0.1, "units_str": "core(s)"},
-            "ram": {"name": "RAM", "qty": 2048, "units_str": "MB"},
-            "disk": {"name": "Disk", "qty": 1024, "units_str": "MB"},
-            "gpus": {"name": "GPU", "qty": 1, "units_str": "gpu(s)"},
-        }
+
+@pytest.fixture
+def stream_capture():
+    """Fixture that returns a configurable stream capture manager."""
+
+    def _capture(stdout=True, stderr=False):
+        return StreamCaptureManager(capture_stdout=stdout, capture_stderr=stderr)
+
+    return _capture
+
+
+@pytest.fixture
+def combined_capture():
+    """Fixture that captures both stdout and stderr."""
+    return CombinedCaptureManager()

@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -18,71 +17,43 @@
 from __future__ import annotations
 
 import os
-import signal
-from contextlib import AbstractContextManager
-from threading import Timer
+
+import structlog
 
 from airflow.exceptions import AirflowTaskTimeout
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.platform import IS_WINDOWS
-
-_timeout = AbstractContextManager[None]
 
 
-class TimeoutWindows(_timeout, LoggingMixin):
-    """Windows timeout version: To be used in a ``with`` block and timeout its content."""
-
-    def __init__(self, seconds=1, error_message="Timeout"):
-        super().__init__()
-        self._timer: Timer | None = None
-        self.seconds = seconds
-        self.error_message = error_message + ", PID: " + str(os.getpid())
-
-    def handle_timeout(self, *args):
-        """Log information and raises AirflowTaskTimeout."""
-        self.log.error("Process timed out, PID: %s", str(os.getpid()))
-        raise AirflowTaskTimeout(self.error_message)
-
-    def __enter__(self):
-        if self._timer:
-            self._timer.cancel()
-        self._timer = Timer(self.seconds, self.handle_timeout)
-        self._timer.start()
-
-    def __exit__(self, type_, value, traceback):
-        if self._timer:
-            self._timer.cancel()
-            self._timer = None
-
-
-class TimeoutPosix(_timeout, LoggingMixin):
+class TimeoutPosix:
     """POSIX Timeout version: To be used in a ``with`` block and timeout its content."""
 
     def __init__(self, seconds=1, error_message="Timeout"):
         super().__init__()
         self.seconds = seconds
         self.error_message = error_message + ", PID: " + str(os.getpid())
+        self.log = structlog.get_logger(logger_name="task")
 
     def handle_timeout(self, signum, frame):
         """Log information and raises AirflowTaskTimeout."""
-        self.log.error("Process timed out, PID: %s", str(os.getpid()))
+        self.log.error("Process timed out", pid=os.getpid())
         raise AirflowTaskTimeout(self.error_message)
 
     def __enter__(self):
+        import signal
+
         try:
             signal.signal(signal.SIGALRM, self.handle_timeout)
             signal.setitimer(signal.ITIMER_REAL, self.seconds)
         except ValueError:
             self.log.warning("timeout can't be used in the current context", exc_info=True)
+        return self
 
     def __exit__(self, type_, value, traceback):
+        import signal
+
         try:
             signal.setitimer(signal.ITIMER_REAL, 0)
         except ValueError:
             self.log.warning("timeout can't be used in the current context", exc_info=True)
 
 
-if IS_WINDOWS:
-    timeout: type[TimeoutWindows | TimeoutPosix] = TimeoutWindows
-else:
-    timeout = TimeoutPosix
+timeout = TimeoutPosix

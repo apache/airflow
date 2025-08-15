@@ -40,6 +40,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--integration",
                 "--standalone-dag-processor",
+                "--auth-manager",
             ],
         },
         {
@@ -86,6 +87,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--load-default-connections",
                 "--standalone-dag-processor",
                 "--start-api-server-with-examples",
+                "--auth-manager",
             ],
         },
         {
@@ -209,6 +211,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--platform",
                 "--integration",
                 "--standalone-dag-processor",
+                "--auth-manager",
                 "--load-example-dags",
                 "--load-default-connections",
             ],
@@ -236,12 +239,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--executor",
                 "--celery-broker",
                 "--celery-flower",
-            ],
-        },
-        {
-            "name": "Auth manager",
-            "options": [
-                "--auth-manager",
             ],
         },
         {
