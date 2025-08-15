@@ -21,6 +21,7 @@ import datetime
 from typing import TYPE_CHECKING, Any
 from unittest.mock import ANY
 
+import attrs
 import pytest
 from fastapi import status
 from sqlalchemy import select
@@ -29,7 +30,6 @@ from airflow._shared.timezones.timezone import convert_to_utc
 from airflow.api_fastapi.core_api.services.public.hitl_shared_links import (
     HITLSharedLinkConfig,
     HITLSharedLinkData,
-    decode_shared_data,
 )
 from airflow.models.hitl import HITL_LINK_TYPE, HITLDetail
 from airflow.models.taskinstance import TaskInstance as TI
@@ -121,7 +121,7 @@ class TestGenerateSharedLink:
         url = resp.json()["url"]
         token = url.split("/")[-1]
         assert url.startswith(f"{TEST_SERVER_PREFIX}/hitlSharedLinks/{link_type}/")
-        assert decode_shared_data(secret_key=secret_key, token=token) == expected_data
+        assert attrs.asdict(HITLSharedLinkData.decode(secret_key=secret_key, token=token)) == expected_data
 
     @pytest.mark.parametrize(
         "invalid_payload",
@@ -223,14 +223,16 @@ class TestHitlSharedLinkRedirect:
         )
 
         # decode token to verify correctness
-        shared_data = decode_shared_data(
-            secret_key=test_client.app.state.secret_key,  # type: ignore[attr-defined]
-            token=redirect_token,
+        shared_data_dict = attrs.asdict(
+            HITLSharedLinkData.decode(
+                secret_key=test_client.app.state.secret_key,  # type: ignore[attr-defined]
+                token=redirect_token,
+            )
         )
-        assert shared_data["dag_id"] == DAG_ID
-        assert shared_data["dag_run_id"] == DAG_RUN_ID
-        assert shared_data["task_id"] == TASK_ID
-        assert shared_data["shared_link_config"] == {
+        assert shared_data_dict["dag_id"] == DAG_ID
+        assert shared_data_dict["dag_run_id"] == DAG_RUN_ID
+        assert shared_data_dict["task_id"] == TASK_ID
+        assert shared_data_dict["shared_link_config"] == {
             "link_type": "redirect",
             "chosen_options": [],
             "params_input": {},
@@ -345,14 +347,16 @@ class TestHitlSharedLinkRespond:
         assert resp.status_code == status.HTTP_200_OK
 
         # decode token to verify correctness
-        shared_data = decode_shared_data(
-            secret_key=test_client.app.state.secret_key,  # type: ignore[attr-defined]
-            token=respond_token,
+        shared_data_dict = attrs.asdict(
+            HITLSharedLinkData.decode(
+                secret_key=test_client.app.state.secret_key,  # type: ignore[attr-defined]
+                token=respond_token,
+            )
         )
-        assert shared_data["dag_id"] == DAG_ID
-        assert shared_data["dag_run_id"] == DAG_RUN_ID
-        assert shared_data["task_id"] == TASK_ID
-        assert shared_data["shared_link_config"] == {
+        assert shared_data_dict["dag_id"] == DAG_ID
+        assert shared_data_dict["dag_run_id"] == DAG_RUN_ID
+        assert shared_data_dict["task_id"] == TASK_ID
+        assert shared_data_dict["shared_link_config"] == {
             "chosen_options": ["Reject"],
             "expires_at": ANY,
             "link_type": "respond",

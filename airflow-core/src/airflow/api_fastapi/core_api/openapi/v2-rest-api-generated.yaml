@@ -7608,7 +7608,7 @@ paths:
       tags:
       - HumanInTheLoop
       summary: Get Mapped Ti Hitl Detail
-      description: Get a Human-in-the-loop detail of a specific task instance.
+      description: Get a Human-in-the-loop detail of a specific mapped task instance.
       operationId: get_mapped_ti_hitl_detail
       security:
       - OAuth2PasswordBearer: []
@@ -7890,14 +7890,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/GenerateSharedLinkRequest'
+              $ref: '#/components/schemas/GenerateHITLSharedLinkRequest'
       responses:
         '201':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SharedLinkResponse'
+                $ref: '#/components/schemas/HITLSharedLinkResponse'
         '401':
           content:
             application/json:
@@ -7999,14 +7999,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/GenerateSharedLinkRequest'
+              $ref: '#/components/schemas/GenerateHITLSharedLinkRequest'
       responses:
         '201':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SharedLinkResponse'
+                $ref: '#/components/schemas/HITLSharedLinkResponse'
         '401':
           content:
             application/json:
@@ -10668,7 +10668,7 @@ components:
       - name
       title: FastAPIRootMiddlewareResponse
       description: Serializer for Plugin FastAPI root middleware responses.
-    GenerateSharedLinkRequest:
+    GenerateHITLSharedLinkRequest:
       properties:
         link_type:
           type: string
@@ -10703,8 +10703,8 @@ components:
       type: object
       required:
       - link_type
-      title: GenerateSharedLinkRequest
-      description: Request model for generating Human-in-the-loop shared links.
+      title: GenerateHITLSharedLinkRequest
+      description: Schema for generating a Human-in-the-loop shared link.
     HITLDetail:
       properties:
         task_instance:
@@ -10813,6 +10813,25 @@ components:
       - chosen_options
       title: HITLDetailResponse
       description: Response of updating a Human-in-the-loop detail.
+    HITLSharedLinkResponse:
+      properties:
+        url:
+          type: string
+          maxLength: 2083
+          minLength: 1
+          format: uri
+          title: Url
+        expires_at:
+          type: string
+          format: date-time
+          title: Expires At
+          description: Time that the link should expire at.
+      type: object
+      required:
+      - url
+      - expires_at
+      title: HITLSharedLinkResponse
+      description: Schema for generated a Human-in-the-loop shared links.
     HTTPExceptionResponse:
       properties:
         detail:
@@ -11435,19 +11454,6 @@ components:
       - latest_scheduler_heartbeat
       title: SchedulerInfoResponse
       description: Scheduler info serializer for responses.
-    SharedLinkResponse:
-      properties:
-        url:
-          type: string
-          maxLength: 2083
-          minLength: 1
-          format: uri
-          title: Url
-      type: object
-      required:
-      - url
-      title: SharedLinkResponse
-      description: Response model for generated Human-in-the-loop shared links.
     StructuredLogMessage:
       properties:
         timestamp:

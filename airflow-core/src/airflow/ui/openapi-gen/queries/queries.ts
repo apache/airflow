@@ -2,7 +2,7 @@
 
 import { UseMutationOptions, UseQueryOptions, useMutation, useQuery } from "@tanstack/react-query";
 import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GridService, HumanInTheLoopService, HumanInTheLoopSharedLinksService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
-import { BackfillPostBody, BulkBody_BulkTaskInstanceBody_, BulkBody_ConnectionBody_, BulkBody_PoolBody_, BulkBody_VariableBody_, ClearTaskInstancesBody, ConnectionBody, CreateAssetEventsBody, DAGPatchBody, DAGRunClearBody, DAGRunPatchBody, DAGRunsBatchBody, DagRunState, DagWarningType, GenerateSharedLinkRequest, PatchTaskInstanceBody, PoolBody, PoolPatchBody, TaskInstancesBatchBody, TriggerDAGRunPostBody, UpdateHITLDetailPayload, VariableBody, XComCreateBody, XComUpdateBody } from "../requests/types.gen";
+import { BackfillPostBody, BulkBody_BulkTaskInstanceBody_, BulkBody_ConnectionBody_, BulkBody_PoolBody_, BulkBody_VariableBody_, ClearTaskInstancesBody, ConnectionBody, CreateAssetEventsBody, DAGPatchBody, DAGRunClearBody, DAGRunPatchBody, DAGRunsBatchBody, DagRunState, DagWarningType, GenerateHITLSharedLinkRequest, PatchTaskInstanceBody, PoolBody, PoolPatchBody, TaskInstancesBatchBody, TriggerDAGRunPostBody, UpdateHITLDetailPayload, VariableBody, XComCreateBody, XComUpdateBody } from "../requests/types.gen";
 import * as Common from "./common";
 /**
 * Get Assets
@@ -1759,18 +1759,18 @@ export const useVariableServicePostVariable = <TData = Common.VariableServicePos
 * @param data.dagRunId
 * @param data.taskId
 * @param data.requestBody
-* @returns SharedLinkResponse Successful Response
+* @returns HITLSharedLinkResponse Successful Response
 * @throws ApiError
 */
 export const useHumanInTheLoopSharedLinksServiceGenerateSharedLink = <TData = Common.HumanInTheLoopSharedLinksServiceGenerateSharedLinkMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
   dagId: string;
   dagRunId: string;
-  requestBody: GenerateSharedLinkRequest;
+  requestBody: GenerateHITLSharedLinkRequest;
   taskId: string;
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   dagId: string;
   dagRunId: string;
-  requestBody: GenerateSharedLinkRequest;
+  requestBody: GenerateHITLSharedLinkRequest;
   taskId: string;
 }, TContext>({ mutationFn: ({ dagId, dagRunId, requestBody, taskId }) => HumanInTheLoopSharedLinksService.generateSharedLink({ dagId, dagRunId, requestBody, taskId }) as unknown as Promise<TData>, ...options });
 /**
@@ -1799,20 +1799,20 @@ export const useHumanInTheLoopSharedLinksServiceGenerateSharedLink = <TData = Co
 * @param data.taskId
 * @param data.mapIndex
 * @param data.requestBody
-* @returns SharedLinkResponse Successful Response
+* @returns HITLSharedLinkResponse Successful Response
 * @throws ApiError
 */
 export const useHumanInTheLoopSharedLinksServiceGenerateMappedTiSharedLink = <TData = Common.HumanInTheLoopSharedLinksServiceGenerateMappedTiSharedLinkMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
   dagId: string;
   dagRunId: string;
   mapIndex: number;
-  requestBody: GenerateSharedLinkRequest;
+  requestBody: GenerateHITLSharedLinkRequest;
   taskId: string;
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   dagId: string;
   dagRunId: string;
   mapIndex: number;
-  requestBody: GenerateSharedLinkRequest;
+  requestBody: GenerateHITLSharedLinkRequest;
   taskId: string;
 }, TContext>({ mutationFn: ({ dagId, dagRunId, mapIndex, requestBody, taskId }) => HumanInTheLoopSharedLinksService.generateMappedTiSharedLink({ dagId, dagRunId, mapIndex, requestBody, taskId }) as unknown as Promise<TData>, ...options });
 /**

@@ -914,9 +914,9 @@ export type FastAPIRootMiddlewareResponse = {
 };
 
 /**
- * Request model for generating Human-in-the-loop shared links.
+ * Schema for generating a Human-in-the-loop shared link.
  */
-export type GenerateSharedLinkRequest = {
+export type GenerateHITLSharedLinkRequest = {
     /**
      * Type of link to generate: 'redirect' for redirecting to corresponding page or 'respond' for respond directly.
      */
@@ -982,6 +982,17 @@ export type HITLDetailResponse = {
     params_input?: {
         [key: string]: unknown;
     };
+};
+
+/**
+ * Schema for generated a Human-in-the-loop shared links.
+ */
+export type HITLSharedLinkResponse = {
+    url: string;
+    /**
+     * Time that the link should expire at.
+     */
+    expires_at: string;
 };
 
 /**
@@ -1231,13 +1242,6 @@ export type ReprocessBehavior = 'failed' | 'completed' | 'none';
 export type SchedulerInfoResponse = {
     status: string | null;
     latest_scheduler_heartbeat: string | null;
-};
-
-/**
- * Response model for generated Human-in-the-loop shared links.
- */
-export type SharedLinkResponse = {
-    url: string;
 };
 
 /**
@@ -3040,21 +3044,21 @@ export type GetHitlDetailsResponse = HITLDetailCollection;
 export type GenerateSharedLinkData = {
     dagId: string;
     dagRunId: string;
-    requestBody: GenerateSharedLinkRequest;
+    requestBody: GenerateHITLSharedLinkRequest;
     taskId: string;
 };
 
-export type GenerateSharedLinkResponse = SharedLinkResponse;
+export type GenerateSharedLinkResponse = HITLSharedLinkResponse;
 
 export type GenerateMappedTiSharedLinkData = {
     dagId: string;
     dagRunId: string;
     mapIndex: number;
-    requestBody: GenerateSharedLinkRequest;
+    requestBody: GenerateHITLSharedLinkRequest;
     taskId: string;
 };
 
-export type GenerateMappedTiSharedLinkResponse = SharedLinkResponse;
+export type GenerateMappedTiSharedLinkResponse = HITLSharedLinkResponse;
 
 export type RedirectSharedLinkData = {
     token: string;
@@ -6175,7 +6179,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                201: SharedLinkResponse;
+                201: HITLSharedLinkResponse;
                 /**
                  * Bad Request
                  */
@@ -6206,7 +6210,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                201: SharedLinkResponse;
+                201: HITLSharedLinkResponse;
                 /**
                  * Bad Request
                  */

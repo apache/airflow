@@ -38,7 +38,7 @@ hitl_router = AirflowRouter(tags=["HumanInTheLoop"], prefix="/hitlDetails")
 log = structlog.get_logger(__name__)
 
 
-def _get_task_instance(
+def get_task_instnace(
     dag_id: str,
     dag_run_id: str,
     task_id: str,
@@ -62,7 +62,8 @@ def _get_task_instance(
     if task_instance is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
-            f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
+            f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`,"
+            f" task_id: `{task_id}` and map_index: `{map_index}` was not found",
         )
     if map_index is None and task_instance.map_index != -1:
         raise HTTPException(
@@ -81,7 +82,7 @@ def update_hitl_detail_through_payload(
     session: SessionDep,
     map_index: int | None = None,
 ) -> HITLDetailResponse:
-    task_instance = _get_task_instance(
+    task_instance = get_task_instnace(
         dag_id=dag_id,
         dag_run_id=dag_run_id,
         task_id=task_id,
@@ -121,7 +122,7 @@ def get_hitl_detail_from_ti_keys(
     map_index: int | None = None,
 ) -> HITLDetail:
     """Get a Human-in-the-loop detail of a specific task instance."""
-    task_instance = _get_task_instance(
+    task_instance = get_task_instnace(
         dag_id=dag_id,
         dag_run_id=dag_run_id,
         task_id=task_id,

@@ -520,8 +520,18 @@ class UnknownExecutorException(ValueError):
 class HITLSharedLinkTimeout(BaseException):
     """Raised when a human-in-the-loop shared link expired."""
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "This Human in the loop link has expired."
+
+
+class HITLSharedLinkDisabled(AirflowConfigException):
+    """Raised when a human-in-the-loop shared link features are used when not enabled."""
+
+    def __str__(self) -> str:
+        return (
+            "Human-in-the-loop link sharing is disabled. "
+            "To enable, please set 'api.hitl_enable_shared_links' to true"
+        )
 
 
 def __getattr__(name: str):

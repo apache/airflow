@@ -35,17 +35,17 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import GetUserDep, requires_access_dag
 from airflow.api_fastapi.core_api.services.public.hitl_shared_links import (
     generate_hitl_shared_link_from_request,
-    hitl_shared_link_enabled,
-    retrieve_redirect_url_from_token,
+    hitl_shared_link_endpoint_enabled,
     update_hitl_detail_through_token,
 )
+from airflow.models.hitl import HITLDetail
 
 hitl_shared_links_router = AirflowRouter(tags=["HumanInTheLoopSharedLinks"], prefix="/hitlSharedLinks")
 
 log = structlog.get_logger(__name__)
 
 
-@hitl_shared_link_enabled
+@hitl_shared_link_endpoint_enabled
 @hitl_shared_links_router.post(
     "/generate/{dag_id}/{dag_run_id}/{task_id}",
     status_code=status.HTTP_201_CREATED,
@@ -72,10 +72,10 @@ def generate_shared_link(
     session: SessionDep,
 ) -> HITLSharedLinkResponse:
     """
-    Generate a shared link for a Human-in-the-look task instance.
+    Generate a shared link for a Human-in-the-loop task instance.
 
     This endpoint generates a secure, time-limited shared link that allows users
-    to interact with the Human-in-the-look task instance. The link
+    to interact with the Human-in-the-loop task instance. The link
     can be configured for either respond directly or UI redirection.
 
     :param dag_id: The dag identifier
@@ -86,7 +86,7 @@ def generate_shared_link(
     :param session: Database session for data persistence
 
     :raises HTTPException: 400 if link generation fails due to invalid parameters
-    :raises HTTPException: 403 if Human-in-the-look link sharing feature is not enabled
+    :raises HTTPException: 403 if Human-in-the-loop link sharing feature is not enabled
     :raises HTTPException: 404 if the task instance does not exist
 
     :return: SharedLinkResponse containing the generated link URL and metadata
@@ -105,7 +105,7 @@ def generate_shared_link(
     )
 
 
-@hitl_shared_link_enabled
+@hitl_shared_link_endpoint_enabled
 @hitl_shared_links_router.post(
     "/generate/{dag_id}/{dag_run_id}/{task_id}/{map_index}",
     status_code=status.HTTP_201_CREATED,
@@ -133,10 +133,10 @@ def generate_mapped_ti_shared_link(
     session: SessionDep,
 ) -> HITLSharedLinkResponse:
     """
-    Generate a shared link for a mapped Human-in-the-look task instance.
+    Generate a shared link for a mapped Human-in-the-loop task instance.
 
     This endpoint generates a secure, time-limited shared link that allows users
-    to interact with the mapped Human-in-the-look task instance. The link
+    to interact with the mapped Human-in-the-loop task instance. The link
     can be configured for either respond directly or UI redirection.
 
     :param dag_id: The dag identifier
@@ -147,7 +147,7 @@ def generate_mapped_ti_shared_link(
     :param session: Database session for data persistence
 
     :raises HTTPException: 400 if link generation fails due to invalid parameters
-    :raises HTTPException: 403 if Human-in-the-look link sharing feature is not enabled
+    :raises HTTPException: 403 if Human-in-the-loop link sharing feature is not enabled
     :raises HTTPException: 404 if the task instance does not exist
 
     :return: SharedLinkResponse containing the generated link URL and metadata
@@ -166,7 +166,7 @@ def generate_mapped_ti_shared_link(
     )
 
 
-@hitl_shared_link_enabled
+@hitl_shared_link_endpoint_enabled
 @hitl_shared_links_router.get(
     "/redirect/{token}",
     responses=create_openapi_http_exception_doc(
@@ -183,10 +183,10 @@ def redirect_shared_link(
     session: SessionDep,
 ) -> RedirectResponse:
     """
-    Redirect to Airflow UI for Human-in-the-look task instance interaction via shared link.
+    Redirect to Airflow UI for Human-in-the-loop task instance interaction via shared link.
 
     This endpoint redirects users to the Airflow UI where they can interact
-    with Human-in-the-look task instances through a secure shared link. The link must be a "redirect" type
+    with Human-in-the-loop task instances through a secure shared link. The link must be a "redirect" type
     link, which provides access to the Airflow interface for decision-making.
 
     :param token: Base64-encoded token containing link metadata and expiration
@@ -199,7 +199,7 @@ def redirect_shared_link(
     :return: RedirectResponse to Airflow UI
     """
     try:
-        redirect_url = retrieve_redirect_url_from_token(
+        redirect_url = HITLDetail.from_shared_token_to_redirect_url(
             token=token,
             secret_key=request.app.state.secret_key,
             base_url=str(request.base_url),
@@ -213,7 +213,7 @@ def redirect_shared_link(
     return RedirectResponse(url=redirect_url)
 
 
-@hitl_shared_link_enabled
+@hitl_shared_link_endpoint_enabled
 @hitl_shared_links_router.post(
     "/respond/{token}",
     responses=create_openapi_http_exception_doc(
@@ -231,9 +231,9 @@ def update_hitl_detail_through_shared_link(
     session: SessionDep,
 ) -> HITLDetailResponse:
     """
-    Respond to a Human-in-the-look task instance with predefined content.
+    Respond to a Human-in-the-loop task instance with predefined content.
 
-    This endpoint allows users to respond Human-in-the-look task instances with predefined content
+    This endpoint allows users to respond Human-in-the-loop task instances with predefined content
     through a secure shared link. The link must be a "direct_action" type link.
 
     :param token: Base64-encoded token containing link metadata and action data

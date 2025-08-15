@@ -157,7 +157,7 @@ def get_mapped_ti_hitl_detail(
     session: SessionDep,
     map_index: int,
 ) -> HITLDetail:
-    """Get a Human-in-the-loop detail of a specific task instance."""
+    """Get a Human-in-the-loop detail of a specific mapped task instance."""
     return get_hitl_detail_from_ti_keys(
         dag_id=dag_id,
         dag_run_id=dag_run_id,

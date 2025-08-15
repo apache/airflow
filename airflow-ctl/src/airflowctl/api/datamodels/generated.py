@@ -586,9 +586,9 @@ class LinkType(str, Enum):
     RESPOND = "respond"
 
 
-class GenerateSharedLinkRequest(BaseModel):
+class GenerateHITLSharedLinkRequest(BaseModel):
     """
-    Request model for generating Human-in-the-loop shared links.
+    Schema for generating a Human-in-the-loop shared link.
     """
 
     link_type: Annotated[
@@ -619,6 +619,17 @@ class HITLDetailResponse(BaseModel):
     response_at: Annotated[datetime, Field(title="Response At")]
     chosen_options: Annotated[list[str], Field(min_length=1, title="Chosen Options")]
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
+
+
+class HITLSharedLinkResponse(BaseModel):
+    """
+    Schema for generated a Human-in-the-loop shared links.
+    """
+
+    url: Annotated[AnyUrl, Field(title="Url")]
+    expires_at: Annotated[
+        datetime, Field(description="Time that the link should expire at.", title="Expires At")
+    ]
 
 
 class HTTPExceptionResponse(BaseModel):
@@ -796,14 +807,6 @@ class SchedulerInfoResponse(BaseModel):
 
     status: Annotated[str | None, Field(title="Status")] = None
     latest_scheduler_heartbeat: Annotated[str | None, Field(title="Latest Scheduler Heartbeat")] = None
-
-
-class SharedLinkResponse(BaseModel):
-    """
-    Response model for generated Human-in-the-loop shared links.
-    """
-
-    url: Annotated[AnyUrl, Field(title="Url")]
 
 
 class StructuredLogMessage(BaseModel):

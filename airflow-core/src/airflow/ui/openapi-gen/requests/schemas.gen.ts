@@ -3366,7 +3366,7 @@ export const $FastAPIRootMiddlewareResponse = {
     description: 'Serializer for Plugin FastAPI root middleware responses.'
 } as const;
 
-export const $GenerateSharedLinkRequest = {
+export const $GenerateHITLSharedLinkRequest = {
     properties: {
         link_type: {
             type: 'string',
@@ -3418,8 +3418,8 @@ export const $GenerateSharedLinkRequest = {
     },
     type: 'object',
     required: ['link_type'],
-    title: 'GenerateSharedLinkRequest',
-    description: 'Request model for generating Human-in-the-loop shared links.'
+    title: 'GenerateHITLSharedLinkRequest',
+    description: 'Schema for generating a Human-in-the-loop shared link.'
 } as const;
 
 export const $HITLDetail = {
@@ -3577,6 +3577,28 @@ export const $HITLDetailResponse = {
     required: ['user_id', 'response_at', 'chosen_options'],
     title: 'HITLDetailResponse',
     description: 'Response of updating a Human-in-the-loop detail.'
+} as const;
+
+export const $HITLSharedLinkResponse = {
+    properties: {
+        url: {
+            type: 'string',
+            maxLength: 2083,
+            minLength: 1,
+            format: 'uri',
+            title: 'Url'
+        },
+        expires_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Expires At',
+            description: 'Time that the link should expire at.'
+        }
+    },
+    type: 'object',
+    required: ['url', 'expires_at'],
+    title: 'HITLSharedLinkResponse',
+    description: 'Schema for generated a Human-in-the-loop shared links.'
 } as const;
 
 export const $HTTPExceptionResponse = {
@@ -4447,22 +4469,6 @@ export const $SchedulerInfoResponse = {
     required: ['status', 'latest_scheduler_heartbeat'],
     title: 'SchedulerInfoResponse',
     description: 'Scheduler info serializer for responses.'
-} as const;
-
-export const $SharedLinkResponse = {
-    properties: {
-        url: {
-            type: 'string',
-            maxLength: 2083,
-            minLength: 1,
-            format: 'uri',
-            title: 'Url'
-        }
-    },
-    type: 'object',
-    required: ['url'],
-    title: 'SharedLinkResponse',
-    description: 'Response model for generated Human-in-the-loop shared links.'
 } as const;
 
 export const $StructuredLogMessage = {

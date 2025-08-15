@@ -3610,7 +3610,7 @@ export class HumanInTheLoopSharedLinksService {
      * @param data.dagRunId
      * @param data.taskId
      * @param data.requestBody
-     * @returns SharedLinkResponse Successful Response
+     * @returns HITLSharedLinkResponse Successful Response
      * @throws ApiError
      */
     public static generateSharedLink(data: GenerateSharedLinkData): CancelablePromise<GenerateSharedLinkResponse> {
@@ -3660,7 +3660,7 @@ export class HumanInTheLoopSharedLinksService {
      * @param data.taskId
      * @param data.mapIndex
      * @param data.requestBody
-     * @returns SharedLinkResponse Successful Response
+     * @returns HITLSharedLinkResponse Successful Response
      * @throws ApiError
      */
     public static generateMappedTiSharedLink(data: GenerateMappedTiSharedLinkData): CancelablePromise<GenerateMappedTiSharedLinkResponse> {
