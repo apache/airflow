@@ -670,7 +670,7 @@ class TestAsyncSensor:
         "soft_fail, expected_exception",
         [
             (True, AirflowSkipException),
-            (False, RuntimeError),
+            (False, AirflowException),
         ],
     )
     def test_fail_after_resuming_deferred_sensor(self, soft_fail, expected_exception):
