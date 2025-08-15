@@ -69,15 +69,13 @@ def _get_aggs_for_node(detail):
     except ValueError:
         max_end_date = None
 
-    dag_version_id = detail[0].get("dag_version_id") if detail else None
-    dag_version_number = detail[0].get("dag_version_number") if detail else None
+    dag_version_number = detail[0].get("dag_version_number")
 
     return {
         "state": agg_state(states),
         "min_start_date": min_start_date,
         "max_end_date": max_end_date,
         "child_states": dict(Counter(states)),
-        "dag_version_id": dag_version_id,
         "dag_version_number": dag_version_number,
     }
 
@@ -113,7 +111,6 @@ def _find_aggregates(
                             "state": child_node["state"],
                             "start_date": child_node["min_start_date"],
                             "end_date": child_node["max_end_date"],
-                            "dag_version_id": child_node["dag_version_id"],
                             "dag_version_number": child_node["dag_version_number"],
                         }
                     )

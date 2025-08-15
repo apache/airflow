@@ -7175,17 +7175,6 @@ export const $LightGridTaskInstanceSummary = {
             ],
             title: 'Max End Date'
         },
-        dag_version_id: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Dag Version Id'
-        },
         dag_version_number: {
             anyOf: [
                 {

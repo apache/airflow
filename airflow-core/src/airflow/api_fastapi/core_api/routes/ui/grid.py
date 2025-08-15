@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Annotated
 import structlog
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.orm import joinedload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
@@ -315,8 +315,15 @@ def get_grid_ti_summaries(
     """
     tis_of_dag_runs, _ = paginated_select(
         statement=(
-            select(TaskInstance)
-            .options(selectinload(TaskInstance.dag_version))
+            select(
+                TaskInstance.task_id,
+                TaskInstance.state,
+                TaskInstance.start_date,
+                TaskInstance.end_date,
+                TaskInstance.dag_version_id,
+                DagVersion.version_number,
+            )
+            .outerjoin(DagVersion, TaskInstance.dag_version_id == DagVersion.id)
             .where(TaskInstance.dag_id == dag_id)
             .where(
                 TaskInstance.run_id == run_id,
@@ -327,28 +334,34 @@ def get_grid_ti_summaries(
         limit=None,
         return_total_entries=False,
     )
-    task_instances = list(session.scalars(tis_of_dag_runs))
-    if not task_instances:
+    task_instances_rows = list(session.execute(tis_of_dag_runs))
+    if not task_instances_rows:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND, f"No task instances for dag_id={dag_id} run_id={run_id}"
         )
-    ti_details = collections.defaultdict(list)
-    for ti in task_instances:
-        dag_version_id = str(ti.dag_version_id) if ti.dag_version_id else None
-        dag_version_number = ti.dag_version.version_number if ti.dag_version else None
 
-        ti_details[ti.task_id].append(
+    ti_details = collections.defaultdict(list)
+    first_dag_version_id = None
+
+    for i, row in enumerate(task_instances_rows):
+        task_id, state, start_date, end_date, dag_version_id, dag_version_number = row
+        dag_version_id_str = str(dag_version_id) if dag_version_id else None
+
+        if i == 0:
+            first_dag_version_id = dag_version_id
+
+        ti_details[task_id].append(
             {
-                "state": ti.state,
-                "start_date": ti.start_date,
-                "end_date": ti.end_date,
-                "dag_version_id": dag_version_id,
+                "state": state,
+                "start_date": start_date,
+                "end_date": end_date,
+                "dag_version_id": dag_version_id_str,
                 "dag_version_number": dag_version_number,
             }
         )
     serdag = _get_serdag(
         dag_id=dag_id,
-        dag_version_id=task_instances[0].dag_version_id,
+        dag_version_id=first_dag_version_id,
         session=session,
     )
     if TYPE_CHECKING:
