@@ -2229,6 +2229,26 @@ class TestInProcessTestSupervisor:
         assert response.value == "value"
 
 
+class TestInProcessClient:
+    def test_no_retries(self):
+        called = 0
+
+        def noop_handler(request: httpx.Request) -> httpx.Response:
+            nonlocal called
+            called += 1
+            return httpx.Response(500)
+
+        transport = httpx.MockTransport(noop_handler)
+        client = InProcessTestSupervisor._Client(
+            base_url="http://local.invalid", token="", transport=transport
+        )
+
+        with pytest.raises(httpx.HTTPStatusError):
+            client.get("/goo")
+
+        assert called == 1
+
+
 @pytest.mark.parametrize(
     ("remote_logging", "remote_conn", "expected_env"),
     (
