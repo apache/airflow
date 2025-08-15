@@ -22,15 +22,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.smtp.hooks.smtp import SmtpHook
+from airflow.providers.smtp.version_compat import BaseOperator
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.smtp.version_compat import Context
 
 
 class EmailOperator(BaseOperator):

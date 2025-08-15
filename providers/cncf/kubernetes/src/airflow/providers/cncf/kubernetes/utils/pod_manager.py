@@ -27,7 +27,7 @@ from collections.abc import Generator, Iterable
 from contextlib import closing, suppress
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Protocol, cast
+from typing import TYPE_CHECKING, Literal, Protocol, cast
 
 import pendulum
 import tenacity
@@ -36,7 +36,6 @@ from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
 from pendulum import DateTime
 from pendulum.parsing.exceptions import ParserError
-from typing_extensions import Literal
 from urllib3.exceptions import HTTPError, TimeoutError
 
 from airflow.exceptions import AirflowException
@@ -339,6 +338,7 @@ class PodManager(LoggingMixin):
         self._client = kube_client
         self._watch = watch.Watch()
         self._callbacks = callbacks or []
+        self.stop_watching_events = False
 
     def run_pod_async(self, pod: V1Pod, **kwargs) -> V1Pod:
         """Run POD asynchronously."""
@@ -381,9 +381,8 @@ class PodManager(LoggingMixin):
 
     async def watch_pod_events(self, pod: V1Pod, check_interval: int = 1) -> None:
         """Read pod events and writes into log."""
-        self.keep_watching_for_events = True
         num_events = 0
-        while self.keep_watching_for_events:
+        while not self.stop_watching_events:
             events = self.read_pod_events(pod)
             for new_event in events.items[num_events:]:
                 involved_object: V1ObjectReference = new_event.involved_object
@@ -414,7 +413,7 @@ class PodManager(LoggingMixin):
             remote_pod = self.read_pod(pod)
             pod_status = remote_pod.status
             if pod_status.phase != PodPhase.PENDING:
-                self.keep_watching_for_events = False
+                self.stop_watching_events = True
                 self.log.info("::endgroup::")
                 break
 

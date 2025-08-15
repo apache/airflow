@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from opsgenie_sdk import (
     AlertApi,
@@ -29,7 +29,7 @@ from opsgenie_sdk import (
     SuccessResponse,
 )
 
-from airflow.hooks.base import BaseHook
+from airflow.providers.opsgenie.version_compat import BaseHook
 
 
 class OpsgenieAlertHook(BaseHook):
@@ -53,7 +53,7 @@ class OpsgenieAlertHook(BaseHook):
     hook_name = "Opsgenie"
 
     def __init__(self, opsgenie_conn_id: str = "opsgenie_default") -> None:
-        super().__init__()  # type: ignore[misc]
+        super().__init__()
         self.conn_id = opsgenie_conn_id
         configuration = Configuration()
         conn = self.get_connection(self.conn_id)
@@ -68,7 +68,7 @@ class OpsgenieAlertHook(BaseHook):
         :return: API key
         """
         conn = self.get_connection(self.conn_id)
-        return conn.password
+        return cast("str", conn.password)
 
     def get_conn(self) -> AlertApi:
         """

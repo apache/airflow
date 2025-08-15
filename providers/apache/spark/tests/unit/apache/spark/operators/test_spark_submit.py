@@ -194,11 +194,19 @@ class TestSparkSubmitOperator:
         assert operator2.queue == "default"  # airflow queue
 
     @pytest.mark.db_test
-    def test_render_template(self, session):
+    def test_render_template(self, session, testing_dag_bundle):
         # Given
         operator = SparkSubmitOperator(task_id="spark_submit_job", dag=self.dag, **self._config)
-        ti = TaskInstance(operator, run_id="spark_test")
+
         if AIRFLOW_V_3_0_PLUS:
+            from airflow.models.dag_version import DagVersion
+            from airflow.models.serialized_dag import SerializedDagModel
+
+            bundle_name = "testing"
+            DAG.bulk_write_to_db(bundle_name, None, [self.dag])
+            SerializedDagModel.write_dag(dag=self.dag, bundle_name=bundle_name)
+            dag_version = DagVersion.get_latest_version(operator.dag_id)
+            ti = TaskInstance(operator, run_id="spark_test", dag_version_id=dag_version.id)
             ti.dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 run_id="spark_test",
@@ -209,6 +217,7 @@ class TestSparkSubmitOperator:
                 state="running",
             )
         else:
+            ti = TaskInstance(operator, run_id="spark_test")
             ti.dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 run_id="spark_test",

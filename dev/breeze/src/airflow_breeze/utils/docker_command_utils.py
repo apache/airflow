@@ -83,25 +83,26 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("RELEASE_NOTES.rst", "/opt/airflow/RELEASE_NOTES.rst"),
     ("airflow-core", "/opt/airflow/airflow-core"),
     ("airflow-ctl", "/opt/airflow/airflow-ctl"),
-    ("constraints", "/opt/airflow/constraints"),
+    ("chart", "/opt/airflow/chart"),
     ("clients", "/opt/airflow/clients"),
+    ("constraints", "/opt/airflow/constraints"),
     ("dags", "/opt/airflow/dags"),
     ("dev", "/opt/airflow/dev"),
-    ("docs", "/opt/airflow/docs"),
+    ("devel-common", "/opt/airflow/devel-common"),
     ("docker-stack-docs", "/opt/airflow/docker-stack-docs"),
-    ("providers-summary-docs", "/opt/airflow/providers-summary-docs"),
+    ("docker-tests", "/opt/airflow/docker-tests"),
+    ("docs", "/opt/airflow/docs"),
     ("generated", "/opt/airflow/generated"),
+    ("helm-tests", "/opt/airflow/helm-tests"),
+    ("kubernetes-tests", "/opt/airflow/kubernetes-tests"),
     ("logs", "/root/airflow/logs"),
     ("providers", "/opt/airflow/providers"),
-    ("task-sdk", "/opt/airflow/task-sdk"),
+    ("providers-summary-docs", "/opt/airflow/providers-summary-docs"),
     ("pyproject.toml", "/opt/airflow/pyproject.toml"),
     ("scripts", "/opt/airflow/scripts"),
     ("scripts/docker/entrypoint_ci.sh", "/entrypoint"),
-    ("devel-common", "/opt/airflow/devel-common"),
-    ("helm-tests", "/opt/airflow/helm-tests"),
-    ("kubernetes-tests", "/opt/airflow/kubernetes-tests"),
-    ("docker-tests", "/opt/airflow/docker-tests"),
-    ("chart", "/opt/airflow/chart"),
+    ("shared", "/opt/airflow/shared"),
+    ("task-sdk", "/opt/airflow/task-sdk"),
 ]
 
 
@@ -724,7 +725,11 @@ def bring_compose_project_down(preserve_volumes: bool, shell_params: ShellParams
 
 
 def execute_command_in_shell(
-    shell_params: ShellParams, project_name: str, command: str | None = None, output: Output | None = None
+    shell_params: ShellParams,
+    project_name: str,
+    command: str | None = None,
+    output: Output | None = None,
+    signal_error: bool = True,
 ) -> RunCommandResult:
     """Executes command in shell.
 
@@ -765,10 +770,12 @@ def execute_command_in_shell(
         shell_params.extra_args = (command,)
         if get_verbose():
             get_console().print(f"[info]Command to execute: '{command}'[/]")
-    return enter_shell(shell_params, output=output)
+    return enter_shell(shell_params, output=output, signal_error=signal_error)
 
 
-def enter_shell(shell_params: ShellParams, output: Output | None = None) -> RunCommandResult:
+def enter_shell(
+    shell_params: ShellParams, output: Output | None = None, signal_error: bool = True
+) -> RunCommandResult:
     """
     Executes entering shell using the parameters passed as kwargs:
 
@@ -838,7 +845,8 @@ def enter_shell(shell_params: ShellParams, output: Output | None = None) -> RunC
     )
     if command_result.returncode == 0:
         return command_result
-    get_console().print(f"[red]Error {command_result.returncode} returned[/]")
+    if signal_error:
+        get_console().print(f"[red]Error {command_result.returncode} returned[/]")
     if get_verbose():
         get_console().print(command_result.stderr)
     notify_on_unhealthy_backend_container(shell_params.project_name, shell_params.backend, output)

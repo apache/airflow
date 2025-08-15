@@ -21,6 +21,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+# Do not run the tests when FAB / Flask is not installed
+pytest.importorskip("flask_session")
+
 from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator
@@ -101,7 +104,6 @@ def test_create_or_reset_job_existing(mock_databricks_hook, context, mock_task_g
     operator = _CreateDatabricksWorkflowOperator(task_id="test_task", databricks_conn_id="databricks_default")
     operator.task_group = mock_task_group
     operator._hook.list_jobs.return_value = [{"job_id": 123}]
-    operator._hook.create_job.return_value = 123
 
     job_id = operator._create_or_reset_job(context)
     assert job_id == 123
@@ -133,6 +135,7 @@ def test_wait_for_job_to_start(mock_databricks_hook):
     mock_hook_instance.get_run_state.assert_called()
 
 
+@pytest.mark.db_test
 def test_execute(mock_databricks_hook, context, mock_task_group):
     """Test that _CreateDatabricksWorkflowOperator.execute runs the task group."""
     operator = _CreateDatabricksWorkflowOperator(task_id="test_task", databricks_conn_id="databricks_default")

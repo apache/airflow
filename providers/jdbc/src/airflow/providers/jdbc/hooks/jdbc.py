@@ -21,18 +21,21 @@ import traceback
 import warnings
 from contextlib import contextmanager
 from threading import RLock
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import quote_plus, urlencode
 
 import jaydebeapi
-import jpype
 from sqlalchemy.engine import URL
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
-    from airflow.models.connection import Connection
+    if TYPE_CHECKING:
+        try:
+            from airflow.sdk import Connection
+        except ImportError:
+            from airflow.models.connection import Connection  # type: ignore[assignment]
 
 
 @contextmanager
@@ -186,9 +189,9 @@ class JdbcHook(DbApiHook):
 
     def get_conn(self) -> jaydebeapi.Connection:
         conn: Connection = self.connection
-        host: str = conn.host
-        login: str = conn.login
-        psw: str = conn.password
+        host: str = cast("str", conn.host)
+        login: str = cast("str", conn.login)
+        psw: str = cast("str", conn.password)
 
         with self.lock:
             conn = jaydebeapi.connect(
@@ -206,7 +209,9 @@ class JdbcHook(DbApiHook):
         :param conn: The connection.
         :param autocommit: The connection's autocommit setting.
         """
-        with suppress_and_warn(jaydebeapi.Error, jpype.JException):
+        from jpype import JException
+
+        with suppress_and_warn(jaydebeapi.Error, JException):
             conn.jconn.setAutoCommit(autocommit)
 
     def get_autocommit(self, conn: jaydebeapi.Connection) -> bool:
@@ -218,9 +223,14 @@ class JdbcHook(DbApiHook):
             to True on the connection. False if it is either not set, set to
             False, or the connection does not support auto-commit.
         """
-        with suppress_and_warn(jaydebeapi.Error, jpype.JException):
+        from jpype import JException
+
+        with suppress_and_warn(jaydebeapi.Error, JException):
             return conn.jconn.getAutoCommit()
-        return False
+
+        # This is reachable when the driver does not support autocommit then exceptions raised above are
+        # custom suppressed for jaydebeapi so we return False when control yields here.
+        return False  # type: ignore[unreachable]
 
     def get_uri(self) -> str:
         """Get the connection URI for the JDBC connection."""
@@ -229,7 +239,7 @@ class JdbcHook(DbApiHook):
 
         scheme = extra.get("sqlalchemy_scheme")
         if not scheme:
-            return conn.host
+            return cast("str", conn.host)
 
         driver = extra.get("sqlalchemy_driver")
         uri_prefix = f"{scheme}+{driver}" if driver else scheme

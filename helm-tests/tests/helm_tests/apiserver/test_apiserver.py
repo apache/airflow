@@ -90,3 +90,19 @@ class TestAPIServerJWTSecret:
 
         assert "annotations" in jmespath.search("metadata", docs)
         assert jmespath.search("metadata.annotations", docs)["test_annotation"] == "test_annotation_value"
+
+
+class TestApiSecretKeySecret:
+    """Tests api secret key secret."""
+
+    def test_should_add_annotations_to_api_secret_key_secret(self):
+        docs = render_chart(
+            values={
+                "airflowVersion": "3.0.0",
+                "apiSecretAnnotations": {"test_annotation": "test_annotation_value"},
+            },
+            show_only=["templates/secrets/api-secret-key-secret.yaml"],
+        )[0]
+
+        assert "annotations" in jmespath.search("metadata", docs)
+        assert jmespath.search("metadata.annotations", docs)["test_annotation"] == "test_annotation_value"

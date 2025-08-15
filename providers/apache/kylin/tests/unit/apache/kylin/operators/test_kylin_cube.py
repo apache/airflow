@@ -151,7 +151,7 @@ class TestKylinCubeOperator:
             operator.execute(None)
 
     @pytest.mark.db_test
-    def test_render_template(self, session):
+    def test_render_template(self, session, testing_dag_bundle):
         operator = KylinCubeOperator(
             task_id="kylin_build_1",
             kylin_conn_id="kylin_default",
@@ -170,8 +170,16 @@ class TestKylinCubeOperator:
                 "end_time": "1483286400000",
             },
         )
-        ti = TaskInstance(operator, run_id="kylin_test")
+
         if AIRFLOW_V_3_0_PLUS:
+            from airflow.models.dag_version import DagVersion
+            from airflow.models.serialized_dag import SerializedDagModel
+
+            bundle_name = "testing"
+            DAG.bulk_write_to_db(bundle_name, None, [self.dag])
+            SerializedDagModel.write_dag(dag=self.dag, bundle_name=bundle_name)
+            dag_version = DagVersion.get_latest_version(operator.dag_id)
+            ti = TaskInstance(operator, run_id="kylin_test", dag_version_id=dag_version.id)
             ti.dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 run_id="kylin_test",
@@ -182,6 +190,7 @@ class TestKylinCubeOperator:
                 state=state.DagRunState.RUNNING,
             )
         else:
+            ti = TaskInstance(operator, run_id="kylin_test")
             ti.dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 run_id="kylin_test",

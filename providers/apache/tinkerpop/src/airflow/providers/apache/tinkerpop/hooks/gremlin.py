@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 
 from gremlin_python.driver.client import Client
 
-from airflow.hooks.base import BaseHook
+from airflow.providers.apache.tinkerpop.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from airflow.models import Connection
@@ -71,7 +71,10 @@ class GremlinHook(BaseHook):
         self.log.info("Connecting to URI: %s", uri)
 
         self.client = self.get_client(
-            self.connection, self.traversal_source, uri, message_serializer=serializer
+            self.connection,
+            self.traversal_source,
+            uri,
+            message_serializer=serializer,
         )
         return self.client
 

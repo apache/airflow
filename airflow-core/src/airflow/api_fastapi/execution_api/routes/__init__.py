@@ -26,6 +26,7 @@ from airflow.api_fastapi.execution_api.routes import (
     connections,
     dag_runs,
     health,
+    hitl,
     task_instances,
     task_reschedules,
     variables,
@@ -48,5 +49,6 @@ authenticated_router.include_router(
 )
 authenticated_router.include_router(variables.router, prefix="/variables", tags=["Variables"])
 authenticated_router.include_router(xcoms.router, prefix="/xcoms", tags=["XComs"])
+authenticated_router.include_router(hitl.router, prefix="/hitlDetails", tags=["Human in the Loop"])
 
 execution_api_router.include_router(authenticated_router)

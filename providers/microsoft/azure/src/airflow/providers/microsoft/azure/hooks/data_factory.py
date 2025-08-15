@@ -35,8 +35,9 @@ from __future__ import annotations
 
 import inspect
 import time
+from collections.abc import Callable
 from functools import wraps
-from typing import IO, TYPE_CHECKING, Any, Callable, TypeVar, Union, cast
+from typing import IO, TYPE_CHECKING, Any, TypeVar, cast
 
 from asgiref.sync import sync_to_async
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
@@ -48,12 +49,12 @@ from azure.mgmt.datafactory import DataFactoryManagementClient
 from azure.mgmt.datafactory.aio import DataFactoryManagementClient as AsyncDataFactoryManagementClient
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
     get_async_default_azure_credential,
     get_sync_default_azure_credential,
 )
+from airflow.providers.microsoft.azure.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from azure.core.polling import LROPoller
@@ -68,8 +69,8 @@ if TYPE_CHECKING:
         TriggerResource,
     )
 
-Credentials = Union[ClientSecretCredential, DefaultAzureCredential]
-AsyncCredentials = Union[AsyncClientSecretCredential, AsyncDefaultAzureCredential]
+Credentials = ClientSecretCredential | DefaultAzureCredential
+AsyncCredentials = AsyncClientSecretCredential | AsyncDefaultAzureCredential
 
 T = TypeVar("T", bound=Any)
 

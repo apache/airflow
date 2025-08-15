@@ -39,7 +39,7 @@ Task SDK
 
 For Airflow Task SDK, see the standalone reference & tutorial site:
 
-   https://airflow.apache.org/docs/task-sdk/stable/
+:doc:`task-sdk:index`
 
 Dags
 -----------------------------------------
@@ -144,6 +144,8 @@ experience is continuously improving, but defining workflows as code is central 
 .. toctree::
     :hidden:
     :caption: Content
+    :titlesonly:
+    :maxdepth: 1
 
     Overview <self>
     start

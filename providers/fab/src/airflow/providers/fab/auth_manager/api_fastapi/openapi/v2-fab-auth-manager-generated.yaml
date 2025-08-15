@@ -6,7 +6,7 @@ info:
     endpoints to manage users and permissions managed by the FAB auth manager.
   version: 0.1.0
 paths:
-  /token:
+  /auth/token:
     post:
       tags:
       - FabAuthManager
@@ -44,7 +44,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /token/cli:
+  /auth/token/cli:
     post:
       tags:
       - FabAuthManager

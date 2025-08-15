@@ -24,7 +24,8 @@ from typing import Any
 
 import attrs
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowNotFoundException
+from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 
 log = logging.getLogger(__name__)
 
@@ -71,7 +72,7 @@ class Connection:
             uri = f"{self.conn_type.lower().replace('_', '-')}://"
         else:
             uri = "//"
-
+        host_to_use: str | None
         if self.host and "://" in self.host:
             protocol, host = self.host.split("://", 1)
             # If the protocol in host matches the connection type, don't add it again
@@ -83,7 +84,7 @@ class Connection:
                 host_to_use = host
                 protocol_to_add = protocol
         else:
-            host_to_use = self.host  # type: ignore[assignment]
+            host_to_use = self.host
             protocol_to_add = None
 
         if protocol_to_add:
@@ -149,7 +150,12 @@ class Connection:
     def get(cls, conn_id: str) -> Any:
         from airflow.sdk.execution_time.context import _get_connection
 
-        return _get_connection(conn_id)
+        try:
+            return _get_connection(conn_id)
+        except AirflowRuntimeError as e:
+            if e.error.error == ErrorType.CONNECTION_NOT_FOUND:
+                raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined") from None
+            raise
 
     @property
     def extra_dejson(self) -> dict:

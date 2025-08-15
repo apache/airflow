@@ -184,6 +184,14 @@ Follow the steps below to enable it:
       email_conn_id = aws_default
       from_email = From email <email@example.com>
 
+   Equivalent environment variables looks like
+
+   .. code-block::
+
+      AIRFLOW__EMAIL__EMAIL_BACKEND=airflow.providers.amazon.aws.utils.emailer.send_email
+      AIRFLOW__EMAIL__EMAIL_CONN_ID=aws_default
+      AIRFLOW__EMAIL__FROM_EMAIL=email@example.com
+
 Note that for SES, you must configure from_email to the valid email that can send messages from SES.
 
 3. Create a connection called ``aws_default``, or choose a custom connection

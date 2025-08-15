@@ -28,9 +28,9 @@ from dateutil.parser import parse
 from airflow.cli import cli_parser
 from airflow.executors import executor_loader
 from airflow.providers.cncf.kubernetes.cli import kubernetes_command
-from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
 

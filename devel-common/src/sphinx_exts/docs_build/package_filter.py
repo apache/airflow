@@ -58,6 +58,8 @@ def find_packages_to_build(available_packages: list[str], package_filters: list[
                     package_name = "apache-airflow"
                 elif folder_name == "chart":
                     package_name = "helm-chart"
+                elif folder_name == "task-sdk":
+                    package_name = "task-sdk"
                 else:
                     try:
                         import tomllib

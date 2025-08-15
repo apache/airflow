@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Link } from "@chakra-ui/react";
+import { Flex, Link, Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
 
@@ -54,13 +54,12 @@ export const PoolBar = ({
               alignItems="center"
               bg={`${color}.solid`}
               color="white"
-              flex={flexValue}
               gap={1}
               h="100%"
               justifyContent="center"
               px={1}
-              py={0.5}
               textAlign="center"
+              w="100%"
             >
               {icon}
               {slotValue}
@@ -69,11 +68,13 @@ export const PoolBar = ({
         );
 
         return color !== "success" && "name" in pool ? (
-          <Link asChild key={key}>
+          <Link asChild display="flex" flex={flexValue} key={key}>
             <RouterLink to={`/task_instances?state=${color}&pool=${pool.name}`}>{poolContent}</RouterLink>
           </Link>
         ) : (
-          poolContent
+          <Box display="flex" flex={flexValue} key={key}>
+            {poolContent}
+          </Box>
         );
       })}
     </>

@@ -24,8 +24,9 @@ from azure.kusto.data._models import KustoResultTable
 from airflow.models import DAG
 from airflow.providers.microsoft.azure.hooks.adx import AzureDataExplorerHook
 from airflow.providers.microsoft.azure.operators.adx import AzureDataExplorerQueryOperator
-from airflow.providers.microsoft.azure.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.timezone import datetime
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 TEST_DAG_ID = "unit_tests"
 DEFAULT_DATE = datetime(2019, 1, 1)

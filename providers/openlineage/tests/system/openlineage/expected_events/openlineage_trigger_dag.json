@@ -53,6 +53,12 @@
             "namespace": "{{ result is string }}",
             "name": "openlineage_trigger_dag_child__notrigger",
             "facets": {
+                "documentation": {
+                  "description": "MD DAG doc",
+                  "contentType": "text/markdown",
+                  "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                  "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/DocumentationJobFacet.json\\#\\/\\$defs\\/DocumentationJobFacet\") }}"
+                },
                 "jobType": {
                     "integration": "AIRFLOW",
                     "jobType": "DAG",
@@ -129,6 +135,9 @@
                     "tasksState": {
                         "do_nothing_task": "success"
                     },
+                    "tasksDuration": {
+                        "do_nothing_task": "{{ result is number }}"
+                    },
                     "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
                     "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/[\\d-]+\\/OpenLineage.json\\#\\/\\$defs\\/RunFacet\") }}"
                 },
@@ -177,6 +186,12 @@
             "namespace": "{{ result is string }}",
             "name": "openlineage_trigger_dag_child__notrigger",
             "facets": {
+                "documentation": {
+                  "description": "MD DAG doc",
+                  "contentType": "text/markdown",
+                  "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                  "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/DocumentationJobFacet.json\\#\\/\\$defs\\/DocumentationJobFacet\") }}"
+                },
                 "ownership": {
                     "owners": [
                         {

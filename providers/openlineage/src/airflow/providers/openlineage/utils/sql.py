@@ -20,7 +20,7 @@ import logging
 from collections import defaultdict
 from contextlib import closing
 from enum import IntEnum
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from attrs import define
 from openlineage.client.event_v2 import Dataset
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from sqlalchemy.engine import Engine
     from sqlalchemy.sql import ClauseElement
 
-    from airflow.hooks.base import BaseHook
+    from airflow.sdk import BaseHook
 
 
 log = logging.getLogger(__name__)
@@ -50,7 +50,7 @@ class ColumnIndex(IntEnum):
     DATABASE = 5
 
 
-TablesHierarchy = dict[Optional[str], dict[Optional[str], list[str]]]
+TablesHierarchy = dict[str | None, dict[str | None, list[str]]]
 
 
 @define

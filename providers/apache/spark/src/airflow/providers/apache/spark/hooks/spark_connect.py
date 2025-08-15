@@ -17,10 +17,10 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 from urllib.parse import quote, urlparse, urlunparse
 
-from airflow.hooks.base import BaseHook
+from airflow.providers.apache.spark.version_compat import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
@@ -64,11 +64,11 @@ class SparkConnectHook(BaseHook, LoggingMixin):
     def get_connection_url(self) -> str:
         conn = self.get_connection(self._conn_id)
 
-        host = conn.host
-        if conn.host.find("://") == -1:
-            host = f"sc://{conn.host}"
+        host = cast("str", conn.host)
+        if host.find("://") == -1:
+            host = f"sc://{host}"
         if conn.port:
-            host = f"{conn.host}:{conn.port}"
+            host = f"{host}:{conn.port}"
 
         url = urlparse(host)
 

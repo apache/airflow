@@ -261,8 +261,9 @@ class StackdriverHook(GoogleBaseHook):
         channel_name_map = {}
 
         for channel in channels:
+            # This field is immutable, illegal to specifying non-default UNVERIFIED or VERIFIED, so setting default
             channel.verification_status = (
-                monitoring_v3.NotificationChannel.VerificationStatus.VERIFICATION_STATUS_UNSPECIFIED
+                monitoring_v3.NotificationChannel.VerificationStatus.VERIFICATION_STATUS_UNSPECIFIED  # type: ignore[assignment]
             )
 
             if channel.name in existing_channels:
@@ -274,7 +275,7 @@ class StackdriverHook(GoogleBaseHook):
                 )
             else:
                 old_name = channel.name
-                channel.name = None
+                del channel.name
                 new_channel = channel_client.create_notification_channel(
                     request={"name": f"projects/{project_id}", "notification_channel": channel},
                     retry=retry,
@@ -284,8 +285,8 @@ class StackdriverHook(GoogleBaseHook):
                 channel_name_map[old_name] = new_channel.name
 
         for policy in policies_:
-            policy.creation_record = None
-            policy.mutation_record = None
+            del policy.creation_record
+            del policy.mutation_record
 
             for i, channel in enumerate(policy.notification_channels):
                 new_channel = channel_name_map.get(channel)
@@ -301,9 +302,9 @@ class StackdriverHook(GoogleBaseHook):
                         metadata=metadata,
                     )
             else:
-                policy.name = None
+                del policy.name
                 for condition in policy.conditions:
-                    condition.name = None
+                    del condition.name
                 policy_client.create_alert_policy(
                     request={"name": f"projects/{project_id}", "alert_policy": policy},
                     retry=retry,
@@ -531,8 +532,9 @@ class StackdriverHook(GoogleBaseHook):
             channels_list.append(NotificationChannel(**channel))
 
         for channel in channels_list:
+            # This field is immutable, illegal to specifying non-default UNVERIFIED or VERIFIED, so setting default
             channel.verification_status = (
-                monitoring_v3.NotificationChannel.VerificationStatus.VERIFICATION_STATUS_UNSPECIFIED
+                monitoring_v3.NotificationChannel.VerificationStatus.VERIFICATION_STATUS_UNSPECIFIED  # type: ignore[assignment]
             )
 
             if channel.name in existing_channels:
@@ -544,7 +546,7 @@ class StackdriverHook(GoogleBaseHook):
                 )
             else:
                 old_name = channel.name
-                channel.name = None
+                del channel.name
                 new_channel = channel_client.create_notification_channel(
                     request={"name": f"projects/{project_id}", "notification_channel": channel},
                     retry=retry,

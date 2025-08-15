@@ -17,24 +17,18 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any
 
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.utils.context import context_merge
+from airflow.providers.standard.version_compat import BaseSensorOperator, PokeReturnValue, context_merge
 from airflow.utils.operator_helpers import determine_kwargs
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.bases.sensor import BaseSensorOperator, PokeReturnValue
-else:
-    from airflow.sensors.base import BaseSensorOperator, PokeReturnValue  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     try:
         from airflow.sdk.definitions.context import Context
     except ImportError:
         # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+        from airflow.utils.context import Context  # type: ignore[no-redef, attr-defined]
 
 
 class PythonSensor(BaseSensorOperator):

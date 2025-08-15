@@ -17,7 +17,8 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Callable, TypedDict
+from collections.abc import Callable
+from typing import TYPE_CHECKING, TypedDict
 
 import sqlparse
 from attrs import define
@@ -38,8 +39,8 @@ if TYPE_CHECKING:
     from openlineage.client.facet_v2 import JobFacet, RunFacet
     from sqlalchemy.engine import Engine
 
-    from airflow.hooks.base import BaseHook
     from airflow.providers.common.sql.hooks.sql import DbApiHook
+    from airflow.sdk import BaseHook
 
 log = logging.getLogger(__name__)
 

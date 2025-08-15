@@ -22,9 +22,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.models import BaseOperator
 from airflow.providers.alibaba.cloud.hooks.maxcompute import MaxComputeHook
 from airflow.providers.alibaba.cloud.links.maxcompute import MaxComputeLogViewLink
+from airflow.providers.alibaba.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from odps.models import Instance
@@ -124,9 +124,7 @@ class MaxComputeSQLOperator(BaseOperator):
             quota_name=self.quota_name,
         )
 
-        MaxComputeLogViewLink.persist(
-            context=context, task_instance=self, log_view_url=self.instance.get_logview_address()
-        )
+        MaxComputeLogViewLink.persist(context=context, log_view_url=self.instance.get_logview_address())
 
         self.instance.wait_for_success()
 

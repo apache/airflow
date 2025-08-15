@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func, null, select
+from sqlalchemy import func, select
 
 from airflow.api_fastapi.common.db.common import (
     apply_filters_to_select,
@@ -37,7 +37,6 @@ def generate_dag_with_latest_run_query(max_run_filters: list[BaseParam], order_b
 
     max_run_id_query = (  # ordering by id will not always be "latest run", but it's a simplifying assumption
         select(DagRun.dag_id, func.max(DagRun.id).label("max_dag_run_id"))
-        .where(DagRun.start_date.is_not(null()))
         .group_by(DagRun.dag_id)
         .subquery(name="mrq")
     )
@@ -53,12 +52,12 @@ def generate_dag_with_latest_run_query(max_run_filters: list[BaseParam], order_b
             has_max_run_filter = True
             break
 
-    if has_max_run_filter or order_by.value in (
-        "last_run_state",
-        "last_run_start_date",
-        "-last_run_state",
-        "-last_run_start_date",
-    ):
+    requested_order_by_set = set(order_by.value) if order_by.value is not None else set()
+    dag_run_order_by_set = set(
+        ["last_run_state", "last_run_start_date", "-last_run_state", "-last_run_start_date"],
+    )
+
+    if has_max_run_filter or (requested_order_by_set & dag_run_order_by_set):
         query = query.join(
             max_run_id_query,
             DagModel.dag_id == max_run_id_query.c.dag_id,

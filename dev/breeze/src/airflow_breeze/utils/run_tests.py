@@ -43,6 +43,10 @@ DOCKER_TESTS_ROOT_PATH = AIRFLOW_ROOT_PATH / "docker-tests"
 DOCKER_TESTS_TESTS_MODULE_PATH = DOCKER_TESTS_ROOT_PATH / "tests" / "docker_tests"
 DOCKER_TESTS_REQUIREMENTS = DOCKER_TESTS_ROOT_PATH / "requirements.txt"
 
+TASK_SDK_TESTS_ROOT_PATH = AIRFLOW_ROOT_PATH / "task-sdk-tests"
+TASK_SDK_TESTS_TESTS_MODULE_PATH = TASK_SDK_TESTS_ROOT_PATH / "tests" / "task_sdk_tests"
+TASK_SDK_TESTS_REQUIREMENTS = TASK_SDK_TESTS_ROOT_PATH / "requirements.txt"
+
 IGNORE_DB_INIT_FOR_TEST_GROUPS = [
     GroupOfTests.HELM,
     GroupOfTests.PYTHON_API_CLIENT,
@@ -96,13 +100,21 @@ def run_docker_compose_tests(
     extra_pytest_args: tuple,
     skip_docker_compose_deletion: bool,
     include_success_outputs: bool,
+    test_type: str = "docker-compose",
 ) -> tuple[int, str]:
     command_result = run_command(["docker", "inspect", image_name], check=False, stdout=DEVNULL)
     if command_result.returncode != 0:
         get_console().print(f"[error]Error when inspecting PROD image: {command_result.returncode}[/]")
-        return command_result.returncode, f"Testing docker-compose python with {image_name}"
+        return command_result.returncode, f"Testing {test_type} python with {image_name}"
     pytest_args = ("--color=yes",)
-    test_path = Path("tests") / "docker_tests" / "test_docker_compose_quick_start.py"
+
+    if test_type == "task-sdk-integration":
+        test_path = Path("tests") / "task_sdk_tests" / "test_task_sdk_health.py"
+        cwd = TASK_SDK_TESTS_ROOT_PATH.as_posix()
+    else:
+        test_path = Path("tests") / "docker_tests" / "test_docker_compose_quick_start.py"
+        cwd = DOCKER_TESTS_ROOT_PATH.as_posix()
+
     env = os.environ.copy()
     env["DOCKER_IMAGE"] = image_name
     if skip_docker_compose_deletion:
@@ -114,9 +126,9 @@ def run_docker_compose_tests(
         ["uv", "run", "pytest", str(test_path), "-s", *pytest_args, *extra_pytest_args],
         env=env,
         check=False,
-        cwd=DOCKER_TESTS_ROOT_PATH.as_posix(),
+        cwd=cwd,
     )
-    return command_result.returncode, f"Testing docker-compose python with {image_name}"
+    return command_result.returncode, f"Testing {test_type} python with {image_name}"
 
 
 def file_name_from_test_type(test_type: str):
@@ -134,20 +146,31 @@ def test_paths(test_type: str, backend: str) -> tuple[str, str, str]:
 
 
 def get_ignore_switches_for_provider(provider_folders: list[str]) -> list[str]:
-    args = []
-    for providers in provider_folders:
-        args.append(f"--ignore=providers/{providers}/tests/")
-    return args
+    return [f"--ignore=providers/{providers}/tests" for providers in provider_folders]
 
 
-def get_suspended_provider_args() -> list[str]:
+def get_test_folders(provider_folders: list[str]) -> list[str]:
+    return [f"providers/{providers}/tests" for providers in provider_folders]
+
+
+def get_suspended_provider_ignore_args() -> list[str]:
     suspended_folders = get_suspended_provider_folders()
     return get_ignore_switches_for_provider(suspended_folders)
 
 
-def get_excluded_provider_args(python_version: str) -> list[str]:
+def get_excluded_provider_ignore_args(python_version: str) -> list[str]:
     excluded_folders = get_excluded_provider_folders(python_version)
     return get_ignore_switches_for_provider(excluded_folders)
+
+
+def get_suspended_test_provider_folders() -> list[str]:
+    suspended_folders = get_suspended_provider_folders()
+    return get_test_folders(suspended_folders)
+
+
+def get_excluded_test_provider_folders(python_version: str) -> list[str]:
+    excluded_folders = get_excluded_provider_folders(python_version)
+    return get_test_folders(excluded_folders)
 
 
 TEST_TYPE_CORE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
@@ -245,14 +268,26 @@ def convert_test_type_to_pytest_args(
     *,
     test_group: GroupOfTests,
     test_type: str,
+    integration: tuple | None = None,
 ) -> list[str]:
     if test_type == "None":
         return []
     if test_type in ALL_TEST_SUITES:
-        return [
+        all_paths = [
             *TEST_GROUP_TO_TEST_FOLDERS[test_group],
             *ALL_TEST_SUITES[test_type],
         ]
+
+        if integration and test_group == GroupOfTests.INTEGRATION_PROVIDERS:
+            filtered_paths = [
+                path
+                for path in all_paths
+                if any(path.endswith(f"{value}/tests/integration") for value in integration)
+            ]
+
+            return filtered_paths
+        return all_paths
+
     if test_group == GroupOfTests.SYSTEM and test_type != NONE_TEST_TYPE:
         get_console().print(f"[error]Only {NONE_TEST_TYPE} should be allowed as test type[/]")
         sys.exit(1)
@@ -336,6 +371,7 @@ def generate_args_for_pytest(
     python_version: str,
     keep_env_variables: bool,
     no_db_cleanup: bool,
+    integration: tuple | None = None,
 ):
     result_log_file, warnings_file, coverage_file = test_paths(test_type, backend)
     if skip_db_tests and parallel_test_types_list:
@@ -347,6 +383,7 @@ def generate_args_for_pytest(
         args = convert_test_type_to_pytest_args(
             test_group=test_group,
             test_type=test_type,
+            integration=integration,
         )
     args.extend(
         [
@@ -399,8 +436,22 @@ def generate_args_for_pytest(
         args.append("--without-db-init")
     if test_group == GroupOfTests.PYTHON_API_CLIENT:
         args.append("--ignore-glob=clients/python/tmp/*")
-    args.extend(get_suspended_provider_args())
-    args.extend(get_excluded_provider_args(python_version))
+    args.extend(get_suspended_provider_ignore_args())
+    args.extend(get_excluded_provider_ignore_args(python_version))
+    suspended_test_folders = get_suspended_test_provider_folders()
+    if suspended_test_folders:
+        get_console().print(f"[info]Suspended test folders to remove: {suspended_test_folders}[/]")
+        for suspended_test_folder in suspended_test_folders:
+            if suspended_test_folder in args:
+                get_console().print(f"[warning]Removing {suspended_test_folder}[/]")
+                args.remove(suspended_test_folder)
+    excluded_test_folders = get_excluded_test_provider_folders(python_version)
+    if excluded_test_folders:
+        get_console().print(f"[info]Excluded test folders to remove: {excluded_test_folders}[/]")
+        for excluded_test_folder in excluded_test_folders:
+            if excluded_test_folder in args:
+                get_console().print(f"[warning]Removing {excluded_test_folder}[/]")
+                args.remove(excluded_test_folder)
     if use_xdist:
         args.extend(["-n", str(parallelism) if parallelism else "auto"])
     # We have to disable coverage for Python 3.12 because of the issue with coverage that takes too long, despite
@@ -408,7 +459,7 @@ def generate_args_for_pytest(
     # full scope of PEP-669. That will be fully done when https://github.com/nedbat/coveragepy/issues/1746 is
     # resolve for now we are disabling coverage for Python 3.12, and it causes slower execution and occasional
     # timeouts
-    if enable_coverage and python_version != "3.12":
+    if enable_coverage and python_version not in ["3.12", "3.13"]:
         args.extend(
             [
                 "--cov=airflow",
@@ -443,7 +494,7 @@ def convert_parallel_types_to_folders(test_group: GroupOfTests, parallel_test_ty
             )
         )
     all_test_prefixes: list[str] = []
-    # leave only folders, strip --pytest-args that exclude some folders with `-' prefix
+    # leave only folders, strip --pytest-args that exclude some folders with `-` prefix
     for group_folders in TEST_GROUP_TO_TEST_FOLDERS.values():
         for group_folder in group_folders:
             all_test_prefixes.append(group_folder)

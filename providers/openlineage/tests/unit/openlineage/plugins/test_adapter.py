@@ -213,6 +213,7 @@ def test_emit_start_event_with_additional_information(mock_stats_incr, mock_stat
         run_id=run_id,
         job_name="job",
         job_description="description",
+        job_description_type="text/plain",
         event_time=event_time,
         nominal_start_time=datetime.datetime(2022, 1, 1).isoformat(),
         nominal_end_time=datetime.datetime(2022, 1, 1).isoformat(),
@@ -276,7 +277,9 @@ def test_emit_start_event_with_additional_information(mock_stats_incr, mock_stat
                     namespace=namespace(),
                     name="job",
                     facets={
-                        "documentation": documentation_job.DocumentationJobFacet(description="description"),
+                        "documentation": documentation_job.DocumentationJobFacet(
+                            description="description", contentType="text/plain"
+                        ),
                         "ownership": ownership_job.OwnershipJobFacet(
                             owners=[
                                 ownership_job.Owner(name="owner1", type=None),
@@ -325,6 +328,7 @@ def test_emit_complete_event(mock_stats_incr, mock_stats_timer):
         task=OperatorLineage(),
         owners=[],
         tags=[],
+        job_description=None,
         nominal_start_time=datetime.datetime(2022, 1, 1).isoformat(),
         nominal_end_time=datetime.datetime(2022, 1, 1).isoformat(),
     )
@@ -382,6 +386,8 @@ def test_emit_complete_event_with_additional_information(mock_stats_incr, mock_s
         job_name="job",
         owners=["owner1", "owner2"],
         tags=["tag1", "tag2"],
+        job_description="description",
+        job_description_type="text/plain",
         nominal_start_time=datetime.datetime(2022, 1, 1).isoformat(),
         nominal_end_time=datetime.datetime(2022, 1, 1).isoformat(),
         task=OperatorLineage(
@@ -444,6 +450,9 @@ def test_emit_complete_event_with_additional_information(mock_stats_incr, mock_s
                     namespace="default",
                     name="job",
                     facets={
+                        "documentation": documentation_job.DocumentationJobFacet(
+                            description="description", contentType="text/plain"
+                        ),
                         "ownership": ownership_job.OwnershipJobFacet(
                             owners=[
                                 ownership_job.Owner(name="owner1", type=None),
@@ -492,6 +501,7 @@ def test_emit_failed_event(mock_stats_incr, mock_stats_timer):
         task=OperatorLineage(),
         owners=[],
         tags=[],
+        job_description=None,
         nominal_start_time=datetime.datetime(2022, 1, 1).isoformat(),
         nominal_end_time=datetime.datetime(2022, 1, 1).isoformat(),
     )
@@ -549,6 +559,8 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
         job_name="job",
         owners=["owner1", "owner2"],
         tags=["tag1", "tag2"],
+        job_description="description",
+        job_description_type="text/plain",
         nominal_start_time=datetime.datetime(2022, 1, 1).isoformat(),
         nominal_end_time=datetime.datetime(2022, 1, 1).isoformat(),
         task=OperatorLineage(
@@ -614,6 +626,9 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
                 namespace="default",
                 name="job",
                 facets={
+                    "documentation": documentation_job.DocumentationJobFacet(
+                        description="description", contentType="text/plain"
+                    ),
                     "ownership": ownership_job.OwnershipJobFacet(
                         owners=[
                             ownership_job.Owner(name="owner1", type=None),
@@ -726,7 +741,8 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
         nominal_start_time=event_time.isoformat(),
         nominal_end_time=event_time.isoformat(),
         owners=["owner1", "owner2"],
-        description=dag.description,
+        job_description=dag.description,
+        job_description_type="text/plain",
         tags=["tag1", "tag2"],
         run_facets={
             "parent": parent_run.ParentRunFacet(
@@ -785,7 +801,9 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
                 namespace=namespace(),
                 name="dag_id",
                 facets={
-                    "documentation": documentation_job.DocumentationJobFacet(description="dag desc"),
+                    "documentation": documentation_job.DocumentationJobFacet(
+                        description="dag desc", contentType="text/plain"
+                    ),
                     "ownership": ownership_job.OwnershipJobFacet(
                         owners=[
                             ownership_job.Owner(name="owner1", type=None),
@@ -851,11 +869,32 @@ def test_emit_dag_complete_event(
 
     dag_run._state = DagRunState.SUCCESS
     dag_run.end_date = event_time
-    mocked_fetch_tis.return_value = [
-        TaskInstance(task=task_0, run_id=run_id, state=TaskInstanceState.SUCCESS),
-        TaskInstance(task=task_1, run_id=run_id, state=TaskInstanceState.SKIPPED),
-        TaskInstance(task=task_2, run_id=run_id, state=TaskInstanceState.FAILED),
-    ]
+    if AIRFLOW_V_3_0_PLUS:
+        ti0 = TaskInstance(
+            task=task_0, run_id=run_id, state=TaskInstanceState.SUCCESS, dag_version_id=mock.MagicMock()
+        )
+        ti1 = TaskInstance(
+            task=task_1, run_id=run_id, state=TaskInstanceState.SKIPPED, dag_version_id=mock.MagicMock()
+        )
+
+        ti2 = TaskInstance(
+            task=task_2, run_id=run_id, state=TaskInstanceState.FAILED, dag_version_id=mock.MagicMock()
+        )
+    else:
+        ti0 = TaskInstance(task=task_0, run_id=run_id, state=TaskInstanceState.SUCCESS)
+        ti1 = TaskInstance(task=task_1, run_id=run_id, state=TaskInstanceState.SKIPPED)
+        ti2 = TaskInstance(task=task_2, run_id=run_id, state=TaskInstanceState.FAILED)
+
+    ti0.start_date = datetime.datetime(2022, 1, 1, 0, 0, 0)
+    ti0.end_date = datetime.datetime(2022, 1, 1, 0, 10, 0)
+
+    ti1.start_date = datetime.datetime(2022, 1, 1, 0, 10, 2)
+    ti1.end_date = datetime.datetime(2022, 1, 1, 0, 13, 7)
+
+    ti2.start_date = datetime.datetime(2022, 1, 1, 0, 13, 8)
+    ti2.end_date = datetime.datetime(2022, 1, 1, 0, 14, 0)
+
+    mocked_fetch_tis.return_value = [ti0, ti1, ti2]
     generate_static_uuid.return_value = random_uuid
 
     adapter.dag_success(
@@ -868,6 +907,8 @@ def test_emit_dag_complete_event(
         task_ids=["task_0", "task_1", "task_2.test"],
         owners=["owner1", "owner2"],
         tags=["tag1", "tag2"],
+        job_description="dag desc",
+        job_description_type="text/plain",
         nominal_start_time=datetime.datetime(2022, 1, 1).isoformat(),
         nominal_end_time=datetime.datetime(2022, 1, 1).isoformat(),
         run_facets={
@@ -909,6 +950,11 @@ def test_emit_dag_complete_event(
                             task_1.task_id: TaskInstanceState.SKIPPED,
                             task_2.task_id: TaskInstanceState.FAILED,
                         },
+                        tasksDuration={
+                            task_0.task_id: 600.0,
+                            task_1.task_id: 185.0,
+                            task_2.task_id: 52.0,
+                        },
                     ),
                     "processing_engine": processing_engine_run.ProcessingEngineRunFacet(
                         version=ANY, name="Airflow", openlineageAdapterVersion=ANY
@@ -921,6 +967,9 @@ def test_emit_dag_complete_event(
                 namespace=namespace(),
                 name=dag_id,
                 facets={
+                    "documentation": documentation_job.DocumentationJobFacet(
+                        description="dag desc", contentType="text/plain"
+                    ),
                     "ownership": ownership_job.OwnershipJobFacet(
                         owners=[
                             ownership_job.Owner(name="owner1", type=None),
@@ -984,11 +1033,34 @@ def test_emit_dag_failed_event(
         )
     dag_run._state = DagRunState.FAILED
     dag_run.end_date = event_time
-    mocked_fetch_tis.return_value = [
-        TaskInstance(task=task_0, run_id=run_id, state=TaskInstanceState.SUCCESS),
-        TaskInstance(task=task_1, run_id=run_id, state=TaskInstanceState.SKIPPED),
-        TaskInstance(task=task_2, run_id=run_id, state=TaskInstanceState.FAILED),
-    ]
+
+    if AIRFLOW_V_3_0_PLUS:
+        ti0 = TaskInstance(
+            task=task_0, run_id=run_id, state=TaskInstanceState.SUCCESS, dag_version_id=mock.MagicMock()
+        )
+        ti1 = TaskInstance(
+            task=task_1, run_id=run_id, state=TaskInstanceState.SKIPPED, dag_version_id=mock.MagicMock()
+        )
+
+        ti2 = TaskInstance(
+            task=task_2, run_id=run_id, state=TaskInstanceState.FAILED, dag_version_id=mock.MagicMock()
+        )
+    else:
+        ti0 = TaskInstance(task=task_0, run_id=run_id, state=TaskInstanceState.SUCCESS)
+        ti1 = TaskInstance(task=task_1, run_id=run_id, state=TaskInstanceState.SKIPPED)
+        ti2 = TaskInstance(task=task_2, run_id=run_id, state=TaskInstanceState.FAILED)
+
+    ti0.start_date = datetime.datetime(2022, 1, 1, 0, 0, 0)
+    ti0.end_date = datetime.datetime(2022, 1, 1, 0, 10, 0)
+
+    ti1.start_date = datetime.datetime(2022, 1, 1, 0, 10, 2)
+    ti1.end_date = datetime.datetime(2022, 1, 1, 0, 13, 7)
+
+    ti2.start_date = datetime.datetime(2022, 1, 1, 0, 13, 8)
+    ti2.end_date = datetime.datetime(2022, 1, 1, 0, 14, 0)
+
+    mocked_fetch_tis.return_value = [ti0, ti1, ti2]
+
     generate_static_uuid.return_value = random_uuid
 
     adapter.dag_failed(
@@ -1002,6 +1074,8 @@ def test_emit_dag_failed_event(
         tags=["tag1", "tag2"],
         msg="error msg",
         owners=["owner1", "owner2"],
+        job_description="dag desc",
+        job_description_type="text/plain",
         nominal_start_time=datetime.datetime(2022, 1, 1).isoformat(),
         nominal_end_time=datetime.datetime(2022, 1, 1).isoformat(),
         run_facets={
@@ -1046,6 +1120,11 @@ def test_emit_dag_failed_event(
                             task_1.task_id: TaskInstanceState.SKIPPED,
                             task_2.task_id: TaskInstanceState.FAILED,
                         },
+                        tasksDuration={
+                            task_0.task_id: 600.0,
+                            task_1.task_id: 185.0,
+                            task_2.task_id: 52.0,
+                        },
                     ),
                     "processing_engine": processing_engine_run.ProcessingEngineRunFacet(
                         version=ANY, name="Airflow", openlineageAdapterVersion=ANY
@@ -1058,6 +1137,9 @@ def test_emit_dag_failed_event(
                 namespace=namespace(),
                 name=dag_id,
                 facets={
+                    "documentation": documentation_job.DocumentationJobFacet(
+                        description="dag desc", contentType="text/plain"
+                    ),
                     "ownership": ownership_job.OwnershipJobFacet(
                         owners=[
                             ownership_job.Owner(name="owner1", type=None),

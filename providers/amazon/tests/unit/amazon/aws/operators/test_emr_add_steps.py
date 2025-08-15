@@ -27,9 +27,14 @@ from jinja2 import StrictUndefined
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG, DagRun, TaskInstance
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.amazon.aws.operators.emr import EmrAddStepsOperator
 from airflow.providers.amazon.aws.triggers.emr import EmrAddStepsTrigger
-from airflow.utils import timezone
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
@@ -99,8 +104,15 @@ class TestEmrAddStepsOperator:
             )
 
     @pytest.mark.db_test
-    def test_render_template(self, session, clean_dags_and_dagruns):
+    def test_render_template(self, session, clean_dags_dagruns_and_dagbundles, testing_dag_bundle):
         if AIRFLOW_V_3_0_PLUS:
+            bundle_name = "testing"
+            DAG.bulk_write_to_db(bundle_name, None, [self.operator.dag])
+            SerializedDagModel.write_dag(self.operator.dag, bundle_name=bundle_name)
+            from airflow.models.dag_version import DagVersion
+
+            dag_version = DagVersion.get_latest_version(self.operator.dag.dag_id)
+            ti = TaskInstance(task=self.operator, dag_version_id=dag_version.id)
             dag_run = DagRun(
                 dag_id=self.operator.dag.dag_id,
                 logical_date=DEFAULT_DATE,
@@ -116,7 +128,7 @@ class TestEmrAddStepsOperator:
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
             )
-        ti = TaskInstance(task=self.operator)
+            ti = TaskInstance(task=self.operator)
         ti.dag_run = dag_run
         session.add(ti)
         session.commit()
@@ -140,7 +152,9 @@ class TestEmrAddStepsOperator:
         assert self.operator.steps == expected_args
 
     @pytest.mark.db_test
-    def test_render_template_from_file(self, mocked_hook_client, session, clean_dags_and_dagruns):
+    def test_render_template_from_file(
+        self, mocked_hook_client, session, clean_dags_dagruns_and_dagbundles, testing_dag_bundle
+    ):
         dag = DAG(
             dag_id="test_file",
             schedule=None,
@@ -168,6 +182,13 @@ class TestEmrAddStepsOperator:
             do_xcom_push=False,
         )
         if AIRFLOW_V_3_0_PLUS:
+            bundle_name = "testing"
+            DAG.bulk_write_to_db(bundle_name, None, [dag])
+            SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
+            from airflow.models.dag_version import DagVersion
+
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+            ti = TaskInstance(task=test_task, dag_version_id=dag_version.id)
             dag_run = DagRun(
                 dag_id=dag.dag_id,
                 logical_date=timezone.utcnow(),
@@ -183,7 +204,7 @@ class TestEmrAddStepsOperator:
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
             )
-        ti = TaskInstance(task=test_task)
+            ti = TaskInstance(task=test_task)
         ti.dag_run = dag_run
         session.add(ti)
         session.commit()

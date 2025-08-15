@@ -51,6 +51,7 @@ if TYPE_CHECKING:
         CustomPythonPackageTrainingJob,
         CustomTrainingJob,
     )
+    from google.cloud.aiplatform_v1.types import PscInterfaceConfig
 
     from airflow.utils.context import Context
 
@@ -110,6 +111,7 @@ class CustomTrainingJobBaseOperator(GoogleCloudBaseOperator):
         predefined_split_column_name: str | None = None,
         timestamp_split_column_name: str | None = None,
         tensorboard: str | None = None,
+        psc_interface_config: PscInterfaceConfig | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -166,6 +168,7 @@ class CustomTrainingJobBaseOperator(GoogleCloudBaseOperator):
         self.predefined_split_column_name = predefined_split_column_name
         self.timestamp_split_column_name = timestamp_split_column_name
         self.tensorboard = tensorboard
+        self.psc_interface_config = psc_interface_config
         # END Run param
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
@@ -182,11 +185,11 @@ class CustomTrainingJobBaseOperator(GoogleCloudBaseOperator):
             raise AirflowException(event["message"])
         training_pipeline = event["job"]
         custom_job_id = self.hook.extract_custom_job_id_from_training_pipeline(training_pipeline)
-        self.xcom_push(context, key="custom_job_id", value=custom_job_id)
+        context["ti"].xcom_push(key="custom_job_id", value=custom_job_id)
         try:
             model = training_pipeline["model_to_upload"]
             model_id = self.hook.extract_model_id(model)
-            self.xcom_push(context, key="model_id", value=model_id)
+            context["ti"].xcom_push(key="model_id", value=model_id)
             VertexAIModelLink.persist(context=context, model_id=model_id)
             return model
         except KeyError:
@@ -473,6 +476,8 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
             ``projects/{project}/locations/{location}/tensorboards/{tensorboard}``
             For more information on configuring your service account please visit:
             https://cloud.google.com/vertex-ai/docs/experiments/tensorboard-training
+    :param psc_interface_config: Optional. Configuration for Private Service Connect interface used for
+        training.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -586,17 +591,18 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
             timestamp_split_column_name=self.timestamp_split_column_name,
             tensorboard=self.tensorboard,
             sync=True,
+            psc_interface_config=self.psc_interface_config,
         )
 
         if model:
             result = Model.to_dict(model)
             model_id = self.hook.extract_model_id(result)
-            self.xcom_push(context, key="model_id", value=model_id)
+            context["ti"].xcom_push(key="model_id", value=model_id)
             VertexAIModelLink.persist(context=context, model_id=model_id)
         else:
             result = model  # type: ignore
-        self.xcom_push(context, key="training_id", value=training_id)
-        self.xcom_push(context, key="custom_job_id", value=custom_job_id)
+        context["ti"].xcom_push(key="training_id", value=training_id)
+        context["ti"].xcom_push(key="custom_job_id", value=custom_job_id)
         VertexAITrainingLink.persist(context=context, training_id=training_id)
         return result
 
@@ -652,10 +658,11 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
             predefined_split_column_name=self.predefined_split_column_name,
             timestamp_split_column_name=self.timestamp_split_column_name,
             tensorboard=self.tensorboard,
+            psc_interface_config=self.psc_interface_config,
         )
         custom_container_training_job_obj.wait_for_resource_creation()
         training_pipeline_id: str = custom_container_training_job_obj.name
-        self.xcom_push(context, key="training_id", value=training_pipeline_id)
+        context["ti"].xcom_push(key="training_id", value=training_pipeline_id)
         VertexAITrainingLink.persist(context=context, training_id=training_pipeline_id)
         self.defer(
             trigger=CustomContainerTrainingJobTrigger(
@@ -931,6 +938,8 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
             ``projects/{project}/locations/{location}/tensorboards/{tensorboard}``
             For more information on configuring your service account please visit:
             https://cloud.google.com/vertex-ai/docs/experiments/tensorboard-training
+    :param psc_interface_config: Optional. Configuration for Private Service Connect interface used for
+        training.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1043,17 +1052,18 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
             timestamp_split_column_name=self.timestamp_split_column_name,
             tensorboard=self.tensorboard,
             sync=True,
+            psc_interface_config=self.psc_interface_config,
         )
 
         if model:
             result = Model.to_dict(model)
             model_id = self.hook.extract_model_id(result)
-            self.xcom_push(context, key="model_id", value=model_id)
+            context["ti"].xcom_push(key="model_id", value=model_id)
             VertexAIModelLink.persist(context=context, model_id=model_id)
         else:
             result = model  # type: ignore
-        self.xcom_push(context, key="training_id", value=training_id)
-        self.xcom_push(context, key="custom_job_id", value=custom_job_id)
+        context["ti"].xcom_push(key="training_id", value=training_id)
+        context["ti"].xcom_push(key="custom_job_id", value=custom_job_id)
         VertexAITrainingLink.persist(context=context, training_id=training_id)
         return result
 
@@ -1110,10 +1120,11 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
             predefined_split_column_name=self.predefined_split_column_name,
             timestamp_split_column_name=self.timestamp_split_column_name,
             tensorboard=self.tensorboard,
+            psc_interface_config=self.psc_interface_config,
         )
         custom_python_training_job_obj.wait_for_resource_creation()
         training_pipeline_id: str = custom_python_training_job_obj.name
-        self.xcom_push(context, key="training_id", value=training_pipeline_id)
+        context["ti"].xcom_push(key="training_id", value=training_pipeline_id)
         VertexAITrainingLink.persist(context=context, training_id=training_pipeline_id)
         self.defer(
             trigger=CustomPythonPackageTrainingJobTrigger(
@@ -1389,6 +1400,8 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
             ``projects/{project}/locations/{location}/tensorboards/{tensorboard}``
             For more information on configuring your service account please visit:
             https://cloud.google.com/vertex-ai/docs/experiments/tensorboard-training
+    :param psc_interface_config: Optional. Configuration for Private Service Connect interface used for
+        training.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1506,17 +1519,18 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
             timestamp_split_column_name=self.timestamp_split_column_name,
             tensorboard=self.tensorboard,
             sync=True,
+            psc_interface_config=None,
         )
 
         if model:
             result = Model.to_dict(model)
             model_id = self.hook.extract_model_id(result)
-            self.xcom_push(context, key="model_id", value=model_id)
+            context["ti"].xcom_push(key="model_id", value=model_id)
             VertexAIModelLink.persist(context=context, model_id=model_id)
         else:
             result = model  # type: ignore
-        self.xcom_push(context, key="training_id", value=training_id)
-        self.xcom_push(context, key="custom_job_id", value=custom_job_id)
+        context["ti"].xcom_push(key="training_id", value=training_id)
+        context["ti"].xcom_push(key="custom_job_id", value=custom_job_id)
         VertexAITrainingLink.persist(context=context, training_id=training_id)
         return result
 
@@ -1573,10 +1587,11 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
             predefined_split_column_name=self.predefined_split_column_name,
             timestamp_split_column_name=self.timestamp_split_column_name,
             tensorboard=self.tensorboard,
+            psc_interface_config=self.psc_interface_config,
         )
         custom_training_job_obj.wait_for_resource_creation()
         training_pipeline_id: str = custom_training_job_obj.name
-        self.xcom_push(context, key="training_id", value=training_pipeline_id)
+        context["ti"].xcom_push(key="training_id", value=training_pipeline_id)
         VertexAITrainingLink.persist(context=context, training_id=training_pipeline_id)
         self.defer(
             trigger=CustomTrainingJobTrigger(

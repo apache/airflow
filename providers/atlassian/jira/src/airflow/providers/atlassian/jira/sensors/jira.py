@@ -17,11 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any
 
 from airflow.providers.atlassian.jira.hooks.jira import JiraHook
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.atlassian.jira.version_compat import BaseSensorOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

@@ -17,7 +17,6 @@
 
 Apache Airflow Task SDK
 =================================
-:any:`DAG` is where to start. :any:`dag`
 
 The Apache Airflow Task SDK provides python-native interfaces for defining DAGs,
 executing tasks in isolated subprocesses and interacting with Airflow resources
@@ -25,11 +24,16 @@ executing tasks in isolated subprocesses and interacting with Airflow resources
 It also includes core execution-time components to manage communication between the worker
 and the Airflow scheduler/backend.
 
-This approach reduces boilerplate and keeps your DAG definitions concise and readable.
+The goal of task-sdk is to decouple Dag authoring from Airflow internals (Scheduler, API Server, etc.), providing a forward-compatible, stable interface for writing and maintaining DAGs across Airflow versions. This approach reduces boilerplate and keeps your DAG definitions concise and readable.
+
+1. Introduction and Getting Started
+-----------------------------------
+
+Below is a quick introduction and installation guide to get started with the Task SDK.
 
 
 Installation
-------------
+^^^^^^^^^^^^
 To install the Task SDK, run:
 
 .. code-block:: bash
@@ -37,7 +41,7 @@ To install the Task SDK, run:
    pip install apache-airflow-task-sdk
 
 Getting Started
----------------
+^^^^^^^^^^^^^^^
 Define a basic DAG and task in just a few lines of Python:
 
 .. exampleinclude:: ../../airflow-core/src/airflow/example_dags/example_simplest_dag.py
@@ -46,43 +50,105 @@ Define a basic DAG and task in just a few lines of Python:
    :end-before: [END simplest_dag]
    :caption: Simplest DAG with :func:`@dag <airflow.sdk.dag>`  and :func:`@task <airflow.sdk.task>`
 
-Examples
---------
+2. Public Interface
+-------------------
 
-For more examples DAGs and patterns, see the :doc:`examples` page.
+Direct metadata database access from task code is now restricted. A dedicated Task Execution API handles all runtime interactions (state transitions, heartbeats, XComs, and resource fetching), ensuring isolation and security.
 
-Key Concepts
-------------
-Defining DAGs
-~~~~~~~~~~~~~
-Use ``@dag`` to convert a function into an Airflow DAG. All nested ``@task`` calls
-become part of the workflow.
+Airflow now supports a service-oriented architecture, enabling tasks to be executed remotely via a new Task Execution API. This API decouples task execution from the scheduler and introduces a stable contract for running tasks outside of Airflow's traditional runtime environment.
 
-Decorators
-~~~~~~~~~~
-Simplify task definitions using decorators:
+To support remote execution, Airflow provides the Task SDK — a lightweight runtime environment for running Airflow tasks in external systems such as containers, edge environments, or other runtimes. This lays the groundwork for language-agnostic task execution and brings improved isolation, portability, and extensibility to Airflow-based workflows.
 
-- :func:`@task <airflow.sdk.task>` : define tasks.
-- :func:`@task_group <airflow.sdk.task_group>`: group related tasks into logical units.
-- :func:`@setup <airflow.sdk.setup>` and :func:`@teardown <airflow.sdk.teardown>`: define setup and teardown tasks for DAGs and TaskGroups.
+Airflow 3.0 also introduces a new ``airflow.sdk`` namespace that exposes the core authoring interfaces for defining DAGs and tasks. Dag authors should now import objects like :class:`airflow.sdk.DAG`, :func:`airflow.sdk.dag`, and :func:`airflow.sdk.task` from ``airflow.sdk`` rather than internal modules. This new namespace provides a stable, forward-compatible interface for Dag authoring across future versions of Airflow.
 
-Tasks and Operators
-~~~~~~~~~~~~~~~~~~~
-Wrap Python callables with :func:`@task <airflow.sdk.task>` to create tasks, leverage dynamic task mapping with
-``.expand()``, and pass data via ``XComArg``. You can also create traditional Operators
-(e.g., sensors) via classes imported from the SDK:
+3. Dag authoring Enhancements
+-----------------------------
 
-  - **BaseOperator**, **Sensor**, **OperatorLink**, **Notifier**, **XComArg**, etc.
-    (see the **api reference** section for details)
+Writing your DAGs is now more consistent in Airflow 3.0. Use the stable :mod:`airflow.sdk` interface to define your workflows and tasks.
 
-Assets
-~~~~~~
-Model data as assets and emit them to downstream tasks with the SDK's asset library under
-``airflow.sdk.definitions.asset``. You can use:
+Why use ``airflow.sdk``?
+^^^^^^^^^^^^^^^^^^^^^^^^
+- Decouple your DAG definitions from Airflow internals (Scheduler, API Server, etc.)
+- Enjoy a consistent API that won't break across Airflow upgrades
+- Import only the classes and decorators you need, without installing the full Airflow core
 
-- :func:`@asset <airflow.sdk.asset>`, :class:`~airflow.sdk.AssetAlias`, etc. (see the **api reference** section below)
+**Key imports from airflow.sdk**
 
-Refer to :doc:`api` for the complete reference of all decorators and classes.
+**Classes**
+
+- :class:`airflow.sdk.Asset`
+- :class:`airflow.sdk.BaseHook`
+- :class:`airflow.sdk.BaseNotifier`
+- :class:`airflow.sdk.BaseOperator`
+- :class:`airflow.sdk.BaseOperatorLink`
+- :class:`airflow.sdk.BaseSensorOperator`
+- :class:`airflow.sdk.Connection`
+- :class:`airflow.sdk.Context`
+- :class:`airflow.sdk.DAG`
+- :class:`airflow.sdk.EdgeModifier`
+- :class:`airflow.sdk.Label`
+- :class:`airflow.sdk.ObjectStoragePath`
+- :class:`airflow.sdk.Param`
+- :class:`airflow.sdk.TaskGroup`
+- :class:`airflow.sdk.Variable`
+
+**Decorators and helper functions**
+
+- :func:`airflow.sdk.asset`
+- :func:`airflow.sdk.dag`
+- :func:`airflow.sdk.setup`
+- :func:`airflow.sdk.task`
+- :func:`airflow.sdk.task_group`
+- :func:`airflow.sdk.teardown`
+- :func:`airflow.sdk.chain`
+- :func:`airflow.sdk.chain_linear`
+- :func:`airflow.sdk.cross_downstream`
+- :func:`airflow.sdk.get_current_context`
+- :func:`airflow.sdk.get_parsing_context`
+
+All DAGs must update their imports to refer to ``airflow.sdk`` instead of using internal Airflow modules directly. Deprecated legacy import paths, such as ``airflow.models.dag.DAG`` and ``airflow.decorator.task``, will be removed in a future version of Airflow. Some utilities and helper functions currently used from ``airflow.utils.*`` and other modules will gradually be migrated to the Task SDK over the next minor releases. These upcoming updates aim to completely separate DAG creation from internal Airflow services. Dag authors can look forward to continuous improvements to airflow.sdk, with no backwards-incompatible changes to their existing code.
+
+Legacy imports (deprecated):
+
+.. code-block:: python
+
+   # Airflow 2.x
+   from airflow.models import DAG
+   from airflow.decorators import task
+
+Use instead:
+
+.. code-block:: python
+
+   # Airflow 3.x
+   from airflow.sdk import DAG, task
+
+4. Example DAG References
+-------------------------
+
+Explore a variety of DAG examples and patterns in the :doc:`examples` page.
+
+5. Concepts
+-----------
+
+Discover the fundamental concepts that Dag authors need to understand when working with the Task SDK, including Airflow 2.x vs 3.x architectural differences, database access restrictions, and task lifecycle. For full details, see the :doc:`concepts` page.
+
+Airflow 2.x Architecture
+^^^^^^^^^^^^^^^^^^^^^^^^
+.. image:: img/airflow-2-approach.png
+   :alt: Airflow 2.x architecture diagram showing scheduler, metadata DB, and worker interactions
+   :align: center
+
+Architectural Decoupling: Task Execution Interface (Airflow 3.x)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. image:: img/airflow-3-task-sdk.png
+   :alt: Airflow 3.x Task Execution API architecture diagram showing Execution API Server and worker subprocesses
+   :align: center
+
+6. API References
+-----------------
+
+For the full public API reference, see the :doc:`api` page.
 
 .. toctree::
   :hidden:
@@ -90,3 +156,4 @@ Refer to :doc:`api` for the complete reference of all decorators and classes.
   examples
   dynamic-task-mapping
   api
+  concepts

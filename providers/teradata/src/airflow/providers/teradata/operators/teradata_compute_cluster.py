@@ -23,9 +23,9 @@ from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from airflow.models import BaseOperator
 from airflow.providers.teradata.hooks.teradata import TeradataHook
 from airflow.providers.teradata.utils.constants import Constants
+from airflow.providers.teradata.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     try:
@@ -268,7 +268,6 @@ class TeradataComputeClusterProvisionOperator(_TeradataComputeClusterOperator):
         Lake, effectively creates the compute cluster.
         Airflow runs this method on the worker and defers using the trigger.
         """
-        super().execute(context)
         return self._compute_cluster_execute()
 
     def _compute_cluster_execute(self):
@@ -356,7 +355,6 @@ class TeradataComputeClusterDecommissionOperator(_TeradataComputeClusterOperator
         Lake, effectively drops the compute cluster.
         Airflow runs this method on the worker and defers using the trigger.
         """
-        super().execute(context)
         return self._compute_cluster_execute()
 
     def _compute_cluster_execute(self):
@@ -417,7 +415,6 @@ class TeradataComputeClusterResumeOperator(_TeradataComputeClusterOperator):
         Lake, effectively resumes the compute cluster.
         Airflow runs this method on the worker and defers using the trigger.
         """
-        super().execute(context)
         return self._compute_cluster_execute()
 
     def _compute_cluster_execute(self):
@@ -488,7 +485,6 @@ class TeradataComputeClusterSuspendOperator(_TeradataComputeClusterOperator):
         Lake, effectively suspends the compute cluster.
         Airflow runs this method on the worker and defers using the trigger.
         """
-        super().execute(context)
         return self._compute_cluster_execute()
 
     def _compute_cluster_execute(self):

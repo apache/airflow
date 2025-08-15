@@ -27,35 +27,26 @@ from flask_appbuilder import BaseView
 from flask_appbuilder.api import expose
 
 from airflow.exceptions import AirflowException, TaskInstanceNotFound
-from airflow.models import DagBag
 from airflow.models.dag import DAG, clear_task_instances
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
-from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperatorLink, TaskGroup, XCom
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.providers.fab.www import auth
 else:
     from airflow.www import auth  # type: ignore
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.task_group import TaskGroup
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.models import BaseOperator
     from airflow.providers.databricks.operators.databricks import DatabricksTaskBaseOperator
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperatorLink
-    from airflow.sdk.execution_time.xcom import XCom
-else:
-    from airflow.models import XCom  # type: ignore[no-redef]
-    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
+    from airflow.utils.context import Context
 
 
 REPAIR_WAIT_ATTEMPTS = os.getenv("DATABRICKS_REPAIR_WAIT_ATTEMPTS", 20)
@@ -93,32 +84,62 @@ def get_databricks_task_ids(
     return task_ids
 
 
-@provide_session
-def _get_dagrun(dag: DAG, run_id: str, session: Session | None = None) -> DagRun:
-    """
-    Retrieve the DagRun object associated with the specified DAG and run_id.
+# TODO: Need to re-think on how to support the currently unavailable repair functionality in Airflow 3. Probably a
+# good time to re-evaluate this would be once the plugin functionality is expanded in Airflow 3.1.
+if not AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.session import NEW_SESSION, provide_session
 
-    :param dag: The DAG object associated with the DagRun to retrieve.
-    :param run_id: The run_id associated with the DagRun to retrieve.
-    :param session: The SQLAlchemy session to use for the query. If None, uses the default session.
-    :return: The DagRun object associated with the specified DAG and run_id.
-    """
-    if not session:
-        raise AirflowException("Session not provided.")
+    def _get_dag(dag_id: str, session: Session) -> DAG:
+        from airflow.models.serialized_dag import SerializedDagModel
 
-    return session.query(DagRun).filter(DagRun.dag_id == dag.dag_id, DagRun.run_id == run_id).first()
+        dag = SerializedDagModel.get_dag(dag_id, session=session)
+        if not dag:
+            raise AirflowException("Dag not found.")
+        return dag
 
+    def _get_dagrun(dag: DAG, run_id: str, session: Session) -> DagRun:
+        """
+        Retrieve the DagRun object associated with the specified DAG and run_id.
 
-@provide_session
-def _clear_task_instances(
-    dag_id: str, run_id: str, task_ids: list[str], log: logging.Logger, session: Session | None = None
-) -> None:
-    dag_bag = DagBag(read_dags_from_db=True)
-    dag = dag_bag.get_dag(dag_id)
-    log.debug("task_ids %s to clear", str(task_ids))
-    dr: DagRun = _get_dagrun(dag, run_id, session=session)
-    tis_to_clear = [ti for ti in dr.get_task_instances() if ti.databricks_task_key in task_ids]
-    clear_task_instances(tis_to_clear, session)
+        :param dag: The DAG object associated with the DagRun to retrieve.
+        :param run_id: The run_id associated with the DagRun to retrieve.
+        :param session: The SQLAlchemy session to use for the query. If None, uses the default session.
+        :return: The DagRun object associated with the specified DAG and run_id.
+        """
+        if not session:
+            raise AirflowException("Session not provided.")
+
+        return session.query(DagRun).filter(DagRun.dag_id == dag.dag_id, DagRun.run_id == run_id).first()
+
+    @provide_session
+    def _clear_task_instances(
+        dag_id: str, run_id: str, task_ids: list[str], log: logging.Logger, session: Session = NEW_SESSION
+    ) -> None:
+        dag = _get_dag(dag_id, session=session)
+        log.debug("task_ids %s to clear", str(task_ids))
+        dr: DagRun = _get_dagrun(dag, run_id, session=session)
+        tis_to_clear = [ti for ti in dr.get_task_instances() if ti.databricks_task_key in task_ids]
+        clear_task_instances(tis_to_clear, session)
+
+    @provide_session
+    def get_task_instance(operator: BaseOperator, dttm, session: Session = NEW_SESSION) -> TaskInstance:
+        dag_id = operator.dag.dag_id
+        if hasattr(DagRun, "execution_date"):  # Airflow 2.x.
+            dag_run = DagRun.find(dag_id, execution_date=dttm)[0]  # type: ignore[call-arg]
+        else:
+            dag_run = DagRun.find(dag_id, logical_date=dttm)[0]
+        ti = (
+            session.query(TaskInstance)
+            .filter(
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.run_id == dag_run.run_id,
+                TaskInstance.task_id == operator.task_id,
+            )
+            .one_or_none()
+        )
+        if not ti:
+            raise TaskInstanceNotFound("Task instance not found")
+        return ti
 
 
 def _repair_task(
@@ -201,27 +222,6 @@ def _get_launch_task_key(current_task_key: TaskInstanceKey, task_id: str) -> Tas
     return current_task_key
 
 
-@provide_session
-def get_task_instance(operator: BaseOperator, dttm, session: Session = NEW_SESSION) -> TaskInstance:
-    dag_id = operator.dag.dag_id
-    if hasattr(DagRun, "execution_date"):  # Airflow 2.x.
-        dag_run = DagRun.find(dag_id, execution_date=dttm)[0]  # type: ignore[call-arg]
-    else:
-        dag_run = DagRun.find(dag_id, logical_date=dttm)[0]
-    ti = (
-        session.query(TaskInstance)
-        .filter(
-            TaskInstance.dag_id == dag_id,
-            TaskInstance.run_id == dag_run.run_id,
-            TaskInstance.task_id == operator.task_id,
-        )
-        .one_or_none()
-    )
-    if not ti:
-        raise TaskInstanceNotFound("Task instance not found")
-    return ti
-
-
 def get_xcom_result(
     ti_key: TaskInstanceKey,
     key: str,
@@ -240,6 +240,11 @@ class WorkflowJobRunLink(BaseOperatorLink, LoggingMixin):
 
     name = "See Databricks Job Run"
 
+    @property
+    def xcom_key(self) -> str:
+        """XCom key where the link is stored during task execution."""
+        return "databricks_job_run_link"
+
     def get_link(
         self,
         operator: BaseOperator,
@@ -247,17 +252,35 @@ class WorkflowJobRunLink(BaseOperatorLink, LoggingMixin):
         *,
         ti_key: TaskInstanceKey | None = None,
     ) -> str:
+        if AIRFLOW_V_3_0_PLUS:
+            # Use public XCom API to get the pre-computed link
+            try:
+                link = XCom.get_value(
+                    ti_key=ti_key,
+                    key=self.xcom_key,
+                )
+                return link if link else ""
+            except Exception as e:
+                self.log.warning("Failed to retrieve Databricks job run link from XCom: %s", e)
+                return ""
+        else:
+            # Airflow 2.x - keep original implementation
+            return self._get_link_legacy(operator, dttm, ti_key=ti_key)
+
+    def _get_link_legacy(
+        self,
+        operator: BaseOperator,
+        dttm=None,
+        *,
+        ti_key: TaskInstanceKey | None = None,
+    ) -> str:
+        """Legacy implementation for Airflow 2.x."""
         if not ti_key:
             ti = get_task_instance(operator, dttm)
             ti_key = ti.key
         task_group = operator.task_group
-
         if not task_group:
             raise AirflowException("Task group is required for generating Databricks Workflow Job Run Link.")
-
-        dag_bag = DagBag(read_dags_from_db=True)
-        dag = dag_bag.get_dag(ti_key.dag_id)
-        dag.get_task(ti_key.task_id)
         self.log.info("Getting link for task %s", ti_key.task_id)
         if ".launch" not in ti_key.task_id:
             self.log.debug("Finding the launch task for job run metadata %s", ti_key.task_id)
@@ -267,6 +290,30 @@ class WorkflowJobRunLink(BaseOperatorLink, LoggingMixin):
 
         hook = DatabricksHook(metadata.conn_id)
         return f"https://{hook.host}/#job/{metadata.job_id}/run/{metadata.run_id}"
+
+
+def store_databricks_job_run_link(
+    context: Context,
+    metadata: Any,
+    logger: logging.Logger,
+) -> None:
+    """
+    Store the Databricks job run link in XCom during task execution.
+
+    This should be called by Databricks operators during their execution.
+    """
+    if not AIRFLOW_V_3_0_PLUS:
+        return  # Only needed for Airflow 3
+
+    try:
+        hook = DatabricksHook(metadata.conn_id)
+        link = f"https://{hook.host}/#job/{metadata.job_id}/run/{metadata.run_id}"
+
+        # Store the link in XCom for the UI to retrieve as extra link
+        context["ti"].xcom_push(key="databricks_job_run_link", value=link)
+        logger.info("Stored Databricks job run link in XCom: %s", link)
+    except Exception as e:
+        logger.warning("Failed to store Databricks job run link: %s", e)
 
 
 class WorkflowJobRepairAllFailedLink(BaseOperatorLink, LoggingMixin):
@@ -328,9 +375,12 @@ class WorkflowJobRepairAllFailedLink(BaseOperatorLink, LoggingMixin):
             raise AirflowException("Task group is required for generating repair link.")
         if not task_group.group_id:
             raise AirflowException("Task group ID is required for generating repair link.")
-        dag_bag = DagBag(read_dags_from_db=True)
-        dag = dag_bag.get_dag(ti_key.dag_id)
-        dr = _get_dagrun(dag, ti_key.run_id)
+
+        from airflow.utils.session import create_session
+
+        with create_session() as session:
+            dag = _get_dag(ti_key.dag_id, session=session)
+            dr = _get_dagrun(dag, ti_key.run_id, session=session)
         log.debug("Getting failed and skipped tasks for dag run %s", dr.run_id)
         task_group_sub_tasks = self.get_task_group_children(task_group).items()
         failed_and_skipped_tasks = self._get_failed_and_skipped_tasks(dr)
@@ -388,9 +438,14 @@ class WorkflowJobRepairSingleTaskLink(BaseOperatorLink, LoggingMixin):
             task_group.group_id,
             ti_key.task_id,
         )
-        dag_bag = DagBag(read_dags_from_db=True)
-        dag = dag_bag.get_dag(ti_key.dag_id)
+
+        from airflow.utils.session import create_session
+
+        with create_session() as session:
+            dag = _get_dag(ti_key.dag_id, session=session)
         task = dag.get_task(ti_key.task_id)
+        if TYPE_CHECKING:
+            assert isinstance(task, DatabricksTaskBaseOperator)
 
         if ".launch" not in ti_key.task_id:
             launch_task_id = get_launch_task_id(task_group)
@@ -455,13 +510,6 @@ class RepairDatabricksTasks(BaseView, LoggingMixin):
         return url_for("Airflow.grid", dag_id=dag_id, dag_run_id=run_id)
 
 
-repair_databricks_view = RepairDatabricksTasks()
-
-repair_databricks_package = {
-    "view": repair_databricks_view,
-}
-
-
 class DatabricksWorkflowPlugin(AirflowPlugin):
     """
     Databricks Workflows plugin for Airflow.
@@ -472,9 +520,22 @@ class DatabricksWorkflowPlugin(AirflowPlugin):
     """
 
     name = "databricks_workflow"
-    operator_extra_links = [
-        WorkflowJobRepairAllFailedLink(),
-        WorkflowJobRepairSingleTaskLink(),
-        WorkflowJobRunLink(),
-    ]
-    appbuilder_views = [repair_databricks_package]
+
+    # Conditionally set operator_extra_links based on Airflow version
+    if AIRFLOW_V_3_0_PLUS:
+        # In Airflow 3, disable the links for repair functionality until it is figured out it can be supported
+        operator_extra_links = [
+            WorkflowJobRunLink(),
+        ]
+    else:
+        # In Airflow 2.x, keep all links including repair all failed tasks
+        operator_extra_links = [
+            WorkflowJobRepairAllFailedLink(),
+            WorkflowJobRepairSingleTaskLink(),
+            WorkflowJobRunLink(),
+        ]
+        repair_databricks_view = RepairDatabricksTasks()
+        repair_databricks_package = {
+            "view": repair_databricks_view,
+        }
+        appbuilder_views = [repair_databricks_package]

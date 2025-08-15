@@ -1,4 +1,4 @@
- .. Licensed to the Apache Software Foundation (ASF) under one
+.. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -29,6 +29,9 @@ The operator creates a Kafka Consumer that reads a batch of messages from the cl
 
 For parameter definitions take a look at :class:`~airflow.providers.apache.kafka.operators.consume.ConsumeFromTopicOperator`.
 
+.. important::
+    If you set the ``commit_cadence`` parameter, ensure that the ``enable.auto.commit`` option in the Kafka connection configuration is explicitly set to ``false``.
+    By default, ``enable.auto.commit`` is ``true``, which causes the consumer to auto-commit offsets every 5 seconds, potentially overriding the behavior defined by ``commit_cadence``.
 
 Using the operator
 """"""""""""""""""

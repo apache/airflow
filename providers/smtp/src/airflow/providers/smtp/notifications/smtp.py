@@ -77,6 +77,7 @@ class SmtpNotifier(BaseNotifier):
         mime_charset: str = "utf-8",
         custom_headers: dict[str, Any] | None = None,
         smtp_conn_id: str = SmtpHook.default_conn_name,
+        auth_type: str = "basic",
         *,
         template: str | None = None,
     ):
@@ -92,6 +93,7 @@ class SmtpNotifier(BaseNotifier):
         self.custom_headers = custom_headers
         self.subject = subject
         self.html_content = html_content
+        self.auth_type = auth_type
         if self.html_content is None and template is not None:
             self.html_content = self._read_template(template)
 
@@ -102,41 +104,41 @@ class SmtpNotifier(BaseNotifier):
     @cached_property
     def hook(self) -> SmtpHook:
         """Smtp Events Hook."""
-        return SmtpHook(smtp_conn_id=self.smtp_conn_id)
+        return SmtpHook(smtp_conn_id=self.smtp_conn_id, auth_type=self.auth_type)
 
     def notify(self, context):
         """Send a email via smtp server."""
-        fields_to_re_render = []
-        if self.from_email is None:
-            if self.hook.from_email is not None:
-                self.from_email = self.hook.from_email
-            else:
-                raise ValueError("You should provide `from_email` or define it in the connection")
-            fields_to_re_render.append("from_email")
-        if self.subject is None:
-            smtp_default_templated_subject_path: str
-            if self.hook.subject_template:
-                smtp_default_templated_subject_path = self.hook.subject_template
-            else:
-                smtp_default_templated_subject_path = (
-                    Path(__file__).parent / "templates" / "email_subject.jinja2"
-                ).as_posix()
-            self.subject = self._read_template(smtp_default_templated_subject_path)
-            fields_to_re_render.append("subject")
-        if self.html_content is None:
-            smtp_default_templated_html_content_path: str
-            if self.hook.html_content_template:
-                smtp_default_templated_html_content_path = self.hook.html_content_template
-            else:
-                smtp_default_templated_html_content_path = (
-                    Path(__file__).parent / "templates" / "email.html"
-                ).as_posix()
-            self.html_content = self._read_template(smtp_default_templated_html_content_path)
-            fields_to_re_render.append("html_content")
-        if fields_to_re_render:
-            jinja_env = self.get_template_env(dag=context["dag"])
-            self._do_render_template_fields(self, fields_to_re_render, context, jinja_env, set())
         with self.hook as smtp:
+            fields_to_re_render = []
+            if self.from_email is None:
+                if smtp.from_email is not None:
+                    self.from_email = smtp.from_email
+                else:
+                    raise ValueError("You should provide `from_email` or define it in the connection")
+                fields_to_re_render.append("from_email")
+            if self.subject is None:
+                smtp_default_templated_subject_path: str
+                if smtp.subject_template:
+                    smtp_default_templated_subject_path = smtp.subject_template
+                else:
+                    smtp_default_templated_subject_path = (
+                        Path(__file__).parent / "templates" / "email_subject.jinja2"
+                    ).as_posix()
+                self.subject = self._read_template(smtp_default_templated_subject_path)
+                fields_to_re_render.append("subject")
+            if self.html_content is None:
+                smtp_default_templated_html_content_path: str
+                if smtp.html_content_template:
+                    smtp_default_templated_html_content_path = smtp.html_content_template
+                else:
+                    smtp_default_templated_html_content_path = (
+                        Path(__file__).parent / "templates" / "email.html"
+                    ).as_posix()
+                self.html_content = self._read_template(smtp_default_templated_html_content_path)
+                fields_to_re_render.append("html_content")
+            if fields_to_re_render:
+                jinja_env = self.get_template_env(dag=context["dag"])
+                self._do_render_template_fields(self, fields_to_re_render, context, jinja_env, set())
             smtp.send_email_smtp(
                 smtp_conn_id=self.smtp_conn_id,
                 from_email=self.from_email,

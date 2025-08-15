@@ -25,9 +25,19 @@ import responses
 from responses import matchers
 
 from airflow.models import Connection
-from airflow.providers.yandex.hooks.yq import YQHook
 
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 yandexcloud = pytest.importorskip("yandexcloud")
+
+from airflow.providers.yandex.hooks.yq import YQHook
 
 OAUTH_TOKEN = "my_oauth_token"
 IAM_TOKEN = "my_iam_token"
@@ -36,7 +46,7 @@ SERVICE_ACCOUNT_AUTH_KEY_JSON = """{"id":"my_id", "service_account_id":"my_sa1",
 
 class TestYandexCloudYqHook:
     def _init_hook(self):
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection") as mock_get_connection:
+        with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection") as mock_get_connection:
             mock_get_connection.return_value = self.connection
             self.hook = YQHook(default_folder_id="my_folder_id")
 

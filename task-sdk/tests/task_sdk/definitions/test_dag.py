@@ -16,13 +16,15 @@
 # under the License.
 from __future__ import annotations
 
+import re
+import warnings
 import weakref
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import pytest
 
-from airflow.exceptions import DuplicateTaskIdFound
+from airflow.exceptions import DuplicateTaskIdFound, RemovedInAirflow4Warning
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions.dag import DAG, dag as dag_decorator
 from airflow.sdk.definitions.param import DagParam, Param, ParamsDict
@@ -140,6 +142,36 @@ class TestDag:
         assert op7.dag == dag
         assert op8.dag == dag
         assert op9.dag == dag2
+
+    def test_none_or_empty_access_control_does_not_warn(self) -> None:
+        """Ensure that `RemovedInAirflow4Warning` warnings do not arise when `access_control` is `None`."""
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            _ = DAG("test-no-warnings-dag", access_control=None, schedule=None, start_date=DEFAULT_DATE)
+
+    @pytest.mark.parametrize(
+        "role_access_control_entry",
+        [
+            {},
+            {"DAGs": {}},
+            {"DAG Runs": {}},
+            {"DAGs": {}, "DAG Runs": {}},
+            {"DAGs": {"can_read"}},
+            {"DAG Runs": {"can_read"}},
+            {"DAGs": {"can_read"}, "DAG Runs": {"can_read"}},
+        ],
+    )
+    def test_non_empty_access_control_warns(self, role_access_control_entry: dict[str, set[str]]) -> None:
+        """Ensure that `RemovedInAirflow4Warning` warnings are triggered when `access_control` is non-empty."""
+        access_control = (
+            {"fake-role": role_access_control_entry}
+            if len(role_access_control_entry) > 0
+            else role_access_control_entry
+        )
+        with pytest.warns(
+            RemovedInAirflow4Warning, match=re.escape("The airflow.security.permissions module is deprecated")
+        ):
+            _ = DAG("should-warn-dag", access_control=access_control, schedule=None, start_date=DEFAULT_DATE)
 
     def test_params_not_passed_is_empty_dict(self):
         """

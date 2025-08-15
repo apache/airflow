@@ -26,13 +26,18 @@ from typing import TYPE_CHECKING, Any
 from mergedeep import merge
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunLifeCycleState
 from airflow.providers.databricks.plugins.databricks_workflow import (
     WorkflowJobRepairAllFailedLink,
     WorkflowJobRunLink,
+    store_databricks_job_run_link,
 )
-from airflow.utils.task_group import TaskGroup
+from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
+
+try:
+    from airflow.sdk import TaskGroup
+except ImportError:
+    from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     from types import TracebackType
@@ -92,9 +97,18 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
         populated after instantiation using the `add_task` method.
     """
 
-    operator_extra_links = (WorkflowJobRunLink(), WorkflowJobRepairAllFailedLink())
     template_fields = ("notebook_params", "job_clusters")
     caller = "_CreateDatabricksWorkflowOperator"
+    # Conditionally set operator_extra_links based on Airflow version
+    if AIRFLOW_V_3_0_PLUS:
+        # In Airflow 3, disable "Repair All Failed Tasks" since we can't pre-determine failed tasks
+        operator_extra_links = (WorkflowJobRunLink(),)
+    else:
+        # In Airflow 2.x, keep both links
+        operator_extra_links = (  # type: ignore[assignment]
+            WorkflowJobRunLink(),
+            WorkflowJobRepairAllFailedLink(),
+        )
 
     def __init__(
         self,
@@ -218,6 +232,15 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
             job_id,
             run_id,
         )
+
+        # Store operator links in XCom for Airflow 3 compatibility
+        if AIRFLOW_V_3_0_PLUS:
+            # Store the job run link
+            store_databricks_job_run_link(
+                context=context,
+                metadata=self.workflow_run_metadata,
+                logger=self.log,
+            )
 
         return {
             "conn_id": self.databricks_conn_id,

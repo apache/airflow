@@ -31,11 +31,13 @@ from sqlalchemy.dialects import mysql
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.types import JSON, Text, TypeDecorator
 
+from airflow._shared.timezones.timezone import make_naive, utc
 from airflow.configuration import conf
 from airflow.serialization.enums import Encoding
-from airflow.utils.timezone import make_naive, utc
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from kubernetes.client.models.v1_pod import V1Pod
     from sqlalchemy.exc import OperationalError
     from sqlalchemy.orm import Query, Session
@@ -448,3 +450,8 @@ def get_orm_mapper():
 
 def is_sqlalchemy_v1() -> bool:
     return version.parse(metadata.version("sqlalchemy")).major == 1
+
+
+def make_dialect_kwarg(dialect: str) -> dict[str, str | Iterable[str]]:
+    """Create an SQLAlchemy-version-aware dialect keyword argument."""
+    return {"dialect_name": dialect} if is_sqlalchemy_v1() else {"dialect_names": (dialect,)}

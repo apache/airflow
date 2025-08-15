@@ -18,8 +18,8 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Collection, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, Callable, ClassVar
+from collections.abc import Callable, Collection, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -33,8 +33,8 @@ else:
     )
 
 from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.version_compat import context_merge
 from airflow.sdk.definitions._internal.types import SET_DURING_EXECUTION
-from airflow.utils.context import context_merge
 from airflow.utils.operator_helpers import determine_kwargs
 
 if TYPE_CHECKING:

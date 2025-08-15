@@ -26,6 +26,15 @@ from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.looker import JobStatus, LookerHook
 from airflow.version import version
 
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 HOOK_PATH = "airflow.providers.google.cloud.hooks.looker.LookerHook.{}"
 
 JOB_ID = "test-id"
@@ -39,7 +48,7 @@ CONN_EXTRA = {"verify_ssl": "true", "timeout": "120"}
 
 class TestLookerHook:
     def setup_method(self):
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection") as conn:
+        with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection") as conn:
             conn.return_value.extra_dejson = CONN_EXTRA
             self.hook = LookerHook(looker_conn_id="test")
 

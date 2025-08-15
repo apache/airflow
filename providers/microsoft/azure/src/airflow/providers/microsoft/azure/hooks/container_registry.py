@@ -20,17 +20,17 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import Any
+from typing import Any, cast
 
 from azure.mgmt.containerinstance.models import ImageRegistryCredential
 from azure.mgmt.containerregistry import ContainerRegistryManagementClient
 
-from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
     get_field,
     get_sync_default_azure_credential,
 )
+from airflow.providers.microsoft.azure.version_compat import BaseHook
 
 
 class AzureContainerRegistryHook(BaseHook):
@@ -121,4 +121,6 @@ class AzureContainerRegistryHook(BaseHook):
             credentials = client.registries.list_credentials(resource_group, conn.login).as_dict()
             password = credentials["passwords"][0]["value"]
 
-        return ImageRegistryCredential(server=conn.host, username=conn.login, password=password)
+        return ImageRegistryCredential(
+            server=cast("str", conn.host), username=cast("str", conn.login), password=password
+        )

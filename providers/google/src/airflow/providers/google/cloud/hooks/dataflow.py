@@ -27,9 +27,9 @@ import subprocess
 import time
 import uuid
 import warnings
-from collections.abc import Generator, Sequence
+from collections.abc import Callable, Generator, Sequence
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from google.cloud.dataflow_v1beta3 import (
     GetJobRequest,
@@ -51,14 +51,13 @@ from googleapiclient.discovery import Resource, build
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType, beam_options_to_args
-from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import (
     PROVIDE_PROJECT_ID,
     GoogleBaseAsyncHook,
     GoogleBaseHook,
 )
+from airflow.providers.google.version_compat import timeout
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.timeout import timeout
 
 if TYPE_CHECKING:
     from google.cloud.dataflow_v1beta3.services.jobs_v1_beta3.pagers import ListJobsAsyncPager
@@ -1125,90 +1124,6 @@ class DataflowHook(GoogleBaseHook):
             cancel_timeout=self.cancel_timeout,
         )
         jobs_controller.cancel()
-
-    @deprecated(
-        planned_removal_date="July 01, 2025",
-        use_instead="airflow.providers.google.cloud.hooks.dataflow.DataflowHook.launch_beam_yaml_job",
-        category=AirflowProviderDeprecationWarning,
-    )
-    @GoogleBaseHook.fallback_to_default_project_id
-    def start_sql_job(
-        self,
-        job_name: str,
-        query: str,
-        options: dict[str, Any],
-        project_id: str,
-        location: str = DEFAULT_DATAFLOW_LOCATION,
-        on_new_job_id_callback: Callable[[str], None] | None = None,
-        on_new_job_callback: Callable[[dict], None] | None = None,
-    ):
-        """
-        Start Dataflow SQL query.
-
-        :param job_name: The unique name to assign to the Cloud Dataflow job.
-        :param query: The SQL query to execute.
-        :param options: Job parameters to be executed.
-            For more information, look at:
-            `https://cloud.google.com/sdk/gcloud/reference/beta/dataflow/sql/query
-            <gcloud beta dataflow sql query>`__
-            command reference
-        :param location: The location of the Dataflow job (for example europe-west1)
-        :param project_id: The ID of the GCP project that owns the job.
-            If set to ``None`` or missing, the default project_id from the GCP connection is used.
-        :param on_new_job_id_callback: (Deprecated) Callback called when the job ID is known.
-        :param on_new_job_callback: Callback called when the job is known.
-        :return: the new job object
-        """
-        gcp_options = {
-            "project": project_id,
-            "format": "value(job.id)",
-            "job-name": job_name,
-            "region": location,
-        }
-        cmd = self._build_gcloud_command(
-            command=["gcloud", "dataflow", "sql", "query", query], parameters={**gcp_options, **options}
-        )
-        self.log.info("Executing command: %s", " ".join(shlex.quote(c) for c in cmd))
-        with self.provide_authorized_gcloud():
-            proc = subprocess.run(cmd, capture_output=True)
-        self.log.info("Output: %s", proc.stdout.decode())
-        self.log.warning("Stderr: %s", proc.stderr.decode())
-        self.log.info("Exit code %d", proc.returncode)
-        stderr_last_20_lines = "\n".join(proc.stderr.decode().strip().splitlines()[-20:])
-        if proc.returncode != 0:
-            raise AirflowException(
-                f"Process exit with non-zero exit code. Exit code: {proc.returncode} Error Details : "
-                f"{stderr_last_20_lines}"
-            )
-        job_id = proc.stdout.decode().strip()
-
-        self.log.info("Created job ID: %s", job_id)
-
-        jobs_controller = _DataflowJobsController(
-            dataflow=self.get_conn(),
-            project_number=project_id,
-            job_id=job_id,
-            location=location,
-            poll_sleep=self.poll_sleep,
-            num_retries=self.num_retries,
-            drain_pipeline=self.drain_pipeline,
-            wait_until_finished=self.wait_until_finished,
-        )
-        job = jobs_controller.get_jobs(refresh=True)[0]
-
-        if on_new_job_id_callback:
-            warnings.warn(
-                "on_new_job_id_callback is Deprecated. Please start using on_new_job_callback",
-                AirflowProviderDeprecationWarning,
-                stacklevel=3,
-            )
-            on_new_job_id_callback(cast("str", job.get("id")))
-
-        if on_new_job_callback:
-            on_new_job_callback(job)
-
-        jobs_controller.wait_for_done()
-        return jobs_controller.get_jobs(refresh=True)[0]
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_job(

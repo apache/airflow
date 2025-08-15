@@ -23,10 +23,10 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal
 
 from airflow.configuration import conf
-from airflow.models import BaseOperator
 from airflow.providers.openai.exceptions import OpenAIBatchJobException
 from airflow.providers.openai.hooks.openai import OpenAIHook
 from airflow.providers.openai.triggers.openai import OpenAIBatchTrigger
+from airflow.providers.openai.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     try:

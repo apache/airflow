@@ -19,8 +19,9 @@ from __future__ import annotations
 
 import logging
 import socket
+from collections.abc import Callable
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from airflow.configuration import conf
 
@@ -44,7 +45,7 @@ def gen_links_from_kv_list(list):
     return gen_links_from_kv_list(list)
 
 
-def add_span(func):
+def add_debug_span(func):
     """Decorate a function with span."""
     func_name = func.__name__
     qual_name = func.__qualname__
@@ -53,7 +54,7 @@ def add_span(func):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-        with Trace.start_span(span_name=func_name, component=component):
+        with DebugTrace.start_span(span_name=func_name, component=component):
             return func(*args, **kwargs)
 
     return wrapper
@@ -254,6 +255,13 @@ class _TraceMeta(type):
     factory: Callable[[], Tracer] | None = None
     instance: Tracer | EmptyTrace | None = None
 
+    def __new__(cls, name, bases, attrs):
+        # Read the debug flag from the class body.
+        if "check_debug_traces_flag" not in attrs:
+            raise TypeError(f"Class '{name}' must define 'check_debug_traces_flag'.")
+
+        return super().__new__(cls, name, bases, attrs)
+
     def __getattr__(cls, name: str):
         if not cls.factory:
             # Lazy initialization of the factory
@@ -276,13 +284,24 @@ class _TraceMeta(type):
             cls._initialize_instance()
         return cls.instance
 
-    @classmethod
     def configure_factory(cls):
         """Configure the trace factory based on settings."""
-        if conf.has_option("traces", "otel_on") and conf.getboolean("traces", "otel_on"):
+        otel_on = conf.getboolean("traces", "otel_on")
+
+        if cls.check_debug_traces_flag:
+            debug_traces_on = conf.getboolean("traces", "otel_debug_traces_on")
+        else:
+            # Set to true so that it will be ignored during the evaluation for the factory instance.
+            # If this is true, then (otel_on and debug_traces_on) will always evaluate to
+            # whatever value 'otel_on' has and therefore it will be ignored.
+            debug_traces_on = True
+
+        if otel_on and debug_traces_on:
             from airflow.traces import otel_tracer
 
-            cls.factory = otel_tracer.get_otel_tracer
+            cls.factory = staticmethod(
+                lambda use_simple_processor=False: otel_tracer.get_otel_tracer(cls, use_simple_processor)
+            )
         else:
             # EmptyTrace is a class and not inherently callable.
             # Using a lambda ensures it can be invoked as a callable factory.
@@ -290,7 +309,6 @@ class _TraceMeta(type):
             # and avoids passing `cls` as an implicit argument.
             cls.factory = staticmethod(lambda: EmptyTrace())
 
-    @classmethod
     def get_constant_tags(cls) -> str | None:
         """Get constant tags to add to all traces."""
         return conf.get("traces", "tags", fallback=None)
@@ -298,7 +316,15 @@ class _TraceMeta(type):
 
 if TYPE_CHECKING:
     Trace: EmptyTrace
+    DebugTrace: EmptyTrace
 else:
 
     class Trace(metaclass=_TraceMeta):
         """Empty class for Trace - we use metaclass to inject the right one."""
+
+        check_debug_traces_flag = False
+
+    class DebugTrace(metaclass=_TraceMeta):
+        """Empty class for Trace and in case the debug traces flag is enabled."""
+
+        check_debug_traces_flag = True

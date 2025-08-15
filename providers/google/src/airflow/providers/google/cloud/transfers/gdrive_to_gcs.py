@@ -19,9 +19,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
+from airflow.providers.google.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -99,3 +99,7 @@ class GoogleDriveToGCSOperator(BaseOperator):
             bucket_name=self.bucket_name, object_name=self.object_name
         ) as file:
             gdrive_hook.download_file(file_id=file_metadata["id"], file_handle=file)
+
+    def dry_run(self):
+        """Perform a dry run of the operator."""
+        return None

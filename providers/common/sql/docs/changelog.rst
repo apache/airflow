@@ -25,6 +25,59 @@
 Changelog
 ---------
 
+1.27.5
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SnowflakeCheckOperator and SnowflakeValueCheckOperator to use parameters arg correctly (#53837)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.27.4
+......
+
+Misc
+~~~~
+
+* ``Fix unreachable code mypy warnings in teradata provider (#53488)``
+* ``Add sql extras to pandas in the providers where sqlalchemy is needed (#53535)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup type ignores (#53297)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Move all BaseHook usages to version_compat in Common SQL (#52800)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add run_on_latest_version support for backfill and clear operations (#52177)``
+   * ``Make dag_version_id in TI non-nullable (#50825)``
+
+1.27.3
+......
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Replace models.BaseOperator to Task SDK one for Common Providers (#52443)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Use BaseSensorOperator from task sdk in providers (#52296)``
+* ``Bump upper binding on pandas in all providers (#52060)``
+
+Doc-only
+~~~~~~~~
+
+* ``Minor pre-commit fixes (#51769)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Clean up messy default connection overrides in provider tests (#52137)``
+   * ``Remove pytest db markers from common sql provider (#52105)``
+
 1.27.2
 ......
 

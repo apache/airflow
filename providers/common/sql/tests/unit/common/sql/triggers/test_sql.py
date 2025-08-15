@@ -23,11 +23,20 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.common.sql.triggers.sql import SQLExecuteQueryTrigger
 from airflow.triggers.base import TriggerEvent
 
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 from tests_common.test_utils.operators.run_deferrable import run_trigger
 
 
 class TestSQLExecuteQueryTrigger:
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     def test_run(self, mock_get_connection):
         data = [(1, "Alice"), (2, "Bob")]
         mock_connection = mock.MagicMock(spec=Connection)

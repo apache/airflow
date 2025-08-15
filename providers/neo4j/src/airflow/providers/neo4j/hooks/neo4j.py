@@ -24,7 +24,10 @@ from urllib.parse import urlsplit
 
 from neo4j import Driver, GraphDatabase
 
-from airflow.hooks.base import BaseHook
+try:
+    from airflow.sdk.bases.hook import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from airflow.models import Connection
@@ -110,19 +113,23 @@ class Neo4jHook(BaseHook):
 
         return f"{scheme}{encryption_scheme}://{conn.host}:{7687 if conn.port is None else conn.port}"
 
-    def run(self, query) -> list[Any]:
+    def run(self, query: str, parameters: dict[str, Any] | None = None) -> list[Any]:
         """
         Create a neo4j session and execute the query in the session.
 
         :param query: Neo4j query
+        :param parameters: Optional parameters for the query
         :return: Result
         """
         driver = self.get_conn()
-        if not self.connection.schema:
-            with driver.session() as session:
+        session_paramters = {}
+
+        if db := self.connection.schema:
+            session_paramters["database"] = db
+
+        with driver.session(**session_paramters) as session:
+            if parameters is not None:
+                result = session.run(query, parameters)
+            else:
                 result = session.run(query)
-                return result.data()
-        else:
-            with driver.session(database=self.connection.schema) as session:
-                result = session.run(query)
-                return result.data()
+            return result.data()

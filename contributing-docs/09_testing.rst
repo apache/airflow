@@ -44,6 +44,9 @@ includes:
 * `System tests <testing/system_tests.rst>`__ are automatic tests that use external systems like
   Google Cloud and AWS. These tests are intended for an end-to-end DAG execution.
 
+* `Task SDK integration tests <testing/task_sdk_integration_tests.rst>`__ are specialized tests that verify
+  the integration between the Apache Airflow Task SDK package and a running Airflow instance.
+
 You can also run other kinds of tests when you are developing Airflow packages:
 
 * `Testing distributions <testing/testing_distributions.rst>`__ is a document that describes how to

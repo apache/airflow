@@ -21,7 +21,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from airflow.providers.arangodb.hooks.arangodb import ArangoDBHook
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.arangodb.version_compat import BaseSensorOperator
 
 if TYPE_CHECKING:
     try:

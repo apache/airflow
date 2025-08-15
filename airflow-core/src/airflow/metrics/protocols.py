@@ -19,12 +19,12 @@ from __future__ import annotations
 
 import datetime
 import time
-from typing import TYPE_CHECKING, Protocol, Union
+from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
     from airflow.typing_compat import Self
 
-DeltaType = Union[int, float, datetime.timedelta]
+DeltaType = int | float | datetime.timedelta
 
 
 class TimerProtocol(Protocol):

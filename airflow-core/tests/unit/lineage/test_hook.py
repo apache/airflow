@@ -22,7 +22,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow import plugins_manager
-from airflow.hooks.base import BaseHook
 from airflow.lineage import hook
 from airflow.lineage.hook import (
     AssetLineageInfo,
@@ -32,6 +31,7 @@ from airflow.lineage.hook import (
     NoOpCollector,
     get_hook_lineage_collector,
 )
+from airflow.sdk import BaseHook
 from airflow.sdk.definitions.asset import Asset
 
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
@@ -78,15 +78,15 @@ class TestHookLineageCollector:
         asset = MagicMock(spec=Asset, extra={})
         mock_asset.return_value = asset
 
-        hook = MagicMock()
+        hook = MagicMock(spec=BaseHook)
         collector.add_input_asset(hook, uri="test_uri")
 
         assert next(iter(collector._inputs.values())) == (asset, hook)
         mock_asset.assert_called_once_with(uri="test_uri")
 
     def test_grouping_assets(self, collector):
-        hook_1 = MagicMock()
-        hook_2 = MagicMock()
+        hook_1 = MagicMock(spec=BaseHook)
+        hook_2 = MagicMock(spec=BaseHook)
 
         uri = "test://uri/"
 
@@ -167,8 +167,8 @@ class TestHookLineageCollector:
         )
 
     def test_collected_assets(self, collector):
-        context_input = MagicMock()
-        context_output = MagicMock()
+        context_input = MagicMock(spec=BaseHook)
+        context_output = MagicMock(spec=BaseHook)
 
         collector.add_input_asset(context_input, uri="test://input")
         collector.add_output_asset(context_output, uri="test://output")
@@ -184,7 +184,7 @@ class TestHookLineageCollector:
     def test_has_collected(self, collector):
         assert not collector.has_collected
 
-        collector._inputs = {"unique_key": (MagicMock(spec=Asset), MagicMock())}
+        collector._inputs = {"unique_key": (MagicMock(spec=Asset), MagicMock(spec=BaseHook))}
         assert collector.has_collected
 
     def test_hooks_limit_input_output_assets(self):
@@ -192,8 +192,8 @@ class TestHookLineageCollector:
         assert not collector.has_collected
 
         for i in range(1000):
-            collector.add_input_asset(MagicMock(), uri=f"test://input/{i}")
-            collector.add_output_asset(MagicMock(), uri=f"test://output/{i}")
+            collector.add_input_asset(MagicMock(spec=BaseHook), uri=f"test://input/{i}")
+            collector.add_output_asset(MagicMock(spec=BaseHook), uri=f"test://output/{i}")
 
         assert collector.has_collected
         assert len(collector._inputs) == 100

@@ -68,7 +68,9 @@ apache-airflow-providers-datadog package
 `Datadog <https://www.datadoghq.com/>`__
 
 
-Release: 3.9.0
+Release: 3.9.2
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------
@@ -92,5 +94,5 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.10.0``
-``datadog``         ``>=0.14.0``
+``datadog``         ``>=0.50.0``
 ==================  ==================

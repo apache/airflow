@@ -21,6 +21,8 @@ from unittest.mock import MagicMock, call, patch
 
 import pytest
 
+yandexcloud = pytest.importorskip("yandexcloud")
+
 from airflow.models.dag import DAG
 from airflow.providers.yandex.operators.dataproc import (
     DataprocCreateClusterOperator,
@@ -30,8 +32,6 @@ from airflow.providers.yandex.operators.dataproc import (
     DataprocCreateSparkJobOperator,
     DataprocDeleteClusterOperator,
 )
-
-yandexcloud = pytest.importorskip("yandexcloud")
 
 # Airflow connection with type "yandexcloud"
 CONNECTION_ID = "yandexcloud_default"
@@ -66,6 +66,16 @@ SSH_PUBLIC_KEYS = [
 # https://cloud.yandex.com/docs/logging/concepts/log-group
 LOG_GROUP_ID = "my_log_group_id"
 
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
+
 
 class TestDataprocClusterCreateOperator:
     def setup_method(self):
@@ -81,8 +91,9 @@ class TestDataprocClusterCreateOperator:
         )
 
     @patch("airflow.providers.yandex.utils.credentials.get_credentials")
-    @patch("airflow.hooks.base.BaseHook.get_connection")
+    @patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     @patch("yandexcloud._wrappers.dataproc.Dataproc.create_cluster")
+    @patch("yandexcloud.__version__", "0.308.0")
     def test_create_cluster(self, mock_create_cluster, *_):
         operator = DataprocCreateClusterOperator(
             task_id="create_cluster",
@@ -145,7 +156,74 @@ class TestDataprocClusterCreateOperator:
         )
 
     @patch("airflow.providers.yandex.utils.credentials.get_credentials")
-    @patch("airflow.hooks.base.BaseHook.get_connection")
+    @patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
+    @patch("yandexcloud._wrappers.dataproc.Dataproc.create_cluster")
+    @patch("yandexcloud.__version__", "0.350.0")
+    def test_create_cluster_with_350_sdk(self, mock_create_cluster, *_):
+        operator = DataprocCreateClusterOperator(
+            task_id="create_cluster",
+            ssh_public_keys=SSH_PUBLIC_KEYS,
+            folder_id=FOLDER_ID,
+            subnet_id=SUBNET_ID,
+            zone=AVAILABILITY_ZONE_ID,
+            connection_id=CONNECTION_ID,
+            s3_bucket=S3_BUCKET_NAME_FOR_LOGS,
+            cluster_image_version=CLUSTER_IMAGE_VERSION,
+            log_group_id=LOG_GROUP_ID,
+        )
+        context = {"task_instance": MagicMock()}
+        operator.execute(context)
+        mock_create_cluster.assert_called_once_with(
+            cluster_description="",
+            cluster_image_version="1.4",
+            cluster_name=None,
+            computenode_count=0,
+            computenode_disk_size=None,
+            computenode_disk_type=None,
+            computenode_resource_preset=None,
+            computenode_max_hosts_count=None,
+            computenode_measurement_duration=None,
+            computenode_warmup_duration=None,
+            computenode_stabilization_duration=None,
+            computenode_preemptible=False,
+            computenode_cpu_utilization_target=None,
+            computenode_decommission_timeout=None,
+            datanode_count=1,
+            datanode_disk_size=None,
+            datanode_disk_type=None,
+            datanode_resource_preset=None,
+            folder_id="my_folder_id",
+            masternode_disk_size=None,
+            masternode_disk_type=None,
+            masternode_resource_preset=None,
+            s3_bucket="my_bucket_name",
+            service_account_id=None,
+            services=("HDFS", "YARN", "MAPREDUCE", "HIVE", "SPARK"),
+            ssh_public_keys=[
+                "ssh-rsa AAA5B3NzaC1yc2EAA1ADA2ABA3AA4QCxO38tKA0XIs9ivPxt7AYdf3bgtAR1ow3Qkb9GPQ6wkFHQq"
+                "cFDe6faKCxH6iDRt2o4D8L8Bx6zN42uZSB0nf8jkIxFTcEU3mFSXEbWByg78ao3dMrAAj1tyr1H1pON6P0="
+            ],
+            subnet_id="my_subnet_id",
+            zone="ru-central1-c",
+            log_group_id=LOG_GROUP_ID,
+            properties=None,
+            enable_ui_proxy=False,
+            host_group_ids=None,
+            security_group_ids=None,
+            labels=None,
+            initialization_actions=None,
+            environment=None,
+            oslogin_enabled=False,
+        )
+        context["task_instance"].xcom_push.assert_has_calls(
+            [
+                call(key="cluster_id", value=mock_create_cluster().response.id),
+                call(key="yandexcloud_connection_id", value=CONNECTION_ID),
+            ]
+        )
+
+    @patch("airflow.providers.yandex.utils.credentials.get_credentials")
+    @patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     @patch("yandexcloud._wrappers.dataproc.Dataproc.delete_cluster")
     def test_delete_cluster_operator(self, mock_delete_cluster, *_):
         operator = DataprocDeleteClusterOperator(
@@ -159,7 +237,7 @@ class TestDataprocClusterCreateOperator:
         mock_delete_cluster.assert_called_once_with("my_cluster_id")
 
     @patch("airflow.providers.yandex.utils.credentials.get_credentials")
-    @patch("airflow.hooks.base.BaseHook.get_connection")
+    @patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     @patch("yandexcloud._wrappers.dataproc.Dataproc.create_hive_job")
     def test_create_hive_job_operator(self, mock_create_hive_job, *_):
         operator = DataprocCreateHiveJobOperator(
@@ -188,7 +266,7 @@ class TestDataprocClusterCreateOperator:
         )
 
     @patch("airflow.providers.yandex.utils.credentials.get_credentials")
-    @patch("airflow.hooks.base.BaseHook.get_connection")
+    @patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     @patch("yandexcloud._wrappers.dataproc.Dataproc.create_mapreduce_job")
     def test_create_mapreduce_job_operator(self, mock_create_mapreduce_job, *_):
         operator = DataprocCreateMapReduceJobOperator(
@@ -258,7 +336,7 @@ class TestDataprocClusterCreateOperator:
         )
 
     @patch("airflow.providers.yandex.utils.credentials.get_credentials")
-    @patch("airflow.hooks.base.BaseHook.get_connection")
+    @patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     @patch("yandexcloud._wrappers.dataproc.Dataproc.create_spark_job")
     def test_create_spark_job_operator(self, mock_create_spark_job, *_):
         operator = DataprocCreateSparkJobOperator(
@@ -320,7 +398,7 @@ class TestDataprocClusterCreateOperator:
         )
 
     @patch("airflow.providers.yandex.utils.credentials.get_credentials")
-    @patch("airflow.hooks.base.BaseHook.get_connection")
+    @patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     @patch("yandexcloud._wrappers.dataproc.Dataproc.create_pyspark_job")
     def test_create_pyspark_job_operator(self, mock_create_pyspark_job, *_):
         operator = DataprocCreatePysparkJobOperator(

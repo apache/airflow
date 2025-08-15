@@ -77,7 +77,9 @@ apache-airflow-providers-influxdb package
 `InfluxDB <https://www.influxdata.com/>`__
 
 
-Release: 2.9.1
+Release: 2.9.3
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------

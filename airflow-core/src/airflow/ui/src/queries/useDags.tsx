@@ -29,6 +29,7 @@ export const useDags = ({
   dagIdPattern,
   dagRunsLimit,
   excludeStale = true,
+  isFavorite,
   lastDagRunState,
   limit,
   offset,
@@ -42,10 +43,11 @@ export const useDags = ({
   dagIdPattern?: string;
   dagRunsLimit: number;
   excludeStale?: boolean;
+  isFavorite?: boolean;
   lastDagRunState?: DagRunState;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: Array<string>;
   owners?: Array<string>;
   paused?: boolean;
   tags?: Array<string>;
@@ -59,6 +61,7 @@ export const useDags = ({
       dagIdPattern,
       dagRunsLimit,
       excludeStale,
+      isFavorite,
       lastDagRunState,
       limit,
       offset,

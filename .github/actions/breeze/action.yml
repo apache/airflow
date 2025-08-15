@@ -21,10 +21,7 @@ description: 'Sets up Python and Breeze'
 inputs:
   python-version:
     description: 'Python version to use'
-    default: "3.9"
-  use-uv:
-    description: 'Whether to use uv tool'
-    required: true
+    default: "3.10"
 outputs:
   host-python-version:
     description: Python version used in host
@@ -41,6 +38,8 @@ runs:
     - name: "Install Breeze"
       shell: bash
       run: ./scripts/ci/install_breeze.sh
+      env:
+        PYTHON_VERSION: "${{ inputs.python-version }}"
     - name: "Free space"
       shell: bash
       run: breeze ci free-space

@@ -26,6 +26,41 @@
 Changelog
 ---------
 
+1.7.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix hardcoded value of FlinkKubernetesSensor._log_driver() namespace for pod retrieval (#53653)``
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Making another brittle test related to log assertion more robust (#53747)``
+
+1.7.1
+.....
+
+Misc
+~~~~
+
+* ``Update BaseOperator imports for Airflow 3.0 compatibility (#52504)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Use BaseSensorOperator from task sdk in providers (#52296)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove pytest.mark.db_test: apache flink (#52062)``
+   * ``Introducing fixture to create 'Connections' without DB in provider tests (#51930)``
+
 1.7.0
 .....
 

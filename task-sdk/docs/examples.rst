@@ -19,12 +19,15 @@ Examples
 ========
 
 .. note:: For a minimal quick start, see the `Getting Started <../index.rst#getting-started>`_ section.
-  (Includes a simplest DAG example for first-time users.)
 
 Key Concepts
 ------------
 Defining DAGs
 ~~~~~~~~~~~~~
+
+Example: Defining a DAG
+
+Use the :func:`airflow.sdk.dag` decorator to convert a Python function into an Airflow DAG. All nested calls to :func:`airflow.sdk.task` within the function will become tasks in the DAG. For full parameters and usage, see the API reference for :func:`airflow.sdk.dag`.
 
 .. exampleinclude:: ../../airflow-core/src/airflow/example_dags/example_dag_decorator.py
    :language: python
@@ -34,6 +37,13 @@ Defining DAGs
 
 Decorators
 ~~~~~~~~~~
+
+Example: Using Task SDK decorators
+
+The Task SDK provides decorators to simplify DAG definitions:
+
+- :func:`airflow.sdk.task_group` groups related tasks into logical TaskGroups.
+- :func:`airflow.sdk.setup` and :func:`airflow.sdk.teardown` define setup and teardown hooks for DAGs or TaskGroups.
 
 .. exampleinclude:: ../../airflow-core/src/airflow/example_dags/example_task_group_decorator.py
    :language: python
@@ -50,6 +60,10 @@ Decorators
 Tasks and Operators
 ~~~~~~~~~~~~~~~~~~~
 
+Example: Defining tasks and using operators
+
+Use the :func:`airflow.sdk.task` decorator to wrap Python callables as tasks and leverage dynamic task mapping with the ``.expand()`` method. Tasks communicate via :class:`airflow.sdk.XComArg`. For traditional operators and sensors, import classes like :class:`airflow.sdk.BaseOperator` or :class:`airflow.sdk.Sensor`.
+
 .. exampleinclude:: ../../airflow-core/src/airflow/example_dags/example_dynamic_task_mapping.py
    :language: python
    :start-after: [START example_dynamic_task_mapping]
@@ -64,6 +78,10 @@ Tasks and Operators
 
 Assets
 ~~~~~~
+
+Example: Defining and aliasing assets
+
+Model data artifacts using the Task SDK's asset API. Decorate functions with :func:`airflow.sdk.asset` and create aliases with :class:`airflow.sdk.AssetAlias`. See the API reference under assets for full guidance.
 
 .. exampleinclude:: ../../airflow-core/src/airflow/example_dags/example_assets.py
    :language: python
@@ -85,6 +103,8 @@ see the `core TaskFlow tutorial <../../airflow-core/docs/tutorial/taskflow.rst>`
 
 Step 1: Define the DAG
 ----------------------
+
+In this step, define your DAG by applying the :func:`airflow.sdk.dag` decorator to a Python function. This registers the DAG with its schedule and default arguments. For more details, see :func:`airflow.sdk.dag`.
 
 .. exampleinclude:: ../../airflow-core/src/airflow/example_dags/tutorial_taskflow_api.py
    :language: python

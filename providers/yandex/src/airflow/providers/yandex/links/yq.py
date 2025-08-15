@@ -18,24 +18,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from airflow.providers.yandex.version_compat import BaseOperatorLink, XCom
+
 if TYPE_CHECKING:
-    from airflow.models import BaseOperator
     from airflow.models.taskinstancekey import TaskInstanceKey
-
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
-
-from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperatorLink
-    from airflow.sdk.execution_time.xcom import XCom
-else:
-    from airflow.models import XCom  # type: ignore[no-redef]
-    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
+    from airflow.providers.yandex.version_compat import BaseOperator, Context
 
 XCOM_WEBLINK_KEY = "web_link"
 
@@ -49,5 +36,5 @@ class YQLink(BaseOperatorLink):
         return XCom.get_value(key=XCOM_WEBLINK_KEY, ti_key=ti_key) or "https://yq.cloud.yandex.ru"
 
     @staticmethod
-    def persist(context: Context, task_instance: BaseOperator, web_link: str) -> None:
-        task_instance.xcom_push(context, key=XCOM_WEBLINK_KEY, value=web_link)
+    def persist(context: Context, web_link: str) -> None:
+        context["ti"].xcom_push(key=XCOM_WEBLINK_KEY, value=web_link)

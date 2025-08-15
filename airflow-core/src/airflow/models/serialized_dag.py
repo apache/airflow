@@ -21,9 +21,9 @@ from __future__ import annotations
 
 import logging
 import zlib
-from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Callable, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import sqlalchemy_jsonfield
 import uuid6
@@ -32,6 +32,7 @@ from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.sql.expression import func, literal
 from sqlalchemy_utils import UUIDType
 
+from airflow._shared.timezones import timezone
 from airflow.exceptions import TaskNotFound
 from airflow.models.asset import (
     AssetAliasModel,
@@ -46,7 +47,6 @@ from airflow.sdk.definitions.asset import AssetUniqueKey
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import COMPRESS_SERIALIZED_DAGS, json
-from airflow.utils import timezone
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -295,13 +295,13 @@ class SerializedDagModel(Base):
 
     dag_runs = relationship(
         DagRun,
-        primaryjoin=dag_id == foreign(DagRun.dag_id),  # type: ignore
+        primaryjoin=dag_id == foreign(DagRun.dag_id),  # type: ignore[has-type]
         backref=backref("serialized_dag", uselist=False, innerjoin=True),
     )
 
     dag_model = relationship(
         DagModel,
-        primaryjoin=dag_id == DagModel.dag_id,  # type: ignore
+        primaryjoin=dag_id == DagModel.dag_id,  # type: ignore[has-type]
         foreign_keys=dag_id,
         uselist=False,
         innerjoin=True,
@@ -350,7 +350,13 @@ class SerializedDagModel(Base):
     def hash(cls, dag_data):
         """Hash the data to get the dag_hash."""
         dag_data = cls._sort_serialized_dag_dict(dag_data)
-        data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
+        data_ = dag_data.copy()
+        # Remove fileloc from the hash so changes to fileloc
+        # does not affect the hash. In 3.0+, a combination of
+        # bundle_path and relative fileloc more correctly determines the
+        # dag file location.
+        data_["dag"].pop("fileloc", None)
+        data_json = json.dumps(data_, sort_keys=True).encode("utf-8")
         return md5(data_json).hexdigest()
 
     @classmethod

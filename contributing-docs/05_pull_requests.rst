@@ -92,7 +92,7 @@ these guidelines:
     you can push your code to PR and see results of the tests in the CI.
 
 -   You can use any supported python version to run the tests, but the best is to check
-    if it works for the oldest supported version (Python 3.9 currently). In rare cases
+    if it works for the oldest supported version (Python 3.10 currently). In rare cases
     tests might fail with the oldest version when you use features that are available in newer Python
     versions. For that purpose we have ``airflow.compat`` package where we keep back-ported
     useful features from newer versions.
@@ -177,7 +177,7 @@ To make this easier, there is the ``create_session`` helper:
 .. warning::
   **DO NOT** add a default to the ``session`` argument **unless** ``@provide_session`` is used.
 
-If this function is designed to be called by "end-users" (i.e. DAG authors) then using the ``@provide_session`` wrapper is okay:
+If this function is designed to be called by "end-users" (i.e. Dag authors) then using the ``@provide_session`` wrapper is okay:
 
 .. code-block:: python
 

@@ -28,6 +28,7 @@ from botocore.exceptions import ClientError
 from moto import mock_aws
 
 from airflow.models import DAG, DagRun, TaskInstance
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.log.s3_task_handler import S3TaskHandler
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -35,6 +36,7 @@ from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 
@@ -46,8 +48,14 @@ def s3mock():
 
 @pytest.mark.db_test
 class TestS3RemoteLogIO:
+    def clear_db(self):
+        clear_db_dags()
+        clear_db_runs()
+        if AIRFLOW_V_3_0_PLUS:
+            clear_db_dag_bundles()
+
     @pytest.fixture(autouse=True)
-    def setup_tests(self, create_log_template, tmp_path_factory, session):
+    def setup_tests(self, create_log_template, tmp_path_factory, session, testing_dag_bundle):
         with conf_vars({("logging", "remote_log_conn_id"): "aws_default"}):
             self.remote_log_base = "s3://bucket/remote/log/location"
             self.remote_log_location = "s3://bucket/remote/log/location/1.log"
@@ -59,28 +67,36 @@ class TestS3RemoteLogIO:
             self.subject = self.s3_task_handler.io
             assert self.subject.hook is not None
 
-            date = datetime(2016, 1, 1)
-            self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
-            task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
-            if AIRFLOW_V_3_0_PLUS:
-                dag_run = DagRun(
-                    dag_id=self.dag.dag_id,
-                    logical_date=date,
-                    run_id="test",
-                    run_type="manual",
-                )
-            else:
-                dag_run = DagRun(
-                    dag_id=self.dag.dag_id,
-                    execution_date=date,
-                    run_id="test",
-                    run_type="manual",
-                )
-            session.add(dag_run)
-            session.commit()
-            session.refresh(dag_run)
+        date = datetime(2016, 1, 1)
+        self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
+        task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
+        if AIRFLOW_V_3_0_PLUS:
+            bundle_name = "testing"
+            DAG.bulk_write_to_db(bundle_name, None, [self.dag])
+            SerializedDagModel.write_dag(self.dag, bundle_name=bundle_name)
+            dag_run = DagRun(
+                dag_id=self.dag.dag_id,
+                logical_date=date,
+                run_id="test",
+                run_type="manual",
+            )
+        else:
+            dag_run = DagRun(
+                dag_id=self.dag.dag_id,
+                execution_date=date,
+                run_id="test",
+                run_type="manual",
+            )
+        session.add(dag_run)
+        session.commit()
+        session.refresh(dag_run)
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.models.dag_version import DagVersion
 
-        self.ti = TaskInstance(task=task, run_id=dag_run.run_id)
+            dag_version = DagVersion.get_latest_version(self.dag.dag_id)
+            self.ti = TaskInstance(task=task, dag_version_id=dag_version.id)
+        else:
+            self.ti = TaskInstance(task=task, run_id=dag_run.run_id)
         self.ti.dag_run = dag_run
         self.ti.try_number = 1
         self.ti.state = State.RUNNING
@@ -93,7 +109,7 @@ class TestS3RemoteLogIO:
 
         self.dag.clear()
 
-        session.query(DagRun).delete()
+        self.clear_db()
         if self.s3_task_handler.handler:
             with contextlib.suppress(Exception):
                 os.remove(self.s3_task_handler.handler.baseFilename)
@@ -166,8 +182,14 @@ class TestS3RemoteLogIO:
 
 @pytest.mark.db_test
 class TestS3TaskHandler:
+    def clear_db(self):
+        clear_db_dags()
+        clear_db_runs()
+        if AIRFLOW_V_3_0_PLUS:
+            clear_db_dag_bundles()
+
     @pytest.fixture(autouse=True)
-    def setup_tests(self, create_log_template, tmp_path_factory, session):
+    def setup_tests(self, create_log_template, tmp_path_factory, session, testing_dag_bundle):
         with conf_vars({("logging", "remote_log_conn_id"): "aws_default"}):
             self.remote_log_base = "s3://bucket/remote/log/location"
             self.remote_log_location = "s3://bucket/remote/log/location/1.log"
@@ -178,44 +200,52 @@ class TestS3TaskHandler:
             # Verify the hook now with the config override
             assert self.s3_task_handler.io.hook is not None
 
-            date = datetime(2016, 1, 1)
-            self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
-            task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
-            if AIRFLOW_V_3_0_PLUS:
-                dag_run = DagRun(
-                    dag_id=self.dag.dag_id,
-                    logical_date=date,
-                    run_id="test",
-                    run_type="manual",
-                )
-            else:
-                dag_run = DagRun(
-                    dag_id=self.dag.dag_id,
-                    execution_date=date,
-                    run_id="test",
-                    run_type="manual",
-                )
-            session.add(dag_run)
-            session.commit()
-            session.refresh(dag_run)
+        date = datetime(2016, 1, 1)
+        self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
+        task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
+        if AIRFLOW_V_3_0_PLUS:
+            bundle_name = "testing"
+            DAG.bulk_write_to_db(bundle_name, None, [self.dag])
+            SerializedDagModel.write_dag(self.dag, bundle_name=bundle_name)
+            dag_run = DagRun(
+                dag_id=self.dag.dag_id,
+                logical_date=date,
+                run_id="test",
+                run_type="manual",
+            )
+        else:
+            dag_run = DagRun(
+                dag_id=self.dag.dag_id,
+                execution_date=date,
+                run_id="test",
+                run_type="manual",
+            )
+        session.add(dag_run)
+        session.commit()
+        session.refresh(dag_run)
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.models.dag_version import DagVersion
 
+            dag_version = DagVersion.get_latest_version(self.dag.dag_id)
+            self.ti = TaskInstance(task=task, run_id=dag_run.run_id, dag_version_id=dag_version.id)
+        else:
             self.ti = TaskInstance(task=task, run_id=dag_run.run_id)
-            self.ti.dag_run = dag_run
-            self.ti.try_number = 1
-            self.ti.state = State.RUNNING
-            session.add(self.ti)
-            session.commit()
+        self.ti.dag_run = dag_run
+        self.ti.try_number = 1
+        self.ti.state = State.RUNNING
+        session.add(self.ti)
+        session.commit()
 
-            self.conn = boto3.client("s3")
-            self.conn.create_bucket(Bucket="bucket")
-            yield
+        self.conn = boto3.client("s3")
+        self.conn.create_bucket(Bucket="bucket")
+        yield
 
-            self.dag.clear()
+        self.dag.clear()
 
-            session.query(DagRun).delete()
-            if self.s3_task_handler.handler:
-                with contextlib.suppress(Exception):
-                    os.remove(self.s3_task_handler.handler.baseFilename)
+        self.clear_db()
+        if self.s3_task_handler.handler:
+            with contextlib.suppress(Exception):
+                os.remove(self.s3_task_handler.handler.baseFilename)
 
     def test_set_context_raw(self):
         self.ti.raw = True
@@ -248,6 +278,7 @@ class TestS3TaskHandler:
         expected_s3_uri = f"s3://bucket/{self.remote_log_key}"
 
         if AIRFLOW_V_3_0_PLUS:
+            log = list(log)
             assert log[0].event == "::group::Log message source details"
             assert expected_s3_uri in log[0].sources
             assert log[1].event == "::endgroup::"
@@ -268,6 +299,7 @@ class TestS3TaskHandler:
         self.s3_task_handler._read_from_logs_server = mock.Mock(return_value=([], []))
         log, metadata = self.s3_task_handler.read(ti)
         if AIRFLOW_V_3_0_PLUS:
+            log = list(log)
             assert len(log) == 2
             assert metadata == {"end_of_log": True, "log_pos": 0}
         else:

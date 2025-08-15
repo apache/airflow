@@ -501,7 +501,7 @@ class WorkflowsCreateExecutionOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
         )
         execution_id = execution.name.split("/")[-1]
-        self.xcom_push(context, key="execution_id", value=execution_id)
+        context["task_instance"].xcom_push(key="execution_id", value=execution_id)
 
         WorkflowsExecutionLink.persist(
             context=context,

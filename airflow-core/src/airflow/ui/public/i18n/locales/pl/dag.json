@@ -19,23 +19,44 @@
   },
   "header": {
     "buttons": {
+      "advanced": "Zaawansowane",
       "dagDocs": "Dokumentacja Daga"
     }
   },
   "logs": {
+    "allLevels": "Wszystkie poziomy logowania",
+    "allSources": "Wszystkie źródła",
+    "critical": "CRITICAL",
+    "debug": "DEBUG",
+    "error": "ERROR",
+    "fullscreen": {
+      "button": "Pełny ekran",
+      "tooltip": "Naciśnij {{hotkey}}, aby przejść do pełnego ekranu"
+    },
+    "info": "INFO",
     "noTryNumber": "Brak numeru próby",
-    "viewInExternal": "Zobacz logi w {{name}} (próba {{attempt}})"
+    "settings": "Ustawienia logowania",
+    "viewInExternal": "Zobacz logi w {{name}} (próba {{attempt}})",
+    "warning": "WARNING"
   },
   "overview": {
     "buttons": {
+      "failedRun_few": "Nieudane wykonania",
+      "failedRun_many": "Nieudanych wykonań",
       "failedRun_one": "Nieudane wykonanie",
       "failedRun_other": "Nieudane wykonania",
+      "failedTask_few": "Nieudane zadania",
+      "failedTask_many": "Nieudanych zadań",
       "failedTask_one": "Nieudane zadanie",
       "failedTask_other": "Nieudane zadania",
+      "failedTaskInstance_few": "Nieudane instancje zadań",
+      "failedTaskInstance_many": "Nieudanych instancji zadań",
       "failedTaskInstance_one": "Nieudana instancja zadania",
       "failedTaskInstance_other": "Nieudane instancje zadań"
     },
     "charts": {
+      "assetEvent_few": "Utworzone zdarzenia zasobów",
+      "assetEvent_many": "Utworzonych zdarzeń zasobów",
       "assetEvent_one": "Utworzone zdarzenie zasobu",
       "assetEvent_other": "Utworzone zdarzenia zasobów"
     },
@@ -86,10 +107,13 @@
     "code": "Kod",
     "details": "Szczegóły",
     "logs": "Logi",
+    "mappedTaskInstances_few": "Instancje zadań [{{count}}]",
+    "mappedTaskInstances_many": "Instancji zadań [{{count}}]",
     "mappedTaskInstances_one": "Instancja zadania [{{count}}]",
     "mappedTaskInstances_other": "Instancje zadań [{{count}}]",
     "overview": "Przegląd",
     "renderedTemplates": "Wyrenderowane szablony",
+    "requiredActions": "Wymagane akcje",
     "runs": "Wykonania",
     "taskInstances": "Instancje zadań",
     "tasks": "Zadania",
@@ -98,13 +122,5 @@
   "taskGroups": {
     "collapseAll": "Zwiń wszystkie grupy zadań",
     "expandAll": "Rozwiń wszystkie grupy zadań"
-  },
-  "taskLogs": {
-    "allLogLevels": "Wszystkie poziomy logów",
-    "allSources": "Wszystkie źródła",
-    "fullscreen": {
-      "button": "Pełny ekran",
-      "tooltip": "Naciśnij {{hotkey}}, aby przejść do pełnego ekranu"
-    }
   }
 }

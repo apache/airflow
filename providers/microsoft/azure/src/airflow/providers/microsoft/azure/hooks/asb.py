@@ -16,7 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 from azure.core.exceptions import ResourceNotFoundError
@@ -36,12 +37,12 @@ from azure.servicebus.management import (
     SubscriptionProperties,
 )
 
-from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
     get_field,
     get_sync_default_azure_credential,
 )
+from airflow.providers.microsoft.azure.version_compat import BaseHook
 
 if TYPE_CHECKING:
     import datetime
@@ -352,7 +353,7 @@ class AdminClientHook(BaseAzureServiceBusHook):
                 lock_duration=lock_duration,
                 requires_session=requires_session,
                 default_message_time_to_live=default_message_time_to_live,
-                dead_lettering_on_ßmessage_expiration=dead_lettering_on_message_expiration,
+                dead_lettering_on_message_expiration=dead_lettering_on_message_expiration,
                 dead_lettering_on_filter_evaluation_exceptions=dead_lettering_on_filter_evaluation_exceptions,
                 max_delivery_count=max_delivery_count,
                 enable_batched_operations=enable_batched_operations,
@@ -518,7 +519,7 @@ class MessageHook(BaseAzureServiceBusHook):
         message_creator: Callable[[str], ServiceBusMessage],
     ):
         list_messages = [message_creator(body) for body in messages]
-        sender.send_messages(list_messages)  # type: ignore[arg-type]
+        sender.send_messages(list_messages)
 
     @staticmethod
     def send_batch_message(

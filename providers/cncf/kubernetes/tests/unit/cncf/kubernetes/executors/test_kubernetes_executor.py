@@ -1250,7 +1250,7 @@ class TestKubernetesExecutor:
         executor.kube_scheduler = mock.MagicMock()
         ti.refresh_from_db()
         tis = [ti]
-        with pytest.warns(DeprecationWarning):
+        with pytest.warns(DeprecationWarning, match="cleanup_stuck_queued_tasks"):
             executor.cleanup_stuck_queued_tasks(tis=tis)
         executor.kube_scheduler.delete_pod.assert_called_once()
         assert executor.running == set()

@@ -693,7 +693,7 @@ class CloudVisionUpdateProductOperator(GoogleCloudBaseOperator):
             location=self.location,
             product_id=self.product_id,
             project_id=self.project_id,
-            update_mask=self.update_mask,  # type: ignore
+            update_mask=self.update_mask,
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,

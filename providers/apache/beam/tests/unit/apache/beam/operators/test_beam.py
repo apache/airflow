@@ -32,8 +32,9 @@ from airflow.providers.apache.beam.operators.beam import (
 )
 from airflow.providers.apache.beam.triggers.beam import BeamJavaPipelineTrigger, BeamPythonPipelineTrigger
 from airflow.providers.google.cloud.operators.dataflow import DataflowConfiguration
-from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.version import version
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 TASK_ID = "test-beam-operator"
 DEFAULT_RUNNER = "DirectRunner"
@@ -115,25 +116,24 @@ class TestBeamBasePipelineOperator:
         assert f"{TASK_ID} completed with response Pipeline has finished SUCCESSFULLY" in caplog.text
 
     def test_early_dataflow_id_xcom_push(self, default_options, pipeline_options):
-        with mock.patch.object(BeamBasePipelineOperator, "xcom_push") as mock_xcom_push:
-            op = BeamBasePipelineOperator(
-                **self.default_op_kwargs,
-                default_pipeline_options=copy.deepcopy(default_options),
-                pipeline_options=copy.deepcopy(pipeline_options),
-                dataflow_config={},
-            )
-            sample_df_job_id = "sample_df_job_id_value"
-            op._execute_context = MagicMock()
+        op = BeamBasePipelineOperator(
+            **self.default_op_kwargs,
+            default_pipeline_options=copy.deepcopy(default_options),
+            pipeline_options=copy.deepcopy(pipeline_options),
+            dataflow_config={},
+        )
+        sample_df_job_id = "sample_df_job_id_value"
+        # Mock the task instance with xcom_push method
+        mock_ti = MagicMock()
+        op._execute_context = {"ti": mock_ti}
 
-            assert op.dataflow_job_id is None
+        assert op.dataflow_job_id is None
 
-            op.dataflow_job_id = sample_df_job_id
-            mock_xcom_push.assert_called_once_with(
-                context=op._execute_context, key="dataflow_job_id", value=sample_df_job_id
-            )
-            mock_xcom_push.reset_mock()
-            op.dataflow_job_id = "sample_df_job_same_value_id"
-            mock_xcom_push.assert_not_called()
+        op.dataflow_job_id = sample_df_job_id
+        mock_ti.xcom_push.assert_called_once_with(key="dataflow_job_id", value=sample_df_job_id)
+        mock_ti.xcom_push.reset_mock()
+        op.dataflow_job_id = "sample_df_job_same_value_id"
+        mock_ti.xcom_push.assert_not_called()
 
 
 class TestBeamRunPythonPipelineOperator:

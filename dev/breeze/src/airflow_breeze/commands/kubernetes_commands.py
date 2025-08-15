@@ -361,7 +361,7 @@ def create_cluster(
                 ]
         check_async_run_results(
             results=results,
-            success="All clusters created.",
+            success_message="All clusters created.",
             outputs=outputs,
             skip_cleanup=skip_cleanup,
             include_success_outputs=include_success_outputs,
@@ -699,7 +699,7 @@ def build_k8s_image(
                 ]
         check_async_run_results(
             results=results,
-            success="All K8S images built correctly.",
+            success_message="All K8S images built correctly.",
             outputs=outputs,
             skip_cleanup=skip_cleanup,
             include_success_outputs=include_success_outputs,
@@ -776,7 +776,7 @@ def upload_k8s_image(
                 ]
         check_async_run_results(
             results=results,
-            success="All K8S images uploaded correctly.",
+            success_message="All K8S images uploaded correctly.",
             outputs=outputs,
             skip_cleanup=skip_cleanup,
             include_success_outputs=include_success_outputs,
@@ -961,7 +961,7 @@ def configure_cluster(
                 ]
         check_async_run_results(
             results=results,
-            success="All clusters configured correctly.",
+            success_message="All clusters configured correctly.",
             outputs=outputs,
             skip_cleanup=skip_cleanup,
             include_success_outputs=include_success_outputs,
@@ -995,6 +995,8 @@ def _deploy_helm_chart(
     extra_options: tuple[str, ...] | None = None,
     multi_namespace_mode: bool = False,
 ) -> RunCommandResult:
+    from packaging.version import Version
+
     cluster_name = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
     _, api_server_port = get_kubernetes_port_numbers(python=python, kubernetes_version=kubernetes_version)
     action = "Deploying" if not upgrade else "Upgrading"
@@ -1005,6 +1007,12 @@ def _deploy_helm_chart(
         get_console(output=output).print(f"[info]Copied chart sources to {tmp_chart_path}")
         kubectl_context = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
         params = BuildProdParams(python=python)
+        # TODO (potiuk): we can also run on matrix of auth managers if we make SimpleAuthManager prod-ready ?
+        use_flask_appbuilder = Version(python) < Version("3.13")
+        if use_flask_appbuilder:
+            auth_manager = "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
+        else:
+            auth_manager = "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager"
         helm_command = [
             "helm",
             "upgrade" if upgrade else "install",
@@ -1037,12 +1045,14 @@ def _deploy_helm_chart(
             "--set",
             "config.api_auth.jwt_secret=foo",
             "--set",
-            "config.core.auth_manager=airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+            f"config.core.auth_manager={auth_manager}",
             "--set",
             f"config.api.base_url=http://localhost:{api_server_port}",
         ]
         if multi_namespace_mode:
             helm_command.extend(["--set", "multiNamespaceMode=true"])
+        if not use_flask_appbuilder:
+            helm_command.extend(["--set", "webserver.defaultUser.enabled=false"])
         if upgrade:
             # force upgrade
             helm_command.append("--force")
@@ -1218,7 +1228,7 @@ def deploy_airflow(
                 ]
         check_async_run_results(
             results=results,
-            success="All Airflow charts successfully deployed.",
+            success_message="All Airflow charts successfully deployed.",
             outputs=outputs,
             skip_cleanup=skip_cleanup,
             include_success_outputs=include_success_outputs,
@@ -1560,7 +1570,7 @@ def kubernetes_tests_command(
                 ]
         check_async_run_results(
             results=results,
-            success="All K8S tests successfully completed.",
+            success_message="All K8S tests successfully completed.",
             outputs=outputs,
             include_success_outputs=include_success_outputs,
             skip_cleanup=skip_cleanup,
@@ -1812,7 +1822,7 @@ def run_complete_tests(
                 ]
         check_async_run_results(
             results=results,
-            success="All K8S tests successfully completed.",
+            success_message="All K8S tests successfully completed.",
             outputs=outputs,
             include_success_outputs=include_success_outputs,
             skip_cleanup=skip_cleanup,

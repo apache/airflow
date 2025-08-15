@@ -31,7 +31,7 @@ from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryTableExistenceTrigger,
     BigQueryTablePartitionExistenceTrigger,
 )
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.google.version_compat import BaseSensorOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

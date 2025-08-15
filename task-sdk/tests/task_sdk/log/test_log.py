@@ -50,13 +50,15 @@ def test_json_rendering(captured_logs):
                 task_id="test_task",
                 run_id="test_run",
                 try_number=1,
+                dag_version_id=UUID("ffec3c8e-2898-46f8-b7d5-3cc571577368"),
             ),
         )
         assert captured_logs
         assert isinstance(captured_logs[0], bytes)
         assert json.loads(captured_logs[0]) == {
             "event": "A test message with a Pydantic class",
-            "pydantic_class": "TaskInstance(id=UUID('ffec3c8e-2898-46f8-b7d5-3cc571577368'), task_id='test_task', dag_id='test_dag', run_id='test_run', try_number=1, map_index=-1, hostname=None, context_carrier=None)",
+            "pydantic_class": "TaskInstance(id=UUID('ffec3c8e-2898-46f8-b7d5-3cc571577368'), task_id='test_task', dag_id='test_dag', run_id='test_run', "
+            "try_number=1, dag_version_id=UUID('ffec3c8e-2898-46f8-b7d5-3cc571577368'), map_index=-1, hostname=None, context_carrier=None)",
             "timestamp": unittest.mock.ANY,
             "level": "info",
         }
@@ -83,6 +85,7 @@ def test_jwt_token_is_redacted(captured_logs):
                 task_id="test_task",
                 run_id="test_run",
                 try_number=1,
+                dag_version_id=UUID("ffec3c8e-2898-46f8-b7d5-3cc571577368"),
             ),
         )
         assert captured_logs
@@ -92,7 +95,7 @@ def test_jwt_token_is_redacted(captured_logs):
             "level": "info",
             "pydantic_class": "TaskInstance(id=UUID('ffec3c8e-2898-46f8-b7d5-3cc571577368'), "
             "task_id='test_task', dag_id='test_dag', run_id='test_run', "
-            "try_number=1, map_index=-1, hostname=None, context_carrier=None)",
+            "try_number=1, dag_version_id=UUID('ffec3c8e-2898-46f8-b7d5-3cc571577368'), map_index=-1, hostname=None, context_carrier=None)",
             "timestamp": unittest.mock.ANY,
             "token": "eyJ***",
         }
@@ -121,6 +124,7 @@ def test_logs_are_masked(captured_logs):
                 try_number=1,
                 map_index=-1,
                 hostname=None,
+                dag_version_id=UUID("ffec3c8e-2898-46f8-b7d5-3cc571577368"),
             ),
             "timestamp": "2025-03-25T05:13:27.073918Z",
         },
@@ -133,6 +137,7 @@ def test_logs_are_masked(captured_logs):
                 task_id="test_task",
                 run_id="test_run",
                 try_number=1,
+                dag_version_id=UUID("ffec3c8e-2898-46f8-b7d5-3cc571577368"),
             ),
         )
     assert captured_logs
@@ -144,7 +149,7 @@ def test_logs_are_masked(captured_logs):
         "level": "info",
         "pydantic_class": "TaskInstance(id=UUID('ffec3c8e-2898-46f8-b7d5-3cc571577368'), "
         "task_id='test_task', dag_id='test_dag', run_id='test_run', "
-        "try_number=1, map_index=-1, hostname=None, context_carrier=None)",
+        "try_number=1, dag_version_id=UUID('ffec3c8e-2898-46f8-b7d5-3cc571577368'), map_index=-1, hostname=None, context_carrier=None)",
         "timestamp": "2025-03-25T05:13:27.073918Z",
     }
 

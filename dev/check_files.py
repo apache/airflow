@@ -31,7 +31,7 @@ import rich_click as click
 from rich import print
 
 PROVIDERS_DOCKER = """\
-FROM ghcr.io/apache/airflow/main/ci/python3.9
+FROM ghcr.io/apache/airflow/main/ci/python3.10
 RUN cd airflow-core; uv sync --no-sources
 
 # Install providers
@@ -39,7 +39,7 @@ RUN cd airflow-core; uv sync --no-sources
 """
 
 AIRFLOW_DOCKER = """\
-FROM python:3.9
+FROM python:3.10
 
 # Upgrade
 RUN pip install "apache-airflow=={}"

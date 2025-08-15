@@ -23,7 +23,8 @@ import contextlib
 import logging
 import random
 import time
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from aiohttp import ClientSession
 from gcloud.aio.auth import AioSession, Token

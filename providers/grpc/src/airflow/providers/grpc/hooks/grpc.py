@@ -18,19 +18,19 @@
 
 from __future__ import annotations
 
-from collections.abc import Generator
-from typing import Any, Callable
+from collections.abc import Callable, Generator
+from typing import Any
 
 import grpc
 from google import auth as google_auth
-from google.auth import jwt as google_auth_jwt  # type: ignore[attr-defined]
+from google.auth import jwt as google_auth_jwt
 from google.auth.transport import (
     grpc as google_auth_transport_grpc,
     requests as google_auth_transport_requests,
 )
 
 from airflow.exceptions import AirflowConfigException
-from airflow.hooks.base import BaseHook
+from airflow.providers.grpc.version_compat import BaseHook
 
 
 class GrpcHook(BaseHook):
@@ -82,7 +82,7 @@ class GrpcHook(BaseHook):
         self.custom_connection_func = custom_connection_func
 
     def get_conn(self) -> grpc.Channel:
-        base_url = self.conn.host
+        base_url = self.conn.host or ""
 
         if self.conn.port:
             base_url += f":{self.conn.port}"

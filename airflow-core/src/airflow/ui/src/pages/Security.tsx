@@ -24,6 +24,12 @@ import { ProgressBar } from "src/components/ui";
 
 import { ErrorPage } from "./Error";
 
+// The following iframe sandbox setting is intentionally less restrictive.
+// This is considered safe because the framed content originates from the Auth manager,
+// which is part of the deployment of Airflow and trusted as per our security policy.
+// https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html
+const SANDBOX = "allow-scripts allow-same-origin allow-forms";
+
 export const Security = () => {
   const { page } = useParams();
 
@@ -45,12 +51,7 @@ export const Security = () => {
 
   return (
     <Box flexGrow={1} m={-3}>
-      <iframe
-        sandbox="allow-same-origin allow-forms"
-        src={link.href}
-        style={{ height: "100%", width: "100%" }}
-        title={link.text}
-      />
+      <iframe sandbox={SANDBOX} src={link.href} style={{ height: "100%", width: "100%" }} title={link.text} />
     </Box>
   );
 };

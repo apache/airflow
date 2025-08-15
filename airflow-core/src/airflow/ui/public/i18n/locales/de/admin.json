@@ -36,11 +36,15 @@
       "extraFields": "Weitere Felder",
       "extraFieldsJson": "JSON Ansicht der weiteren Felder",
       "helperText": "Fehlt ein Verbindungstyp? Stellen Sie sicher, dass die notwendigen Provider-Pakete installiert sind.",
+      "helperTextForRedactedFields": "Unkenntlich gemachte Felder ('***') bleiben unverändert, wenn sie nicht bearbeitet werden.",
       "selectConnectionType": "Verbindungstyp auswählen",
       "standardFields": "Standardfelder"
     },
     "nothingFound": {
-        "title": "Keine Verbindungen gefunden!"
+      "description": "Verbindungen, die durch Secret-Managers oder Umgebungsvariablen definiert sind werden hier nicht gelistet.",
+      "documentationLink": "Mehr Details sind in der Airflow-Dokumentation beschrieben.",
+      "learnMore": "Diese Verbindungen werden erst eingelesen, wenn ein Task, der sie verwendet ausgeführt wird und sie sind daher in dieser Ansicht nicht sichtbar.",
+      "title": "Keine Verbindungen gefunden!"
     },
     "searchPlaceholder": "Verbindungen suchen",
     "test": "Verbindung testen",

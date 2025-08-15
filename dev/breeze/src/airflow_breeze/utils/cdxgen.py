@@ -50,9 +50,9 @@ if TYPE_CHECKING:
     from rich.console import Console
 
 
-def start_cdxgen_server(application_root_path: Path, run_in_parallel: bool, parallelism: int) -> None:
+def start_cdxgen_servers(application_root_path: Path, run_in_parallel: bool, parallelism: int) -> None:
     """
-    Start cdxgen server that is used to perform cdxgen scans of applications in child process
+    Start cdxgen servers that is used to perform cdxgen scans of applications in child process
     :param run_in_parallel: run parallel servers
     :param parallelism: parallelism to use
     :param application_root_path: path where the application to scan is located
@@ -71,8 +71,13 @@ def start_cdxgen_server(application_root_path: Path, run_in_parallel: bool, para
         for i in range(parallelism):
             fork_cdxgen_server(application_root_path, port=8080 + i)
     time.sleep(1)
-    get_console().print("[info]Waiting for cdxgen server to start")
+    get_console().print("[info]Waiting for cdxgen server(s) to start")
     time.sleep(3)
+    if os.environ.get("CI", "false") == "true":
+        # In CI we wait longer for the server to start
+        get_console().print("[info]Waiting longer for cdxgen server(s) to start in CI")
+        time.sleep(5)
+        print("::endgroup::")
 
 
 def fork_cdxgen_server(application_root_path, port=9090):
@@ -137,7 +142,7 @@ def get_all_airflow_versions_image_name(python_version: str) -> str:
 
 
 def list_providers_from_providers_requirements(
-    airflow_site_archive_directory: Path,
+    airflow_site_archive_path: Path,
 ) -> Generator[tuple[str, str, str, Path], None, None]:
     for node_name in os.listdir(PROVIDER_REQUIREMENTS_DIR_PATH):
         if not node_name.startswith("provider"):
@@ -146,7 +151,7 @@ def list_providers_from_providers_requirements(
         provider_id, provider_version = node_name.rsplit("-", 1)
 
         provider_documentation_directory = (
-            airflow_site_archive_directory
+            airflow_site_archive_path
             / f"apache-airflow-providers-{provider_id.replace('provider-', '').replace('.', '-')}"
         )
         provider_version_documentation_directory = provider_documentation_directory / provider_version
@@ -213,7 +218,7 @@ def get_requirements_for_provider(
             f"Provider requirements already existed, skipped generation for {provider_id} version "
             f"{provider_version} python {python_version}",
         )
-    provider_folder_path.mkdir(exist_ok=True)
+    provider_folder_path.mkdir(exist_ok=True, parents=True)
 
     command = f"""
 mkdir -pv {DOCKER_FILE_PREFIX}
@@ -328,7 +333,7 @@ class SbomApplicationJob:
     target_path: Path
 
     @abstractmethod
-    def produce(self, output: Output | None, port: int) -> tuple[int, str]:
+    def produce(self, output: Output | None, port: int, github_token: str | None) -> tuple[int, str]:
         raise NotImplementedError
 
     @abstractmethod
@@ -368,22 +373,34 @@ class SbomCoreJob(SbomApplicationJob):
             source_dir = source_dir / f"python{self.python_version}"
         return source_dir
 
-    def download_dependency_files(self, output: Output | None) -> bool:
+    def download_dependency_files(self, output: Output | None, github_token: str | None) -> bool:
         source_dir = self.get_files_directory(self.application_root_path)
         source_dir.mkdir(parents=True, exist_ok=True)
-        lock_file_relative_path = "airflow/www/yarn.lock"
+        version_number = int(self.airflow_version.split(".")[0])
+        lock_file_relative_path = (
+            "airflow-core/src/airflow/ui/package.json" if version_number >= 3 else "airflow/www/yarn.lock"
+        )
+        source_dir_with_file = (
+            (source_dir / "package.json") if version_number >= 3 else (source_dir / "yarn.lock")
+        )
         if self.include_npm:
             download_file_from_github(
-                tag=self.airflow_version, path=lock_file_relative_path, output_file=source_dir / "yarn.lock"
+                reference=self.airflow_version,
+                path=lock_file_relative_path,
+                output_file=source_dir_with_file,
+                github_token=github_token,
             )
         else:
-            (source_dir / "yarn.lock").unlink(missing_ok=True)
+            source_dir_with_file.unlink(missing_ok=True)
         if self.include_python:
             if not download_constraints_file(
-                airflow_version=self.airflow_version,
+                constraints_reference=f"constraints-{self.airflow_version}",
                 python_version=self.python_version,
-                include_provider_dependencies=self.include_provider_dependencies,
+                airflow_constraints_mode="constraints"
+                if self.include_provider_dependencies
+                else "constraints-no-providers",
                 output_file=source_dir / "requirements.txt",
+                github_token=github_token,
             ):
                 get_console(output=output).print(
                     f"[warning]Failed to download constraints file for "
@@ -395,7 +412,7 @@ class SbomCoreJob(SbomApplicationJob):
             (source_dir / "requirements.txt").unlink(missing_ok=True)
         return True
 
-    def produce(self, output: Output | None, port: int) -> tuple[int, str]:
+    def produce(self, output: Output | None, port: int, github_token: str | None) -> tuple[int, str]:
         import requests
 
         get_console(output=output).print(
@@ -403,7 +420,7 @@ class SbomCoreJob(SbomApplicationJob):
             f"include_provider_dependencies={self.include_provider_dependencies}, "
             f"python={self.include_python}, npm={self.include_npm}"
         )
-        if not self.download_dependency_files(output):
+        if not self.download_dependency_files(output, github_token=github_token):
             return 0, f"SBOM Generate {self.airflow_version}:{self.python_version}"
 
         get_console(output=output).print(
@@ -462,7 +479,7 @@ class SbomProviderJob(SbomApplicationJob):
     def get_job_name(self) -> str:
         return f"{self.provider_id}:{self.provider_version}:python{self.python_version}"
 
-    def produce(self, output: Output | None, port: int) -> tuple[int, str]:
+    def produce(self, output: Output | None, port: int, github_token: str | None) -> tuple[int, str]:
         import requests
 
         get_console(output=output).print(
@@ -501,12 +518,16 @@ class SbomProviderJob(SbomApplicationJob):
 
 
 def produce_sbom_for_application_via_cdxgen_server(
-    job: SbomApplicationJob, output: Output | None, port_map: dict[str, int] | None = None
+    job: SbomApplicationJob,
+    output: Output | None,
+    github_token: str | None,
+    port_map: dict[str, int] | None = None,
 ) -> tuple[int, str]:
     """
     Produces SBOM for application using cdxgen server.
     :param job: Job to run
     :param output: Output to use
+    :param github_token: GitHub token to use for downloading files`
     :param port_map map of process name to port - making sure that one process talks to one server
          in case parallel processing is used
     :return: tuple with exit code and output
@@ -517,7 +538,7 @@ def produce_sbom_for_application_via_cdxgen_server(
     else:
         port = port_map[multiprocessing.current_process().name]
         get_console(output=output).print(f"[info]Using port {port}")
-    return job.produce(output, port)
+    return job.produce(output, port, github_token)
 
 
 def convert_licenses(licenses: list[dict[str, Any]]) -> str:
@@ -591,7 +612,7 @@ def get_github_stats(
         console.print(f"[bright_blue]Retrieving GitHub Stats from {api_url}")
         response = requests.get(api_url, headers=headers)
         if response.status_code == 404:
-            console.print(f"[yellow]Github API returned 404 for {api_url}")
+            console.print(f"[yellow]GitHub API returned 404 for {api_url}")
             return {}
         response.raise_for_status()
         github_data = response.json()
@@ -610,7 +631,7 @@ def get_github_stats(
         result["Industry importance"] = importance
         console.print("[green]Successfully retrieved GitHub Stats.")
     else:
-        console.print(f"[yellow]Not retrieving Github Stats for {vcs}")
+        console.print(f"[yellow]Not retrieving GitHub Stats for {vcs}")
     return result
 
 

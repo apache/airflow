@@ -93,9 +93,9 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
 
     def __init__(
         self,
-        connections_path: str = "connections",
-        variables_path: str = "variables",
-        config_path: str = "config",
+        connections_path: str | None = "connections",
+        variables_path: str | None = "variables",
+        config_path: str | None = "config",
         url: str | None = None,
         auth_type: str = "token",
         auth_mount_point: str | None = None,
@@ -123,18 +123,9 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         **kwargs,
     ):
         super().__init__()
-        if connections_path is not None:
-            self.connections_path = connections_path.rstrip("/")
-        else:
-            self.connections_path = connections_path
-        if variables_path is not None:
-            self.variables_path = variables_path.rstrip("/")
-        else:
-            self.variables_path = variables_path
-        if config_path is not None:
-            self.config_path = config_path.rstrip("/")
-        else:
-            self.config_path = config_path
+        self.connections_path = connections_path.rstrip("/") if connections_path is not None else None
+        self.variables_path = variables_path.rstrip("/") if variables_path is not None else None
+        self.config_path = config_path.rstrip("/") if config_path is not None else None
         self.mount_point = mount_point
         self.kv_engine_version = kv_engine_version
         self.vault_client = _VaultClient(

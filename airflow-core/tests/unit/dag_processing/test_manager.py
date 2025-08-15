@@ -40,6 +40,7 @@ import time_machine
 from sqlalchemy import func, select
 from uuid6 import uuid7
 
+from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.dag_processing.bundles.manager import DagBundlesManager
@@ -52,10 +53,10 @@ from airflow.dag_processing.processor import DagFileProcessorProcess
 from airflow.models import DAG, DagBag, DagModel, DbCallbackRequest
 from airflow.models.asset import TaskOutletAssetReference
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.utils import timezone
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
 
@@ -461,7 +462,6 @@ class TestDagFileProcessorManager:
         )
         dagbag = DagBag(
             test_dag_path.absolute_path,
-            read_dags_from_db=False,
             include_examples=False,
             bundle_path=test_dag_path.bundle_path,
         )
@@ -571,6 +571,7 @@ class TestDagFileProcessorManager:
                         run_id="run_id",
                         bundle_name="testing",
                         bundle_version=None,
+                        context_from_server=None,
                         is_failure_callback=False,
                     )
                 ],
@@ -586,6 +587,7 @@ class TestDagFileProcessorManager:
                             "msg": None,
                             "dag_id": "dag_id",
                             "run_id": "run_id",
+                            "context_from_server": None,
                             "is_failure_callback": False,
                             "type": "DagCallbackRequest",
                         }
@@ -715,7 +717,7 @@ class TestDagFileProcessorManager:
             dag = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))
             assert dag.is_stale is True
 
-    def test_deactivate_deleted_dags(self, dag_maker):
+    def test_deactivate_deleted_dags(self, dag_maker, session):
         with dag_maker("test_dag1") as dag1:
             dag1.relative_fileloc = "test_dag1.py"
         with dag_maker("test_dag2") as dag2:
@@ -734,11 +736,11 @@ class TestDagFileProcessorManager:
         manager = DagFileProcessorManager(max_runs=1)
         manager.deactivate_deleted_dags("dag_maker", active_files)
 
-        dagbag = DagBag(read_dags_from_db=True)
+        dagbag = DBDagBag()
         # The DAG from test_dag1.py is still active
-        assert dagbag.get_dag("test_dag1").get_is_active() is True
+        assert dagbag.get_latest_version_of_dag("test_dag1", session=session).get_is_active() is True
         # and the DAG from test_dag2.py is deactivated
-        assert dagbag.get_dag("test_dag2").get_is_active() is False
+        assert dagbag.get_latest_version_of_dag("test_dag2", session=session).get_is_active() is False
 
     @conf_vars({("core", "load_examples"): "False"})
     def test_fetch_callbacks_from_database(self, configure_testing_dag_bundle):

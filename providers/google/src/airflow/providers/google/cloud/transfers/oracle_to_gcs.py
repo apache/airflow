@@ -46,15 +46,15 @@ class OracleToGCSOperator(BaseSQLToGCSOperator):
     ui_color = "#a0e08c"
 
     type_map = {
-        oracledb.DB_TYPE_BINARY_DOUBLE: "DECIMAL",  # type: ignore
-        oracledb.DB_TYPE_BINARY_FLOAT: "DECIMAL",  # type: ignore
-        oracledb.DB_TYPE_BINARY_INTEGER: "INTEGER",  # type: ignore
-        oracledb.DB_TYPE_BOOLEAN: "BOOLEAN",  # type: ignore
-        oracledb.DB_TYPE_DATE: "TIMESTAMP",  # type: ignore
-        oracledb.DB_TYPE_NUMBER: "NUMERIC",  # type: ignore
-        oracledb.DB_TYPE_TIMESTAMP: "TIMESTAMP",  # type: ignore
-        oracledb.DB_TYPE_TIMESTAMP_LTZ: "TIMESTAMP",  # type: ignore
-        oracledb.DB_TYPE_TIMESTAMP_TZ: "TIMESTAMP",  # type: ignore
+        oracledb.DB_TYPE_BINARY_DOUBLE: "DECIMAL",
+        oracledb.DB_TYPE_BINARY_FLOAT: "DECIMAL",
+        oracledb.DB_TYPE_BINARY_INTEGER: "INTEGER",
+        oracledb.DB_TYPE_BOOLEAN: "BOOLEAN",
+        oracledb.DB_TYPE_DATE: "TIMESTAMP",
+        oracledb.DB_TYPE_NUMBER: "NUMERIC",
+        oracledb.DB_TYPE_TIMESTAMP: "TIMESTAMP",
+        oracledb.DB_TYPE_TIMESTAMP_LTZ: "TIMESTAMP",
+        oracledb.DB_TYPE_TIMESTAMP_TZ: "TIMESTAMP",
     }
 
     def __init__(self, *, oracle_conn_id="oracle_default", ensure_utc=False, **kwargs):

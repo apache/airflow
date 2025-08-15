@@ -122,7 +122,7 @@ class CreateEndpointOperator(GoogleCloudBaseOperator):
         endpoint_id = hook.extract_endpoint_id(endpoint)
         self.log.info("Endpoint was created. Endpoint ID: %s", endpoint_id)
 
-        self.xcom_push(context, key="endpoint_id", value=endpoint_id)
+        context["ti"].xcom_push(key="endpoint_id", value=endpoint_id)
         VertexAIEndpointLink.persist(context=context, endpoint_id=endpoint_id)
         return endpoint
 
@@ -292,7 +292,7 @@ class DeployModelOperator(GoogleCloudBaseOperator):
         deployed_model_id = hook.extract_deployed_model_id(deploy_model)
         self.log.info("Model was deployed. Deployed Model ID: %s", deployed_model_id)
 
-        self.xcom_push(context, key="deployed_model_id", value=deployed_model_id)
+        context["ti"].xcom_push(key="deployed_model_id", value=deployed_model_id)
         VertexAIModelLink.persist(context=context, model_id=deployed_model_id)
         return deploy_model
 

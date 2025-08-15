@@ -142,7 +142,7 @@ class HttpTrigger(BaseTrigger):
         response.reason = str(client_response.reason)
         cookies = RequestsCookieJar()
         for k, v in client_response.cookies.items():
-            cookies.set(k, v)
+            cookies.set(k, str(v))  # Convert Morsel to string
         response.cookies = cookies
         return response
 

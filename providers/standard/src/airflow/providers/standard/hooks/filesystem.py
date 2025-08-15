@@ -20,7 +20,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from airflow.hooks.base import BaseHook
+from airflow.providers.standard.version_compat import BaseHook
 
 
 class FSHook(BaseHook):

@@ -26,9 +26,9 @@ import pendulum
 import pytest
 
 import airflow.cli.commands.backfill_command
+from airflow._shared.timezones import timezone
 from airflow.cli import cli_parser
 from airflow.models.backfill import ReprocessBehavior
-from airflow.utils import timezone
 
 from tests_common.test_utils.db import clear_db_backfills, clear_db_dags, clear_db_runs, parse_and_sync_to_db
 
@@ -100,6 +100,35 @@ class TestCliBackfill:
             reverse=False,
             dag_run_conf=None,
             reprocess_behavior=expected_repro,
+            triggering_user_name="root",
+            run_on_latest_version=False,
+        )
+
+    @mock.patch("airflow.cli.commands.backfill_command._create_backfill")
+    def test_backfill_with_run_on_latest_version(self, mock_create):
+        args = [
+            "backfill",
+            "create",
+            "--dag-id",
+            "example_bash_operator",
+            "--from-date",
+            DEFAULT_DATE.isoformat(),
+            "--to-date",
+            DEFAULT_DATE.isoformat(),
+            "--run-on-latest-version",
+        ]
+        airflow.cli.commands.backfill_command.create_backfill(self.parser.parse_args(args))
+
+        mock_create.assert_called_once_with(
+            dag_id="example_bash_operator",
+            from_date=DEFAULT_DATE,
+            to_date=DEFAULT_DATE,
+            max_active_runs=None,
+            reverse=False,
+            dag_run_conf=None,
+            reprocess_behavior=None,
+            run_on_latest_version=True,
+            triggering_user_name="root",
         )
 
     @mock.patch("airflow.cli.commands.backfill_command._do_dry_run")

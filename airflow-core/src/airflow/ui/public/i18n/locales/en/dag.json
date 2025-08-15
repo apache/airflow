@@ -19,12 +19,30 @@
   },
   "header": {
     "buttons": {
+      "advanced": "Advanced",
       "dagDocs": "Dag Docs"
     }
   },
   "logs": {
+    "allLevels": "All Log Levels",
+    "allSources": "All Sources",
+    "critical": "CRITICAL",
+    "debug": "DEBUG",
+    "error": "ERROR",
+    "fullscreen": {
+      "button": "Full screen",
+      "tooltip": "Press {{hotkey}} for fullscreen"
+    },
+    "info": "INFO",
     "noTryNumber": "No try number",
-    "viewInExternal": "View logs in {{name}} (attempt {{attempt}})"
+    "settings": "Log Settings",
+    "viewInExternal": "View logs in {{name}} (attempt {{attempt}})",
+    "warning": "WARNING"
+  },
+  "navigation": {
+    "jump": "Jump: Shift+{{arrow}}",
+    "navigation": "Navigation: {{arrow}}",
+    "toggleGroup": "Toggle group: Space"
   },
   "overview": {
     "buttons": {
@@ -90,6 +108,7 @@
     "mappedTaskInstances_other": "Task Instances [{{count}}]",
     "overview": "Overview",
     "renderedTemplates": "Rendered Templates",
+    "requiredActions": "Required Actions",
     "runs": "Runs",
     "taskInstances": "Task Instances",
     "tasks": "Tasks",
@@ -98,13 +117,5 @@
   "taskGroups": {
     "collapseAll": "Collapse all task groups",
     "expandAll": "Expand all task groups"
-  },
-  "taskLogs": {
-    "allLogLevels": "All Log Levels",
-    "allSources": "All Sources",
-    "fullscreen": {
-      "button": "Full screen",
-      "tooltip": "Press {{hotkey}} for fullscreen"
-    }
   }
 }

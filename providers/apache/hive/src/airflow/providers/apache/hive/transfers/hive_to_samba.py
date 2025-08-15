@@ -23,15 +23,9 @@ from collections.abc import Sequence
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
 
-from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
-from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.apache.hive.version_compat import BaseOperator, context_to_airflow_vars
 from airflow.providers.samba.hooks.samba import SambaHook
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.execution_time.context import context_to_airflow_vars
-else:
-    from airflow.utils.operator_helpers import context_to_airflow_vars  # type: ignore[no-redef, attr-defined]
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

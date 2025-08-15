@@ -19,7 +19,7 @@
 import type { Node as FlowNodeType, Edge as FlowEdgeType } from "@xyflow/react";
 import type { ElkExtendedEdge } from "elkjs";
 
-import type { GridTaskInstanceSummary, NodeResponse } from "openapi/requests/types.gen";
+import type { LightGridTaskInstanceSummary, NodeResponse } from "openapi/requests/types.gen";
 
 import type { LayoutNode } from "./useGraphLayout";
 
@@ -36,7 +36,7 @@ export type CustomNodeProps = {
   label: string;
   operator?: string | null;
   setupTeardownType?: NodeResponse["setup_teardown_type"];
-  taskInstance?: GridTaskInstanceSummary;
+  taskInstance?: LightGridTaskInstanceSummary;
   type: string;
   width?: number;
 };

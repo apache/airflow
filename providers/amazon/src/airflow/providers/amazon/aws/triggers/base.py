@@ -80,7 +80,7 @@ class AwsBaseWaiterTrigger(BaseTrigger):
         waiter_delay: int,
         waiter_max_attempts: int,
         waiter_config_overrides: dict[str, Any] | None = None,
-        aws_conn_id: str | None,
+        aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
         verify: bool | str | None = None,
         botocore_config: dict | None = None,
@@ -88,7 +88,6 @@ class AwsBaseWaiterTrigger(BaseTrigger):
         super().__init__()
         # parameters that should be hardcoded in the child's implem
         self.serialized_fields = serialized_fields
-
         self.waiter_name = waiter_name
         self.waiter_args = waiter_args
         self.failure_message = failure_message

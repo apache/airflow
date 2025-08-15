@@ -70,7 +70,9 @@ apache-airflow-providers-qdrant package
 `Qdrant <https://qdrant.tech/documentation>`__
 
 
-Release: 1.4.0
+Release: 1.4.3
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------
@@ -93,7 +95,6 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``qdrant_client``   ``>=1.10.1``
-``portalocker``     ``>=2.8.1``
 ``apache-airflow``  ``>=2.10.0``
+``qdrant_client``   ``>=1.15.1``
 ==================  ==================

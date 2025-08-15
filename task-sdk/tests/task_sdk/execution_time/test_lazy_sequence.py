@@ -46,7 +46,7 @@ def mock_operator():
 
 @pytest.fixture
 def mock_xcom_arg(mock_operator):
-    return Mock(spec=["operator", "key"], operator=mock_operator, key="return_value")
+    return Mock(spec=["operator", "key"], operator=mock_operator, key=BaseXCom.XCOM_RETURN_KEY)
 
 
 @pytest.fixture
@@ -69,7 +69,7 @@ def test_len(mock_supervisor_comms, lazy_sequence):
     mock_supervisor_comms.send.return_value = XComCountResponse(len=3)
     assert len(lazy_sequence) == 3
     mock_supervisor_comms.send.assert_called_once_with(
-        msg=GetXComCount(key="return_value", dag_id="dag", task_id="task", run_id="run"),
+        msg=GetXComCount(key=BaseXCom.XCOM_RETURN_KEY, dag_id="dag", task_id="task", run_id="run"),
     )
 
 
@@ -85,7 +85,7 @@ def test_iter(mock_supervisor_comms, lazy_sequence):
         [
             call(
                 msg=GetXComSequenceItem(
-                    key="return_value",
+                    key=BaseXCom.XCOM_RETURN_KEY,
                     dag_id="dag",
                     task_id="task",
                     run_id="run",
@@ -94,7 +94,7 @@ def test_iter(mock_supervisor_comms, lazy_sequence):
             ),
             call(
                 msg=GetXComSequenceItem(
-                    key="return_value",
+                    key=BaseXCom.XCOM_RETURN_KEY,
                     dag_id="dag",
                     task_id="task",
                     run_id="run",
@@ -110,7 +110,7 @@ def test_getitem_index(mock_supervisor_comms, lazy_sequence):
     assert lazy_sequence[4] == "f"
     mock_supervisor_comms.send.assert_called_once_with(
         GetXComSequenceItem(
-            key="return_value",
+            key=BaseXCom.XCOM_RETURN_KEY,
             dag_id="dag",
             task_id="task",
             run_id="run",
@@ -130,7 +130,7 @@ def test_getitem_calls_correct_deserialise(monkeypatch, mock_supervisor_comms, l
     assert lazy_sequence[4] == "Made with CustomXCom: some-value"
     mock_supervisor_comms.send.assert_called_once_with(
         GetXComSequenceItem(
-            key="return_value",
+            key=BaseXCom.XCOM_RETURN_KEY,
             dag_id="dag",
             task_id="task",
             run_id="run",
@@ -149,7 +149,7 @@ def test_getitem_indexerror(mock_supervisor_comms, lazy_sequence):
     assert ctx.value.args == (4,)
     mock_supervisor_comms.send.assert_called_once_with(
         GetXComSequenceItem(
-            key="return_value",
+            key=BaseXCom.XCOM_RETURN_KEY,
             dag_id="dag",
             task_id="task",
             run_id="run",
@@ -163,7 +163,7 @@ def test_getitem_slice(mock_supervisor_comms, lazy_sequence):
     assert lazy_sequence[:5] == [6, 4, 1]
     mock_supervisor_comms.send.assert_called_once_with(
         GetXComSequenceSlice(
-            key="return_value",
+            key=BaseXCom.XCOM_RETURN_KEY,
             dag_id="dag",
             task_id="task",
             run_id="run",

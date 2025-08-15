@@ -27,6 +27,16 @@ from airflow.exceptions import AirflowConfigException
 from airflow.models import Connection
 from airflow.providers.grpc.hooks.grpc import GrpcHook
 
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
+
 
 def get_airflow_connection(auth_type="NO_AUTH", credential_pem_file=None, scopes=None):
     extra = {
@@ -68,7 +78,7 @@ def channel_mock():
 
 class TestGrpcHook:
     @mock.patch("grpc.insecure_channel")
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     def test_no_auth_connection(self, mock_get_connection, mock_insecure_channel, channel_mock):
         conn = get_airflow_connection()
         mock_get_connection.return_value = conn
@@ -83,7 +93,7 @@ class TestGrpcHook:
         assert channel == mocked_channel
 
     @mock.patch("grpc.insecure_channel")
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     def test_connection_with_port(self, mock_get_connection, mock_insecure_channel, channel_mock):
         conn = get_airflow_connection_with_port()
         mock_get_connection.return_value = conn
@@ -98,7 +108,7 @@ class TestGrpcHook:
         assert channel == mocked_channel
 
     @mock.patch("airflow.providers.grpc.hooks.grpc.open")
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     @mock.patch("grpc.ssl_channel_credentials")
     @mock.patch("grpc.secure_channel")
     def test_connection_with_ssl(
@@ -122,7 +132,7 @@ class TestGrpcHook:
         assert channel == mocked_channel
 
     @mock.patch("airflow.providers.grpc.hooks.grpc.open")
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     @mock.patch("grpc.ssl_channel_credentials")
     @mock.patch("grpc.secure_channel")
     def test_connection_with_tls(
@@ -145,7 +155,7 @@ class TestGrpcHook:
         mock_secure_channel.assert_called_once_with(expected_url, mock_credential_object)
         assert channel == mocked_channel
 
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     @mock.patch("google.auth.jwt.OnDemandCredentials.from_signing_credentials")
     @mock.patch("google.auth.default")
     @mock.patch("google.auth.transport.grpc.secure_authorized_channel")
@@ -173,7 +183,7 @@ class TestGrpcHook:
         mock_secure_channel.assert_called_once_with(mock_credential_object, None, expected_url)
         assert channel == mocked_channel
 
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     @mock.patch("google.auth.transport.requests.Request")
     @mock.patch("google.auth.default")
     @mock.patch("google.auth.transport.grpc.secure_authorized_channel")
@@ -201,7 +211,7 @@ class TestGrpcHook:
         mock_secure_channel.assert_called_once_with(mock_credential_object, "request", expected_url)
         assert channel == mocked_channel
 
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     def test_custom_connection(self, mock_get_connection, channel_mock):
         def custom_conn_func(_):
             mocked_channel = channel_mock.return_value
@@ -216,7 +226,7 @@ class TestGrpcHook:
 
         assert channel == mocked_channel
 
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     def test_custom_connection_with_no_connection_func(self, mock_get_connection, channel_mock):
         conn = get_airflow_connection("CUSTOM")
         mock_get_connection.return_value = conn
@@ -225,7 +235,7 @@ class TestGrpcHook:
         with pytest.raises(AirflowConfigException):
             hook.get_conn()
 
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     def test_connection_type_not_supported(self, mock_get_connection, channel_mock):
         conn = get_airflow_connection("NOT_SUPPORT")
         mock_get_connection.return_value = conn
@@ -235,7 +245,7 @@ class TestGrpcHook:
             hook.get_conn()
 
     @mock.patch("grpc.intercept_channel")
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     @mock.patch("grpc.insecure_channel")
     def test_connection_with_interceptors(
         self, mock_insecure_channel, mock_get_connection, mock_intercept_channel, channel_mock
@@ -252,7 +262,7 @@ class TestGrpcHook:
         assert channel == mocked_channel
         mock_intercept_channel.assert_called_once_with(mocked_channel, "test1")
 
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     @mock.patch("airflow.providers.grpc.hooks.grpc.GrpcHook.get_conn")
     def test_simple_run(self, mock_get_conn, mock_get_connection, channel_mock):
         conn = get_airflow_connection()
@@ -267,7 +277,7 @@ class TestGrpcHook:
 
         assert next(response) == "hello"
 
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     @mock.patch("airflow.providers.grpc.hooks.grpc.GrpcHook.get_conn")
     def test_stream_run(self, mock_get_conn, mock_get_connection, channel_mock):
         conn = get_airflow_connection()

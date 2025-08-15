@@ -27,6 +27,70 @@
 Changelog
 ---------
 
+5.3.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix missing prefetch arg to SFTPOperator (#53906)``
+
+Misc
+~~~~
+
+* ``Limit paramiko to '< 4.0.0' till we remove DSS support (#54078)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+5.3.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Updating SSH dependency for SFTP provider (#53100)``
+* ``Fix BlobWriter (GCS)  support for SFTP Streaming (#52850)``
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup type ignores in sftp provider where possible (#53266)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Move all BaseHook usages to version_compat in SFTP (#52894)``
+
+Doc-only
+~~~~~~~~
+
+* ``docs: Correct TaskFlow capitalization in documentation (#51794)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Deprecate decorators from Core (#53629)``
+
+5.3.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``bugfix: removed cache for proxycommand in SFTPHook (#52641)``
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Replace 'models.BaseOperator' to Task SDK one for SFTP (#52435)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Use BaseSensorOperator from task sdk in providers (#52296)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Separate out creation of default Connections for tests and non-tests (#52129)``
+
 5.3.1
 .....
 

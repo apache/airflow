@@ -876,3 +876,22 @@ These are all available flags of ``workflow-run publish-docs`` command:
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_workflow-run_publish-docs.svg
   :width: 100%
   :alt: Breeze workflow-run publish-docs
+
+Constraints version check
+"""""""""""""""""""""""""
+
+To check if the constraints files are up to date in the current Airflow version, you can use the
+``breeze release-management check-constraints-updates`` command.
+
+These are all available flags of ``check-constraints-updates`` command:
+
+.. image:: ./images/output_release-management_constraints-version-check.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_constraints-version-check.svg
+  :width: 100%
+  :alt: Breeze constraints version check
+
+Example usage:
+
+.. code-block:: bash
+
+     breeze release-management constraints-version-check --python 3.10 --airflow-constraints-mode constraints-source-providers --explain-why

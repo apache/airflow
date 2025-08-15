@@ -44,10 +44,12 @@ class TestClearTasks:
     @pytest.fixture(autouse=True, scope="class")
     def clean(self):
         db.clear_db_runs()
+        db.clear_db_serialized_dags()
 
         yield
 
         db.clear_db_runs()
+        db.clear_db_serialized_dags()
 
     def test_clear_task_instances(self, dag_maker):
         # Explicitly needs catchup as True as test is creating history runs
@@ -368,9 +370,6 @@ class TestClearTasks:
             task0 = EmptyOperator(task_id="task0")
             task1 = EmptyOperator(task_id="task1", retries=2)
 
-        # Write DAG to the database so it can be found by clear_task_instances().
-        SerializedDagModel.write_dag(dag, bundle_name="testing", session=session)
-
         dr = dag_maker.create_dagrun(
             state=State.RUNNING,
             run_type=DagRunType.SCHEDULED,
@@ -675,63 +674,3 @@ class TestClearTasks:
                 assert ti.state == State.SUCCESS
                 assert ti.try_number == 2
                 assert ti.max_tries == 1
-
-    def test_operator_clear(self, dag_maker, session):
-        with dag_maker("test_operator_clear"):
-            op1 = EmptyOperator(task_id="test1")
-            op2 = EmptyOperator(task_id="test2", retries=1)
-            op1 >> op2
-
-        dr = dag_maker.create_dagrun(
-            state=State.RUNNING,
-            run_type=DagRunType.SCHEDULED,
-        )
-
-        def _get_ti(old_ti):
-            return session.scalar(
-                select(TI).where(
-                    TI.dag_id == old_ti.dag_id,
-                    TI.task_id == old_ti.task_id,
-                    TI.map_index == old_ti.map_index,
-                    TI.run_id == old_ti.run_id,
-                )
-            )
-
-        ti1, ti2 = sorted(dr.get_task_instances(session=session), key=lambda ti: ti.task_id)
-        ti1.task = op1
-        ti2.task = op2
-        ti2.refresh_from_db(session=session)
-        ti2.try_number += 1
-        session.commit()
-
-        # Dependency not met
-        assert ti2.try_number == 1
-        assert ti2.max_tries == 1
-
-        ti1.refresh_from_db(session=session)
-        assert ti1.max_tries == 0
-        assert ti1.try_number == 0
-
-        op2.clear(upstream=True, session=session)
-        ti1.refresh_from_db(session)
-        ti2.refresh_from_db(session)
-        ti1.task = op1
-        ti2.task = op2
-        # max tries will be set to retries + curr try number == 1 + 1 == 2
-        assert ti2.max_tries == 2
-
-        ti1.refresh_from_db(session)
-        ti2.refresh_from_db(session)
-        assert ti1.try_number == 0
-
-        ti2 = _get_ti(ti2)
-        ti2.try_number += 1
-        ti2.refresh_from_task(op1)
-        session.commit()
-        ti2.run(ignore_ti_state=True, session=session)
-        ti2.refresh_from_db(session)
-        # max_tries is 0 because there is no task instance in db for ti1
-        # so clear won't change the max_tries.
-        assert ti1.max_tries == 0
-        assert ti2.try_number == 2
-        assert ti2.max_tries == 2  # max tries has not changed since it was updated when op2.clear called

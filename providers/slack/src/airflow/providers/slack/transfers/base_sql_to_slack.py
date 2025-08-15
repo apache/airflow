@@ -20,8 +20,7 @@ from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
-from airflow.models import BaseOperator
+from airflow.providers.slack.version_compat import BaseHook, BaseOperator
 
 if TYPE_CHECKING:
     import pandas as pd

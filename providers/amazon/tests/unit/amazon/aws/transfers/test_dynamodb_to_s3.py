@@ -26,11 +26,16 @@ import pytest
 
 from airflow import DAG
 from airflow.models import DagRun, TaskInstance
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import (
     DynamoDBToS3Operator,
     JSONEncoder,
 )
-from airflow.utils import timezone
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
@@ -262,7 +267,7 @@ class TestDynamodbToS3:
         mock_s3_hook.assert_called_with(aws_conn_id=s3_aws_conn_id)
 
     @pytest.mark.db_test
-    def test_render_template(self, session):
+    def test_render_template(self, session, clean_dags_dagruns_and_dagbundles, testing_dag_bundle):
         dag = DAG("test_render_template_dag_id", schedule=None, start_date=datetime(2020, 1, 1))
         operator = DynamoDBToS3Operator(
             task_id="dynamodb_to_s3_test_render",
@@ -274,8 +279,15 @@ class TestDynamodbToS3:
             source_aws_conn_id="{{ ds }}",
             dest_aws_conn_id="{{ ds }}",
         )
-        ti = TaskInstance(operator, run_id="something")
+
         if AIRFLOW_V_3_0_PLUS:
+            from airflow.models.dag_version import DagVersion
+
+            bundle_name = "testing"
+            DAG.bulk_write_to_db(bundle_name, None, [dag])
+            SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+            ti = TaskInstance(operator, run_id="something", dag_version_id=dag_version.id)
             ti.dag_run = DagRun(
                 dag_id=dag.dag_id,
                 run_id="something",
@@ -284,6 +296,7 @@ class TestDynamodbToS3:
                 state=DagRunState.RUNNING,
             )
         else:
+            ti = TaskInstance(operator, run_id="something")
             ti.dag_run = DagRun(
                 dag_id=dag.dag_id,
                 run_id="something",

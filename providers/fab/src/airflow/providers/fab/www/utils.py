@@ -42,11 +42,16 @@ from airflow.utils import timezone
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
-    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
+    try:
+        from airflow.api_fastapi.auth.managers.base_auth_manager import ExtendedResourceMethod
+    except ImportError:
+        from airflow.api_fastapi.auth.managers.base_auth_manager import (
+            ResourceMethod as ExtendedResourceMethod,
+        )
     from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 
 # Convert methods to FAB action name
-_MAP_METHOD_NAME_TO_FAB_ACTION_NAME: dict[ResourceMethod, str] = {
+_MAP_METHOD_NAME_TO_FAB_ACTION_NAME: dict[ExtendedResourceMethod, str] = {
     "POST": ACTION_CAN_CREATE,
     "GET": ACTION_CAN_READ,
     "PUT": ACTION_CAN_EDIT,

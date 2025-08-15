@@ -22,8 +22,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
-from airflow.models.baseoperator import BaseOperator
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.providers.standard.utils.skipmixin import SkipMixin
@@ -57,9 +56,7 @@ class BranchMixIn(SkipMixin):
         if TYPE_CHECKING:
             assert dag
 
-        if branches_to_execute is None:
-            return
-        elif isinstance(branches_to_execute, str) or not isinstance(branches_to_execute, Iterable):
+        if isinstance(branches_to_execute, str) or not isinstance(branches_to_execute, Iterable):
             branches_to_execute = [branches_to_execute]
 
         for branch in branches_to_execute:

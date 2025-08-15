@@ -34,13 +34,14 @@ import { CreateAssetEvent } from "./CreateAssetEvent";
 import { Header } from "./Header";
 
 export const AssetLayout = () => {
-  const { t: translate } = useTranslation(["assets", "common"]);
+  const { i18n, t: translate } = useTranslation(["assets", "common"]);
   const { assetId } = useParams();
+  const direction = i18n.dir();
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-timestamp";
+  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-timestamp"];
 
   const { data: asset, isLoading } = useAssetServiceGetAsset(
     { assetId: assetId === undefined ? 0 : parseInt(assetId, 10) },
@@ -94,7 +95,12 @@ export const AssetLayout = () => {
       </HStack>
       <ProgressBar size="xs" visibility={Boolean(isLoading) ? "visible" : "hidden"} />
       <Box flex={1} minH={0}>
-        <PanelGroup autoSaveId={assetId} direction="horizontal">
+        <PanelGroup
+          autoSaveId={`asset-${direction}`}
+          dir={direction}
+          direction="horizontal"
+          key={`asset-${direction}`}
+        >
           <Panel defaultSize={70} minSize={6}>
             <Box height="100%" position="relative" pr={2}>
               <AssetGraph asset={asset} />

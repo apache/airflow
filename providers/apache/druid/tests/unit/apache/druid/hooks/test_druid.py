@@ -426,6 +426,35 @@ class TestDruidDbApiHook:
             user="test_login",
             password="test_password",
             context=passed_context,
+            ssl_verify_cert=True,
+        )
+
+    @patch("airflow.providers.apache.druid.hooks.druid.DruidDbApiHook.get_connection")
+    @patch("airflow.providers.apache.druid.hooks.druid.connect")
+    def test_get_conn_respects_ssl_verify_cert(self, mock_connect, mock_get_connection):
+        get_conn_value = MagicMock()
+        get_conn_value.host = "test_host"
+        get_conn_value.conn_type = "https"
+        get_conn_value.login = "test_login"
+        get_conn_value.password = "test_password"
+        get_conn_value.port = 10000
+        get_conn_value.extra_dejson = {
+            "endpoint": "/test/endpoint",
+            "schema": "https",
+            "ssl_verify_cert": False,
+        }
+        mock_get_connection.return_value = get_conn_value
+        hook = DruidDbApiHook()
+        hook.get_conn()
+        mock_connect.assert_called_with(
+            host="test_host",
+            port=10000,
+            path="/test/endpoint",
+            scheme="https",
+            user="test_login",
+            password="test_password",
+            context={},
+            ssl_verify_cert=False,
         )
 
     def test_get_uri(self):

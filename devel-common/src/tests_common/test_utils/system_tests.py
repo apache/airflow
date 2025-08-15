@@ -18,12 +18,15 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import pytest
 from tabulate import tabulate
 
 from airflow.utils.state import DagRunState
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
@@ -59,11 +62,24 @@ def get_test_run(dag, **test_kwargs):
         return [current, new]
 
     @pytest.mark.system
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_run():
         dag.on_failure_callback = add_callback(dag.on_failure_callback, callback)
         dag.on_success_callback = add_callback(dag.on_success_callback, callback)
         # If the env variable ``_AIRFLOW__SYSTEM_TEST_USE_EXECUTOR`` is set, then use an executor to run the
         # DAG
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.models.dag import DagModel
+            from airflow.models.serialized_dag import SerializedDagModel
+            from airflow.settings import Session
+
+            s = Session()
+            bundle_name = "testing"
+            d = DagModel(dag_id=dag.dag_id, bundle_name=bundle_name)
+            s.add(d)
+            s.commit()
+            SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
+
         dag_run = dag.test(
             use_executor=os.environ.get("_AIRFLOW__SYSTEM_TEST_USE_EXECUTOR") == "1",
             **test_kwargs,

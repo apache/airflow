@@ -24,10 +24,10 @@ from typing import TYPE_CHECKING, ClassVar
 import attr
 import papermill as pm
 
-from airflow.models import BaseOperator
 from airflow.providers.common.compat.lineage.entities import File
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.papermill.hooks.kernel import REMOTE_KERNEL_ENGINE, KernelHook
+from airflow.providers.papermill.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     try:
@@ -106,9 +106,9 @@ class PapermillOperator(BaseOperator):
 
     def execute(self, context: Context):
         if not isinstance(self.input_nb, NoteBook):
-            self.input_nb = NoteBook(url=self.input_nb, parameters=self.parameters)  # type: ignore[call-arg]
+            self.input_nb = NoteBook(url=self.input_nb, parameters=self.parameters)
         if not isinstance(self.output_nb, NoteBook):
-            self.output_nb = NoteBook(url=self.output_nb)  # type: ignore[call-arg]
+            self.output_nb = NoteBook(url=self.output_nb)
         if not AIRFLOW_V_3_0_PLUS:
             self.inlets.append(self.input_nb)
             self.outlets.append(self.output_nb)

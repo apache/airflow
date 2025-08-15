@@ -1258,6 +1258,7 @@ class TestWebserverSecretKeySecret:
     def test_should_add_annotations_to_webserver_secret_key_secret(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "webserverSecretAnnotations": {"test_annotation": "test_annotation_value"},
             },
             show_only=["templates/secrets/webserver-secret-key-secret.yaml"],

@@ -57,7 +57,7 @@ export const Overview = () => {
       dagId,
       dagRunId: "~",
       limit: 14,
-      orderBy: "-run_after",
+      orderBy: ["-run_after"],
       taskDisplayNamePattern: groupId ?? undefined,
       taskId: Boolean(groupId) ? undefined : taskId,
     },

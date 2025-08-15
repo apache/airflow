@@ -17,40 +17,32 @@
  * under the License.
  */
 import { useDisclosure } from "@chakra-ui/react";
-import dayjs from "dayjs";
-import timezone from "dayjs/plugin/timezone";
-import utc from "dayjs/plugin/utc";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FiClock, FiGrid, FiLogOut, FiMoon, FiSun, FiUser, FiGlobe } from "react-icons/fi";
+import { FiGrid, FiLogOut, FiMoon, FiSun, FiUser, FiGlobe } from "react-icons/fi";
 import { MdOutlineAccountTree } from "react-icons/md";
 import { useLocalStorage } from "usehooks-ts";
 
 import { Menu } from "src/components/ui";
 import { useColorMode } from "src/context/colorMode/useColorMode";
-import { useTimezone } from "src/context/timezone";
+import type { NavItemResponse } from "src/utils/types";
 
 import LanguageModal from "./LanguageModal";
 import LogoutModal from "./LogoutModal";
 import { NavButton } from "./NavButton";
+import { PluginMenuItem } from "./PluginMenuItem";
+import { TimezoneMenuItem } from "./TimezoneMenuItem";
 import TimezoneModal from "./TimezoneModal";
 
-dayjs.extend(utc);
-dayjs.extend(timezone);
-
-export const UserSettingsButton = () => {
+export const UserSettingsButton = ({ externalViews }: { readonly externalViews: Array<NavItemResponse> }) => {
   const { t: translate } = useTranslation();
   const { colorMode, toggleColorMode } = useColorMode();
   const { onClose: onCloseTimezone, onOpen: onOpenTimezone, open: isOpenTimezone } = useDisclosure();
   const { onClose: onCloseLogout, onOpen: onOpenLogout, open: isOpenLogout } = useDisclosure();
   const { onClose: onCloseLanguage, onOpen: onOpenLanguage, open: isOpenLanguage } = useDisclosure();
-  const { selectedTimezone } = useTimezone();
   const [dagView, setDagView] = useLocalStorage<"graph" | "grid">("default_dag_view", "grid");
 
-  const [time, setTime] = useState(dayjs());
-
   return (
-    <Menu.Root onOpenChange={() => setTime(dayjs())} positioning={{ placement: "right" }}>
+    <Menu.Root positioning={{ placement: "right" }}>
       <Menu.Trigger asChild>
         <NavButton icon={<FiUser size="1.75rem" />} title={translate("user")} />
       </Menu.Trigger>
@@ -88,10 +80,10 @@ export const UserSettingsButton = () => {
             </>
           )}
         </Menu.Item>
-        <Menu.Item onClick={onOpenTimezone} value="timezone">
-          <FiClock size="1.25rem" style={{ marginRight: "8px" }} />
-          {translate("timezone")}: {dayjs(time).tz(selectedTimezone).format("HH:mm z (Z)")}
-        </Menu.Item>
+        <TimezoneMenuItem onOpen={onOpenTimezone} />
+        {externalViews.map((view) => (
+          <PluginMenuItem {...view} key={view.name} />
+        ))}
         <Menu.Item onClick={onOpenLogout} value="logout">
           <FiLogOut size="1.25rem" style={{ marginRight: "8px" }} />
           {translate("logout")}

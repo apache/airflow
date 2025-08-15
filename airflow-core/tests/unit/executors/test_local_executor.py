@@ -25,9 +25,9 @@ import pytest
 from kgb import spy_on
 from uuid6 import uuid7
 
+from airflow._shared.timezones import timezone
 from airflow.executors import workloads
 from airflow.executors.local_executor import LocalExecutor, _execute_work
-from airflow.utils import timezone
 from airflow.utils.state import State
 
 from tests_common.test_utils.config import conf_vars
@@ -59,6 +59,7 @@ class TestLocalExecutor:
         success_tis = [
             workloads.TaskInstance(
                 id=uuid7(),
+                dag_version_id=uuid7(),
                 task_id=f"success_{i}",
                 dag_id="mydag",
                 run_id="run1",

@@ -91,12 +91,19 @@ If release name contains chart name it will be used as a full name.
         name: {{ template "airflow_metadata_secret" . }}
         key: kedaConnection
   {{- end }}
-  {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__WEBSERVER__SECRET_KEY }}
+  {{- if and (semverCompare "<3.0.0" .Values.airflowVersion) .Values.enableBuiltInSecretEnvVars.AIRFLOW__WEBSERVER__SECRET_KEY }}
   - name: AIRFLOW__WEBSERVER__SECRET_KEY
     valueFrom:
       secretKeyRef:
         name: {{ template "webserver_secret_key_secret" . }}
         key: webserver-secret-key
+  {{- end }}
+  {{- if and (semverCompare ">=3.0.0" .Values.airflowVersion) .Values.enableBuiltInSecretEnvVars.AIRFLOW__API__SECRET_KEY }}
+  - name: AIRFLOW__API__SECRET_KEY
+    valueFrom:
+      secretKeyRef:
+        name: {{ template "api_secret_key_secret" . }}
+        key: api-secret-key
   {{- end }}
   {{- if and (semverCompare ">=3.0.0" .Values.airflowVersion) .Values.enableBuiltInSecretEnvVars.AIRFLOW__API_AUTH__JWT_SECRET }}
   - name: AIRFLOW__API_AUTH__JWT_SECRET
@@ -316,6 +323,12 @@ If release name contains chart name it will be used as a full name.
     {{- toYaml . | nindent 4 }}
     {{- end }}
   resources: {{ toYaml .Values.dags.gitSync.resources | nindent 4 }}
+  {{- if and .Values.dags.gitSync.livenessProbe (not .is_init) }}
+  livenessProbe: {{ tpl (toYaml .Values.dags.gitSync.livenessProbe) . | nindent 4 }}
+  {{- end }}
+  {{- if and .Values.dags.gitSync.readinessProbe (not .is_init) }}
+  readinessProbe: {{ tpl (toYaml .Values.dags.gitSync.readinessProbe) . | nindent 4 }}
+  {{- end }}
   volumeMounts:
   - name: dags
     mountPath: /git
@@ -409,6 +422,10 @@ If release name contains chart name it will be used as a full name.
 
 {{- define "webserver_secret_key_secret" -}}
   {{- default (printf "%s-webserver-secret-key" (include "airflow.fullname" .)) .Values.webserverSecretKeySecretName }}
+{{- end }}
+
+{{- define "api_secret_key_secret" -}}
+  {{- default (printf "%s-api-secret-key" (include "airflow.fullname" .)) .Values.apiSecretKeySecretName }}
 {{- end }}
 
 {{- define "redis_password_secret" -}}
@@ -625,13 +642,23 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- end }}
 {{- end }}
 
-{{/* Helper to generate service account name respecting .Values.$section.serviceAccount flags */}}
-{{- define "_serviceAccountName" -}}
-  {{- $sa := get (get .Values .key) "serviceAccount" }}
-  {{- if $sa.create }}
-    {{- default (printf "%s-%s" (include "airflow.serviceAccountName" .) (default .key .nameSuffix )) $sa.name | quote }}
+{{/* Helper for service account name generation */}}
+{{- define "_serviceAccountNameGen" -}}
+  {{- if .sa.create }}
+    {{- default (printf "%s-%s" (include "airflow.serviceAccountName" .) (default .key .nameSuffix )) .sa.name | quote }}
   {{- else }}
-    {{- default "default" $sa.name | quote }}
+    {{- default "default" .sa.name | quote }}
+  {{- end }}
+{{- end }}
+
+{{/* Helper to generate service account name respecting .Values.$section.serviceAccount or .Values.$section.$subSection.serviceAccount flags */}}
+{{- define "_serviceAccountName" -}}
+  {{- if .subKey }}
+    {{- $sa := get (get (get .Values .key) .subKey) "serviceAccount" -}}
+    {{- include "_serviceAccountNameGen" (merge (dict "sa" $sa "key" .key "nameSuffix" .nameSuffix) .) }}
+  {{- else }}
+    {{- $sa := get (get .Values .key) "serviceAccount" }}
+    {{- include "_serviceAccountNameGen" (merge (dict "sa" $sa "key" .key "nameSuffix" .nameSuffix) .) }}
   {{- end }}
 {{- end }}
 
@@ -679,6 +706,16 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{/* Create the name of the worker service account to use */}}
 {{- define "worker.serviceAccountName" -}}
   {{- include "_serviceAccountName" (merge (dict "key" "workers" "nameSuffix" "worker") .) -}}
+{{- end }}
+
+{{/* Create the name of the worker celery service account to use */}}
+{{- define "worker.celery.serviceAccountName" -}}
+  {{- include "_serviceAccountName" (merge (dict "key" "workers" "subKey" "celery" "nameSuffix" "worker-celery") .) -}}
+{{- end }}
+
+{{/* Create the name of the worker kubernetes service account to use */}}
+{{- define "worker.kubernetes.serviceAccountName" -}}
+  {{- include "_serviceAccountName" (merge (dict "key" "workers" "subKey" "kubernetes" "nameSuffix" "worker-kubernetes") .) -}}
 {{- end }}
 
 {{/* Create the name of the triggerer service account to use */}}

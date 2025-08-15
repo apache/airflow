@@ -21,6 +21,7 @@ import asyncio
 from unittest import mock
 
 import pytest
+import pytest_asyncio
 
 # For no Pydantic environment, we need to skip the tests
 pytest.importorskip("google.cloud.aiplatform_v1")
@@ -58,23 +59,23 @@ BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 CUSTOM_JOB_STRING = "airflow.providers.google.cloud.hooks.vertex_ai.custom_job.{}"
 
 
-@pytest.fixture
-def test_async_hook():
+@pytest_asyncio.fixture
+async def test_async_hook():
     return CustomJobAsyncHook(
         gcp_conn_id=TEST_GCP_CONN_ID,
         impersonation_chain=TEST_IMPERSONATION_CHAIN,
     )
 
 
-@pytest.fixture
-def pipeline_service_async_client():
+@pytest_asyncio.fixture
+async def pipeline_service_async_client():
     return PipelineServiceAsyncClient(
         credentials=mock.MagicMock(),
     )
 
 
-@pytest.fixture
-def job_service_async_client():
+@pytest_asyncio.fixture
+async def job_service_async_client():
     return JobServiceAsyncClient(
         credentials=mock.MagicMock(),
     )

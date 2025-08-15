@@ -25,7 +25,7 @@ import tempfile
 from typing import Any
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+from airflow.providers.git.version_compat import BaseHook
 
 log = logging.getLogger(__name__)
 

@@ -28,7 +28,7 @@ To get more information about this sensor visit :class:`~airflow.providers.sftp.
     :end-before: [END howto_operator_sftp_sensor]
 
 
-We can also use Taskflow API. It takes the same arguments as the :class:`~airflow.providers.sftp.sensors.sftp.SFTPSensor` along with -
+We can also use TaskFlow API. It takes the same arguments as the :class:`~airflow.providers.sftp.sensors.sftp.SFTPSensor` along with -
 
 op_args (optional)
     A list of positional arguments that will get unpacked when

@@ -64,7 +64,7 @@ EDGE_WORKER_HEADER = "\n".join(
 @providers_configuration_loaded
 def force_use_internal_api_on_edge_worker():
     """
-    Ensure that the environment is configured for the internal API without needing to declare it outside.
+    Ensure the environment is configured for the internal API without explicit declaration.
 
     This is only required for an Edge worker and must to be done before the Click CLI wrapper is initiated.
     That is because the CLI wrapper will attempt to establish a DB connection, which will fail before the
@@ -351,6 +351,48 @@ def remote_worker_request_shutdown(args) -> None:
     logger.info("Requested shutdown of Edge Worker host %s by %s.", args.edge_hostname, getuser())
 
 
+@cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
+def add_worker_queues(args) -> None:
+    """Add queues to an edge worker."""
+    _check_valid_db_connection()
+    _check_if_registered_edge_host(hostname=args.edge_hostname)
+    from airflow.providers.edge3.models.edge_worker import add_worker_queues
+
+    queues = args.queues.split(",") if args.queues else []
+    if not queues:
+        raise SystemExit("Error: No queues specified to add.")
+
+    try:
+        add_worker_queues(args.edge_hostname, queues)
+        logger.info("Added queues %s to Edge Worker host %s by %s.", queues, args.edge_hostname, getuser())
+    except TypeError as e:
+        logger.error(str(e))
+        raise SystemExit
+
+
+@cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
+def remove_worker_queues(args) -> None:
+    """Remove queues from an edge worker."""
+    _check_valid_db_connection()
+    _check_if_registered_edge_host(hostname=args.edge_hostname)
+    from airflow.providers.edge3.models.edge_worker import remove_worker_queues
+
+    queues = args.queues.split(",") if args.queues else []
+    if not queues:
+        raise SystemExit("Error: No queues specified to remove.")
+
+    try:
+        remove_worker_queues(args.edge_hostname, queues)
+        logger.info(
+            "Removed queues %s from Edge Worker host %s by %s.", queues, args.edge_hostname, getuser()
+        )
+    except TypeError as e:
+        logger.error(str(e))
+        raise SystemExit
+
+
 ARG_CONCURRENCY = Arg(
     ("-c", "--concurrency"),
     type=int,
@@ -378,6 +420,11 @@ ARG_MAINTENANCE_COMMENT = Arg(
 ARG_REQUIRED_MAINTENANCE_COMMENT = Arg(
     ("-c", "--comments"),
     help="Maintenance comments to report reason. Required if enabling maintenance",
+    required=True,
+)
+ARG_QUEUES_MANAGE = Arg(
+    ("-q", "--queues"),
+    help="Comma delimited list of queues to add or remove.",
     required=True,
 )
 ARG_WAIT_MAINT = Arg(
@@ -515,5 +562,23 @@ EDGE_COMMANDS: list[ActionCommand] = [
         help=remote_worker_request_shutdown.__doc__,
         func=remote_worker_request_shutdown,
         args=(ARG_REQUIRED_EDGE_HOSTNAME,),
+    ),
+    ActionCommand(
+        name="add-worker-queues",
+        help=add_worker_queues.__doc__,
+        func=add_worker_queues,
+        args=(
+            ARG_REQUIRED_EDGE_HOSTNAME,
+            ARG_QUEUES_MANAGE,
+        ),
+    ),
+    ActionCommand(
+        name="remove-worker-queues",
+        help=remove_worker_queues.__doc__,
+        func=remove_worker_queues,
+        args=(
+            ARG_REQUIRED_EDGE_HOSTNAME,
+            ARG_QUEUES_MANAGE,
+        ),
     ),
 ]

@@ -19,12 +19,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from airflow._shared.timezones.timezone import parse_timezone
 from airflow.serialization.serializers.timezone import (
     deserialize as deserialize_timezone,
     serialize as serialize_timezone,
 )
 from airflow.utils.module_loading import qualname
-from airflow.utils.timezone import parse_timezone
 
 if TYPE_CHECKING:
     import datetime
@@ -92,7 +92,7 @@ def deserialize(cls: type, version: int, data: dict | str) -> datetime.date | da
     if cls is DateTime and isinstance(data, dict):
         return DateTime.fromtimestamp(float(data[TIMESTAMP]), tz=tz)
 
-    if cls is datetime.timedelta and isinstance(data, (str, float)):
+    if cls is datetime.timedelta and isinstance(data, str | float):
         return datetime.timedelta(seconds=float(data))
 
     if cls is datetime.date and isinstance(data, str):

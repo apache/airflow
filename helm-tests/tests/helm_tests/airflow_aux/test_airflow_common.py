@@ -29,6 +29,51 @@ class TestAirflowCommon:
     """
 
     @pytest.mark.parametrize(
+        "logs_values, expected_mount",
+        [
+            (
+                {"persistence": {"enabled": True, "subPath": "test/logs"}},
+                {"subPath": "test/logs", "mountPath": "/opt/airflow/logs", "name": "logs"},
+            ),
+        ],
+    )
+    def test_logs_mount(self, logs_values, expected_mount):
+        docs = render_chart(
+            values={
+                "logs": logs_values,
+                "airflowVersion": "3.0.0",
+            },  # airflowVersion is present so webserver gets the mount
+            show_only=[
+                "templates/api-server/api-server-deployment.yaml",
+                "templates/dag-processor/dag-processor-deployment.yaml",
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+            ],
+        )
+
+        assert len(docs) == 5
+        for doc in docs:
+            assert expected_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", doc)
+
+        # check for components deployed when airflow version is < 3.0.0
+        docs = render_chart(
+            values={
+                "logs": logs_values,
+                "airflowVersion": "1.10.15",
+            },  # airflowVersion is present so webserver gets the mount
+            show_only=[
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+                "templates/webserver/webserver-deployment.yaml",
+            ],
+        )
+
+        assert len(docs) == 3
+        for doc in docs:
+            assert expected_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", doc)
+
+    @pytest.mark.parametrize(
         "dag_values, expected_mount",
         [
             (
@@ -323,6 +368,7 @@ class TestAirflowCommon:
                 "enableBuiltInSecretEnvVars": {
                     "AIRFLOW__CORE__SQL_ALCHEMY_CONN": False,
                     "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN": False,
+                    "AIRFLOW__API__SECRET_KEY": False,
                     "AIRFLOW__API_AUTH__JWT_SECRET": False,
                     "AIRFLOW__WEBSERVER__SECRET_KEY": False,
                     # the following vars only appear if remote logging is set, so disabling them in this test is kind of a no-op
@@ -370,7 +416,7 @@ class TestAirflowCommon:
             "AIRFLOW__CORE__SQL_ALCHEMY_CONN",
             "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
             "AIRFLOW_CONN_AIRFLOW_DB",
-            "AIRFLOW__WEBSERVER__SECRET_KEY",
+            "AIRFLOW__API__SECRET_KEY",
             "AIRFLOW__API_AUTH__JWT_SECRET",
             "AIRFLOW__CELERY__BROKER_URL",
         ]

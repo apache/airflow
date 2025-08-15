@@ -24,9 +24,9 @@ from unittest import mock
 import pytest
 
 from airflow.providers.standard.utils.python_virtualenv import _generate_pip_conf, _use_uv, prepare_virtualenv
-from airflow.utils.decorators import remove_task_decorator
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import remove_task_decorator
 
 
 class TestPrepareVirtualenv:
@@ -142,7 +142,8 @@ class TestPrepareVirtualenv:
 
         assert python_bin == "/VENV/bin/python"
         mock_execute_in_subprocess.assert_called_with(
-            ["/VENV/bin/pip", "install", *pip_install_options, "apache-beam[gcp]"]
+            ["/VENV/bin/pip", "install", *pip_install_options, "apache-beam[gcp]"],
+            env=mock.ANY,
         )
 
     @mock.patch("airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess")
@@ -159,7 +160,16 @@ class TestPrepareVirtualenv:
 
         assert python_bin == "/VENV/bin/python"
         mock_execute_in_subprocess.assert_called_with(
-            ["uv", "pip", "install", "--python", "/VENV/bin/python", *pip_install_options, "apache-beam[gcp]"]
+            [
+                "uv",
+                "pip",
+                "install",
+                "--python",
+                "/VENV/bin/python",
+                *pip_install_options,
+                "apache-beam[gcp]",
+            ],
+            env=mock.ANY,
         )
 
     @mock.patch("airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess")
@@ -175,7 +185,9 @@ class TestPrepareVirtualenv:
 
         mock_execute_in_subprocess.assert_any_call(["pythonVER", "-m", "venv", "/VENV"])
 
-        mock_execute_in_subprocess.assert_called_with(["/VENV/bin/pip", "install", "apache-beam[gcp]"])
+        mock_execute_in_subprocess.assert_called_with(
+            ["/VENV/bin/pip", "install", "apache-beam[gcp]"], env=mock.ANY
+        )
 
     @mock.patch("airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess")
     @conf_vars({("standard", "venv_install_method"): "uv"})
@@ -189,7 +201,8 @@ class TestPrepareVirtualenv:
         assert python_bin == "/VENV/bin/python"
 
         mock_execute_in_subprocess.assert_called_with(
-            ["uv", "pip", "install", "--python", "/VENV/bin/python", "apache-beam[gcp]"]
+            ["uv", "pip", "install", "--python", "/VENV/bin/python", "apache-beam[gcp]"],
+            env=mock.ANY,
         )
 
     @pytest.mark.parametrize(

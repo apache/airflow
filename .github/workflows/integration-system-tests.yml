@@ -104,7 +104,7 @@ jobs:
         uses: ./.github/actions/prepare_breeze_and_image
         with:
           platform: ${{ inputs.platform }}
-          python: ${{ inputs.default-python-version }}
+          python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
       - name: "Integration: core ${{ matrix.integration }}"
         env:
@@ -115,7 +115,7 @@ jobs:
         uses: ./.github/actions/post_tests_success
         with:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
-          python-version: ${{ inputs.default-python-version }}
+          python-version: "${{ inputs.default-python-version }}"
       - name: "Post Tests failure"
         uses: ./.github/actions/post_tests_failure
         if: failure()
@@ -153,7 +153,7 @@ jobs:
         uses: ./.github/actions/prepare_breeze_and_image
         with:
           platform: ${{ inputs.platform }}
-          python: ${{ inputs.default-python-version }}
+          python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
       - name: "Integration: providers ${{ matrix.integration }}"
         env:
@@ -163,7 +163,7 @@ jobs:
         uses: ./.github/actions/post_tests_success
         with:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
-          python-version: ${{ inputs.default-python-version }}
+          python-version: "${{ inputs.default-python-version }}"
       - name: "Post Tests failure"
         uses: ./.github/actions/post_tests_failure
         if: failure()
@@ -197,7 +197,7 @@ jobs:
         uses: ./.github/actions/prepare_breeze_and_image
         with:
           platform: ${{ inputs.platform }}
-          python: ${{ inputs.default-python-version }}
+          python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
       - name: "System Tests"
         run: >
@@ -206,7 +206,7 @@ jobs:
         uses: ./.github/actions/post_tests_success
         with:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
-          python-version: ${{ inputs.default-python-version }}
+          python-version: "${{ inputs.default-python-version }}"
       - name: "Post Tests failure"
         uses: ./.github/actions/post_tests_failure
         if: failure()

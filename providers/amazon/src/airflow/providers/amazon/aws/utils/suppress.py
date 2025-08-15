@@ -28,10 +28,9 @@ Module for suppress errors in Amazon Provider.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from functools import wraps
-from typing import Callable, TypeVar
-
-from airflow.typing_compat import ParamSpec
+from typing import ParamSpec, TypeVar
 
 PS = ParamSpec("PS")
 RT = TypeVar("RT")

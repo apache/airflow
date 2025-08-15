@@ -23,9 +23,9 @@ import {
   useTaskInstanceServiceDeleteTaskInstance,
   useTaskInstanceServiceGetTaskInstanceKey,
   useTaskInstanceServiceGetTaskInstancesKey,
-  UseGridServiceGridDataKeyFn,
   useDagRunServiceGetDagRunsKey,
   UseDagRunServiceGetDagRunKeyFn,
+  useHumanInTheLoopServiceGetHitlDetailsKey,
 } from "openapi/queries";
 import { toaster } from "src/components/ui";
 
@@ -61,7 +61,7 @@ export const useDeleteTaskInstance = ({
       [useDagRunServiceGetDagRunsKey],
       [useTaskInstanceServiceGetTaskInstancesKey],
       [useTaskInstanceServiceGetTaskInstanceKey, { dagId, dagRunId, mapIndex, taskId }],
-      UseGridServiceGridDataKeyFn({ dagId }, [{ dagId }]),
+      [useHumanInTheLoopServiceGetHitlDetailsKey],
     ];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));

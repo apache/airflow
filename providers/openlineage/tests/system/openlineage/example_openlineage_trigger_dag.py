@@ -64,6 +64,8 @@ with DAG(
     schedule=None,
     catchup=False,
     tags=["first", "second@", "with'quote", 'z"e'],
+    doc_md="MD DAG doc",
+    description="DAG description",
     default_args={"retries": 0},
 ) as child_dag:
     do_nothing_task = BashOperator(task_id="do_nothing_task", bash_command="sleep 10;")

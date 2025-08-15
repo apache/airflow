@@ -19,11 +19,17 @@
       "host": "Host",
       "port": "Port"
     },
+    "connection_few": "Połączenia",
+    "connection_many": "Połączeń",
     "connection_one": "Połączenie",
     "connection_other": "Połączenia",
     "delete": {
+      "deleteConnection_few": "Usuń {{count}} połączenia",
+      "deleteConnection_many": "Usuń {{count}} połączeń",
       "deleteConnection_one": "Usuń 1 połączenie",
       "deleteConnection_other": "Usuń {{count}} połączenia",
+      "firstConfirmMessage_few": "Zamierzasz usunąć następujące połączenia:",
+      "firstConfirmMessage_many": "Zamierzasz usunąć następujące połączenia:",
       "firstConfirmMessage_one": "Zamierzasz usunąć następujące połączenie:",
       "firstConfirmMessage_other": "Zamierzasz usunąć następujące połączenia:",
       "title": "Usuń połączenie"
@@ -36,6 +42,7 @@
       "extraFields": "Dodatkowe pola",
       "extraFieldsJson": "Dodatkowe pola JSON",
       "helperText": "Brakuje typu połączenia? Upewnij się, że zainstalowałeś odpowiedniego dostawcę.",
+      "helperTextForRedactedFields": "Ukryte pola ('***') nie bedą zapisane jeśli nie zostaną zmienione.",
       "selectConnectionType": "Wybierz typ połączenia",
       "standardFields": "Standardowe pola"
     },
@@ -78,6 +85,8 @@
     "columns": {
       "source": "Źródło"
     },
+    "importError_few": "Błędy importu wtyczek",
+    "importError_many": "Błędów importu wtyczek",
     "importError_one": "Błąd importu wtyczki",
     "importError_other": "Błędy importu wtyczek",
     "searchPlaceholder": "Szukaj po pliku"
@@ -99,6 +108,8 @@
       "slots": "Miejsca"
     },
     "noPoolsFound": "Nie znaleziono pul",
+    "pool_few": "Pule",
+    "pool_many": "Puli",
     "pool_one": "Pula",
     "pool_other": "Pule",
     "searchPlaceholder": "Szukaj pul",
@@ -120,8 +131,12 @@
       "isEncrypted": "Zaszyfrowana"
     },
     "delete": {
+      "deleteVariable_few": "Usuń {{count}} zmienne",
+      "deleteVariable_many": "Usuń {{count}} zmiennych",
       "deleteVariable_one": "Usuń 1 zmienną",
       "deleteVariable_other": "Usuń {{count}} zmienne",
+      "firstConfirmMessage_few": "Zamierzasz usunąć następujące zmienne:",
+      "firstConfirmMessage_many": "Zamierzasz usunąć następujące zmienne:",
       "firstConfirmMessage_one": "Zamierzasz usunąć następującą zmienną:",
       "firstConfirmMessage_other": "Zamierzasz usunąć następujące zmienne:",
       "title": "Usuń zmienną",
@@ -160,6 +175,8 @@
     },
     "noRowsMessage": "Nie znaleziono zmiennych",
     "searchPlaceholder": "Szukaj kluczy",
+    "variable_few": "Zmienne",
+    "variable_many": "Zmiennych",
     "variable_one": "Zmienna",
     "variable_other": "Zmienne"
   }

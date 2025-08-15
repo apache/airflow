@@ -27,6 +27,38 @@
 Changelog
 ---------
 
+5.2.2
+.....
+
+Misc
+~~~~
+
+* ``Remove mongomock dependency from mongo provider and introduce MongoDbContainer testcontainer for testing. (#53773)``
+* ``Fix: ignore connection schema when schema is none in mongo hook (#53780)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Move all BaseHook usages to version_compat in MongoDB (#52857)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+5.2.1
+.....
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Replace models.BaseOperator to Task SDK one for Mongo (#52566)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Use BaseSensorOperator from task sdk in providers (#52296)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove pytest.mark.db_test from mongo provider (#52047)``
+
 5.2.0
 .....
 

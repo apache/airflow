@@ -37,7 +37,7 @@ EXPECTED_SEARCH_RETURN = {"status": "test"}
 
 class FakeDocument(Document):
     # TODO: FIXME - this Fake document has something tricky about typing
-    title = Text(fields={"raw": Keyword()})  # type: ignore[call-arg]
+    title = Text(fields={"raw": Keyword()})
     author = Text()
     published = Text()
 

@@ -34,7 +34,6 @@ const mockDag = {
   bundle_version: "1",
   dag_display_name: "nested_groups",
   dag_id: "nested_groups",
-  deadline: null,
   description: null,
   file_token: "Ii9maWxlcy9kYWdzL25lc3RlZF90YXNrX2dyb3Vwcy5weSI.G3EkdxmDUDQsVb7AIZww1TSGlFE",
   fileloc: "/files/dags/nested_task_groups.py",
@@ -89,10 +88,10 @@ describe("DagCard", () => {
 
   it("DagCard should not show +X more text if there is only +1 over the limit", () => {
     const tags = [
-      { dag_id: "id", name: "tag1" },
-      { dag_id: "id", name: "tag2" },
-      { dag_id: "id", name: "tag3" },
-      { dag_id: "id", name: "tag4" },
+      { dag_display_name: "id", dag_id: "id", name: "tag1" },
+      { dag_display_name: "id", dag_id: "id", name: "tag2" },
+      { dag_display_name: "id", dag_id: "id", name: "tag3" },
+      { dag_display_name: "id", dag_id: "id", name: "tag4" },
     ] satisfies Array<DagTagResponse>;
 
     const expandedMockDag = {
@@ -109,11 +108,11 @@ describe("DagCard", () => {
 
   it("DagCard should show +X more text if there are more than 3 tags", () => {
     const tags = [
-      { dag_id: "id", name: "tag1" },
-      { dag_id: "id", name: "tag2" },
-      { dag_id: "id", name: "tag3" },
-      { dag_id: "id", name: "tag4" },
-      { dag_id: "id", name: "tag5" },
+      { dag_display_name: "id", dag_id: "id", name: "tag1" },
+      { dag_display_name: "id", dag_id: "id", name: "tag2" },
+      { dag_display_name: "id", dag_id: "id", name: "tag3" },
+      { dag_display_name: "id", dag_id: "id", name: "tag4" },
+      { dag_display_name: "id", dag_id: "id", name: "tag5" },
     ] satisfies Array<DagTagResponse>;
 
     const expandedMockDag = {

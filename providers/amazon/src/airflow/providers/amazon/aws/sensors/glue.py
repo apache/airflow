@@ -105,6 +105,7 @@ class GlueJobSensor(AwsBaseSensor[GlueJobHook]):
                     aws_conn_id=self.aws_conn_id,
                     waiter_delay=int(self.poke_interval),
                     waiter_max_attempts=self.max_retries,
+                    region_name=self.region_name,
                 ),
                 method_name="execute_complete",
             )

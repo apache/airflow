@@ -24,11 +24,10 @@ import {
   UseDagRunServiceGetDagRunsKeyFn,
   UseDagServiceGetDagDetailsKeyFn,
   useDagServiceGetDagsUi,
-  UseGridServiceGridDataKeyFn,
   UseTaskInstanceServiceGetTaskInstancesKeyFn,
-  useGridServiceGetLatestRun,
   UseGridServiceGetDagStructureKeyFn,
   UseGridServiceGetGridRunsKeyFn,
+  useDagServiceGetLatestRunInfo,
 } from "openapi/queries";
 
 import { useConfig } from "./useConfig";
@@ -38,14 +37,12 @@ export const useRefreshOnNewDagRuns = (dagId: string, hasPendingRuns: boolean | 
   const previousDagRunIdRef = useRef<string>();
   const autoRefreshInterval = useConfig("auto_refresh_interval") as number;
 
-  const { data } = useGridServiceGetLatestRun({ dagId }, undefined, {
+  const { data: latestDagRun } = useDagServiceGetLatestRunInfo({ dagId }, undefined, {
     enabled: Boolean(dagId) && !hasPendingRuns,
     refetchInterval: Boolean(autoRefreshInterval) ? autoRefreshInterval * 1000 : 5000,
   });
 
   useEffect(() => {
-    const latestDagRun = data;
-
     const latestDagRunId = latestDagRun?.run_id;
 
     if ((latestDagRunId ?? "") && previousDagRunIdRef.current !== latestDagRunId) {
@@ -57,7 +54,6 @@ export const useRefreshOnNewDagRuns = (dagId: string, hasPendingRuns: boolean | 
         UseDagServiceGetDagDetailsKeyFn({ dagId }, [{ dagId }]),
         UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
         UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
-        UseGridServiceGridDataKeyFn({ dagId }, [{ dagId }]),
         UseGridServiceGetDagStructureKeyFn({ dagId }, [{ dagId }]),
         UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
       ];
@@ -66,5 +62,5 @@ export const useRefreshOnNewDagRuns = (dagId: string, hasPendingRuns: boolean | 
         void queryClient.invalidateQueries({ queryKey: key });
       });
     }
-  }, [data, dagId, queryClient]);
+  }, [latestDagRun, dagId, queryClient]);
 };

@@ -37,33 +37,37 @@ from requests import exceptions as requests_exceptions
 from airflow.exceptions import AirflowException
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
-GET_CLUSTER_ENDPOINT = ("GET", "api/2.0/clusters/get")
-RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/restart")
-START_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/start")
-TERMINATE_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/delete")
+GET_CLUSTER_ENDPOINT = ("GET", "2.0/clusters/get")
+RESTART_CLUSTER_ENDPOINT = ("POST", "2.0/clusters/restart")
+START_CLUSTER_ENDPOINT = ("POST", "2.0/clusters/start")
+TERMINATE_CLUSTER_ENDPOINT = ("POST", "2.0/clusters/delete")
 
-CREATE_ENDPOINT = ("POST", "api/2.1/jobs/create")
-RESET_ENDPOINT = ("POST", "api/2.1/jobs/reset")
-UPDATE_ENDPOINT = ("POST", "api/2.1/jobs/update")
-RUN_NOW_ENDPOINT = ("POST", "api/2.1/jobs/run-now")
-SUBMIT_RUN_ENDPOINT = ("POST", "api/2.1/jobs/runs/submit")
-GET_RUN_ENDPOINT = ("GET", "api/2.1/jobs/runs/get")
-CANCEL_RUN_ENDPOINT = ("POST", "api/2.1/jobs/runs/cancel")
-DELETE_RUN_ENDPOINT = ("POST", "api/2.1/jobs/runs/delete")
-REPAIR_RUN_ENDPOINT = ("POST", "api/2.1/jobs/runs/repair")
-OUTPUT_RUNS_JOB_ENDPOINT = ("GET", "api/2.1/jobs/runs/get-output")
-CANCEL_ALL_RUNS_ENDPOINT = ("POST", "api/2.1/jobs/runs/cancel-all")
+CREATE_ENDPOINT = ("POST", "2.1/jobs/create")
+RESET_ENDPOINT = ("POST", "2.1/jobs/reset")
+UPDATE_ENDPOINT = ("POST", "2.1/jobs/update")
+RUN_NOW_ENDPOINT = ("POST", "2.1/jobs/run-now")
+SUBMIT_RUN_ENDPOINT = ("POST", "2.1/jobs/runs/submit")
+GET_RUN_ENDPOINT = ("GET", "2.1/jobs/runs/get")
+CANCEL_RUN_ENDPOINT = ("POST", "2.1/jobs/runs/cancel")
+DELETE_RUN_ENDPOINT = ("POST", "2.1/jobs/runs/delete")
+REPAIR_RUN_ENDPOINT = ("POST", "2.1/jobs/runs/repair")
+OUTPUT_RUNS_JOB_ENDPOINT = ("GET", "2.1/jobs/runs/get-output")
+CANCEL_ALL_RUNS_ENDPOINT = ("POST", "2.1/jobs/runs/cancel-all")
 
-INSTALL_LIBS_ENDPOINT = ("POST", "api/2.0/libraries/install")
-UNINSTALL_LIBS_ENDPOINT = ("POST", "api/2.0/libraries/uninstall")
+INSTALL_LIBS_ENDPOINT = ("POST", "2.0/libraries/install")
+UNINSTALL_LIBS_ENDPOINT = ("POST", "2.0/libraries/uninstall")
+UPDATE_REPO_ENDPOINT = ("PATCH", "2.0/repos/")
+DELETE_REPO_ENDPOINT = ("DELETE", "2.0/repos/")
+CREATE_REPO_ENDPOINT = ("POST", "2.0/repos")
 
-LIST_JOBS_ENDPOINT = ("GET", "api/2.1/jobs/list")
-LIST_PIPELINES_ENDPOINT = ("GET", "api/2.0/pipelines")
+LIST_JOBS_ENDPOINT = ("GET", "2.1/jobs/list")
+LIST_PIPELINES_ENDPOINT = ("GET", "2.0/pipelines")
+LIST_SQL_ENDPOINTS_ENDPOINT = ("GET", "2.0/sql/endpoints")
 
-WORKSPACE_GET_STATUS_ENDPOINT = ("GET", "api/2.0/workspace/get-status")
+WORKSPACE_GET_STATUS_ENDPOINT = ("GET", "2.0/workspace/get-status")
 
-SPARK_VERSIONS_ENDPOINT = ("GET", "api/2.0/clusters/spark-versions")
-SQL_STATEMENTS_ENDPOINT = "api/2.0/sql/statements"
+SPARK_VERSIONS_ENDPOINT = ("GET", "2.0/clusters/spark-versions")
+SQL_STATEMENTS_ENDPOINT = "2.0/sql/statements"
 
 
 class RunLifeCycleState(Enum):
@@ -294,6 +298,16 @@ class DatabricksHook(BaseDatabricksHook):
 
         :param json: The data used in the new_settings of the request to the ``reset`` endpoint.
         """
+        access_control_list = json.get("access_control_list", None)
+        if access_control_list:
+            self.log.info(
+                "Updating job permission for Databricks workflow job id %s with access_control_list %s",
+                job_id,
+                access_control_list,
+            )
+            acl_json = {"access_control_list": access_control_list}
+            self.update_job_permission(job_id=int(job_id), json=acl_json)
+
         self._do_api_call(RESET_ENDPOINT, {"job_id": job_id, "new_settings": json})
 
     def update_job(self, job_id: str, json: dict) -> None:
@@ -718,7 +732,8 @@ class DatabricksHook(BaseDatabricksHook):
         :param json: payload
         :return: metadata from update
         """
-        repos_endpoint = ("PATCH", f"api/2.0/repos/{repo_id}")
+        method, base_path = UPDATE_REPO_ENDPOINT
+        repos_endpoint = (method, f"{base_path}/{repo_id}")
         return self._do_api_call(repos_endpoint, json)
 
     def delete_repo(self, repo_id: str):
@@ -728,7 +743,8 @@ class DatabricksHook(BaseDatabricksHook):
         :param repo_id: ID of Databricks Repos
         :return:
         """
-        repos_endpoint = ("DELETE", f"api/2.0/repos/{repo_id}")
+        method, base_path = DELETE_REPO_ENDPOINT
+        repos_endpoint = (method, f"{base_path}/{repo_id}")
         self._do_api_call(repos_endpoint)
 
     def create_repo(self, json: dict[str, Any]) -> dict:
@@ -738,8 +754,7 @@ class DatabricksHook(BaseDatabricksHook):
         :param json: payload
         :return:
         """
-        repos_endpoint = ("POST", "api/2.0/repos")
-        return self._do_api_call(repos_endpoint, json)
+        return self._do_api_call(CREATE_REPO_ENDPOINT, json)
 
     def get_repo_by_path(self, path: str) -> str | None:
         """
@@ -766,7 +781,7 @@ class DatabricksHook(BaseDatabricksHook):
         :param json: payload
         :return: json containing permission specification
         """
-        return self._do_api_call(("PATCH", f"api/2.0/permissions/jobs/{job_id}"), json)
+        return self._do_api_call(("PATCH", f"2.0/permissions/jobs/{job_id}"), json)
 
     def post_sql_statement(self, json: dict[str, Any]) -> str:
         """

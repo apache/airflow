@@ -21,10 +21,10 @@ import csv
 import os
 from collections.abc import Sequence
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
-from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
+from airflow.providers.microsoft.azure.version_compat import BaseOperator
 from airflow.providers.oracle.hooks.oracle import OracleHook
 
 if TYPE_CHECKING:
@@ -45,6 +45,7 @@ class OracleToAzureDataLakeOperator(BaseOperator):
     :param encoding: encoding type for the file.
     :param quotechar: Character to use in quoting.
     :param quoting: Quoting strategy. See csv library for more information.
+       It can take on any of the csv.QUOTE_* constants.
     """
 
     template_fields: Sequence[str] = ("filename", "sql", "sql_params")
@@ -63,7 +64,7 @@ class OracleToAzureDataLakeOperator(BaseOperator):
         delimiter: str = ",",
         encoding: str = "utf-8",
         quotechar: str = '"',
-        quoting: int = csv.QUOTE_MINIMAL,
+        quoting: Literal[0, 1, 2, 3] = csv.QUOTE_MINIMAL,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -98,7 +99,7 @@ class OracleToAzureDataLakeOperator(BaseOperator):
 
         self.log.info("Dumping Oracle query results to local file")
         conn = oracle_hook.get_conn()
-        cursor = conn.cursor()  # type: ignore[attr-defined]
+        cursor = conn.cursor()
         cursor.execute(self.sql, self.sql_params)
 
         with TemporaryDirectory(prefix="airflow_oracle_to_azure_op_") as temp:
@@ -108,4 +109,4 @@ class OracleToAzureDataLakeOperator(BaseOperator):
                 os.path.join(temp, self.filename), os.path.join(self.azure_data_lake_path, self.filename)
             )
         cursor.close()
-        conn.close()  # type: ignore[attr-defined]
+        conn.close()

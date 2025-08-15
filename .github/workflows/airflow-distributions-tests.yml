@@ -61,11 +61,16 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether local venv should be used for tests (true/false)"
         required: true
         type: string
+      test-timeout:
+        required: false
+        type: number
+        default: 60
+
 permissions:
   contents: read
 jobs:
   distributions-tests:
-    timeout-minutes: 80
+    timeout-minutes: ${{ fromJSON(inputs.test-timeout) }}
     name: ${{ inputs.distribution-name }}:P${{ matrix.python-version }} tests
     runs-on: ${{ fromJSON(inputs.runners) }}
     strategy:
@@ -100,8 +105,6 @@ jobs:
         if: ${{ inputs.use-local-venv == 'true' }}
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        with:
-          use-uv: ${{ inputs.use-uv }}
         if: ${{ inputs.use-local-venv == 'true' }}
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*

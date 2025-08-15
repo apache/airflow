@@ -177,7 +177,7 @@ class Pool(Base):
         pool_rows = session.execute(query)
         for pool_name, total_slots, include_deferred in pool_rows:
             if total_slots == -1:
-                total_slots = float("inf")  # type: ignore
+                total_slots = float("inf")
             pools[pool_name] = PoolStats(
                 total=total_slots, running=0, queued=0, open=0, deferred=0, scheduled=0
             )

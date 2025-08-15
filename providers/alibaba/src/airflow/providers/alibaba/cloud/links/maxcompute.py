@@ -21,8 +21,8 @@ from typing import TYPE_CHECKING
 from airflow.providers.alibaba.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
-    from airflow.models import BaseOperator
     from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.providers.alibaba.version_compat import BaseOperator
     from airflow.utils.context import Context
 
 if AIRFLOW_V_3_0_PLUS:
@@ -54,18 +54,15 @@ class MaxComputeLogViewLink(BaseOperatorLink):
     @staticmethod
     def persist(
         context: Context,
-        task_instance: BaseOperator,
         log_view_url: str,
     ):
         """
         Persist the log view URL to XCom for later retrieval.
 
         :param context: The context of the task instance.
-        :param task_instance: The task instance.
         :param log_view_url: The log view URL to persist.
         """
-        task_instance.xcom_push(
-            context,
+        context["task_instance"].xcom_push(
             key=MaxComputeLogViewLink.key,
             value=log_view_url,
         )
