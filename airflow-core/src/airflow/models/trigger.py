@@ -324,6 +324,11 @@ class Trigger(Base):
         capacity -= count
 
         if capacity <= 0:
+            log.info(
+                "Triggerer %s has reached the maximum capacity triggers assigned (%d). Not assigning any more triggers",
+                triggerer_id,
+                count,
+            )
             return
 
         alive_triggerer_ids = select(Job.id).where(
