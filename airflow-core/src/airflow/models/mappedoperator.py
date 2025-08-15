@@ -308,8 +308,33 @@ class MappedOperator(DAGNode):
     def on_failure_fail_dagrun(self, v) -> None:
         self.partial_kwargs["on_failure_fail_dagrun"] = bool(v)
 
-    def get_serialized_fields(self):
-        return TaskSDKMappedOperator.get_serialized_fields()
+    @classmethod
+    def get_serialized_fields(cls):
+        return frozenset(
+            {
+                "_disallow_kwargs_override",
+                "_expand_input_attr",
+                "_is_sensor",
+                "_needs_expansion",
+                "_operator_name",
+                "_task_module",
+                "downstream_task_ids",
+                "end_date",
+                "operator_extra_links",
+                "params",
+                "partial_kwargs",
+                "start_date",
+                "start_from_trigger",
+                "start_trigger_args",
+                "task_id",
+                "task_type",
+                "template_ext",
+                "template_fields",
+                "template_fields_renderers",
+                "ui_color",
+                "ui_fgcolor",
+            }
+        )
 
     @functools.cached_property
     def operator_extra_link_dict(self) -> dict[str, BaseOperatorLink]:

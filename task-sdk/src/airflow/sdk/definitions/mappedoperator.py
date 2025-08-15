@@ -368,6 +368,10 @@ class MappedOperator(AbstractOperator):
             "_is_setup",
             "_is_teardown",
             "_on_failure_fail_dagrun",
+            "operator_class",
+            "_needs_expansion",
+            "partial_kwargs",
+            "operator_extra_links",
         }
 
     @property
