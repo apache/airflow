@@ -30,6 +30,7 @@ from airflow.sdk import timezone
 from airflow.sdk.bases.sensor import BaseSensorOperator, PokeReturnValue, poke_mode_only
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.exceptions import (
+    AirflowException,
     AirflowFailException,
     AirflowRescheduleException,
     AirflowSensorTimeout,
@@ -64,7 +65,7 @@ class DummyAsyncSensor(BaseSensorOperator):
         self.return_value = return_value
 
     def execute_complete(self, context, event=None):
-        raise RuntimeError("Should be skipped")
+        raise AirflowException("Should be skipped")
 
 
 class DummySensorWithXcomValue(BaseSensorOperator):
@@ -274,7 +275,7 @@ class TestBaseSensor:
         assert state == State.SUCCESS
 
     def test_invalid_mode(self):
-        with pytest.raises(RuntimeError):
+        with pytest.raises(AirflowException):
             DummySensor(task_id="a", mode="foo")
 
     def test_ok_with_custom_reschedule_exception(self, make_sensor, run_task):
@@ -311,7 +312,7 @@ class TestBaseSensor:
         negative_poke_interval = -10
         non_number_poke_interval = "abcd"
         positive_poke_interval = 10
-        with pytest.raises(RuntimeError):
+        with pytest.raises(AirflowException):
             DummySensor(
                 task_id="test_sensor_task_1",
                 return_value=None,
@@ -319,7 +320,7 @@ class TestBaseSensor:
                 timeout=25,
             )
 
-        with pytest.raises(RuntimeError):
+        with pytest.raises(AirflowException):
             DummySensor(
                 task_id="test_sensor_task_2",
                 return_value=None,
@@ -335,12 +336,12 @@ class TestBaseSensor:
         negative_timeout = -25
         non_number_timeout = "abcd"
         positive_timeout = 25
-        with pytest.raises(RuntimeError):
+        with pytest.raises(AirflowException):
             DummySensor(
                 task_id="test_sensor_task_1", return_value=None, poke_interval=10, timeout=negative_timeout
             )
 
-        with pytest.raises(RuntimeError):
+        with pytest.raises(AirflowException):
             DummySensor(
                 task_id="test_sensor_task_2", return_value=None, poke_interval=10, timeout=non_number_timeout
             )

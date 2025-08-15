@@ -33,6 +33,7 @@ import methodtools
 from airflow.sdk.exceptions import (
     AirflowException,
     AirflowDagCycleException,
+    AirflowException,
     DuplicateTaskIdFound,
     TaskAlreadyInTaskGroup,
 )
