@@ -57,10 +57,18 @@ class _PostgresServerSideCursorDecorator:
 
     def __next__(self):
         """Fetch next row from the cursor."""
-        if not USE_PSYCOPG3:
+        if USE_PSYCOPG3:
             if self.rows:
                 return self.rows.pop()
             self.initialized = True
+            row = self.cursor.fetchone()
+            if row is None:
+                raise StopIteration
+            return row
+        # psycopg2
+        if self.rows:
+            return self.rows.pop()
+        self.initialized = True
         return next(self.cursor)
 
     @property
@@ -154,8 +162,6 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
             register_default_adapters(conn)
 
             if self.use_server_side_cursor:
-                import uuid
-
                 cursor_name = f"airflow_{self.task_id.replace('-', '_')}_{uuid.uuid4().hex}"[:63]
                 cursor = conn.cursor(name=cursor_name)
                 cursor.itersize = self.cursor_itersize
