@@ -247,6 +247,11 @@ class TestEdgeExecutor:
 
         # Prepare some data
         with create_session() as session:
+            # Clear existing workers to avoid unique constraint violation
+            session.query(EdgeWorkerModel).delete()
+            session.commit()
+
+            # Add workers with different states
             for worker_name, state, last_heartbeat in [
                 (
                     "inactive_timed_out_worker",
@@ -338,3 +343,95 @@ class TestEdgeExecutor:
         with create_session() as session:
             jobs = session.query(EdgeJobModel).all()
             assert len(jobs) == 1
+
+    @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="API only available in Airflow <3.0")
+    def test_execute_async_updates_existing_job(self):
+        executor, key = self.get_test_executor()
+
+        # First insert a job with the same key
+        with create_session() as session:
+            session.add(
+                EdgeJobModel(
+                    dag_id=key.dag_id,
+                    run_id=key.run_id,
+                    task_id=key.task_id,
+                    map_index=key.map_index,
+                    try_number=key.try_number,
+                    state=TaskInstanceState.SCHEDULED,
+                    queue="default",
+                    concurrency_slots=1,
+                    command="old-command",
+                    last_update=timezone.utcnow(),
+                )
+            )
+            session.commit()
+
+        # Trigger execute_async which should update the existing job
+        executor.edge_queued_tasks = deepcopy(executor.queued_tasks)
+        executor.execute_async(key=key, command=["airflow", "tasks", "run", "new", "command"])
+
+        with create_session() as session:
+            jobs = session.query(EdgeJobModel).all()
+            assert len(jobs) == 1
+            job = jobs[0]
+            assert job.state == TaskInstanceState.QUEUED
+            assert job.command != "old-command"
+            assert "new" in job.command
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="API only available in Airflow 3.0+")
+    def test_queue_workload_updates_existing_job(self):
+        from uuid import uuid4
+
+        from airflow.executors.workloads import ExecuteTask, TaskInstance
+
+        executor = self.get_test_executor()[0]
+
+        key = TaskInstanceKey(dag_id="mock", run_id="mock", task_id="mock", map_index=-1, try_number=1)
+
+        # Insert an existing job
+        with create_session() as session:
+            session.add(
+                EdgeJobModel(
+                    dag_id=key.dag_id,
+                    task_id=key.task_id,
+                    run_id=key.run_id,
+                    map_index=key.map_index,
+                    try_number=key.try_number,
+                    state=TaskInstanceState.SCHEDULED,
+                    queue="default",
+                    command="old-command",
+                    concurrency_slots=1,
+                    last_update=timezone.utcnow(),
+                )
+            )
+            session.commit()
+
+        # Queue a workload with same key
+        workload = ExecuteTask(
+            token="mock",
+            ti=TaskInstance(
+                id=uuid4(),
+                task_id=key.task_id,
+                dag_id=key.dag_id,
+                run_id=key.run_id,
+                try_number=key.try_number,
+                map_index=key.map_index,
+                pool_slots=1,
+                queue="updated-queue",
+                priority_weight=1,
+                start_date=timezone.utcnow(),
+                dag_version_id=uuid4(),
+            ),
+            dag_rel_path="mock.py",
+            log_path="mock.log",
+            bundle_info={"name": "n/a", "version": "no matter"},
+        )
+
+        executor.queue_workload(workload=workload)
+
+        with create_session() as session:
+            jobs = session.query(EdgeJobModel).all()
+            assert len(jobs) == 1
+            job = jobs[0]
+            assert job.queue == "updated-queue"
+            assert job.command != "old-command"

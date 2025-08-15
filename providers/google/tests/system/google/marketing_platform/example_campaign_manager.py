@@ -34,8 +34,6 @@ import uuid
 from datetime import datetime
 from typing import Any, cast
 
-from google.api_core.exceptions import NotFound
-
 try:
     from airflow.sdk import task
 except ImportError:
@@ -43,8 +41,8 @@ except ImportError:
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
-from airflow.providers.google.cloud.hooks.secret_manager import GoogleCloudSecretManagerHook
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.providers.google.common.utils.get_secret import get_secret
 from airflow.providers.google.marketing_platform.operators.campaign_manager import (
     GoogleCampaignManagerBatchInsertConversionsOperator,
     GoogleCampaignManagerBatchUpdateConversionsOperator,
@@ -139,13 +137,6 @@ CONVERSION_UPDATE = {
 
 
 log = logging.getLogger(__name__)
-
-
-def get_secret(secret_id: str) -> str:
-    hook = GoogleCloudSecretManagerHook()
-    if hook.secret_exists(secret_id=secret_id):
-        return hook.access_secret(secret_id=secret_id).payload.data.decode().strip()
-    raise NotFound("The secret '%s' not found", secret_id)
 
 
 with DAG(

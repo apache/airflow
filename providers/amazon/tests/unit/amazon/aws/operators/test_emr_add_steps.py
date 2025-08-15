@@ -104,10 +104,11 @@ class TestEmrAddStepsOperator:
             )
 
     @pytest.mark.db_test
-    def test_render_template(self, session, clean_dags_and_dagruns):
+    def test_render_template(self, session, clean_dags_dagruns_and_dagbundles, testing_dag_bundle):
         if AIRFLOW_V_3_0_PLUS:
-            self.operator.dag.sync_to_db()
-            SerializedDagModel.write_dag(self.operator.dag, bundle_name="testing")
+            bundle_name = "testing"
+            DAG.bulk_write_to_db(bundle_name, None, [self.operator.dag])
+            SerializedDagModel.write_dag(self.operator.dag, bundle_name=bundle_name)
             from airflow.models.dag_version import DagVersion
 
             dag_version = DagVersion.get_latest_version(self.operator.dag.dag_id)
@@ -151,7 +152,9 @@ class TestEmrAddStepsOperator:
         assert self.operator.steps == expected_args
 
     @pytest.mark.db_test
-    def test_render_template_from_file(self, mocked_hook_client, session, clean_dags_and_dagruns):
+    def test_render_template_from_file(
+        self, mocked_hook_client, session, clean_dags_dagruns_and_dagbundles, testing_dag_bundle
+    ):
         dag = DAG(
             dag_id="test_file",
             schedule=None,
@@ -179,8 +182,9 @@ class TestEmrAddStepsOperator:
             do_xcom_push=False,
         )
         if AIRFLOW_V_3_0_PLUS:
-            dag.sync_to_db()
-            SerializedDagModel.write_dag(dag, bundle_name="testing")
+            bundle_name = "testing"
+            DAG.bulk_write_to_db(bundle_name, None, [dag])
+            SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
             from airflow.models.dag_version import DagVersion
 
             dag_version = DagVersion.get_latest_version(dag.dag_id)

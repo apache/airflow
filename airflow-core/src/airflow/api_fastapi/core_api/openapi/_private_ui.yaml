@@ -216,6 +216,22 @@ paths:
           - $ref: '#/components/schemas/DagRunState'
           - type: 'null'
           title: Last Dag Run State
+      - name: bundle_name
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Name
+      - name: bundle_version
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
       - name: order_by
         in: query
         required: false
@@ -1872,6 +1888,7 @@ components:
     MenuItem:
       type: string
       enum:
+      - Required Actions
       - Assets
       - Audit Log
       - Config

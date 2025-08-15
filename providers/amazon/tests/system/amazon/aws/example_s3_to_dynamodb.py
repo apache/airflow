@@ -87,7 +87,7 @@ def wait_for_bucket(s3_bucket_name):
 def delete_dynamodb_table(table_name: str):
     boto3.resource("dynamodb").Table(table_name).delete()
     boto3.client("dynamodb").get_waiter("table_not_exists").wait(
-        TableName=table_name, WaiterConfig={"Delay": 10, "MaxAttempts": 10}
+        TableName=table_name, WaiterConfig={"Delay": 10, "MaxAttempts": 30}
     )
 
 

@@ -20,7 +20,7 @@ import pytest
 
 from airflow.providers.apache.kafka.triggers.await_message import AwaitMessageTrigger
 
-pytest.importorskip("airflow.providers.common.messaging.providers.base_provider.BaseMessageQueueProvider")
+pytest.importorskip("airflow.providers.common.messaging.providers.base_provider")
 
 MOCK_KAFKA_TRIGGER_APPLY_FUNCTION = "mock_kafka_trigger_apply_function"
 

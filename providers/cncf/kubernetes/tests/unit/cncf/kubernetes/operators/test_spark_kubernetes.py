@@ -28,6 +28,7 @@ from uuid import uuid4
 
 import pendulum
 import pytest
+import pytest_asyncio
 import yaml
 from kubernetes.client import models as k8s
 
@@ -45,8 +46,8 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
 
 
-@pytest.fixture(autouse=True, scope="module")
-def patch_pod_manager_methods():
+@pytest_asyncio.fixture(autouse=True, scope="function")
+async def patch_pod_manager_methods():
     # Patch watch_pod_events
     patch_watch_pod_events = mock.patch(f"{POD_MANAGER_CLASS}.watch_pod_events", new_callable=mock.AsyncMock)
     mock_watch_pod_events = patch_watch_pod_events.start()

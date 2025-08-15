@@ -57,6 +57,7 @@ from airflow.models.hitl import HITLDetail
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.variable import Variable
+from airflow.models.xcom import XComModel
 from airflow.typing_compat import Self
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -115,7 +116,9 @@ class OffsetFilter(BaseParam[NonNegativeInt]):
 class _FavoriteFilter(BaseParam[bool]):
     """Filter DAGs by favorite status."""
 
-    user_id: str
+    def __init__(self, user_id: str, value: T | None = None, skip_none: bool = True) -> None:
+        super().__init__(skip_none=skip_none)
+        self.user_id = user_id
 
     def to_orm(self, select_stmt: Select) -> Select:
         if self.value is None and self.skip_none:
@@ -138,8 +141,7 @@ class _FavoriteFilter(BaseParam[bool]):
 
     @classmethod
     def depends(cls, user: GetUserDep, is_favorite: bool | None = Query(None)) -> _FavoriteFilter:
-        instance = cls().set_value(is_favorite)
-        instance.user_id = str(user.get_id())
+        instance = cls(user_id=str(user.get_id())).set_value(is_favorite)
         return instance
 
 
@@ -592,6 +594,14 @@ QueryDagIdPatternSearch = Annotated[
 QueryDagDisplayNamePatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(DagModel.dag_display_name, "dag_display_name_pattern"))
 ]
+QueryBundleNameFilter = Annotated[
+    FilterParam[str | None],
+    Depends(filter_param_factory(DagModel.bundle_name, str | None, filter_name="bundle_name")),
+]
+QueryBundleVersionFilter = Annotated[
+    FilterParam[str | None],
+    Depends(filter_param_factory(DagModel.bundle_version, str | None, filter_name="bundle_version")),
+]
 QueryDagIdPatternSearchWithNone = Annotated[
     _SearchParam, Depends(search_param_factory(DagModel.dag_id, "dag_id_pattern", False))
 ]
@@ -724,6 +734,21 @@ QueryTIDagVersionFilter = Annotated[
     ),
 ]
 
+# XCom
+QueryXComKeyPatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(XComModel.key, "xcom_key_pattern"))
+]
+
+QueryXComDagDisplayNamePatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(DagModel.dag_display_name, "dag_display_name_pattern"))
+]
+QueryXComRunIdPatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(XComModel.run_id, "run_id_pattern"))
+]
+QueryXComTaskIdPatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(XComModel.task_id, "task_id_pattern"))
+]
+
 # Assets
 QueryAssetNamePatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(AssetModel.name, "name_pattern"))
@@ -842,6 +867,26 @@ QueryHITLDetailUserIdFilter = Annotated[
             FilterOptionEnum.ANY_EQUAL,
             default_factory=list,
             filter_name="user_id",
+        )
+    ),
+]
+QueryHITLDetailDagIdFilter = Annotated[
+    FilterParam[str | None],
+    Depends(
+        filter_param_factory(
+            TaskInstance.dag_id,
+            str | None,
+            filter_name="dag_id",
+        )
+    ),
+]
+QueryHITLDetailTaskIdFilter = Annotated[
+    FilterParam[str | None],
+    Depends(
+        filter_param_factory(
+            TaskInstance.task_id,
+            str | None,
+            filter_name="task_id",
         )
     ),
 ]

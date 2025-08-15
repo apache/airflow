@@ -59,6 +59,11 @@ class FABDBManager(BaseDBManager):
         super().create_db_from_orm()
         _get_flask_db(settings.SQL_ALCHEMY_CONN).create_all()
 
+    def reset_to_2_x(self):
+        self.create_db_from_orm()
+        # And ensure it's at the oldest version
+        self.downgrade(_REVISION_HEADS_MAP["1.4.0"])
+
     def upgradedb(self, to_revision=None, from_revision=None, show_sql_only=False):
         """Upgrade the database."""
         if from_revision and not show_sql_only:

@@ -21,17 +21,19 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from collections import defaultdict
 from inspect import signature
 from json import JSONDecodeError
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import (
     AirflowException,
     AirflowFileParseException,
+    AirflowUnsupportedFileTypeException,
     ConnectionNotUnique,
     FileSyntaxError,
+    VariableNotUnique,
 )
 from airflow.secrets.base_secrets import BaseSecretsBackend
 from airflow.utils import yaml
@@ -61,6 +63,7 @@ def _parse_env_file(file_path: str) -> tuple[dict[str, list[str]], list[FileSynt
 
     :param file_path: The location of the file that will be processed.
     :return: Tuple with mapping of key and list of values and list of syntax errors
+    :raises FileSyntaxError: If the file has syntax errors.
     """
     with open(file_path) as f:
         content = f.read()
@@ -86,13 +89,22 @@ def _parse_env_file(file_path: str) -> tuple[dict[str, list[str]], list[FileSynt
             )
             continue
 
-        if not value:
+        if not key:
             errors.append(
                 FileSyntaxError(
                     line_no=line_no,
                     message="Invalid line format. Key is empty.",
                 )
             )
+            continue
+        if not value:
+            errors.append(
+                FileSyntaxError(
+                    line_no=line_no,
+                    message="Invalid line format. Value is empty.",
+                )
+            )
+            continue
         secrets[key].append(value)
     return secrets, errors
 
@@ -156,20 +168,17 @@ def _parse_secret_file(file_path: str) -> dict[str, Any]:
 
     :param file_path: The location of the file that will be processed.
     :return: Map of secret key (e.g. connection ID) and value.
+    :raises AirflowUnsupportedFileTypeException: If the file type is not supported.
+    :raises AirflowFileParseException: If the file has syntax errors.
     """
-    if not os.path.exists(file_path):
-        raise AirflowException(
-            f"File {file_path} was not found. Check the configuration of your Secrets backend."
-        )
-
     log.debug("Parsing file: %s", file_path)
 
-    ext = file_path.rsplit(".", 2)[-1].lower()
+    ext = Path(file_path).suffix.lstrip(".").lower()
 
     if ext not in FILE_PARSERS:
-        raise AirflowException(
-            "Unsupported file format. The file must have one of the following extensions: "
-            ".env .json .yaml .yml"
+        extensions = " ".join([f".{ext}" for ext in sorted(FILE_PARSERS.keys())])
+        raise AirflowUnsupportedFileTypeException(
+            f"Unsupported file format. The file must have one of the following extensions: {extensions}"
         )
 
     secrets, parse_errors = FILE_PARSERS[ext](file_path)
@@ -235,7 +244,7 @@ def load_variables(file_path: str) -> dict[str, str]:
     secrets = _parse_secret_file(file_path)
     invalid_keys = [key for key, values in secrets.items() if isinstance(values, list) and len(values) != 1]
     if invalid_keys:
-        raise AirflowException(f'The "{file_path}" file contains multiple values for keys: {invalid_keys}')
+        raise VariableNotUnique(f'The "{file_path}" file contains multiple values for keys: {invalid_keys}')
     variables = {key: values[0] if isinstance(values, list) else values for key, values in secrets.items()}
     log.debug("Loaded %d variables: ", len(variables))
     return variables

@@ -23,6 +23,7 @@ import click
 
 from airflow_breeze.global_constants import (
     ALL_HISTORICAL_PYTHON_VERSIONS,
+    ALLOWED_AUTH_MANAGERS,
     ALLOWED_BACKENDS,
     ALLOWED_DOCKER_COMPOSE_PROJECTS,
     ALLOWED_INSTALLATION_DISTRIBUTION_FORMATS,
@@ -430,8 +431,9 @@ option_uv_http_timeout = click.option(
 option_use_airflow_version = click.option(
     "--use-airflow-version",
     help="Use (reinstall at entry) Airflow version from PyPI. It can also be version (to install from PyPI), "
-    "`none`, `wheel`, or `sdist` to install from `dist` folder, or VCS URL to install from "
-    "(https://pip.pypa.io/en/stable/topics/vcs-support/). Implies --mount-sources `remove`.",
+    "`none`, `wheel`, or `sdist` to install from `dist` folder or `owner/repo:branch` to "
+    "install from GitHub repo. Uses --mount-sources `remove` if not specified, but `providers-and-tests` "
+    "or `tests` can be specified for `--mount-sources` when `--use-airflow-version` is used.",
     type=UseAirflowVersionType(ALLOWED_USE_AIRFLOW_VERSIONS),
     envvar="USE_AIRFLOW_VERSION",
 )
@@ -527,6 +529,15 @@ option_version_suffix = click.option(
     envvar="VERSION_SUFFIX",
     callback=_validate_version_suffix,
     default="",
+)
+
+
+option_auth_manager = click.option(
+    "--auth-manager",
+    type=CacheableChoice(ALLOWED_AUTH_MANAGERS, case_sensitive=False),
+    help="Specify the auth manager to set",
+    default=CacheableDefault(ALLOWED_AUTH_MANAGERS[0]),
+    show_default=True,
 )
 
 

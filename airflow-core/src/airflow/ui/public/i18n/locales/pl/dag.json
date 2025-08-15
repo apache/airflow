@@ -113,6 +113,7 @@
     "mappedTaskInstances_other": "Instancje zadań [{{count}}]",
     "overview": "Przegląd",
     "renderedTemplates": "Wyrenderowane szablony",
+    "requiredActions": "Wymagane akcje",
     "runs": "Wykonania",
     "taskInstances": "Instancje zadań",
     "tasks": "Zadania",

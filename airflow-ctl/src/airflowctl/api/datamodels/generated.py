@@ -538,8 +538,8 @@ class ExternalViewResponse(BaseModel):
     icon_dark_mode: Annotated[str | None, Field(title="Icon Dark Mode")] = None
     url_route: Annotated[str | None, Field(title="Url Route")] = None
     category: Annotated[str | None, Field(title="Category")] = None
-    destination: Annotated[Destination | None, Field(title="Destination")] = "nav"
     href: Annotated[str, Field(title="Href")]
+    destination: Annotated[Destination | None, Field(title="Destination")] = "nav"
 
 
 class ExtraLinkCollectionResponse(BaseModel):
@@ -583,7 +583,7 @@ class HITLDetailResponse(BaseModel):
 
     user_id: Annotated[str, Field(title="User Id")]
     response_at: Annotated[datetime, Field(title="Response At")]
-    chosen_options: Annotated[list[str], Field(title="Chosen Options")]
+    chosen_options: Annotated[list[str], Field(min_length=1, title="Chosen Options")]
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
 
 
@@ -717,6 +717,15 @@ class QueuedEventResponse(BaseModel):
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
 
 
+class Destination1(str, Enum):
+    NAV = "nav"
+    DAG = "dag"
+    DAG_RUN = "dag_run"
+    TASK = "task"
+    TASK_INSTANCE = "task_instance"
+    DASHBOARD = "dashboard"
+
+
 class ReactAppResponse(BaseModel):
     """
     Serializer for React App Plugin responses.
@@ -730,8 +739,8 @@ class ReactAppResponse(BaseModel):
     icon_dark_mode: Annotated[str | None, Field(title="Icon Dark Mode")] = None
     url_route: Annotated[str | None, Field(title="Url Route")] = None
     category: Annotated[str | None, Field(title="Category")] = None
-    destination: Annotated[Destination | None, Field(title="Destination")] = "nav"
     bundle_url: Annotated[str, Field(title="Bundle Url")]
+    destination: Annotated[Destination1 | None, Field(title="Destination")] = "nav"
 
 
 class ReprocessBehavior(str, Enum):
@@ -918,7 +927,7 @@ class UpdateHITLDetailPayload(BaseModel):
     Schema for updating the content of a Human-in-the-loop detail.
     """
 
-    chosen_options: Annotated[list[str], Field(title="Chosen Options")]
+    chosen_options: Annotated[list[str], Field(min_length=1, title="Chosen Options")]
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
 
 
@@ -1425,6 +1434,7 @@ class DagStatsResponse(BaseModel):
     """
 
     dag_id: Annotated[str, Field(title="Dag Id")]
+    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     stats: Annotated[list[DagStatsStateResponse], Field(title="Stats")]
 
 
@@ -1608,7 +1618,6 @@ class TaskInstanceResponse(BaseModel):
     id: Annotated[str, Field(title="Id")]
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
-    dag_version: DagVersionResponse
     dag_run_id: Annotated[str, Field(title="Dag Run Id")]
     map_index: Annotated[int, Field(title="Map Index")]
     logical_date: Annotated[datetime | None, Field(title="Logical Date")] = None
@@ -1638,6 +1647,7 @@ class TaskInstanceResponse(BaseModel):
     rendered_fields: Annotated[dict[str, Any] | None, Field(title="Rendered Fields")] = None
     trigger: TriggerResponse | None = None
     triggerer_job: JobResponse | None = None
+    dag_version: DagVersionResponse | None = None
 
 
 class TaskResponse(BaseModel):
@@ -1808,7 +1818,7 @@ class HITLDetail(BaseModel):
     """
 
     task_instance: TaskInstanceResponse
-    options: Annotated[list[str], Field(title="Options")]
+    options: Annotated[list[str], Field(min_length=1, title="Options")]
     subject: Annotated[str, Field(title="Subject")]
     body: Annotated[str | None, Field(title="Body")] = None
     defaults: Annotated[list[str] | None, Field(title="Defaults")] = None

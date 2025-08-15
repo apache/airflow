@@ -21,6 +21,7 @@
   "backfill_other": "Wypełnienia wsteczne",
   "browse": {
     "auditLog": "Log audytu",
+    "requiredActions": "Wymagane akcje",
     "xcoms": "XComy"
   },
   "collapseDetailsPanel": "Zwiń panel szczegółów",
@@ -72,6 +73,7 @@
   "dagRun_many": "Wykonań",
   "dagRun_one": "Wykonanie",
   "dagRun_other": "Wykonania",
+  "dagRunId": "Identyfikator wykonania",
   "dagWarnings": "Ostrzeżenia/Błędy Daga",
   "defaultToGraphView": "Domyślnie widok grafu",
   "defaultToGridView": "Domyślnie widok siatki",

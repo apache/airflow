@@ -87,6 +87,15 @@ class TestJenkinsHook:
     def test_get_build_building_state(
         self, mock_get_build_info, mock_get_job_info, get_connection_mock, param_building
     ):
+        get_connection_mock.return_value = mock.Mock(
+            connection_id="test_connection",
+            login="test",
+            password="test",
+            schema="",
+            extra_dejson={"use_https": False},
+            host="test.com",
+            port=8080,
+        )
         mock_get_build_info.return_value = {"building": param_building}
 
         hook = JenkinsHook("none_connection_id")
