@@ -24,7 +24,7 @@ type Props = {
   readonly handleSelect: (value: CollectionItem) => void;
   readonly placeholderText: string;
   readonly selectedValue: string | undefined;
-  readonly values: Array<string> | undefined;
+  readonly values: Array<{ key: string; label: string }> | undefined;
 };
 
 export const AttrSelectFilter = ({ handleSelect, placeholderText, selectedValue, values }: Props) => {
@@ -34,6 +34,7 @@ export const AttrSelectFilter = ({ handleSelect, placeholderText, selectedValue,
       handleSelect(details.value[0]);
     }
   };
+  const selectedDisplay = values?.find((item) => item.key === selectedValue);
 
   return (
     <Select.Root
@@ -44,13 +45,13 @@ export const AttrSelectFilter = ({ handleSelect, placeholderText, selectedValue,
     >
       <Select.Trigger colorPalette="blue" minW="max-content">
         <Select.ValueText placeholder={placeholderText} width="auto">
-          {() => selectedValue}
+          {() => selectedDisplay?.label}
         </Select.ValueText>
       </Select.Trigger>
       <Select.Content>
         {thingCollection.items.map((option) => (
-          <Select.Item item={option} key={option}>
-            {option}
+          <Select.Item item={option.key} key={option.label}>
+            {option.label}
           </Select.Item>
         ))}
       </Select.Content>

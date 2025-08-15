@@ -73,7 +73,10 @@ export const Tasks = () => {
       data?.tasks.map((task) => task.retries?.toString()).filter((item) => item !== undefined) ?? [],
     ),
   ];
-  const allMappedValues = ["true", "false"];
+  const allMappedValues = [
+    { key: "true", label: "Mapped" },
+    { key: "false", label: "Not mapped" },
+  ];
 
   const filterTasks = ({
     mapped,
