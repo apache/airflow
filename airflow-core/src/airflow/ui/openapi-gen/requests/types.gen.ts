@@ -795,6 +795,7 @@ export type DagStatsStateResponse = {
 export type DagTagResponse = {
     name: string;
     dag_id: string;
+    dag_display_name: string;
 };
 
 /**
