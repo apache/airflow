@@ -183,7 +183,7 @@ export const Gantt = ({ limit }: Props) => {
     [data],
   );
 
-  const fixedHeight = data.length * CHART_ROW_HEIGHT + CHART_PADDING;
+  const fixedHeight = flatNodes.length * CHART_ROW_HEIGHT + CHART_PADDING;
   const selectedId = selectedTaskId ?? selectedGroupId;
 
   const chartOptions = useMemo(
@@ -272,7 +272,7 @@ export const Gantt = ({ limit }: Props) => {
     [data, selectedId, selectedItemColor, gridColor, selectedRun, selectedTimezone, translate],
   );
 
-  if (isLoading || runId === undefined) {
+  if (runId === undefined) {
     return undefined;
   }
 
@@ -283,7 +283,7 @@ export const Gantt = ({ limit }: Props) => {
         options={chartOptions}
         ref={ref}
         style={{
-          paddingTop: data.length === 1 ? 14.5 : 1.5,
+          paddingTop: flatNodes.length === 1 ? 15 : 1.5,
         }}
       />
     </Box>
