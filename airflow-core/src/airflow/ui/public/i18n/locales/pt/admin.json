@@ -35,7 +35,7 @@
       "connectionTypeRequired": "Tipo de Conexão é obrigatório",
       "extraFields": "Campos Extra",
       "extraFieldsJson": "Campos Extra JSON",
-      "helperText": "Tipo de conexão faltando? Certifique-se de ter instalado o pacote do fornecedor correspondente ao Airflow.",
+      "helperText": "Tipo de conexão faltando? Certifique-se de ter instalado o pacote do provider correspondente ao Airflow.",
       "selectConnectionType": "Selecionar Tipo de Conexão",
       "standardFields": "Campos Padrão"
     },
