@@ -60,7 +60,7 @@ from airflow.sdk.definitions._internal.types import NOTSET, validate_instance_ar
 from airflow.sdk.definitions.edges import EdgeModifier
 from airflow.sdk.definitions.mappedoperator import OperatorPartial, validate_mapping_kwargs
 from airflow.sdk.definitions.param import ParamsDict
-from airflow.sdk.exceptions import AirflowException, RemovedInAirflow4Warning
+from airflow.sdk.exceptions import RemovedInAirflow4Warning
 from airflow.task.priority_strategy import (
     PriorityWeightStrategy,
     airflow_priority_weight_strategies,
@@ -172,7 +172,7 @@ def parse_retries(retries: Any) -> int | None:
     try:
         parsed_retries = int(retries)
     except (TypeError, ValueError):
-        raise AirflowException(f"'retries' type must be int, not {type(retries).__name__}")
+        raise RuntimeError(f"'retries' type must be int, not {type(retries).__name__}")
     return parsed_retries
 
 
@@ -403,7 +403,7 @@ class ExecutorSafeguard:
                 if not cls.test_mode and sentinel is not self:
                     message = f"{self.__class__.__name__}.{func.__name__} cannot be called outside of the Task Runner!"
                     if not self.allow_nested_operators:
-                        raise AirflowException(message)
+                        raise RuntimeError(message)
                     self.log.warning(message)
 
                     # Now that we've logged, set sentinel so that `super()` calls don't log again
