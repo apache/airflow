@@ -33,10 +33,9 @@ export const DateTimeInput = forwardRef<HTMLInputElement, Props>(({ onChange, va
   const { selectedTimezone } = useTimezone();
 
   // Make the value timezone-aware, handle invalid dates
-  const date =
-    dayjs(value).isValid()
-      ? dayjs(value).tz(selectedTimezone).format("YYYY-MM-DDTHH:mm:ss.SSS")
-      : "";
+  const date = dayjs(value).isValid()
+    ? dayjs(value).tz(selectedTimezone).format("YYYY-MM-DDTHH:mm:ss.SSS")
+    : "";
 
   return (
     <Input
