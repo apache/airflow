@@ -17,8 +17,9 @@
  * under the License.
  */
 import { Box, Heading, VStack, Flex } from "@chakra-ui/react";
-import { type ReactElement, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { PiNoteBlankLight, PiNoteLight } from "react-icons/pi";
 
 import { Button, Dialog } from "src/components/ui";
 
@@ -27,7 +28,6 @@ import ActionButton from "./ui/ActionButton";
 
 const EditableMarkdownButton = ({
   header,
-  icon,
   isPending,
   mdContent,
   onConfirm,
@@ -38,7 +38,6 @@ const EditableMarkdownButton = ({
   withText = true,
 }: {
   readonly header: string;
-  readonly icon: ReactElement;
   readonly isPending: boolean;
   readonly mdContent?: string | null;
   readonly onConfirm: () => void;
@@ -51,12 +50,14 @@ const EditableMarkdownButton = ({
   const { t: translate } = useTranslation("common");
   const [isOpen, setIsOpen] = useState(false);
 
+  const noteIcon = Boolean(mdContent?.trim()) ? <PiNoteLight /> : <PiNoteBlankLight />;
+
   return (
     <Box>
       <Box display="inline-block" position="relative">
         <ActionButton
           actionName={placeholder}
-          icon={icon}
+          icon={noteIcon}
           onClick={() => {
             if (!isOpen) {
               onOpen();
@@ -107,7 +108,7 @@ const EditableMarkdownButton = ({
                   setIsOpen(false);
                 }}
               >
-                {icon} {translate("modal.confirm")}
+                {noteIcon} {translate("modal.confirm")}
               </Button>
             </Flex>
           </Dialog.Body>

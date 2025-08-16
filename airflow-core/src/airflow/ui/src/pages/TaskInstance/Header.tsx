@@ -19,7 +19,6 @@
 import { Box } from "@chakra-ui/react";
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FiMessageSquare } from "react-icons/fi";
 import { MdOutlineTask } from "react-icons/md";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
@@ -101,7 +100,6 @@ export const Header = ({
           <>
             <EditableMarkdownButton
               header={translate("note.taskInstance")}
-              icon={<FiMessageSquare />}
               isPending={isPending}
               mdContent={taskInstance.note}
               onConfirm={onConfirm}

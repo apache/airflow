@@ -19,7 +19,7 @@
 import { HStack, Text, Box } from "@chakra-ui/react";
 import { useCallback, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { FiBarChart, FiMessageSquare } from "react-icons/fi";
+import { FiBarChart } from "react-icons/fi";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ClearRunButton } from "src/components/Clear";
@@ -77,7 +77,6 @@ export const Header = ({
           <>
             <EditableMarkdownButton
               header={translate("note.dagRun")}
-              icon={<FiMessageSquare />}
               isPending={isPending}
               mdContent={dagRun.note}
               onConfirm={onConfirm}
