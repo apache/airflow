@@ -35,6 +35,7 @@ import { ActionBar } from "src/components/ui/ActionBar";
 import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useConnectionTypeMeta } from "src/queries/useConnectionTypeMeta";
+import { getOrderBy } from "src/utils";
 
 import AddConnectionButton from "./AddConnectionButton";
 import DeleteConnectionButton from "./DeleteConnectionButton";
@@ -134,8 +135,8 @@ export const Connections = () => {
 
   useConnectionTypeMeta(); // Pre-fetch connection type metadata
   const { pagination, sorting } = tableURLState;
-  const [sort] = sorting;
-  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["connection_id"];
+  const orderBy = getOrderBy("-connection_id");
+
   const { data, error, isFetching, isLoading } = useConnectionServiceGetConnections({
     connectionIdPattern: connectionIdPattern ?? undefined,
     limit: pagination.pageSize,

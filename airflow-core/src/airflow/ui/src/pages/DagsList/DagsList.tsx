@@ -49,6 +49,7 @@ import { SearchParamsKeys } from "src/constants/searchParams";
 import { DagsLayout } from "src/layouts/DagsLayout";
 import { useConfig } from "src/queries/useConfig";
 import { useDags } from "src/queries/useDags";
+import { getOrderBy } from "src/utils";
 
 import { DAGImportErrors } from "../Dashboard/Stats/DAGImportErrors";
 import { DagCard } from "./DagCard";
@@ -205,8 +206,7 @@ export const DagsList = () => {
   const { pagination, sorting } = tableURLState;
   const dagDisplayNamePattern = searchParams.get(NAME_PATTERN) ?? "";
 
-  const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "dag_display_name";
+  const orderBy = getOrderBy("-last_run_start_date");
 
   const columns = useMemo(() => createColumns(translate), [translate]);
 
@@ -247,7 +247,7 @@ export const DagsList = () => {
     lastDagRunState,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
-    orderBy: [orderBy],
+    orderBy: orderBy,
     owners,
     paused,
     tags: selectedTags,
