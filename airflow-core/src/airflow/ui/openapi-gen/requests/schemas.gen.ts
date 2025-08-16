@@ -2516,6 +2516,18 @@ export const $DAGRunsBatchBody = {
             ],
             title: 'Run After Gte'
         },
+        run_after_gt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Run After Gt'
+        },
         run_after_lte: {
             anyOf: [
                 {
@@ -2527,6 +2539,18 @@ export const $DAGRunsBatchBody = {
                 }
             ],
             title: 'Run After Lte'
+        },
+        run_after_lt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Run After Lt'
         },
         logical_date_gte: {
             anyOf: [
@@ -2540,6 +2564,18 @@ export const $DAGRunsBatchBody = {
             ],
             title: 'Logical Date Gte'
         },
+        logical_date_gt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Logical Date Gt'
+        },
         logical_date_lte: {
             anyOf: [
                 {
@@ -2551,6 +2587,18 @@ export const $DAGRunsBatchBody = {
                 }
             ],
             title: 'Logical Date Lte'
+        },
+        logical_date_lt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Logical Date Lt'
         },
         start_date_gte: {
             anyOf: [
@@ -2564,6 +2612,18 @@ export const $DAGRunsBatchBody = {
             ],
             title: 'Start Date Gte'
         },
+        start_date_gt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Start Date Gt'
+        },
         start_date_lte: {
             anyOf: [
                 {
@@ -2575,6 +2635,18 @@ export const $DAGRunsBatchBody = {
                 }
             ],
             title: 'Start Date Lte'
+        },
+        start_date_lt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Start Date Lt'
         },
         end_date_gte: {
             anyOf: [
@@ -2588,6 +2660,18 @@ export const $DAGRunsBatchBody = {
             ],
             title: 'End Date Gte'
         },
+        end_date_gt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'End Date Gt'
+        },
         end_date_lte: {
             anyOf: [
                 {
@@ -2599,6 +2683,18 @@ export const $DAGRunsBatchBody = {
                 }
             ],
             title: 'End Date Lte'
+        },
+        end_date_lt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'End Date Lt'
         }
     },
     additionalProperties: false,
@@ -5101,6 +5197,18 @@ export const $TaskInstancesBatchBody = {
             ],
             title: 'Run After Gte'
         },
+        run_after_gt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Run After Gt'
+        },
         run_after_lte: {
             anyOf: [
                 {
@@ -5112,6 +5220,18 @@ export const $TaskInstancesBatchBody = {
                 }
             ],
             title: 'Run After Lte'
+        },
+        run_after_lt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Run After Lt'
         },
         logical_date_gte: {
             anyOf: [
@@ -5125,6 +5245,18 @@ export const $TaskInstancesBatchBody = {
             ],
             title: 'Logical Date Gte'
         },
+        logical_date_gt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Logical Date Gt'
+        },
         logical_date_lte: {
             anyOf: [
                 {
@@ -5136,6 +5268,18 @@ export const $TaskInstancesBatchBody = {
                 }
             ],
             title: 'Logical Date Lte'
+        },
+        logical_date_lt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Logical Date Lt'
         },
         start_date_gte: {
             anyOf: [
@@ -5149,6 +5293,18 @@ export const $TaskInstancesBatchBody = {
             ],
             title: 'Start Date Gte'
         },
+        start_date_gt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Start Date Gt'
+        },
         start_date_lte: {
             anyOf: [
                 {
@@ -5160,6 +5316,18 @@ export const $TaskInstancesBatchBody = {
                 }
             ],
             title: 'Start Date Lte'
+        },
+        start_date_lt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Start Date Lt'
         },
         end_date_gte: {
             anyOf: [
@@ -5173,6 +5341,18 @@ export const $TaskInstancesBatchBody = {
             ],
             title: 'End Date Gte'
         },
+        end_date_gt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'End Date Gt'
+        },
         end_date_lte: {
             anyOf: [
                 {
@@ -5185,6 +5365,18 @@ export const $TaskInstancesBatchBody = {
             ],
             title: 'End Date Lte'
         },
+        end_date_lt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'End Date Lt'
+        },
         duration_gte: {
             anyOf: [
                 {
@@ -5196,6 +5388,17 @@ export const $TaskInstancesBatchBody = {
             ],
             title: 'Duration Gte'
         },
+        duration_gt: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Duration Gt'
+        },
         duration_lte: {
             anyOf: [
                 {
@@ -5206,6 +5409,17 @@ export const $TaskInstancesBatchBody = {
                 }
             ],
             title: 'Duration Lte'
+        },
+        duration_lt: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Duration Lt'
         },
         pool: {
             anyOf: [

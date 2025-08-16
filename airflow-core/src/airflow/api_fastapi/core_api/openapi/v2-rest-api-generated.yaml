@@ -327,6 +327,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Timestamp Gte
+      - name: timestamp_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Timestamp Gt
       - name: timestamp_lte
         in: query
         required: false
@@ -336,6 +345,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Timestamp Lte
+      - name: timestamp_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Timestamp Lt
       responses:
         '200':
           description: Successful Response
@@ -1986,6 +2004,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Run After Gte
+      - name: run_after_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gt
       - name: run_after_lte
         in: query
         required: false
@@ -1995,6 +2022,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Run After Lte
+      - name: run_after_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lt
       - name: logical_date_gte
         in: query
         required: false
@@ -2004,6 +2040,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Logical Date Gte
+      - name: logical_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Gt
       - name: logical_date_lte
         in: query
         required: false
@@ -2013,6 +2058,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Logical Date Lte
+      - name: logical_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Lt
       - name: start_date_gte
         in: query
         required: false
@@ -2022,6 +2076,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Start Date Gte
+      - name: start_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Gt
       - name: start_date_lte
         in: query
         required: false
@@ -2031,6 +2094,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Start Date Lte
+      - name: start_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Lt
       - name: end_date_gte
         in: query
         required: false
@@ -2040,6 +2112,15 @@ paths:
             format: date-time
           - type: 'null'
           title: End Date Gte
+      - name: end_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Gt
       - name: end_date_lte
         in: query
         required: false
@@ -2049,6 +2130,15 @@ paths:
             format: date-time
           - type: 'null'
           title: End Date Lte
+      - name: end_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Lt
       - name: updated_at_gte
         in: query
         required: false
@@ -2058,6 +2148,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Updated At Gte
+      - name: updated_at_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Updated At Gt
       - name: updated_at_lte
         in: query
         required: false
@@ -2067,6 +2166,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Updated At Lte
+      - name: updated_at_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Updated At Lt
       - name: run_type
         in: query
         required: false
@@ -2905,6 +3013,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Dag Run Start Date Gte
+      - name: dag_run_start_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Dag Run Start Date Gt
       - name: dag_run_start_date_lte
         in: query
         required: false
@@ -2914,6 +3031,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Dag Run Start Date Lte
+      - name: dag_run_start_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Dag Run Start Date Lt
       - name: dag_run_end_date_gte
         in: query
         required: false
@@ -2923,6 +3049,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Dag Run End Date Gte
+      - name: dag_run_end_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Dag Run End Date Gt
       - name: dag_run_end_date_lte
         in: query
         required: false
@@ -2932,6 +3067,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Dag Run End Date Lte
+      - name: dag_run_end_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Dag Run End Date Lt
       - name: dag_run_state
         in: query
         required: false
@@ -3848,6 +3992,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Start Date Gte
+      - name: start_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Gt
       - name: start_date_lte
         in: query
         required: false
@@ -3857,6 +4010,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Start Date Lte
+      - name: start_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Lt
       - name: end_date_gte
         in: query
         required: false
@@ -3866,6 +4028,15 @@ paths:
             format: date-time
           - type: 'null'
           title: End Date Gte
+      - name: end_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Gt
       - name: end_date_lte
         in: query
         required: false
@@ -3875,6 +4046,15 @@ paths:
             format: date-time
           - type: 'null'
           title: End Date Lte
+      - name: end_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Lt
       - name: limit
         in: query
         required: false
@@ -5035,6 +5215,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Run After Gte
+      - name: run_after_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gt
       - name: run_after_lte
         in: query
         required: false
@@ -5044,6 +5233,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Run After Lte
+      - name: run_after_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lt
       - name: logical_date_gte
         in: query
         required: false
@@ -5053,6 +5251,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Logical Date Gte
+      - name: logical_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Gt
       - name: logical_date_lte
         in: query
         required: false
@@ -5062,6 +5269,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Logical Date Lte
+      - name: logical_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Lt
       - name: start_date_gte
         in: query
         required: false
@@ -5071,6 +5287,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Start Date Gte
+      - name: start_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Gt
       - name: start_date_lte
         in: query
         required: false
@@ -5080,6 +5305,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Start Date Lte
+      - name: start_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Lt
       - name: end_date_gte
         in: query
         required: false
@@ -5089,6 +5323,15 @@ paths:
             format: date-time
           - type: 'null'
           title: End Date Gte
+      - name: end_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Gt
       - name: end_date_lte
         in: query
         required: false
@@ -5098,6 +5341,15 @@ paths:
             format: date-time
           - type: 'null'
           title: End Date Lte
+      - name: end_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Lt
       - name: updated_at_gte
         in: query
         required: false
@@ -5107,6 +5359,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Updated At Gte
+      - name: updated_at_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Updated At Gt
       - name: updated_at_lte
         in: query
         required: false
@@ -5116,6 +5377,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Updated At Lte
+      - name: updated_at_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Updated At Lt
       - name: duration_gte
         in: query
         required: false
@@ -5124,6 +5394,14 @@ paths:
           - type: number
           - type: 'null'
           title: Duration Gte
+      - name: duration_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Gt
       - name: duration_lte
         in: query
         required: false
@@ -5132,6 +5410,14 @@ paths:
           - type: number
           - type: 'null'
           title: Duration Lte
+      - name: duration_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Lt
       - name: state
         in: query
         required: false
@@ -5701,6 +5987,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Run After Gte
+      - name: run_after_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gt
       - name: run_after_lte
         in: query
         required: false
@@ -5710,6 +6005,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Run After Lte
+      - name: run_after_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lt
       - name: logical_date_gte
         in: query
         required: false
@@ -5719,6 +6023,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Logical Date Gte
+      - name: logical_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Gt
       - name: logical_date_lte
         in: query
         required: false
@@ -5728,6 +6041,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Logical Date Lte
+      - name: logical_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Lt
       - name: start_date_gte
         in: query
         required: false
@@ -5737,6 +6059,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Start Date Gte
+      - name: start_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Gt
       - name: start_date_lte
         in: query
         required: false
@@ -5746,6 +6077,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Start Date Lte
+      - name: start_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Lt
       - name: end_date_gte
         in: query
         required: false
@@ -5755,6 +6095,15 @@ paths:
             format: date-time
           - type: 'null'
           title: End Date Gte
+      - name: end_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Gt
       - name: end_date_lte
         in: query
         required: false
@@ -5764,6 +6113,15 @@ paths:
             format: date-time
           - type: 'null'
           title: End Date Lte
+      - name: end_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Lt
       - name: updated_at_gte
         in: query
         required: false
@@ -5773,6 +6131,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Updated At Gte
+      - name: updated_at_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Updated At Gt
       - name: updated_at_lte
         in: query
         required: false
@@ -5782,6 +6149,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Updated At Lte
+      - name: updated_at_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Updated At Lt
       - name: duration_gte
         in: query
         required: false
@@ -5790,6 +6166,14 @@ paths:
           - type: number
           - type: 'null'
           title: Duration Gte
+      - name: duration_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Gt
       - name: duration_lte
         in: query
         required: false
@@ -5798,6 +6182,14 @@ paths:
           - type: number
           - type: 'null'
           title: Duration Lte
+      - name: duration_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Lt
       - name: task_display_name_pattern
         in: query
         required: false
@@ -9595,48 +9987,96 @@ components:
             format: date-time
           - type: 'null'
           title: Run After Gte
+        run_after_gt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gt
         run_after_lte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Run After Lte
+        run_after_lt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lt
         logical_date_gte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Logical Date Gte
+        logical_date_gt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Gt
         logical_date_lte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Logical Date Lte
+        logical_date_lt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Lt
         start_date_gte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Start Date Gte
+        start_date_gt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Gt
         start_date_lte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Start Date Lte
+        start_date_lt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Lt
         end_date_gte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: End Date Gte
+        end_date_gt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Gt
         end_date_lte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: End Date Lte
+        end_date_lt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Lt
       additionalProperties: false
       type: object
       title: DAGRunsBatchBody
@@ -11427,58 +11867,116 @@ components:
             format: date-time
           - type: 'null'
           title: Run After Gte
+        run_after_gt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gt
         run_after_lte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Run After Lte
+        run_after_lt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lt
         logical_date_gte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Logical Date Gte
+        logical_date_gt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Gt
         logical_date_lte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Logical Date Lte
+        logical_date_lt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Lt
         start_date_gte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Start Date Gte
+        start_date_gt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Gt
         start_date_lte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Start Date Lte
+        start_date_lt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Lt
         end_date_gte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: End Date Gte
+        end_date_gt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Gt
         end_date_lte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: End Date Lte
+        end_date_lt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Lt
         duration_gte:
           anyOf:
           - type: number
           - type: 'null'
           title: Duration Gte
+        duration_gt:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Gt
         duration_lte:
           anyOf:
           - type: number
           - type: 'null'
           title: Duration Lte
+        duration_lt:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Lt
         pool:
           anyOf:
           - items:
