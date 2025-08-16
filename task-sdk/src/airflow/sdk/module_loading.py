@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,15 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-import pkgutil
 from collections.abc import Callable
 from importlib import import_module
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from types import ModuleType
 
 
 def import_string(dotted_path: str):
@@ -65,5 +60,23 @@ def qualname(o: object | Callable) -> str:
     return name
 
 
-def iter_namespace(ns: ModuleType):
-    return pkgutil.iter_modules(ns.__path__, ns.__name__ + ".")
+def is_valid_dotpath(path: str) -> bool:
+    """
+    Check if a string follows valid dotpath format (ie: 'package.subpackage.module').
+
+    :param path: String to check
+    """
+    import re
+
+    if not isinstance(path, str):
+        return False
+
+    # Pattern explanation:
+    # ^            - Start of string
+    # [a-zA-Z_]    - Must start with letter or underscore
+    # [a-zA-Z0-9_] - Following chars can be letters, numbers, or underscores
+    # (\.[a-zA-Z_][a-zA-Z0-9_]*)*  - Can be followed by dots and valid identifiers
+    # $            - End of string
+    pattern = r"^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*$"
+
+    return bool(re.match(pattern, path))

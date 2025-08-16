@@ -1287,7 +1287,7 @@ def _run_task(*, ti, task, run_triggerer=False):
     Bypasses a lot of extra steps used in `task.run` to keep our local running as fast as
     possible.  This function is only meant for the `dag.test` function as a helper function.
     """
-    from airflow.utils.module_loading import import_string
+    from airflow.sdk.module_loading import import_string
     from airflow.utils.state import State
 
     log.info("[DAG TEST] starting task_id=%s map_index=%s", ti.task_id, ti.map_index)
