@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-15T11:48:22.398668
+# This constraints file was automatically generated on 2025-08-16T00:03:45.939519
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -47,7 +47,7 @@ Werkzeug==2.2.3
 a2wsgi==1.10.10
 adal==1.2.7
 adlfs==2024.12.0
-aiobotocore==2.24.0
+aiobotocore==2.24.1
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
 aiohttp-cors==0.8.1
