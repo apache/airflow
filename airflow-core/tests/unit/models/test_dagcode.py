@@ -184,13 +184,11 @@ class TestDagCode:
         """Test has_dag method."""
         with dag_maker("test_has_dag") as dag:
             pass
-        dag.sync_to_db()
-        SDM.write_dag(dag, bundle_name="dag_maker")
+        _sync_dag(dag)
 
         with dag_maker() as dag2:
             pass
-        dag2.sync_to_db()
-        SDM.write_dag(dag2, bundle_name="dag_maker")
+        _sync_dag(dag2)
 
         assert DagCode.has_dag(dag.dag_id)
 
@@ -203,8 +201,7 @@ class TestDagCode:
                 print("task4")
 
             mytask()
-        dag.sync_to_db()
-        SDM.write_dag(dag, bundle_name="dag_maker")
+        _sync_dag(dag)
         dag_code = DagCode.get_latest_dagcode(dag.dag_id)
         dag_code.source_code_hash = 2
         session.add(dag_code)
@@ -214,3 +211,8 @@ class TestDagCode:
         DagCode.update_source_code(dag.dag_id, dag.fileloc)
         dag_code3 = DagCode.get_latest_dagcode(dag.dag_id)
         assert dag_code3.source_code_hash != 2
+
+
+def _sync_dag(dag, bundle_name="dag_maker"):
+    DAG.bulk_write_to_db(bundle_name, bundle_version=None, dags=[dag])
+    SDM.write_dag(dag, bundle_name=bundle_name)

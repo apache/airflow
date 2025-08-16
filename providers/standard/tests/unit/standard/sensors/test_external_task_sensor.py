@@ -114,7 +114,10 @@ class TestExternalTaskSensorV2:
         with self.dag as dag:
             with TaskGroup(group_id=TEST_TASK_GROUP_ID) as task_group:
                 _ = [EmptyOperator(task_id=f"task{i}") for i in range(len(target_states))]
-            dag.sync_to_db()
+        if AIRFLOW_V_3_1_PLUS:
+            DAG.sync_dag_to_db(dag)
+        else:
+            dag.sync_to_db()  # type: ignore[attr-defined]
         if AIRFLOW_V_3_0_PLUS:
             SerializedDagModel.write_dag(dag, bundle_name="testing")
         else:
@@ -144,7 +147,10 @@ class TestExternalTaskSensorV2:
 
                 fake_task()
                 fake_mapped_task.expand(x=list(map_indexes))
-        dag.sync_to_db()
+        if AIRFLOW_V_3_1_PLUS:
+            DAG.sync_dag_to_db(dag)
+        else:
+            dag.sync_to_db()  # type: ignore[attr-defined]
         if AIRFLOW_V_3_0_PLUS:
             SerializedDagModel.write_dag(dag, bundle_name="testing")
         else:
@@ -1916,7 +1922,7 @@ def dag_bag_cyclic():
 
         for dag in dags:
             if AIRFLOW_V_3_0_PLUS:
-                dag.sync_to_db()
+                DAG.bulk_write_to_db(bundle_name="testing", bundle_version=None, dags=[dag])
                 SerializedDagModel.write_dag(dag, bundle_name="testing")
                 dag_bag.bag_dag(dag=dag)
             else:
@@ -2075,7 +2081,10 @@ def dag_bag_head_tail(session):
 @provide_session
 def test_clear_overlapping_external_task_marker(dag_bag_head_tail, session):
     dag: DAG = dag_bag_head_tail.get_dag("head_tail")
-    dag.sync_to_db()
+    if AIRFLOW_V_3_1_PLUS:
+        DAG.sync_dag_to_db(dag)
+    else:
+        dag.sync_to_db()  # type: ignore[attr-defined]
     if AIRFLOW_V_3_0_PLUS:
         SerializedDagModel.write_dag(dag, bundle_name="testing")
 
@@ -2110,7 +2119,10 @@ def test_clear_overlapping_external_task_marker(dag_bag_head_tail, session):
 
 def test_clear_overlapping_external_task_marker_with_end_date(dag_bag_head_tail, session):
     dag: DAG = dag_bag_head_tail.get_dag("head_tail")
-    dag.sync_to_db()
+    if AIRFLOW_V_3_1_PLUS:
+        DAG.sync_dag_to_db(dag)
+    else:
+        dag.sync_to_db()  # type: ignore[attr-defined]
     if AIRFLOW_V_3_0_PLUS:
         SerializedDagModel.write_dag(dag=dag, bundle_name="testing")
 
@@ -2152,7 +2164,7 @@ def test_clear_overlapping_external_task_marker_with_end_date(dag_bag_head_tail,
 
 
 @pytest.fixture
-def dag_bag_head_tail_mapped_tasks():
+def dag_bag_head_tail_mapped_tasks(testing_dag_bundle):
     """
     Create a DagBag containing one DAG, with task "head" depending on task "tail" of the
     previous logical_date.
@@ -2194,7 +2206,7 @@ def dag_bag_head_tail_mapped_tasks():
         head >> body >> tail
 
     if AIRFLOW_V_3_0_PLUS:
-        dag.sync_to_db()
+        DAG.bulk_write_to_db(bundle_name="testing", bundle_version=None, dags=[dag])
         dag_bag.bag_dag(dag=dag)
     else:
         dag_bag.bag_dag(dag=dag, root_dag=dag)
@@ -2204,7 +2216,10 @@ def dag_bag_head_tail_mapped_tasks():
 
 def test_clear_overlapping_external_task_marker_mapped_tasks(dag_bag_head_tail_mapped_tasks, session):
     dag: DAG = dag_bag_head_tail_mapped_tasks.get_dag("head_tail")
-    dag.sync_to_db()
+    if AIRFLOW_V_3_1_PLUS:
+        DAG.sync_dag_to_db(dag)
+    else:
+        dag.sync_to_db()  # type: ignore[attr-defined]
     if AIRFLOW_V_3_0_PLUS:
         SerializedDagModel.write_dag(dag=dag, bundle_name="testing")
     # "Run" 10 times.

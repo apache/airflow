@@ -30,10 +30,10 @@ import warnings
 # TODO: Remove this module in Airflow 3.2
 
 _names_moved = {
-    "DatasetAlias": ("airflow.sdk.definitions.asset", "AssetAlias"),
-    "DatasetAll": ("airflow.sdk.definitions.asset", "AssetAll"),
-    "DatasetAny": ("airflow.sdk.definitions.asset", "AssetAny"),
-    "Dataset": ("airflow.sdk.definitions.asset", "Asset"),
+    "DatasetAlias": ("airflow.sdk", "AssetAlias"),
+    "DatasetAll": ("airflow.sdk", "AssetAll"),
+    "DatasetAny": ("airflow.sdk", "AssetAny"),
+    "Dataset": ("airflow.sdk", "Asset"),
     "expand_alias_to_datasets": ("airflow.models.asset", "expand_alias_to_assets"),
 }
 
@@ -45,8 +45,8 @@ def __getattr__(name: str):
 
     module_path, new_name = _names_moved[name]
     warnings.warn(
-        f"Import 'airflow.dataset.{name}' is deprecated and "
-        f"will be removed in the Airflow 3.2. Please import it from '{module_path}.{new_name}'.",
+        f"Import 'airflow.datasets.{name}' is deprecated and "
+        f"will be removed in Airflow 3.2. Please import it from '{module_path}.{new_name}'.",
         DeprecationWarning,
         stacklevel=2,
     )

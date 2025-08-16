@@ -77,6 +77,7 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.models.dagwarning import DagWarning
     from airflow.models.serialized_dag import SerializedDagModel
+    from airflow.serialization.serialized_objects import SerializedDAG
     from airflow.utils.types import ArgNotSet
 
 
@@ -671,17 +672,17 @@ class DBDagBag:
     :meta private:
     """
 
-    def __init__(self, load_op_links: bool = True):
-        self._dags: dict[str, DAG] = {}  # dag_version_id to dag
+    def __init__(self, load_op_links: bool = True) -> None:
+        self._dags: dict[str, SerializedDAG] = {}  # dag_version_id to dag
         self.load_op_links = load_op_links
 
-    def _read_dag(self, serdag: SerializedDagModel) -> DAG | None:
+    def _read_dag(self, serdag: SerializedDagModel) -> SerializedDAG | None:
         serdag.load_op_links = self.load_op_links
         if dag := serdag.dag:
             self._dags[serdag.dag_version_id] = dag
         return dag
 
-    def _get_dag(self, version_id: str, session: Session) -> DAG | None:
+    def _get_dag(self, version_id: str, session: Session) -> SerializedDAG | None:
         if dag := self._dags.get(version_id):
             return dag
         dag_version = session.get(DagVersion, version_id, options=[joinedload(DagVersion.serialized_dag)])
@@ -706,7 +707,7 @@ class DBDagBag:
         # Relationship not loaded, fetch it explicitly from current session
         return session.get(DagVersion, dag_run.created_dag_version_id)
 
-    def get_dag_for_run(self, dag_run: DagRun, session: Session) -> DAG | None:
+    def get_dag_for_run(self, dag_run: DagRun, session: Session) -> SerializedDAG | None:
         if version := self._version_from_dag_run(dag_run=dag_run, session=session):
             return self._get_dag(version_id=version.id, session=session)
         return None
@@ -719,7 +720,7 @@ class DBDagBag:
             if dag := self._read_dag(sdm):
                 yield dag
 
-    def get_latest_version_of_dag(self, dag_id: str, *, session: Session) -> DAG | None:
+    def get_latest_version_of_dag(self, dag_id: str, *, session: Session) -> SerializedDAG | None:
         """Get the latest version of a dag by its id."""
         from airflow.models.serialized_dag import SerializedDagModel
 

@@ -24,9 +24,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from airflow import DAG
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
+from airflow.models.dag import DAG
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun, DagRunType

@@ -228,6 +228,7 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
     default) so that you can get somewhat-accurate variance on the reported
     timing numbers, but this can be disabled for longer runs if needed.
     """
+    from airflow.models.dag import DAG
 
     # Turn on unit test mode so that we don't do any sleep() in the scheduler
     # loop - not needed on main, but this script can run against older
@@ -256,7 +257,7 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
         pause_all_dags(session)
         for dag_id in dag_ids:
             dag = dagbag.get_dag(dag_id)
-            dag.sync_to_db(session=session)
+            DAG.sync_dag_to_db(dag, session=session)
             dags.append(dag)
             reset_dag(dag, session)
 
