@@ -810,6 +810,9 @@ class DbApiHook(BaseHook):
             self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
 
         if parameters:
+            # If we're using psycopg3, we might need to handle parameters differently
+            if hasattr(cur, "__module__") and "psycopg" in cur.__module__ and isinstance(parameters, list):
+                parameters = tuple(parameters)
             cur.execute(sql_statement, parameters)
         else:
             cur.execute(sql_statement)
