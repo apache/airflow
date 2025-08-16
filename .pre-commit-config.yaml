@@ -639,6 +639,7 @@ repos:
             ^providers/odbc/.*\.py$|
             ^providers/openai/.*\.py$|
             ^providers/openfaas/.*\.py$|
+            ^providers/opsgenie/.*\.py$|
             ^providers/oracle/.*\.py$|
             ^providers/pagerduty/.*\.py$|
             ^providers/pgvector/.*\.py$|
