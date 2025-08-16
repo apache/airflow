@@ -92,6 +92,7 @@ export const Grid = ({ limit }: Props) => {
   }, [gridRuns, setHasActiveRun]);
 
   const { data: dagStructure } = useGridStructure({ hasActiveRun, limit });
+
   // calculate dag run bar heights relative to max
 
   const max = Math.max.apply(
@@ -167,18 +168,26 @@ export const Grid = ({ limit }: Props) => {
             )}
           </Flex>
           <Flex flexDirection="row-reverse">
-            {gridRuns?.map((dr: GridRunsResponse) => (
-              <Bar
-                key={dr.run_id}
-                max={max}
-                nodes={flatNodes}
-                onCellClick={() => setMode("TI")}
-                onColumnClick={() => setMode("run")}
-                run={dr}
-              />
-            ))}
+            {gridRuns?.map((dr: GridRunsResponse, index: number) => {
+              // Compare with previous run to determine if version changed
+              const prevRun = index < gridRuns.length - 1 ? gridRuns[index + 1] : undefined;
+              const showVersionIndicator = prevRun && prevRun.dag_version_number !== dr.dag_version_number;
+
+              return (
+                <Bar
+                  key={dr.run_id}
+                  max={max}
+                  nodes={flatNodes}
+                  onCellClick={() => setMode("TI")}
+                  onColumnClick={() => setMode("run")}
+                  run={dr}
+                  showVersionIndicator={showVersionIndicator}
+                  versionNumber={dr.dag_version_number}
+                />
+              );
+            })}
           </Flex>
-          {selectedIsVisible === undefined || !selectedIsVisible ? undefined : (
+          {selectedIsVisible ? (
             <Link to={`/dags/${dagId}`}>
               <IconButton
                 aria-label={translate("grid.buttons.resetToLatest")}
@@ -193,7 +202,7 @@ export const Grid = ({ limit }: Props) => {
                 <FiChevronsRight />
               </IconButton>
             </Link>
-          )}
+          ) : undefined}
         </Flex>
       </Box>
     </Flex>

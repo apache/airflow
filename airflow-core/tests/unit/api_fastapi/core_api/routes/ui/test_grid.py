@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 from operator import attrgetter
+from unittest.mock import ANY
 
 import pendulum
 import pytest
@@ -57,6 +58,7 @@ INNER_TASK_GROUP_SUB_TASK = "inner_task_group_sub_task"
 
 GRID_RUN_1 = {
     "dag_id": "test_dag",
+    "dag_version_number": ANY,
     "duration": 0,
     "end_date": "2024-12-31T00:00:00Z",
     "run_after": "2024-11-30T00:00:00Z",
@@ -68,6 +70,7 @@ GRID_RUN_1 = {
 
 GRID_RUN_2 = {
     "dag_id": "test_dag",
+    "dag_version_number": ANY,
     "duration": 0,
     "end_date": "2024-12-31T00:00:00Z",
     "run_after": "2024-11-30T00:00:00Z",
@@ -271,10 +274,7 @@ class TestGetGridDataEndpoint:
     def test_should_response_200(self, test_client):
         response = test_client.get(f"/grid/runs/{DAG_ID}")
         assert response.status_code == 200
-        assert response.json() == [
-            GRID_RUN_1,
-            GRID_RUN_2,
-        ]
+        assert response.json() == [GRID_RUN_1, GRID_RUN_2]
 
     @pytest.mark.parametrize(
         "order_by,expected",
@@ -471,28 +471,7 @@ class TestGetGridDataEndpoint:
         session.commit()
         response = test_client.get(f"/grid/runs/{DAG_ID}?limit=5")
         assert response.status_code == 200
-        assert response.json() == [
-            {
-                "dag_id": "test_dag",
-                "duration": 0,
-                "end_date": "2024-12-31T00:00:00Z",
-                "run_after": "2024-11-30T00:00:00Z",
-                "run_id": "run_1",
-                "run_type": "scheduled",
-                "start_date": "2016-01-01T00:00:00Z",
-                "state": "success",
-            },
-            {
-                "dag_id": "test_dag",
-                "duration": 0,
-                "end_date": "2024-12-31T00:00:00Z",
-                "run_after": "2024-11-30T00:00:00Z",
-                "run_id": "run_2",
-                "run_type": "manual",
-                "start_date": "2016-01-01T00:00:00Z",
-                "state": "failed",
-            },
-        ]
+        assert response.json() == [GRID_RUN_1, GRID_RUN_2]
 
     def test_grid_ti_summaries_group(self, session, test_client):
         run_id = "run_4-1"
@@ -507,6 +486,8 @@ class TestGetGridDataEndpoint:
                 {
                     "state": "success",
                     "task_id": "t1",
+                    "dag_version_id": ANY,
+                    "dag_version_number": ANY,
                     "child_states": None,
                     "max_end_date": None,
                     "min_start_date": None,
@@ -514,6 +495,8 @@ class TestGetGridDataEndpoint:
                 {
                     "state": "success",
                     "task_id": "t2",
+                    "dag_version_id": ANY,
+                    "dag_version_number": ANY,
                     "child_states": None,
                     "max_end_date": None,
                     "min_start_date": None,
@@ -521,6 +504,8 @@ class TestGetGridDataEndpoint:
                 {
                     "state": "success",
                     "task_id": "t7",
+                    "dag_version_id": ANY,
+                    "dag_version_number": ANY,
                     "child_states": None,
                     "max_end_date": None,
                     "min_start_date": None,
@@ -531,10 +516,14 @@ class TestGetGridDataEndpoint:
                     "min_start_date": "2025-03-02T00:00:04Z",
                     "state": "success",
                     "task_id": "task_group-1",
+                    "dag_version_id": ANY,
+                    "dag_version_number": ANY,
                 },
                 {
                     "state": "success",
                     "task_id": "task_group-1.t6",
+                    "dag_version_id": ANY,
+                    "dag_version_number": ANY,
                     "child_states": None,
                     "max_end_date": None,
                     "min_start_date": None,
@@ -545,10 +534,14 @@ class TestGetGridDataEndpoint:
                     "min_start_date": "2025-03-02T00:00:06Z",
                     "state": "success",
                     "task_id": "task_group-1.task_group-2",
+                    "dag_version_id": ANY,
+                    "dag_version_number": ANY,
                 },
                 {
                     "state": "success",
                     "task_id": "task_group-1.task_group-2.t3",
+                    "dag_version_id": ANY,
+                    "dag_version_number": ANY,
                     "child_states": None,
                     "max_end_date": None,
                     "min_start_date": None,
@@ -556,6 +549,8 @@ class TestGetGridDataEndpoint:
                 {
                     "state": "success",
                     "task_id": "task_group-1.task_group-2.t4",
+                    "dag_version_id": ANY,
+                    "dag_version_number": ANY,
                     "child_states": None,
                     "max_end_date": None,
                     "min_start_date": None,
@@ -563,6 +558,8 @@ class TestGetGridDataEndpoint:
                 {
                     "state": "success",
                     "task_id": "task_group-1.task_group-2.t5",
+                    "dag_version_id": ANY,
+                    "dag_version_number": ANY,
                     "child_states": None,
                     "max_end_date": None,
                     "min_start_date": None,
@@ -594,6 +591,8 @@ class TestGetGridDataEndpoint:
             {
                 "child_states": {"None": 1},
                 "task_id": "mapped_task_2",
+                "dag_version_id": ANY,
+                "dag_version_number": ANY,
                 "max_end_date": None,
                 "min_start_date": None,
                 "state": None,
@@ -604,10 +603,14 @@ class TestGetGridDataEndpoint:
                 "min_start_date": "2024-12-30T01:00:00Z",
                 "state": "running",
                 "task_id": "mapped_task_group",
+                "dag_version_id": ANY,
+                "dag_version_number": ANY,
             },
             {
                 "state": "running",
                 "task_id": "mapped_task_group.subtask",
+                "dag_version_id": ANY,
+                "dag_version_number": ANY,
                 "child_states": None,
                 "max_end_date": None,
                 "min_start_date": None,
@@ -615,6 +618,8 @@ class TestGetGridDataEndpoint:
             {
                 "state": "success",
                 "task_id": "task",
+                "dag_version_id": ANY,
+                "dag_version_number": ANY,
                 "child_states": None,
                 "max_end_date": None,
                 "min_start_date": None,
@@ -622,6 +627,8 @@ class TestGetGridDataEndpoint:
             {
                 "child_states": {"None": 2},
                 "task_id": "task_group",
+                "dag_version_id": ANY,
+                "dag_version_number": ANY,
                 "max_end_date": None,
                 "min_start_date": None,
                 "state": None,
@@ -629,6 +636,8 @@ class TestGetGridDataEndpoint:
             {
                 "child_states": {"None": 1},
                 "task_id": "task_group.inner_task_group",
+                "dag_version_id": ANY,
+                "dag_version_number": ANY,
                 "max_end_date": None,
                 "min_start_date": None,
                 "state": None,
@@ -636,6 +645,8 @@ class TestGetGridDataEndpoint:
             {
                 "child_states": {"None": 2},
                 "task_id": "task_group.inner_task_group.inner_task_group_sub_task",
+                "dag_version_id": ANY,
+                "dag_version_number": ANY,
                 "max_end_date": None,
                 "min_start_date": None,
                 "state": None,
@@ -643,6 +654,8 @@ class TestGetGridDataEndpoint:
             {
                 "child_states": {"None": 4},
                 "task_id": "task_group.mapped_task",
+                "dag_version_id": ANY,
+                "dag_version_number": ANY,
                 "max_end_date": None,
                 "min_start_date": None,
                 "state": None,

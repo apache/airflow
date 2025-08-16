@@ -21,6 +21,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 
 import type { GridRunsResponse } from "openapi/requests";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
+import { VersionIndicator } from "src/components/ui/VersionIndicator";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 
 import { GridButton } from "./GridButton";
@@ -35,9 +36,19 @@ type Props = {
   readonly onCellClick?: () => void;
   readonly onColumnClick?: () => void;
   readonly run: GridRunsResponse;
+  readonly showVersionIndicator?: boolean;
+  readonly versionNumber?: number | null;
 };
 
-export const Bar = ({ max, nodes, onCellClick, onColumnClick, run }: Props) => {
+export const Bar = ({
+  max,
+  nodes,
+  onCellClick,
+  onColumnClick,
+  run,
+  showVersionIndicator = false,
+  versionNumber,
+}: Props) => {
   const { dagId = "", runId } = useParams();
   const [searchParams] = useSearchParams();
 
@@ -53,6 +64,11 @@ export const Bar = ({ max, nodes, onCellClick, onColumnClick, run }: Props) => {
       position="relative"
       transition="background-color 0.2s"
     >
+      {/* Dag version change indicator - shows when version changes between runs */}
+      {Boolean(showVersionIndicator) && (
+        <VersionIndicator orientation="vertical" versionNumber={versionNumber} />
+      )}
+
       <Flex
         alignItems="flex-end"
         height={BAR_HEIGHT}
@@ -80,6 +96,7 @@ export const Bar = ({ max, nodes, onCellClick, onColumnClick, run }: Props) => {
           {run.run_type !== "scheduled" && <RunTypeIcon runType={run.run_type} size="10px" />}
         </GridButton>
       </Flex>
+
       <TaskInstancesColumn
         nodes={nodes}
         onCellClick={onCellClick}

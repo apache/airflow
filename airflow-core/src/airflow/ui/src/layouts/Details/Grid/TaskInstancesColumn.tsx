@@ -20,6 +20,7 @@ import { Box } from "@chakra-ui/react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+import { VersionIndicator } from "src/components/ui/VersionIndicator";
 
 import { GridTI } from "./GridTI";
 import type { GridTask } from "./utils";
@@ -37,27 +38,40 @@ export const TaskInstancesColumn = ({ nodes, onCellClick, runId, taskInstances }
   const [searchParams] = useSearchParams();
   const search = searchParams.toString();
 
-  return nodes.map((node) => {
-    // todo: how does this work with mapped? same task id for multiple tis
-    const taskInstance = taskInstances.find((ti) => ti.task_id === node.id);
+  const taskInstanceMap = new Map(taskInstances.map((ti) => [ti.task_id, ti]));
+
+  return nodes.map((node, idx) => {
+    const taskInstance = taskInstanceMap.get(node.id);
 
     if (!taskInstance) {
       return <Box height="20px" key={`${node.id}-${runId}`} width="18px" />;
     }
 
+    // Check if previous task has different version number
+    const prevNode = idx > 0 ? nodes[idx - 1] : undefined;
+    const prevTaskInstance = prevNode ? taskInstanceMap.get(prevNode.id) : undefined;
+
+    const showVersionIndicator =
+      prevTaskInstance && prevTaskInstance.dag_version_number !== taskInstance.dag_version_number;
+
     return (
-      <GridTI
-        dagId={dagId}
-        instance={taskInstance}
-        isGroup={node.isGroup}
-        isMapped={node.is_mapped}
-        key={node.id}
-        label={node.label}
-        onClick={onCellClick}
-        runId={runId}
-        search={search}
-        taskId={node.id}
-      />
+      <Box key={node.id} position="relative">
+        {Boolean(showVersionIndicator) && (
+          <VersionIndicator orientation="horizontal" versionNumber={taskInstance.dag_version_number} />
+        )}
+        <GridTI
+          dagId={dagId}
+          instance={taskInstance}
+          isGroup={node.isGroup}
+          isMapped={node.is_mapped}
+          key={node.id}
+          label={node.label}
+          onClick={onCellClick}
+          runId={runId}
+          search={search}
+          taskId={node.id}
+        />
+      </Box>
     );
   });
 };
