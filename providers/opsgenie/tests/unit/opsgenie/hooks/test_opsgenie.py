@@ -106,7 +106,8 @@ class TestOpsgenieAlertHook:
             == "eb243592-faa2-4ba2-a551q-1afdf565c889"
         )
 
-    def test_create_alert_api_key_not_set(self, create_connection_without_db):
+    @mock.patch.object(AlertApi, "create_alert")
+    def test_create_alert_api_key_not_set(self, mock_create_alert, create_connection_without_db):
         create_connection_without_db(
             Connection(
                 conn_id="opsgenie_without_api_key",
@@ -114,6 +115,7 @@ class TestOpsgenieAlertHook:
                 host="https://api.opsgenie.com/",
             )
         )
+        mock_create_alert.side_effect = AuthenticationException
         hook = OpsgenieAlertHook(opsgenie_conn_id="opsgenie_without_api_key")
         with pytest.raises(AuthenticationException):
             hook.create_alert(payload=self._create_alert_payload)
