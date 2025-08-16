@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
-from airflow.utils.module_loading import import_string
+from airflow.utils.module_loading import import_module, import_string
 
 if TYPE_CHECKING:
     from airflow.logging.remote import RemoteLogIO
@@ -73,10 +73,9 @@ def load_logging_config() -> tuple[dict[str, Any], str]:
     else:
         modpath = logging_class_path.rsplit(".", 1)[0]
         try:
-            # Import here to avoid circular imports
-            from importlib import import_module
-
             mod = import_module(modpath)
+
+            # Load remote logging configuration from the custom module
             REMOTE_TASK_LOG = getattr(mod, "REMOTE_TASK_LOG")
             DEFAULT_REMOTE_CONN_ID = getattr(mod, "DEFAULT_REMOTE_CONN_ID", None)
         except Exception as err:
