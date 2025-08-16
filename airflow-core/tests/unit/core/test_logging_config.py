@@ -131,40 +131,9 @@ REMOTE_TASK_LOG = None
 DEFAULT_REMOTE_CONN_ID = "test_conn_id"
 """
 
-SETTINGS_FILE_NESTED_MODULE = """
-LOGGING_CONFIG = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'airflow.task': {
-            'format': '[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s'
-        },
-    },
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'airflow.task',
-            'stream': 'ext://sys.stdout'
-        },
-        'task': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'airflow.task',
-            'stream': 'ext://sys.stdout'
-        },
-    },
-    'loggers': {
-        'airflow.task': {
-            'handlers': ['task'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-    }
-}
-
-# Test remote logging variables
-REMOTE_TASK_LOG = None
-DEFAULT_REMOTE_CONN_ID = "nested_conn_id"
-"""
+SETTINGS_FILE_NESTED_MODULE = SETTINGS_FILE_SIMPLE_MODULE.replace(
+    'DEFAULT_REMOTE_CONN_ID = "test_conn_id"', 'DEFAULT_REMOTE_CONN_ID = "nested_conn_id"'
+)
 
 SETTINGS_FILE_NO_REMOTE_VARS = """
 LOGGING_CONFIG = {
@@ -293,7 +262,7 @@ class TestLoggingSettings:
         importlib.reload(airflow_local_settings)
         configure_logging()
 
-    def _verify_basic_logging_config(self, logging_config, logging_class_path, expected_path):
+    def _verify_basic_logging_config(self, logging_config: dict, logging_class_path: str, expected_path: str):
         """Helper method to verify basic logging config structure"""
         assert isinstance(logging_config, dict)
         assert logging_config["version"] == 1
@@ -486,7 +455,9 @@ class TestLoggingSettings:
             ),
         ],
     )
-    def test_load_logging_config_module_paths(self, settings_content, module_structure, expected_path):
+    def test_load_logging_config_module_paths(
+        self, settings_content: str, module_structure: str, expected_path: str
+    ):
         """Test that load_logging_config works with different module path structures"""
         dir_structure = module_structure.replace(".", "/") if module_structure else None
 
