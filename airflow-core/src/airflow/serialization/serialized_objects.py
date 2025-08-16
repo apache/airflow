@@ -43,7 +43,7 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from airflow import macros
 from airflow._shared.timezones.timezone import from_timestamp, parse_timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
-from airflow.exceptions import AirflowException, SerializationError, TaskDeferred
+from airflow.exceptions import AirflowException, SerializationError
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, _get_model_data_interval
 from airflow.models.expandinput import create_expand_input
@@ -67,6 +67,7 @@ from airflow.sdk.definitions.operator_resources import Resources
 from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.sdk.definitions.xcom_arg import serialize_xcom_arg
+from airflow.sdk.exceptions import TaskDeferred
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding

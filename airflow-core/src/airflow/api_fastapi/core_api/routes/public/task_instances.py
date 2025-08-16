@@ -75,10 +75,10 @@ from airflow.api_fastapi.core_api.services.public.task_instances import (
     _patch_ti_validate_request,
 )
 from airflow.api_fastapi.logging.decorators import action_logging
-from airflow.exceptions import TaskNotFound
 from airflow.models import Base, DagRun
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
+from airflow.sdk.exceptions import TaskNotFound
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.utils.db import get_query_count

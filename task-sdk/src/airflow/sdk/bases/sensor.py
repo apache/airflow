@@ -26,7 +26,9 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
-from airflow.exceptions import (
+from airflow.sdk import timezone
+from airflow.sdk.bases.operator import BaseOperator
+from airflow.sdk.exceptions import (
     AirflowException,
     AirflowFailException,
     AirflowRescheduleException,
@@ -36,8 +38,6 @@ from airflow.exceptions import (
     TaskDeferralError,
     TaskDeferralTimeout,
 )
-from airflow.sdk import timezone
-from airflow.sdk.bases.operator import BaseOperator
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context

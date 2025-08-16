@@ -78,8 +78,8 @@ class TestDagBag:
         """Test that the timeout context manager raises AirflowTaskTimeout when time limit is exceeded."""
         import time
 
-        from airflow.exceptions import AirflowTaskTimeout
         from airflow.models.dagbag import timeout
+        from airflow.sdk.exceptions import AirflowTaskTimeout
 
         with pytest.raises(AirflowTaskTimeout):
             with timeout(1, "Test timeout"):

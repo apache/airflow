@@ -24,10 +24,10 @@ from typing import Any
 
 import pytest
 
-from airflow.exceptions import DuplicateTaskIdFound, RemovedInAirflow4Warning
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions.dag import DAG, dag as dag_decorator
 from airflow.sdk.definitions.param import DagParam, Param, ParamsDict
+from airflow.sdk.exceptions import DuplicateTaskIdFound, RemovedInAirflow4Warning
 
 DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
 

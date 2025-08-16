@@ -25,7 +25,6 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy import select
 
-from airflow.exceptions import AirflowSkipException
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.dag_version import DagVersion
@@ -35,6 +34,7 @@ from airflow.models.taskmap import TaskMap
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import setup, task, task_group, teardown
 from airflow.sdk.definitions.taskgroup import TaskGroup
+from airflow.sdk.exceptions import AirflowSkipException
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 

@@ -33,13 +33,13 @@ import attrs
 import methodtools
 
 from airflow.configuration import conf
-from airflow.exceptions import (
+from airflow.sdk.definitions._internal.node import DAGNode, validate_group_key
+from airflow.sdk.exceptions import (
+    AirflowDagCycleException,
     AirflowException,
     DuplicateTaskIdFound,
     TaskAlreadyInTaskGroup,
 )
-from airflow.sdk.definitions._internal.node import DAGNode, validate_group_key
-from airflow.sdk.exceptions import AirflowDagCycleException
 from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:

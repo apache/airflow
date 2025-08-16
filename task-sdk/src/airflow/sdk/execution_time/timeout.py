@@ -20,7 +20,7 @@ import os
 
 import structlog
 
-from airflow.exceptions import AirflowTaskTimeout
+from airflow.sdk.exceptions import AirflowTaskTimeout
 
 
 class TimeoutPosix:
