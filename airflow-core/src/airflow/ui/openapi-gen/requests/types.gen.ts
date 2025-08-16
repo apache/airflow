@@ -914,6 +914,35 @@ export type FastAPIRootMiddlewareResponse = {
 };
 
 /**
+ * Schema for generating a Human-in-the-loop shared link.
+ */
+export type GenerateHITLSharedLinkRequest = {
+    /**
+     * Type of link to generate: 'redirect' for redirecting to corresponding page or 'respond' for respond directly.
+     */
+    link_type: 'redirect' | 'respond';
+    /**
+     * Chosen options for 'respond' links.
+     */
+    chosen_options?: Array<(string)> | null;
+    /**
+     * Parameters input for 'respond' links.
+     */
+    params_input?: {
+    [key: string]: unknown;
+} | null;
+    /**
+     * Time that the link should expire at.
+     */
+    expires_at?: string | null;
+};
+
+/**
+ * Type of link to generate: 'redirect' for redirecting to corresponding page or 'respond' for respond directly.
+ */
+export type link_type = 'redirect' | 'respond';
+
+/**
  * Schema for Human-in-the-loop detail.
  */
 export type HITLDetail = {
@@ -953,6 +982,17 @@ export type HITLDetailResponse = {
     params_input?: {
         [key: string]: unknown;
     };
+};
+
+/**
+ * Schema for generated a Human-in-the-loop shared links.
+ */
+export type HITLSharedLinkResponse = {
+    url: string;
+    /**
+     * Time that the link should expire at.
+     */
+    expires_at: string;
 };
 
 /**
@@ -3000,6 +3040,37 @@ export type GetHitlDetailsData = {
 };
 
 export type GetHitlDetailsResponse = HITLDetailCollection;
+
+export type GenerateSharedLinkData = {
+    dagId: string;
+    dagRunId: string;
+    requestBody: GenerateHITLSharedLinkRequest;
+    taskId: string;
+};
+
+export type GenerateSharedLinkResponse = HITLSharedLinkResponse;
+
+export type GenerateMappedTiSharedLinkData = {
+    dagId: string;
+    dagRunId: string;
+    mapIndex: number;
+    requestBody: GenerateHITLSharedLinkRequest;
+    taskId: string;
+};
+
+export type GenerateMappedTiSharedLinkResponse = HITLSharedLinkResponse;
+
+export type RedirectSharedLinkData = {
+    token: string;
+};
+
+export type RedirectSharedLinkResponse = unknown;
+
+export type UpdateHitlDetailThroughSharedLinkData = {
+    token: string;
+};
+
+export type UpdateHitlDetailThroughSharedLinkResponse = HITLDetailResponse;
 
 export type GetHealthResponse = HealthInfoResponse;
 
@@ -6094,6 +6165,130 @@ export type $OpenApiTs = {
                  * Forbidden
                  */
                 403: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/hitlSharedLinks/generate/{dag_id}/{dag_run_id}/{task_id}': {
+        post: {
+            req: GenerateSharedLinkData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                201: HITLSharedLinkResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/hitlSharedLinks/generate/{dag_id}/{dag_run_id}/{task_id}/{map_index}': {
+        post: {
+            req: GenerateMappedTiSharedLinkData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                201: HITLSharedLinkResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/hitlSharedLinks/redirect/{token}': {
+        get: {
+            req: RedirectSharedLinkData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: unknown;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/hitlSharedLinks/respond/{token}': {
+        post: {
+            req: UpdateHitlDetailThroughSharedLinkData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: HITLDetailResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

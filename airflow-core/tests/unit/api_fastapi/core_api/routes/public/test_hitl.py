@@ -299,7 +299,7 @@ class TestUpdateHITLDetailEndpoint:
         assert response.json() == {
             "detail": (
                 "Human-in-the-loop detail has already been updated for Task Instance "
-                f"with id {sample_ti.id} "
+                f"with id `{sample_ti.id}` "
                 "and is not allowed to write again."
             )
         }
@@ -395,7 +395,7 @@ class TestUpdateMappedTIHITLDetail:
         assert response.json() == {
             "detail": (
                 "Human-in-the-loop detail has already been updated for Task Instance "
-                f"with id {sample_ti.id} "
+                f"with id `{sample_ti.id}` "
                 "and is not allowed to write again."
             )
         }

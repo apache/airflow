@@ -9,7 +9,7 @@ from enum import Enum
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel
+from pydantic import AnyUrl, BaseModel, ConfigDict, Field, RootModel
 
 
 class AppBuilderMenuItemResponse(BaseModel):
@@ -577,6 +577,39 @@ class FastAPIRootMiddlewareResponse(BaseModel):
     name: Annotated[str, Field(title="Name")]
 
 
+class LinkType(str, Enum):
+    """
+    Type of link to generate: 'redirect' for redirecting to corresponding page or 'respond' for respond directly.
+    """
+
+    REDIRECT = "redirect"
+    RESPOND = "respond"
+
+
+class GenerateHITLSharedLinkRequest(BaseModel):
+    """
+    Schema for generating a Human-in-the-loop shared link.
+    """
+
+    link_type: Annotated[
+        LinkType,
+        Field(
+            description="Type of link to generate: 'redirect' for redirecting to corresponding page or 'respond' for respond directly.",
+            title="Link Type",
+        ),
+    ]
+    chosen_options: Annotated[
+        list[str] | None, Field(description="Chosen options for 'respond' links.", title="Chosen Options")
+    ] = None
+    params_input: Annotated[
+        dict[str, Any] | None,
+        Field(description="Parameters input for 'respond' links.", title="Params Input"),
+    ] = None
+    expires_at: Annotated[
+        datetime | None, Field(description="Time that the link should expire at.", title="Expires At")
+    ] = None
+
+
 class HITLDetailResponse(BaseModel):
     """
     Response of updating a Human-in-the-loop detail.
@@ -586,6 +619,17 @@ class HITLDetailResponse(BaseModel):
     response_at: Annotated[datetime, Field(title="Response At")]
     chosen_options: Annotated[list[str], Field(min_length=1, title="Chosen Options")]
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
+
+
+class HITLSharedLinkResponse(BaseModel):
+    """
+    Schema for generated a Human-in-the-loop shared links.
+    """
+
+    url: Annotated[AnyUrl, Field(title="Url")]
+    expires_at: Annotated[
+        datetime, Field(description="Time that the link should expire at.", title="Expires At")
+    ]
 
 
 class HTTPExceptionResponse(BaseModel):

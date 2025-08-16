@@ -3366,6 +3366,62 @@ export const $FastAPIRootMiddlewareResponse = {
     description: 'Serializer for Plugin FastAPI root middleware responses.'
 } as const;
 
+export const $GenerateHITLSharedLinkRequest = {
+    properties: {
+        link_type: {
+            type: 'string',
+            enum: ['redirect', 'respond'],
+            title: 'Link Type',
+            description: "Type of link to generate: 'redirect' for redirecting to corresponding page or 'respond' for respond directly."
+        },
+        chosen_options: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Chosen Options',
+            description: "Chosen options for 'respond' links."
+        },
+        params_input: {
+            anyOf: [
+                {
+                    additionalProperties: true,
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Params Input',
+            description: "Parameters input for 'respond' links."
+        },
+        expires_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Expires At',
+            description: 'Time that the link should expire at.'
+        }
+    },
+    type: 'object',
+    required: ['link_type'],
+    title: 'GenerateHITLSharedLinkRequest',
+    description: 'Schema for generating a Human-in-the-loop shared link.'
+} as const;
+
 export const $HITLDetail = {
     properties: {
         task_instance: {
@@ -3521,6 +3577,28 @@ export const $HITLDetailResponse = {
     required: ['user_id', 'response_at', 'chosen_options'],
     title: 'HITLDetailResponse',
     description: 'Response of updating a Human-in-the-loop detail.'
+} as const;
+
+export const $HITLSharedLinkResponse = {
+    properties: {
+        url: {
+            type: 'string',
+            maxLength: 2083,
+            minLength: 1,
+            format: 'uri',
+            title: 'Url'
+        },
+        expires_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Expires At',
+            description: 'Time that the link should expire at.'
+        }
+    },
+    type: 'object',
+    required: ['url', 'expires_at'],
+    title: 'HITLSharedLinkResponse',
+    description: 'Schema for generated a Human-in-the-loop shared links.'
 } as const;
 
 export const $HTTPExceptionResponse = {

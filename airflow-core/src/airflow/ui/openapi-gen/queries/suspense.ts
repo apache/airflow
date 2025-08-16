@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { UseQueryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GridService, HumanInTheLoopService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GridService, HumanInTheLoopService, HumanInTheLoopSharedLinksService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 /**
@@ -1227,7 +1227,7 @@ export const useHumanInTheLoopServiceGetHitlDetailSuspense = <TData = Common.Hum
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailKeyFn({ dagId, dagRunId, taskId }, queryKey), queryFn: () => HumanInTheLoopService.getHitlDetail({ dagId, dagRunId, taskId }) as TData, ...options });
 /**
 * Get Mapped Ti Hitl Detail
-* Get a Human-in-the-loop detail of a specific task instance.
+* Get a Human-in-the-loop detail of a specific mapped task instance.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
@@ -1277,6 +1277,30 @@ export const useHumanInTheLoopServiceGetHitlDetailsSuspense = <TData = Common.Hu
   taskIdPattern?: string;
   userId?: string[];
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailsKeyFn({ bodySearch, dagId, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, taskId, taskIdPattern, userId }, queryKey), queryFn: () => HumanInTheLoopService.getHitlDetails({ bodySearch, dagId, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, taskId, taskIdPattern, userId }) as TData, ...options });
+/**
+* Redirect Shared Link
+* Redirect to Airflow UI for Human-in-the-loop task instance interaction via shared link.
+*
+* This endpoint redirects users to the Airflow UI where they can interact
+* with Human-in-the-loop task instances through a secure shared link. The link must be a "redirect" type
+* link, which provides access to the Airflow interface for decision-making.
+*
+* :param token: Base64-encoded token containing link metadata and expiration
+* :param http_request: HTTP request for base URL extraction
+*
+* :raises HTTPException: 400 if token is invalid or link has expired
+* :raises HTTPException: 403 if HITL shared links are not enabled
+* :raises HTTPException: 404 if the task instance does not exist
+*
+* :return: RedirectResponse to Airflow UI
+* @param data The data for the request.
+* @param data.token
+* @returns unknown Successful Response
+* @throws ApiError
+*/
+export const useHumanInTheLoopSharedLinksServiceRedirectSharedLinkSuspense = <TData = Common.HumanInTheLoopSharedLinksServiceRedirectSharedLinkDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ token }: {
+  token: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopSharedLinksServiceRedirectSharedLinkKeyFn({ token }, queryKey), queryFn: () => HumanInTheLoopSharedLinksService.redirectSharedLink({ token }) as TData, ...options });
 /**
 * Get Health
 * @returns HealthInfoResponse Successful Response
