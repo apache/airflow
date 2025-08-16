@@ -1743,14 +1743,6 @@ class BigQueryCursor(BigQueryBaseCursor):
                 f" Please only use one or more of the following options: {allowed_schema_update_options}"
             )
 
-        if schema_update_options:
-            if write_disposition not in ["WRITE_APPEND", "WRITE_TRUNCATE"]:
-                raise ValueError(
-                    "schema_update_options is only "
-                    "allowed if write_disposition is "
-                    "'WRITE_APPEND' or 'WRITE_TRUNCATE'."
-                )
-
         if destination_dataset_table:
             destination_project, destination_dataset, destination_table = self.hook.split_tablename(
                 table_input=destination_dataset_table, default_project_id=self.project_id
