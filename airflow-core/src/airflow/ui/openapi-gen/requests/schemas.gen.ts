@@ -6366,6 +6366,22 @@ export const $ConfigResponse = {
                 }
             ],
             title: 'External Log Name'
+        },
+        plugins_extra_menu_items: {
+            items: {
+                '$ref': '#/components/schemas/AppBuilderMenuItemResponse'
+            },
+            type: 'array',
+            title: 'Plugins Extra Menu Items',
+            default: []
+        },
+        plugin_import_errors: {
+            items: {
+                '$ref': '#/components/schemas/PluginImportErrorResponse'
+            },
+            type: 'array',
+            title: 'Plugin Import Errors',
+            default: []
         }
     },
     type: 'object',

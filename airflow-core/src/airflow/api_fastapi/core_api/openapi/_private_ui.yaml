@@ -854,6 +854,26 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
+    AppBuilderMenuItemResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+        href:
+          type: string
+          title: Href
+        category:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Category
+      additionalProperties: true
+      type: object
+      required:
+      - name
+      - href
+      title: AppBuilderMenuItemResponse
+      description: Serializer for AppBuilder Menu Item responses.
     BackfillCollectionResponse:
       properties:
         backfills:
@@ -1073,6 +1093,18 @@ components:
           - type: string
           - type: 'null'
           title: External Log Name
+        plugins_extra_menu_items:
+          items:
+            $ref: '#/components/schemas/AppBuilderMenuItemResponse'
+          type: array
+          title: Plugins Extra Menu Items
+          default: []
+        plugin_import_errors:
+          items:
+            $ref: '#/components/schemas/PluginImportErrorResponse'
+          type: array
+          title: Plugin Import Errors
+          default: []
       type: object
       required:
       - page_size
@@ -1991,6 +2023,20 @@ components:
       - type
       title: NodeResponse
       description: Node serializer for responses.
+    PluginImportErrorResponse:
+      properties:
+        source:
+          type: string
+          title: Source
+        error:
+          type: string
+          title: Error
+      type: object
+      required:
+      - source
+      - error
+      title: PluginImportErrorResponse
+      description: Plugin Import Error serializer for responses.
     ReprocessBehavior:
       type: string
       enum:

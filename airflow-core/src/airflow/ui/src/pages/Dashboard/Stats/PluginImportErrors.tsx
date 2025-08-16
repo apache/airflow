@@ -21,27 +21,29 @@ import { useTranslation } from "react-i18next";
 import { FiChevronRight } from "react-icons/fi";
 import { LuPlug } from "react-icons/lu";
 
-import { usePluginServiceImportErrors } from "openapi/queries";
-import { ErrorAlert, type ExpandedApiError } from "src/components/ErrorAlert";
+import { useConfigServiceGetConfigs } from "openapi/queries";
+import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
+import { getPluginImportErrors } from "src/utils/types";
 
 import { PluginImportErrorsModal } from "./PluginImportErrorsModal";
 
 export const PluginImportErrors = ({ iconOnly = false }: { readonly iconOnly?: boolean }) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { t: translate } = useTranslation("admin");
-  const { data, error, isLoading } = usePluginServiceImportErrors();
-
-  const importErrorsCount = data?.total_entries ?? 0;
-  const importErrors = data?.import_errors ?? [];
+  const { data: config, error, isLoading } = useConfigServiceGetConfigs();
 
   if (isLoading) {
-    return <Skeleton height="9" width="225px" />;
+    return <Skeleton height="20px" width="100px" />;
   }
 
-  if (Boolean(error) && (error as ExpandedApiError).status === 403) {
-    return undefined;
+  if (error !== undefined) {
+    return <ErrorAlert error={error} />;
   }
+
+  // Get plugin import errors from config using proper type guard and validation
+  const importErrors = getPluginImportErrors(config);
+  const importErrorsCount = importErrors.length;
 
   if (importErrorsCount === 0) {
     return undefined;
@@ -49,7 +51,6 @@ export const PluginImportErrors = ({ iconOnly = false }: { readonly iconOnly?: b
 
   return (
     <Box alignItems="center" display="flex" maxH="10px">
-      <ErrorAlert error={error} />
       {iconOnly ? (
         <StateBadge
           as={Button}
