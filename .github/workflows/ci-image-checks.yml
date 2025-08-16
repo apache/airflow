@@ -72,8 +72,8 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to build CI images (true/false)"
         required: true
         type: string
-      skip-pre-commits:
-        description: "Whether to skip pre-commits (true/false)"
+      skip-prek-hooks:
+        description: "Whether to skip prek hooks (true/false)"
         required: true
         type: string
       include-success-outputs:
@@ -122,9 +122,9 @@ on:  # yamllint disable-line rule:truthy
 permissions:
   contents: read
 jobs:
-  install-pre-commit:
+  install-prek:
     timeout-minutes: 5
-    name: "Install pre-commit for cache (only canary runs)"
+    name: "Install prek for cache (only canary runs)"
     runs-on: ${{ fromJSON(inputs.runners) }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
@@ -143,23 +143,23 @@ jobs:
         uses: ./.github/actions/breeze
         id: breeze
         if: inputs.canary-run == 'true'
-      - name: "Install pre-commit"
-        uses: ./.github/actions/install-pre-commit
-        id: pre-commit
+      - name: "Install prek"
+        uses: ./.github/actions/install-prek
+        id: prek
         with:
           python-version: ${{steps.breeze.outputs.host-python-version}}
         if: inputs.canary-run == 'true'
-      - name: "Prepare .tar file from pre-commit cache"
+      - name: "Prepare .tar file from prek cache"
         run: |
-          tar -C ~ -czf /tmp/cache-pre-commit.tar.gz .cache/pre-commit .cache/uv
+          tar -C ~ -czf /tmp/cache-prek.tar.gz .cache/prek .cache/uv
         shell: bash
         if: inputs.canary-run == 'true'
-      - name: "Save pre-commit cache"
+      - name: "Save prek cache"
         uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
           # yamllint disable rule:line-length
-          key: cache-pre-commit-v4-${{ steps.breeze.outputs.host-python-version }}-${{ hashFiles('.pre-commit-config.yaml') }}
-          path: /tmp/cache-pre-commit.tar.gz
+          key: cache-prek-v5-${{ steps.breeze.outputs.host-python-version }}-${{ hashFiles('.pre-commit-config.yaml') }}
+          path: /tmp/cache-prek.tar.gz
           if-no-files-found: 'error'
           retention-days: '2'
         if: inputs.canary-run == 'true'
@@ -168,7 +168,7 @@ jobs:
     timeout-minutes: 45
     name: "Static checks"
     runs-on: ${{ fromJSON(inputs.runners) }}
-    needs: install-pre-commit
+    needs: install-prek
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       UPGRADE_TO_NEWER_DEPENDENCIES: "${{ inputs.upgrade-to-newer-dependencies }}"
@@ -189,16 +189,16 @@ jobs:
           python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
         id: breeze
-      - name: "Install pre-commit"
-        uses: ./.github/actions/install-pre-commit
-        id: pre-commit
+      - name: "Install prek"
+        uses: ./.github/actions/install-prek
+        id: prek
         with:
           python-version: ${{steps.breeze.outputs.host-python-version}}
       - name: "Static checks"
-        run: breeze static-checks --all-files --show-diff-on-failure --color always --initialize-environment
+        run: prek --all-files --show-diff-on-failure --color always
         env:
           VERBOSE: "false"
-          SKIP: ${{ inputs.skip-pre-commits }}
+          SKIP: ${{ inputs.skip-prek-hooks }}
           COLUMNS: "202"
           SKIP_GROUP_OUTPUT: "true"
           DEFAULT_BRANCH: ${{ inputs.branch }}
@@ -208,7 +208,7 @@ jobs:
     timeout-minutes: 45
     name: "MyPy checks"
     runs-on: ${{ fromJSON(inputs.runners) }}
-    needs: install-pre-commit
+    needs: install-prek
     if: inputs.needs-mypy == 'true'
     strategy:
       fail-fast: false
@@ -232,13 +232,13 @@ jobs:
           python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
         id: breeze
-      - name: "Install pre-commit"
-        uses: ./.github/actions/install-pre-commit
-        id: pre-commit
+      - name: "Install prek"
+        uses: ./.github/actions/install-prek
+        id: prek
         with:
           python-version: ${{steps.breeze.outputs.host-python-version}}
       - name: "MyPy checks for ${{ matrix.mypy-check }}"
-        run: pre-commit run --color always --verbose --hook-stage manual "$MYPY_CHECK" --all-files
+        run: prek --color always --verbose --hook-stage manual "$MYPY_CHECK" --all-files
         env:
           VERBOSE: "false"
           COLUMNS: "202"

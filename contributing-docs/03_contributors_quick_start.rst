@@ -234,8 +234,8 @@ Forking and cloning Project
 
   git config core.autocrlf true
 
-Configuring Pre-commit
-----------------------
+Configuring prek
+----------------
 
 Before committing changes to github or raising a pull request, the code needs to be checked for certain quality standards
 such as spell check, code syntax, code formatting, compatibility with Apache License requirements etc. This set of
@@ -249,7 +249,7 @@ tests are applied when you commit your code.
   </div>
 
 
-To avoid burden on our CI infrastructure and to save time, Pre-commit hooks can be run locally before committing changes.
+To avoid burden on our CI infrastructure and to save time, prek hooks can be run locally before committing changes.
 
 .. note::
     We have recently started to recommend ``uv`` for our local development.
@@ -258,7 +258,7 @@ To avoid burden on our CI infrastructure and to save time, Pre-commit hooks can 
     Remember to have global python set to Python >= 3.10 - Python 3.10 is end-of-life already and we've
     started to use Python 3.10+ features in Airflow and accompanying scripts.
 
-Installing pre-commit is best done with ``uv`` (recommended) or ``pipx``.
+Installing prek is best done with ``uv`` (recommended) or ``pipx``.
 
 1.  Installing required packages
 
@@ -274,7 +274,7 @@ on macOS, install via
 
   brew install libxml2
 
-2. Installing pre-commit:
+2. Installing prek:
 
 .. note::
   You might need to pass ``--python <python>`` to force the python version if not it uses the latest system python version.
@@ -282,15 +282,14 @@ on macOS, install via
 
 .. code-block:: bash
 
-  uv tool install pre-commit --with pre-commit-uv
+  uv tool install prek
 
-You can add ``uv`` support for ``pre-commit`` even if you've installed it with ``pipx`` using the commands
-(then pre-commit will use ``uv`` to create virtualenvs for the hooks):
+or with pipx:
 
 .. code-block:: bash
 
-  pipx install pre-commit
-  pipx install inject pre-commit pre-commit-uv # optional, configures pre-commit to use uv to install virtualenvs
+  pipx install prek
+
 
 3. Go to your project directory
 
@@ -299,11 +298,11 @@ You can add ``uv`` support for ``pre-commit`` even if you've installed it with `
   cd ~/Projects/airflow
 
 
-4. Running pre-commit hooks
+4. Running prek hooks
 
 .. code-block:: bash
 
-  pre-commit run --all-files
+  prek --all-files
     No-tabs checker......................................................Passed
     Add license for all SQL files........................................Passed
     Add license for all other files......................................Passed
@@ -327,39 +326,39 @@ You can add ``uv`` support for ``pre-commit`` even if you've installed it with `
     Fix End of Files.....................................................Passed
     ...........................................................................
 
-5. Running pre-commit for selected files
+5. Running prek for selected files
 
 .. code-block:: bash
 
-  pre-commit run  --files airflow-core/src/airflow/utils/decorators.py  airflow-core/tests/unit/utils/test_task_group.py
+  prek  --files airflow-core/src/airflow/utils/decorators.py  airflow-core/tests/unit/utils/test_task_group.py
 
 
 6. Running specific hook for selected files
 
 .. code-block:: bash
 
-  pre-commit run black --files airflow-core/src/airflow/utils/decorators.py airflow-core/tests/unit/utils/test_task_group.py
+  prek black --files airflow-core/src/airflow/utils/decorators.py airflow-core/tests/unit/utils/test_task_group.py
     black...............................................................Passed
-  pre-commit run ruff --files airflow-core/src/airflow/utils/decorators.py airflow-core/tests/unit/utils/test_task_group.py
+  prek ruff --files airflow-core/src/airflow/utils/decorators.py airflow-core/tests/unit/utils/test_task_group.py
     Run ruff............................................................Passed
 
 
-7. Enabling Pre-commit check before push
+7. Enabling prek hook check before push
 
-It will run pre-commit automatically before committing and stops the commit on failure
+It will run prek hooks automatically before committing and stops the commit on failure
 
 .. code-block:: bash
 
   cd ~/Projects/airflow
-  pre-commit install
+  prek install
   git commit -m "Added xyz"
 
-8. To disable Pre-commit
+8. To disable prek hooks
 
 .. code-block:: bash
 
   cd ~/Projects/airflow
-  pre-commit uninstall
+  prek uninstall
 
 - For more information on this visit |08_static_code_checks.rst|
 
@@ -370,12 +369,12 @@ It will run pre-commit automatically before committing and stops the commit on f
 
 - Following are some of the important links of 08_static_code_checks.rst
 
-  - |Pre-commit Hooks|
+  - |Prek Hooks|
 
-  .. |Pre-commit Hooks| raw:: html
+  .. |Prek Hooks| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/contributing-docs/08_static_code_checks.rst#pre-commit-hooks" target="_blank">
-   Pre-commit Hooks</a>
+   <a href="https://github.com/apache/airflow/blob/main/contributing-docs/08_static_code_checks.rst#prek-hooks" target="_blank">
+   Prek Hooks</a>
 
   - |Running Static Code Checks via Breeze|
 

@@ -57,7 +57,7 @@ ARG PYTHON_BASE_IMAGE="python:3.10-slim-bookworm"
 ARG AIRFLOW_PIP_VERSION=25.2
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
 ARG AIRFLOW_SETUPTOOLS_VERSION=80.9.0
-ARG AIRFLOW_UV_VERSION=0.8.9
+ARG AIRFLOW_UV_VERSION=0.8.11
 ARG AIRFLOW_USE_UV="false"
 ARG UV_HTTP_TIMEOUT="300"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
@@ -87,7 +87,7 @@ FROM scratch as scripts
 
 ##############################################################################################
 # Please DO NOT modify the inlined scripts manually. The content of those files will be
-# replaced by pre-commit automatically from the "scripts/docker/" folder.
+# replaced by prek automatically from the "scripts/docker/" folder.
 # This is done in order to avoid problems with caching and file permissions and in order to
 # make the PROD Dockerfile standalone
 ##############################################################################################
@@ -618,20 +618,19 @@ function common::install_packaging_tools() {
             pip install --root-user-action ignore --disable-pip-version-check "uv==${AIRFLOW_UV_VERSION}"
         fi
     fi
-    if  [[ ${AIRFLOW_PRE_COMMIT_VERSION=} == "" ]]; then
+    if  [[ ${AIRFLOW_PREK_VERSION=} == "" ]]; then
         echo
-        echo "${COLOR_BLUE}Installing latest pre-commit with pre-commit-uv uv${COLOR_RESET}"
+        echo "${COLOR_BLUE}Installing latest preh, uv${COLOR_RESET}"
         echo
-        uv tool install pre-commit --with pre-commit-uv --with uv
+        uv tool install prek --with uv
         # make sure that the venv/user in .local exists
         mkdir -p "${HOME}/.local/bin"
     else
         echo
-        echo "${COLOR_BLUE}Installing predefined versions of pre-commit with pre-commit-uv and uv:${COLOR_RESET}"
-        echo "${COLOR_BLUE}pre_commit(${AIRFLOW_PRE_COMMIT_VERSION}) uv(${AIRFLOW_UV_VERSION}) pre_commit-uv(${AIRFLOW_PRE_COMMIT_UV_VERSION})${COLOR_RESET}"
+        echo "${COLOR_BLUE}Installing predefined versions of prek, uv:${COLOR_RESET}"
+        echo "${COLOR_BLUE}prek(${AIRFLOW_PREK_VERSION}) uv(${AIRFLOW_UV_VERSION})${COLOR_RESET}"
         echo
-        uv tool install "pre-commit==${AIRFLOW_PRE_COMMIT_VERSION}" \
-            --with "uv==${AIRFLOW_UV_VERSION}" --with "pre-commit-uv==${AIRFLOW_PRE_COMMIT_UV_VERSION}"
+        uv tool install "prek==${AIRFLOW_PREK_VERSION}" --with "uv==${AIRFLOW_UV_VERSION}"
         # make sure that the venv/user in .local exists
         mkdir -p "${HOME}/.local/bin"
     fi
