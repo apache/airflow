@@ -49,7 +49,7 @@ class ChimeNotifier(BaseNotifier):
         """To reduce overhead cache the hook for the notifier."""
         return ChimeWebhookHook(chime_conn_id=self.chime_conn_id)
 
-    def notify(self, context: Context) -> None:  # type: ignore[override]
+    def notify(self, context: Context) -> None:
         """Send a message to a Chime Chat Room."""
         self.hook.send_message(message=self.message)
 

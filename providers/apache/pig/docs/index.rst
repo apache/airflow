@@ -75,7 +75,9 @@ apache-airflow-providers-apache-pig package
 `Apache Pig <https://pig.apache.org/>`__
 
 
-Release: 4.7.1
+Release: 4.7.2
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------

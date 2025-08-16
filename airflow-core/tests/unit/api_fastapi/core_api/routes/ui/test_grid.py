@@ -24,15 +24,15 @@ import pendulum
 import pytest
 from sqlalchemy import select
 
-from airflow.models import DagBag
+from airflow._shared.timezones import timezone
 from airflow.models.dag import DagModel
+from airflow.models.dagbag import DBDagBag
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import task_group
-from airflow.utils import timezone
+from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
-from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.db import clear_db_assets, clear_db_dags, clear_db_runs, clear_db_serialized_dags
@@ -109,8 +109,7 @@ GRID_NODES = [
 
 @pytest.fixture(autouse=True, scope="module")
 def examples_dag_bag():
-    # Speed up: We don't want example dags for this module
-    return DagBag(include_examples=False, read_dags_from_db=True)
+    return DBDagBag()
 
 
 @pytest.fixture(autouse=True)
@@ -387,12 +386,12 @@ class TestGetGridDataEndpoint:
         assert response.status_code == 200
         assert response.json() == expected
 
-    @pytest.mark.parametrize("endpoint", ["runs", "structure", "latest_run"])
+    @pytest.mark.parametrize("endpoint", ["runs", "structure"])
     def test_should_response_401(self, unauthenticated_test_client, endpoint):
         response = unauthenticated_test_client.get(f"/grid/{endpoint}/{DAG_ID_3}")
         assert response.status_code == 401
 
-    @pytest.mark.parametrize("endpoint", ["runs", "structure", "latest_run"])
+    @pytest.mark.parametrize("endpoint", ["runs", "structure"])
     def test_should_response_403(self, unauthorized_test_client, endpoint):
         response = unauthorized_test_client.get(f"/grid/{endpoint}/{DAG_ID_3}")
         assert response.status_code == 403

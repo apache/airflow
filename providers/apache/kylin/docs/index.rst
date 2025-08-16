@@ -77,7 +77,9 @@ apache-airflow-providers-apache-kylin package
 `Apache Kylin <https://kylin.apache.org/>`__
 
 
-Release: 3.9.1
+Release: 3.9.2
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------

@@ -21,14 +21,19 @@ from datetime import datetime
 
 import pytest
 
+from airflow._shared.timezones import timezone
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+    DagRun as DRDataModel,
+    TaskInstance as TIDataModel,
+)
 from airflow.callbacks.callback_requests import (
     DagCallbackRequest,
+    DagRunContext,
     TaskCallbackRequest,
 )
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
 
 pytestmark = pytest.mark.db_test
@@ -114,3 +119,192 @@ class TestCallbackRequest:
         )
 
         assert request.is_failure_callback == expected_is_failure
+
+
+class TestDagRunContext:
+    def test_dagrun_context_creation(self):
+        """Test DagRunContext can be created with dag_run and first_ti"""
+        current_time = timezone.utcnow()
+        dag_run_data = DRDataModel(
+            dag_id="test_dag",
+            run_id="test_run",
+            logical_date=current_time,
+            data_interval_start=current_time,
+            data_interval_end=current_time,
+            run_after=current_time,
+            start_date=current_time,
+            end_date=None,
+            run_type="manual",
+            state="running",
+            consumed_asset_events=[],
+        )
+
+        ti_data = TIDataModel(
+            id=uuid.uuid4(),
+            dag_id="test_dag",
+            task_id="test_task",
+            run_id="test_run",
+            map_index=-1,
+            try_number=1,
+            dag_version_id=uuid.uuid4(),
+        )
+
+        context = DagRunContext(dag_run=dag_run_data, last_ti=ti_data)
+
+        assert context.dag_run == dag_run_data
+        assert context.last_ti == ti_data
+
+    def test_dagrun_context_none_values(self):
+        """Test DagRunContext can be created with None values"""
+        context = DagRunContext()
+        assert context.dag_run is None
+        assert context.last_ti is None
+
+    def test_dagrun_context_serialization(self):
+        """Test DagRunContext can be serialized and deserialized"""
+        current_time = timezone.utcnow()
+        dag_run_data = DRDataModel(
+            dag_id="test_dag",
+            run_id="test_run",
+            logical_date=current_time,
+            data_interval_start=current_time,
+            data_interval_end=current_time,
+            run_after=current_time,
+            start_date=current_time,
+            end_date=None,
+            run_type="manual",
+            state="running",
+            consumed_asset_events=[],
+        )
+
+        ti_data = TIDataModel(
+            id=uuid.uuid4(),
+            dag_id="test_dag",
+            task_id="test_task",
+            run_id="test_run",
+            map_index=-1,
+            try_number=1,
+            dag_version_id=uuid.uuid4(),
+        )
+
+        context = DagRunContext(dag_run=dag_run_data, last_ti=ti_data)
+
+        # Test serialization
+        serialized = context.model_dump_json()
+
+        # Test deserialization
+        deserialized = DagRunContext.model_validate_json(serialized)
+
+        assert deserialized.dag_run.dag_id == context.dag_run.dag_id
+        assert deserialized.last_ti.task_id == context.last_ti.task_id
+
+
+class TestDagCallbackRequestWithContext:
+    def test_dag_callback_request_with_context_from_server(self):
+        """Test DagCallbackRequest with context_from_server field"""
+        current_time = timezone.utcnow()
+        dag_run_data = DRDataModel(
+            dag_id="test_dag",
+            run_id="test_run",
+            logical_date=current_time,
+            data_interval_start=current_time,
+            data_interval_end=current_time,
+            run_after=current_time,
+            start_date=current_time,
+            end_date=None,
+            run_type="manual",
+            state="running",
+            consumed_asset_events=[],
+        )
+
+        ti_data = TIDataModel(
+            id=uuid.uuid4(),
+            dag_id="test_dag",
+            task_id="test_task",
+            run_id="test_run",
+            map_index=-1,
+            try_number=1,
+            dag_version_id=uuid.uuid4(),
+        )
+
+        context_from_server = DagRunContext(dag_run=dag_run_data, last_ti=ti_data)
+
+        request = DagCallbackRequest(
+            filepath="test.py",
+            dag_id="test_dag",
+            run_id="test_run",
+            bundle_name="testing",
+            bundle_version=None,
+            context_from_server=context_from_server,
+            is_failure_callback=True,
+            msg="test_failure",
+        )
+
+        assert request.context_from_server is not None
+        assert request.context_from_server.dag_run.dag_id == "test_dag"
+        assert request.context_from_server.last_ti.task_id == "test_task"
+
+    def test_dag_callback_request_without_context_from_server(self):
+        """Test DagCallbackRequest without context_from_server field"""
+        request = DagCallbackRequest(
+            filepath="test.py",
+            dag_id="test_dag",
+            run_id="test_run",
+            bundle_name="testing",
+            bundle_version=None,
+            is_failure_callback=True,
+            msg="test_failure",
+        )
+
+        assert request.context_from_server is None
+
+    def test_dag_callback_request_serialization_with_context(self):
+        """Test DagCallbackRequest can be serialized and deserialized with context_from_server"""
+        current_time = timezone.utcnow()
+        dag_run_data = DRDataModel(
+            dag_id="test_dag",
+            run_id="test_run",
+            logical_date=current_time,
+            data_interval_start=current_time,
+            data_interval_end=current_time,
+            run_after=current_time,
+            start_date=current_time,
+            end_date=None,
+            run_type="manual",
+            state="running",
+            consumed_asset_events=[],
+        )
+
+        ti_data = TIDataModel(
+            id=uuid.uuid4(),
+            dag_id="test_dag",
+            task_id="test_task",
+            run_id="test_run",
+            map_index=-1,
+            try_number=1,
+            dag_version_id=uuid.uuid4(),
+        )
+
+        context_from_server = DagRunContext(dag_run=dag_run_data, last_ti=ti_data)
+
+        request = DagCallbackRequest(
+            filepath="test.py",
+            dag_id="test_dag",
+            run_id="test_run",
+            bundle_name="testing",
+            bundle_version=None,
+            context_from_server=context_from_server,
+            is_failure_callback=True,
+            msg="test_failure",
+        )
+
+        # Test serialization
+        json_str = request.to_json()
+
+        # Test deserialization
+        result = DagCallbackRequest.from_json(json_str)
+
+        assert result == request
+        assert result.context_from_server is not None
+        assert result.context_from_server.dag_run.dag_id == "test_dag"
+        assert result.context_from_server.last_ti.task_id == "test_task"

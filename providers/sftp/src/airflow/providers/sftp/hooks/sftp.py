@@ -358,7 +358,11 @@ class SFTPHook(SSHHook):
                 self.retrieve_file(file_path, new_local_path, prefetch)
 
     def retrieve_directory_concurrently(
-        self, remote_full_path: str, local_full_path: str, workers: int = os.cpu_count() or 2
+        self,
+        remote_full_path: str,
+        local_full_path: str,
+        workers: int = os.cpu_count() or 2,
+        prefetch: bool = True,
     ) -> None:
         """
         Transfer the remote directory to a local location concurrently.
@@ -405,6 +409,7 @@ class SFTPHook(SSHHook):
                         conns[i],
                         local_file_chunks[i],
                         remote_file_chunks[i],
+                        prefetch,
                     )
                     for i in range(workers)
                 ]
@@ -755,7 +760,7 @@ class SFTPHookAsync(BaseHook):
             if self.known_hosts.lower() == "none":
                 conn_config.update(known_hosts=None)
             else:
-                conn_config.update(known_hosts=self.known_hosts)  # type: ignore
+                conn_config.update(known_hosts=self.known_hosts)
         if self.private_key:
             _private_key = asyncssh.import_private_key(self.private_key, self.passphrase)
             conn_config["client_keys"] = [_private_key]

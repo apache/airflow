@@ -25,7 +25,11 @@ if typing.TYPE_CHECKING:
     import pandas as pd
     from pyspark.sql import SparkSession
 
-from airflow.decorators import dag, task
+try:
+    from airflow.sdk import dag, task
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import dag, task  # type: ignore[attr-defined,no-redef]
 
 
 @dag(

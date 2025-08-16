@@ -55,8 +55,13 @@ if AIRFLOW_V_3_0_PLUS:
         PokeReturnValue,
     )
 else:
-    from airflow.models import BaseOperatorLink  # type: ignore[no-redef]
+    from airflow.models import BaseOperatorLink
     from airflow.sensors.base import BaseSensorOperator, PokeReturnValue  # type: ignore[no-redef]
+
+try:
+    from airflow.sdk.execution_time.timeout import timeout
+except ImportError:
+    from airflow.utils.timeout import timeout  # type: ignore[assignment,attr-defined,no-redef]
 
 # Explicitly export these imports to protect them from being removed by linters
 __all__ = [
@@ -67,4 +72,5 @@ __all__ = [
     "BaseSensorOperator",
     "BaseOperatorLink",
     "PokeReturnValue",
+    "timeout",
 ]

@@ -37,16 +37,16 @@ import json
 import os
 from datetime import datetime
 
-from google.cloud.exceptions import NotFound
-
-from airflow.decorators import task
+try:
+    from airflow.sdk import task
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.models.dag import DAG
-from airflow.providers.google.cloud.hooks.secret_manager import (
-    GoogleCloudSecretManagerHook,
-)
 from airflow.providers.google.cloud.operators.bigquery import BigQueryCreateEmptyDatasetOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
+from airflow.providers.google.common.utils.get_secret import get_secret
 from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
 from airflow.providers.google.marketing_platform.operators.display_video import (
     GoogleDisplayVideo360CreateSDFDownloadTaskOperator,
@@ -91,15 +91,9 @@ CREATE_SDF_DOWNLOAD_TASK_BODY_REQUEST: dict = {
 # [END howto_display_video_env_variables]
 
 
-def get_secret(secret_id: str) -> str:
-    hook = GoogleCloudSecretManagerHook()
-    if hook.secret_exists(secret_id=secret_id):
-        return hook.access_secret(secret_id=secret_id).payload.data.decode()
-    raise NotFound("The secret '%s' not found", secret_id)
-
-
 with DAG(
     "display_video_sdf",
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "display_video_sdf"],
@@ -211,7 +205,7 @@ with DAG(
             get_display_video_gmp_partner_id_task,
             get_display_video_service_account_key_task,
         ]
-        >> create_connection_display_video_task  # type: ignore
+        >> create_connection_display_video_task
         >> create_bucket
         >> create_dataset
         # TEST BODY

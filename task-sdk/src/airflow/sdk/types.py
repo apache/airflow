@@ -86,6 +86,8 @@ class RuntimeTaskInstanceProtocol(Protocol):
 
     def get_first_reschedule_date(self, first_try_number) -> AwareDatetime | None: ...
 
+    def get_previous_dagrun(self, state: str | None = None) -> DagRunProtocol | None: ...
+
     @staticmethod
     def get_ti_count(
         dag_id: str,

@@ -29,7 +29,11 @@ from uuid import uuid4
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
 
-from airflow.decorators import task
+try:
+    from airflow.sdk import task
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.providers.amazon.aws.hooks.ssm import SsmHook
 from airflow.utils.state import DagRunState, State
 from airflow.utils.trigger_rule import TriggerRule
@@ -382,3 +386,8 @@ def _purge_logs(
 @task
 def split_string(string):
     return string.split(",")
+
+
+@task
+def get_role_name(arn: str) -> str:
+    return arn.split("/")[-1]

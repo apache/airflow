@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import os
 from tempfile import gettempdir
 from typing import TYPE_CHECKING
 
@@ -85,10 +86,18 @@ def _bootstrap_dagbag():
 
         dagbag = DagBag()
         # Save DAGs in the ORM
-        if AIRFLOW_V_3_0_PLUS:
-            dagbag.sync_to_db(bundle_name="dags-folder", bundle_version=None, session=session)
+        if AIRFLOW_V_3_1_PLUS:
+            from airflow.models.dagbag import sync_bag_to_db
+
+            sync_bag_to_db(dagbag, bundle_name="dags-folder", bundle_version=None, session=session)
+        elif AIRFLOW_V_3_0_PLUS:
+            dagbag.sync_to_db(  # type: ignore[attr-defined]
+                bundle_name="dags-folder",
+                bundle_version=None,
+                session=session,
+            )
         else:
-            dagbag.sync_to_db(session=session)
+            dagbag.sync_to_db(session=session)  # type: ignore[attr-defined]
 
         # Deactivate the unknown ones
         DAG.deactivate_unknown_dags(dagbag.dags.keys(), session=session)
@@ -101,9 +110,26 @@ def initial_db_init():
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
     db.resetdb()
+
     if AIRFLOW_V_3_0_PLUS:
-        db.downgrade(to_revision="5f2621c13b39")
-        db.upgradedb(to_revision="head")
+        try:
+            from airflow.providers.fab.auth_manager.models.db import FABDBManager
+        except ModuleNotFoundError:
+            # Reasons it might fail: we're in a provider bundle without FAB, or we're on a version of Python
+            # where FAB isn't yet supported
+            pass
+        else:
+            if os.getenv("TEST_GROUP") != "providers":
+                # If we loaded the provider, and we're running core (or running via breeze where TEST_GROUP
+                # isn't specified) run the downgrade+upgrade to ensure migrations are in sync with Model
+                # classes
+                db.downgrade(to_revision="5f2621c13b39")
+                db.upgradedb(to_revision="head")
+            else:
+                # Just create the tables so they are there
+                with create_session() as session:
+                    FABDBManager(session).create_db_from_orm()
+                    session.commit()
     else:
         from flask import Flask
 
@@ -132,11 +158,17 @@ def parse_and_sync_to_db(folder: Path | str, include_examples: bool = False):
             session.commit()
 
         dagbag = DagBag(dag_folder=folder, include_examples=include_examples)
-        if AIRFLOW_V_3_0_PLUS:
-            dagbag.sync_to_db("dags-folder", None, session)
+        if AIRFLOW_V_3_1_PLUS:
+            from airflow.models.dagbag import sync_bag_to_db
+
+            sync_bag_to_db(dagbag, "dags-folder", None, session=session)
+        elif AIRFLOW_V_3_0_PLUS:
+            dagbag.sync_to_db("dags-folder", None, session)  # type: ignore[attr-defined]
         else:
-            dagbag.sync_to_db(session=session)  # type: ignore[call-arg]
+            dagbag.sync_to_db(session=session)  # type: ignore[attr-defined]
         session.commit()
+
+    return dagbag
 
 
 def clear_db_runs():
@@ -330,7 +362,7 @@ def clear_dag_specific_permissions():
         from airflow.providers.fab.auth_manager.models import Permission, Resource, assoc_permission_role
     except ImportError:
         # Handle Pre-airflow 2.9 case where FAB was part of the core airflow
-        from airflow.providers.fab.auth.managers.fab.models import (  # type: ignore[no-redef]
+        from airflow.providers.fab.auth.managers.fab.models import (
             Permission,
             Resource,
             assoc_permission_role,
@@ -338,7 +370,7 @@ def clear_dag_specific_permissions():
     except RuntimeError as e:
         # Handle case where FAB provider is not even usable
         if "needs Apache Airflow 2.9.0" in str(e):
-            from airflow.providers.fab.auth.managers.fab.models import (  # type: ignore[no-redef]
+            from airflow.providers.fab.auth.managers.fab.models import (
                 Permission,
                 Resource,
                 assoc_permission_role,

@@ -11,7 +11,7 @@
     "maxRuns": "Nombre maximum d'exécutions actives",
     "reprocessBehavior": "Comportement de réexécution",
     "run": "Lancer le rattrapage",
-    "selectDescription": "Exécuter ce DAG pour une plage de dates",
+    "selectDescription": "Exécuter ce Dag pour une plage de dates",
     "selectLabel": "Rattrapage",
     "title": "Lancer un rattrapage",
     "toaster": {
@@ -50,8 +50,8 @@
   },
   "durationChart": {
     "duration": "Durée (secondes)",
-    "lastDagRun_one": "Dernière exécution du DAG",
-    "lastDagRun_other": "Dernières {{count}} exécutions du DAG",
+    "lastDagRun_one": "Dernière exécution du Dag",
+    "lastDagRun_other": "Dernières {{count}} exécutions du Dag",
     "lastTaskInstance_one": "Dernière Task Instance",
     "lastTaskInstance_other": "Dernières {{count}} Task Instances",
     "queuedDuration": "Durée en file d'attente",
@@ -79,7 +79,7 @@
     "downloadImage": "Télécharger l'image du graphe",
     "downloadImageError": "Échec du téléchargement de l'image du graphe.",
     "downloadImageErrorTitle": "Échec du téléchargement",
-    "otherDagRuns": "+Autres exécutions du DAG",
+    "otherDagRuns": "+Autres exécutions du Dag",
     "taskCount_one": "{{count}} tâche",
     "taskCount_other": "{{count}} tâches",
     "taskGroup": "Groupe de tâches"
@@ -90,7 +90,7 @@
     "in": "dans",
     "line": "ligne"
   },
-  "reparseDag": "Analyser le DAG",
+  "reparseDag": "Analyser le Dag",
   "sortedAscending": "tri croissant",
   "sortedDescending": "tri décroissant",
   "sortedUnsorted": "non trié",
@@ -99,16 +99,16 @@
   "toggleTableView": "Afficher en mode tableau",
   "triggerDag": {
     "button": "Déclencher",
-    "loading": "Chargement des informations du DAG...",
-    "loadingFailed": "Échec du chargement des informations du DAG. Veuillez réessayer.",
+    "loading": "Chargement des informations du Dag...",
+    "loadingFailed": "Échec du chargement des informations du Dag. Veuillez réessayer.",
     "runIdHelp": "Optionnel – sera généré s'il n'est pas fourni",
-    "selectDescription": "Déclencher une exécution unique de ce DAG",
+    "selectDescription": "Déclencher une exécution unique de ce Dag",
     "selectLabel": "Exécution unique",
-    "title": "Déclencher un DAG",
+    "title": "Déclencher un Dag",
     "toaster": {
       "success": {
-        "description": "L'exécution du DAG a été déclenchée avec succès.",
-        "title": "DAG déclenché"
+        "description": "L'exécution du Dag a été déclenchée avec succès.",
+        "title": "Dag déclenché"
       }
     },
     "unpause": "Réactiver {{dagDisplayName}} lors du déclenchement"
@@ -126,7 +126,7 @@
     "versionId": "ID de version"
   },
   "versionSelect": {
-    "dagVersion": "Version du DAG",
+    "dagVersion": "Version du Dag",
     "versionCode": "v{{versionCode}}"
   }
 }

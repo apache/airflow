@@ -180,7 +180,7 @@ class SSHOperator(BaseOperator):
 
     def tunnel(self) -> None:
         """Get ssh tunnel."""
-        ssh_client = self.hook.get_conn()  # type: ignore[union-attr]
+        ssh_client = self.hook.get_conn()
         ssh_client.get_transport()
 
     def on_kill(self) -> None:

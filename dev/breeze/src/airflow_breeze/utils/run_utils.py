@@ -84,7 +84,7 @@ def run_command(
 
     :param cmd: command to run
     :param title: optional title for the command (otherwise likely title is automatically determined)
-    :param check: whether to check status value and run exception (same as POpem)
+    :param check: whether to check status value and run exception (same as Popen)
     :param no_output_dump_on_exception: whether to suppress printing logs from output when command fails
     :param env: mapping of environment variables to set for the run command
     :param cwd: working directory to set for the command
@@ -145,7 +145,7 @@ def run_command(
             kwargs["stdout"] = subprocess.DEVNULL
             kwargs["stderr"] = subprocess.DEVNULL
         return subprocess.run(cmd, input=input, check=check, env=cmd_env, cwd=workdir, **kwargs)
-    with ci_group(title=f"Running command: {title}", message_type=None):
+    with ci_group(f"Running command: {title}"):
         get_console(output=output).print(f"\n[info]Working directory {workdir}\n")
         if input:
             get_console(output=output).print("[info]Input:")

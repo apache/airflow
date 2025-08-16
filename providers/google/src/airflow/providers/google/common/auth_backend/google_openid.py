@@ -29,7 +29,7 @@ import google.auth.transport.requests
 import google.oauth2.id_token
 
 try:
-    from flask import Response, current_app, request as flask_request  # type: ignore
+    from flask import Response, current_app, request as flask_request
 except ImportError:
     raise ImportError(
         "Google requires FAB provider to be installed in order to use this auth backend. "
@@ -122,7 +122,7 @@ def _lookup_user(user_email: str):
 
 
 def _set_current_user(user):
-    current_app.appbuilder.sm.lm._update_request_context_with_user(user=user)  # type: ignore[attr-defined]
+    current_app.appbuilder.sm.lm._update_request_context_with_user(user=user)
 
 
 T = TypeVar("T", bound=Callable)

@@ -68,11 +68,20 @@ REQUESTS_EXCEPTIONS_TYPES = (
 
 
 def check_http_error_is_retryable(exc: BaseException):
+    try:
+        import httpx
+
+        if isinstance(exc, httpx.ConnectError):
+            return True
+    except ImportError:
+        pass
     return (
         isinstance(exc, requests.exceptions.RequestException)
         and exc.response
         and exc.response.status_code
         and exc.response.status_code in HTTP_RETRY_STATUS_CODE
+        or isinstance(exc, weaviate.UnexpectedStatusCodeException)
+        and exc.status_code in HTTP_RETRY_STATUS_CODE
     )
 
 

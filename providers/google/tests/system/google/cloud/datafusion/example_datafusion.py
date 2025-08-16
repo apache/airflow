@@ -23,7 +23,13 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow.decorators import task
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import task
+else:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.hooks.datafusion import DataFusionHook
 from airflow.providers.google.cloud.operators.datafusion import (
@@ -166,7 +172,6 @@ CloudDataFusionCreatePipelineOperator.template_fields = (
     *CloudDataFusionCreatePipelineOperator.template_fields,
     "pipeline",
 )
-
 
 with DAG(
     DAG_ID,

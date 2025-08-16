@@ -49,6 +49,6 @@ authenticated_router.include_router(
 )
 authenticated_router.include_router(variables.router, prefix="/variables", tags=["Variables"])
 authenticated_router.include_router(xcoms.router, prefix="/xcoms", tags=["XComs"])
-authenticated_router.include_router(hitl.router, prefix="/hitl-details", tags=["Human in the Loop"])
+authenticated_router.include_router(hitl.router, prefix="/hitlDetails", tags=["Human in the Loop"])
 
 execution_api_router.include_router(authenticated_router)

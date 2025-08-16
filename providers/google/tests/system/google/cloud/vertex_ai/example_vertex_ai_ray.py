@@ -26,7 +26,14 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from google.cloud.aiplatform.vertex_ray.util import resources
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+try:
+    from google.cloud.aiplatform.vertex_ray.util import resources
+except ImportError:
+    raise AirflowOptionalProviderFeatureException(
+        "The ray provider is optional and requires the `google-cloud-aiplatform` package to be installed. "
+    )
 
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.vertex_ai.ray import (

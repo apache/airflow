@@ -23,8 +23,15 @@ import os
 from datetime import datetime
 from typing import Any
 
-from airflow.decorators import task
 from airflow.models.dag import DAG
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import task
+else:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.providers.google.cloud.transfers.gdrive_to_gcs import GoogleDriveToGCSOperator
@@ -51,9 +58,7 @@ FILE_NAME = "example_upload.txt"
 DRIVE_FILE_NAME = f"example_upload_{DAG_ID}_{ENV_ID}.txt"
 LOCAL_PATH = f"gcs/{FILE_NAME}"
 
-
 log = logging.getLogger(__name__)
-
 
 with DAG(
     DAG_ID,

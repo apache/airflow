@@ -25,8 +25,8 @@ from sqlalchemy import Column, ForeignKey, Integer, UniqueConstraint, select
 from sqlalchemy.orm import joinedload, relationship
 from sqlalchemy_utils import UUIDType
 
+from airflow._shared.timezones import timezone
 from airflow.models.base import Base, StringID
-from airflow.utils import timezone
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
 

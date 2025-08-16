@@ -109,7 +109,16 @@ class TestS3DagBundle:
         bundle = S3DagBundle(
             name="test", aws_conn_id=AWS_CONN_ID_DEFAULT, prefix="project1/dags", bucket_name=S3_BUCKET_NAME
         )
+
         url: str = bundle.view_url("test_version")
+        assert url.startswith("https://my-airflow-dags-bucket.s3.amazonaws.com/project1/dags")
+
+    @pytest.mark.db_test
+    def test_view_url_template_generates_presigned_url(self):
+        bundle = S3DagBundle(
+            name="test", aws_conn_id=AWS_CONN_ID_DEFAULT, prefix="project1/dags", bucket_name=S3_BUCKET_NAME
+        )
+        url: str = bundle.view_url_template()
         assert url.startswith("https://my-airflow-dags-bucket.s3.amazonaws.com/project1/dags")
 
     @pytest.mark.db_test
@@ -130,7 +139,7 @@ class TestS3DagBundle:
     @pytest.mark.db_test
     def test_correct_bundle_path_used(self):
         bundle = S3DagBundle(
-            name="test", aws_conn_id=AWS_CONN_ID_DEFAULT, prefix="project1_dags", bucket_name="aiflow_dags"
+            name="test", aws_conn_id=AWS_CONN_ID_DEFAULT, prefix="project1_dags", bucket_name="airflow_dags"
         )
         assert str(bundle.base_dir) == str(bundle.s3_dags_dir)
 

@@ -26,9 +26,10 @@ from urllib.request import urlopen
 from airflow_breeze.utils.console import get_console
 
 airflow_redirects_link = (
-    "https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/redirects.txt"
+    "https://raw.githubusercontent.com/{head_repo}/{head_ref}/airflow-core/docs/redirects.txt"
 )
-helm_redirects_link = "https://raw.githubusercontent.com/apache/airflow/main/docs/helm-chart/redirects.txt"
+
+helm_redirects_link = "https://raw.githubusercontent.com/{head_repo}/{head_ref}/docs/helm-chart/redirects.txt"
 
 
 def download_file(url):
@@ -64,10 +65,10 @@ def get_redirect_content(url: str):
     return f'<html><head><meta http-equiv="refresh" content="0; url={url}"/></head></html>'
 
 
-def get_github_provider_redirects_url(provider_name: str):
-    return (
-        f"https://raw.githubusercontent.com/apache/airflow/main/providers/{provider_name}/docs/redirects.txt"
-    )
+def get_github_provider_redirects_url(
+    provider_name: str, head_repo: str = "apache/airflow", head_ref: str = "main"
+) -> str:
+    return f"https://raw.githubusercontent.com/{head_repo}/{head_ref}/providers/{provider_name}/docs/redirects.txt"
 
 
 def crete_redirect_html_if_not_exist(path: Path, content: str):
@@ -133,15 +134,20 @@ def generate_back_references(link: str, base_path: Path):
 def start_generating_back_references(
     airflow_site_directory: Path,
     short_provider_ids: list[str],
+    head_repo: str = "apache/airflow",
+    head_ref: str = "main",
 ):
+    airflow_redirects_url = airflow_redirects_link.format(head_repo=head_repo, head_ref=head_ref)
+    helm_redirects_url = helm_redirects_link.format(head_repo=head_repo, head_ref=head_ref)
+
     docs_archive_path = airflow_site_directory / "docs-archive"
     airflow_docs_path = docs_archive_path / "apache-airflow"
     helm_docs_path = docs_archive_path / "helm-chart"
     if "apache-airflow" in short_provider_ids:
-        generate_back_references(airflow_redirects_link, airflow_docs_path)
+        generate_back_references(airflow_redirects_url, airflow_docs_path)
         short_provider_ids.remove("apache-airflow")
     if "helm-chart" in short_provider_ids:
-        generate_back_references(helm_redirects_link, helm_docs_path)
+        generate_back_references(helm_redirects_url, helm_docs_path)
         short_provider_ids.remove("helm-chart")
     if "docker-stack" in short_provider_ids:
         get_console().print("[info]Skipping docker-stack package. No back-reference needed.")
@@ -155,6 +161,6 @@ def start_generating_back_references(
             full_provider_name = f"apache-airflow-providers-{p.replace('.', '-')}"
             get_console().print(f"Processing airflow provider: {full_provider_name}")
             generate_back_references(
-                get_github_provider_redirects_url(slash_based_short_provider_id),
+                get_github_provider_redirects_url(slash_based_short_provider_id, head_repo, head_ref),
                 docs_archive_path / full_provider_name,
             )

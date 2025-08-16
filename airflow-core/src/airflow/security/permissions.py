@@ -16,7 +16,17 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from typing import TypedDict
+
+from airflow.exceptions import RemovedInAirflow4Warning
+
+warnings.warn(
+    "The airflow.security.permissions module is deprecated; please see https://airflow.apache.org/docs/apache-airflow/stable/security/deprecated_permissions.html",
+    RemovedInAirflow4Warning,
+    stacklevel=2,
+)
+
 
 # Resource Constants
 RESOURCE_ACTION = "Permissions"
@@ -39,6 +49,7 @@ RESOURCE_ASSET = "Assets"
 RESOURCE_ASSET_ALIAS = "Asset Aliases"
 RESOURCE_DOCS = "Documentation"
 RESOURCE_DOCS_MENU = "Docs"
+RESOURCE_HITL_DETAIL = "HITL Detail"
 RESOURCE_IMPORT_ERROR = "ImportError"
 RESOURCE_JOB = "Jobs"
 RESOURCE_MY_PASSWORD = "My Password"

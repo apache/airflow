@@ -23,8 +23,9 @@
 
 Package ``apache-airflow-providers-zendesk``
 
-Release: ``4.10.1``
+Release: ``4.10.2``
 
+Release Date: ``|PypiReleaseDate|``
 
 `Zendesk <https://www.zendesk.com/>`__
 
@@ -36,7 +37,7 @@ This is a provider package for ``zendesk`` provider. All classes for this provid
 are in ``airflow.providers.zendesk`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-zendesk/4.10.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-zendesk/4.10.2/>`_.
 
 Installation
 ------------
@@ -45,7 +46,7 @@ You can install this package on top of an existing Airflow 2 installation (see `
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-zendesk``
 
-The package supports the following python versions: 3.10,3.11,3.12
+The package supports the following python versions: 3.10,3.11,3.12,3.13
 
 Requirements
 ------------
@@ -58,4 +59,4 @@ PIP package         Version required
 ==================  ==================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-zendesk/4.10.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-zendesk/4.10.2/changelog.html>`_.

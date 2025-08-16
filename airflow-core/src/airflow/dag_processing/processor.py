@@ -40,8 +40,12 @@ from airflow.sdk.execution_time.comms import (
     DeleteVariable,
     ErrorResponse,
     GetConnection,
+    GetPreviousDagRun,
+    GetPrevSuccessfulDagRun,
     GetVariable,
     OKResponse,
+    PreviousDagRunResult,
+    PrevSuccessfulDagRunResult,
     PutVariable,
     VariableResult,
 )
@@ -94,12 +98,24 @@ class DagFileParsingResult(BaseModel):
 
 
 ToManager = Annotated[
-    DagFileParsingResult | GetConnection | GetVariable | PutVariable | DeleteVariable,
+    DagFileParsingResult
+    | GetConnection
+    | GetVariable
+    | PutVariable
+    | DeleteVariable
+    | GetPrevSuccessfulDagRun
+    | GetPreviousDagRun,
     Field(discriminator="type"),
 ]
 
 ToDagProcessor = Annotated[
-    DagFileParseRequest | ConnectionResult | VariableResult | ErrorResponse | OKResponse,
+    DagFileParseRequest
+    | ConnectionResult
+    | VariableResult
+    | PreviousDagRunResult
+    | PrevSuccessfulDagRunResult
+    | ErrorResponse
+    | OKResponse,
     Field(discriminator="type"),
 ]
 
@@ -159,7 +175,6 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
         dag_folder=msg.file,
         bundle_path=msg.bundle_path,
         include_examples=False,
-        safe_mode=True,
         load_op_links=False,
     )
     if msg.callback_requests:
@@ -210,6 +225,8 @@ def _execute_callbacks(
 
 
 def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: FilteringBoundLogger) -> None:
+    from airflow.sdk.api.datamodels._generated import TIRunContext
+
     dag = dagbag.dags[request.dag_id]
 
     callbacks = dag.on_failure_callback if request.is_failure_callback else dag.on_success_callback
@@ -218,12 +235,27 @@ def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: Fil
         return
 
     callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
-    # TODO:We need a proper context object!
-    context: Context = {  # type: ignore[assignment]
-        "dag": dag,
-        "run_id": request.run_id,
-        "reason": request.msg,
-    }
+    ctx_from_server = request.context_from_server
+
+    if ctx_from_server is not None and ctx_from_server.last_ti is not None:
+        task = dag.get_task(ctx_from_server.last_ti.task_id)
+
+        runtime_ti = RuntimeTaskInstance.model_construct(
+            **ctx_from_server.last_ti.model_dump(exclude_unset=True),
+            task=task,
+            _ti_context_from_server=TIRunContext.model_construct(
+                dag_run=ctx_from_server.dag_run,
+                max_tries=task.retries,
+            ),
+        )
+        context = runtime_ti.get_template_context()
+        context["reason"] = request.msg
+    else:
+        context: Context = {  # type: ignore[no-redef]
+            "dag": dag,
+            "run_id": request.run_id,
+            "reason": request.msg,
+        }
 
     for callback in callbacks:
         log.info(
@@ -357,7 +389,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
         )
         self.send_msg(msg, request_id=0)
 
-    def _handle_request(self, msg: ToManager, log: FilteringBoundLogger, req_id: int) -> None:  # type: ignore[override]
+    def _handle_request(self, msg: ToManager, log: FilteringBoundLogger, req_id: int) -> None:
         from airflow.sdk.api.datamodels._generated import ConnectionResponse, VariableResponse
 
         resp: BaseModel | None = None
@@ -384,6 +416,17 @@ class DagFileProcessorProcess(WatchedSubprocess):
             self.client.variables.set(msg.key, msg.value, msg.description)
         elif isinstance(msg, DeleteVariable):
             resp = self.client.variables.delete(msg.key)
+        elif isinstance(msg, GetPreviousDagRun):
+            resp = self.client.dag_runs.get_previous(
+                dag_id=msg.dag_id,
+                logical_date=msg.logical_date,
+                state=msg.state,
+            )
+        elif isinstance(msg, GetPrevSuccessfulDagRun):
+            dagrun_resp = self.client.task_instances.get_previous_successful_dagrun(self.id)
+            dagrun_result = PrevSuccessfulDagRunResult.from_dagrun_response(dagrun_resp)
+            resp = dagrun_result
+            dump_opts = {"exclude_unset": True}
         else:
             log.error("Unhandled request", msg=msg)
             self.send_msg(

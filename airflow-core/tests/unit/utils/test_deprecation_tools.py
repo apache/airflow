@@ -252,71 +252,239 @@ class TestGetAttrWithDeprecation:
 class TestAddDeprecatedClasses:
     """Tests for the add_deprecated_classes function."""
 
-    def test_add_deprecated_classes_basic(self):
-        """Test basic functionality of add_deprecated_classes."""
+    @pytest.mark.parametrize(
+        "test_case,module_imports,override_classes,expected_behavior",
+        [
+            (
+                "basic_class_mapping",
+                {"old_module": {"OldClass": "new.module.NewClass"}},
+                None,
+                "creates_virtual_module",
+            ),
+            (
+                "wildcard_pattern",
+                {"timezone": {"*": "airflow.sdk.timezone"}},
+                None,
+                "creates_virtual_module",
+            ),
+            (
+                "with_override",
+                {"old_module": {"OldClass": "new.module.NewClass"}},
+                {"old_module": {"OldClass": "override.module.OverrideClass"}},
+                "creates_virtual_module",
+            ),
+        ],
+        ids=["basic_class_mapping", "wildcard_pattern", "with_override"],
+    )
+    def test_virtual_module_creation(self, test_case, module_imports, override_classes, expected_behavior):
+        """Test add_deprecated_classes creates virtual modules correctly."""
         # Use unique package and module names to avoid conflicts
         package_name = get_unique_module_name("test_package")
-        module_name = f"{package_name}.old_module"
-
-        module_imports = {"old_module": {"OldClass": "new.module.NewClass"}}
+        module_name = f"{package_name}.{next(iter(module_imports.keys()))}"
 
         with temporary_module(module_name):
-            add_deprecated_classes(module_imports, package_name)
+            add_deprecated_classes(module_imports, package_name, override_classes)
 
             # Check that the module was added to sys.modules
             assert module_name in sys.modules
             assert isinstance(sys.modules[module_name], ModuleType)
             assert hasattr(sys.modules[module_name], "__getattr__")
-
-    def test_add_deprecated_classes_with_wildcard(self):
-        """Test add_deprecated_classes with wildcard pattern."""
-        # Use unique package and module names to avoid conflicts
-        package_name = get_unique_module_name("test_package")
-        module_name = f"{package_name}.timezone"
-
-        module_imports = {"timezone": {"*": "airflow.sdk.timezone"}}
-
-        with temporary_module(module_name):
-            add_deprecated_classes(module_imports, package_name)
-
-            # Check that the module was added to sys.modules
-            assert module_name in sys.modules
-            assert isinstance(sys.modules[module_name], ModuleType)
-            assert hasattr(sys.modules[module_name], "__getattr__")
-
-    def test_add_deprecated_classes_with_override(self):
-        """Test add_deprecated_classes with override_deprecated_classes."""
-        # Use unique package and module names to avoid conflicts
-        package_name = get_unique_module_name("test_package")
-        module_name = f"{package_name}.old_module"
-
-        module_imports = {"old_module": {"OldClass": "new.module.NewClass"}}
-
-        override_deprecated_classes = {"old_module": {"OldClass": "override.module.OverrideClass"}}
-
-        with temporary_module(module_name):
-            add_deprecated_classes(module_imports, package_name, override_deprecated_classes)
-
-            # Check that the module was added to sys.modules
-            assert module_name in sys.modules
-            assert isinstance(sys.modules[module_name], ModuleType)
 
     def test_add_deprecated_classes_doesnt_override_existing(self):
         """Test that add_deprecated_classes doesn't override existing modules."""
-        # Use unique package and module names to avoid conflicts
-        package_name = get_unique_module_name("test_package")
-        module_name = f"{package_name}.existing_module"
+        module_name = get_unique_module_name("existing_module")
+        full_module_name = f"airflow.test.{module_name}"
 
-        module_imports = {"existing_module": {"SomeClass": "new.module.SomeClass"}}
+        # Create an existing module
+        existing_module = ModuleType(full_module_name)
+        existing_module.existing_attr = "existing_value"
+        sys.modules[full_module_name] = existing_module
 
-        with temporary_module(module_name):
-            # Create a mock existing module
-            existing_module = ModuleType(module_name)
-            existing_module.existing_attribute = "existing_value"
-            sys.modules[module_name] = existing_module
+        with temporary_module(full_module_name):
+            # This should not override the existing module
+            add_deprecated_classes(
+                {module_name: {"NewClass": "new.module.NewClass"}},
+                package="airflow.test",
+            )
 
-            add_deprecated_classes(module_imports, package_name)
+            # The existing module should still be there
+            assert sys.modules[full_module_name] == existing_module
+            assert sys.modules[full_module_name].existing_attr == "existing_value"
 
-            # Check that the existing module was not overridden
-            assert sys.modules[module_name] is existing_module
-            assert sys.modules[module_name].existing_attribute == "existing_value"
+    @pytest.mark.parametrize(
+        "test_case,module_imports,attr_name,target_attr,expected_target_msg,override_classes",
+        [
+            (
+                "direct_imports",
+                {
+                    "get_something": "target.module.get_something",
+                    "another_attr": "target.module.another_attr",
+                },
+                "get_something",
+                "get_something",
+                "target.module.get_something",
+                None,
+            ),
+            (
+                "with_wildcard",
+                {"specific_attr": "target.module.specific_attr", "*": "target.module"},
+                "any_attribute",
+                "any_attribute",
+                "target.module.any_attribute",
+                None,
+            ),
+            (
+                "with_override",
+                {"get_something": "target.module.get_something"},
+                "get_something",
+                "get_something",
+                "override.module.OverrideClass",
+                {"get_something": "override.module.OverrideClass"},
+            ),
+        ],
+        ids=["direct_imports", "with_wildcard", "with_override"],
+    )
+    def test_current_module_deprecation(
+        self, test_case, module_imports, attr_name, target_attr, expected_target_msg, override_classes
+    ):
+        """Test add_deprecated_classes with current module (__name__ key) functionality."""
+        module_name = get_unique_module_name(f"{test_case}_module")
+        full_module_name = f"airflow.test.{module_name}"
+
+        # Create a module to modify
+        test_module = ModuleType(full_module_name)
+        sys.modules[full_module_name] = test_module
+
+        with temporary_module(full_module_name):
+            # Mock the target module and attribute
+            mock_target_module = mock.MagicMock()
+            mock_attribute = mock.MagicMock()
+            setattr(mock_target_module, target_attr, mock_attribute)
+
+            with mock.patch(
+                "airflow.utils.deprecation_tools.importlib.import_module", return_value=mock_target_module
+            ):
+                # Prepare override parameter
+                override_param = {full_module_name: override_classes} if override_classes else None
+
+                add_deprecated_classes(
+                    {full_module_name: module_imports},
+                    package=full_module_name,
+                    override_deprecated_classes=override_param,
+                )
+
+                # The module should now have a __getattr__ method
+                assert hasattr(test_module, "__getattr__")
+
+                # Test that accessing the deprecated attribute works
+                with warnings.catch_warnings(record=True) as w:
+                    warnings.simplefilter("always")
+                    result = getattr(test_module, attr_name)
+
+                    assert result == mock_attribute
+                    assert len(w) == 1
+                    assert issubclass(w[0].category, DeprecationWarning)
+                    assert f"{full_module_name}.{attr_name}" in str(w[0].message)
+                    assert expected_target_msg in str(w[0].message)
+
+    def test_add_deprecated_classes_mixed_current_and_virtual_modules(self):
+        """Test add_deprecated_classes with mixed current module and virtual module imports."""
+        base_module_name = get_unique_module_name("mixed_module")
+        full_module_name = f"airflow.test.{base_module_name}"
+        virtual_module_name = f"{base_module_name}_virtual"
+        full_virtual_module_name = f"{full_module_name}.{virtual_module_name}"
+
+        # Create a module to modify
+        test_module = ModuleType(full_module_name)
+        sys.modules[full_module_name] = test_module
+
+        with temporary_module(full_module_name), temporary_module(full_virtual_module_name):
+            # Mock the target modules and attributes
+            mock_current_module = mock.MagicMock()
+            mock_current_attr = mock.MagicMock()
+            mock_current_module.current_attr = mock_current_attr
+
+            mock_virtual_module = mock.MagicMock()
+            mock_virtual_attr = mock.MagicMock()
+            mock_virtual_module.VirtualClass = mock_virtual_attr
+
+            def mock_import_module(module_name):
+                if "current.module" in module_name:
+                    return mock_current_module
+                if "virtual.module" in module_name:
+                    return mock_virtual_module
+                raise ImportError(f"Module {module_name} not found")
+
+            with mock.patch(
+                "airflow.utils.deprecation_tools.importlib.import_module", side_effect=mock_import_module
+            ):
+                add_deprecated_classes(
+                    {
+                        full_module_name: {
+                            "current_attr": "current.module.current_attr",
+                        },
+                        virtual_module_name: {
+                            "VirtualClass": "virtual.module.VirtualClass",
+                        },
+                    },
+                    package=full_module_name,
+                )
+
+                # Test current module access
+                with warnings.catch_warnings(record=True) as w:
+                    warnings.simplefilter("always")
+                    result = test_module.current_attr
+
+                    assert result == mock_current_attr
+                    assert len(w) == 1
+                    assert issubclass(w[0].category, DeprecationWarning)
+                    assert f"{full_module_name}.current_attr" in str(w[0].message)
+
+                # Test virtual module access
+                virtual_module = sys.modules[full_virtual_module_name]
+                with warnings.catch_warnings(record=True) as w:
+                    warnings.simplefilter("always")
+                    result = virtual_module.VirtualClass
+
+                    assert result == mock_virtual_attr
+                    assert len(w) == 1
+                    assert issubclass(w[0].category, DeprecationWarning)
+                    assert f"{full_virtual_module_name}.VirtualClass" in str(w[0].message)
+
+    def test_add_deprecated_classes_current_module_not_in_sys_modules(self):
+        """Test add_deprecated_classes raises error when current module not in sys.modules."""
+        nonexistent_module = "nonexistent.module.name"
+
+        with pytest.raises(ValueError, match=f"Module {nonexistent_module} not found in sys.modules"):
+            add_deprecated_classes(
+                {nonexistent_module: {"attr": "target.module.attr"}},
+                package=nonexistent_module,
+            )
+
+    def test_add_deprecated_classes_preserves_existing_module_attributes(self):
+        """Test that add_deprecated_classes preserves existing module attributes."""
+        module_name = get_unique_module_name("preserve_module")
+        full_module_name = f"airflow.test.{module_name}"
+
+        # Create a module with existing attributes
+        test_module = ModuleType(full_module_name)
+        test_module.existing_attr = "existing_value"
+        test_module.existing_function = lambda: "existing_function_result"
+        sys.modules[full_module_name] = test_module
+
+        with temporary_module(full_module_name):
+            add_deprecated_classes(
+                {
+                    full_module_name: {
+                        "deprecated_attr": "target.module.deprecated_attr",
+                    }
+                },
+                package=full_module_name,
+            )
+
+            # Existing attributes should still be accessible
+            assert test_module.existing_attr == "existing_value"
+            assert test_module.existing_function() == "existing_function_result"
+
+            # The module should have __getattr__ for deprecated attributes
+            assert hasattr(test_module, "__getattr__")

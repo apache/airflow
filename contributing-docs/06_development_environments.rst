@@ -158,3 +158,6 @@ Typically, you are recommended to use multiple of these environments depending o
 
 If you want to learn more details about setting up your local virtualenv, follow to the
 `Local virtualenv <07_local_virtualenv.rst>`__ document.
+
+For detailed information about debugging Airflow components using Breeze, see the
+`Debugging Airflow Components <20_debugging_airflow_components.rst>`__ guide.

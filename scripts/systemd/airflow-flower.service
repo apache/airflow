@@ -27,6 +27,7 @@ User=airflow
 Group=airflow
 Type=simple
 ExecStart=/bin/airflow celery flower
+ExecStart=/bin/bash -c 'source /home/airflow/airflow_venv/bin/activate && airflow celery flower'
 Restart=on-failure
 RestartSec=5s
 

@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-
 """
 Example Airflow DAG for Google Cloud Managed Service for Apache Kafka testing Topic operations.
 """
@@ -30,7 +29,13 @@ import random
 from datetime import datetime
 from typing import Any
 
-from airflow.decorators import task
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import task
+else:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.models.dag import DAG
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from airflow.providers.apache.kafka.operators.produce import ProduceToTopicOperator
@@ -75,7 +80,6 @@ CONSUMER_GROUP_ID = f"consumer_group_{DAG_ID}_{ENV_ID}".replace("_", "-")
 CONNECTION_ID = f"connection_{DAG_ID}_{ENV_ID}"
 PORT = "9092"
 BOOTSTRAP_URL = f"bootstrap.{CLUSTER_ID}.{LOCATION}.managedkafka.{PROJECT_ID}.cloud.goog:{PORT}"
-
 
 log = logging.getLogger(__name__)
 

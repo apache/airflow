@@ -22,9 +22,9 @@ import subprocess
 import sys
 from functools import cached_property
 
-import awswrangler as wr
 import boto3
 
+from airflow_breeze.global_constants import PACKAGES_METADATA_EXCLUDE_NAMES
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.parallel import check_async_run_results, run_with_pool
 
@@ -32,7 +32,6 @@ PROVIDER_NAME_FORMAT = "apache-airflow-providers-{}"
 
 NON_SHORT_NAME_PACKAGES = ["docker-stack", "helm-chart", "apache-airflow", "task-sdk"]
 
-PACKAGES_METADATA_EXCLUDE_NAMES = ["docker-stack", "apache-airflow-providers"]
 
 s3_client = boto3.client("s3")
 cloudfront_client = boto3.client("cloudfront")
@@ -219,7 +218,7 @@ class S3DocsPublish:
 
         check_async_run_results(
             results=results,
-            success="All docs published successfully",
+            success_message="All docs published successfully",
             outputs=outputs,
             include_success_outputs=False,
         )
@@ -234,6 +233,18 @@ class S3DocsPublish:
             if destination.endswith("stable/")
         ]
 
+    def list_s3_directories(self, s3_path: str) -> list[str]:
+        """
+        List 'directories' (prefixes) in an S3 path using boto3.
+        """
+        bucket, prefix = self.get_bucket_key(s3_path.rstrip("/"))
+        paginator = s3_client.get_paginator("list_objects_v2")
+        result = []
+        for page in paginator.paginate(Bucket=bucket, Prefix=prefix + "/", Delimiter="/"):
+            for cp in page.get("CommonPrefixes", []):
+                result.append(f"s3://{bucket}/" + cp["Prefix"])
+        return result
+
     def generate_packages_metadata(self):
         get_console().print("[info]Generating packages-metadata.json file\n")
 
@@ -243,20 +254,17 @@ class S3DocsPublish:
 
         package_versions_map = {}
         s3_docs_path = self.destination_location.rstrip("/") + "/"
-        resp = wr.s3.list_directories(s3_docs_path)
+        resp = self.list_s3_directories(s3_docs_path)
 
-        # package_path: s3://staging-docs-airflow-apache-org/docs/apache-airflow-providers-apache-cassandra/
         for package_path in resp:
             package_name = package_path.replace(s3_docs_path, "").rstrip("/")
 
             if package_name in PACKAGES_METADATA_EXCLUDE_NAMES:
                 continue
 
-            # version_path: s3://staging-docs-airflow-apache-org/docs/apache-airflow-providers-apache-cassandra/1.0.0/
-
             versions = [
                 version_path.replace(package_path, "").rstrip("/")
-                for version_path in wr.s3.list_directories(package_path)
+                for version_path in self.list_s3_directories(package_path)
                 if version_path.replace(package_path, "").rstrip("/") != "stable"
             ]
             package_versions_map[package_name] = versions
@@ -265,9 +273,6 @@ class S3DocsPublish:
 
         bucket, _ = self.get_bucket_key(self.destination_location)
 
-        # We keep metadata in the same location with constant file name so that
-        # its easy to reference in airflow-site with url
-        # ex: https://staging-docs-airflow-apache-org.s3.us-east-2.amazonaws.com/manifest/packages-metadata.json
         get_console().print("[info]Uploading packages-metadata.json to S3\n")
         s3_client.put_object(
             Bucket=bucket,
@@ -280,7 +285,6 @@ class S3DocsPublish:
         get_console().print(
             f"[info]Invalidating CloudFront cache for the uploaded files: distribution id {distribution_id}\n"
         )
-        # We invalidate all CloudFront caches so that all uploaded files are available immediately
         cloudfront_client.create_invalidation(
             DistributionId=distribution_id,
             InvalidationBatch={

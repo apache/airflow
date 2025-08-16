@@ -47,6 +47,7 @@ from dateutil.relativedelta import FR, relativedelta
 from kubernetes.client import models as k8s
 
 import airflow
+from airflow._shared.timezones import timezone
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.exceptions import (
     AirflowException,
@@ -54,7 +55,6 @@ from airflow.exceptions import (
     SerializationError,
 )
 from airflow.models.asset import AssetModel
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
@@ -65,9 +65,12 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.sensors.bash import BashSensor
 from airflow.sdk import AssetAlias, BaseHook, teardown
 from airflow.sdk.bases.decorator import DecoratedOperator
+from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
 from airflow.sdk.definitions.asset import Asset, AssetUniqueKey
+from airflow.sdk.definitions.operator_resources import Resources
 from airflow.sdk.definitions.param import Param, ParamsDict
+from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.security import permissions
 from airflow.serialization.enums import Encoding
 from airflow.serialization.json_schema import load_dag_schema_dict
@@ -81,19 +84,15 @@ from airflow.task.priority_strategy import _DownstreamPriorityWeightStrategy
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.triggers.base import StartTriggerArgs
-from airflow.utils import timezone
 from airflow.utils.module_loading import qualname
-from airflow.utils.operator_resources import Resources
-from airflow.utils.task_group import TaskGroup
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker, skip_if_not_on_main
 from tests_common.test_utils.mock_operators import (
     AirflowLink,
     AirflowLink2,
     CustomOperator,
     GithubLink,
-    GoogleLink,
     MockOperator,
 )
 from tests_common.test_utils.timetables import (
@@ -385,6 +384,12 @@ def get_excluded_patterns() -> Generator[str, None, None]:
         if python_version in provider_info.get("excluded-python-versions"):
             provider_path = provider.replace(".", "/")
             yield f"providers/{provider_path}"
+    current_python_version = sys.version_info[:2]
+    if current_python_version >= (3, 13):
+        # We should remove google when ray is fixed to work with Python 3.13
+        # and yandex when it is fixed to work with Python 3.13
+        yield "providers/google/tests/system/google/"
+        yield "providers/yandex/tests/system/yandex/"
 
 
 def collect_dags(dag_folder=None):
@@ -472,15 +477,19 @@ class TestStringifiedDAGs:
 
     # Skip that test if latest botocore is used - it reads all example dags and in case latest botocore
     # is upgraded to latest, usually aiobotocore can't be installed and some of the system tests will fail with
-    # import errors.
+    # import errors. Also skip if not running on main branch - some of the example dags might fail due to
+    # outdated imports in past branches
     @pytest.mark.skipif(
         os.environ.get("UPGRADE_BOTO", "") == "true",
         reason="This test is skipped when latest botocore is installed",
     )
     @skip_if_force_lowest_dependencies_marker
+    @skip_if_not_on_main
     @pytest.mark.db_test
     def test_serialization(self):
         """Serialization and deserialization should work for every DAG and Operator."""
+        pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
+
         with warnings.catch_warnings():
             dags, import_errors = collect_dags()
         serialized_dags = {}
@@ -598,9 +607,10 @@ class TestStringifiedDAGs:
                 task["__var"] = dict(sorted(task["__var"].items(), key=lambda x: x[0]))
                 tasks.append(task)
             dag_dict["dag"]["tasks"] = tasks
-            dag_dict["dag"]["access_control"]["__var"]["test_role"]["__var"] = sorted(
-                dag_dict["dag"]["access_control"]["__var"]["test_role"]["__var"]
-            )
+            if "access_control" in dag_dict["dag"]:
+                dag_dict["dag"]["access_control"]["__var"]["test_role"]["__var"] = sorted(
+                    dag_dict["dag"]["access_control"]["__var"]["test_role"]["__var"]
+                )
             return dag_dict
 
         expected = copy.deepcopy(expected)
@@ -718,10 +728,10 @@ class TestStringifiedDAGs:
         task,
     ):
         """Verify non-Airflow operators are casted to BaseOperator or MappedOperator."""
+        from airflow.models.mappedoperator import MappedOperator as SchedulerMappedOperator
         from airflow.sdk import BaseOperator
         from airflow.sdk.definitions.mappedoperator import MappedOperator
 
-        assert not isinstance(task, SerializedBaseOperator)
         assert isinstance(task, (BaseOperator, MappedOperator))
 
         # Every task should have a task_group property -- even if it's the DAG's root task group
@@ -752,7 +762,7 @@ class TestStringifiedDAGs:
                 "_is_sensor",
             }
         else:  # Promised to be mapped by the assert above.
-            assert isinstance(serialized_task, MappedOperator)
+            assert isinstance(serialized_task, SchedulerMappedOperator)
             fields_to_check = {f.name for f in attrs.fields(MappedOperator)}
             fields_to_check -= {
                 "map_index_template",
@@ -819,7 +829,9 @@ class TestStringifiedDAGs:
             assert serialized_partial_kwargs == original_partial_kwargs
 
             # ExpandInputs have different classes between scheduler and definition
-            assert attrs.asdict(serialized_task.expand_input) == attrs.asdict(task.expand_input)
+            assert attrs.asdict(serialized_task._get_specified_expand_input()) == attrs.asdict(
+                task._get_specified_expand_input()
+            )
 
     @pytest.mark.parametrize(
         "dag_start_date, task_start_date, expected_task_start_date",
@@ -1228,10 +1240,14 @@ class TestStringifiedDAGs:
 
             link = simple_task.get_extra_links(ti, name)
             assert link == expected
+        current_python_version = sys.version_info[:2]
+        if current_python_version >= (3, 13):
+            # TODO(potiuk) We should bring it back when ray is supported on Python 3.13
+            # Test Deserialized link registered via Airflow Plugin
+            from tests_common.test_utils.mock_operators import GoogleLink
 
-        # Test Deserialized link registered via Airflow Plugin
-        link = simple_task.get_extra_links(ti, GoogleLink.name)
-        assert link == "https://www.google.com"
+            link = simple_task.get_extra_links(ti, GoogleLink.name)
+            assert link == "https://www.google.com"
 
     class ClassWithCustomAttributes:
         """
@@ -2587,7 +2603,7 @@ def test_operator_expand_xcomarg_serde():
 @pytest.mark.parametrize("strict", [True, False])
 def test_operator_expand_kwargs_literal_serde(strict):
     from airflow.sdk.definitions.xcom_arg import XComArg
-    from airflow.serialization.serialized_objects import _XComRef
+    from airflow.serialization.serialized_objects import DEFAULT_OPERATOR_DEPS, _XComRef
 
     with DAG("test-dag", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
         task1 = BaseOperator(task_id="op1")
@@ -2632,7 +2648,7 @@ def test_operator_expand_kwargs_literal_serde(strict):
     }
 
     op = BaseSerialization.deserialize(serialized)
-    assert op.deps == mapped.deps
+    assert op.deps == DEFAULT_OPERATOR_DEPS
     assert op._disallow_kwargs_override == strict
 
     # The XComArg can't be deserialized before the DAG is.

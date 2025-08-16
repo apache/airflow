@@ -44,7 +44,7 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperator, BaseOperatorLink, BaseSensorOperator
     from airflow.sdk.execution_time.xcom import XCom
 else:
-    from airflow.models import BaseOperator, XCom  # type: ignore[no-redef]
+    from airflow.models import BaseOperator, XCom
     from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
     from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
 

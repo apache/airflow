@@ -389,6 +389,10 @@ export type ClearTaskInstancesBody = {
     include_downstream?: boolean;
     include_future?: boolean;
     include_past?: boolean;
+    /**
+     * (Experimental) Run on the latest bundle version of the dag after clearing the task instances.
+     */
+    run_on_latest_version?: boolean;
 };
 
 /**
@@ -496,7 +500,6 @@ export type DAGDetailsResponse = {
     relative_fileloc: string | null;
     fileloc: string;
     description: string | null;
-    deadline: Array<DeadlineAlertResponse> | null;
     timetable_summary: string | null;
     timetable_description: string | null;
     tags: Array<DagTagResponse>;
@@ -568,7 +571,6 @@ export type DAGResponse = {
     relative_fileloc: string | null;
     fileloc: string;
     description: string | null;
-    deadline: Array<DeadlineAlertResponse> | null;
     timetable_summary: string | null;
     timetable_description: string | null;
     tags: Array<DagTagResponse>;
@@ -594,6 +596,10 @@ export type DAGResponse = {
 export type DAGRunClearBody = {
     dry_run?: boolean;
     only_failed?: boolean;
+    /**
+     * (Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run.
+     */
+    run_on_latest_version?: boolean;
 };
 
 /**
@@ -771,6 +777,7 @@ export type DagStatsCollectionResponse = {
  */
 export type DagStatsResponse = {
     dag_id: string;
+    dag_display_name: string;
     stats: Array<DagStatsStateResponse>;
 };
 
@@ -788,6 +795,7 @@ export type DagStatsStateResponse = {
 export type DagTagResponse = {
     name: string;
     dag_id: string;
+    dag_display_name: string;
 };
 
 /**
@@ -811,18 +819,6 @@ export type DagVersionResponse = {
  * in the DagWarning model.
  */
 export type DagWarningType = 'asset conflict' | 'non-existent pool';
-
-/**
- * Deadline alert serializer for responses.
- */
-export type DeadlineAlertResponse = {
-    reference: string;
-    interval: string;
-    callback: string;
-    callback_kwargs?: {
-    [key: string]: unknown;
-} | null;
-};
 
 /**
  * Backfill collection serializer for responses in dry-run mode.
@@ -881,8 +877,8 @@ export type ExternalViewResponse = {
     icon_dark_mode?: string | null;
     url_route?: string | null;
     category?: string | null;
-    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance';
     href: string;
+    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance';
     [key: string]: unknown | string;
 };
 
@@ -921,7 +917,7 @@ export type FastAPIRootMiddlewareResponse = {
  * Schema for Human-in-the-loop detail.
  */
 export type HITLDetail = {
-    ti_id: string;
+    task_instance: TaskInstanceResponse;
     options: Array<(string)>;
     subject: string;
     body?: string | null;
@@ -1186,10 +1182,12 @@ export type ReactAppResponse = {
     icon_dark_mode?: string | null;
     url_route?: string | null;
     category?: string | null;
-    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance';
     bundle_url: string;
+    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'dashboard';
     [key: string]: unknown | string;
 };
+
+export type destination2 = 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'dashboard';
 
 /**
  * Internal enum for setting reprocess behavior in a backfill.
@@ -1302,7 +1300,6 @@ export type TaskInstanceResponse = {
     id: string;
     task_id: string;
     dag_id: string;
-    dag_version: DagVersionResponse;
     dag_run_id: string;
     map_index: number;
     logical_date: string | null;
@@ -1334,6 +1331,7 @@ export type TaskInstanceResponse = {
     };
     trigger: TriggerResponse | null;
     triggerer_job: JobResponse | null;
+    dag_version: DagVersionResponse | null;
 };
 
 /**
@@ -1447,8 +1445,8 @@ export type TriggerDAGRunPostBody = {
     logical_date: string | null;
     run_after?: string | null;
     conf?: {
-        [key: string]: unknown;
-    };
+    [key: string]: unknown;
+} | null;
     note?: string | null;
 };
 
@@ -1690,6 +1688,20 @@ export type ConnectionHookMetaData = {
 };
 
 /**
+ * DAG Run serializer for responses.
+ */
+export type DAGRunLightResponse = {
+    id: number;
+    dag_id: string;
+    run_id: string;
+    logical_date: string | null;
+    run_after: string;
+    start_date: string | null;
+    end_date: string | null;
+    state: DagRunState;
+};
+
+/**
  * DAG Run States for responses.
  */
 export type DAGRunStates = {
@@ -1732,7 +1744,6 @@ export type DAGWithLatestDagRunsResponse = {
     relative_fileloc: string | null;
     fileloc: string;
     description: string | null;
-    deadline: Array<DeadlineAlertResponse> | null;
     timetable_summary: string | null;
     timetable_description: string | null;
     tags: Array<DagTagResponse>;
@@ -1827,16 +1838,6 @@ export type HistoricalMetricDataResponse = {
 };
 
 /**
- * Base Node serializer for responses.
- */
-export type LatestRunResponse = {
-    id: number;
-    dag_id: string;
-    run_id: string;
-    run_after: string;
-};
-
-/**
  * Task Instance Summary model for the Grid UI.
  */
 export type LightGridTaskInstanceSummary = {
@@ -1852,7 +1853,7 @@ export type LightGridTaskInstanceSummary = {
 /**
  * Define all menu items defined in the menu.
  */
-export type MenuItem = 'Assets' | 'Audit Log' | 'Config' | 'Connections' | 'Dags' | 'Docs' | 'Plugins' | 'Pools' | 'Providers' | 'Variables' | 'XComs';
+export type MenuItem = 'Required Actions' | 'Assets' | 'Audit Log' | 'Config' | 'Connections' | 'Dags' | 'Docs' | 'Plugins' | 'Pools' | 'Providers' | 'Variables' | 'XComs';
 
 /**
  * Menu Item Collection serializer for responses.
@@ -1935,7 +1936,7 @@ export type GetAssetsData = {
     namePattern?: string | null;
     offset?: number;
     onlyActive?: boolean;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
@@ -1951,7 +1952,7 @@ export type GetAssetAliasesData = {
      */
     namePattern?: string | null;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
 };
 
 export type GetAssetAliasesResponse = AssetAliasCollectionResponse;
@@ -1966,7 +1967,7 @@ export type GetAssetEventsData = {
     assetId?: number | null;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
     sourceDagId?: string | null;
     sourceMapIndex?: number | null;
     sourceRunId?: string | null;
@@ -2051,7 +2052,7 @@ export type ListBackfillsData = {
     dagId: string;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
 };
 
 export type ListBackfillsResponse = BackfillCollectionResponse;
@@ -2097,7 +2098,7 @@ export type ListBackfillsUiData = {
     dagId?: string | null;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
 };
 
 export type ListBackfillsUiResponse = BackfillCollectionResponse;
@@ -2129,7 +2130,7 @@ export type GetConnectionsData = {
     connectionIdPattern?: string | null;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
 };
 
 export type GetConnectionsResponse = ConnectionCollectionResponse;
@@ -2202,7 +2203,7 @@ export type GetDagRunsData = {
     logicalDateGte?: string | null;
     logicalDateLte?: string | null;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
     runAfterGte?: string | null;
     runAfterLte?: string | null;
     /**
@@ -2213,6 +2214,10 @@ export type GetDagRunsData = {
     startDateGte?: string | null;
     startDateLte?: string | null;
     state?: Array<(string)>;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    triggeringUserNamePattern?: string | null;
     updatedAtGte?: string | null;
     updatedAtLte?: string | null;
 };
@@ -2289,13 +2294,15 @@ export type ListDagWarningsData = {
     dagId?: string | null;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
     warningType?: DagWarningType | null;
 };
 
 export type ListDagWarningsResponse = DAGWarningCollectionResponse;
 
 export type GetDagsData = {
+    bundleName?: string | null;
+    bundleVersion?: string | null;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
@@ -2314,7 +2321,7 @@ export type GetDagsData = {
     lastDagRunState?: DagRunState | null;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
     owners?: Array<(string)>;
     paused?: boolean | null;
     tags?: Array<(string)>;
@@ -2382,7 +2389,7 @@ export type UnfavoriteDagResponse = void;
 export type GetDagTagsData = {
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
@@ -2392,6 +2399,8 @@ export type GetDagTagsData = {
 export type GetDagTagsResponse = DAGTagCollectionResponse;
 
 export type GetDagsUiData = {
+    bundleName?: string | null;
+    bundleVersion?: string | null;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
@@ -2407,7 +2416,7 @@ export type GetDagsUiData = {
     lastDagRunState?: DagRunState | null;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
     owners?: Array<(string)>;
     paused?: boolean | null;
     tags?: Array<(string)>;
@@ -2415,6 +2424,12 @@ export type GetDagsUiData = {
 };
 
 export type GetDagsUiResponse = DAGWithLatestDagRunsCollectionResponse;
+
+export type GetLatestRunInfoData = {
+    dagId: string;
+};
+
+export type GetLatestRunInfoResponse = DAGRunLightResponse | null;
 
 export type GetEventLogData = {
     eventLogId: number;
@@ -2432,7 +2447,7 @@ export type GetEventLogsData = {
     limit?: number;
     mapIndex?: number | null;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
     owner?: string | null;
     runId?: string | null;
     taskId?: string | null;
@@ -2490,7 +2505,7 @@ export type GetMappedTaskInstancesData = {
     logicalDateGte?: string | null;
     logicalDateLte?: string | null;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
     pool?: Array<(string)>;
     queue?: Array<(string)>;
     runAfterGte?: string | null;
@@ -2574,7 +2589,7 @@ export type GetTaskInstancesData = {
     logicalDateGte?: string | null;
     logicalDateLte?: string | null;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
     pool?: Array<(string)>;
     queue?: Array<(string)>;
     runAfterGte?: string | null;
@@ -2691,7 +2706,7 @@ export type GetImportErrorResponse = ImportErrorResponse;
 export type GetImportErrorsData = {
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
 };
 
 export type GetImportErrorsResponse = ImportErrorCollectionResponse;
@@ -2706,7 +2721,7 @@ export type GetJobsData = {
     jobType?: string | null;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
     startDateGte?: string | null;
     startDateLte?: string | null;
 };
@@ -2745,7 +2760,7 @@ export type PatchPoolResponse = PoolResponse;
 export type GetPoolsData = {
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
@@ -2796,13 +2811,34 @@ export type UpdateXcomEntryData = {
 export type UpdateXcomEntryResponse = XComResponseNative;
 
 export type GetXcomEntriesData = {
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    dagDisplayNamePattern?: string | null;
     dagId: string;
     dagRunId: string;
     limit?: number;
+    logicalDateGte?: string | null;
+    logicalDateLte?: string | null;
     mapIndex?: number | null;
+    mapIndexFilter?: number | null;
     offset?: number;
+    runAfterGte?: string | null;
+    runAfterLte?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    runIdPattern?: string | null;
     taskId: string;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    taskIdPattern?: string | null;
     xcomKey?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    xcomKeyPattern?: string | null;
 };
 
 export type GetXcomEntriesResponse = XComCollectionResponse;
@@ -2853,7 +2889,7 @@ export type PatchVariableResponse = VariableResponse;
 export type GetVariablesData = {
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
@@ -2893,7 +2929,7 @@ export type GetDagVersionsData = {
     dagId: string;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
     versionNumber?: number;
 };
 
@@ -2935,6 +2971,34 @@ export type GetMappedTiHitlDetailData = {
 
 export type GetMappedTiHitlDetailResponse = HITLDetail;
 
+export type GetHitlDetailsData = {
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    bodySearch?: string | null;
+    dagId?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    dagIdPattern?: string | null;
+    dagRunId?: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: Array<(string)>;
+    responseReceived?: boolean | null;
+    state?: Array<(string)>;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    subjectSearch?: string | null;
+    taskId?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    taskIdPattern?: string | null;
+    userId?: Array<(string)>;
+};
+
 export type GetHitlDetailsResponse = HITLDetailCollection;
 
 export type GetHealthResponse = HealthInfoResponse;
@@ -2952,6 +3016,12 @@ export type LogoutData = {
 };
 
 export type LogoutResponse = unknown;
+
+export type RefreshData = {
+    next?: string | null;
+};
+
+export type RefreshResponse = unknown;
 
 export type GetAuthMenusResponse = MenuItemCollectionResponse;
 
@@ -2985,7 +3055,7 @@ export type GetDagStructureData = {
     dagId: string;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
     runAfterGte?: string | null;
     runAfterLte?: string | null;
 };
@@ -2996,7 +3066,7 @@ export type GetGridRunsData = {
     dagId: string;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: Array<(string)>;
     runAfterGte?: string | null;
     runAfterLte?: string | null;
 };
@@ -3009,12 +3079,6 @@ export type GetGridTiSummariesData = {
 };
 
 export type GetGridTiSummariesResponse = GridTISummaries;
-
-export type GetLatestRunData = {
-    dagId: string;
-};
-
-export type GetLatestRunResponse = LatestRunResponse | null;
 
 export type GetCalendarData = {
     dagId: string;
@@ -4538,6 +4602,25 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/ui/dags/{dag_id}/latest_run': {
+        get: {
+            req: GetLatestRunInfoData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DAGRunLightResponse | null;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
     '/api/v2/eventLogs/{event_log_id}': {
         get: {
             req: GetEventLogData;
@@ -5883,7 +5966,7 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/hitl-details/{dag_id}/{dag_run_id}/{task_id}': {
+    '/api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}': {
         patch: {
             req: UpdateHitlDetailData;
             res: {
@@ -5939,7 +6022,7 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/hitl-details/{dag_id}/{dag_run_id}/{task_id}/{map_index}': {
+    '/api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}/{map_index}': {
         patch: {
             req: UpdateMappedTiHitlDetailData;
             res: {
@@ -5995,8 +6078,9 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/hitl-details/': {
+    '/api/v2/hitlDetails/': {
         get: {
+            req: GetHitlDetailsData;
             res: {
                 /**
                  * Successful Response
@@ -6010,6 +6094,10 @@ export type $OpenApiTs = {
                  * Forbidden
                  */
                 403: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
             };
         };
     };
@@ -6055,6 +6143,25 @@ export type $OpenApiTs = {
     '/api/v2/auth/logout': {
         get: {
             req: LogoutData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: unknown;
+                /**
+                 * Temporary Redirect
+                 */
+                307: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/auth/refresh': {
+        get: {
+            req: RefreshData;
             res: {
                 /**
                  * Successful Response
@@ -6202,29 +6309,6 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: GridTISummaries;
-                /**
-                 * Bad Request
-                 */
-                400: HTTPExceptionResponse;
-                /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
-    '/ui/grid/latest_run/{dag_id}': {
-        get: {
-            req: GetLatestRunData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: LatestRunResponse | null;
                 /**
                  * Bad Request
                  */

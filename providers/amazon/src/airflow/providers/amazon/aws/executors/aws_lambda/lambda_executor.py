@@ -43,7 +43,11 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 from airflow.stats import Stats
-from airflow.utils import timezone
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -270,6 +274,7 @@ class AwsLambdaExecutor(BaseExecutor):
             payload = {
                 "task_key": ser_task_key,
                 "command": cmd,
+                "executor_config": task_to_run.executor_config,
             }
             if timezone.utcnow() < task_to_run.next_attempt_time:
                 self.pending_tasks.append(task_to_run)
@@ -362,26 +367,57 @@ class AwsLambdaExecutor(BaseExecutor):
             MaxNumberOfMessages=10,
         )
 
+        # Pagination? Maybe we don't need it. But we don't always delete messages after viewing them so we
+        # could possibly accumulate a lot of messages in the queue and get stuck if we don't read bigger
+        # chunks and paginate.
         messages = response.get("Messages", [])
-        # Pagination? Maybe we don't need it. Since we always delete messages after looking at them.
-        # But then that may delete messages that could have been adopted. Let's leave it for now and see how it goes.
+        # The keys that we validate in the messages below will be different depending on whether or not
+        # the message is from the dead letter queue or the main results queue.
+        message_keys = ("return_code", "task_key")
         if messages and queue_url == self.dlq_url:
             self.log.warning("%d messages received from the dead letter queue", len(messages))
+            message_keys = ("command", "task_key")
 
         for message in messages:
+            delete_message = False
             receipt_handle = message["ReceiptHandle"]
-            body = json.loads(message["Body"])
+            try:
+                body = json.loads(message["Body"])
+            except json.JSONDecodeError:
+                self.log.warning(
+                    "Received a message from the queue that could not be parsed as JSON: %s",
+                    message["Body"],
+                )
+                delete_message = True
+            # If the message is not already marked for deletion, check if it has the required keys.
+            if not delete_message and not all(key in body for key in message_keys):
+                self.log.warning(
+                    "Message is not formatted correctly, %s and/or %s are missing: %s", *message_keys, body
+                )
+                delete_message = True
+            if delete_message:
+                self.log.warning("Deleting the message to avoid processing it again.")
+                self.sqs_client.delete_message(QueueUrl=queue_url, ReceiptHandle=receipt_handle)
+                continue
             return_code = body.get("return_code")
             ser_task_key = body.get("task_key")
             # Fetch the real task key from the running_tasks dict, using the serialized task key.
             try:
                 task_key = self.running_tasks[ser_task_key]
             except KeyError:
-                self.log.warning(
-                    "Received task %s from the queue which is not found in running tasks. Removing message.",
+                self.log.debug(
+                    "Received task %s from the queue which is not found in running tasks, it is likely "
+                    "from another Lambda Executor sharing this queue or might be a stale message that needs "
+                    "deleting manually. Marking the message as visible again.",
                     ser_task_key,
                 )
-                task_key = None
+                # Mark task as visible again in SQS so that another executor can pick it up.
+                self.sqs_client.change_message_visibility(
+                    QueueUrl=queue_url,
+                    ReceiptHandle=receipt_handle,
+                    VisibilityTimeout=0,
+                )
+                continue
 
             if task_key:
                 if return_code == 0:
@@ -390,17 +426,26 @@ class AwsLambdaExecutor(BaseExecutor):
                         "Successful Lambda invocation for task %s received from SQS queue.", task_key
                     )
                 else:
-                    # In this case the Lambda likely started but failed at run time since we got a non-zero
-                    # return code. We could consider retrying these tasks within the executor, because this _likely_
-                    # means the Airflow task did not run to completion, however we can't be sure (maybe the
-                    # lambda runtime code has a bug and is returning a non-zero when it actually passed?). So
-                    # perhaps not retrying is the safest option.
                     self.fail(task_key)
-                    self.log.error(
-                        "Lambda invocation for task: %s has failed to run with return code %s",
-                        task_key,
-                        return_code,
-                    )
+                    if queue_url == self.dlq_url and return_code is None:
+                        # DLQ failure: AWS Lambda service could not complete the invocation after retries.
+                        # This indicates a Lambda-level failure (timeout, memory limit, crash, etc.)
+                        # where the function was unable to successfully execute to return a result.
+                        self.log.error(
+                            "DLQ message received: Lambda invocation for task: %s was unable to successfully execute. This likely indicates a Lambda-level failure (timeout, memory limit, crash, etc.).",
+                            task_key,
+                        )
+                    else:
+                        # In this case the Lambda likely started but failed at run time since we got a non-zero
+                        # return code. We could consider retrying these tasks within the executor, because this _likely_
+                        # means the Airflow task did not run to completion, however we can't be sure (maybe the
+                        # lambda runtime code has a bug and is returning a non-zero when it actually passed?). So
+                        # perhaps not retrying is the safest option.
+                        self.log.debug(
+                            "Lambda invocation for task: %s completed but the underlying Airflow task has returned a non-zero exit code %s",
+                            task_key,
+                            return_code,
+                        )
                 # Remove the task from the tracking mapping.
                 self.running_tasks.pop(ser_task_key)
 

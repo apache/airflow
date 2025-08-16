@@ -35,6 +35,7 @@ from sqlalchemy import delete, func, insert, select, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, load_only
 
+from airflow._shared.timezones.timezone import utcnow
 from airflow.assets.manager import asset_manager
 from airflow.models.asset import (
     AssetActive,
@@ -56,7 +57,6 @@ from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, Asset
 from airflow.triggers.base import BaseEventTrigger
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.sqlalchemy import with_row_locks
-from airflow.utils.timezone import utcnow
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
@@ -76,10 +76,9 @@ def _create_orm_dags(
     bundle_name: str, dags: Iterable[MaybeSerializedDAG], *, session: Session
 ) -> Iterator[DagModel]:
     for dag in dags:
-        orm_dag = DagModel(dag_id=dag.dag_id)
+        orm_dag = DagModel(dag_id=dag.dag_id, bundle_name=bundle_name)
         if dag.is_paused_upon_creation is not None:
             orm_dag.is_paused = dag.is_paused_upon_creation
-        orm_dag.bundle_name = bundle_name
         log.info("Creating ORM DAG for %s", dag.dag_id)
         session.add(orm_dag)
         yield orm_dag
@@ -200,7 +199,7 @@ def _serialize_dag_capturing_errors(
         if not dag_was_updated:
             # Check and update DagCode
             DagCode.update_source_code(dag.dag_id, dag.fileloc)
-        elif "FabAuthManager" in conf.get("core", "auth_manager"):
+        if "FabAuthManager" in conf.get("core", "auth_manager"):
             _sync_dag_perms(dag, session=session)
 
         return []

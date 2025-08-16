@@ -704,7 +704,7 @@ class MockAirflowConnectionWithHostKey:
         self.login = "username"
         self.password = "password"
         self.extra = f'{{ "no_host_key_check": {no_host_key_check}, "host_key": {host_key} }}'
-        self.extra_dejson = {  # type: ignore
+        self.extra_dejson = {
             "no_host_key_check": no_host_key_check,
             "host_key": host_key,
             "key_file": "~/keys/my_key",

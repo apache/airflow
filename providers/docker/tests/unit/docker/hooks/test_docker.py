@@ -219,13 +219,13 @@ def test_failed_login_to_registry(hook_conn, docker_api_client_patcher, caplog):
             id="missing-registry-host",
         ),
         pytest.param(
-            {**TEST_CONN, **{"extra": {"reauth": "enabled"}}},  # type: ignore[dict-item]
+            {**TEST_CONN, **{"extra": {"reauth": "enabled"}}},
             ValueError,
             r"Unable parse `reauth` value '.*' to bool\.",
             id="wrong-reauth",
         ),
         pytest.param(
-            {**TEST_CONN, **{"extra": {"reauth": "disabled"}}},  # type: ignore[dict-item]
+            {**TEST_CONN, **{"extra": {"reauth": "disabled"}}},
             ValueError,
             r"Unable parse `reauth` value '.*' to bool\.",
             id="wrong-noreauth",

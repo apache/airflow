@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Callable
 from unittest import mock
 
@@ -27,7 +26,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import setup, task, teardown
 else:
-    from airflow.decorators import setup, task, teardown
+    from airflow.decorators import setup, task, teardown  # type: ignore[attr-defined,no-redef]
 
 from airflow.utils import timezone
 
@@ -91,18 +90,8 @@ class TestKubernetesDecoratorsBase:
         self.dag = dag
 
         self.mock_create_pod = mock.patch(f"{POD_MANAGER_CLASS}.create_pod").start()
-        self.mock_watch_pod_events_patch = mock.patch(
-            f"{POD_MANAGER_CLASS}.watch_pod_events", new_callable=mock.AsyncMock
-        )
-        self.mock_watch_pod_events = self.mock_watch_pod_events_patch.start()
-        self.mock_watch_pod_events.return_value = asyncio.Future()
-        self.mock_watch_pod_events.return_value.set_result(None)
-        self.mock_await_pod_start_patch = mock.patch(
-            f"{POD_MANAGER_CLASS}.await_pod_start", new_callable=mock.AsyncMock
-        )
-        self.mock_await_pod_start = self.mock_await_pod_start_patch.start()
-        self.mock_await_pod_start.return_value = asyncio.Future()
-        self.mock_await_pod_start.return_value.set_result(None)
+        self.mock_await_pod_start = mock.patch(f"{POD_MANAGER_CLASS}.await_pod_start").start()
+        self.mock_watch_pod_events = mock.patch(f"{POD_MANAGER_CLASS}.watch_pod_events").start()
         self.mock_await_xcom_sidecar_container_start = mock.patch(
             f"{POD_MANAGER_CLASS}.await_xcom_sidecar_container_start"
         ).start()
@@ -120,8 +109,10 @@ class TestKubernetesDecoratorsBase:
         self.mock_fetch_logs = mock.patch(f"{POD_MANAGER_CLASS}.fetch_requested_container_logs").start()
         self.mock_fetch_logs.return_value = "logs"
 
-        yield
-
+        try:
+            yield
+        except Exception:
+            pass
         mock.patch.stopall()
 
     def teardown_method(self):

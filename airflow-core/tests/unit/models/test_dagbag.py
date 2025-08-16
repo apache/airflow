@@ -31,7 +31,6 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-import time_machine
 from sqlalchemy import select
 
 from airflow import settings
@@ -39,13 +38,11 @@ from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag, _capture_with_reraise
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.serialization.serialized_objects import SerializedDAG
-from airflow.utils import timezone as tz
+from airflow.sdk import BaseOperator
 from airflow.utils.session import create_session
 
 from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
 from tests_common.test_utils import db
-from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from unit import cluster_policies
 from unit.models import TEST_DAGS_FOLDER
@@ -55,6 +52,7 @@ pytestmark = pytest.mark.db_test
 example_dags_folder = AIRFLOW_ROOT_PATH / "airflow-core" / "src" / "airflow" / "example_dags" / "standard"
 
 PY311 = sys.version_info >= (3, 11)
+PY313 = sys.version_info >= (3, 13)
 
 # Include the words "airflow" and "dag" in the file contents,
 # tricking airflow into thinking these
@@ -75,6 +73,17 @@ class TestDagBag:
 
     def teardown_class(self):
         db_clean_up()
+
+    def test_timeout_context_manager_raises_exception(self):
+        """Test that the timeout context manager raises AirflowTaskTimeout when time limit is exceeded."""
+        import time
+
+        from airflow.exceptions import AirflowTaskTimeout
+        from airflow.models.dagbag import timeout
+
+        with pytest.raises(AirflowTaskTimeout):
+            with timeout(1, "Test timeout"):
+                time.sleep(2)
 
     def test_get_existing_dag(self, tmp_path):
         """
@@ -101,14 +110,12 @@ class TestDagBag:
         non_existing_dag_id = "non_existing_dag_id"
         assert dagbag.get_dag(non_existing_dag_id) is None
 
-    def test_serialized_dag_not_existing_doesnt_raise(self, tmp_path):
+    def test_serialized_dag_not_existing_doesnt_raise(self, tmp_path, session):
         """
         test that retrieving a non existing dag id returns None without crashing
         """
-        dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False, read_dags_from_db=True)
-
         non_existing_dag_id = "non_existing_dag_id"
-        assert dagbag.get_dag(non_existing_dag_id) is None
+        assert session.scalar(select(True).where(SerializedDagModel.dag_id == non_existing_dag_id)) is None
 
     def test_dont_load_example(self, tmp_path):
         """
@@ -474,49 +481,6 @@ class TestDagBag:
         assert dag_id == dag.dag_id
         assert dagbag.process_file_calls == 2
 
-    def test_dag_removed_if_serialized_dag_is_removed(self, dag_maker, tmp_path, session):
-        """
-        Test that if a DAG does not exist in serialized_dag table (as the DAG file was removed),
-        remove dags from the DagBag
-        """
-        from airflow.providers.standard.operators.empty import EmptyOperator
-
-        with dag_maker(
-            dag_id="test_dag_removed_if_serialized_dag_is_removed",
-            schedule=None,
-            start_date=tz.datetime(2021, 10, 12),
-        ) as dag:
-            EmptyOperator(task_id="task_1")
-
-        dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False, read_dags_from_db=True)
-        dagbag.dags = {dag.dag_id: SerializedDAG.from_dict(SerializedDAG.to_dict(dag))}
-        dagbag.dags_last_fetched = {dag.dag_id: (tz.utcnow() - timedelta(minutes=2))}
-        dagbag.dags_hash = {dag.dag_id: mock.ANY}
-
-        # observe we have serdag and dag is in dagbag
-        assert SerializedDagModel.has_dag(dag.dag_id) is True
-        assert dagbag.get_dag(dag.dag_id) is not None
-
-        # now delete serdags for this dag
-        SDM = SerializedDagModel
-        sdms = session.scalars(select(SDM).where(SDM.dag_id == dag.dag_id))
-        for sdm in sdms:
-            session.delete(sdm)
-        session.commit()
-
-        # first, confirm that serdags are gone for this dag
-        assert SerializedDagModel.has_dag(dag.dag_id) is False
-
-        # now see the dag is still in dagbag
-        assert dagbag.get_dag(dag.dag_id) is not None
-
-        # but, let's recreate the dagbag and see if the dag will be there
-        dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False, read_dags_from_db=True)
-        assert dagbag.get_dag(dag.dag_id) is None
-        assert dag.dag_id not in dagbag.dags
-        assert dag.dag_id not in dagbag.dags_last_fetched
-        assert dag.dag_id not in dagbag.dags_hash
-
     def process_dag(self, create_dag, tmp_path):
         """
         Helper method to process a file generated from the input create_dag function.
@@ -585,7 +549,7 @@ class TestDagBag:
 
         assert dagbag.process_file(None) == []
 
-    def test_deactivate_unknown_dags(self):
+    def test_deactivate_unknown_dags(self, testing_dag_bundle):
         """
         Test that dag_ids not passed into deactivate_unknown_dags
         are deactivated when function is invoked
@@ -594,9 +558,16 @@ class TestDagBag:
         dag_id = "test_deactivate_unknown_dags"
         expected_active_dags = dagbag.dags.keys()
 
-        model_before = DagModel(dag_id=dag_id, is_stale=False)
+        bundle_name = "testing"
+
+        model_before = DagModel(
+            dag_id=dag_id,
+            bundle_name=bundle_name,
+            is_stale=False,
+        )
         with create_session() as session:
             session.merge(model_before)
+            session.flush()
 
         DAG.deactivate_unknown_dags(expected_active_dags)
 
@@ -651,10 +622,12 @@ with airflow.DAG(
 
     @staticmethod
     def _make_test_traceback(unparseable_filename: str, depth=None) -> str:
-        marker = "           ^^^^^^^^^^^\n" if PY311 else ""
+        python_311_marker = "           ^^^^^^^^^^^\n" if PY311 else ""
+        python_313_marker = ["    ~~~~~~~~~^^\n"] if PY313 else []
         frames = (
             f'  File "{unparseable_filename}", line 3, in <module>\n    something()\n',
-            f'  File "{unparseable_filename}", line 2, in something\n    return airflow_DAG\n{marker}',
+            *python_313_marker,
+            f'  File "{unparseable_filename}", line 2, in something\n    return airflow_DAG\n{python_311_marker}',
         )
         depth = 0 if depth is None else -depth
         return (
@@ -692,117 +665,6 @@ with airflow.DAG(
         import_errors = dagbag.import_errors
         assert invalid_dag_filename in import_errors
         assert import_errors[invalid_dag_filename] == self._make_test_traceback(invalid_dag_filename, depth)
-
-    @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
-    @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)
-    def test_get_dag_with_dag_serialization(self):
-        """
-        Test that Serialized DAG is updated in DagBag when it is updated in
-        Serialized DAG table after 'min_serialized_dag_fetch_interval' seconds are passed.
-        """
-        with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 0)), tick=False):
-            example_bash_op_dag = DagBag(include_examples=True).dags.get("example_bash_operator")
-            DAG.from_sdk_dag(example_bash_op_dag).sync_to_db()
-            SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name="testing")
-
-            dag_bag = DagBag(read_dags_from_db=True)
-            ser_dag_1 = dag_bag.get_dag("example_bash_operator")
-            ser_dag_1_update_time = dag_bag.dags_last_fetched["example_bash_operator"]
-            assert example_bash_op_dag.tags == ser_dag_1.tags
-            assert ser_dag_1_update_time == tz.datetime(2020, 1, 5, 0, 0, 0)
-
-        # Check that if min_serialized_dag_fetch_interval has not passed we do not fetch the DAG
-        # from DB
-        with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 4)), tick=False):
-            with assert_queries_count(0):
-                assert dag_bag.get_dag("example_bash_operator").tags == {"example", "example2"}
-
-        # Make a change in the DAG and write Serialized DAG to the DB
-        with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 6)), tick=False):
-            example_bash_op_dag.tags.add("new_tag")
-            DAG.from_sdk_dag(example_bash_op_dag).sync_to_db()
-            SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name="testing")
-
-        # Since min_serialized_dag_fetch_interval is passed verify that calling 'dag_bag.get_dag'
-        # fetches the Serialized DAG from DB
-        with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 8)), tick=False):
-            with assert_queries_count(2):
-                updated_ser_dag_1 = dag_bag.get_dag("example_bash_operator")
-                updated_ser_dag_1_update_time = dag_bag.dags_last_fetched["example_bash_operator"]
-
-        assert set(updated_ser_dag_1.tags) == {"example", "example2", "new_tag"}
-        assert updated_ser_dag_1_update_time > ser_dag_1_update_time
-
-    @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
-    @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)
-    def test_get_dag_refresh_race_condition(self, session, testing_dag_bundle):
-        """
-        Test that DagBag.get_dag correctly refresh the Serialized DAG even if SerializedDagModel.last_updated
-        is before DagBag.dags_last_fetched.
-        """
-        db_clean_up()
-        # serialize the initial version of the DAG
-        with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 0)), tick=False):
-            example_bash_op_dag = DagBag(include_examples=True).dags.get("example_bash_operator")
-            DAG.from_sdk_dag(example_bash_op_dag).sync_to_db()
-            SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name="testing")
-
-        # deserialize the DAG
-        with time_machine.travel((tz.datetime(2020, 1, 5, 1, 0, 10)), tick=False):
-            dag_bag = DagBag(read_dags_from_db=True)
-
-            with assert_queries_count(2):
-                ser_dag = dag_bag.get_dag("example_bash_operator")
-
-            ser_dag_update_time = dag_bag.dags_last_fetched["example_bash_operator"]
-            assert ser_dag.tags == {"example", "example2"}
-            assert ser_dag_update_time == tz.datetime(2020, 1, 5, 1, 0, 10)
-
-            with create_session() as session:
-                assert SerializedDagModel.get_last_updated_datetime(
-                    dag_id="example_bash_operator",
-                    session=session,
-                ) == tz.datetime(2020, 1, 5, 0, 0, 0)
-
-        # Simulate a long-running serialization transaction
-        # Make a change in the DAG and write Serialized DAG to the DB
-        # Note the date *before* the deserialize step above, simulating a serialization happening
-        # long before the transaction is committed
-        with time_machine.travel((tz.datetime(2020, 1, 5, 1, 0, 0)), tick=False):
-            example_bash_op_dag.tags.add("new_tag")
-            DAG.from_sdk_dag(example_bash_op_dag).sync_to_db()
-            SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name="testing")
-
-        # Since min_serialized_dag_fetch_interval is passed verify that calling 'dag_bag.get_dag'
-        # fetches the Serialized DAG from DB
-        with time_machine.travel((tz.datetime(2020, 1, 5, 1, 0, 30)), tick=False):
-            with assert_queries_count(2):
-                updated_ser_dag = dag_bag.get_dag("example_bash_operator")
-                updated_ser_dag_update_time = dag_bag.dags_last_fetched["example_bash_operator"]
-
-        assert set(updated_ser_dag.tags) == {"example", "example2", "new_tag"}
-        assert updated_ser_dag_update_time > ser_dag_update_time
-
-    def test_collect_dags_from_db(self, testing_dag_bundle):
-        """DAGs are collected from Database"""
-        db.clear_db_dags()
-        dagbag = DagBag(str(example_dags_folder))
-
-        example_dags = dagbag.dags
-        for dag in example_dags.values():
-            DAG.from_sdk_dag(dag).sync_to_db()
-            SerializedDagModel.write_dag(dag, bundle_name="dag_maker")
-
-        new_dagbag = DagBag(read_dags_from_db=True)
-        assert len(new_dagbag.dags) == 0
-        new_dagbag.collect_dags_from_db()
-        new_dags = new_dagbag.dags
-        assert len(example_dags) == len(new_dags)
-        for dag_id, dag in example_dags.items():
-            serialized_dag = new_dags[dag_id]
-
-            assert serialized_dag.dag_id == dag.dag_id
-            assert set(serialized_dag.task_dict) == set(dag.task_dict)
 
     @patch("airflow.settings.task_policy", cluster_policies.example_task_policy)
     def test_task_cluster_policy_violation(self):
@@ -886,14 +748,13 @@ with airflow.DAG(
         assert dag_file not in dagbag.captured_warnings
 
         dagbag.collect_dags(dag_folder=dagbag.dag_folder, include_examples=False, only_if_updated=False)
-        assert len(dagbag.dag_ids) == 1
-        assert dag_file in dagbag.captured_warnings
-        captured_warnings = dagbag.captured_warnings[dag_file]
-        assert len(captured_warnings) == 2
         assert dagbag.dagbag_stats[0].warning_num == 2
-
-        assert captured_warnings[0] == (f"{dag_file}:47: DeprecationWarning: Deprecated Parameter")
-        assert captured_warnings[1] == f"{dag_file}:49: UserWarning: Some Warning"
+        assert dagbag.captured_warnings == {
+            dag_file: (
+                f"{dag_file}:46: DeprecationWarning: Deprecated Parameter",
+                f"{dag_file}:48: UserWarning: Some Warning",
+            )
+        }
 
         with warnings.catch_warnings():
             # Disable capture DeprecationWarning, and it should be reflected in captured warnings
@@ -920,12 +781,13 @@ with airflow.DAG(
     def test_dabgag_captured_warnings_zip(self, warning_zipped_dag_path: str):
         in_zip_dag_file = f"{warning_zipped_dag_path}/test_dag_warnings.py"
         dagbag = DagBag(dag_folder=warning_zipped_dag_path, include_examples=False)
-        assert len(dagbag.dag_ids) == 1
-        assert warning_zipped_dag_path in dagbag.captured_warnings
-        captured_warnings = dagbag.captured_warnings[warning_zipped_dag_path]
-        assert len(captured_warnings) == 2
-        assert captured_warnings[0] == (f"{in_zip_dag_file}:47: DeprecationWarning: Deprecated Parameter")
-        assert captured_warnings[1] == f"{in_zip_dag_file}:49: UserWarning: Some Warning"
+        assert dagbag.dagbag_stats[0].warning_num == 2
+        assert dagbag.captured_warnings == {
+            warning_zipped_dag_path: (
+                f"{in_zip_dag_file}:46: DeprecationWarning: Deprecated Parameter",
+                f"{in_zip_dag_file}:48: UserWarning: Some Warning",
+            )
+        }
 
     @pytest.mark.parametrize(
         ("known_pools", "expected"),
@@ -950,8 +812,6 @@ with airflow.DAG(
         ),
     )
     def test_dag_warnings_invalid_pool(self, known_pools, expected):
-        from airflow.models.baseoperator import BaseOperator
-
         with DAG(dag_id="test") as dag:
             BaseOperator(task_id="1")
             BaseOperator(task_id="2", pool="pool1")

@@ -307,8 +307,12 @@ def _check_dependency_modified_properly(
     if dependency.startswith("apache-airflow"):
         if should_airflow_dependencies_be_modified:
             if ">=" in dependency:
+                dependency = dependency.split(";")[0]
+                modified_dependency = modified_dependency.split(";")[0]
                 assert modified_dependency == f"{dependency}{floored_version_suffix}"
             elif "==" in dependency:
+                dependency = dependency.split(";")[0]
+                modified_dependency = modified_dependency.split(";")[0]
                 assert modified_dependency == f"{dependency}{version_suffix}"
             else:
                 assert modified_dependency == dependency

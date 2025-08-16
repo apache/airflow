@@ -20,7 +20,6 @@ from __future__ import annotations
 import pytest
 from pendulum import datetime
 
-from airflow.decorators import task
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -28,6 +27,9 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.exceptions import DownstreamTasksSkipped
+    from airflow.sdk import task
+else:
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 
 pytestmark = pytest.mark.db_test
 

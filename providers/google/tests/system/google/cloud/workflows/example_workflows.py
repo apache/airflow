@@ -77,7 +77,7 @@ SLEEP_WORKFLOW_CONTENT = """
 - someSleep:
     call: sys.sleep
     args:
-        seconds: 120
+        seconds: 200
 """
 
 SLEEP_WORKFLOW = {

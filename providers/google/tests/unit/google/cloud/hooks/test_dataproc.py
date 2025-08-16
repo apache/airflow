@@ -601,82 +601,124 @@ class TestDataprocAsyncHook:
         with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init):
             self.hook = DataprocAsyncHook(gcp_conn_id="test")
 
-    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_credentials"))
+    @pytest.mark.asyncio
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_sync_hook"))
     @mock.patch(DATAPROC_STRING.format("ClusterControllerAsyncClient"))
-    def test_get_cluster_client(self, mock_client, mock_get_credentials):
-        self.hook.get_cluster_client(region=GCP_LOCATION)
+    async def test_get_cluster_client(self, mock_client, mock_get_sync_hook):
+        mock_sync_hook = mock.MagicMock()
+        mock_get_sync_hook.return_value = mock_sync_hook
+        mock_sync_hook.get_credentials.return_value = mock.MagicMock()
+
+        await self.hook.get_cluster_client(region=GCP_LOCATION)
         mock_client.assert_called_once_with(
-            credentials=mock_get_credentials.return_value,
+            credentials=mock_sync_hook.get_credentials.return_value,
             client_info=CLIENT_INFO,
             client_options=None,
         )
 
-    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_credentials"))
+    @pytest.mark.asyncio
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_sync_hook"))
     @mock.patch(DATAPROC_STRING.format("ClusterControllerAsyncClient"))
-    def test_get_cluster_client_region(self, mock_client, mock_get_credentials):
-        self.hook.get_cluster_client(region="region1")
+    async def test_get_cluster_client_region(self, mock_client, mock_get_sync_hook):
+        mock_sync_hook = mock.MagicMock()
+        mock_get_sync_hook.return_value = mock_sync_hook
+        mock_sync_hook.get_credentials.return_value = mock.MagicMock()
+
+        await self.hook.get_cluster_client(region="region1")
         mock_client.assert_called_once_with(
-            credentials=mock_get_credentials.return_value,
+            credentials=mock_sync_hook.get_credentials.return_value,
             client_info=CLIENT_INFO,
             client_options=ANY,
         )
 
-    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_credentials"))
+    @pytest.mark.asyncio
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_sync_hook"))
     @mock.patch(DATAPROC_STRING.format("WorkflowTemplateServiceAsyncClient"))
-    def test_get_template_client_global(self, mock_client, mock_get_credentials):
-        _ = self.hook.get_template_client()
+    async def test_get_template_client_global(self, mock_client, mock_get_sync_hook):
+        mock_sync_hook = mock.MagicMock()
+        mock_get_sync_hook.return_value = mock_sync_hook
+        mock_sync_hook.get_credentials.return_value = mock.MagicMock()
+
+        _ = await self.hook.get_template_client()
         mock_client.assert_called_once_with(
-            credentials=mock_get_credentials.return_value,
+            credentials=mock_sync_hook.get_credentials.return_value,
             client_info=CLIENT_INFO,
             client_options=None,
         )
 
-    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_credentials"))
+    @pytest.mark.asyncio
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_sync_hook"))
     @mock.patch(DATAPROC_STRING.format("WorkflowTemplateServiceAsyncClient"))
-    def test_get_template_client_region(self, mock_client, mock_get_credentials):
-        _ = self.hook.get_template_client(region="region1")
+    async def test_get_template_client_region(self, mock_client, mock_get_sync_hook):
+        mock_sync_hook = mock.MagicMock()
+        mock_get_sync_hook.return_value = mock_sync_hook
+        mock_sync_hook.get_credentials.return_value = mock.MagicMock()
+
+        _ = await self.hook.get_template_client(region="region1")
         mock_client.assert_called_once_with(
-            credentials=mock_get_credentials.return_value,
+            credentials=mock_sync_hook.get_credentials.return_value,
             client_info=CLIENT_INFO,
             client_options=ANY,
         )
 
-    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_credentials"))
+    @pytest.mark.asyncio
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_sync_hook"))
     @mock.patch(DATAPROC_STRING.format("JobControllerAsyncClient"))
-    def test_get_job_client(self, mock_client, mock_get_credentials):
-        self.hook.get_job_client(region=GCP_LOCATION)
+    async def test_get_job_client(self, mock_client, mock_get_sync_hook):
+        mock_sync_hook = mock.MagicMock()
+        mock_get_sync_hook.return_value = mock_sync_hook
+        mock_sync_hook.get_credentials.return_value = mock.MagicMock()
+
+        await self.hook.get_job_client(region=GCP_LOCATION)
         mock_client.assert_called_once_with(
-            credentials=mock_get_credentials.return_value,
+            credentials=mock_sync_hook.get_credentials.return_value,
             client_info=CLIENT_INFO,
             client_options=None,
         )
 
-    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_credentials"))
+    @pytest.mark.asyncio
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_sync_hook"))
     @mock.patch(DATAPROC_STRING.format("JobControllerAsyncClient"))
-    def test_get_job_client_region(self, mock_client, mock_get_credentials):
-        self.hook.get_job_client(region="region1")
+    async def test_get_job_client_region(self, mock_client, mock_get_sync_hook):
+        mock_sync_hook = mock.MagicMock()
+        mock_get_sync_hook.return_value = mock_sync_hook
+        mock_sync_hook.get_credentials.return_value = mock.MagicMock()
+
+        await self.hook.get_job_client(region="region1")
         mock_client.assert_called_once_with(
-            credentials=mock_get_credentials.return_value,
+            credentials=mock_sync_hook.get_credentials.return_value,
             client_info=CLIENT_INFO,
             client_options=ANY,
         )
 
-    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_credentials"))
+    @pytest.mark.asyncio
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_sync_hook"))
     @mock.patch(DATAPROC_STRING.format("BatchControllerAsyncClient"))
-    def test_get_batch_client(self, mock_client, mock_get_credentials):
-        self.hook.get_batch_client(region=GCP_LOCATION)
+    async def test_get_batch_client(self, mock_client, mock_get_sync_hook):
+        mock_sync_hook = mock.MagicMock()
+        mock_get_sync_hook.return_value = mock_sync_hook
+        mock_sync_hook.get_credentials.return_value = mock.MagicMock()
+
+        await self.hook.get_batch_client(region=GCP_LOCATION)
         mock_client.assert_called_once_with(
-            credentials=mock_get_credentials.return_value,
+            credentials=mock_sync_hook.get_credentials.return_value,
             client_info=CLIENT_INFO,
             client_options=None,
         )
 
-    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_credentials"))
+    @pytest.mark.asyncio
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_sync_hook"))
     @mock.patch(DATAPROC_STRING.format("BatchControllerAsyncClient"))
-    def test_get_batch_client_region(self, mock_client, mock_get_credentials):
-        self.hook.get_batch_client(region="region1")
+    async def test_get_batch_client_region(self, mock_client, mock_get_sync_hook):
+        mock_sync_hook = mock.MagicMock()
+        mock_get_sync_hook.return_value = mock_sync_hook
+        mock_sync_hook.get_credentials.return_value = mock.MagicMock()
+
+        await self.hook.get_batch_client(region="region1")
         mock_client.assert_called_once_with(
-            credentials=mock_get_credentials.return_value, client_info=CLIENT_INFO, client_options=ANY
+            credentials=mock_sync_hook.get_credentials.return_value,
+            client_info=CLIENT_INFO,
+            client_options=ANY,
         )
 
     @pytest.mark.asyncio

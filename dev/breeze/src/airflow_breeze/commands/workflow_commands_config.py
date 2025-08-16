@@ -24,10 +24,23 @@ WORKFLOW_RUN_COMMANDS: dict[str, str | list[str]] = {
 WORKFLOW_RUN_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze workflow-run publish-docs": [
         {
-            "name": "Trigger publish docs workflow",
+            "name": "Select branch or tag to build docs",
             "options": [
                 "--ref",
                 "--skip-tag-validation",
+                "--apply-commits",
+            ],
+        },
+        {
+            "name": "Optional airflow versions to build.",
+            "options": [
+                "--airflow-version",
+                "--airflow-base-version",
+            ],
+        },
+        {
+            "name": "Select docs to exclude and destination",
+            "options": [
                 "--exclude-docs",
                 "--site-env",
                 "--skip-write-to-stable-folder",

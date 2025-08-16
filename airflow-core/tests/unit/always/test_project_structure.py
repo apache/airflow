@@ -161,7 +161,6 @@ class TestProjectStructure:
             "providers/google/tests/unit/google/cloud/links/test_dataproc.py",
             "providers/google/tests/unit/google/cloud/links/test_datastore.py",
             "providers/google/tests/unit/google/cloud/links/test_kubernetes_engine.py",
-            "providers/google/tests/unit/google/cloud/links/test_life_sciences.py",
             "providers/google/tests/unit/google/cloud/links/test_mlengine.py",
             "providers/google/tests/unit/google/cloud/links/test_pubsub.py",
             "providers/google/tests/unit/google/cloud/links/test_spanner.py",
@@ -496,7 +495,6 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
     }
 
     MISSING_EXAMPLES_FOR_CLASSES = {
-        "airflow.providers.google.cloud.operators.life_sciences.LifeSciencesRunPipelineOperator",
         "airflow.providers.google.cloud.operators.dlp.CloudDLPRedactImageOperator",
         "airflow.providers.google.cloud.transfers.cassandra_to_gcs.CassandraToGCSOperator",
         "airflow.providers.google.cloud.transfers.adls_to_gcs.ADLSToGCSOperator",

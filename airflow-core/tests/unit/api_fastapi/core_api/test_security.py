@@ -25,7 +25,7 @@ from jwt import ExpiredSignatureError, InvalidTokenError
 from airflow.api_fastapi.app import create_app
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
-from airflow.api_fastapi.core_api.security import get_user, is_safe_url, requires_access_dag
+from airflow.api_fastapi.core_api.security import is_safe_url, requires_access_dag, resolve_user_from_token
 
 from tests_common.test_utils.config import conf_vars
 
@@ -45,7 +45,7 @@ class TestFastApiSecurity:
             create_app()
 
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_get_user(self, mock_get_auth_manager):
+    async def test_resolve_user_from_token(self, mock_get_auth_manager):
         token_str = "test-token"
         user = SimpleAuthManagerUser(username="username", role="admin")
 
@@ -53,7 +53,7 @@ class TestFastApiSecurity:
         auth_manager.get_user_from_token.return_value = user
         mock_get_auth_manager.return_value = auth_manager
 
-        result = await get_user(token_str)
+        result = await resolve_user_from_token(token_str)
 
         auth_manager.get_user_from_token.assert_called_once_with(token_str)
         assert result == user
@@ -67,7 +67,7 @@ class TestFastApiSecurity:
         mock_get_auth_manager.return_value = auth_manager
 
         with pytest.raises(HTTPException, match="Invalid JWT token"):
-            await get_user(token_str)
+            await resolve_user_from_token(token_str)
 
         auth_manager.get_user_from_token.assert_called_once_with(token_str)
 
@@ -80,7 +80,7 @@ class TestFastApiSecurity:
         mock_get_auth_manager.return_value = auth_manager
 
         with pytest.raises(HTTPException, match="Token Expired"):
-            await get_user(token_str)
+            await resolve_user_from_token(token_str)
 
         auth_manager.get_user_from_token.assert_called_once_with(token_str)
 

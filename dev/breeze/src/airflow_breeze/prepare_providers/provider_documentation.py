@@ -196,18 +196,18 @@ TYPE_OF_CHANGE_DESCRIPTION = {
 
 
 def classification_result(provider_id, changed_files):
-    provider_path = f"providers/{provider_id}/"
-    changed_files = list(filter(lambda f: f.startswith(provider_path), changed_files))
+    provider_id = provider_id.replace(".", "/")
+    changed_files = list(filter(lambda f: provider_id in f, changed_files))
 
     if not changed_files:
         return "other"
 
     def is_doc(f):
-        return re.match(r"^providers/[^/]+/docs/", f) and f.endswith(".rst")
+        return re.match(r"^providers/.+/docs/", f) and f.endswith(".rst")
 
     def is_test_or_example(f):
-        return re.match(r"^providers/[^/]+/tests/", f) or re.match(
-            r"^providers/[^/]+/src/airflow/providers/[^/]+/example_dags/", f
+        return re.match(r"^providers/.+/tests/", f) or re.match(
+            r"^providers/.+/src/airflow/providers/.+/example_dags/", f
         )
 
     all_docs = all(is_doc(f) for f in changed_files)

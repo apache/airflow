@@ -19,6 +19,7 @@
   },
   "header": {
     "buttons": {
+      "advanced": "Erweitert",
       "dagDocs": "Dag Dokumentation"
     }
   },
@@ -34,8 +35,14 @@
     },
     "info": "INFO",
     "noTryNumber": "Keine Versuchsnummer",
+    "settings": "Protokoll-Ansicht",
     "viewInExternal": "Protokoll in {{name}} (Versuch {{attempt}}) ansehen",
     "warning": "WARNING"
+  },
+  "navigation": {
+    "jump": "Springen: Umschalttaste+{{arrow}}",
+    "navigation": "Navigation: {{arrow}}",
+    "toggleGroup": "Gruppen umschalten: Leertaste"
   },
   "overview": {
     "buttons": {
@@ -101,6 +108,7 @@
     "mappedTaskInstances_other": "Task Instanzen [{{count}}]",
     "overview": "Übersicht",
     "renderedTemplates": "Ausgefüllte Vorlagen",
+    "requiredActions": "Interaktionen",
     "runs": "Läufe",
     "taskInstances": "Task Instanzen",
     "tasks": "Tasks",

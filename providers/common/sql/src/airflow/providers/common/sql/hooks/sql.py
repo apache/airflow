@@ -332,7 +332,7 @@ class DbApiHook(BaseHook):
     def dialect_name(self) -> str:
         try:
             return make_url(self.get_uri()).get_dialect().name
-        except (ArgumentError, NoSuchModuleError):
+        except (ArgumentError, NoSuchModuleError, ValueError):
             config = self.connection_extra
             sqlalchemy_scheme = config.get("sqlalchemy_scheme")
             if sqlalchemy_scheme:
@@ -680,7 +680,7 @@ class DbApiHook(BaseHook):
         handler: Callable[[Any], T] = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
-    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None: ...
+    ) -> tuple | list | list[tuple] | list[list[tuple] | tuple] | None: ...
 
     def run(
         self,
@@ -690,7 +690,7 @@ class DbApiHook(BaseHook):
         handler: Callable[[Any], T] | None = None,
         split_statements: bool = False,
         return_last: bool = True,
-    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
+    ) -> tuple | list | list[tuple] | list[list[tuple] | tuple] | None:
         """
         Run a command or a list of commands.
 

@@ -78,7 +78,9 @@ apache-airflow-providers-trino package
 `Trino <https://trino.io/>`__
 
 
-Release: 6.3.1
+Release: 6.3.3
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------
@@ -98,13 +100,15 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
 
-=======================================  ==================
+=======================================  =====================================
 PIP package                              Version required
-=======================================  ==================
+=======================================  =====================================
 ``apache-airflow``                       ``>=2.10.0``
-``apache-airflow-providers-common-sql``  ``>=1.26.0``
+``apache-airflow-providers-common-sql``  ``>=1.20.0``
+``pandas``                               ``>=2.1.2; python_version < "3.13"``
+``pandas``                               ``>=2.2.3; python_version >= "3.13"``
 ``trino``                                ``>=0.319.0``
-=======================================  ==================
+=======================================  =====================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -133,5 +137,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-trino 6.3.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_trino-6.3.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_trino-6.3.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_trino-6.3.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-trino 6.3.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_trino-6.3.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_trino-6.3.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_trino-6.3.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-trino 6.3.3 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_trino-6.3.3.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_trino-6.3.3.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_trino-6.3.3.tar.gz.sha512>`__)
+* `The apache-airflow-providers-trino 6.3.3 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_trino-6.3.3-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_trino-6.3.3-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_trino-6.3.3-py3-none-any.whl.sha512>`__)

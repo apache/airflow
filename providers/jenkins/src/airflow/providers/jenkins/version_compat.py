@@ -44,9 +44,9 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperator, BaseSensorOperator
     from airflow.sdk.definitions.context import Context
 else:
-    from airflow.models import BaseOperator  # type: ignore[no-redef]
+    from airflow.models import BaseOperator
     from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
-    from airflow.utils.context import Context  # type: ignore[no-redef]
+    from airflow.utils.context import Context
 
 __all__ = [
     "AIRFLOW_V_3_0_PLUS",

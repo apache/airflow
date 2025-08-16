@@ -21,6 +21,7 @@ from collections import defaultdict
 from collections.abc import Callable
 from concurrent.futures import Future
 from contextlib import suppress
+from datetime import datetime
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock, patch
@@ -33,25 +34,27 @@ from openlineage.client.transport.console import ConsoleConfig
 from uuid6 import uuid7
 
 from airflow.models import DAG, DagRun, TaskInstance
-
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperator
-else:
-    from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
-
 from airflow.providers.openlineage.extractors.base import OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
 from airflow.providers.openlineage.plugins.listener import OpenLineageListener
 from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
-from airflow.utils import timezone, types
+from airflow.utils import types
 from airflow.utils.state import DagRunState, State
 
 from tests_common.test_utils.compat import EmptyOperator, PythonOperator
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_runs
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow._shared.timezones import timezone
+else:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseOperator
+else:
+    from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
 
 EXPECTED_TRY_NUMBER_1 = 1
 
@@ -203,8 +206,20 @@ class TestOpenLineageListenerAirflow2:
             state=DagRunState.RUNNING,
             execution_date=date,  # type: ignore
         )
-        if AIRFLOW_V_3_0_PLUS:
-            task_instance = TaskInstance(t, run_id=run_id, dag_version_id=dagrun.created_dag_version_id)
+        if AIRFLOW_V_3_1_PLUS:
+            from airflow.serialization.serialized_objects import create_scheduler_operator
+
+            task_instance = TaskInstance(
+                create_scheduler_operator(t),
+                run_id=run_id,
+                dag_version_id=dagrun.created_dag_version_id,
+            )
+        elif AIRFLOW_V_3_0_PLUS:
+            task_instance = TaskInstance(
+                t,  # type: ignore[arg-type]
+                run_id=run_id,
+                dag_version_id=dagrun.created_dag_version_id,
+            )
         else:
             task_instance = TaskInstance(t, run_id=run_id)  # type: ignore
         return dagrun, task_instance
@@ -420,16 +435,15 @@ class TestOpenLineageListenerAirflow2:
     @mock.patch(
         "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
     )
-    @mock.patch("airflow.utils.timezone.utcnow", return_value=timezone.datetime(2023, 1, 3, 13, 1, 1))
     def test_adapter_fail_task_is_called_with_proper_arguments(
         self,
-        mock_utcnow,
         mock_get_user_provided_run_facets,
         mock_get_airflow_run_facet,
         mock_get_task_parent_run_facet,
         mock_disabled,
         mock_debug_facet,
         mock_debug_mode,
+        time_machine,
     ):
         """Tests that the 'fail_task' method of the OpenLineageAdapter is invoked with the correct arguments.
 
@@ -438,6 +452,7 @@ class TestOpenLineageListenerAirflow2:
         the test verifies the integrity and consistency of the data passed to the adapter during task
         failure events, thus confirming that the adapter's failure handling is functioning as expected.
         """
+        time_machine.move_to(timezone.datetime(2023, 1, 3, 13, 1, 1))
 
         listener, task_instance = self._create_listener_and_task_instance()
         task_instance.logical_date = timezone.datetime(2020, 1, 1, 1, 1, 1)
@@ -551,16 +566,15 @@ class TestOpenLineageListenerAirflow2:
     @mock.patch(
         "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
     )
-    @mock.patch("airflow.utils.timezone.utcnow", return_value=timezone.datetime(2023, 1, 3, 13, 1, 1))
     def test_adapter_complete_task_is_called_with_proper_arguments(
         self,
-        mock_utcnow,
         mock_get_user_provided_run_facets,
         mock_get_airflow_run_facet,
         mock_get_task_parent_run_facet,
         mock_disabled,
         mock_debug_facet,
         mock_debug_mode,
+        time_machine,
     ):
         """Tests that the 'complete_task' method of the OpenLineageAdapter is called with the correct arguments.
 
@@ -570,6 +584,7 @@ class TestOpenLineageListenerAirflow2:
         accordingly. This helps confirm the consistency and correctness of the data passed to the adapter
         during the task's lifecycle events.
         """
+        time_machine.move_to(timezone.datetime(2023, 1, 3, 13, 1, 1))
 
         listener, task_instance = self._create_listener_and_task_instance()
         mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2}
@@ -876,6 +891,8 @@ class TestOpenLineageListenerAirflow2:
     def test_listener_on_dag_run_state_changes(self, mock_emit, method, dag_run_state, create_task_instance):
         mock_executor = MockExecutor()
         ti = create_task_instance(dag_id="dag", task_id="op")
+        ti.start_date = datetime(2020, 1, 1, tzinfo=timezone.utc)
+        ti.end_date = datetime(2020, 1, 1, 1, tzinfo=timezone.utc)
         # Change the state explicitly to set end_date following the logic in the method
         ti.dag_run.set_state(dag_run_state)
         with mock.patch(
@@ -1048,7 +1065,7 @@ class TestOpenLineageListenerAirflow3:
             start_date=date,
             run_type=types.DagRunType.MANUAL,
             state=DagRunState.QUEUED,
-            **dagrun_kwargs,  # type: ignore
+            **dagrun_kwargs,
         )
         task_instance = TaskInstance(t, run_id=run_id)  # type: ignore
         task_instance.dag_run = dagrun
@@ -1074,13 +1091,14 @@ class TestOpenLineageListenerAirflow3:
 
         if not runtime_ti:
             # TaskInstance is used when on API server (when listener gets called about manual state change)
-            task_instance = TaskInstance(task=MagicMock(), dag_version_id=uuid7())  # type: ignore
+            task_instance = TaskInstance(task=MagicMock(), dag_version_id=uuid7())
             task_instance.dag_run = DagRun()
             task_instance.dag_run.dag_id = "dag_id_from_dagrun_and_not_ti"
             task_instance.dag_run.run_id = "dag_run_run_id"
             task_instance.dag_run.clear_number = 0
             task_instance.dag_run.logical_date = timezone.datetime(2020, 1, 1, 1, 1, 1)
             task_instance.dag_run.run_after = timezone.datetime(2020, 1, 1, 1, 1, 1)
+            task_instance.dag_run.state = DagRunState.RUNNING
             task_instance.task = None
             task_instance.dag = None
             task_instance.task_id = "task_id"
@@ -1091,6 +1109,7 @@ class TestOpenLineageListenerAirflow3:
             # RuntimeTaskInstance is used when on worker
             from airflow.sdk.api.datamodels._generated import (
                 DagRun as SdkDagRun,
+                DagRunState as SdkDagRunState,
                 DagRunType,
                 TaskInstance as SdkTaskInstance,
                 TIRunContext,
@@ -1121,19 +1140,20 @@ class TestOpenLineageListenerAirflow3:
                 **sdk_task_instance.model_dump(exclude_unset=True),
                 task=task,
                 _ti_context_from_server=TIRunContext(
-                    dag_run=SdkDagRun(
-                        dag_id="dag_id_from_dagrun_not_ti",
-                        run_id="dag_run_run_id_from_dagrun_not_ti",
-                        logical_date=timezone.datetime(2020, 1, 1, 1, 1, 1),
-                        data_interval_start=None,
-                        data_interval_end=None,
-                        start_date=timezone.datetime(2023, 1, 1, 13, 1, 1),
-                        end_date=timezone.datetime(2023, 1, 3, 13, 1, 1),
-                        clear_number=0,
-                        run_type=DagRunType.MANUAL,
-                        run_after=timezone.datetime(2023, 1, 3, 13, 1, 1),
-                        conf=None,
-                        consumed_asset_events=[],
+                    dag_run=SdkDagRun.model_validate(
+                        {
+                            "dag_id": "dag_id_from_dagrun_not_ti",
+                            "run_id": "dag_run_run_id_from_dagrun_not_ti",
+                            "logical_date": timezone.datetime(2020, 1, 1, 1, 1, 1),
+                            "start_date": timezone.datetime(2023, 1, 1, 13, 1, 1),
+                            "end_date": timezone.datetime(2023, 1, 3, 13, 1, 1),
+                            "run_type": DagRunType.MANUAL,
+                            "run_after": timezone.datetime(2023, 1, 3, 13, 1, 1),
+                            "consumed_asset_events": [],
+                            **(
+                                {"state": SdkDagRunState.RUNNING} if "state" in SdkDagRun.model_fields else {}
+                            ),
+                        }
                     ),
                     task_reschedule_count=0,
                     max_tries=1,
@@ -1301,16 +1321,15 @@ class TestOpenLineageListenerAirflow3:
     @mock.patch(
         "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
     )
-    @mock.patch("airflow.utils.timezone.utcnow", return_value=timezone.datetime(2023, 1, 3, 13, 1, 1))
     def test_adapter_fail_task_is_called_with_proper_arguments(
         self,
-        mock_utcnow,
         mock_get_user_provided_run_facets,
         mock_get_airflow_run_facet,
         mock_get_task_parent_run_facet,
         mock_disabled,
         mock_debug_facet,
         mock_debug_mode,
+        time_machine,
     ):
         """Tests that the 'fail_task' method of the OpenLineageAdapter is invoked with the correct arguments.
 
@@ -1319,6 +1338,7 @@ class TestOpenLineageListenerAirflow3:
         the test verifies the integrity and consistency of the data passed to the adapter during task
         failure events, thus confirming that the adapter's failure handling is functioning as expected.
         """
+        time_machine.move_to(timezone.datetime(2023, 1, 3, 13, 1, 1), tick=False)
 
         listener, task_instance = self._create_listener_and_task_instance()
         task_instance.get_template_context()["dag_run"].logical_date = timezone.datetime(2020, 1, 1, 1, 1, 1)
@@ -1426,20 +1446,20 @@ class TestOpenLineageListenerAirflow3:
     @mock.patch(
         "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
     )
-    @mock.patch("airflow.utils.timezone.utcnow", return_value=timezone.datetime(2023, 1, 3, 13, 1, 1))
     def test_adapter_fail_task_is_called_with_proper_arguments_for_db_task_instance_model(
         self,
-        mock_utcnow,
         mock_get_task_parent_run_facet,
         mock_debug_facet,
         mock_debug_mode,
         mock_emit,
+        time_machine,
     ):
         """Tests that the 'fail_task' method of the OpenLineageAdapter is invoked with the correct arguments.
 
         This particular test is using TaskInstance model available on API Server and not on worker,
         to simulate the listener being called after task's state has been manually set via API.
         """
+        time_machine.move_to(timezone.datetime(2023, 1, 3, 13, 1, 1), tick=False)
 
         listener, task_instance = self._create_listener_and_task_instance(runtime_ti=False)
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
@@ -1484,16 +1504,15 @@ class TestOpenLineageListenerAirflow3:
     @mock.patch(
         "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
     )
-    @mock.patch("airflow.utils.timezone.utcnow", return_value=timezone.datetime(2023, 1, 3, 13, 1, 1))
     def test_adapter_complete_task_is_called_with_proper_arguments(
         self,
-        mock_utcnow,
         mock_get_user_provided_run_facets,
         mock_get_airflow_run_facet,
         mock_get_task_parent_run_facet,
         mock_disabled,
         mock_debug_facet,
         mock_debug_mode,
+        time_machine,
     ):
         """Tests that the 'complete_task' method of the OpenLineageAdapter is called with the correct arguments.
 
@@ -1503,6 +1522,7 @@ class TestOpenLineageListenerAirflow3:
         accordingly. This helps confirm the consistency and correctness of the data passed to the adapter
         during the task's lifecycle events.
         """
+        time_machine.move_to(timezone.datetime(2023, 1, 3, 13, 1, 1), tick=False)
 
         listener, task_instance = self._create_listener_and_task_instance()
         mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2}
@@ -1607,15 +1627,16 @@ class TestOpenLineageListenerAirflow3:
     @mock.patch(
         "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
     )
-    @mock.patch("airflow.utils.timezone.utcnow", return_value=timezone.datetime(2023, 1, 3, 13, 1, 1))
     def test_adapter_complete_task_is_called_with_proper_arguments_for_db_task_instance_model(
-        self, mock_utcnow, mock_get_task_parent_run_facet, mock_debug_facet, mock_debug_mode, mock_emit
+        self, mock_get_task_parent_run_facet, mock_debug_facet, mock_debug_mode, mock_emit, time_machine
     ):
         """Tests that the 'complete_task' method of the OpenLineageAdapter is called with the correct arguments.
 
         This particular test is using TaskInstance model available on API Server and not on worker,
         to simulate the listener being called after task's state has been manually set via API.
         """
+        time_machine.move_to(timezone.datetime(2023, 1, 3, 13, 1, 1), tick=False)
+
         listener, task_instance = self._create_listener_and_task_instance(runtime_ti=False)
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
@@ -1799,6 +1820,8 @@ class TestOpenLineageListenerAirflow3:
     def test_listener_on_dag_run_state_changes(self, mock_emit, method, dag_run_state, create_task_instance):
         mock_executor = MockExecutor()
         ti = create_task_instance(dag_id="dag", task_id="op")
+        ti.start_date = datetime(2020, 1, 1, tzinfo=timezone.utc)
+        ti.end_date = datetime(2020, 1, 1, 1, tzinfo=timezone.utc)
         # Change the state explicitly to set end_date following the logic in the method
         ti.dag_run.set_state(dag_run_state)
         with mock.patch(
@@ -1867,7 +1890,7 @@ class TestOpenLineageSelectiveEnableAirflow2:
             run_type=types.DagRunType.MANUAL,
             state=DagRunState.QUEUED,
             execution_date=date,
-        )  # type: ignore
+        )
         self.task_instance_1 = TaskInstance(self.task_1, run_id=run_id, map_index=-1)
         self.task_instance_2 = TaskInstance(self.task_2, run_id=run_id, map_index=-1)
         self.task_instance_1.dag_run = self.task_instance_2.dag_run = self.dagrun

@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import types
 from unittest import mock
 from unittest.mock import patch
 
@@ -34,6 +35,7 @@ from airflow.providers.git.bundles.git import GitDagBundle
 from airflow.providers.git.hooks.git import GitHook
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 
 @pytest.fixture(autouse=True)
@@ -521,6 +523,100 @@ class TestGitDagBundle:
         assert view_url == expected_url
         bundle.initialize.assert_not_called()
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="Airflow 3.0 does not support view_url_template")
+    @pytest.mark.parametrize(
+        "repo_url, extra_conn_kwargs, expected_url",
+        [
+            (
+                "git@github.com:apache/airflow.git",
+                None,
+                "https://github.com/apache/airflow/tree/{version}/subdir",
+            ),
+            (
+                "git@github.com:apache/airflow",
+                None,
+                "https://github.com/apache/airflow/tree/{version}/subdir",
+            ),
+            (
+                "https://github.com/apache/airflow",
+                None,
+                "https://github.com/apache/airflow/tree/{version}/subdir",
+            ),
+            (
+                "https://github.com/apache/airflow.git",
+                None,
+                "https://github.com/apache/airflow/tree/{version}/subdir",
+            ),
+            (
+                "git@gitlab.com:apache/airflow.git",
+                None,
+                "https://gitlab.com/apache/airflow/-/tree/{version}/subdir",
+            ),
+            (
+                "git@bitbucket.org:apache/airflow.git",
+                None,
+                "https://bitbucket.org/apache/airflow/src/{version}/subdir",
+            ),
+            (
+                "git@myorg.github.com:apache/airflow.git",
+                None,
+                "https://myorg.github.com/apache/airflow/tree/{version}/subdir",
+            ),
+            (
+                "https://myorg.github.com/apache/airflow.git",
+                None,
+                "https://myorg.github.com/apache/airflow/tree/{version}/subdir",
+            ),
+            (
+                "https://github.com/apache/airflow",
+                {"password": "abc123"},
+                "https://github.com/apache/airflow/tree/{version}/subdir",
+            ),
+            (
+                "https://github.com/apache/airflow",
+                {"login": "abc123"},
+                "https://github.com/apache/airflow/tree/{version}/subdir",
+            ),
+            (
+                "https://github.com/apache/airflow",
+                {"login": "abc123", "password": "def456"},
+                "https://github.com/apache/airflow/tree/{version}/subdir",
+            ),
+            (
+                "https://github.com:443/apache/airflow",
+                None,
+                "https://github.com:443/apache/airflow/tree/{version}/subdir",
+            ),
+            (
+                "https://github.com:443/apache/airflow",
+                {"password": "abc123"},
+                "https://github.com:443/apache/airflow/tree/{version}/subdir",
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.git.bundles.git.Repo")
+    def test_view_url_template_subdir(
+        self, mock_gitrepo, repo_url, extra_conn_kwargs, expected_url, create_connection_without_db
+    ):
+        create_connection_without_db(
+            Connection(
+                conn_id="git_default",
+                host=repo_url,
+                conn_type="git",
+                **(extra_conn_kwargs or {}),
+            )
+        )
+        bundle = GitDagBundle(
+            name="test",
+            tracking_ref="main",
+            subdir="subdir",
+            git_conn_id="git_default",
+        )
+        bundle.initialize = mock.MagicMock()
+        view_url_template = bundle.view_url_template()
+        assert view_url_template == expected_url
+        bundle.initialize.assert_not_called()
+
     @mock.patch("airflow.providers.git.bundles.git.Repo")
     def test_view_url_returns_none_when_no_version_in_view_url(self, mock_gitrepo):
         bundle = GitDagBundle(
@@ -602,3 +698,29 @@ class TestGitDagBundle:
                 repo_url=repo_url,
             )
             assert bundle.repo_url == expected
+
+    @mock.patch("airflow.providers.git.bundles.git.Repo")
+    def test_clone_passes_env_from_githook(self, mock_gitRepo):
+        def _fake_clone_from(*_, **kwargs):
+            if "env" not in kwargs:
+                raise GitCommandError("git", 128, "Permission denied")
+            return types.SimpleNamespace()
+
+        EXPECTED_ENV = {"GIT_SSH_COMMAND": "ssh -i /id_rsa -o StrictHostKeyChecking=no"}
+
+        mock_gitRepo.clone_from.side_effect = _fake_clone_from
+        mock_gitRepo.return_value = types.SimpleNamespace()
+
+        with mock.patch("airflow.providers.git.bundles.git.GitHook") as mock_githook:
+            mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
+            mock_githook.return_value.env = EXPECTED_ENV
+
+            bundle = GitDagBundle(
+                name="my_repo",
+                git_conn_id="git_default",
+                repo_url="git@github.com:apache/airflow.git",
+                tracking_ref="main",
+            )
+            bundle._clone_bare_repo_if_required()
+            _, kwargs = mock_gitRepo.clone_from.call_args
+            assert kwargs["env"] == EXPECTED_ENV

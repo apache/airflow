@@ -43,11 +43,14 @@ from datetime import datetime
 from typing import Any
 
 from google.analytics import admin_v1beta as google_analytics
-from google.cloud.exceptions import NotFound
 
-from airflow.decorators import task
+try:
+    from airflow.sdk import task
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.models.dag import DAG
-from airflow.providers.google.cloud.hooks.secret_manager import GoogleCloudSecretManagerHook
+from airflow.providers.google.common.utils.get_secret import get_secret
 from airflow.providers.google.marketing_platform.operators.analytics_admin import (
     GoogleAnalyticsAdminCreateDataStreamOperator,
     GoogleAnalyticsAdminCreatePropertyOperator,
@@ -72,13 +75,6 @@ DATA_STREAM_ID = "{{ task_instance.xcom_pull('create_data_stream')['name'].split
 GA_ADS_LINK_ID = "{{ task_instance.xcom_pull('list_google_ads_links')[0]['name'].split('/')[-1] }}"
 
 log = logging.getLogger(__name__)
-
-
-def get_secret(secret_id: str) -> str:
-    hook = GoogleCloudSecretManagerHook()
-    if hook.secret_exists(secret_id=secret_id):
-        return hook.access_secret(secret_id=secret_id).payload.data.decode()
-    raise NotFound("The secret '%s' not found", secret_id)
 
 
 with DAG(

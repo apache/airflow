@@ -27,6 +27,26 @@
 Changelog
 ---------
 
+3.12.2
+......
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup mypy ignores in celery provider (#53261)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Use standard library ''typing'' imports for Python 3.10+ (#53158)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bumping min version of azure-storage-blob to 12.26.0 (#53440)``
+   * ``Resolve OOM When Reading Large Logs in Webserver (#49470)``
+   * ``Make dag_version_id in TI non-nullable (#50825)``
+   * ``OpenTelemetry traces implementation cleanup (#49180)``
+
 3.12.1
 ......
 

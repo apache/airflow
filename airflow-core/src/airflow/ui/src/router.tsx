@@ -38,8 +38,9 @@ import { DagsList } from "src/pages/DagsList";
 import { Dashboard } from "src/pages/Dashboard";
 import { ErrorPage } from "src/pages/Error";
 import { Events } from "src/pages/Events";
+import { ExternalView } from "src/pages/ExternalView";
 import { GroupTaskInstance } from "src/pages/GroupTaskInstance";
-import { Iframe } from "src/pages/Iframe";
+import { HITLTaskInstances } from "src/pages/HITLTaskInstances";
 import { MappedTaskInstance } from "src/pages/MappedTaskInstance";
 import { Plugins } from "src/pages/Plugins";
 import { Pools } from "src/pages/Pools";
@@ -53,6 +54,7 @@ import { Overview as TaskOverview } from "src/pages/Task/Overview";
 import { TaskInstance, Logs } from "src/pages/TaskInstance";
 import { AssetEvents as TaskInstanceAssetEvents } from "src/pages/TaskInstance/AssetEvents";
 import { Details as TaskInstanceDetails } from "src/pages/TaskInstance/Details";
+import { HITLResponse } from "src/pages/TaskInstance/HITLResponse";
 import { RenderedTemplates } from "src/pages/TaskInstance/RenderedTemplates";
 import { TaskInstances } from "src/pages/TaskInstances";
 import { Variables } from "src/pages/Variables";
@@ -60,13 +62,8 @@ import { XCom } from "src/pages/XCom";
 
 import { client } from "./queryClient";
 
-const iframeRoute = {
-  // The following iframe sandbox setting is intentionally less restrictive.
-  // This is considered safe because the framed content originates from the Plugins,
-  // which is part of the deployment of Airflow and trusted as per our security policy.
-  // https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html
-  // They are not user provided plugins.
-  element: <Iframe sandbox="allow-scripts allow-same-origin allow-forms" />,
+const pluginRoute = {
+  element: <ExternalView />,
   path: "plugin/:page",
 };
 
@@ -79,7 +76,8 @@ const taskInstanceRoutes = [
   { element: <RenderedTemplates />, path: "rendered_templates" },
   { element: <TaskInstances />, path: "task_instances" },
   { element: <TaskInstanceAssetEvents />, path: "asset_events" },
-  iframeRoute,
+  { element: <HITLResponse />, path: "required_actions" },
+  pluginRoute,
 ];
 
 export const routerConfig = [
@@ -88,6 +86,10 @@ export const routerConfig = [
       {
         element: <Dashboard />,
         index: true,
+      },
+      {
+        element: <HITLTaskInstances />,
+        path: "required_actions",
       },
       {
         element: <DagsList />,
@@ -153,17 +155,18 @@ export const routerConfig = [
         element: <Connections />,
         path: "connections",
       },
-      iframeRoute,
+      pluginRoute,
       {
         children: [
           { element: <Overview />, index: true },
           { element: <DagRuns />, path: "runs" },
           { element: <Tasks />, path: "tasks" },
+          { element: <HITLTaskInstances />, path: "required_actions" },
           { element: <Backfills />, path: "backfills" },
           { element: <Events />, path: "events" },
           { element: <Code />, path: "code" },
           { element: <DagDetails />, path: "details" },
-          iframeRoute,
+          pluginRoute,
         ],
         element: <Dag />,
         path: "dags/:dagId",
@@ -171,11 +174,12 @@ export const routerConfig = [
       {
         children: [
           { element: <TaskInstances />, index: true },
+          { element: <HITLTaskInstances />, path: "required_actions" },
           { element: <Events />, path: "events" },
           { element: <Code />, path: "code" },
           { element: <DagRunDetails />, path: "details" },
           { element: <DagRunAssetEvents />, path: "asset_events" },
-          iframeRoute,
+          pluginRoute,
         ],
         element: <Run />,
         path: "dags/:dagId/runs/:runId",
@@ -199,7 +203,8 @@ export const routerConfig = [
         children: [
           { element: <TaskOverview />, index: true },
           { element: <TaskInstances />, path: "task_instances" },
-          iframeRoute,
+          { element: <HITLTaskInstances />, path: "required_actions" },
+          pluginRoute,
         ],
         element: <Task />,
         path: "dags/:dagId/tasks/group/:groupId",
@@ -213,8 +218,9 @@ export const routerConfig = [
         children: [
           { element: <TaskOverview />, index: true },
           { element: <TaskInstances />, path: "task_instances" },
+          { element: <HITLTaskInstances />, path: "required_actions" },
           { element: <Events />, path: "events" },
-          iframeRoute,
+          pluginRoute,
         ],
         element: <Task />,
         path: "dags/:dagId/tasks/:taskId",
