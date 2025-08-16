@@ -1472,10 +1472,17 @@ class TestKubernetesPodOperator:
 
         pod, _ = self.run_pod(k)
         if AIRFLOW_V_3_0_PLUS:
-            pod_name = XCom.get_many(run_id=self.dag_run.run_id, task_ids="task", key="pod_name").first()
-            pod_namespace = XCom.get_many(
-                run_id=self.dag_run.run_id, task_ids="task", key="pod_namespace"
-            ).first()
+            with create_session() as session:
+                pod_name = session.execute(
+                    XCom.get_many(
+                        run_id=self.dag_run.run_id, task_ids="task", key="pod_name"
+                    ).with_only_columns(XCom.value)
+                ).first()
+                pod_namespace = session.execute(
+                    XCom.get_many(
+                        run_id=self.dag_run.run_id, task_ids="task", key="pod_namespace"
+                    ).with_only_columns(XCom.value)
+                ).first()
 
             pod_name = XCom.deserialize_value(pod_name)
             pod_namespace = XCom.deserialize_value(pod_namespace)
