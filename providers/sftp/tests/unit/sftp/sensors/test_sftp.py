@@ -98,6 +98,14 @@ class TestSFTPSensor:
         assert output
 
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
+    def test_only_creating_one_connection_with_unmanaged_conn(self, sftp_hook_mock):
+        sftp_hook_mock.return_value.isfile.return_value = True
+        sftp_hook_mock.return_value.get_mod_time.return_value = "19700101000000"
+        sftp_sensor = SFTPSensor(task_id="test", path="path/to/whatever/test", use_managed_conn=False)
+        sftp_sensor.poke({})
+        sftp_hook_mock.return_value.get_managed_conn.assert_called_once_with()
+
+    @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
     def test_file_not_new_enough(self, sftp_hook_mock):
         sftp_hook_mock.return_value.isfile.return_value = True
         sftp_hook_mock.return_value.get_mod_time.return_value = "19700101000000"
@@ -193,9 +201,10 @@ class TestSFTPSensor:
         )
         context = {"ds": "1970-01-00"}
         output = sftp_sensor.poke(context)
-        sftp_hook_mock.return_value.get_mod_time.assert_has_calls(
-            [mock.call("/path/to/file/text_file1.txt"), mock.call("/path/to/file/text_file2.txt")]
-        )
+        sftp_hook_mock.return_value.get_mod_time.assert_has_calls([
+            mock.call("/path/to/file/text_file1.txt"),
+            mock.call("/path/to/file/text_file2.txt"),
+        ])
         sftp_hook_mock.return_value.close_conn.assert_not_called()
         assert output
 
@@ -220,13 +229,11 @@ class TestSFTPSensor:
         )
         context = {"ds": "1970-01-00"}
         output = sftp_sensor.poke(context)
-        sftp_hook_mock.return_value.get_mod_time.assert_has_calls(
-            [
-                mock.call("/path/to/file/text_file1.txt"),
-                mock.call("/path/to/file/text_file2.txt"),
-                mock.call("/path/to/file/text_file3.txt"),
-            ]
-        )
+        sftp_hook_mock.return_value.get_mod_time.assert_has_calls([
+            mock.call("/path/to/file/text_file1.txt"),
+            mock.call("/path/to/file/text_file2.txt"),
+            mock.call("/path/to/file/text_file3.txt"),
+        ])
         sftp_hook_mock.return_value.close_conn.assert_not_called()
         assert not output
 
