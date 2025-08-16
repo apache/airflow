@@ -104,7 +104,7 @@ class SambaHook(BaseHook):
 
     @staticmethod
     def _join_windows_path(host: str, share: str, path: str) -> str:
-        return "\\{}".format(PureWindowsPath(rf"\\{host}\\{share}", path.lstrip(r"\/")))
+        return "\\{}".format(PureWindowsPath(f"\\{host}\\{share}", path.lstrip(r"\/")))
 
     def _join_path(self, path):
         if self._share_type == "windows":
