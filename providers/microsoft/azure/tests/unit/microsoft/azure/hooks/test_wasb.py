@@ -20,10 +20,11 @@ from __future__ import annotations
 import os
 import re
 from unittest import mock
+from unittest.mock import create_autospec
 
 import pytest
 from azure.core.exceptions import ResourceNotFoundError
-from azure.storage.blob import BlobServiceClient
+from azure.storage.blob import BlobServiceClient, ContainerClient
 from azure.storage.blob._models import BlobProperties
 
 from airflow.exceptions import AirflowException
@@ -198,6 +199,19 @@ class TestWasbHook:
             proxies=self.proxies,
             shared_access_key="token",
         )
+
+    def test_blob_service_client_setter_overrides_cache(self, monkeypatch):
+        hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
+        default_client = mock.MagicMock(name="default_client")
+        monkeypatch.setattr(hook, "get_conn", mock.MagicMock(return_value=default_client))
+        hook._blob_service_client = None
+        assert hook.blob_service_client is default_client
+        hook.get_conn.assert_called_once()
+        new_client = mock.MagicMock(name="new_client")
+        hook.blob_service_client = new_client
+        hook.get_conn.reset_mock()
+        assert hook.blob_service_client is new_client
+        hook.get_conn.assert_not_called()
 
     def test_managed_identity(self, mocked_default_azure_credential, mocked_blob_service_client):
         mocked_default_azure_credential.assert_not_called()
@@ -419,6 +433,8 @@ class TestWasbHook:
         get_blobs_list.assert_called_once_with(container_name="container", prefix="prefix", timeout=3)
 
     def test_get_blobs_list(self, mocked_blob_service_client):
+        mock_container = create_autospec(ContainerClient, instance=True)
+        mocked_blob_service_client.return_value.get_container_client.return_value = mock_container
         hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
         hook.get_blobs_list(container_name="mycontainer", prefix="my", include=None, delimiter="/")
         mock_container_client = mocked_blob_service_client.return_value.get_container_client
@@ -428,6 +444,8 @@ class TestWasbHook:
         )
 
     def test_get_blobs_list_recursive(self, mocked_blob_service_client):
+        mock_container = create_autospec(ContainerClient, instance=True)
+        mocked_blob_service_client.return_value.get_container_client.return_value = mock_container
         hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
         hook.get_blobs_list_recursive(
             container_name="mycontainer", prefix="test", include=None, endswith="file_extension"
@@ -439,6 +457,8 @@ class TestWasbHook:
         )
 
     def test_get_blobs_list_recursive_endswith(self, mocked_blob_service_client):
+        mock_container = create_autospec(ContainerClient, instance=True)
+        mocked_blob_service_client.return_value.get_container_client.return_value = mock_container
         hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
         mocked_blob_service_client.return_value.get_container_client.return_value.list_blobs.return_value = [
             BlobProperties(name="test/abc.py"),
