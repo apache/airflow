@@ -1368,6 +1368,8 @@ export class DagService {
      * @param data.lastDagRunState
      * @param data.bundleName
      * @param data.bundleVersion
+     * @param data.hasAssetSchedule Filter DAGs with asset-based scheduling
+     * @param data.assetDependency Filter DAGs by asset dependency (name or URI)
      * @param data.dagRunStartDateGte
      * @param data.dagRunStartDateLte
      * @param data.dagRunEndDateGte
@@ -1395,6 +1397,8 @@ export class DagService {
                 last_dag_run_state: data.lastDagRunState,
                 bundle_name: data.bundleName,
                 bundle_version: data.bundleVersion,
+                has_asset_schedule: data.hasAssetSchedule,
+                asset_dependency: data.assetDependency,
                 dag_run_start_date_gte: data.dagRunStartDateGte,
                 dag_run_start_date_lte: data.dagRunStartDateLte,
                 dag_run_end_date_gte: data.dagRunEndDateGte,
