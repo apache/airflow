@@ -152,7 +152,6 @@ class MwaaDagRunSensor(AwsBaseSensor[MwaaHook]):
                     waiter_delay=int(self.poke_interval),
                     waiter_max_attempts=self.max_retries,
                     aws_conn_id=self.aws_conn_id,
-                    end_from_trigger=True,
                 ),
                 method_name="execute_complete",
             )
