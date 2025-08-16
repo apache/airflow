@@ -31,8 +31,8 @@ FROM ${BASE_IMAGE} as scripts
 # make the PROD Dockerfile standalone
 ##############################################################################################
 
-# The content below is automatically copied from scripts/docker/install_os_dependencies_ci.sh
-COPY <<"EOF" /install_os_dependencies_ci.sh
+# The content below is automatically copied from scripts/docker/install_os_dependencies.sh
+COPY <<"EOF" /install_os_dependencies.sh
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -154,11 +154,11 @@ function install_debian_runtime_dependencies() {
 function install_python() {
     git clone --branch "${AIRFLOW_PYTHON_VERSION}" --depth 1 https://github.com/python/cpython.git
     cd cpython
-    ./configure --enable-optimizations
+    ./configure --enable-optimizations --prefix=/usr/python/
     make -s -j "$(nproc)" all
     make -s -j "$(nproc)" install
-    ln -s /usr/local/bin/python3 /usr/local/bin/python
-    ln -s /usr/local/bin/pip3 /usr/local/bin/pip
+    ln -s /usr/python/bin/python3 /usr/python/bin/python
+    ln -s /usr/python/bin/pip3 /usr/python/bin/pip
     cd ..
     rm -rf cpython
 }
@@ -1336,9 +1336,9 @@ ARG AIRFLOW_PYTHON_VERSION=v3.10.18
 ENV AIRFLOW_PYTHON_VERSION=$AIRFLOW_PYTHON_VERSION
 ENV GOLANG_MAJOR_MINOR_VERSION=1.24.6
 
-COPY --from=scripts install_os_dependencies_ci.sh /scripts/docker/
+COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 
-RUN bash /scripts/docker/install_os_dependencies_ci.sh ci
+RUN bash /scripts/docker/install_os_dependencies.sh ci
 
 COPY --from=scripts common.sh /scripts/docker/
 
@@ -1478,8 +1478,7 @@ ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_PRE_COMMIT_VERSION=${AIRFLOW_PRE_COMMIT_VERSION}
 
 # The PATH is needed for PIPX to find the tools installed and cargo to build the wheels
-ENV PATH="/root/.local/bin:/root/.cargo/bin:${PATH}"
-
+ENV PATH="/usr/python/bin:/root/.local/bin:/root/.cargo/bin:${PATH}"
 # Useful for creating a cache id based on the underlying architecture, preventing the use of cached python packages from
 # an incorrect architecture.
 ARG TARGETARCH
@@ -1489,6 +1488,7 @@ ARG DEPENDENCY_CACHE_EPOCH="0"
 # Install useful command line tools in their own virtualenv so that they do not clash with
 # dependencies installed in Airflow also reinstall PIP and UV to make sure they are installed
 # in the version specified above
+
 RUN bash /scripts/docker/install_packaging_tools.sh
 
 COPY --from=scripts install_airflow_when_building_images.sh /scripts/docker/

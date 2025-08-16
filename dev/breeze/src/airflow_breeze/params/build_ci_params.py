@@ -68,7 +68,7 @@ class BuildCiParams(CommonBuildParams):
 
             self._opt_arg("UV_HTTP_TIMEOUT", get_uv_timeout(self))
         self._req_arg("AIRFLOW_VERSION", self.airflow_version)
-        self._req_arg("PYTHON_BASE_IMAGE", self.python_base_image)
+        self._req_arg("BASE_IMAGE", self.python_base_image)
         self._req_arg(
             "AIRFLOW_PYTHON_VERSION", ALL_PYTHON_VERSION_TO_PATCH_VERSION.get(self.python, self.python)
         )

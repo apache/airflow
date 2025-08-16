@@ -30,7 +30,8 @@ export AIRFLOW_VERSION=2.3.4
 export DOCKER_BUILDKIT=1
 
 docker build . \
-    --build-arg PYTHON_BASE_IMAGE="python:3.10-slim-bookworm" \
+    --build-arg BASE_IMAGE="debian:bookworm-slim" \
+    --build-arg AIRFLOW_PYTHON_VERSION="v3.10.18" \
     --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
     --tag "my-pypi-selected-version:0.0.1"
 # [END build]
