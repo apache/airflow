@@ -8528,10 +8528,12 @@ components:
           description: The action to be performed on the entities.
         entities:
           items:
-            type: string
+            anyOf:
+            - type: string
+            - $ref: '#/components/schemas/BulkTaskInstanceBody'
           type: array
           title: Entities
-          description: A list of entity id/key to be deleted.
+          description: A list of entity id/key or entity objects to be deleted.
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
@@ -8550,10 +8552,12 @@ components:
           description: The action to be performed on the entities.
         entities:
           items:
-            type: string
+            anyOf:
+            - type: string
+            - $ref: '#/components/schemas/BulkTaskInstanceBody'
           type: array
           title: Entities
-          description: A list of entity id/key to be deleted.
+          description: A list of entity id/key or entity objects to be deleted.
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
@@ -8572,10 +8576,12 @@ components:
           description: The action to be performed on the entities.
         entities:
           items:
-            type: string
+            anyOf:
+            - type: string
+            - $ref: '#/components/schemas/BulkTaskInstanceBody'
           type: array
           title: Entities
-          description: A list of entity id/key to be deleted.
+          description: A list of entity id/key or entity objects to be deleted.
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
@@ -8594,10 +8600,12 @@ components:
           description: The action to be performed on the entities.
         entities:
           items:
-            type: string
+            anyOf:
+            - type: string
+            - $ref: '#/components/schemas/BulkTaskInstanceBody'
           type: array
           title: Entities
-          description: A list of entity id/key to be deleted.
+          description: A list of entity id/key or entity objects to be deleted.
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
