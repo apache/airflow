@@ -473,10 +473,11 @@ class TestLoggingSettings:
             from airflow.logging_config import load_logging_config
 
             with patch("airflow.logging_config.log") as mock_log:
-                logging_config, _ = load_logging_config()
+                logging_config, logging_class_path = load_logging_config()
 
-                assert isinstance(logging_config, dict)
-                assert logging_config["version"] == 1
+                self._verify_basic_logging_config(
+                    logging_config, logging_class_path, f"{SETTINGS_DEFAULT_NAME}.LOGGING_CONFIG"
+                )
 
                 mock_log.info.assert_called_with(
                     "Remote task logs will not be available due to an error:  %s",
