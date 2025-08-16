@@ -27,6 +27,7 @@
 from __future__ import annotations
 
 import re
+import os
 import sys
 from pathlib import Path
 
@@ -35,6 +36,28 @@ from packaging.version import Version, parse
 from rich.console import Console
 
 console = Console(color_system="standard", stderr=True, width=400)
+
+def fetch_raw_url(link: str, fallback_link: str) -> str:
+    """
+    Fetch the image url from GitHub
+    """
+    token = os.environ.get("GITHUB_TOKEN")
+    headers = {}
+    if token:
+        headers["Authorization"] = f"token {token}"
+    else:
+        print("Warning: GITHUB_TOKEN not found, making unauthenticated request")
+    
+    response = requests.get(link, headers=headers)
+    if response.status_code == 200:
+        content = response.json()
+        if "download_url" in content:
+            return content["download_url"]
+        else:
+            return fallback_link
+    else:
+        print(f"Failed to fetch URL: {link} {response.status_code} - {response.text}")
+        return fallback_link
 
 
 def check_airflow_version(airflow_version: Version) -> tuple[str, bool]:
@@ -71,10 +94,15 @@ def check_airflow_version(airflow_version: Version) -> tuple[str, bool]:
         else:
             console.print("[red]Error: requires-python version not found in pyproject.toml")
             sys.exit(1)
-        constraints_url = (
+        constraints_raw_url = (
             f"https://raw.githubusercontent.com/apache/airflow/"
             f"constraints-{airflow_version}/constraints-{min_version}.txt"
         )
+        constraints_api_url = (
+            f"https://api.github.com/repos/apache/airflow/contents/"
+            f"constraints-{min_version}.txt?ref=constraints-{airflow_version}"
+        )
+        constraints_url = fetch_raw_url(constraints_api_url, constraints_raw_url)
         console.print(f"[bright_blue]Checking constraints file: {constraints_url}")
         response = requests.head(constraints_url)
         if response.status_code == 404:
