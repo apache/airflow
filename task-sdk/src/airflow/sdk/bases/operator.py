@@ -1466,6 +1466,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "on_failure_fail_dagrun",
                     "task_group",
                     "_task_type",
+                    "operator_extra_links",
                 }
                 | {  # Class level defaults, or `@property` need to be added to this list
                     "start_date",

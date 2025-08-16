@@ -28,7 +28,7 @@ import logging
 import math
 import weakref
 from collections.abc import Collection, Generator, Iterable, Iterator, Mapping, Sequence
-from functools import cache, cached_property
+from functools import cached_property
 from inspect import signature
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypeAlias, TypeVar, cast, overload
@@ -51,8 +51,6 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.xcom import XComModel
 from airflow.models.xcom_arg import SchedulerXComArg, deserialize_xcom_arg
 from airflow.sdk import Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher, BaseOperator, XComArg
-from airflow.sdk.bases.operator import OPERATOR_DEFAULTS  # TODO: Copy this into the scheduler?
-from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions.asset import (
     AssetAliasEvent,
@@ -133,21 +131,6 @@ DEFAULT_OPERATOR_DEPS: frozenset[BaseTIDep] = frozenset(
 )
 
 log = logging.getLogger(__name__)
-
-
-@cache
-def _get_default_mapped_partial() -> dict[str, Any]:
-    """
-    Get default partial kwargs in a mapped operator.
-
-    This is used to simplify a serialized mapped operator by excluding default
-    values supplied in the implementation from the serialized dict. Since those
-    are defaults, they are automatically supplied on de-serialization, so we
-    don't need to store them.
-    """
-    # Use the private _expand() method to avoid the empty kwargs check.
-    default = BaseOperator.partial(task_id="_")._expand(EXPAND_INPUT_EMPTY, strict=False).partial_kwargs
-    return BaseSerialization.serialize(default)[Encoding.VAR]
 
 
 def encode_relativedelta(var: relativedelta.relativedelta) -> dict[str, Any]:
@@ -596,7 +579,8 @@ class BaseSerialization:
     # Object types that are always excluded in serialization.
     _excluded_types = (logging.Logger, Connection, type, property)
 
-    _json_schema: Validator | None = None
+    # _json_schema: Validator | None = None
+    _json_schema = lazy_object_proxy.Proxy(load_dag_schema)
 
     # Should the extra operator link be loaded via plugins when
     # de-serializing the DAG? This flag is set to False in Scheduler so that Extra Operator links
@@ -1078,6 +1062,45 @@ class BaseSerialization:
 
         return ParamsDict(op_params)
 
+    @classmethod
+    def get_operator_optional_fields_from_schema(cls) -> set[str]:
+        schema_loader = cls._json_schema
+
+        schema_data = schema_loader.schema
+        operator_def = schema_data.get("definitions", {}).get("operator", {})
+        operator_fields = set(operator_def.get("properties", {}).keys())
+        required_fields = set(operator_def.get("required", []))
+
+        optional_fields = operator_fields - required_fields
+        return optional_fields
+
+    @classmethod
+    def get_operator_defaults_from_schema(cls) -> dict[str, Any]:
+        """
+        Extract default values from JSON schema for the given operator type.
+
+        This is part of the migration to schema-driven defaults (Option 3).
+        Currently uses schema.json operator definition as source of truth.
+
+        :param operator_type: The operator type to get defaults for (e.g., "BaseOperator")
+        :return: Dictionary of field name -> default value
+        """
+        # Load schema if needed (handles lazy loading)
+        schema_loader = cls._json_schema
+
+        # Access the schema definitions (trigger lazy loading)
+        schema_data = schema_loader.schema
+        operator_def = schema_data.get("definitions", {}).get("operator", {})
+        properties = operator_def.get("properties", {})
+
+        defaults = {}
+        for field_name, field_def in properties.items():
+            if isinstance(field_def, dict) and "default" in field_def:
+                defaults[field_name] = field_def["default"]
+
+        # log.debug(f"Found {len(defaults)} defaults in schema: {list(defaults.keys())}")
+        return defaults
+
 
 class DependencyDetector:
     """
@@ -1170,6 +1193,7 @@ class DependencyDetector:
         yield from dag.timetable.asset_condition.iter_dag_dependencies(source="", target=dag.dag_id)
 
 
+# TODO: Evaluate if we can use Pydantic instead to get s10n, validation, conversion for free!
 # TODO (GH-52141): Duplicate DAGNode in the scheduler.
 class SerializedBaseOperator(DAGNode, BaseSerialization):
     """
@@ -1188,41 +1212,88 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
     _decorated_fields = {"executor_config"}
 
-    _CONSTRUCTOR_PARAMS = {
-        k: v.default
-        for k, v in signature(BaseOperator.__init__).parameters.items()
-        if v.default is not v.empty
-    }
+    # TODO: Remove Task SDK dependencies - hardcoded constructor params instead of signature introspection
+    _CONSTRUCTOR_PARAMS = {}
 
     _can_skip_downstream: bool
     _is_empty: bool
     _needs_expansion: bool
     _task_display_name: str | None
-    depends_on_past: bool
+
+    dag: DAG | None = None
+    task_group: TaskGroup | None = None
+
+    allow_nested_operators: bool = True
+    depends_on_past: bool = False
+    do_xcom_push: bool = True
+    doc: str | None = None
+    doc_md: str | None = None
+    doc_json: str | None = None
+    doc_yaml: str | None = None
+    doc_rst: str | None = None
+
     email: str | Sequence[str] | None
+
+    # Following 2 should be deprecated
+    email_on_retry: bool = True
+    email_on_failure: bool = True
+
     execution_timeout: datetime.timedelta | None
     executor: str | None
-    executor_config: dict | None
-    ignore_first_depends_on_past: bool
-    inlets: Sequence
-    is_setup: bool
-    is_teardown: bool
-    on_execute_callback: Sequence
-    on_failure_callback: Sequence
-    on_retry_callback: Sequence
-    on_success_callback: Sequence
-    outlets: Sequence
-    pool: str
-    pool_slots: int
-    priority_weight: int
-    queue: str
-    retries: int | None
-    run_as_user: str | None
-    start_from_trigger: bool
-    start_trigger_args: StartTriggerArgs
-    trigger_rule: TriggerRule
-    wait_for_downstream: bool
-    weight_rule: PriorityWeightStrategy
+    executor_config: dict | None = {}
+    ignore_first_depends_on_past: bool = False
+
+    inlets: Sequence = []
+    is_setup: bool = False
+    is_teardown: bool = False
+
+    map_index_template: str | None = None
+    max_active_tis_per_dag: int | None = None
+    max_active_tis_per_dagrun: int | None = None
+    max_retry_delay: datetime.timedelta | float | None = None
+    multiple_outputs: bool = False
+
+    # TODO: Can be changed to () instead
+    on_execute_callback: Sequence = []
+    on_failure_callback: Sequence = []
+    on_retry_callback: Sequence = []
+    on_success_callback: Sequence = []
+    on_skipped_callback: Sequence = []
+
+    operator_extra_links: Collection[BaseOperatorLink] = ()
+
+    outlets: Sequence = []
+    owner: str = "airflow"
+    pool: str = "default_pool"
+    pool_slots: int = 1
+    priority_weight: int = 1
+    queue: str = "default"
+
+    resources: dict[str, Any] | None = None
+    retries: int | None = 0
+    retry_exponential_backoff: bool = False
+    run_as_user: str | None = None
+
+    start_date: datetime.datetime | None = None
+    end_date: datetime.datetime | None = None
+
+    start_from_trigger: bool = False
+    start_trigger_args: StartTriggerArgs | None = None
+
+    template_ext: Sequence[str] = ()
+    template_fields: Collection[str] = ()
+    template_fields_renderers: ClassVar[dict[str, str]] = {}
+
+    # TODO: following should take enum or str
+    trigger_rule: TriggerRule = "all_success"
+
+    # TODO: Remove the following, they aren't used anymore
+    ui_color: str = "#fff"
+    ui_fgcolor: str = "#000"
+
+    wait_for_downstream: bool = False
+    wait_for_past_depends_before_skipping: bool = False
+    weight_rule: str | PriorityWeightStrategy = "downstream"
 
     is_mapped = False
 
@@ -1234,8 +1305,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         _airflow_from_mapped: bool = False,
     ) -> None:
         super().__init__()
-        self.__dict__.update(self._CONSTRUCTOR_PARAMS)
-        self.__dict__.update(OPERATOR_DEFAULTS)
+
         self._BaseOperator__from_mapped = _airflow_from_mapped
         self.task_id = task_id
         self.params = ParamsDict(params)
@@ -1243,11 +1313,6 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         # receives BaseOperator from deserialized DAGs.
         self._task_type = "BaseOperator"
         # Move class attributes into object attributes.
-        self.ui_color = BaseOperator.ui_color
-        self.ui_fgcolor = BaseOperator.ui_fgcolor
-        self.template_ext = BaseOperator.template_ext
-        self.template_fields = BaseOperator.template_fields
-        self.operator_extra_links = BaseOperator.operator_extra_links
         self.deps = DEFAULT_OPERATOR_DEPS
         self._operator_name: str | None = None
 
@@ -1369,16 +1434,15 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
             "value": cls.serialize(expansion_kwargs.value),
         }
 
-        # Simplify partial_kwargs by comparing it to the most barebone object.
-        # Remove all entries that are simply default values.
-        serialized_partial = serialized_op["partial_kwargs"]
-        for k, default in _get_default_mapped_partial().items():
-            try:
-                v = serialized_partial[k]
-            except KeyError:
-                continue
-            if v == default:
-                del serialized_partial[k]
+        if op.partial_kwargs:
+            serialized_op["partial_kwargs"] = {}
+            for k, v in op.partial_kwargs.items():
+                if k == "retry_delay" and v == datetime.timedelta(seconds=300):
+                    # TODO: Remove this hardcoded default
+                    continue
+                if cls._is_excluded(v, k, op):
+                    continue
+                serialized_op["partial_kwargs"].update({k: cls.serialize(v)})
 
         serialized_op["_is_mapped"] = True
         return serialized_op
@@ -1391,6 +1455,12 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
     def _serialize_node(cls, op: SdkOperator | SchedulerOperator) -> dict[str, Any]:
         """Serialize operator into a JSON object."""
         serialize_op = cls.serialize_to_json(op, cls._decorated_fields)
+
+        if not op.email:
+            # If "email" is empty, we do not need to include other email attrs
+            for attr in ["email_on_failure", "email_on_retry"]:
+                if attr in serialize_op:
+                    del serialize_op[attr]
 
         # Detect if there's a change in python callable name
         python_callable = getattr(op, "python_callable", None)
@@ -1426,7 +1496,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         # Store all template_fields as they are if there are JSON Serializable
         # If not, store them as strings
         # And raise an exception if the field is not templateable
-        forbidden_fields = set(SerializedBaseOperator._CONSTRUCTOR_PARAMS.keys())
+        forbidden_fields = set(signature(BaseOperator.__init__).parameters.keys())
         # Though allow some of the BaseOperator fields to be templated anyway
         forbidden_fields.difference_update({"email"})
         if op.template_fields:
@@ -1511,7 +1581,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
                 # v will be None so do not deserialize into timedelta
                 if v is not None:
                     v = cls._deserialize_timedelta(v)
-            elif k in encoded_op["template_fields"]:
+            elif k in encoded_op.get("template_fields", []):
                 pass
             elif k == "resources":
                 v = Resources.from_dict(v)
@@ -1562,7 +1632,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
             setattr(op, k, v)
 
-        for k in op.get_serialized_fields() - encoded_op.keys() - cls._CONSTRUCTOR_PARAMS.keys():
+        for k in op.get_serialized_fields() - encoded_op.keys():
             # TODO: refactor deserialization of BaseOperator and MappedOperator (split it out), then check
             # could go away.
             if not hasattr(op, k):
@@ -1617,7 +1687,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         op: SchedulerOperator
         if encoded_op.get("_is_mapped", False):
             # Most of these will be loaded later, these are just some stand-ins.
-            op_data = {k: v for k, v in encoded_op.items() if k in BaseOperator.get_serialized_fields()}
+            op_data = {k: v for k, v in encoded_op.items() if k in cls.get_serialized_fields()}
 
             from airflow.models.mappedoperator import MappedOperator as SchedulerMappedOperator
 
@@ -1660,13 +1730,34 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
     @classmethod
     def _is_excluded(cls, var: Any, attrname: str, op: DAGNode):
+        """
+        Determine if a variable is excluded from the serialized object.
+
+        :param var: The value to check. [var == getattr(op, attrname)]
+        :param attrname: The name of the attribute to check.
+        :param op: The operator to check.
+        :return: True if a variable is excluded, False otherwise.
+        """
+        schema_defaults = cls.get_operator_defaults_from_schema()
+
+        if attrname in schema_defaults:
+            # log.info(f"Schema defaults for {attrname}: {schema_defaults[attrname]}")
+            if schema_defaults[attrname] == var:
+                # log.info(f"Excluding {attrname} for {attrname}: {var}")
+                return True
+        optional_fields = cls.get_operator_optional_fields_from_schema()
+        if var is None:
+            return True
+        if attrname in optional_fields:
+            if var in [[], (), set(), {}]:
+                return True
+
         if var is not None and op.has_dag() and attrname.endswith("_date"):
             # If this date is the same as the matching field in the dag, then
             # don't store it again at the task level.
             dag_date = getattr(op.dag, attrname, None)
             if var is dag_date or var == dag_date:
                 return True
-        return super()._is_excluded(var, attrname, op)
 
     @classmethod
     def _deserialize_operator_extra_links(
@@ -1755,8 +1846,73 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         """
         return self.start_from_trigger
 
-    def get_serialized_fields(self):
-        return BaseOperator.get_serialized_fields()
+    @classmethod
+    def get_serialized_fields(cls):
+        """Fields to deserialize from the serialized JSON object."""
+        return frozenset(
+            {
+                "_logger_name",
+                "_needs_expansion",
+                "_task_display_name",
+                "allow_nested_operators",
+                "depends_on_past",
+                "do_xcom_push",
+                "doc",
+                "doc_json",
+                "doc_md",
+                "doc_rst",
+                "doc_yaml",
+                "downstream_task_ids",
+                "email",
+                "email_on_failure",
+                "email_on_retry",
+                "end_date",
+                "execution_timeout",
+                "executor",
+                "executor_config",
+                "ignore_first_depends_on_past",
+                "inlets",
+                "is_setup",
+                "is_teardown",
+                "map_index_template",
+                "max_active_tis_per_dag",
+                "max_active_tis_per_dagrun",
+                "max_retry_delay",
+                "multiple_outputs",
+                "on_execute_callback",
+                "on_failure_callback",
+                "on_failure_fail_dagrun",
+                "on_retry_callback",
+                "on_skipped_callback",
+                "on_success_callback",
+                "outlets",
+                "owner",
+                "params",
+                "pool",
+                "pool_slots",
+                "priority_weight",
+                "queue",
+                "resources",
+                "retries",
+                "retry_delay",
+                "retry_exponential_backoff",
+                "run_as_user",
+                "start_date",
+                "start_from_trigger",
+                "start_trigger_args",  # NOT PART OF SCHEMA YET
+                "task_id",
+                "task_type",
+                "template_ext",
+                "template_fields",
+                "template_fields_renderers",
+                "trigger_rule",
+                "ui_color",
+                "ui_fgcolor",
+                "wait_for_downstream",
+                "wait_for_past_depends_before_skipping",
+                "weight_rule",
+            }
+        )
 
     def unmap(self, resolve: None) -> Self:
         return self
@@ -1893,7 +2049,7 @@ class SerializedDAG(DAG, BaseSerialization):
     _CONSTRUCTOR_PARAMS = __get_constructor_defaults.__func__()  # type: ignore
     del __get_constructor_defaults
 
-    _json_schema = lazy_object_proxy.Proxy(load_dag_schema)
+    _json_schema: Validator = lazy_object_proxy.Proxy(load_dag_schema)
 
     @classmethod
     def serialize_dag(cls, dag: SdkDag) -> dict:
