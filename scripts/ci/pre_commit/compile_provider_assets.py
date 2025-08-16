@@ -41,6 +41,20 @@ PROVIDERS_PATHS = {
         "dist": PROVIDERS_ROOT / "fab" / "src" / "airflow" / "providers" / "fab" / "www" / "static" / "dist",
         "hash": PROVIDERS_ROOT / "fab" / "www-hash.txt",
     },
+    "edge": {
+        "root": PROVIDERS_ROOT / "edge3",
+        "www": PROVIDERS_ROOT / "edge3" / "src" / "airflow" / "providers" / "edge3" / "plugins" / "www",
+        "dist": PROVIDERS_ROOT
+        / "edge3"
+        / "src"
+        / "airflow"
+        / "providers"
+        / "edge3"
+        / "plugins"
+        / "www"
+        / "dist",
+        "hash": PROVIDERS_ROOT / "edge3" / "www-hash.txt",
+    },
 }
 
 
