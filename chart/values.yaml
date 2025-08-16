@@ -1234,6 +1234,8 @@ createUserJob:
   # jobAnnotations are annotations on the create user job
   jobAnnotations: {}
 
+  restartPolicy: OnFailure
+
   # Labels specific to createUserJob objects and pods
   labels: {}
 
@@ -1328,6 +1330,8 @@ migrateDatabaseJob:
   annotations: {}
   # jobAnnotations are annotations on the database migration job
   jobAnnotations: {}
+
+  restartPolicy: OnFailure
 
   # Labels specific to migrate database job objects and pods
   labels: {}
