@@ -2896,6 +2896,14 @@ paths:
           - type: string
           - type: 'null'
           title: Bundle Version
+      - name: is_scheduled
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Scheduled
       - name: dag_run_start_date_gte
         in: query
         required: false

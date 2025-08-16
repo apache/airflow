@@ -543,6 +543,22 @@ class RangeFilter(BaseParam[Range]):
         )
 
 
+class _IsDagScheduledFilter(BaseParam[bool]):
+    """Filter on timetable_description."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is not None and self.skip_none:
+            if not self.value:
+                return select.where(DagModel.timetable_description.ilike("Never%"))
+            return select.where(DagModel.timetable_description.not_like("Never%"))
+
+        return select
+
+    @classmethod
+    def depends(cls, is_scheduled: bool | None = Query(None)) -> _IsDagScheduledFilter:
+        return cls().set_value(is_scheduled)
+
+
 def datetime_range_filter_factory(
     filter_name: str, model: Base, attribute_name: str | None = None
 ) -> Callable[[datetime | None, datetime | None], RangeFilter]:
@@ -607,6 +623,7 @@ QueryDagIdPatternSearchWithNone = Annotated[
 ]
 QueryTagsFilter = Annotated[_TagsFilter, Depends(_TagsFilter.depends)]
 QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter.depends)]
+QueryIsDagScheduledFilter = Annotated[_IsDagScheduledFilter, Depends(_IsDagScheduledFilter.depends)]
 
 # DagRun
 QueryLastDagRunStateFilter = Annotated[
