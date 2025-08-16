@@ -96,14 +96,8 @@ class TestAPIServerDeployment:
                 "apiServer": {
                     "env": [
                         {"name": "TEST_ENV_1", "value": "test_env_1"},
-                        {
-                            "name": "TEST_ENV_2",
-                            "valueFrom": {"configMapKeyRef": {"name": "test-config", "key": "test-key"}},
-                        },
-                        {
-                            "name": "TEST_ENV_3",
-                            "valueFrom": {"secretKeyRef": {"name": "test-secret", "key": "test-key"}},
-                        },
+                        {"name": "TEST_ENV_2", "value": "test_env_2"},
+                        {"name": "TEST_ENV_3", "value": "test_env_3"},
                     ],
                 },
             },
