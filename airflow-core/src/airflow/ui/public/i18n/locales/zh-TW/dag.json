@@ -15,17 +15,29 @@
     "legend": {
       "successRateSpectrum": "成功率光譜",
       "tooltips": {
-        "failed": "成功率低於20%",
-        "success100": "100%成功",
-        "successRate20": "20%以上成功率",
-        "successRate40": "40%以上成功率",
-        "successRate60": "60%以上成功率",
-        "successRate80": "80%以上成功率"
+        "failed": "成功率低於{{percent}}%",
+        "success100": "{{percent}}%成功",
+        "successRate": "{{percent}}%以上成功率"
       }
     },
-    "loading": "載入中...",
+    "navigation": {
+      "nextMonth": "下一月",
+      "nextYear": "下一年",
+      "previousMonth": "上一月",
+      "previousYear": "上一年"
+    },
     "noData": "沒有可用的資料",
-    "week": "第 {{weekNumber}} 週"
+    "noRuns": "沒有執行",
+    "week": "第 {{weekNumber}} 週",
+    "weekdays": {
+      "friday": "五",
+      "monday": "一",
+      "saturday": "六",
+      "sunday": "日",
+      "thursday": "四",
+      "tuesday": "二",
+      "wednesday": "三"
+    }
   },
   "code": {
     "bundleUrl": "套件包網址",

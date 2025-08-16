@@ -92,7 +92,7 @@ export const Calendar = () => {
           {granularity === "daily" ? (
             <HStack gap={2}>
               <IconButton
-                aria-label="Previous year"
+                aria-label={translate("calendar.navigation.previousYear")}
                 onClick={() => setSelectedDate(selectedDate.subtract(1, "year"))}
                 size="sm"
                 variant="ghost"
@@ -116,7 +116,7 @@ export const Calendar = () => {
                 {selectedDate.year()}
               </Text>
               <IconButton
-                aria-label="Next year"
+                aria-label={translate("calendar.navigation.nextYear")}
                 onClick={() => setSelectedDate(selectedDate.add(1, "year"))}
                 size="sm"
                 variant="ghost"
@@ -127,7 +127,7 @@ export const Calendar = () => {
           ) : (
             <HStack gap={2}>
               <IconButton
-                aria-label="Previous month"
+                aria-label={translate("calendar.navigation.previousMonth")}
                 onClick={() => setSelectedDate(selectedDate.subtract(1, "month"))}
                 size="sm"
                 variant="ghost"
@@ -165,7 +165,7 @@ export const Calendar = () => {
                 {selectedDate.format("MMM YYYY")}
               </Text>
               <IconButton
-                aria-label="Next month"
+                aria-label={translate("calendar.navigation.nextMonth")}
                 onClick={() => setSelectedDate(selectedDate.add(1, "month"))}
                 size="sm"
                 variant="ghost"

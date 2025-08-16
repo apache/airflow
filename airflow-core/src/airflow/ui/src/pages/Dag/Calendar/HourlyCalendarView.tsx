@@ -159,7 +159,7 @@ export const HourlyCalendarView = ({ cellSize, data, selectedMonth, selectedYear
                 const hourData = day.hours.find((hourItem) => hourItem.hour === hour);
 
                 if (!hourData) {
-                  const noRunsTooltip = `${dayjs(day.day).format("MMM DD")}, ${hour.toString().padStart(2, "0")}:00 - No runs`;
+                  const noRunsTooltip = `${dayjs(day.day).format("MMM DD")}, ${hour.toString().padStart(2, "0")}:00 - ${translate("calendar.noRuns")}`;
 
                   return (
                     <Box
@@ -184,7 +184,7 @@ export const HourlyCalendarView = ({ cellSize, data, selectedMonth, selectedYear
                 const tooltipContent =
                   hourData.counts.total > 0
                     ? `${dayjs(day.day).format("MMM DD")}, ${hour.toString().padStart(2, "0")}:00 - ${createTooltipContent(hourData).split(": ")[1]}`
-                    : `${dayjs(day.day).format("MMM DD")}, ${hour.toString().padStart(2, "0")}:00 - No runs`;
+                    : `${dayjs(day.day).format("MMM DD")}, ${hour.toString().padStart(2, "0")}:00 - ${translate("calendar.noRuns")}`;
 
                 return (
                   <Box

@@ -37,6 +37,7 @@
  */
 import { Box, Text } from "@chakra-ui/react";
 import dayjs from "dayjs";
+import { useTranslation } from "react-i18next";
 
 import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 
@@ -51,8 +52,19 @@ type Props = {
 };
 
 export const DailyCalendarView = ({ cellSize, data, selectedYear }: Props) => {
+  const { t: translate } = useTranslation("dag");
   const dailyData = generateDailyCalendarData(data, selectedYear);
   const { handleMouseEnter, handleMouseLeave } = useDelayedTooltip();
+
+  const weekdays = [
+    translate("calendar.weekdays.sunday"),
+    translate("calendar.weekdays.monday"),
+    translate("calendar.weekdays.tuesday"),
+    translate("calendar.weekdays.wednesday"),
+    translate("calendar.weekdays.thursday"),
+    translate("calendar.weekdays.friday"),
+    translate("calendar.weekdays.saturday"),
+  ];
 
   return (
     <Box mb={4}>
@@ -72,7 +84,7 @@ export const DailyCalendarView = ({ cellSize, data, selectedYear }: Props) => {
       </Box>
       <Box display="flex" gap={2}>
         <Box display="flex" flexDirection="column" gap={1}>
-          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+          {weekdays.map((day) => (
             <Box
               alignItems="center"
               color="fg.muted"
