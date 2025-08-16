@@ -2872,6 +2872,14 @@ paths:
           - type: boolean
           - type: 'null'
           title: Paused
+      - name: has_import_errors
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Has Import Errors
       - name: last_dag_run_state
         in: query
         required: false
