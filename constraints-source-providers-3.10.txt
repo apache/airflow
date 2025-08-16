@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-15T19:43:13.234663
+# This constraints file was automatically generated on 2025-08-16T13:48:03.720319
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -28,7 +28,7 @@ Jinja2==3.1.6
 Mako==1.3.10
 Markdown==3.8.2
 MarkupSafe==3.0.2
-PyAthena==3.17.0
+PyAthena==3.17.1
 PyGithub==2.7.0
 PyHive==0.7.0
 PyJWT==2.10.1
