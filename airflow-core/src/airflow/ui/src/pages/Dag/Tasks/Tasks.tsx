@@ -16,7 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, Skeleton, Box } from "@chakra-ui/react";
+import { Heading, Skeleton, Box, HStack } from "@chakra-ui/react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
@@ -25,6 +26,9 @@ import type { TaskResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import type { CardDef } from "src/components/DataTable/types";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { AttrSelectFilter } from "src/pages/Dag/Tasks/AttrSelectFilter.tsx";
+import { AttrSelectFilterMulti } from "src/pages/Dag/Tasks/AttrSelectFilterMulti.tsx";
+import { ResetButton } from "src/pages/DagsList/DagsFilters/ResetButton.tsx";
 
 import { TaskCard } from "./TaskCard";
 
@@ -38,6 +42,10 @@ const cardDef = (dagId: string): CardDef<TaskResponse> => ({
 export const Tasks = () => {
   const { t: translate } = useTranslation();
   const { dagId = "" } = useParams();
+  const [selectedOperators, setSelectedOperators] = useState<Array<string> | undefined>(undefined);
+  const [selectedTriggerRules, setSelectedTriggerRules] = useState<Array<string> | undefined>(undefined);
+  const [selectedRetryValues, setSelectedRetryValues] = useState<Array<string> | undefined>(undefined);
+  const [selectedMapped, setSelectedMapped] = useState<string | undefined>(undefined);
   const {
     data,
     error: tasksError,
@@ -47,16 +55,102 @@ export const Tasks = () => {
     dagId,
   });
 
+  const onClearFilters = () => {
+    setSelectedOperators(undefined);
+    setSelectedTriggerRules(undefined);
+    setSelectedRetryValues(undefined);
+    setSelectedMapped(undefined);
+  };
+
+  const allOperatorNames: Array<string> = [
+    ...new Set(data?.tasks.map((task) => task.operator_name).filter((item) => item !== null) ?? []),
+  ];
+  const allTriggerRules: Array<string> = [
+    ...new Set(data?.tasks.map((task) => task.trigger_rule).filter((item) => item !== null) ?? []),
+  ];
+  const allRetryValues: Array<string> = [
+    ...new Set(
+      data?.tasks.map((task) => task.retries?.toString()).filter((item) => item !== undefined) ?? [],
+    ),
+  ];
+  const allMappedValues = [
+    { key: "true", label: "Mapped" },
+    { key: "false", label: "Not mapped" },
+  ];
+
+  const filterTasks = ({
+    mapped,
+    operatorNames,
+    retryValues,
+    tasks,
+    triggerRuleNames,
+  }: {
+    mapped: string | undefined;
+    operatorNames: Array<string>;
+    retryValues: Array<string>;
+    tasks: Array<TaskResponse>;
+    triggerRuleNames: Array<string>;
+  }) =>
+    tasks.filter(
+      (task) =>
+        (operatorNames.length === 0 || operatorNames.includes(task.operator_name as string)) &&
+        (triggerRuleNames.length === 0 || triggerRuleNames.includes(task.trigger_rule as string)) &&
+        (retryValues.length === 0 || retryValues.includes(task.retries?.toString() as string)) &&
+        (mapped === undefined || task.is_mapped?.toString() === mapped),
+    );
+
+  const filteredTasks = filterTasks({
+    mapped: selectedMapped,
+    operatorNames: selectedOperators ?? [],
+    retryValues: selectedRetryValues ?? [],
+    tasks: data ? data.tasks : [],
+    triggerRuleNames: selectedTriggerRules ?? [],
+  });
+
   return (
     <Box>
       <ErrorAlert error={tasksError} />
       <Heading my={1} size="md">
         {translate("task", { count: data?.total_entries ?? 0 })}
       </Heading>
+
+      <HStack>
+        <AttrSelectFilterMulti
+          displayPrefix={undefined}
+          handleSelect={setSelectedOperators}
+          placeholderText={translate("selectOperator")}
+          selectedValues={selectedOperators}
+          values={allOperatorNames}
+        />
+        <AttrSelectFilterMulti
+          displayPrefix={undefined}
+          handleSelect={setSelectedTriggerRules}
+          placeholderText={translate("selectTriggerRules")}
+          selectedValues={selectedTriggerRules}
+          values={allTriggerRules}
+        />
+        <AttrSelectFilterMulti
+          displayPrefix="Retries"
+          handleSelect={setSelectedRetryValues}
+          placeholderText={translate("selectRetryValues")}
+          selectedValues={selectedRetryValues}
+          values={allRetryValues}
+        />
+        <AttrSelectFilter
+          handleSelect={setSelectedMapped}
+          placeholderText="Select mapped"
+          selectedValue={selectedMapped}
+          values={allMappedValues}
+        />
+        <Box>
+          <ResetButton filterCount={2} onClearFilters={onClearFilters} />
+        </Box>
+      </HStack>
+
       <DataTable
         cardDef={cardDef(dagId)}
         columns={[]}
-        data={data ? data.tasks : []}
+        data={filteredTasks}
         displayMode="card"
         isFetching={isFetching}
         isLoading={isLoading}

@@ -7,6 +7,7 @@
     "Providers": "Providers",
     "Variables": "Variables"
   },
+  "allOperators": "All Operators",
   "asset_one": "Asset",
   "asset_other": "Assets",
   "assetEvent_one": "Asset Event",
@@ -166,6 +167,9 @@
     "users": "Users"
   },
   "selectLanguage": "Select Language",
+  "selectOperator": "Select Operators",
+  "selectRetryValues": "Select retry values",
+  "selectTriggerRules": "Select trigger rules",
   "showDetailsPanel": "Show Details Panel",
   "source": {
     "hide": "Hide Source",
