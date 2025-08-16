@@ -27,7 +27,7 @@ import structlog
 from uuid6 import UUID
 
 from airflow.sdk.api.datamodels._generated import TaskInstance
-from airflow.sdk.execution_time.secrets_masker import SecretsMasker
+from airflow.sdk.secrets_masker import SecretsMasker
 
 
 @pytest.mark.parametrize(
@@ -41,7 +41,9 @@ def test_json_rendering(captured_logs):
 
     secrets_masker = SecretsMasker()
 
-    with mock.patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
+    with mock.patch(
+        "airflow.sdk._shared.secrets_masker.secrets_masker._secrets_masker", return_value=secrets_masker
+    ):
         logger.info(
             "A test message with a Pydantic class",
             pydantic_class=TaskInstance(
@@ -75,7 +77,9 @@ def test_jwt_token_is_redacted(captured_logs):
 
     secrets_masker = SecretsMasker()
 
-    with mock.patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
+    with mock.patch(
+        "airflow.sdk._shared.secrets_masker.secrets_masker._secrets_masker", return_value=secrets_masker
+    ):
         logger.info(
             "Executing workload",
             token="eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJ1cm46YWlyZmxvdy5hcGFjaGUub3JnOnRhc2siLCJuYmYiOjE3NDM0OTQ1NjgsImV4cCI6MTc0MzQ5NTE2OCwiaWF0IjoxNzQzNDk0NTY4LCJzdWIiOiIwMTk1ZjA1Zi1kNjRhLTc2NjMtOWQ2Yy1lYzYwYTM0MmQ5NTYifQ.df0ZNUbXwnoed2O1bjXQkPV8Df1mmMUu1b_PJrQuHoft9fhPRQELVDp-s3PtL6QYSSrF_81FzsQ7YHAu7bk-1g",
@@ -112,7 +116,7 @@ def test_logs_are_masked(captured_logs):
     secrets_masker = SecretsMasker()
     secrets_masker.add_mask("password")
     with mock.patch(
-        "airflow.sdk.execution_time.secrets_masker.redact",
+        "airflow.sdk.secrets_masker.redact",
         side_effect=lambda event: {
             "event": "Connection *** is ***",
             "level": "info",

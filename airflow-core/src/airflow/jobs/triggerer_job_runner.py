@@ -508,7 +508,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
     def run(self) -> None:
         """Run synchronously and handle all database reads/writes."""
-        from airflow.sdk.execution_time.secrets_masker import reset_secrets_masker
+        from airflow._shared.secrets_masker.secrets_masker import reset_secrets_masker
 
         reset_secrets_masker()
 

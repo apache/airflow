@@ -31,8 +31,6 @@ from functools import cache, cached_property
 from re import Pattern
 from typing import TYPE_CHECKING, Any, Protocol, TextIO, TypeAlias, TypeVar, overload
 
-from airflow import settings
-
 if TYPE_CHECKING:
     from typing import TypeGuard
 
@@ -151,7 +149,11 @@ def merge(
 @cache
 def _secrets_masker() -> SecretsMasker:
     for flt in logging.getLogger("airflow.task").filters:
-        if isinstance(flt, SecretsMasker):
+        # Use class name comparison instead of isinstance() to handle module instance mismatch.
+        # When using symlinks, the same class can be imported via different module paths
+        # (e.g., airflow._shared vs airflow.sdk._shared), creating different class objects
+        # that fail isinstance() checks even though they're functionally identical.
+        if type(flt).__name__ == "SecretsMasker":
             return flt
     raise RuntimeError(
         "Logging Configuration Error! No SecretsMasker found! If you have custom logging, please make "
@@ -257,6 +259,8 @@ class SecretsMasker(logging.Filter):
             self._redact_exception_with_context(exception.__cause__)
 
     def filter(self, record) -> bool:
+        from airflow import settings
+
         if settings.MASK_SECRETS_IN_LOGS is not True:
             return True
 
