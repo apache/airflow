@@ -124,6 +124,7 @@ class FileGroupForCi(Enum):
     TESTS_UTILS_FILES = "test_utils_files"
     ASSET_FILES = "asset_files"
     UNIT_TEST_FILES = "unit_test_files"
+    DEVEL_TOML_FILES = "devel_toml_files"
 
 
 class AllProvidersSentinel:
@@ -294,6 +295,9 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         FileGroupForCi.AIRFLOW_CTL_FILES: [
             r"^airflow-ctl/src/airflowctl/.*\.py$",
             r"^airflow-ctl/tests/.*\.py$",
+        ],
+        FileGroupForCi.DEVEL_TOML_FILES: [
+            r"^devel-common/pyproject\.toml$",
         ],
     }
 )
@@ -706,6 +710,17 @@ class SelectiveChecks:
     def mypy_checks(self) -> list[str]:
         checks_to_run: list[str] = []
         if (
+            self._matching_files(FileGroupForCi.DEVEL_TOML_FILES, CI_FILE_GROUP_MATCHES)
+            and self._default_branch == "main"
+        ):
+            return [
+                "mypy-airflow-core",
+                "mypy-providers",
+                "mypy-dev",
+                "mypy-task-sdk",
+                "mypy-devel-common",
+            ]
+        if (
             self._matching_files(FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES, CI_FILE_GROUP_MATCHES)
             or self.full_tests_needed
         ):
@@ -733,11 +748,6 @@ class SelectiveChecks:
             or self.full_tests_needed
         ):
             checks_to_run.append("mypy-devel-common")
-        if (
-            self._matching_files(FileGroupForCi.ALL_AIRFLOW_CTL_PYTHON_FILES, CI_FILE_GROUP_MATCHES)
-            or self.full_tests_needed
-        ):
-            checks_to_run.append("mypy-airflow-ctl")
         return checks_to_run
 
     @cached_property
@@ -1177,29 +1187,28 @@ class SelectiveChecks:
         return " ".join(packages)
 
     @cached_property
-    def skip_pre_commits(self) -> str:
-        pre_commits_to_skip = set()
-        pre_commits_to_skip.add("identity")
+    def skip_prek_hooks(self) -> str:
+        prek_hooks_to_skip = set()
+        prek_hooks_to_skip.add("identity")
         # Skip all mypy "individual" file checks if we are running mypy checks in CI
         # In the CI we always run mypy for the whole "package" rather than for `--all-files` because
-        # The pre-commit will semi-randomly skip such list of files into several groups and we want
+        # The prek will semi-randomly skip such list of files into several groups and we want
         # to make sure that such checks are always run in CI for whole "group" of files - i.e.
         # whole package rather than for individual files. That's why we skip those checks in CI
         # and run them via `mypy-all` command instead and dedicated CI job in matrix
         # This will also speed up static-checks job usually as the jobs will be running in parallel
-        pre_commits_to_skip.update(
+        prek_hooks_to_skip.update(
             {
                 "mypy-providers",
                 "mypy-airflow-core",
                 "mypy-dev",
                 "mypy-task-sdk",
-                "mypy-airflow-ctl",
                 "mypy-devel-common",
             }
         )
         if self._default_branch != "main":
             # Skip those tests on all "release" branches
-            pre_commits_to_skip.update(
+            prek_hooks_to_skip.update(
                 (
                     "compile-fab-assets",
                     "generate-openapi-spec-fab",
@@ -1217,21 +1226,21 @@ class SelectiveChecks:
 
         if self.full_tests_needed:
             # when full tests are needed, we do not want to skip any checks and we should
-            # run all the pre-commits just to be sure everything is ok when some structural changes occurred
-            return ",".join(sorted(pre_commits_to_skip))
+            # run all the prek hooks just to be sure everything is ok when some structural changes occurred
+            return ",".join(sorted(prek_hooks_to_skip))
         if not (
             self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES)
             or self._matching_files(FileGroupForCi.API_CODEGEN_FILES, CI_FILE_GROUP_MATCHES)
         ):
-            pre_commits_to_skip.add("ts-compile-lint-ui")
-            pre_commits_to_skip.add("ts-compile-lint-simple-auth-manager-ui")
+            prek_hooks_to_skip.add("ts-compile-lint-ui")
+            prek_hooks_to_skip.add("ts-compile-lint-simple-auth-manager-ui")
         if not self._matching_files(FileGroupForCi.ALL_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
-            pre_commits_to_skip.add("flynt")
+            prek_hooks_to_skip.add("flynt")
         if not self._matching_files(
             FileGroupForCi.HELM_FILES,
             CI_FILE_GROUP_MATCHES,
         ):
-            pre_commits_to_skip.add("lint-helm-chart")
+            prek_hooks_to_skip.add("lint-helm-chart")
         if not (
             self._matching_files(
                 FileGroupForCi.ALL_PROVIDERS_DISTRIBUTION_CONFIG_FILES, CI_FILE_GROUP_MATCHES
@@ -1240,8 +1249,8 @@ class SelectiveChecks:
         ):
             # only skip provider validation if none of the provider.yaml and provider
             # python files changed because validation also walks through all the provider python files
-            pre_commits_to_skip.add("check-provider-yaml-valid")
-        return ",".join(sorted(pre_commits_to_skip))
+            prek_hooks_to_skip.add("check-provider-yaml-valid")
+        return ",".join(sorted(prek_hooks_to_skip))
 
     @cached_property
     def skip_providers_tests(self) -> bool:

@@ -265,32 +265,30 @@ as the short hand operator.
 Running static checks
 ---------------------
 
-You can run static checks via Breeze. You can also run them via pre-commit command but with auto-completion
-Breeze makes it easier to run selective static checks. If you press <TAB> after the static-check and if
-you have auto-complete setup you should see auto-completable list of all checks available.
+You can run static checks via prek.
 
 For example, this following command:
 
 .. code-block:: bash
 
-     breeze static-checks --type mypy-airflow
+     prek mypy-airflow
 
 will run mypy check for currently staged files inside ``airflow/`` excluding providers.
 
 Selecting files to run static checks on
 ---------------------------------------
 
-Pre-commits run by default on staged changes that you have locally changed. It will run it on all the
+Prek hooks run by default on staged changes that you have locally changed. It will run it on all the
 files you run ``git add`` on and it will ignore any changes that you have modified but not staged.
 If you want to run it on all your modified files you should add them with ``git add`` command.
 
 With ``--all-files`` you can run static checks on all files in the repository. This is useful when you
 want to be sure they will not fail in CI, or when you just rebased your changes and want to
-re-run latest pre-commits on your changes, but it can take a long time (few minutes) to wait for the result.
+re-run latest prek hooks on your changes, but it can take a long time (few minutes) to wait for the result.
 
 .. code-block:: bash
 
-     breeze static-checks --type mypy-airflow --all-files
+     prek mypy-airflow --all-files
 
 The above will run mypy check for all files.
 
@@ -299,57 +297,34 @@ specifying (can be multiple times) ``--file`` flag.
 
 .. code-block:: bash
 
-     breeze static-checks --type mypy-airflow --file airflow/utils/code_utils.py --file airflow/utils/timeout.py
+     prek mypy-airflow --file airflow/utils/code_utils.py --file airflow/utils/timeout.py
 
 The above will run mypy check for those to files (note: autocomplete should work for the file selection).
 
 However, often you do not remember files you modified and you want to run checks for files that belong
-to specific commits you already have in your branch. You can use ``breeze static check`` to run the checks
+to specific commits you already have in your branch. You can use ``prek`` to run the checks
 only on changed files you have already committed to your branch - either for specific commit, for last
 commit, for all changes in your branch since you branched off from main or for specific range
 of commits you choose.
 
 .. code-block:: bash
 
-     breeze static-checks --type mypy-airflow --last-commit
+     prek mypy-airflow --last-commit
 
 The above will run mypy check for all files in the last commit in your branch.
 
 .. code-block:: bash
 
-     breeze static-checks --type mypy-airflow --only-my-changes
-
-The above will run mypy check for all commits in your branch which were added since you branched off from main.
-
-.. code-block:: bash
-
-     breeze static-checks --type mypy-airflow --commit-ref 639483d998ecac64d0fef7c5aa4634414065f690
-
-The above will run mypy check for all files in the 639483d998ecac64d0fef7c5aa4634414065f690 commit.
-Any ``commit-ish`` reference from Git will work here (branch, tag, short/long hash etc.)
-
-.. code-block:: bash
-
-     breeze static-checks --type identity --verbose --from-ref HEAD^^^^ --to-ref HEAD
+     prek identity --verbose --from-ref HEAD^^^^ --to-ref HEAD
 
 The above will run the check for the last 4 commits in your branch. You can use any ``commit-ish`` references
 in ``--from-ref`` and ``--to-ref`` flags.
-
-
-These are all available flags of ``static-checks`` command:
-
-.. image:: ./images/output_static-checks.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_static-checks.svg
-  :width: 100%
-  :alt: Breeze static checks
-
 
 .. note::
 
     When you run static checks, some of the artifacts (mypy_cache) is stored in docker-compose volume
     so that it can speed up static checks execution significantly. However, sometimes, the cache might
     get broken, in which case you should run ``breeze down`` to clean up the cache.
-
 
 .. note::
 
@@ -440,7 +415,7 @@ command takes care about it. This is needed when you want to run API server insi
 
 Note
 
-This command requires the ``pre-commit`` tool, which should be installed by following `this guide <../../../contributing-docs/03_contributors_quick_start.rst#configuring-pre-commit>`__.
+This command requires the ``prek`` tool, which should be installed by following `this guide <../../../contributing-docs/03_contributors_quick_start.rst#configuring-prek>`__.
 
 Breeze cleanup
 --------------

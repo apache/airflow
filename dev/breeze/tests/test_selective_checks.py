@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import itertools
 import json
 import re
 from typing import Any
@@ -54,21 +53,15 @@ ALL_KUBERNETES_VERSIONS_AS_LIST = "[" + ", ".join([f"'{v}'" for v in ALLOWED_KUB
 ALL_PYTHON_VERSIONS_AS_STRING = " ".join(ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS)
 ALL_PYTHON_VERSIONS_AS_LIST = "[" + ", ".join([f"'{v}'" for v in ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS]) + "]"
 
+PYTHON_K8S_COMBO_LENGTH = max(len(ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS), len(ALLOWED_KUBERNETES_VERSIONS))
+PYTHON_VERSIONS_MAX = (ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS * 2)[:PYTHON_K8S_COMBO_LENGTH]
+KUBERNETES_VERSIONS_MAX = (ALLOWED_KUBERNETES_VERSIONS * 2)[:PYTHON_K8S_COMBO_LENGTH]
+
 ZIP_PYTHON_AND_KUBERNETES_VERSIONS_AS_STRING = " ".join(
-    [
-        f"{t[0]}-{t[1]}"
-        for t in itertools.zip_longest(ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS, ALLOWED_KUBERNETES_VERSIONS)
-    ]
+    [f"{t[0]}-{t[1]}" for t in zip(PYTHON_VERSIONS_MAX, KUBERNETES_VERSIONS_MAX)]
 )
 ZIP_PYTHON_AND_KUBERNETES_VERSIONS_AS_LIST = (
-    "["
-    + ", ".join(
-        [
-            f"'{t[0]}-{t[1]}'"
-            for t in itertools.zip_longest(ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS, ALLOWED_KUBERNETES_VERSIONS)
-        ]
-    )
-    + "]"
+    "[" + ", ".join([f"'{t[0]}-{t[1]}'" for t in zip(PYTHON_VERSIONS_MAX, KUBERNETES_VERSIONS_MAX)]) + "]"
 )
 
 
@@ -102,7 +95,6 @@ ALL_MYPY_CHECKS_ARRAY = [
     "mypy-dev",
     "mypy-task-sdk",
     "mypy-devel-common",
-    "mypy-airflow-ctl",
 ]
 
 ALL_MYPY_CHECKS = str(ALL_MYPY_CHECKS_ARRAY)
@@ -112,67 +104,65 @@ ALL_MYPY_CHECKS_EXCEPT_PROVIDERS = str(
 )
 
 ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE = (
-    "check-provider-yaml-valid,flynt,identity,lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,"
+    "check-provider-yaml-valid,flynt,identity,lint-helm-chart,mypy-airflow-core,"
     "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,"
     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 
 ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED = (
-    "identity,mypy-airflow-core,mypy-airflow-ctl,mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk"
+    "identity,mypy-airflow-core,mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_UI = (
-    "identity,mypy-airflow-core,mypy-airflow-ctl,mypy-dev,mypy-devel-common,"
+    "identity,mypy-airflow-core,mypy-dev,mypy-devel-common,"
     "mypy-providers,mypy-task-sdk,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 ALL_SKIPPED_COMMITS_IF_NO_HELM_TESTS = (
-    "identity,lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,mypy-dev,mypy-devel-common,"
-    "mypy-providers,mypy-task-sdk"
+    "identity,lint-helm-chart,mypy-airflow-core,mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS = (
-    "identity,lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,mypy-dev,mypy-devel-common,"
+    "identity,lint-helm-chart,mypy-airflow-core,mypy-dev,mypy-devel-common,"
     "mypy-providers,mypy-task-sdk,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_AND_UI = (
-    "check-provider-yaml-valid,identity,mypy-airflow-core,mypy-airflow-ctl,"
+    "check-provider-yaml-valid,identity,mypy-airflow-core,"
     "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,"
     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS = (
-    "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,"
+    "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow-core,"
     "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,"
     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 
 
 ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS = (
-    "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,"
+    "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow-core,"
     "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,"
     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_CODE_PROVIDERS_AND_HELM_TESTS = (
-    "check-provider-yaml-valid,flynt,identity,lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,"
+    "check-provider-yaml-valid,flynt,identity,lint-helm-chart,mypy-airflow-core,"
     "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk"
 )
 
 ALL_SKIPPED_COMMITS_IF_NOT_IMPORTANT_FILES_CHANGED = (
-    "check-provider-yaml-valid,flynt,identity,lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,"
+    "check-provider-yaml-valid,flynt,identity,lint-helm-chart,mypy-airflow-core,"
     "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,"
     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 
 
 All_SKIPPED_COMMITS_IF_NON_MAIN_BRANCH = (
-    "check-airflow-provider-compatibility,check-airflow-providers-bug-report-template,"
-    "check-deferrable-default,check-extra-packages-references,"
-    "check-imports-in-providers,check-provider-yaml-valid,compile-fab-assets,"
-    "generate-openapi-spec-fab,identity,lint-helm-chart,mypy-airflow-core,"
-    "mypy-airflow-ctl,mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,"
-    "update-providers-build-files,validate-operators-init"
+    "check-airflow-provider-compatibility,check-airflow-providers-bug-report-template,check-deferrable-default,"
+    "check-extra-packages-references,check-imports-in-providers,check-provider-yaml-valid,"
+    "compile-fab-assets,generate-openapi-spec-fab,identity,"
+    "lint-helm-chart,mypy-airflow-core,mypy-dev,"
+    "mypy-devel-common,mypy-providers,mypy-task-sdk,update-providers-build-files,validate-operators-init"
 )
 
 
@@ -255,7 +245,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-tests": "false",
                     "run-amazon-tests": "false",
                     "docs-build": "false",
-                    "skip-pre-commits": ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE,
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": None,
                     "providers-test-types-list-as-strings-in-json": None,
@@ -289,7 +279,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "needs-helm-tests": "true",
                     "run-tests": "true",
                     "docs-build": "true",
-                    "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                     "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
@@ -314,7 +304,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-tests": "true",
                     "run-amazon-tests": "true",
                     "docs-build": "true",
-                    "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                     "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
@@ -339,7 +329,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-tests": "true",
                     "run-amazon-tests": "true",
                     "docs-build": "true",
-                    "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                     "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
@@ -365,7 +355,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-tests": "true",
                     "run-amazon-tests": "false",
                     "docs-build": "true",
-                    "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS,
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": json.dumps(
                         [{"description": "Always...Serialization", "test_types": "Always Core Serialization"}]
@@ -397,7 +387,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-tests": "true",
                     "run-amazon-tests": "true",
                     "docs-build": "true",
-                    "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                     "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
@@ -423,7 +413,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-tests": "true",
                     "run-amazon-tests": "false",
                     "docs-build": "true",
-                    "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": json.dumps(
@@ -467,7 +457,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-tests": "true",
                     "run-amazon-tests": "false",
                     "docs-build": "true",
-                    "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": json.dumps(
@@ -515,7 +505,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-tests": "true",
                     "run-amazon-tests": "false",
                     "docs-build": "true",
-                    "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": json.dumps(
@@ -563,7 +553,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-tests": "true",
                     "run-amazon-tests": "false",
                     "docs-build": "true",
-                    "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": json.dumps(
@@ -609,7 +599,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-tests": "false",
                     "run-amazon-tests": "false",
                     "docs-build": "true",
-                    "skip-pre-commits": ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE,
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE,
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": None,
@@ -637,7 +627,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-task-sdk-tests": "true",
                     "docs-build": "true",
                     "full-tests-needed": "false",
-                    "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS,
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS,
                     "skip-providers-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
@@ -667,7 +657,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-tests": "true",
                     "run-amazon-tests": "true",
                     "docs-build": "true",
-                    "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI,
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_UI,
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": json.dumps(
@@ -709,7 +699,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-tests": "true",
                     "run-amazon-tests": "true",
                     "docs-build": "true",
-                    "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI,
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_UI,
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": json.dumps(
@@ -729,7 +719,10 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                                 "description": "amazon...apache.livy",
                                 "test_types": "Providers[amazon] Providers[apache.livy]",
                             },
-                            {"description": "dbt.cloud", "test_types": "Providers[dbt.cloud]"},
+                            {
+                                "description": "dbt.cloud",
+                                "test_types": "Providers[dbt.cloud]",
+                            },
                             {
                                 "description": "dingding",
                                 "test_types": "Providers[dingding]",
@@ -764,7 +757,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-tests": "true",
                     "run-amazon-tests": "false",
                     "docs-build": "true",
-                    "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI,
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_UI,
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": json.dumps(
@@ -796,7 +789,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "needs-helm-tests": "true",
                     "run-tests": "true",
                     "docs-build": "true",
-                    "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_AND_UI,
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_AND_UI,
                     "run-amazon-tests": "false",
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
@@ -816,9 +809,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 ("pyproject.toml",),
                 {
                     "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                    "all-python-versions": "['3.9', '3.10', '3.11', '3.12']",
+                    "all-python-versions": ALL_PYTHON_VERSIONS_AS_LIST,
                     "all-python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
-                    "python-versions": "['3.9', '3.10', '3.11', '3.12']",
+                    "python-versions": ALL_PYTHON_VERSIONS_AS_LIST,
                     "python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
                     "ci-image-build": "true",
                     "prod-image-build": "true",
@@ -827,7 +820,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-amazon-tests": "true",
                     "docs-build": "true",
                     "full-tests-needed": "true",
-                    "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "true",
                     "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                     "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
@@ -853,7 +846,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-tests": "true",
                 "docs-build": "true",
                 # no python files changed so flynt should not run
-                "skip-pre-commits": "flynt," + ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
+                "skip-prek-hooks": "flynt," + ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "run-amazon-tests": "true",
@@ -890,7 +883,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-tests": "true",
                 "run-amazon-tests": "false",
                 "docs-build": "true",
-                "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
+                "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-strings-in-json": json.dumps(
@@ -920,7 +913,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-tests": "true",
                 "run-amazon-tests": "true",
                 "docs-build": "true",
-                "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
+                "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-strings-in-json": json.dumps(
@@ -961,7 +954,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-amazon-tests": "false",
                 "docs-build": "true",
                 "run-kubernetes-tests": "false",
-                "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
+                "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-strings-in-json": json.dumps(
                     [{"description": "Always", "test_types": "Always"}]
@@ -993,7 +986,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-amazon-tests": "true",
                 "docs-build": "true",
                 "run-kubernetes-tests": "true",
-                "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
+                "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                 "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
@@ -1018,7 +1011,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-amazon-tests": "true",
                     "docs-build": "true",
                     "full-tests-needed": "true",
-                    "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                     "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
@@ -1044,7 +1037,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-amazon-tests": "true",
                     "docs-build": "true",
                     "full-tests-needed": "true",
-                    "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                     "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
@@ -1073,7 +1066,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-amazon-tests": "false",
                     "docs-build": "false",
                     "full-tests-needed": "false",
-                    "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_CODE_PROVIDERS_AND_HELM_TESTS,
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_CODE_PROVIDERS_AND_HELM_TESTS,
                     "upgrade-to-newer-dependencies": "false",
                     "needs-mypy": "false",
                     "mypy-checks": "[]",
@@ -1096,7 +1089,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-tests": "false",
                 "run-amazon-tests": "false",
                 "docs-build": "true",
-                "skip-pre-commits": ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE,
+                "skip-prek-hooks": ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE,
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-strings-in-json": None,
                 "providers-test-types-list-as-strings-in-json": None,
@@ -1119,7 +1112,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-tests": "true",
                 "run-amazon-tests": "false",
                 "docs-build": "true",
-                "skip-pre-commits": "check-provider-yaml-valid,flynt,identity,mypy-airflow-core,mypy-airflow-ctl,mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui",
+                "skip-prek-hooks": "check-provider-yaml-valid,flynt,identity,mypy-airflow-core,mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui",
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-strings-in-json": None,
                 "providers-test-types-list-as-strings-in-json": None,
@@ -1142,7 +1135,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-tests": "false",
                 "run-amazon-tests": "false",
                 "docs-build": "true",
-                "skip-pre-commits": ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE,
+                "skip-prek-hooks": ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE,
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-strings-in-json": None,
                 "providers-test-types-list-as-strings-in-json": None,
@@ -1156,6 +1149,16 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             ("go-sdk/sdk/variable.go",),
             {"run-go-sdk-tests": "true"},
             id="Run go tests for go-sdk",
+        ),
+        (
+            pytest.param(
+                ("devel-common/pyproject.toml",),
+                {
+                    "needs-mypy": "true",
+                    "mypy-checks": ALL_MYPY_CHECKS,
+                },
+                id="All mypy checks should run when devel-common/pyproject.toml changes",
+            )
         ),
     ],
 )
@@ -1232,7 +1235,9 @@ def test_excluded_providers():
     )
     assert_outputs_are_printed(
         {
-            "excluded-providers-as-string": json.dumps({DEFAULT_PYTHON_MAJOR_MINOR_VERSION: ["cloudant"]}),
+            "excluded-providers-as-string": json.dumps(
+                {"3.9": ["cloudant"]},
+            ),
         },
         str(stderr),
     )
@@ -1243,11 +1248,11 @@ def test_excluded_providers():
     [
         (
             pytest.param(
-                ("scripts/ci/pre_commit/file.sh",),
+                ("scripts/ci/prek/file.sh",),
                 {
                     "full-tests-needed": "false",
                 },
-                id="No full tests needed when pre-commit scripts change",
+                id="No full tests needed when prek scripts change",
             )
         ),
         (
@@ -1316,7 +1321,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "docs-build": "true",
                     "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
-                    "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                     "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
@@ -1335,11 +1340,11 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                 {
                     "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
                     "all-versions": "true",
-                    "all-python-versions": "['3.9', '3.10', '3.11', '3.12']",
+                    "all-python-versions": ALL_PYTHON_VERSIONS_AS_LIST,
                     "all-python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
                     "mysql-versions": "['8.0', '8.4']",
                     "postgres-versions": "['13', '14', '15', '16', '17']",
-                    "python-versions": "['3.9', '3.10', '3.11', '3.12']",
+                    "python-versions": ALL_PYTHON_VERSIONS_AS_LIST,
                     "python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
                     "kubernetes-versions": ALL_KUBERNETES_VERSIONS_AS_LIST,
                     "kubernetes-versions-list-as-string": ALL_KUBERNETES_VERSIONS_AS_STRING,
@@ -1351,7 +1356,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "docs-build": "true",
                     "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
-                    "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                     "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
@@ -1386,7 +1391,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "docs-build": "true",
                     "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
-                    "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                     "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
@@ -1421,7 +1426,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "docs-build": "true",
                     "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
-                    "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                     "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
@@ -1457,7 +1462,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "docs-build": "true",
                     "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
-                    "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                     "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
@@ -1493,7 +1498,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "docs-build": "true",
                     "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
-                    "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                     "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
@@ -1526,7 +1531,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "docs-build": "true",
                     "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
-                    "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                     "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
@@ -1559,13 +1564,13 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "docs-build": "true",
                     "docs-list-as-string": "apache-airflow docker-stack",
                     "full-tests-needed": "true",
-                    "skip-pre-commits": All_SKIPPED_COMMITS_IF_NON_MAIN_BRANCH,
+                    "skip-prek-hooks": All_SKIPPED_COMMITS_IF_NON_MAIN_BRANCH,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                     "needs-mypy": "true",
                     "mypy-checks": ALL_MYPY_CHECKS_EXCEPT_PROVIDERS,
                 },
-                id="Everything should run except Providers and lint pre-commit "
+                id="Everything should run except Providers and lint prek "
                 "when full tests are needed for non-main branch",
             )
         ),
@@ -1686,7 +1691,7 @@ def test_expected_output_full_tests_needed(
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-airflow-core']",
             },
-            id="All tests except Providers and helm lint pre-commit "
+            id="All tests except Providers and helm lint prek "
             "should run if core file changed in non-main branch",
         ),
     ],
@@ -1714,7 +1719,7 @@ def test_expected_output_pull_request_v2_7(
             "main",
             {
                 "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                "all-python-versions": "['3.9', '3.10', '3.11', '3.12']",
+                "all-python-versions": ALL_PYTHON_VERSIONS_AS_LIST,
                 "all-python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
                 "ci-image-build": "true",
                 "prod-image-build": "true",
@@ -1722,7 +1727,7 @@ def test_expected_output_pull_request_v2_7(
                 "run-tests": "true",
                 "docs-build": "true",
                 "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
-                "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
+                "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                 "upgrade-to-newer-dependencies": "true",
                 "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                 "needs-mypy": "true",
@@ -1735,14 +1740,14 @@ def test_expected_output_pull_request_v2_7(
             (),
             "v2-3-stable",
             {
-                "all-python-versions": "['3.9', '3.10', '3.11', '3.12']",
+                "all-python-versions": ALL_PYTHON_VERSIONS_AS_LIST,
                 "all-python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
                 "ci-image-build": "true",
                 "prod-image-build": "true",
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
-                "skip-pre-commits": All_SKIPPED_COMMITS_IF_NON_MAIN_BRANCH,
+                "skip-prek-hooks": All_SKIPPED_COMMITS_IF_NON_MAIN_BRANCH,
                 "docs-list-as-string": "apache-airflow docker-stack",
                 "upgrade-to-newer-dependencies": "true",
                 "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
@@ -1758,14 +1763,14 @@ def test_expected_output_pull_request_v2_7(
             "main",
             {
                 "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                "all-python-versions": "['3.9', '3.10', '3.11', '3.12']",
+                "all-python-versions": ALL_PYTHON_VERSIONS_AS_LIST,
                 "all-python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
                 "ci-image-build": "true",
                 "prod-image-build": "true",
                 "needs-helm-tests": "true",
                 "run-tests": "true",
                 "docs-build": "true",
-                "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
+                "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                 "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                 "upgrade-to-newer-dependencies": "true",
                 "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
@@ -1808,7 +1813,7 @@ def test_expected_output_push(
                 "docs-build": "false",
                 "docs-list-as-string": None,
                 "upgrade-to-newer-dependencies": "false",
-                "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NOT_IMPORTANT_FILES_CHANGED,
+                "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NOT_IMPORTANT_FILES_CHANGED,
                 "core-test-types-list-as-strings-in-json": None,
                 "needs-mypy": "false",
                 "mypy-checks": "[]",
@@ -1828,7 +1833,7 @@ def test_expected_output_push(
                 "skip-providers-tests": "true",
                 "docs-build": "true",
                 "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
-                "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS,
+                "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS,
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-strings-in-json": json.dumps(
                     [{"description": "Always", "test_types": "Always"}]
@@ -1861,7 +1866,7 @@ def test_expected_output_push(
                 "apache.kafka cncf.kubernetes common.compat common.sql facebook google hashicorp microsoft.azure "
                 "microsoft.mssql mysql openlineage oracle postgres "
                 "presto salesforce samba sftp ssh trino",
-                "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI,
+                "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_UI,
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-strings-in-json": json.dumps(
@@ -1897,7 +1902,7 @@ def test_expected_output_push(
                 "skip-providers-tests": "true",
                 "docs-build": "true",
                 "docs-list-as-string": "apache-airflow",
-                "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS,
+                "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS,
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
@@ -1919,7 +1924,7 @@ def test_expected_output_push(
                 "docs-build": "true",
                 "docs-list-as-string": "",
                 "upgrade-to-newer-dependencies": "false",
-                "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
+                "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                 "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                 "needs-mypy": "true",
                 "mypy-checks": ALL_MYPY_CHECKS,
@@ -1948,7 +1953,7 @@ def test_expected_output_push(
                 "docs-list-as-string": "apache-airflow task-sdk amazon common.compat common.io common.sql "
                 "dbt.cloud ftp google microsoft.mssql mysql "
                 "openlineage postgres sftp snowflake trino",
-                "skip-pre-commits": ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE,
+                "skip-prek-hooks": ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE,
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
@@ -2010,7 +2015,7 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
             "needs-helm-tests": "true",
             "run-tests": "true",
             "docs-build": "true",
-            "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
+            "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
             "upgrade-to-newer-dependencies": (
                 "true" if github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE] else "false"
             ),
@@ -2042,14 +2047,14 @@ def test_files_provided_trigger_full_build_for_any_event_type(github_event):
     )
     assert_outputs_are_printed(
         {
-            "all-python-versions": "['3.9', '3.10', '3.11', '3.12']",
+            "all-python-versions": ALL_PYTHON_VERSIONS_AS_LIST,
             "all-python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
             "ci-image-build": "true",
             "prod-image-build": "true",
             "needs-helm-tests": "true",
             "run-tests": "true",
             "docs-build": "true",
-            "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
+            "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
             "upgrade-to-newer-dependencies": (
                 "true" if github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE] else "false"
             ),

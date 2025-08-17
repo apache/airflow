@@ -18,7 +18,8 @@ from __future__ import annotations
 
 import subprocess
 import time
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from airflow_breeze.global_constants import (
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
@@ -88,7 +89,7 @@ def run_pull_in_parallel(
             ]
     check_async_run_results(
         results=results,
-        success="All images pulled",
+        success_message="All images pulled",
         outputs=outputs,
         include_success_outputs=include_success_outputs,
         skip_cleanup=skip_cleanup,

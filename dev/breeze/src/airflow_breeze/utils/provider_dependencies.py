@@ -18,11 +18,20 @@
 from __future__ import annotations
 
 import json
+import re
+import shutil
+import sys
+from functools import partial
+from multiprocessing import Pool
+from typing import NamedTuple
 
+from airflow_breeze.global_constants import ALL_HISTORICAL_PYTHON_VERSIONS, PYTHON_TO_MIN_AIRFLOW_MAPPING
+from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.console import get_console
-from airflow_breeze.utils.github import get_tag_date
+from airflow_breeze.utils.github import download_constraints_file, get_active_airflow_versions, get_tag_date
 from airflow_breeze.utils.packages import get_provider_distributions_metadata
-from airflow_breeze.utils.path_utils import PROVIDER_DEPENDENCIES_JSON_PATH
+from airflow_breeze.utils.path_utils import CONSTRAINTS_CACHE_PATH, PROVIDER_DEPENDENCIES_JSON_PATH
+from airflow_breeze.utils.shared_options import get_verbose
 
 DEPENDENCIES = json.loads(PROVIDER_DEPENDENCIES_JSON_PATH.read_text())
 
@@ -55,44 +64,277 @@ def get_related_providers(
     return related_providers
 
 
+def is_airflow_version_supported_for_python(airflow_version: str, python_version: str) -> bool:
+    from packaging.version import Version
+
+    min_airflow_version = PYTHON_TO_MIN_AIRFLOW_MAPPING.get(python_version)
+    if not min_airflow_version:
+        return False
+    return Version(airflow_version) >= Version(min_airflow_version)
+
+
+def get_all_constraint_files_and_airflow_releases(
+    refresh_constraints_and_airflow_releases: bool,
+    airflow_constraints_mode: str,
+    github_token: str | None,
+) -> tuple[list[str], dict[str, str]]:
+    all_airflow_versions_path = CONSTRAINTS_CACHE_PATH / "all_airflow_versions.json"
+    airflow_release_dates_path = CONSTRAINTS_CACHE_PATH / "airflow_release_dates.json"
+    if not all_airflow_versions_path.exists() or not airflow_release_dates_path.exists():
+        get_console().print(
+            "\n[warning]Airflow version cache does not exist. "
+            "Forcing refreshing constraints and airflow versions.[/]\n"
+        )
+        refresh_constraints_and_airflow_releases = True
+    if refresh_constraints_and_airflow_releases:
+        shutil.rmtree(CONSTRAINTS_CACHE_PATH, ignore_errors=True)
+    if not CONSTRAINTS_CACHE_PATH.exists():
+        if not github_token:
+            get_console().print(
+                "[error]You need to provide GITHUB_TOKEN to generate providers metadata.[/]\n\n"
+                "You can generate it with this URL: "
+                "Please set it to a valid GitHub token with public_repo scope. You can create one by clicking "
+                "the URL:\n\n"
+                "https://github.com/settings/tokens/new?scopes=public_repo&description=airflow-refresh-constraints\n\n"
+                "Once you have the token you can prepend prek command with GITHUB_TOKEN='<your token>' or"
+                "set it in your environment with export GITHUB_TOKEN='<your token>'\n\n"
+            )
+            sys.exit(1)
+        all_python_versions = ALL_HISTORICAL_PYTHON_VERSIONS
+        CONSTRAINTS_CACHE_PATH.mkdir(parents=True, exist_ok=True)
+        all_airflow_versions, airflow_release_dates = get_active_airflow_versions(confirm=False)
+        all_airflow_versions_path.write_text(json.dumps(all_airflow_versions, indent=2))
+        get_console().print(f"[info]All Airflow versions saved in: {all_airflow_versions_path}[/]")
+        airflow_release_dates_path.write_text(json.dumps(airflow_release_dates, indent=2))
+        get_console().print(f"[info]Airflow release dates saved in: {airflow_release_dates_path}[/]")
+        with ci_group("Downloading constraints for all Airflow versions for all historical Python versions"):
+            with Pool() as pool:
+                # We use partial to pass the common parameters to the function
+                get_constraints_for_python_version_partial = partial(
+                    get_constraints_for_python_version,
+                    airflow_constraints_mode=airflow_constraints_mode,
+                    all_airflow_versions=all_airflow_versions,
+                    github_token=github_token,
+                )
+                pool.map(get_constraints_for_python_version_partial, all_python_versions)
+    else:
+        get_console().print("[info]Retrieving airflow versions and using constraint files from cache.[/]")
+        all_airflow_versions = json.loads(all_airflow_versions_path.read_text())
+        airflow_release_dates = json.loads(airflow_release_dates_path.read_text())
+    return all_airflow_versions, airflow_release_dates
+
+
+def get_constraints_for_python_version(
+    python_version: str, airflow_constraints_mode: str, all_airflow_versions: list[str], github_token: str
+):
+    for airflow_version in all_airflow_versions:
+        if not download_constraints_file(
+            constraints_reference=f"constraints-{airflow_version}",
+            python_version=python_version,
+            github_token=github_token,
+            airflow_constraints_mode=airflow_constraints_mode,
+            output_file=CONSTRAINTS_CACHE_PATH / f"constraints-{airflow_version}-python-{python_version}.txt",
+        ):
+            get_console().print(
+                "[info]Could not download constraints for "
+                f"Airflow {airflow_version} and Python {python_version}[/]"
+            )
+
+
+MATCH_CONSTRAINTS_FILE_REGEX = re.compile(r"constraints-(.*)-python-(.*).txt")
+
+
+class PackageInfo(NamedTuple):
+    package_name: str
+    version: str
+
+
+class ConstraintsForPython(NamedTuple):
+    python_version: str
+    packages: dict[str, PackageInfo]
+
+
+class AirflowVersionConstraints(NamedTuple):
+    airflow_version: str
+    constraints_files: list[ConstraintsForPython]
+
+
+def load_constraints() -> dict[str, AirflowVersionConstraints]:
+    get_console().print("[info]Loading constraints for all Airflow versions[/]")
+    all_constraints: dict[str, AirflowVersionConstraints] = {}
+    for filename in sorted(CONSTRAINTS_CACHE_PATH.glob("constraints-*-python-*.txt")):
+        filename_match = MATCH_CONSTRAINTS_FILE_REGEX.match(filename.name)
+        if filename_match:
+            airflow_version = filename_match.group(1)
+            python_version = filename_match.group(2)
+            if airflow_version not in all_constraints:
+                airflow_version_constraints = AirflowVersionConstraints(
+                    airflow_version=airflow_version, constraints_files=[]
+                )
+                all_constraints[airflow_version] = airflow_version_constraints
+            else:
+                airflow_version_constraints = all_constraints[airflow_version]
+            package_dict: dict[str, PackageInfo] = {}
+            for line in filename.read_text().splitlines():
+                if line and not line.startswith("#"):
+                    package_name, version = line.split("==")
+                    package_dict[package_name] = PackageInfo(package_name=package_name, version=version)
+            airflow_version_constraints.constraints_files.append(
+                ConstraintsForPython(python_version=python_version, packages=package_dict)
+            )
+    get_console().print("[info]Constraints loaded[/]\n")
+    if get_verbose():
+        get_console().print("[info]All constraints loaded:\n")
+        for airflow_version, constraints in all_constraints.items():
+            get_console().print(f"[info]Airflow version: {airflow_version}[/]")
+            for constraints_file in constraints.constraints_files:
+                get_console().print(f"  Python version: {constraints_file.python_version}")
+    return all_constraints
+
+
 START_AIRFLOW_VERSION_FROM = "0.0.0"
 
 
-def generate_providers_metadata_for_package(
+def generate_providers_metadata_for_provider(
     provider_id: str,
-    constraints: dict[str, dict[str, str]],
+    provider_version: str | None,
+    constraints: dict[str, AirflowVersionConstraints],
     all_airflow_releases: list[str],
     airflow_release_dates: dict[str, str],
+    current_metadata: dict[str, dict[str, dict[str, str]]],
 ) -> dict[str, dict[str, str]]:
     get_console().print(f"[info]Generating metadata for {provider_id}")
     provider_yaml_dict = get_provider_distributions_metadata().get(provider_id)
     provider_metadata: dict[str, dict[str, str]] = {}
-    last_airflow_version = START_AIRFLOW_VERSION_FROM
     package_name = "apache-airflow-providers-" + provider_id.replace(".", "-")
-    provider_mentioned_in_constraints = False
-    for provider_version in reversed(provider_yaml_dict["versions"]):
-        date_released = get_tag_date(
-            tag="providers-" + provider_id.replace(".", "-") + "/" + provider_version
-        )
-        if not date_released:
-            continue
-        for airflow_version in all_airflow_releases:
-            if constraints[airflow_version].get(package_name) == provider_version:
-                last_airflow_version = airflow_version
-                provider_mentioned_in_constraints = True
-                break
-            if (
-                airflow_release_dates[airflow_version] > date_released
-                and last_airflow_version == START_AIRFLOW_VERSION_FROM
-            ):
-                last_airflow_version = airflow_version
-        provider_metadata[provider_version] = {
-            "associated_airflow_version": last_airflow_version,
-            "date_released": date_released,
-        }
-    if not provider_mentioned_in_constraints:
+    provider_versions = list(reversed(provider_yaml_dict["versions"]))
+    provider_metadata_found = False
+    if get_verbose():
+        get_console().print(f"[info]Provider {provider_id} versions:")
+        get_console().print(provider_versions)
+    if provider_version and provider_version not in provider_versions:
         get_console().print(
-            f"[warning]No constraints mention {provider_id} in any Airflow version. Skipping it altogether."
+            f"[error]Provider {provider_id} version {provider_version} is not in the list of versions: "
+            f"{provider_versions}. Skipping it."
+        )
+        sys.exit(1)
+    old_provider_metadata = current_metadata.get(provider_id, {})
+    for current_provider_version in provider_versions:
+        if provider_version and current_provider_version != provider_version:
+            continue
+        exact_provider_version_found_in_constraints = False
+        provider_date_released = get_tag_date(
+            tag="providers-" + provider_id.replace(".", "-") + "/" + current_provider_version
+        )
+        if not provider_date_released:
+            continue
+        if get_verbose():
+            get_console().print(
+                f"[info]Checking provider {provider_id} version {current_provider_version} released on {provider_date_released}"
+            )
+        airflow_date_released = airflow_release_dates[all_airflow_releases[0]]
+        last_airflow_version = START_AIRFLOW_VERSION_FROM
+        for airflow_version in all_airflow_releases:
+            airflow_date_released = airflow_release_dates[airflow_version]
+            if get_verbose():
+                get_console().print(
+                    f"[info]Checking airflow_version {airflow_version} released on {airflow_date_released}"
+                )
+            for python_version_constraint_file in constraints[airflow_version].constraints_files:
+                if get_verbose():
+                    get_console().print(
+                        f"[info]Checking constraints for Python {python_version_constraint_file.python_version}"
+                    )
+                package_info = python_version_constraint_file.packages.get(package_name)
+                if not package_info:
+                    if get_verbose():
+                        get_console().print(
+                            f"[info]Package {package_name} not found in constraints for Airflow {airflow_version} "
+                            f"and Python version {python_version_constraint_file.python_version}"
+                        )
+                else:
+                    if get_verbose():
+                        get_console().print(
+                            f"[info]Package {package_name} found in constraints for Airflow {airflow_version} "
+                            f"and Python version {python_version_constraint_file.python_version}: {package_info}"
+                        )
+                if package_info and package_info.version == current_provider_version:
+                    last_airflow_version = airflow_version
+                    exact_provider_version_found_in_constraints = True
+                    if get_verbose():
+                        get_console().print(
+                            f"[success]Package {package_name} in version {current_provider_version} "
+                            f"found in constraints for Airflow {airflow_version} and "
+                            f"Python version {python_version_constraint_file.python_version}"
+                        )
+                    break
+                if (
+                    airflow_date_released > provider_date_released
+                    and last_airflow_version == START_AIRFLOW_VERSION_FROM
+                ):
+                    # released before first Airflow version so it should be associated with the
+                    # first "real" Airflow version released after it - but in case it was actually
+                    # mentioned later in constraints, we will override it later
+                    last_airflow_version = airflow_version
+                    if get_verbose():
+                        get_console().print(
+                            f"[warning]Provider {provider_id} version {current_provider_version} released on "
+                            f"{provider_date_released} could be associated with {airflow_version} that "
+                            f"was released on {airflow_date_released}. Setting it as candidate."
+                        )
+            if exact_provider_version_found_in_constraints:
+                break
+        if last_airflow_version == START_AIRFLOW_VERSION_FROM:
+            # If we did not find any Airflow version that is associated with this provider version
+            # we will not include it in the metadata
+            get_console().print(
+                f"[warning]Provider {provider_id} version {current_provider_version} released on {provider_date_released} "
+                f"is NOT associated with any Airflow version in constraints. Skipping it."
+            )
+            continue
+        old_provider_metadata_for_version = old_provider_metadata.get(current_provider_version, {})
+        new_provider_metadata_for_version = {
+            "associated_airflow_version": last_airflow_version,
+            "date_released": provider_date_released,
+        }
+        provider_metadata[current_provider_version] = new_provider_metadata_for_version
+        provider_version_metadata_changed_or_added = False
+        if old_provider_metadata_for_version:
+            if (
+                old_provider_metadata_for_version["associated_airflow_version"] != last_airflow_version
+                or old_provider_metadata_for_version["date_released"] != provider_date_released
+            ):
+                get_console().print(
+                    f"[warning]Old provider metadata for {provider_id} version {current_provider_version} "
+                    f"released on {provider_date_released} differs: "
+                    f"Old metadata: {old_provider_metadata_for_version}. "
+                    f"New metadata: {new_provider_metadata_for_version}."
+                )
+                provider_version_metadata_changed_or_added = True
+        else:
+            provider_version_metadata_changed_or_added = True
+        if exact_provider_version_found_in_constraints:
+            provider_metadata_found = True
+            if get_verbose() or provider_version_metadata_changed_or_added:
+                get_console().print(
+                    f"[success]Provider {provider_id} version {current_provider_version} released on {provider_date_released} "
+                    f"is associated with Airflow {last_airflow_version} released on {airflow_date_released}"
+                )
+        else:
+            if get_verbose() or provider_version_metadata_changed_or_added:
+                get_console().print(
+                    f"[warning]Provider {provider_id} version {current_provider_version} released on {provider_date_released} "
+                    f"was not mentioned in any Airflow version in constraints. Assuming {last_airflow_version} "
+                    f"released on {airflow_date_released} that was released after it."
+                )
+            provider_metadata_found = True
+    if not provider_metadata_found:
+        get_console().print(
+            f"[warning]No constraints mention {provider_id} in any Airflow version in any Python version. "
+            f"Skipping it altogether."
         )
         return {}
+    if get_verbose():
+        get_console().print(f"[success]Metadata for {provider_id} found:\n")
+        get_console().print(provider_metadata)
     return provider_metadata
