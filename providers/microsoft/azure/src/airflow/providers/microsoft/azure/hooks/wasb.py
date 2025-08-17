@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, TypeVar, Any, cast
 
 from asgiref.sync import sync_to_async
 from azure.core.exceptions import HttpResponseError, ResourceExistsError, ResourceNotFoundError
@@ -272,6 +272,14 @@ class WasbHook(BaseHook):
         blobs = self.get_blobs_list(container_name=container_name, prefix=prefix, **kwargs)
         return bool(blobs)
 
+    T = TypeVar("T", AsyncBlobServiceClient, ContainerClient, AsyncContainerClient)
+
+    def check_for_variable_type(self, variable_name: str, container: T, expected_type: type[T]) -> None:
+        if not isinstance(container, expected_type):
+            raise TypeError(
+                f"{variable_name} for {self.__class__.__name__} must be {expected_type.__name__}, got {type(container).__name__}"
+            )
+
     def get_blobs_list(
         self,
         container_name: str,
@@ -292,10 +300,7 @@ class WasbHook(BaseHook):
         :param delimiter: filters objects based on the delimiter (for e.g '.csv')
         """
         container = self._get_container_client(container_name)
-        if not isinstance(container, ContainerClient):
-            raise TypeError(
-                f"_get_container_client for WasbHook should return ContainerClient object, got {type(container).__name__}"
-            )
+        self.check_for_variable_type("container", container, ContainerClient)
 
         blob_list = []
         blobs = container.walk_blobs(name_starts_with=prefix, include=include, delimiter=delimiter, **kwargs)
@@ -323,10 +328,7 @@ class WasbHook(BaseHook):
         :param delimiter: filters objects based on the delimiter (for e.g '.csv')
         """
         container = self._get_container_client(container_name)
-        if not isinstance(container, ContainerClient):
-            raise TypeError(
-                f"_get_container_client for WasbHook should return ContainerClient object, got {type(container).__name__}"
-            )
+        self.check_for_variable_type("container", container, ContainerClient)
 
         blob_list = []
         blobs = container.list_blobs(name_starts_with=prefix, include=include, **kwargs)
@@ -613,11 +615,10 @@ class WasbAsyncHook(WasbHook):
     async def get_async_conn(self) -> AsyncBlobServiceClient:
         """Return the Async BlobServiceClient object."""
         if self._blob_service_client is not None:
-            if isinstance(self._blob_service_client, AsyncBlobServiceClient):
-                return self._blob_service_client
-            raise TypeError(
-                f"_blob_service_client must be AsyncBlobServiceClient, got {type(self._blob_service_client).__name__}"
+            self.check_for_variable_type(
+                "self._blob_service_client", self._blob_service_client, AsyncBlobServiceClient
             )
+            return self._blob_service_client
 
         conn = await sync_to_async(self.get_connection)(self.conn_id)
         extra = conn.extra_dejson or {}
@@ -744,10 +745,7 @@ class WasbAsyncHook(WasbHook):
         :param delimiter: filters objects based on the delimiter (for e.g '.csv')
         """
         container = self._get_container_client(container_name)
-        if not isinstance(container, AsyncContainerClient):
-            raise TypeError(
-                f"_get_container_client for AsyncContainerClient should return AsyncContainerClient object, got {type(container).__name__}"
-            )
+        self.check_for_variable_type("container", container, AsyncContainerClient)
 
         blob_list: list[BlobProperties | BlobPrefix] = []
         blobs = container.walk_blobs(name_starts_with=prefix, include=include, delimiter=delimiter, **kwargs)

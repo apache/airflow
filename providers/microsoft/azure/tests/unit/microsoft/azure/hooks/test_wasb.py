@@ -244,6 +244,17 @@ class TestWasbHook:
             proxies=self.proxies,
         )
 
+    def test_variable_type_checking(self):
+        hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
+        ok_container = object.__new__(ContainerClient)
+        hook.check_for_variable_type("container", ok_container, ContainerClient)
+        wrong_container = object.__new__(BlobServiceClient)
+        with pytest.raises(TypeError) as ei:
+            hook.check_for_variable_type("container", wrong_container, ContainerClient)
+        msg = str(ei.value)
+        for s in ["container", "WasbHook", "ContainerClient", "BlobServiceClient"]:
+            assert s in msg
+
     def test_account_key_connection(self, mocked_blob_service_client):
         """Test that account_key from extra is used when no password is provided."""
         WasbHook(wasb_conn_id=self.account_key_conn_id).get_conn()
