@@ -31,7 +31,7 @@ export const EdgeLayout = () => {
   ];
 
   return (
-    <Box>
+    <Box p={2} /* Compensate for parent padding from ExternalView */>
       <BrowserRouter>
         <NavTabs tabs={tabs} />
         <Routes>
