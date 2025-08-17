@@ -53,15 +53,16 @@ def get_parser():
     return parser
 
 
-def _ensure_db_session():
-    if not getattr(settings, "engine", None) or not getattr(settings, "Session", None):
+def _ensure_orm_configured():
+    """Ensure Airflow ORM is configured if engine is not set."""
+    if not getattr(settings, "engine", None):
         configure_orm()
 
 
 def main():
     parser = get_parser()
     args = parser.parse_args()
-    _ensure_db_session()
+    _ensure_orm_configured()
 
     eks_hook = EksHook(aws_conn_id=args.aws_conn_id, region_name=args.region_name)
     access_token = eks_hook.fetch_access_token_for_cluster(args.cluster_name)

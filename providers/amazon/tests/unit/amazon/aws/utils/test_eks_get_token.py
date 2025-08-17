@@ -91,8 +91,8 @@ class TestGetEksToken:
     @mock.patch("airflow.providers.amazon.aws.utils.eks_get_token.configure_orm")
     @mock.patch("airflow.providers.amazon.aws.utils.eks_get_token.settings.Session", None)
     @mock.patch("airflow.providers.amazon.aws.utils.eks_get_token.settings.engine", None)
-    def test_ensure_db_session_initializes_orm(self, mock_configure_orm):
+    def test_ensure_orm_configured_initializes_orm(self, mock_configure_orm):
         import airflow.providers.amazon.aws.utils.eks_get_token as eks_get_token
 
-        eks_get_token._ensure_db_session()
+        eks_get_token._ensure_orm_configured()
         mock_configure_orm.assert_called_once()
