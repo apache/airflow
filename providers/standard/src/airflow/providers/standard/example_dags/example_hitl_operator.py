@@ -37,6 +37,7 @@ if TYPE_CHECKING:
 # [START hitl_tutorial]
 
 
+# [START hitl_notifier]
 class LocalLogNotifier(BaseNotifier):
     """Simple notifier to demonstrate HITL notification without setup any connection."""
 
@@ -49,7 +50,6 @@ class LocalLogNotifier(BaseNotifier):
         self.log.info(self.message)
 
 
-# [START htil_notifer]
 hitl_request_callback = LocalLogNotifier(
     message="""
 [HITL]
@@ -65,7 +65,7 @@ hitl_success_callback = LocalLogNotifier(
     message="{% set task_id = task.task_id -%}{{ ti.xcom_pull(task_ids=task_id) }}"
 )
 hitl_failure_callback = LocalLogNotifier(message="Request to response to '{{ task.subject }}' failed")
-# [END htil_notifer]
+# [END hitl_notifier]
 
 with DAG(
     dag_id="example_hitl_operator",

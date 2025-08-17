@@ -95,6 +95,30 @@ And remember to specify their relationship in the workflow.
    :start-after: [START howto_hitl_workflow]
    :end-before: [END howto_hitl_workflow]
 
+Notifiers
+---------
+
+A notifier is a callback mechanism that allows you to handle HITL events, such as when a task is waiting for human input, succeeds, or fails.
+The example uses a notifier ``LocalLogNotifier`` that logs messages for demonstration.
+You can implement your own notifier for different functionalities.
+
+In the example DAG, the notifier is defined as follows:
+
+.. exampleinclude:: /../../providers/standard/src/airflow/providers/standard/example_dags/example_hitl_operator.py
+   :language: python
+   :start-after: [START hitl_notifier]
+   :end-before: [END hitl_notifier]
+
+You can pass a list of notifiers to HITL operators using the ``notifiers`` argument as follows.
+When the operator reaches certain states, the ``notify`` method will be called.
+
+.. exampleinclude:: /../../providers/standard/src/airflow/providers/standard/example_dags/example_hitl_operator.py
+   :language: python
+   :dedent: 4
+   :start-after: [START howto_hitl_entry_operator]
+   :end-before: [END howto_hitl_entry_operator]
+
+
 Benefits and Common Use Cases
 -----------------------------
 
