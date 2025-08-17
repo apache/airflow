@@ -614,6 +614,7 @@ repos:
             ^providers/apache/flink/.*\.py$|
             ^providers/apache/iceberg/.*\.py$|
             ^providers/apache/kafka/.*\.py$|
+            ^providers/apprise/.*\.py$|
             ^providers/arangodb/.*\.py$|
             ^providers/asana/.*\.py$|
             ^providers/cloudant/.*\.py$|
