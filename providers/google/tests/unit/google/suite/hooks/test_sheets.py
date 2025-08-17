@@ -68,6 +68,7 @@ class TestGSheetsHook:
     @mock.patch("airflow.providers.google.suite.hooks.sheets.build")
     def test_gsheets_hook_custom_endpoint(self, mock_build, mock_authorize):
         self.hook.api_endpoint = "https://private.googleapis.com"
+        self.hook.get_conn()
         mock_build.assert_called_once()
         _, kwargs = mock_build.call_args
         client_options = kwargs.get("client_options")
