@@ -87,3 +87,12 @@ class TestGetEksToken:
             aws_conn_id=expected_aws_conn_id, region_name=expected_region_name
         )
         mock_eks_hook.return_value.fetch_access_token_for_cluster.assert_called_once_with("test-cluster")
+
+    @mock.patch("airflow.providers.amazon.aws.utils.eks_get_token.configure_orm")
+    @mock.patch("airflow.providers.amazon.aws.utils.eks_get_token.settings.Session", None)
+    @mock.patch("airflow.providers.amazon.aws.utils.eks_get_token.settings.engine", None)
+    def test_ensure_db_session_initializes_orm(self, mock_configure_orm):
+        import airflow.providers.amazon.aws.utils.eks_get_token as eks_get_token
+
+        eks_get_token._ensure_db_session()
+        mock_configure_orm.assert_called_once()
