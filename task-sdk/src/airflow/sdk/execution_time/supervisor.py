@@ -94,6 +94,7 @@ from airflow.sdk.execution_time.comms import (
     GetXComSequenceItem,
     GetXComSequenceSlice,
     InactiveAssetsResult,
+    MaskSecret,
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
@@ -1064,7 +1065,10 @@ class ActivitySubprocess(WatchedSubprocess):
         return TaskInstanceState.FAILED
 
     def _handle_request(self, msg: ToSupervisor, log: FilteringBoundLogger, req_id: int):
-        log.debug("Received message from task runner", msg=msg)
+        if isinstance(msg, MaskSecret):
+            log.debug("Received message from task runner (body omitted)", msg=type(msg))
+        else:
+            log.debug("Received message from task runner", msg=msg)
         resp: BaseModel | None = None
         dump_opts = {}
         if isinstance(msg, TaskState):
@@ -1264,6 +1268,8 @@ class ActivitySubprocess(WatchedSubprocess):
                 multiple=msg.multiple,
             )
             self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
+        elif isinstance(msg, MaskSecret):
+            mask_secret(msg.value, msg.name)
         else:
             log.error("Unhandled request", msg=msg)
             self.send_msg(
