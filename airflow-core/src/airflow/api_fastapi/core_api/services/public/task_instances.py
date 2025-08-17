@@ -290,17 +290,21 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
                     )
 
                 for task_id, map_index in matched_task_keys:
-                    result = self.session.execute(
-                        select(TI).where(
-                            TI.task_id == task_id,
-                            TI.dag_id == self.dag_id,
-                            TI.run_id == self.dag_run_id,
-                            TI.map_index == map_index,
+                    result = (
+                        self.session.execute(
+                            select(TI).where(
+                                TI.task_id == task_id,
+                                TI.dag_id == self.dag_id,
+                                TI.run_id == self.dag_run_id,
+                                TI.map_index == map_index,
+                            )
                         )
-                    ).one_or_none()
+                        .scalars()
+                        .one_or_none()
+                    )
 
                     if result:
-                        existing_task_instance = result[0]
+                        existing_task_instance = result
                         self.session.delete(existing_task_instance)
                         results.success.append(f"{task_id}[{map_index}]")
 
