@@ -151,7 +151,7 @@ jobs:
         if: inputs.canary-run == 'true'
       - name: "Prepare .tar file from prek cache"
         run: |
-          tar -C ~ -czf /tmp/cache-prek.tar.gz .cache/prek .cache/uv
+          tar -C ~ -czf /tmp/cache-prek.tar.gz .cache/prek
         shell: bash
         if: inputs.canary-run == 'true'
       - name: "Save prek cache"
