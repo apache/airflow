@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-16T13:51:04.921533
+# This constraints file was automatically generated on 2025-08-17T02:27:07.809198
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -406,7 +406,7 @@ kylinpy==2.8.4
 lazy-object-proxy==1.11.0
 libcst==1.8.2
 linkify-it-py==2.0.3
-litellm==1.75.7
+litellm==1.75.8
 lockfile==0.12.2
 looker-sdk==25.10.0
 lxml==5.4.0
@@ -566,7 +566,7 @@ setproctitle==1.3.6
 setuptools==80.9.0
 shapely==2.1.1
 shellingham==1.5.4
-simple-salesforce==1.12.6
+simple-salesforce==1.12.7
 six==1.17.0
 slack_sdk==3.36.0
 smbprotocol==1.15.0
