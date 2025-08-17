@@ -18,9 +18,19 @@
 # under the License.
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
 import setproctitle
 
 from airflow import settings
+
+sys.path.insert(0, str(Path(__file__).parent.resolve()))
+from common_prek_utils import (
+    initialize_breeze_prek,
+)
+
+initialize_breeze_prek(__name__, __file__)
 
 
 def post_worker_init(_):

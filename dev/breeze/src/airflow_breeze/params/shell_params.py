@@ -220,6 +220,7 @@ class ShellParams:
     test_group: GroupOfTests | None = None
     tty: str = "auto"
     upgrade_boto: bool = False
+    upgrade_sqlalchemy: bool = False
     use_airflow_version: str | None = None
     use_distributions_from_dist: bool = False
     use_uv: bool = False
@@ -328,9 +329,8 @@ class ShellParams:
             backend_docker_compose_file = DOCKER_COMPOSE_DIR / f"backend-{backend}.yml"
         if backend in ("sqlite", "none") or not self.forward_ports:
             return [backend_docker_compose_file]
-        if self.project_name == "pre-commit":
-            # do not forward ports for pre-commit runs - to not clash with running containers from
-            # breeze
+        if self.project_name == "prek":
+            # do not forward ports for prek - to not clash with running containers from breeze
             return [backend_docker_compose_file]
         return [backend_docker_compose_file, DOCKER_COMPOSE_DIR / f"backend-{backend}-port.yml"]
 
@@ -387,9 +387,9 @@ class ShellParams:
                 f"{USE_AIRFLOW_MOUNT_SOURCES} mount sources[/]"
             )
             sys.exit(1)
-        if self.forward_ports and not self.project_name == "pre-commit":
+        if self.forward_ports and not self.project_name == "prek":
             compose_file_list.append(DOCKER_COMPOSE_DIR / "base-ports.yml")
-        if self.debug_components and not self.project_name == "pre-commit":
+        if self.debug_components and not self.project_name == "prek":
             compose_file_list.append(DOCKER_COMPOSE_DIR / "debug-ports.yml")
         if self.mount_sources == MOUNT_SELECTED:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "local.yml")
@@ -653,6 +653,7 @@ class ShellParams:
         _set_var(_env, "TEST_TYPE", self.test_type, "")
         _set_var(_env, "TEST_GROUP", str(self.test_group.value) if self.test_group else "")
         _set_var(_env, "UPGRADE_BOTO", self.upgrade_boto)
+        _set_var(_env, "UPGRADE_SQLALCHEMY", self.upgrade_sqlalchemy)
         _set_var(_env, "USE_AIRFLOW_VERSION", self.use_airflow_version, "")
         _set_var(_env, "USE_DISTRIBUTIONS_FROM_DIST", self.use_distributions_from_dist)
         _set_var(_env, "USE_UV", self.use_uv)

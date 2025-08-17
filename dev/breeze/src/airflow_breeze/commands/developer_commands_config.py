@@ -20,7 +20,6 @@ DEVELOPER_COMMANDS: dict[str, str | list[str]] = {
     "name": "Developer commands",
     "commands": [
         "start-airflow",
-        "static-checks",
         "build-docs",
         "down",
         "shell",
@@ -171,6 +170,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Upgrading/downgrading/removing selected packages",
             "options": [
                 "--upgrade-boto",
+                "--upgrade-sqlalchemy",
                 "--downgrade-sqlalchemy",
                 "--downgrade-pendulum",
             ],
@@ -372,36 +372,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--github-repository",
                 "--builder",
                 "--distributions-list",
-            ],
-        },
-    ],
-    "breeze static-checks": [
-        {
-            "name": "Pre-commit flags",
-            "options": [
-                "--type",
-                "--show-diff-on-failure",
-                "--initialize-environment",
-                "--max-initialization-attempts",
-            ],
-        },
-        {
-            "name": "Selecting files to run the checks on",
-            "options": [
-                "--file",
-                "--all-files",
-                "--commit-ref",
-                "--last-commit",
-                "--only-my-changes",
-            ],
-        },
-        {
-            "name": "Building image before running checks",
-            "options": [
-                "--skip-image-upgrade-check",
-                "--force-build",
-                "--github-repository",
-                "--builder",
             ],
         },
     ],
