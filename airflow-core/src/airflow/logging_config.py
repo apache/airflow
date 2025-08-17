@@ -19,12 +19,13 @@ from __future__ import annotations
 
 import logging
 import warnings
+from importlib import import_module
 from logging.config import dictConfig
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
-from airflow.utils.module_loading import import_module, import_string
+from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from airflow.logging.remote import RemoteLogIO

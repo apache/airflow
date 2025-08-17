@@ -96,76 +96,17 @@ SETTINGS_FILE_EMPTY = """
 # Other settings here
 """
 
-SETTINGS_FILE_SIMPLE_MODULE = """
-LOGGING_CONFIG = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'airflow.task': {
-            'format': '[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s'
-        },
-    },
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'airflow.task',
-            'stream': 'ext://sys.stdout'
-        },
-        'task': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'airflow.task',
-            'stream': 'ext://sys.stdout'
-        },
-    },
-    'loggers': {
-        'airflow.task': {
-            'handlers': ['task'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-    }
-}
-
-# Test remote logging variables
+SETTINGS_FILE_WITH_REMOTE_VARS = (
+    SETTINGS_FILE_VALID
+    + """
 REMOTE_TASK_LOG = None
 DEFAULT_REMOTE_CONN_ID = "test_conn_id"
 """
-
-SETTINGS_FILE_NESTED_MODULE = SETTINGS_FILE_SIMPLE_MODULE.replace(
-    'DEFAULT_REMOTE_CONN_ID = "test_conn_id"', 'DEFAULT_REMOTE_CONN_ID = "nested_conn_id"'
 )
 
-SETTINGS_FILE_NO_REMOTE_VARS = """
-LOGGING_CONFIG = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'airflow.task': {
-            'format': '[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s'
-        },
-    },
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'airflow.task',
-            'stream': 'ext://sys.stdout'
-        },
-        'task': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'airflow.task',
-            'stream': 'ext://sys.stdout'
-        },
-    },
-    'loggers': {
-        'airflow.task': {
-            'handlers': ['task'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-    }
-}
-# Note: No REMOTE_TASK_LOG or DEFAULT_REMOTE_CONN_ID defined
-"""
+SETTINGS_FILE_NO_REMOTE_VARS = SETTINGS_FILE_WITH_REMOTE_VARS.replace("REMOTE_TASK_LOG = None", "").replace(
+    'DEFAULT_REMOTE_CONN_ID = "test_conn_id"', ""
+)
 
 SETTINGS_DEFAULT_NAME = "custom_airflow_local_settings"
 
@@ -447,9 +388,9 @@ class TestLoggingSettings:
     @pytest.mark.parametrize(
         "settings_content,module_structure,expected_path",
         [
-            (SETTINGS_FILE_SIMPLE_MODULE, None, f"{SETTINGS_DEFAULT_NAME}.LOGGING_CONFIG"),
+            (SETTINGS_FILE_WITH_REMOTE_VARS, None, f"{SETTINGS_DEFAULT_NAME}.LOGGING_CONFIG"),
             (
-                SETTINGS_FILE_NESTED_MODULE,
+                SETTINGS_FILE_WITH_REMOTE_VARS,
                 "nested.config.module",
                 f"nested.config.module.{SETTINGS_DEFAULT_NAME}.LOGGING_CONFIG",
             ),
