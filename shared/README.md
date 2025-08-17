@@ -35,7 +35,7 @@ best judgement.
 ## Mechanics of sharing
 
 The primary mechanism by which we share code is to use in-repo symlinks. This means that there is
-a single copy of the code existing in the repo (no need for a pre-commit to update other copies,
+a single copy of the code existing in the repo (no need for prek hook to update other copies,
 resulting in larger diffs).
 
 The primary reason we are using this sharing approach, rather than the perhaps more traditional
@@ -118,13 +118,13 @@ shared_distributions = [
 ]
 ```
 
-This allows `pre-commit` check to automatically verify if the shared distributio is properly configured in
+This allows `prek` check to automatically verify if the shared distributio is properly configured in
 your source tree and `pyproject.toml`.
 
 You should also have `_shared` folder created in your source tree to be able to symlink the shared
 distributions code.
 
-Once you do it, pre-commit will automatically check and either correct the distribution using the shared one,
+Once you do it, prek hook will automatically check and either correct the distribution using the shared one,
 but you can also do it manually (for each shared distribution used):
 
 * creating a symlink of the sub-folder of `airflow_shared` in the `shared` folder to the
@@ -139,6 +139,6 @@ but you can also do it manually (for each shared distribution used):
 "../shared/timezones/src/airflow_shared/timezones" = "src/airflow/sdk/_shared/timezones"
 ```
 
-* pre-commit will automatically synchronize all dependencies of the shared distributions to
+* prek hook will automatically synchronize all dependencies of the shared distributions to
   your pyproject.toml with appropriate comments allowing it to be automatically synced
   when shared distribution dependencies are updated in the future.

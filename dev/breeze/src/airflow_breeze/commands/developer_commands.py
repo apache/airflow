@@ -22,7 +22,6 @@ import shlex
 import shutil
 import sys
 import threading
-from collections.abc import Iterable
 from pathlib import Path
 from signal import SIGTERM
 from time import sleep
@@ -104,11 +103,8 @@ from airflow_breeze.global_constants import (
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.doc_build_params import DocBuildParams
 from airflow_breeze.params.shell_params import ShellParams
-from airflow_breeze.pre_commit_ids import PRE_COMMIT_LIST
-from airflow_breeze.utils.coertions import one_or_none_set
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
-from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     bring_compose_project_down,
     check_docker_resources,
@@ -124,7 +120,7 @@ from airflow_breeze.utils.path_utils import (
 )
 from airflow_breeze.utils.platforms import get_normalized_platform
 from airflow_breeze.utils.run_utils import (
-    assert_pre_commit_installed,
+    assert_prek_installed,
     run_command,
     run_compile_ui_assets,
 )
@@ -819,194 +815,6 @@ def build_docs(
 
 
 @main.command(
-    name="static-checks",
-    help="Run static checks.",
-    context_settings=dict(
-        ignore_unknown_options=True,
-        allow_extra_args=True,
-    ),
-)
-@click.option(
-    "-t",
-    "--type",
-    "type_",
-    help="Type(s) of the static checks to run.",
-    type=BetterChoice(PRE_COMMIT_LIST),
-)
-@click.option("-a", "--all-files", help="Run checks on all files.", is_flag=True)
-@click.option("-f", "--file", help="List of files to run the checks on.", type=click.Path(), multiple=True)
-@click.option(
-    "-s", "--show-diff-on-failure", help="Show diff for files modified by the checks.", is_flag=True
-)
-@click.option(
-    "-c",
-    "--last-commit",
-    help="Run checks for all files in last commit. Mutually exclusive with --commit-ref.",
-    is_flag=True,
-)
-@click.option(
-    "-m",
-    "--only-my-changes",
-    help="Run checks for commits belonging to my PR only: for all commits between merge base to `main` "
-    "branch and HEAD of your branch.",
-    is_flag=True,
-)
-@click.option(
-    "-r",
-    "--commit-ref",
-    help="Run checks for this commit reference only "
-    "(can be any git commit-ish reference). "
-    "Mutually exclusive with --last-commit.",
-)
-@click.option(
-    "--initialize-environment",
-    help="Initialize environment before running checks.",
-    is_flag=True,
-)
-@click.option(
-    "--max-initialization-attempts",
-    help="Maximum number of attempts to initialize environment before giving up.",
-    show_default=True,
-    type=click.IntRange(1, 10),
-    default=3,
-)
-@option_builder
-@option_dry_run
-@option_force_build
-@option_github_repository
-@option_skip_image_upgrade_check
-@option_verbose
-@click.argument("precommit_args", nargs=-1, type=click.UNPROCESSED)
-def static_checks(
-    all_files: bool,
-    builder: str,
-    commit_ref: str,
-    file: Iterable[str],
-    force_build: bool,
-    github_repository: str,
-    initialize_environment: bool,
-    last_commit: bool,
-    max_initialization_attempts: int,
-    only_my_changes: bool,
-    precommit_args: tuple,
-    show_diff_on_failure: bool,
-    skip_image_upgrade_check: bool,
-    type_: str,
-):
-    assert_pre_commit_installed()
-    perform_environment_checks()
-    build_params = BuildCiParams(
-        builder=builder,
-        force_build=force_build,
-        github_repository=github_repository,
-        # for static checks we do not want to regenerate dependencies before pre-commits are run
-        # we want the pre-commit to do it for us (and detect the case the dependencies are updated)
-        skip_provider_dependencies_check=True,
-    )
-    if not skip_image_upgrade_check:
-        rebuild_or_pull_ci_image_if_needed(command_params=build_params)
-
-    if initialize_environment:
-        get_console().print("[info]Make sure that pre-commit is installed and environment initialized[/]")
-        get_console().print(
-            f"[info]Trying to install the environments up to {max_initialization_attempts} "
-            f"times in case of flakiness[/]"
-        )
-        return_code = 0
-        for attempt in range(1, 1 + max_initialization_attempts):
-            get_console().print(f"[info]Attempt number {attempt} to install pre-commit environments")
-            initialization_result = run_command(
-                ["pre-commit", "install", "--install-hooks"],
-                check=False,
-                no_output_dump_on_exception=True,
-                text=True,
-            )
-            if initialization_result.returncode == 0:
-                break
-            get_console().print(f"[warning]Attempt number {attempt} failed - retrying[/]")
-            return_code = initialization_result.returncode
-        else:
-            get_console().print("[error]Could not install pre-commit environments[/]")
-            sys.exit(return_code)
-
-    command_to_execute = ["pre-commit", "run"]
-    if not one_or_none_set([last_commit, commit_ref, only_my_changes, all_files]):
-        get_console().print(
-            "\n[error]You can only specify "
-            "one of --last-commit, --commit-ref, --only-my-changes, --all-files[/]\n"
-        )
-        sys.exit(1)
-    if type_:
-        command_to_execute.append(type_)
-    if only_my_changes:
-        merge_base = run_command(
-            ["git", "merge-base", "HEAD", "main"], capture_output=True, check=False, text=True
-        ).stdout.strip()
-        if not merge_base:
-            get_console().print(
-                "\n[warning]Could not find merge base between HEAD and main. Running check for all files\n"
-            )
-            all_files = True
-        else:
-            get_console().print(
-                f"\n[info]Running checks for files changed in the current branch: {merge_base}..HEAD\n"
-            )
-            command_to_execute.extend(["--from-ref", merge_base, "--to-ref", "HEAD"])
-    if all_files:
-        command_to_execute.append("--all-files")
-    if show_diff_on_failure:
-        command_to_execute.append("--show-diff-on-failure")
-    if last_commit:
-        get_console().print("\n[info]Running checks for last commit in the current branch: HEAD^..HEAD\n")
-        command_to_execute.extend(["--from-ref", "HEAD^", "--to-ref", "HEAD"])
-    if commit_ref:
-        get_console().print(f"\n[info]Running checks for selected commit: {commit_ref}\n")
-        command_to_execute.extend(["--from-ref", f"{commit_ref}^", "--to-ref", f"{commit_ref}"])
-    if get_verbose() or get_dry_run():
-        command_to_execute.append("--verbose")
-    if file:
-        command_to_execute.append("--files")
-        command_to_execute.extend(file)
-    if precommit_args:
-        command_to_execute.extend(precommit_args)
-    skip_checks = os.environ.get("SKIP")
-    if skip_checks and skip_checks != "identity":
-        get_console().print("\nThis static check run skips those checks:\n")
-        get_console().print(skip_checks.split(","))
-        get_console().print()
-    env = os.environ.copy()
-    env["GITHUB_REPOSITORY"] = github_repository
-    env["VERBOSE"] = str(get_verbose()).lower()
-    static_checks_result = run_command(
-        command_to_execute,
-        check=False,
-        no_output_dump_on_exception=True,
-        text=True,
-        env=env,
-    )
-    if not os.environ.get("SKIP_BREEZE_PRE_COMMITS"):
-        fix_ownership_using_docker()
-    if static_checks_result.returncode != 0:
-        if os.environ.get("CI"):
-            get_console().print("\n[error]This error means that you have to fix the issues listed above:[/]")
-            get_console().print("\n[info]Some of the problems might be fixed automatically via pre-commit[/]")
-            get_console().print(
-                "\n[info]You can run it locally with: `pre-commit run --all-files` "
-                "but it might take quite some time.[/]"
-            )
-            get_console().print(
-                "\n[info]If you use breeze you can also run it faster via: "
-                "`breeze static-checks --only-my-changes` but it might produce slightly "
-                "different results.[/]"
-            )
-            get_console().print(
-                "\n[info]To run `pre-commit` as part of git workflow, use "
-                "`pre-commit install`. This will make pre-commit run as you commit changes[/]\n"
-            )
-    sys.exit(static_checks_result.returncode)
-
-
-@main.command(
     name="compile-ui-assets",
     help="Compiles ui assets.",
 )
@@ -1025,7 +833,7 @@ def static_checks(
 @option_dry_run
 def compile_ui_assets(dev: bool, force_clean: bool):
     perform_environment_checks()
-    assert_pre_commit_installed()
+    assert_prek_installed()
     compile_ui_assets_result = run_compile_ui_assets(
         dev=dev, run_in_background=False, force_clean=force_clean
     )
