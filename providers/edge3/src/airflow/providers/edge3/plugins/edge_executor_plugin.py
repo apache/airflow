@@ -244,6 +244,14 @@ class EdgeExecutorPlugin(AirflowPlugin):
                     "icon": "/edge_worker/res/cloud-computer.svg",
                     "icon_dark_mode": "/edge_worker/res/cloud-computer-dark.svg",
                 },
+                {
+                    "name": "Edge Worker Jobs",
+                    "bundle_url": "/edge_worker/static/main.umd.cjs",
+                    "url_route": "edge_jobs",
+                    "category": "admin",
+                    "icon": "/edge_worker/res/cloud-computer.svg",
+                    "icon_dark_mode": "/edge_worker/res/cloud-computer-dark.svg",
+                },
             ]
             external_views = [
                 {

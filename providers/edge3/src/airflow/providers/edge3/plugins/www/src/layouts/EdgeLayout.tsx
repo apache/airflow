@@ -17,28 +17,28 @@
  * under the License.
  */
 
-import { Box, Button, Heading, Text, VStack } from "@chakra-ui/react";
+import { Box } from "@chakra-ui/react";
 
-import { useColorMode } from "src/context/colorMode";
-import { GrCloudComputer } from "react-icons/gr";
+import { WorkerPage } from "src/pages/WorkerPage";
+import { JobsPage } from "src/pages/JobsPage";
+import { BrowserRouter, Route, Routes } from "react-router";
+import { NavTabs } from "./NavTabs";
 
-export const HomePage = () => {
-  const { toggleColorMode } = useColorMode();
+export const EdgeLayout = () => {
+  const tabs = [
+    { label: "Edge Worker", value: "plugin/edge_worker" },
+    { label: "Edge Jobs", value: "plugin/edge_jobs" },
+  ];
 
   return (
-    <Box p={8} bg="bg.subtle" flexGrow={1} height="100%">
-      <VStack gap={8} align="center" justify="center" flexGrow={1} height="100%">
-        <Heading size="2xl" textAlign="center" color="fg">
-          <GrCloudComputer size={128} />
-          Welcome to Edge Executor Plugin!
-        </Heading>
-        <Text fontSize="lg" color="fg.muted">
-          This is a new view for Airflow Edge Executor Plugin for Airflow 3.
-        </Text>
-        <Button onClick={toggleColorMode} colorPalette="blue">
-          Toggle Theme
-        </Button>
-      </VStack>
+    <Box>
+      <BrowserRouter>
+        <NavTabs tabs={tabs} />
+        <Routes>
+          <Route path="plugin/edge_worker" element={<WorkerPage />} />
+          <Route path="plugin/edge_jobs" element={<JobsPage />} />
+        </Routes>
+      </BrowserRouter>
     </Box>
   );
 };

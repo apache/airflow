@@ -31,10 +31,12 @@
     "@chakra-ui/anatomy": "^2.3.4",
     "@chakra-ui/react": "^3.20.0",
     "@emotion/react": "^11.14.0",
+    "@types/react-router": "^5.1.20",
     "next-themes": "^0.3.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-icons": "^5.5.0"
+    "react-icons": "^5.5.0",
+    "react-router-dom": "^7.8.1"
   },
   "devDependencies": {
     "@eslint/compat": "^1.2.9",
