@@ -16,30 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { type MutableRefObject, useEffect, useState } from "react";
 
-import { ChakraProvider } from "@chakra-ui/react";
-import { FC } from "react";
+export const useContainerWidth = (ref: MutableRefObject<HTMLDivElement | null | undefined>) => {
+  const [width, setWidth] = useState(0);
 
-import { ColorModeProvider } from "src/context/colorMode";
-import { EdgeLayout } from "src/layouts/EdgeLayout";
+  useEffect(() => {
+    if (!ref.current) {
+      return undefined;
+    }
 
-import { system } from "./theme";
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setWidth(entry.contentRect.width);
+      }
+    });
 
-export interface PluginComponentProps {
-  // Add any props your plugin component needs
-}
+    resizeObserver.observe(ref.current);
 
-/**
- * Main plugin component
- */
-const PluginComponent: FC<PluginComponentProps> = (props) => {
-  return (
-    <ChakraProvider value={system}>
-      <ColorModeProvider>
-        <EdgeLayout />
-      </ColorModeProvider>
-    </ChakraProvider>
-  );
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [ref]);
+
+  return width;
 };
-
-export default PluginComponent;
