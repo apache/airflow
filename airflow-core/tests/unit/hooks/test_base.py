@@ -17,12 +17,14 @@
 # under the License.
 from __future__ import annotations
 
+from unittest.mock import call
+
 import pytest
 
 from airflow.exceptions import AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 from airflow.sdk.exceptions import ErrorType
-from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse, GetConnection
+from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse, GetConnection, MaskSecret
 
 from tests_common.test_utils.config import conf_vars
 
@@ -56,8 +58,12 @@ class TestBaseHook:
 
         hook = BaseHook(logger_name="")
         hook.get_connection(conn_id="test_conn")
-        mock_supervisor_comms.send.assert_called_once_with(
-            msg=GetConnection(conn_id="test_conn"),
+        mock_supervisor_comms.send.assert_has_calls(
+            [
+                call(GetConnection(conn_id="test_conn", type="GetConnection")),
+                call(MaskSecret(value="password", name=None, type="MaskSecret")),
+                call(MaskSecret(value='{"extra_key": "extra_value"}', name=None, type="MaskSecret")),
+            ]
         )
 
     def test_get_connection_not_found(self, mock_supervisor_comms):
