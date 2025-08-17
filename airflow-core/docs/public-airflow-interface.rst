@@ -15,6 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
+=====================================
 Public Interface for Airflow 3.0+
 =====================================
 
@@ -155,6 +156,7 @@ Airflow has a set of example dags that you can use to learn how to write dags
 .. toctree::
   :includehidden:
   :glob:
+  :hidden:
   :maxdepth: 1
 
   _api/airflow/example_dags/index
@@ -250,6 +252,7 @@ by extending them:
 .. toctree::
   :includehidden:
   :glob:
+  :hidden:
   :maxdepth: 1
 
   _api/airflow/hooks/index
@@ -314,6 +317,7 @@ exposes:
 .. toctree::
   :includehidden:
   :glob:
+  :hidden:
   :maxdepth: 1
 
   _api/airflow/exceptions/index
@@ -324,6 +328,7 @@ Public Utility classes
 .. toctree::
   :includehidden:
   :glob:
+  :hidden:
   :maxdepth: 1
 
   _api/airflow/utils/state/index
@@ -354,6 +359,7 @@ by extending them:
 .. toctree::
   :includehidden:
   :glob:
+  :hidden:
   :maxdepth: 1
 
   _api/airflow/triggers/index
@@ -372,6 +378,7 @@ by extending them:
 
 .. toctree::
   :includehidden:
+  :hidden:
   :maxdepth: 1
 
   _api/airflow/timetables/index
@@ -441,6 +448,7 @@ All Secrets Backend implementations are public. You can extend their functionali
 .. toctree::
   :includehidden:
   :glob:
+  :hidden:
   :maxdepth: 1
 
   _api/airflow/secrets/index

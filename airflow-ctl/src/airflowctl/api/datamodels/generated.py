@@ -453,6 +453,7 @@ class DagTagResponse(BaseModel):
 
     name: Annotated[str, Field(title="Name")]
     dag_id: Annotated[str, Field(title="Dag Id")]
+    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
 
 
 class DagVersionResponse(BaseModel):

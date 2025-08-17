@@ -92,6 +92,17 @@
     "any": "כלשהו",
     "or": "או"
   },
+  "filters": {
+    "dagDisplayNamePlaceholder": "סנן לפי Dag",
+    "keyPlaceholder": "סנן לפי מפתח XCom",
+    "logicalDateFromPlaceholder": "תאריך לוגי מ-",
+    "logicalDateToPlaceholder": "תאריך לוגי עד",
+    "mapIndexPlaceholder": "סנן לפי אינדקס מיפוי",
+    "runAfterFromPlaceholder": "זמן הרצה מוקדם ביותר מ-",
+    "runAfterToPlaceholder": "זמן הרצה מוקדם ביותר עד",
+    "runIdPlaceholder": "סנן לפי מזהה הרצה",
+    "taskIdPlaceholder": "סנן לפי מזהה משימה"
+  },
   "logicalDate": "תאריך לוגי",
   "logout": "התנתק",
   "logoutConfirmation": "האם אתה בטוח שברצונך להתנתק?",
@@ -208,6 +219,7 @@
   },
   "task_one": "משימה",
   "task_other": "משימות",
+  "taskGroup": "קבוצת משימות",
   "taskId": "מזהה משימה",
   "taskInstance": {
     "dagVersion": "גרסת Dag",

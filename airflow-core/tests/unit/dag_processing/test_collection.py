@@ -350,10 +350,7 @@ class TestUpdateDagParsingResults:
     def test_sync_perms_syncs_dag_specific_perms_on_update(
         self, monkeypatch, spy_agency: SpyAgency, session, time_machine, testing_dag_bundle
     ):
-        """
-        Test that dagbag.sync_to_db will sync DAG specific permissions when a DAG is
-        new or updated
-        """
+        """Test DAG-specific permissions are synced when a DAG is new or updated"""
         from airflow import settings
 
         serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
@@ -442,10 +439,7 @@ class TestUpdateDagParsingResults:
         assert serialized_dags_count == 0
 
     def test_serialized_dags_are_written_to_db_on_sync(self, testing_dag_bundle, session):
-        """
-        Test that when dagbag.sync_to_db is called the DAGs are Serialized and written to DB
-        even when dagbag.read_dags_from_db is False
-        """
+        """Test DAGs are Serialized and written to DB when parsing result is updated"""
         serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
         assert serialized_dags_count == 0
 

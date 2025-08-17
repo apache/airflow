@@ -63,7 +63,7 @@ class _UniqueConstraintErrorHandler(BaseErrorHandler[IntegrityError]):
 
     def __init__(self):
         super().__init__(IntegrityError)
-        self.dialect: _DatabaseDialect.value | None = None
+        self.dialect: _DatabaseDialect | None = None
 
     def exception_handler(self, request: Request, exc: IntegrityError):
         """Handle IntegrityError exception."""

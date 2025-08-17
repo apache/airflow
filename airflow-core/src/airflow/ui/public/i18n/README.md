@@ -258,7 +258,7 @@ uv run dev/i18n/check_translations_completeness.py --language <language_code> --
 > The following describe the desired future state of compliance and enforcement.
 
 - Automated checks SHOULD verify once in a while that all languages have corresponding entries for new terms in the default language. When translations are missing, relevant code owners should be notified.
-- Automated checks SHOULD allow a person doing translation to select the language and aid them in adding new translations so that they do not have to compare them manually. Possibly it can be done by adding `-–add-missing` to the verifying script that will add new entries with `TODO: translate: ENGLISH VERSION` and add pre-commit to not allow such `TODO:` entries to be committed.
+- Automated checks SHOULD allow a person doing translation to select the language and aid them in adding new translations so that they do not have to compare them manually. Possibly it can be done by adding `-–add-missing` to the verifying script that will add new entries with `TODO: translate: ENGLISH VERSION` and add prek hook to not allow such `TODO:` entries to be committed.
 
 ## 10. Exceptions
 

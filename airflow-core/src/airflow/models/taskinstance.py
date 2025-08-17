@@ -120,9 +120,9 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG as SchedulerDAG, DagModel
     from airflow.models.dagrun import DagRun
     from airflow.models.mappedoperator import MappedOperator
+    from airflow.sdk import DAG
     from airflow.sdk.api.datamodels._generated import AssetProfile
     from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
-    from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
     from airflow.serialization.serialized_objects import SerializedBaseOperator
@@ -951,12 +951,18 @@ class TaskInstance(Base, LoggingMixin):
 
         delay = self.task.retry_delay
         if self.task.retry_exponential_backoff:
-            # If the min_backoff calculation is below 1, it will be converted to 0 via int. Thus,
-            # we must round up prior to converting to an int, otherwise a divide by zero error
-            # will occur in the modded_hash calculation.
-            # this probably gives unexpected results if a task instance has previously been cleared,
-            # because try_number can increase without bound
-            min_backoff = math.ceil(delay.total_seconds() * (2 ** (self.try_number - 1)))
+            try:
+                # If the min_backoff calculation is below 1, it will be converted to 0 via int. Thus,
+                # we must round up prior to converting to an int, otherwise a divide by zero error
+                # will occur in the modded_hash calculation.
+                # this probably gives unexpected results if a task instance has previously been cleared,
+                # because try_number can increase without bound
+                min_backoff = math.ceil(delay.total_seconds() * (2 ** (self.try_number - 1)))
+            except OverflowError:
+                min_backoff = MAX_RETRY_DELAY
+                self.log.warning(
+                    "OverflowError occurred while calculating min_backoff, using MAX_RETRY_DELAY for min_backoff."
+                )
 
             # In the case when delay.total_seconds() is 0, min_backoff will not be rounded up to 1.
             # To address this, we impose a lower bound of 1 on min_backoff. This effectively makes
@@ -1424,7 +1430,7 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def defer_task(self, exception: TaskDeferred | None, session: Session = NEW_SESSION) -> None:
         """
-        Mark the task as deferred and sets up the trigger that is needed to resume it when TaskDeferred is raised.
+        Mark the task as deferred and sets up the trigger to resume it.
 
         :meta: private
         """
@@ -1584,7 +1590,8 @@ class TaskInstance(Base, LoggingMixin):
         ti.clear_next_method_args()
 
         context = None
-        # In extreme cases (task instance heartbeat timeout in case of dag with parse error) we might _not_ have a Task.
+        # In extreme cases (task instance heartbeat timeout in case of dag with
+        # parse error) we might _not_ have a Task.
         if getattr(ti, "task", None):
             context = ti.get_template_context(session)
 
@@ -1847,7 +1854,7 @@ class TaskInstance(Base, LoggingMixin):
                     "_upstream_map_indexes",
                     {
                         upstream.task_id: self.get_relevant_upstream_map_indexes(
-                            cast("Operator", upstream),
+                            upstream,
                             expanded_ti_count,
                             session=session,
                         )
@@ -2282,7 +2289,7 @@ def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> Mapp
 
 def _is_further_mapped_inside(operator: Operator, container: TaskGroup) -> bool:
     """Whether given operator is *further* mapped inside a task group."""
-    from airflow.sdk.definitions.mappedoperator import MappedOperator
+    from airflow.models.mappedoperator import MappedOperator
     from airflow.sdk.definitions.taskgroup import MappedTaskGroup
 
     if isinstance(operator, MappedOperator):

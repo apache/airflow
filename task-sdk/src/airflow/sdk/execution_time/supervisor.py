@@ -1351,6 +1351,11 @@ class InProcessTestSupervisor(ActivitySubprocess):
 
     stdin: socket = attrs.field(init=False)
 
+    class _Client(Client):
+        def request(self, *args, **kwargs):
+            # Bypass the tenacity retries!
+            return super().request.__wrapped__(self, *args, **kwargs)  # type: ignore[attr-defined]
+
     @classmethod
     def start(  # type: ignore[override]
         cls,
@@ -1418,8 +1423,6 @@ class InProcessTestSupervisor(ActivitySubprocess):
 
     @staticmethod
     def _api_client(dag=None):
-        from airflow.sdk.api.client import Client
-
         api = in_process_api_server()
         if dag is not None:
             from airflow.api_fastapi.common.dagbag import dag_bag_from_app
@@ -1431,7 +1434,9 @@ class InProcessTestSupervisor(ActivitySubprocess):
 
             api.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag
 
-        client = Client(base_url=None, token="", dry_run=True, transport=api.transport)
+        client = InProcessTestSupervisor._Client(
+            base_url=None, token="", dry_run=True, transport=api.transport
+        )
         # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
         client.base_url = "http://in-process.invalid./"
         return client

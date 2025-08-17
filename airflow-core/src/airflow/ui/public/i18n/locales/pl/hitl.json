@@ -21,5 +21,6 @@
     "rejectionReceived": "Odrzucenie otrzymane",
     "responseReceived": "Odpowiedź otrzymana",
     "responseRequired": "Wymagana odpowiedź"
-  }
+  },
+  "subject": "Temat"
 }

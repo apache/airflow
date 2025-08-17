@@ -80,13 +80,13 @@ if TYPE_CHECKING:
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
+    from airflow.sdk.definitions.operator_resources import Resources
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.serialization.enums import DagAttributeTypes
     from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.triggers.base import BaseTrigger, StartTriggerArgs
     from airflow.typing_compat import Self
-    from airflow.utils.operator_resources import Resources
 
     TaskPreExecuteHook = Callable[[Context], None]
     TaskPostExecuteHook = Callable[[Context, Any], None]
@@ -177,7 +177,7 @@ def coerce_timedelta(value: float | timedelta, *, key: str | None = None) -> tim
 def coerce_resources(resources: dict[str, Any] | None) -> Resources | None:
     if resources is None:
         return None
-    from airflow.utils.operator_resources import Resources
+    from airflow.sdk.definitions.operator_resources import Resources
 
     return Resources(**resources)
 
@@ -1330,7 +1330,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if resources is None:
             return None
 
-        from airflow.utils.operator_resources import Resources
+        from airflow.sdk.definitions.operator_resources import Resources
 
         if isinstance(resources, Resources):
             return resources
@@ -1503,14 +1503,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         return DagAttributeTypes.OP, self.task_id
 
-    @property
-    def inherits_from_empty_operator(self):
-        """Used to determine if an Operator is inherited from EmptyOperator."""
-        # This looks like `isinstance(self, EmptyOperator) would work, but this also
-        # needs to cope when `self` is a Serialized instance of a EmptyOperator or one
-        # of its subclasses (which don't inherit from anything but BaseOperator).
-        return getattr(self, "_is_empty", False)
-
     def unmap(self, resolve: None | Mapping[str, Any]) -> Self:
         """
         Get the "normal" operator from the current operator.
@@ -1557,7 +1549,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """
         Derive when creating an operator.
 
-        The main method to execute the task. Context is the same dictionary used as when rendering jinja templates.
+        The main method to execute the task. Context is the same dictionary used
+        as when rendering jinja templates.
 
         Refer to get_template_context for more context.
         """
