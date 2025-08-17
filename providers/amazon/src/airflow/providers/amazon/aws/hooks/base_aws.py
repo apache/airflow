@@ -688,9 +688,10 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
     def get_session(self, region_name: str | None = None, deferrable: bool = False) -> boto3.session.Session:
         """Get the underlying boto3.session.Session(region_name=region_name)."""
-        return SessionFactory(
-            conn=self.conn_config, region_name=region_name, config=self.config
-        ).create_session(deferrable=deferrable)
+        config = self._config or botocore.config.Config()
+        return SessionFactory(conn=self.conn_config, region_name=region_name, config=config).create_session(
+            deferrable=deferrable
+        )
 
     def _get_config(self, config: Config | None = None) -> Config:
         """
