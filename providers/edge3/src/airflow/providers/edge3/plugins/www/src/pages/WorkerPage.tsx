@@ -17,6 +17,50 @@
  * under the License.
  */
 
+import { Box } from "@chakra-ui/react";
+import { ColumnDef } from "@tanstack/react-table";
+
+import { DataTable } from "src/components/DataTable";
+// import { ErrorAlert } from "src/components/ErrorAlert";
+
+/** Mockup until real backend start */
+type WorkerMockResponse = {
+    hostname: string;
+    state: string;
+    queues: Array<(string)>;
+    firstOnline: string;
+    lastHeartbeat: string;
+    activeJobs: number;
+    systemInformation: Array<(string)>;
+    maintenanceComment: string | null;
+};
+/** Mockup until real backend end */
+
+const createColumns = (): Array<ColumnDef<WorkerMockResponse>> => [
+  {
+    accessorKey: "hostname",
+    enableSorting: true,
+    header: "Hostname",
+  },
+  {
+    accessorKey: "state",
+    enableSorting: true,
+    header: "State",
+  },
+];
+
 export const WorkerPage = () => {
-  return <div>Worker Page</div>;
+  const data = null;
+
+  return (
+    <Box p={2}>
+      <DataTable
+        columns={createColumns()}
+        data={data?.workers ?? []}
+        // errorMessage={<ErrorAlert error={error} />}
+        modelName={"Edge Worker"}
+        total={data?.total_entries}
+      />
+    </Box>
+  );
 };
