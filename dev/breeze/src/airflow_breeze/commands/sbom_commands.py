@@ -417,7 +417,7 @@ def update_sbom_information(
                 ]
         check_async_run_results(
             results=results,
-            success="All SBOMs were generated successfully",
+            success_message="All SBOMs were generated successfully",
             outputs=outputs,
             include_success_outputs=include_success_outputs,
             skip_cleanup=skip_cleanup,
@@ -601,7 +601,7 @@ def build_all_airflow_images(
                 ]
         check_async_run_results(
             results=results,
-            success="All airflow base images were built successfully",
+            success_message="All airflow base images were built successfully",
             outputs=outputs,
             include_success_outputs=include_success_outputs,
             skip_cleanup=skip_cleanup,
@@ -750,7 +750,7 @@ def generate_providers_requirements(
                 ]
         check_async_run_results(
             results=results,
-            success="Providers requirements were generated successfully",
+            success_message="Providers requirements were generated successfully",
             outputs=outputs,
             include_success_outputs=include_success_outputs,
             skip_cleanup=skip_cleanup,

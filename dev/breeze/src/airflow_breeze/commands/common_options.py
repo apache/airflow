@@ -390,13 +390,19 @@ option_tty = click.option(
     default=ALLOWED_TTY[0],
     show_default=True,
     help="Whether to allocate pseudo-tty when running docker command"
-    " (useful for pre-commit and CI to force-enable it).",
+    " (useful for prek and CI to force-enable it).",
 )
 option_upgrade_boto = click.option(
     "--upgrade-boto",
     help="Remove aiobotocore and upgrade botocore and boto to the latest version.",
     is_flag=True,
     envvar="UPGRADE_BOTO",
+)
+option_upgrade_sqlalchemy = click.option(
+    "--upgrade-sqlalchemy",
+    help="Upgrade SQLAlchemy to the latest version.",
+    is_flag=True,
+    envvar="UPGRADE_SQLALCHEMY",
 )
 option_use_uv = click.option(
     "--use-uv/--no-use-uv",

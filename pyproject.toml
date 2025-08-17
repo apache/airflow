@@ -518,7 +518,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.8.8",
+    "uv>=0.8.11",
 ]
 
 
@@ -740,7 +740,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 
 # All of the modules which have an extra license header (i.e. that we copy from another project) need to
 # ignore E402 -- module level import not at top level
-"scripts/ci/pre_commit/*.py" = [ "E402" ]
+"scripts/ci/prek/*.py" = [ "E402" ]
 "airflow-core/src/airflow/api/auth/backend/kerberos_auth.py" = [ "E402" ]
 "airflow-core/src/airflow/security/kerberos.py" = [ "E402" ]
 "airflow-core/src/airflow/security/utils.py" = [ "E402" ]

@@ -62,7 +62,7 @@ AUTOMATICALLY_GENERATED_CONTENT = (
     f"IT WILL BE OVERWRITTEN AT RELEASE TIME!"
 )
 
-# Taken from pygrep hooks we are using in pre-commit
+# Taken from pygrep hooks we are using in prek
 # https://github.com/pre-commit/pygrep-hooks/blob/main/.pre-commit-hooks.yaml
 BACKTICKS_CHECK = re.compile(r"^(?! {4}).*(^| )`[^`]+`([^_]|$)", re.MULTILINE)
 
@@ -196,24 +196,34 @@ TYPE_OF_CHANGE_DESCRIPTION = {
 
 
 def classification_result(provider_id, changed_files):
-    provider_path = f"providers/{provider_id}/"
-    changed_files = list(filter(lambda f: f.startswith(provider_path), changed_files))
+    provider_id = provider_id.replace(".", "/")
+    changed_files = list(filter(lambda f: provider_id in f, changed_files))
 
     if not changed_files:
         return "other"
 
-    has_docs = any(re.match(r"^providers/[^/]+/docs/", f) and f.endswith(".rst") for f in changed_files)
+    def is_doc(f):
+        return re.match(r"^providers/.+/docs/", f) and f.endswith(".rst")
 
-    has_test_or_example_only = all(
-        re.match(r"^providers/[^/]+/tests/", f)
-        or re.match(r"^providers/[^/]+/src/airflow/providers/[^/]+/example_dags/", f)
-        for f in changed_files
-    )
+    def is_test_or_example(f):
+        return re.match(r"^providers/.+/tests/", f) or re.match(
+            r"^providers/.+/src/airflow/providers/.+/example_dags/", f
+        )
 
-    if has_docs:
+    all_docs = all(is_doc(f) for f in changed_files)
+    all_test_or_example = all(is_test_or_example(f) for f in changed_files)
+
+    has_docs = any(is_doc(f) for f in changed_files)
+    has_test_or_example = any(is_test_or_example(f) for f in changed_files)
+
+    has_real_code = any(not (is_doc(f) or is_test_or_example(f)) for f in changed_files)
+
+    if all_docs:
         return "documentation"
-    if has_test_or_example_only:
+    if all_test_or_example:
         return "test_or_example_only"
+    if not has_real_code and (has_docs or has_test_or_example):
+        return "documentation"
     return "other"
 
 

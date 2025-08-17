@@ -46,6 +46,9 @@ APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 # Checked before putting in build cache
 ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.9", "3.10", "3.11", "3.12"]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
+# We set 3.12 as default image version until FAB supports Python 3.13
+DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES = "3.12"
+
 
 # Maps each supported Python version to the minimum Airflow version that supports it.
 # Used to filter Airflow versions incompatible with a given Python runtime.
@@ -61,9 +64,7 @@ NONE_BACKEND = "none"
 ALLOWED_BACKENDS = [SQLITE_BACKEND, MYSQL_BACKEND, POSTGRES_BACKEND, NONE_BACKEND]
 ALLOWED_PROD_BACKENDS = [MYSQL_BACKEND, POSTGRES_BACKEND]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
-TESTABLE_CORE_INTEGRATIONS = [
-    "kerberos",
-]
+TESTABLE_CORE_INTEGRATIONS = ["kerberos"]
 TESTABLE_PROVIDERS_INTEGRATIONS = [
     "celery",
     "cassandra",
@@ -123,7 +124,7 @@ AUTOCOMPLETE_ALL_INTEGRATIONS = sorted(
     ]
 )
 ALLOWED_TTY = ["auto", "enabled", "disabled"]
-ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "pre-commit", "docker-compose"]
+ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "prek", "docker-compose"]
 
 # Unlike everything else, k8s versions are supported as long as 2 major cloud providers support them.
 # See:
@@ -199,7 +200,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "25.2"
-UV_VERSION = "0.8.8"
+UV_VERSION = "0.8.11"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -602,7 +603,7 @@ AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH = (
 )
 
 UPDATE_PROVIDER_DEPENDENCIES_SCRIPT = (
-    AIRFLOW_ROOT_PATH / "scripts" / "ci" / "pre_commit" / "update_providers_dependencies.py"
+    AIRFLOW_ROOT_PATH / "scripts" / "ci" / "prek" / "update_providers_dependencies.py"
 )
 
 ALL_PYPROJECT_TOML_FILES = []
@@ -699,7 +700,7 @@ GITHUB_ACTIONS = ""
 ISSUE_ID = ""
 NUM_RUNS = ""
 
-MIN_DOCKER_VERSION = "24.0.0"
+MIN_DOCKER_VERSION = "25.0.0"
 MIN_DOCKER_COMPOSE_VERSION = "2.20.2"
 MIN_GH_VERSION = "2.70.0"
 
