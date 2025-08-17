@@ -189,7 +189,7 @@ function common::install_packaging_tools() {
     fi
     if  [[ ${AIRFLOW_PREK_VERSION=} == "" ]]; then
         echo
-        echo "${COLOR_BLUE}Installing latest preh, uv${COLOR_RESET}"
+        echo "${COLOR_BLUE}Installing latest prek, uv${COLOR_RESET}"
         echo
         uv tool install prek --with uv
         # make sure that the venv/user in .local exists
