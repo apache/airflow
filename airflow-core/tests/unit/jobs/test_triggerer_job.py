@@ -1055,13 +1055,16 @@ async def test_trigger_can_fetch_dag_run_count_ti_count_in_deferrable(mock_dag_b
     }
 
 
-def test_update_triggers_prevents_duplicate_creation_queue_entries(session, supervisor_builder):
+@patch("airflow.jobs.triggerer_job_runner.DagBag")
+def test_update_triggers_prevents_duplicate_creation_queue_entries(mock_dag_bag_cls, session, supervisor_builder):
     """
     Test that update_triggers prevents adding triggers to the creation queue
     if they are already queued for creation.
     """
     trigger = TimeDeltaTrigger(datetime.timedelta(days=7))
     dag_model, run, trigger_orm, task_instance = create_trigger_in_db(session, trigger)
+
+    mock_dag_bag(mock_dag_bag_cls, task_instance)
 
     supervisor = supervisor_builder()
 
@@ -1084,8 +1087,9 @@ def test_update_triggers_prevents_duplicate_creation_queue_entries(session, supe
     assert not any(trigger_id == trigger_orm.id for trigger_id, _ in supervisor.failed_triggers)
 
 
+@patch("airflow.jobs.triggerer_job_runner.DagBag")
 def test_update_triggers_prevents_duplicate_creation_queue_entries_with_multiple_triggers(
-    session, supervisor_builder, dag_maker
+    mock_dag_bag_cls, session, supervisor_builder, dag_maker
 ):
     """
     Test that update_triggers prevents adding multiple triggers to the creation queue
@@ -1096,6 +1100,8 @@ def test_update_triggers_prevents_duplicate_creation_queue_entries_with_multiple
 
     dag_model1, run1, trigger_orm1, task_instance1 = create_trigger_in_db(session, trigger1)
 
+    mock_dag_bag(mock_dag_bag_cls, task_instance1)
+
     with dag_maker("test_dag_2"):
         EmptyOperator(task_id="test_ti_2")
 
@@ -1104,6 +1110,9 @@ def test_update_triggers_prevents_duplicate_creation_queue_entries_with_multiple
     ti2 = run2.task_instances[0]
     session.add(trigger_orm2)
     session.flush()
+
+    mock_dag_bag(mock_dag_bag_cls, ti2)
+
     ti2.trigger_id = trigger_orm2.id
     session.merge(ti2)
     session.flush()
