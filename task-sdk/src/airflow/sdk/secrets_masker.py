@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 # We don't want to `import *` here to avoid the risk of making adding too much to Public python API
 from airflow.sdk._shared.secrets_masker.secrets_masker import (
     DEFAULT_SENSITIVE_FIELDS,
@@ -28,12 +30,33 @@ from airflow.sdk._shared.secrets_masker.secrets_masker import (
     _secrets_masker,
     get_min_secret_length,
     get_sensitive_variables_fields,
-    mask_secret,
     merge,
     redact,
     reset_secrets_masker,
     should_hide_value_for_key,
 )
+
+
+def mask_secret(secret: str | dict | Iterable, name: str | None = None) -> None:
+    """
+    Mask a secret in both local process and supervisor process.
+
+    For secrets loaded from backends (Vault, env vars, etc.), this ensures
+    they're masked in both the task subprocess AND supervisor's log output.
+    Works safely in both sync and async contexts.
+    """
+    _secrets_masker().add_mask(secret, name)
+
+    try:
+        # Try to tell supervisor (only if in task execution context)
+        from airflow.sdk.execution_time import task_runner
+        from airflow.sdk.execution_time.comms import MaskSecret
+
+        if comms := getattr(task_runner, "SUPERVISOR_COMMS", None):
+            comms.send(MaskSecret(value=secret, name=name))
+    except Exception:
+        pass
+
 
 __all__ = [
     "SecretsMasker",

@@ -117,13 +117,6 @@ def mask_secret(secret: str | dict | Iterable, name: str | None = None) -> None:
     if not secret:
         return
 
-    from airflow.sdk.execution_time import task_runner
-    from airflow.sdk.execution_time.comms import MaskSecret
-
-    if comms := getattr(task_runner, "SUPERVISOR_COMMS", None):
-        # Tell the parent, the process which handles all logs writing and output, about the values to mask
-        comms.send(MaskSecret(value=secret, name=name))
-
     _secrets_masker().add_mask(secret, name)
 
 
