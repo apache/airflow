@@ -45,6 +45,7 @@ default_hitl_detail_request_kwargs: dict[str, Any] = {
     "defaults": ["Approve"],
     "multiple": False,
     "params": {"input_1": 1},
+    "respondents": None,
 }
 expected_empty_hitl_detail_response_part: dict[str, Any] = {
     "response_at": None,
@@ -129,6 +130,29 @@ def test_upsert_hitl_detail(
     }
 
 
+def test_upsert_hitl_detail_with_empty_option(
+    client: TestClient,
+    create_task_instance: CreateTaskInstance,
+    session: Session,
+) -> None:
+    ti = create_task_instance()
+    session.commit()
+
+    response = client.post(
+        f"/execution/hitlDetails/{ti.id}",
+        json={
+            "ti_id": ti.id,
+            "subject": "This is subject",
+            "body": "this is body",
+            "options": [],
+            "defaults": ["Approve"],
+            "multiple": False,
+            "params": {"input_1": 1},
+        },
+    )
+    assert response.status_code == 422
+
+
 @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
 @pytest.mark.usefixtures("sample_hitl_detail")
 def test_update_hitl_detail(client: Client, sample_ti: TaskInstance) -> None:
@@ -148,6 +172,18 @@ def test_update_hitl_detail(client: Client, sample_ti: TaskInstance) -> None:
         "response_received": True,
         "user_id": "Fallback to defaults",
     }
+
+
+def test_update_hitl_detail_without_option(client: Client, sample_ti: TaskInstance) -> None:
+    response = client.patch(
+        f"/execution/hitlDetails/{sample_ti.id}",
+        json={
+            "ti_id": sample_ti.id,
+            "chosen_options": [],
+            "params_input": {"input_1": 2},
+        },
+    )
+    assert response.status_code == 422
 
 
 def test_update_hitl_detail_without_ti(client: Client) -> None:

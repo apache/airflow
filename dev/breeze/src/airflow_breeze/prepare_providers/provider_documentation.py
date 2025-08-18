@@ -62,7 +62,7 @@ AUTOMATICALLY_GENERATED_CONTENT = (
     f"IT WILL BE OVERWRITTEN AT RELEASE TIME!"
 )
 
-# Taken from pygrep hooks we are using in pre-commit
+# Taken from pygrep hooks we are using in prek
 # https://github.com/pre-commit/pygrep-hooks/blob/main/.pre-commit-hooks.yaml
 BACKTICKS_CHECK = re.compile(r"^(?! {4}).*(^| )`[^`]+`([^_]|$)", re.MULTILINE)
 

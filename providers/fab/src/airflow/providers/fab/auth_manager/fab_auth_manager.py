@@ -459,8 +459,6 @@ class FabAuthManager(BaseAuthManager[User]):
                         return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
                     if resource.startswith(permissions.RESOURCE_DAG_PREFIX):
                         resources.add(resource[len(permissions.RESOURCE_DAG_PREFIX) :])
-                    else:
-                        resources.add(resource)
         return set(session.scalars(select(DagModel.dag_id).where(DagModel.dag_id.in_(resources))))
 
     @cached_property

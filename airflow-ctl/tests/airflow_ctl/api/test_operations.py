@@ -733,7 +733,11 @@ class TestDagOperations:
 
     dag_stats_collection_response = DagStatsCollectionResponse(
         dags=[
-            DagStatsResponse(dag_id=dag_id, stats=[DagStatsStateResponse(state=DagRunState.RUNNING, count=1)])
+            DagStatsResponse(
+                dag_id=dag_id,
+                dag_display_name=dag_id,
+                stats=[DagStatsStateResponse(state=DagRunState.RUNNING, count=1)],
+            )
         ],
         total_entries=1,
     )

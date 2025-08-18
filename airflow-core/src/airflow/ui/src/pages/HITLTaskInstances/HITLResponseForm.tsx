@@ -47,7 +47,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
   const { t: translate } = useTranslation();
   const [errors, setErrors] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const { paramsDict } = useParamStore();
+  const { paramsDict } = useParamStore("hitl");
   const { updateHITLResponse } = useUpdateHITLDetail({
     dagId: hitlDetail?.task_instance.dag_id ?? "",
     dagRunId: hitlDetail?.task_instance.dag_run_id ?? "",
@@ -103,6 +103,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
           }}
           isHITL
           key={hitlDetail.subject}
+          namespace="hitl"
           setError={setErrors}
         />
       </Accordion.Root>

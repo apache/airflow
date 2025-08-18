@@ -24,9 +24,9 @@ from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperato
 from airflow.providers.cncf.kubernetes.version_compat import (
     DecoratedOperator,
     TaskDecorator,
+    context_merge,
     task_decorator_factory,
 )
-from airflow.utils.context import context_merge
 from airflow.utils.operator_helpers import determine_kwargs
 
 if TYPE_CHECKING:

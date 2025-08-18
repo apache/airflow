@@ -1,4 +1,10 @@
 {
+  "favorite": {
+    "favoriteDags_one": "Eerste {{count}} favoriete Dags",
+    "favoriteDags_other": "Eerste {{count}} favoriete Dags",
+    "noDagRuns": "Er is nog geen Dag Run voor deze Dag.",
+    "noFavoriteDags": "Geen favorieten. Klik op het sterpictogram naast een Dag in de lijst om deze aan je favorieten toe te voegen."
+  },
   "group": "Groep",
   "health": {
     "dagProcessor": "Dag Processor",
@@ -30,6 +36,7 @@
     "activeDags": "Actieve Dags",
     "failedDags": "Mislukte Dags",
     "queuedDags": "Dags in de wachtrij",
+    "requiredActions": "Vereiste acties",
     "runningDags": "Lopende Dags",
     "stats": "Statistieken"
   },
