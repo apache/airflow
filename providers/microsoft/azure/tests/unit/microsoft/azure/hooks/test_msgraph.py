@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING, cast
 from unittest.mock import Mock, patch
 
 import pytest
-
 from httpx import Response
 from httpx._utils import URLPattern
 from kiota_abstractions.request_information import RequestInformation
@@ -37,7 +36,6 @@ from airflow.exceptions import (
     AirflowException,
     AirflowNotFoundException,
 )
-
 from airflow.providers.microsoft.msgraph.hooks.msgraph import (
     DefaultResponseHandler,
     KiotaRequestAdapterHook,
