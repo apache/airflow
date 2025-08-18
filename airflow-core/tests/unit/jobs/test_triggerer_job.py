@@ -656,11 +656,13 @@ class CustomTrigger(BaseTrigger):
 
         from airflow.sdk import Variable
         from airflow.sdk.execution_time.xcom import XCom
+        from airflow.sdk.log import mask_secret
 
         conn = await sync_to_async(BaseHook.get_connection)("test_connection")
         self.log.info("Loaded conn %s", conn.conn_id)
 
         get_variable_value = await sync_to_async(Variable.get)("test_get_variable")
+        await sync_to_async(mask_secret)(get_variable_value)
         self.log.info("Loaded variable %s", get_variable_value)
 
         get_xcom_value = await sync_to_async(XCom.get_one)(
