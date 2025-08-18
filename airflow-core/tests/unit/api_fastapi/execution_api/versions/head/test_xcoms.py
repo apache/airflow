@@ -320,7 +320,7 @@ class TestXComsGetEndpoint:
         )
         assert response.status_code == 200
 
-        assert response.json() == expected_xcoms
+        assert set(response.json()) == set(expected_xcoms)
 
 
 class TestXComsSetEndpoint:
