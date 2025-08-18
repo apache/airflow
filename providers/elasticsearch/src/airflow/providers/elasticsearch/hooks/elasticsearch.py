@@ -249,7 +249,7 @@ class ElasticsearchPythonHook(BaseHook):
                                 Example: {"ca_cert":"/path/to/cert", "basic_auth": "(user, pass)"}
     """
 
-    def __init__(self, hosts: list[Any], es_conn_args: dict | None = None):
+    def __init__(self, hosts: list[Any], es_conn_args: dict | None = None) -> None:
         super().__init__()
         warn(
             "ElasticsearchPythonHook is deprecated. "
