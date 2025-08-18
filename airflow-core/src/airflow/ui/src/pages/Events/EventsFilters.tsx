@@ -27,8 +27,6 @@ import { SearchBar } from "src/components/SearchBar";
 import { ResetButton } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
 
-import { getFilterCount } from "./filterUtils";
-
 const {
   AFTER: AFTER_PARAM,
   BEFORE: BEFORE_PARAM,
@@ -85,20 +83,10 @@ export const EventsFilters = ({ urlDagId, urlRunId, urlTaskId }: EventsFiltersPr
   );
 
   const handleClearFilters = useCallback(() => {
-    // Clear URL params
-    searchParams.delete(AFTER_PARAM);
-    searchParams.delete(BEFORE_PARAM);
-    searchParams.delete(DAG_ID_PARAM);
-    searchParams.delete(EVENT_TYPE_PARAM);
-    searchParams.delete(MAP_INDEX_PARAM);
-    searchParams.delete(RUN_ID_PARAM);
-    searchParams.delete(TASK_ID_PARAM);
-    searchParams.delete(TRY_NUMBER_PARAM);
-    searchParams.delete(USER_PARAM);
-
+    // Clear all URL params
     resetPagination();
-    setSearchParams(searchParams);
-  }, [resetPagination, searchParams, setSearchParams]);
+    setSearchParams(new URLSearchParams());
+  }, [resetPagination, setSearchParams]);
 
   const handleSearchChange = useCallback(
     (paramName: string) => (value: string) => {
@@ -116,17 +104,7 @@ export const EventsFilters = ({ urlDagId, urlRunId, urlTaskId }: EventsFiltersPr
     [updateSearchParams],
   );
 
-  const filterCount = getFilterCount({
-    after: afterFilter,
-    before: beforeFilter,
-    dagId: dagIdFilter,
-    eventType: eventTypeFilter,
-    mapIndex: mapIndexFilter,
-    runId: runIdFilter,
-    taskId: taskIdFilter,
-    tryNumber: tryNumberFilter,
-    user: userFilter,
-  });
+  const filterCount = searchParams.size;
 
   return (
     <HStack justifyContent="space-between">
@@ -138,7 +116,7 @@ export const EventsFilters = ({ urlDagId, urlRunId, urlTaskId }: EventsFiltersPr
           </Text>
           <DateTimeInput
             onChange={handleDateTimeChange(AFTER_PARAM)}
-            placeholder={translate("auditLog.filters.startDateTime")}
+            placeholder={translate("common:startDate")}
             size="sm"
             value={afterFilter ?? ""}
           />
@@ -149,7 +127,7 @@ export const EventsFilters = ({ urlDagId, urlRunId, urlTaskId }: EventsFiltersPr
           </Text>
           <DateTimeInput
             onChange={handleDateTimeChange(BEFORE_PARAM)}
-            placeholder={translate("auditLog.filters.endDateTime")}
+            placeholder={translate("common:endDate")}
             size="sm"
             value={beforeFilter ?? ""}
           />

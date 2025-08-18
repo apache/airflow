@@ -11,9 +11,7 @@
       "when": "When"
     },
     "filters": {
-      "endDateTime": "End date and time",
-      "eventType": "Event Type",
-      "startDateTime": "Start date and time"
+      "eventType": "Event Type"
     },
     "title": "Audit Log"
   },

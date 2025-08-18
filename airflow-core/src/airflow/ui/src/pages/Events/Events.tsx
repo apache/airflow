@@ -20,6 +20,7 @@
  */
 import { ButtonGroup, Code, Flex, Heading, IconButton, useDisclosure, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import dayjs from "dayjs";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { MdCompress, MdExpand } from "react-icons/md";
@@ -183,8 +184,8 @@ export const Events = () => {
   const mapIndexNumber = mapIndexFilter === null ? undefined : parseInt(mapIndexFilter, 10);
   const tryNumberNumber = tryNumberFilter === null ? undefined : parseInt(tryNumberFilter, 10);
   // Handle date conversion - ensure valid ISO strings
-  const afterDate = afterFilter !== null && !isNaN(Date.parse(afterFilter)) ? afterFilter : undefined;
-  const beforeDate = beforeFilter !== null && !isNaN(Date.parse(beforeFilter)) ? beforeFilter : undefined;
+  const afterDate = afterFilter !== null && dayjs(afterFilter).isValid() ? afterFilter : undefined;
+  const beforeDate = beforeFilter !== null && dayjs(beforeFilter).isValid() ? beforeFilter : undefined;
   const hasTextFilters = Boolean(dagIdFilter ?? eventTypeFilter ?? userFilter ?? runIdFilter ?? taskIdFilter);
 
   const { data, error, isFetching, isLoading } = useEventLogServiceGetEventLogs(
