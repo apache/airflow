@@ -1820,7 +1820,7 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
         return
 
     if AIRFLOW_V_3_1_PLUS:
-        target = "airflow.sdk.secrets_masker.SecretsMasker.redact"
+        target = "airflow._shared.secrets_masker.secrets_masker.SecretsMasker.redact"
     elif AIRFLOW_V_3_0_PLUS:
         target = "airflow.sdk.execution_time.secrets_masker.SecretsMasker.redact"
     else:
