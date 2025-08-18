@@ -22,25 +22,28 @@ from typing import TYPE_CHECKING, cast
 from unittest.mock import Mock, patch
 
 import pytest
-from airflow.exceptions import AirflowBadRequest, AirflowConfigException, AirflowException, AirflowNotFoundException
-from airflow.providers.microsoft.msgraph.hooks.msgraph import (
-    DefaultResponseHandler,
-    KiotaRequestAdapterHook,
-)
+
 from httpx import Response
 from httpx._utils import URLPattern
 from kiota_abstractions.request_information import RequestInformation
-from kiota_http.httpx_request_adapter import HttpxRequestAdapter
-from kiota_serialization_json.json_parse_node import JsonParseNode
 from kiota_serialization_text.text_parse_node import TextParseNode
 from msgraph_core import APIVersion, NationalClouds
 from opentelemetry.trace import Span
 
-from tests.unit.base import Base
+from airflow.exceptions import (
+    AirflowBadRequest,
+    AirflowConfigException,
+    AirflowException,
+    AirflowNotFoundException,
+)
+
+from airflow.providers.microsoft.msgraph.hooks.msgraph import (
+    DefaultResponseHandler,
+    KiotaRequestAdapterHook,
+)
+
 from tests.unit.conftest import (
     get_airflow_connection,
-    load_file,
-    load_json,
     mock_connection,
     mock_json_response,
     mock_response,
