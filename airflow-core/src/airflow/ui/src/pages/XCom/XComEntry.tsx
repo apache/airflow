@@ -22,6 +22,7 @@ import { useXcomServiceGetXcomEntry } from "openapi/queries";
 import type { XComResponseNative } from "openapi/requests/types.gen";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import { ClipboardIconButton, ClipboardRoot } from "src/components/ui";
+import { urlRegex } from "src/constants/urlRegex";
 
 type XComEntryProps = {
   readonly dagId: string;
@@ -31,25 +32,16 @@ type XComEntryProps = {
   readonly xcomKey: string;
 };
 
-const isUrl = (text: string): boolean => {
-  try {
-    // eslint-disable-next-line no-new
-    new URL(text);
-
-    return true;
-  } catch {
-    return false;
-  }
-};
-
 const renderTextWithLinks = (text: string) => {
-  const urlRegex = /(https?:\/\/\S+)/gu;
-  const parts = text.split(urlRegex);
+  const urls = text.match(urlRegex);
+  const parts = text.split(/\s+/u);
 
   return (
     <>
-      {parts.map((part) => {
-        if (isUrl(part)) {
+      {parts.map((part, index) => {
+        const isLastPart = index === parts.length - 1;
+
+        if (urls?.includes(part)) {
           return (
             <Link
               color="fg.info"
@@ -64,7 +56,7 @@ const renderTextWithLinks = (text: string) => {
           );
         }
 
-        return part;
+        return `${part}${isLastPart ? "" : " "}`;
       })}
     </>
   );
