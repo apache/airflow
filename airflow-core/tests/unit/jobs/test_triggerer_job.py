@@ -411,7 +411,9 @@ class TestTriggerRunner:
 
 @pytest.mark.asyncio
 @patch("airflow.jobs.triggerer_job_runner.DagBag")
-async def test_trigger_create_race_condition_38599(mock_dag_bag_cls, session, supervisor_builder, testing_dag_bundle):
+async def test_trigger_create_race_condition_38599(
+    mock_dag_bag_cls, session, supervisor_builder, testing_dag_bundle
+):
     """
     This verifies the resolution of race condition documented in github issue #38599.
     More details in the issue description.
