@@ -57,17 +57,19 @@ const parseLogs = ({ data, logLevelFilters, sourceFilters, taskInstance, tryNumb
   const logLink = taskInstance ? `${getTaskInstanceLink(taskInstance)}?try_number=${tryNumber}` : "";
 
   try {
-    parsedLines = data.map((datum, index) => {
-      if (typeof datum !== "string" && "logger" in datum) {
-        const source = datum.logger as string;
+    parsedLines = data
+      .map((datum, index) => {
+        if (typeof datum !== "string" && "logger" in datum) {
+          const source = datum.logger as string;
 
-        if (!sources.includes(source)) {
-          sources.push(source);
+          if (!sources.includes(source)) {
+            sources.push(source);
+          }
         }
-      }
 
-      return renderStructuredLog({ index, logLevelFilters, logLink, logMessage: datum, sourceFilters });
-    });
+        return renderStructuredLog({ index, logLevelFilters, logLink, logMessage: datum, sourceFilters });
+      })
+      .filter((parsedLine) => parsedLine !== "");
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "An error occurred.";
 
