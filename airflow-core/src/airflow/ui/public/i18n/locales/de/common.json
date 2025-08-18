@@ -94,12 +94,12 @@
   },
   "filters": {
     "dagDisplayNamePlaceholder": "Nach Dag filtern",
-    "keyPlaceholder": "Nach Task Kommunikation (XComs) Schlüssel filtern",
+    "keyPlaceholder": "Nach Task Kommunikation (XCom) Schlüssel filtern",
     "logicalDateFromPlaceholder": "Logisches Datum Von",
     "logicalDateToPlaceholder": "Logisches Datum Bis",
     "mapIndexPlaceholder": "Nach Planungs-Index filtern",
-    "runAfterFromPlaceholder": "Nach Gelaufen ab filtern",
-    "runAfterToPlaceholder": "Nach Gelaufen bis filtern",
+    "runAfterFromPlaceholder": "Gelaufen-nach von filtern",
+    "runAfterToPlaceholder": "Gelaufen-nach bis filtern",
     "runIdPlaceholder": "Nach Lauf ID filtern",
     "taskIdPlaceholder": "Nach Task ID filtern"
   },
