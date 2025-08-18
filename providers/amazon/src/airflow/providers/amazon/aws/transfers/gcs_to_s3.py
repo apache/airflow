@@ -32,6 +32,7 @@ from airflow.providers.google.cloud.hooks.gcs import GCSHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+    from airflow.providers.openlineage.extractors import OperatorLineage
 
 
 class GCSToS3Operator(BaseOperator):
@@ -207,14 +208,13 @@ class GCSToS3Operator(BaseOperator):
 
         return gcs_files
 
-    def get_openlineage_facets_on_start(self):
-        from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+    def get_openlineage_facets_on_start(self) -> OperatorLineage:
         from airflow.providers.common.compat.openlineage.facet import Dataset
         from airflow.providers.openlineage.extractors import OperatorLineage
 
-        aws_bucket_name, aws_prefix = S3Hook.parse_s3_url(self.dest_s3_key)
+        bucket_name, s3_key = S3Hook.parse_s3_url(self.dest_s3_key)
 
         return OperatorLineage(
             inputs=[Dataset(namespace=f"gs://{self.gcs_bucket}", name=self.prefix or "/")],
-            outputs=[Dataset(namespace=f"s3://{aws_bucket_name}", name=aws_prefix or "/")],
+            outputs=[Dataset(namespace=f"s3://{bucket_name}", name=s3_key or "/")],
         )
