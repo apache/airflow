@@ -38,6 +38,7 @@ from airflow.exceptions import (
     AirflowConfigException,
     AirflowException,
     AirflowNotFoundException,
+    AirflowProviderDeprecationWarning,
 )
 from airflow.providers.microsoft.azure.hooks.msgraph import (
     DefaultResponseHandler,
