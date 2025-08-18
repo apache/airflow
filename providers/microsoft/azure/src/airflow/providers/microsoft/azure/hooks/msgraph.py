@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import quote, urljoin, urlparse
 
 import httpx
+from asgiref.sync import sync_to_async
 from azure.identity import CertificateCredential, ClientSecretCredential
 from httpx import AsyncHTTPTransport, Response, Timeout
 from kiota_abstractions.api_error import APIError
@@ -138,7 +139,7 @@ class KiotaRequestAdapterHook(BaseHook):
             self.scopes = [scopes]
         else:
             self.scopes = scopes or [self.DEFAULT_SCOPE]
-        self._api_version = self.resolve_api_version_from_value(api_version)
+        self.api_version = self.resolve_api_version_from_value(api_version)
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
@@ -186,11 +187,6 @@ class KiotaRequestAdapterHook(BaseHook):
             },
         }
 
-    @property
-    def api_version(self) -> str | None:
-        self.get_conn()  # Make sure config has been loaded through get_conn to have correct api version!
-        return self._api_version
-
     @staticmethod
     def resolve_api_version_from_value(
         api_version: APIVersion | str, default: str | None = None
@@ -200,7 +196,7 @@ class KiotaRequestAdapterHook(BaseHook):
         return api_version or default
 
     def get_api_version(self, config: dict) -> str:
-        return self._api_version or self.resolve_api_version_from_value(
+        return self.api_version or self.resolve_api_version_from_value(
             config.get("api_version"), APIVersion.v1.value
         )  # type: ignore
 
@@ -208,6 +204,13 @@ class KiotaRequestAdapterHook(BaseHook):
         if connection.schema and connection.host:
             return f"{connection.schema}://{connection.host}"
         return self.host
+
+    def get_base_url(self, host: str, api_version: str, config: dict) -> str:
+        base_url = config.get("base_url", urljoin(host, api_version)).strip()
+
+        if not base_url.endswith("/"):
+            return f"{base_url}/"
+        return base_url
 
     @staticmethod
     def format_no_proxy_url(url: str) -> str:
@@ -242,20 +245,20 @@ class KiotaRequestAdapterHook(BaseHook):
                         return None
         return proxies
 
-    def get_conn(self) -> RequestAdapter:
+    async def get_conn(self) -> RequestAdapter:
         if not self.conn_id:
             raise AirflowException("Failed to create the KiotaRequestAdapterHook. No conn_id provided!")
 
         api_version, request_adapter = self.cached_request_adapters.get(self.conn_id, (None, None))
 
         if not request_adapter:
-            connection = self.get_connection(conn_id=self.conn_id)
+            connection = await sync_to_async(self.get_connection)(conn_id=self.conn_id)
             client_id = connection.login
             client_secret = connection.password
             config = connection.extra_dejson if connection.extra else {}
             api_version = self.get_api_version(config)
             host = self.get_host(connection)  # type: ignore[arg-type]
-            base_url = config.get("base_url", urljoin(host, api_version))
+            base_url = self.get_base_url(host, api_version, config)
             authority = config.get("authority")
             proxies = self.get_proxies(config)
             httpx_proxies = self.to_httpx_proxies(proxies=proxies)
@@ -318,7 +321,7 @@ class KiotaRequestAdapterHook(BaseHook):
                 base_url=base_url,
             )
             self.cached_request_adapters[self.conn_id] = (api_version, request_adapter)
-        self._api_version = api_version
+        self.api_version = api_version
         return request_adapter
 
     def get_proxies(self, config: dict) -> dict:
@@ -418,13 +421,15 @@ class KiotaRequestAdapterHook(BaseHook):
         return response
 
     async def send_request(self, request_info: RequestInformation, response_type: str | None = None):
+        conn = await self.get_conn()
+
         if response_type:
-            return await self.get_conn().send_primitive_async(
+            return await conn.send_primitive_async(
                 request_info=request_info,
                 response_type=response_type,
                 error_map=self.error_mapping(),
             )
-        return await self.get_conn().send_no_response_content_async(
+        return await conn.send_no_response_content_async(
             request_info=request_info,
             error_map=self.error_mapping(),
         )
@@ -468,7 +473,7 @@ class KiotaRequestAdapterHook(BaseHook):
                 header_name=RequestInformation.CONTENT_TYPE_HEADER, header_value="application/json"
             )
             request_information.content = json.dumps(data).encode("utf-8")
-        print("Request Information:", request_information.url)
+        self.log.debug("Request Information: %s", request_information.url)
         return request_information
 
     @staticmethod
