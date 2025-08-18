@@ -30,7 +30,7 @@ from contextlib import ExitStack
 from datetime import date, datetime, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import and_, delete, desc, exists, func, inspect, or_, select, text, tuple_, update
 from sqlalchemy.exc import OperationalError
@@ -91,10 +91,10 @@ if TYPE_CHECKING:
 
     from airflow.executors.base_executor import BaseExecutor
     from airflow.executors.executor_utils import ExecutorName
+    from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstanceKey
-    from airflow.utils.sqlalchemy import (
-        CommitProhibitorGuard,
-    )
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
+    from airflow.utils.sqlalchemy import CommitProhibitorGuard
 
 TI = TaskInstance
 DR = DagRun
@@ -721,6 +721,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         objects = (log_records.popleft() for _ in range(len(log_records)))
         session.bulk_save_objects(objects=objects, preserve_order=False)
 
+    @staticmethod
+    def _is_metrics_enabled():
+        return any(
+            [
+                conf.getboolean("metrics", "statsd_datadog_enabled", fallback=False),
+                conf.getboolean("metrics", "statsd_on", fallback=False),
+                conf.getboolean("metrics", "otel_on", fallback=False),
+            ]
+        )
+
+    @staticmethod
+    def _is_tracing_enabled():
+        return conf.getboolean("traces", "otel_on")
+
     def _process_executor_events(self, executor: BaseExecutor, session: Session) -> int:
         return SchedulerJobRunner.process_executor_events(
             executor=executor,
@@ -873,7 +887,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
                     if TYPE_CHECKING:
                         assert dag
-                    task = dag.get_task(ti.task_id)
+                    # TODO (GH-52141): get_task in scheduler needs to return scheduler types
+                    # instead, but currently it inherits SDK's DAG.
+                    task = cast("MappedOperator | SerializedBaseOperator", dag.get_task(ti.task_id))
                 except Exception:
                     cls.logger().exception("Marking task instance %s as %s", ti, state)
                     ti.set_state(state)
@@ -1188,15 +1204,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self._mark_backfills_complete,
         )
 
-        timers.call_regular_interval(
-            conf.getfloat("scheduler", "pool_metrics_interval", fallback=5.0),
-            self._emit_pool_metrics,
-        )
+        if self._is_metrics_enabled() or self._is_tracing_enabled():
+            timers.call_regular_interval(
+                conf.getfloat("scheduler", "pool_metrics_interval", fallback=5.0),
+                self._emit_pool_metrics,
+            )
 
-        timers.call_regular_interval(
-            conf.getfloat("scheduler", "running_metrics_interval", fallback=30.0),
-            self._emit_running_ti_metrics,
-        )
+        if self._is_metrics_enabled():
+            timers.call_regular_interval(
+                conf.getfloat("scheduler", "running_metrics_interval", fallback=30.0),
+                self._emit_running_ti_metrics,
+            )
 
         timers.call_regular_interval(
             conf.getfloat("scheduler", "task_instance_heartbeat_timeout_detection_interval", fallback=10.0),
@@ -1240,7 +1258,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
 
                 with create_session() as session:
-                    self._end_spans_of_externally_ended_ops(session)
+                    if self._is_tracing_enabled():
+                        self._end_spans_of_externally_ended_ops(session)
 
                     # This will schedule for as many executors as possible.
                     num_queued_tis = self._do_scheduling(session)
@@ -1565,7 +1584,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
             asset_events = session.scalars(
-                select(AssetEvent).where(
+                select(AssetEvent)
+                .where(
                     or_(
                         AssetEvent.asset_id.in_(
                             select(DagScheduleAssetReference.asset_id).where(
@@ -1581,6 +1601,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     AssetEvent.timestamp <= triggered_date,
                     AssetEvent.timestamp > func.coalesce(cte.c.previous_dag_run_run_after, date.min),
                 )
+                .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
             ).all()
 
             dag_run = dag.create_dagrun(
@@ -2034,6 +2055,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .values(
                 state=TaskInstanceState.SCHEDULED,
                 queued_dttm=None,
+                queued_by_job_id=None,
                 scheduled_dttm=timezone.utcnow(),
             )
             .execution_options(synchronize_session=False)

@@ -38,6 +38,7 @@ def upsert_hitl_detail(
     defaults: list[str] | None = None,
     multiple: bool = False,
     params: dict[str, Any] | None = None,
+    respondents: list[str] | None = None,
 ) -> None:
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
@@ -50,6 +51,7 @@ def upsert_hitl_detail(
             defaults=defaults,
             params=params,
             multiple=multiple,
+            respondents=respondents,
         )
     )
 

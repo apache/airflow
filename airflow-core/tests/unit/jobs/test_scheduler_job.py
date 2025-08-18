@@ -61,7 +61,7 @@ from airflow.models.asset import (
 from airflow.models.backfill import Backfill, _create_backfill
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dag_version import DagVersion
-from airflow.models.dagbag import DagBag
+from airflow.models.dagbag import DagBag, sync_bag_to_db
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
@@ -74,6 +74,7 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import task
 from airflow.sdk.definitions.asset import Asset, AssetAlias
+from airflow.sdk.definitions.deadline import AsyncCallback
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.timetables.base import DataInterval
 from airflow.traces.tracer import Trace
@@ -89,6 +90,7 @@ from tests_common.test_utils.config import conf_vars, env_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_backfills,
+    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_deadline,
     clear_db_import_errors,
@@ -152,11 +154,11 @@ def create_dagrun(session):
     def _create_dagrun(
         dag: DAG,
         *,
-        logical_date: datetime,
+        logical_date: datetime.datetime,
         data_interval: DataInterval,
         run_type: DagRunType,
         state: DagRunState = DagRunState.RUNNING,
-        start_date: datetime | None = None,
+        start_date: datetime.datetime | None = None,
     ) -> DagRun:
         run_after = logical_date or timezone.utcnow()
         run_id = DagRun.generate_run_id(
@@ -3010,7 +3012,7 @@ class TestSchedulerJob:
         Noted: the DagRun state could be still in running state during CI.
         """
         dagbag = DagBag(TEST_DAG_FOLDER, include_examples=False)
-        dagbag.sync_to_db("testing", None)
+        sync_bag_to_db(dagbag, "testing", None)
         dag_id = "test_dagrun_states_root_future"
         dag = dagbag.get_dag(dag_id)
         DAG.bulk_write_to_db("testing", None, [dag])
@@ -3099,7 +3101,7 @@ class TestSchedulerJob:
         other_dag.is_paused_upon_creation = True
         dagbag.bag_dag(dag=other_dag)
 
-        dagbag.sync_to_db("testing", None)
+        sync_bag_to_db(dagbag, "testing", None)
 
         scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=3)
@@ -3135,7 +3137,7 @@ class TestSchedulerJob:
         other_dag.is_paused_upon_creation = True
         dagbag.bag_dag(dag=other_dag)
 
-        dagbag.sync_to_db("testing", None)
+        sync_bag_to_db(dagbag, "testing", None)
 
         scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=3)
@@ -3423,7 +3425,7 @@ class TestSchedulerJob:
         session = settings.Session()
         orm_dag = dag_maker.dag_model
         assert orm_dag is not None
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
@@ -3465,7 +3467,7 @@ class TestSchedulerJob:
                 SerializedDagModel.dag_id == "test_verify_integrity_if_dag_changed"
             ).delete(synchronize_session=False)
 
-        with dag_maker(dag_id="test_verify_integrity_if_dag_changed") as dag:
+        with dag_maker(dag_id="test_verify_integrity_if_dag_changed", serialized=False) as dag:
             BashOperator(task_id="dummy", bash_command="echo hi")
 
         scheduler_job = Job()
@@ -5756,7 +5758,7 @@ class TestSchedulerJob:
         """
         Test if a task instance will be added if the dag is updated
         """
-        with dag_maker(dag_id="test_scheduler_add_new_task") as dag:
+        with dag_maker(dag_id="test_scheduler_add_new_task", serialized=False) as dag:
             BashOperator(task_id="dummy", bash_command="echo test")
 
         scheduler_job = Job()
@@ -5872,7 +5874,7 @@ class TestSchedulerJob:
         assert ti1.next_method == "__fail__"
         assert ti2.state == State.DEFERRED
 
-    def test_retry_on_db_error_when_update_timeout_triggers(self, dag_maker, session):
+    def test_retry_on_db_error_when_update_timeout_triggers(self, dag_maker, testing_dag_bundle, session):
         """
         Tests that it will retry on DB error like deadlock when updating timeout triggers.
         """
@@ -5912,8 +5914,9 @@ class TestSchedulerJob:
                 # Create a Task Instance for the task that is allegedly deferred
                 # but past its timeout, and one that is still good.
                 # We don't actually need a linked trigger here; the code doesn't check.
-                dag.sync_to_db()
-                SerializedDagModel.write_dag(dag=dag, bundle_name="testing")
+                bundle_name = "testing"
+                DAG.bulk_write_to_db(bundle_name, None, [dag])
+                SerializedDagModel.write_dag(dag=dag, bundle_name=bundle_name)
                 session.flush()
                 dr1 = dag_maker.create_dagrun()
                 dr2 = dag_maker.create_dagrun(
@@ -6162,7 +6165,7 @@ class TestSchedulerJob:
         from airflow.executors.local_executor import LocalExecutor
 
         dagbag = DagBag(dag_folder=TEST_DAGS_FOLDER, include_examples=False)
-        dagbag.sync_to_db("testing", None)
+        sync_bag_to_db(dagbag, "testing", None)
         dagbag.process_file(str(TEST_DAGS_FOLDER / f"{dag_id}.py"))
         dag = dagbag.get_dag(dag_id)
         assert dag
@@ -6194,8 +6197,8 @@ class TestSchedulerJob:
         dag_file = Path(__file__).parents[1] / "dags/test_only_empty_tasks.py"
 
         # Write DAGs to dag and serialized_dag table
-        dagbag = DagBag(dag_folder=dag_file, include_examples=False, read_dags_from_db=False)
-        dagbag.sync_to_db("testing", None)
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
+        sync_bag_to_db(dagbag, "testing", None)
 
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
@@ -6707,23 +6710,36 @@ class TestSchedulerJob:
         )
 
     @mock.patch("airflow.models.Deadline.handle_miss")
-    def test_process_expired_deadlines(self, mock_handle_miss, session):
+    def test_process_expired_deadlines(self, mock_handle_miss, session, dag_maker):
         """Verify all expired and unhandled deadlines (and only those) are processed by the scheduler."""
         scheduler_job = Job(executor=MockExecutor())
         self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=1)
 
         past_date = timezone.utcnow() - timedelta(minutes=5)
         future_date = timezone.utcnow() + timedelta(minutes=5)
-        callback_path = "builtins.print"
+        callback_path = "classpath.notify"
+
+        # Create a test Dag run for Deadline
+        with dag_maker(dag_id="test_deadline_dag"):
+            EmptyOperator(task_id="empty")
+        dagrun_id = dag_maker.create_dagrun().id
 
         handled_deadlines = []
         for state in DeadlineCallbackState:
-            deadline = Deadline(deadline_time=past_date, callback=callback_path)
+            deadline = Deadline(
+                deadline_time=past_date, callback=AsyncCallback(callback_path), dagrun_id=dagrun_id
+            )
             deadline.callback_state = state
             handled_deadlines.append(deadline)
-        expired_deadline1 = Deadline(deadline_time=past_date, callback=callback_path)
-        expired_deadline2 = Deadline(deadline_time=past_date, callback=callback_path)
-        future_deadline = Deadline(deadline_time=future_date, callback=callback_path)
+        expired_deadline1 = Deadline(
+            deadline_time=past_date, callback=AsyncCallback(callback_path), dagrun_id=dagrun_id
+        )
+        expired_deadline2 = Deadline(
+            deadline_time=past_date, callback=AsyncCallback(callback_path), dagrun_id=dagrun_id
+        )
+        future_deadline = Deadline(
+            deadline_time=future_date, callback=AsyncCallback(callback_path), dagrun_id=dagrun_id
+        )
 
         session.add_all([expired_deadline1, expired_deadline2, future_deadline] + handled_deadlines)
         session.flush()
@@ -6799,6 +6815,7 @@ class TestSchedulerJobQueriesCount:
         clear_db_pools()
         clear_db_backfills()
         clear_db_dags()
+        clear_db_dag_bundles()
         clear_db_import_errors()
         clear_db_jobs()
         clear_db_serialized_dags()
@@ -6847,13 +6864,10 @@ class TestSchedulerJobQueriesCount:
             ),
         ):
             dagruns = []
-            dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False, read_dags_from_db=False)
-            dagbag.sync_to_db("testing", None)
+            dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False)
+            sync_bag_to_db(dagbag, "testing", None)
 
-            dag_ids = dagbag.dag_ids
-            dagbag = DagBag(read_dags_from_db=True)
-            for i, dag_id in enumerate(dag_ids):
-                dag = dagbag.get_dag(dag_id)
+            for i, dag in enumerate(dagbag.dags.values()):
                 dr = dag.create_dagrun(
                     state=State.RUNNING,
                     run_id=f"{DagRunType.MANUAL.value}__{i}",
@@ -6942,7 +6956,7 @@ class TestSchedulerJobQueriesCount:
             ),
         ):
             dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False)
-            dagbag.sync_to_db("testing", None)
+            sync_bag_to_db(dagbag, "testing", None)
 
             scheduler_job = Job(job_type=SchedulerJobRunner.job_type, executor=MockExecutor(do_update=False))
             scheduler_job.heartbeat = mock.MagicMock()

@@ -208,6 +208,7 @@
   },
   "task_one": "Task",
   "task_other": "Tasks",
+  "taskGroup": "Task Gruppe",
   "taskId": "Task ID",
   "taskInstance": {
     "dagVersion": "Dag Version",
