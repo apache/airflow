@@ -95,6 +95,7 @@ def login_all_admins(request: Request) -> RedirectResponse:
         SimpleAuthManagerLogin.create_token_all_admins(),
         secure=secure,
         http_only=True,
+        expires=300,  # 5 minutes should be more than enough for JWT token exchange
     )
     return response
 
