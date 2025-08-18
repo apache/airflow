@@ -1056,7 +1056,9 @@ async def test_trigger_can_fetch_dag_run_count_ti_count_in_deferrable(mock_dag_b
 
 
 @patch("airflow.jobs.triggerer_job_runner.DagBag")
-def test_update_triggers_prevents_duplicate_creation_queue_entries(mock_dag_bag_cls, session, supervisor_builder):
+def test_update_triggers_prevents_duplicate_creation_queue_entries(
+    mock_dag_bag_cls, session, supervisor_builder
+):
     """
     Test that update_triggers prevents adding triggers to the creation queue
     if they are already queued for creation.
