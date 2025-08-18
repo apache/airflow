@@ -348,7 +348,7 @@ class TestKiotaRequestAdapterHook:
             span = Mock(spec=Span)
 
             conn = await hook.get_conn()
-            actual = conn.get_root_parse_node(response, span, span)
+            actual = await conn.get_root_parse_node(response, span, span)
 
             assert isinstance(actual, TextParseNode)
             assert actual.get_str_value() == "TenantThrottleThresholdExceeded"
@@ -368,7 +368,7 @@ class TestKiotaRequestAdapterHook:
             span = Mock(spec=Span)
 
             conn = await hook.get_conn()
-            actual = conn.get_root_parse_node(response, span, span)
+            actual = await conn.get_root_parse_node(response, span, span)
 
             assert isinstance(actual, JsonParseNode)
             error_code = actual.get_child_node("error").get_child_node("code").get_str_value()
