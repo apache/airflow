@@ -44,7 +44,6 @@ class TaskInstanceResponse(BaseModel):
     id: str
     task_id: str
     dag_id: str
-    dag_version: DagVersionResponse
     run_id: str = Field(alias="dag_run_id")
     map_index: int
     logical_date: datetime | None
@@ -77,6 +76,7 @@ class TaskInstanceResponse(BaseModel):
     )
     trigger: TriggerResponse | None
     queued_by_job: JobResponse | None = Field(alias="triggerer_job")
+    dag_version: DagVersionResponse | None
 
 
 class TaskInstanceCollectionResponse(BaseModel):

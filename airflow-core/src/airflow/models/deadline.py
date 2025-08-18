@@ -33,7 +33,7 @@ from sqlalchemy_utils import UUIDType
 
 from airflow._shared.timezones import timezone
 from airflow.models import Trigger
-from airflow.models.base import Base, StringID
+from airflow.models.base import Base
 from airflow.serialization.serde import deserialize, serialize
 from airflow.settings import json
 from airflow.triggers.deadline import PAYLOAD_STATUS_KEY, DeadlineCallbackTrigger
@@ -97,8 +97,7 @@ class Deadline(Base):
 
     id = Column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
 
-    # If the Deadline Alert is for a DAG, store the DAG ID and Run ID from the dag_run.
-    dag_id = Column(StringID(), ForeignKey("dag.dag_id", ondelete="CASCADE"))
+    # If the Deadline Alert is for a DAG, store the DAG run ID from the dag_run.
     dagrun_id = Column(Integer, ForeignKey("dag_run.id", ondelete="CASCADE"))
 
     # The time after which the Deadline has passed and the callback should be triggered.
@@ -120,21 +119,19 @@ class Deadline(Base):
         self,
         deadline_time: datetime,
         callback: Callback,
-        dag_id: str | None = None,
-        dagrun_id: int | None = None,
+        dagrun_id: int,
     ):
         super().__init__()
         self.deadline_time = deadline_time
         self._callback = serialize(callback)
-        self.dag_id = dag_id
         self.dagrun_id = dagrun_id
 
     def __repr__(self):
         def _determine_resource() -> tuple[str, str]:
             """Determine the type of resource based on which values are present."""
-            if self.dag_id and self.dagrun_id:
-                # The deadline is for a dagrun:
-                return "DagRun", f"Dag: {self.dag_id} Run: {self.dagrun_id}"
+            if self.dagrun_id:
+                # The deadline is for a Dag run:
+                return "DagRun", f"Dag: {self.dagrun.dag_id} Run: {self.dagrun_id}"
 
             return "Unknown", ""
 

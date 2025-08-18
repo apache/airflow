@@ -19,5 +19,6 @@
     "rejectionReceived": "הדחייה התקבלה",
     "responseReceived": "התגובה התקבלה",
     "responseRequired": "נדרשת תגובה"
-  }
+  },
+  "subject": "נושא"
 }
