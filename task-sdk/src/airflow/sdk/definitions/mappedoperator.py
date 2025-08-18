@@ -64,14 +64,10 @@ if TYPE_CHECKING:
         OperatorExpandArgument,
         OperatorExpandKwargsArgument,
     )
-    from airflow.sdk.bases.operator import BaseOperator
-    from airflow.sdk.bases.operatorlink import BaseOperatorLink
-    from airflow.sdk.bases.trigger import StartTriggerArgs
+    from airflow.sdk import DAG, BaseOperator, BaseOperatorLink, Context, StartTriggerArgs, TaskGroup, XComArg
     from airflow.sdk.definitions._internal.expandinput import ExpandInput
+    from airflow.sdk.definitions.operator_resources import Resources
     from airflow.sdk.definitions.param import ParamsDict
-    from airflow.sdk.definitions.taskgroup import TaskGroup
-    from airflow.sdk.definitions.xcom_arg import XComArg
-    from airflow.utils.operator_resources import Resources
     from airflow.utils.trigger_rule import TriggerRule
 
 ValidationSource = Literal["expand"] | Literal["partial"]

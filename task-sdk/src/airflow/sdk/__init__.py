@@ -39,6 +39,7 @@ __all__ = [
     "ObjectStoragePath",
     "Param",
     "PokeReturnValue",
+    "StartTriggerArgs",
     "TaskGroup",
     "Variable",
     "XComArg",
@@ -64,6 +65,7 @@ if TYPE_CHECKING:
     from airflow.sdk.bases.operator import BaseOperator, chain, chain_linear, cross_downstream
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.bases.sensor import BaseSensorOperator, PokeReturnValue
+    from airflow.sdk.bases.trigger import StartTriggerArgs
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher
     from airflow.sdk.definitions.asset.decorators import asset
     from airflow.sdk.definitions.asset.metadata import Metadata
