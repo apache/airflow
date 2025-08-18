@@ -27,7 +27,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, RootModel
 
-API_VERSION: Final[str] = "2025-08-10"
+API_VERSION: Final[str] = "2025-09-23"
 
 
 class AssetAliasReferenceAssetEventDagRun(BaseModel):
@@ -166,6 +166,7 @@ class HITLDetailRequest(BaseModel):
     defaults: Annotated[list[str] | None, Field(title="Defaults")] = None
     multiple: Annotated[bool | None, Field(title="Multiple")] = False
     params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
+    respondents: Annotated[list[str] | None, Field(title="Respondents")] = None
 
 
 class HITLDetailResponse(BaseModel):
@@ -470,6 +471,12 @@ class TaskInstanceState(str, Enum):
     UPSTREAM_FAILED = "upstream_failed"
     SKIPPED = "skipped"
     DEFERRED = "deferred"
+
+
+class WeightRule(str, Enum):
+    DOWNSTREAM = "downstream"
+    UPSTREAM = "upstream"
+    ABSOLUTE = "absolute"
 
 
 class AssetEventDagRunReference(BaseModel):

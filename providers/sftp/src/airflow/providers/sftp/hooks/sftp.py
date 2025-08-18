@@ -295,7 +295,7 @@ class SFTPHook(SSHHook):
             # We use hasattr checking for 'write' for cases like google.cloud.storage.fileio.BlobWriter
             elif hasattr(local_full_path, "write"):
                 self.log.info("Using streaming download for %s", remote_full_path)
-                # We need to cast to pass pre-commit checks
+                # We need to cast to pass prek hook checks
                 stream_full_path = cast("IO[bytes]", local_full_path)
                 conn.getfo(remote_full_path, stream_full_path, prefetch=prefetch)
             elif isinstance(local_full_path, (str, bytes, os.PathLike)):

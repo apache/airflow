@@ -20,7 +20,8 @@ from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import func, select, tuple_
 
-from airflow.models import DagBag, DagRun, TaskInstance
+from airflow.models import DagRun, TaskInstance
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -105,7 +106,7 @@ def _get_external_task_group_task_ids(dttm_filter, external_task_group_id, exter
     :param external_dag_id: The ID of the external DAG.
     :param session: airflow session object
     """
-    refreshed_dag_info = DagBag(read_dags_from_db=True).get_dag(external_dag_id, session)
+    refreshed_dag_info = SerializedDagModel.get_dag(external_dag_id, session=session)
     task_group = refreshed_dag_info.task_group_dict.get(external_task_group_id)
 
     if task_group:

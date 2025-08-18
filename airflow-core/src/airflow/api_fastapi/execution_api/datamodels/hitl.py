@@ -36,6 +36,7 @@ class HITLDetailRequest(BaseModel):
     defaults: list[str] | None = None
     multiple: bool = False
     params: dict[str, Any] = Field(default_factory=dict)
+    respondents: list[str] | None = None
 
 
 class UpdateHITLDetailPayload(BaseModel):

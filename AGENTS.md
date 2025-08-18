@@ -27,10 +27,10 @@ how to set up the environment, run checks, build docs and follow the PR workflow
 - [`07_local_virtualenv.rst`](contributing-docs/07_local_virtualenv.rst) explains how to prepare a local Python environment using `uv`. The tool creates and syncs a `.venv` and installs dependencies with commands such as `uv venv` and `uv sync`.
 - [`06_development_environments.rst`](contributing-docs/06_development_environments.rst) compares the local virtualenv with the Docker based Breeze environment. Breeze replicates CI and includes services like databases for integration tests.
 
-## Pre-commit hooks
+## Prek hooks
 
-- Installation and usage of `pre-commit` are described in [`03_contributors_quick_start.rst`](contributing-docs/03_contributors_quick_start.rst). Install with `uv tool install pre-commit --with pre-commit-uv` and run checks via `pre-commit run --all-files`.
-- [`08_static_code_checks.rst`](contributing-docs/08_static_code_checks.rst) provides more details on the available hooks and prerequisites. Enable the hooks with `pre-commit install` so they run automatically on each commit.
+- Installation and usage of `prek` are described in [`03_contributors_quick_start.rst`](contributing-docs/03_contributors_quick_start.rst). Install with `uv tool install prek` and run checks via `prek --all-files`.
+- [`08_static_code_checks.rst`](contributing-docs/08_static_code_checks.rst) provides more details on the available hooks and prerequisites. Enable the hooks with `prek install` so they run automatically on each commit.
 
 ## Running tests
 
