@@ -38,8 +38,9 @@ from airflow.cli.commands import task_command
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.configuration import conf
 from airflow.exceptions import DagRunNotFound
-from airflow.models import DagBag, DagRun, TaskInstance
+from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbag import DBDagBag
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.serialization.serialized_objects import SerializedDAG
@@ -50,11 +51,11 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_runs, parse_and_sync_to_db
 
-pytestmark = pytest.mark.db_test
-
-
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
+
+pytestmark = pytest.mark.db_test
+
 
 DEFAULT_DATE = timezone.datetime(2022, 1, 1)
 ROOT_FOLDER = Path(__file__).parents[4].resolve()
@@ -66,6 +67,8 @@ def reset(dag_id):
         tis.delete()
         runs = session.query(DagRun).filter_by(dag_id=dag_id)
         runs.delete()
+        session.query(DagModel).filter_by(dag_id=dag_id).delete()
+        session.query(SerializedDagModel).filter_by(dag_id=dag_id).delete()
 
 
 @contextmanager
@@ -79,7 +82,7 @@ class TestCliTasks:
     run_id = "TEST_RUN_ID"
     dag_id = "example_python_operator"
     parser: ArgumentParser
-    dagbag: DagBag
+    dagbag: DBDagBag
     dag: DAG
     dag_run: DagRun
 
@@ -90,8 +93,9 @@ class TestCliTasks:
         cls.parser = cli_parser.get_parser()
         clear_db_runs()
 
-        cls.dagbag = DagBag(read_dags_from_db=True, include_examples=True)
-        cls.dag = cls.dagbag.get_dag(cls.dag_id)
+        cls.dagbag = DBDagBag()
+        with create_session() as session:
+            cls.dag = cls.dagbag.get_latest_version_of_dag(cls.dag_id, session=session)
         data_interval = cls.dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE)
         cls.dag_run = cls.dag.create_dagrun(
             state=State.RUNNING,
@@ -109,9 +113,9 @@ class TestCliTasks:
 
     @conf_vars({("core", "load_examples"): "true"})
     @pytest.mark.execution_timeout(120)
-    def test_cli_list_tasks(self):
-        for dag_id in self.dagbag.dags:
-            args = self.parser.parse_args(["tasks", "list", dag_id])
+    def test_cli_list_tasks(self, session):
+        for dag in self.dagbag.iter_all_latest_version_dags(session=session):
+            args = self.parser.parse_args(["tasks", "list", dag.dag_id])
             task_command.task_list(args)
 
     def test_test(self):
@@ -272,6 +276,7 @@ class TestCliTasks:
         assert 'echo "2016-01-01"' in output
         assert 'echo "2016-01-08"' in output
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_mapped_task_render(self):
         """
         tasks render should render and displays templated fields for a given mapping task
