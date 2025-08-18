@@ -499,8 +499,7 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
     # running multiple schedulers, as repeated queries on the same session may read from stale snapshots.
     # 'READ COMMITTED' is the default value for PostgreSQL.
     # More information here:
-    # https://dev.mysql.com/doc/refman/8.0/en/innodb-transaction-isolation-levels.html"
-
+    # https://dev.mysql.com/doc/refman/8.0/en/innodb-transaction-isolation-levels.html
     if SQL_ALCHEMY_CONN.startswith("mysql"):
         engine_args["isolation_level"] = "READ COMMITTED"
 

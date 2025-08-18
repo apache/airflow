@@ -344,6 +344,10 @@ def get_dag_runs(
     session: SessionDep,
     dag_bag: DagBagDep,
     run_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(DagRun.run_id, "run_id_pattern"))],
+    triggering_user_name_pattern: Annotated[
+        _SearchParam,
+        Depends(search_param_factory(DagRun.triggering_user_name, "triggering_user_name_pattern")),
+    ],
 ) -> DAGRunCollectionResponse:
     """
     Get all DAG Runs.
@@ -353,8 +357,7 @@ def get_dag_runs(
     query = select(DagRun)
 
     if dag_id != "~":
-        # Check if the DAG exists
-        get_latest_version_of_dag(dag_bag, dag_id, session)
+        get_latest_version_of_dag(dag_bag, dag_id, session)  # Check if the DAG exists.
         query = query.filter(DagRun.dag_id == dag_id).options(joinedload(DagRun.dag_model))
 
     dag_run_select, total_entries = paginated_select(
@@ -369,6 +372,7 @@ def get_dag_runs(
             run_type,
             readable_dag_runs_filter,
             run_id_pattern,
+            triggering_user_name_pattern,
         ],
         order_by=order_by,
         offset=offset,

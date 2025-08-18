@@ -23,8 +23,8 @@ from typing import TYPE_CHECKING, ClassVar
 import attrs
 
 if TYPE_CHECKING:
-    from airflow.models.baseoperator import BaseOperator
     from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.sdk import BaseOperator
 
 
 @attrs.define()

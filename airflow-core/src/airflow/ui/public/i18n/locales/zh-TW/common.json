@@ -15,6 +15,7 @@
   "backfill_other": "回填",
   "browse": {
     "auditLog": "審計日誌",
+    "requiredActions": "待回應的任務實例",
     "xcoms": "XComs"
   },
   "collapseDetailsPanel": "收起詳細資訊",
@@ -90,6 +91,16 @@
     "and": "且",
     "any": "任何",
     "or": "或"
+  },
+  "filters": {
+    "dagDisplayNamePlaceholder": "依 Dag 名稱篩選",
+    "keyPlaceholder": "依 XCom 鍵篩選",
+    "logicalDateFromPlaceholder": "邏輯日期起始",
+    "logicalDateToPlaceholder": "邏輯日期結束",
+    "runAfterFromPlaceholder": "執行時間起始",
+    "runAfterToPlaceholder": "執行時間結束",
+    "runIdPlaceholder": "依執行 ID 篩選",
+    "taskIdPlaceholder": "依任務 ID 篩選"
   },
   "logicalDate": "邏輯日期",
   "logout": "登出",

@@ -74,7 +74,7 @@ export const Dag = () => {
 
   const { data: hitlData } = useHumanInTheLoopServiceGetHitlDetails(
     {
-      dagIdPattern: dagId,
+      dagId,
     },
     undefined,
     {
@@ -82,14 +82,14 @@ export const Dag = () => {
     },
   );
 
-  const hasHitlTasks = (hitlData?.total_entries ?? 0) > 0;
+  const hasHitlTaskInstances = (hitlData?.total_entries ?? 0) > 0;
 
   const displayTabs = tabs.filter((tab) => {
     if (dag?.timetable_summary === null && tab.value === "backfills") {
       return false;
     }
 
-    if (tab.value === "required_actions" && !hasHitlTasks) {
+    if (tab.value === "required_actions" && !hasHitlTaskInstances) {
       return false;
     }
 

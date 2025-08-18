@@ -115,7 +115,7 @@ jobs:
       arm-runners: ${{ steps.selective-checks.outputs.arm-runners }}
       selected-providers-list-as-string: >-
         ${{ steps.selective-checks.outputs.selected-providers-list-as-string }}
-      skip-pre-commits: ${{ steps.selective-checks.outputs.skip-pre-commits }}
+      skip-prek-hooks: ${{ steps.selective-checks.outputs.skip-prek-hooks }}
       skip-providers-tests: ${{ steps.selective-checks.outputs.skip-providers-tests }}
       source-head-repo: ${{ steps.source-run-info.outputs.source-head-repo }}
       sqlite-exclude: ${{ steps.selective-checks.outputs.sqlite-exclude }}
@@ -171,7 +171,7 @@ jobs:
       needs-api-codegen: ${{needs.build-info.outputs.needs-api-codegen}}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       basic-checks-only: ${{needs.build-info.outputs.basic-checks-only}}
-      skip-pre-commits: ${{needs.build-info.outputs.skip-pre-commits}}
+      skip-prek-hooks: ${{needs.build-info.outputs.skip-prek-hooks}}
       canary-run: ${{needs.build-info.outputs.canary-run}}
       latest-versions-only: ${{needs.build-info.outputs.latest-versions-only}}
       use-uv: ${{needs.build-info.outputs.use-uv}}
@@ -216,7 +216,7 @@ jobs:
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      skip-pre-commits: ${{ needs.build-info.outputs.skip-pre-commits }}
+      skip-prek-hooks: ${{ needs.build-info.outputs.skip-prek-hooks }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
       disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}

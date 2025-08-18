@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+1.1.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix: Prevent duplicate edge_job insertions for deferrable tasks in EdgeExecutor (#53610) (#53927)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove parameter from Edge example (#53997)``
+
 1.1.2
 .....
 

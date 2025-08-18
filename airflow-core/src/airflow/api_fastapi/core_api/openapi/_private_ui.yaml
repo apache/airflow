@@ -216,6 +216,22 @@ paths:
           - $ref: '#/components/schemas/DagRunState'
           - type: 'null'
           title: Last Dag Run State
+      - name: bundle_name
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Name
+      - name: bundle_version
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
       - name: order_by
         in: query
         required: false
@@ -1570,10 +1586,14 @@ components:
         dag_id:
           type: string
           title: Dag Id
+        dag_display_name:
+          type: string
+          title: Dag Display Name
       type: object
       required:
       - name
       - dag_id
+      - dag_display_name
       title: DagTagResponse
       description: DAG Tag serializer for responses.
     DagVersionResponse:

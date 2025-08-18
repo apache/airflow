@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-common-sql``
 
-Release: ``1.27.4``
+Release: ``1.27.5``
 
 Release Date: ``|PypiReleaseDate|``
 
@@ -37,7 +37,7 @@ This is a provider package for ``common.sql`` provider. All classes for this pro
 are in ``airflow.providers.common.sql`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.27.4/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.27.5/>`_.
 
 Installation
 ------------
@@ -80,4 +80,4 @@ Dependent package                                                               
 ==============================================================================================================  ===============
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.27.4/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.27.5/changelog.html>`_.

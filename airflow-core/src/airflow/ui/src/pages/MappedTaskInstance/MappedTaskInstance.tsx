@@ -30,7 +30,7 @@ import { Header } from "./Header";
 export const MappedTaskInstance = () => {
   const { dagId = "", runId = "", taskId = "" } = useParams();
   const refetchInterval = useAutoRefresh({ dagId });
-  const { t: translate } = useTranslation();
+  const { t: translate } = useTranslation("dag");
   const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId });
 
   const taskInstance = gridTISummaries?.task_instances.find((ti) => ti.task_id === taskId);
@@ -41,7 +41,7 @@ export const MappedTaskInstance = () => {
   });
 
   const tabs = [
-    { icon: <MdOutlineTask />, label: `${translate("taskInstances_other")} [${taskCount}]`, value: "" },
+    { icon: <MdOutlineTask />, label: `${translate("tabs.taskInstances")} [${taskCount}]`, value: "" },
   ];
 
   return (

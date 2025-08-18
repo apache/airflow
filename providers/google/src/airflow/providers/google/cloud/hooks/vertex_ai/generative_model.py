@@ -350,6 +350,9 @@ class GenerativeModelHook(GoogleBaseHook):
         :param generation_config: Optional. Generation configuration settings.
         :param safety_settings: Optional. Per request settings for blocking unsafe content.
         """
+        # During run of the system test it was found out that names from xcom, e.g. 3402922389 can be
+        # treated as int and throw an error TypeError: expected string or bytes-like object, got 'int'
+        cached_content_name = str(cached_content_name)
         vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
 
         cached_context_model = self.get_cached_context_model(cached_content_name=cached_content_name)
