@@ -45,6 +45,9 @@ __deprecated_classes = {
     "timeout": {
         "timeout": "airflow.sdk.execution_time.timeout.timeout",
     },
+    "operator_resources": {
+        "*": "airflow.sdk.definitions.operator_resources",
+    },
 }
 
 add_deprecated_classes(__deprecated_classes, __name__)
