@@ -31,6 +31,15 @@ You can also run the checks via `Breeze <../dev/breeze/doc/README.rst>`_ environ
 Prek hooks
 ----------
 
+⚠️ Note
+
+If you already have ``pre-commit`` installed, please uninstall it before setting up ``prek``.
+You can remove the existing hooks with:
+
+.. code-block:: bash
+
+    pre-commit uninstall
+
 Pre-commit hooks help speed up your local development cycle and place less burden on the CI infrastructure.
 Consider installing the prek hooks as a necessary prerequisite.
 
