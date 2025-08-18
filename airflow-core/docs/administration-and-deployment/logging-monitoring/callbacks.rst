@@ -20,19 +20,19 @@
 Callbacks
 =========
 
-A valuable component of logging and monitoring is the use of task callbacks to act upon changes in state of a given DAG or task, or across all tasks in a given DAG.
-For example, you may wish to alert when certain tasks have failed, or invoke a callback when your DAG succeeds.
+A valuable component of logging and monitoring is the use of task callbacks to act upon changes in state of a given Dag or task, or across all tasks in a given Dag.
+For example, you may wish to alert when certain tasks have failed, or invoke a callback when your Dag succeeds.
 
 There are three different places where callbacks can be defined.
 
-- Callbacks set in the DAG definition will be applied at the DAG level.
-- Using ``default_args``, callbacks can be set for each task in a DAG.
+- Callbacks set in the Dag definition will be applied at the Dag level.
+- Using ``default_args``, callbacks can be set for each task in a Dag.
 - Individual callbacks can be set for a task by setting that callback within the task definition itself.
 
 .. note::
 
-    Callback functions are only invoked when the DAG or task state changes due to execution by a worker.
-    As such, DAG and task changes set by the command line interface (:doc:`CLI <../../howto/usage-cli>`) or user interface (:doc:`UI <../../ui>`) do not
+    Callback functions are only invoked when the Dag or task state changes due to execution by a worker.
+    As such, Dag and task changes set by the command line interface (:doc:`CLI <../../howto/usage-cli>`) or user interface (:doc:`UI <../../ui>`) do not
     execute callback functions.
 
 .. warning::
@@ -44,7 +44,7 @@ There are three different places where callbacks can be defined.
 
 .. note::
     As of Airflow 2.6.0, callbacks now supports a list of callback functions, allowing users to specify multiple functions
-    to be executed in the desired event. Simply pass a list of callback functions to the callback args when defining your DAG/task
+    to be executed in the desired event. Simply pass a list of callback functions to the callback args when defining your Dag/task
     callbacks: e.g ``on_failure_callback=[callback_func_1, callback_func_2]``
 
 
@@ -56,17 +56,17 @@ There are six types of events that can trigger a callback:
 =========================================== ================================================================
 Name                                        Description
 =========================================== ================================================================
-``on_success_callback``                     Invoked when the :ref:`DAG succeeds <dag-run:dag-run-status>` or :ref:`task succeeds <concepts:task-instances>`.
-                                            Available at the DAG or task level.
+``on_success_callback``                     Invoked when the :ref:`Dag succeeds <dag-run:dag-run-status>` or :ref:`task succeeds <concepts:task-instances>`.
+                                            Available at the Dag or task level.
 ``on_failure_callback``                     Invoked when the task :ref:`fails <concepts:task-instances>`.
-                                            Available at the DAG or task level.
+                                            Available at the Dag or task level.
 ``on_retry_callback``                       Invoked when the task is :ref:`up for retry <concepts:task-instances>`.
                                             Available only at the task level.
 ``on_execute_callback``                     Invoked right before the task begins executing.
                                             Available only at the task level.
 ``on_skipped_callback``                     Invoked when the task is :ref:`running <concepts:task-instances>` and  AirflowSkipException raised.
                                             Explicitly it is NOT called if a task is not started to be executed because of a preceding branching
-                                            decision in the DAG or a trigger rule which causes execution to skip so that the task execution
+                                            decision in the Dag or a trigger rule which causes execution to skip so that the task execution
                                             is never scheduled.
                                             Available only at the task level.
 =========================================== ================================================================
@@ -78,7 +78,7 @@ Examples
 Using Custom Callback Methods
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-In the following example, failures in ``task1`` call the ``task_failure_alert`` function, and success at DAG level calls the ``dag_success_alert`` function.
+In the following example, failures in ``task1`` call the ``task_failure_alert`` function, and success at Dag level calls the ``dag_success_alert`` function.
 Before each task begins to execute, the ``task_execute_callback`` function will be called:
 
 .. code-block:: python
@@ -96,7 +96,7 @@ Before each task begins to execute, the ``task_execute_callback`` function will 
 
 
     def dag_success_alert(context):
-        print(f"DAG has succeeded, run_id: {context['run_id']}")
+        print(f"Dag has succeeded, run_id: {context['run_id']}")
 
 
     with DAG(
@@ -115,9 +115,9 @@ Full list of variables available in ``context`` in :doc:`docs <../../templates-r
 Using Notifiers
 ^^^^^^^^^^^^^^^
 
-You can use Notifiers in your ``DAG`` definition by passing it as an argument to the ``on_*_callbacks``.
+You can use Notifiers in your Dag definition by passing it as an argument to the ``on_*_callbacks``.
 For example, you can use it with ``on_success_callback`` or ``on_failure_callback`` to send notifications based
-on the status of a task or a DAG run.
+on the status of a task or a Dag run.
 
 Here's an example of using a custom notifier:
 

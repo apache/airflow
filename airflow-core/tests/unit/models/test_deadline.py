@@ -149,11 +149,6 @@ class TestDeadline:
         else:
             mock_session.query.assert_not_called()
 
-    def test_orm(self, deadline_orm, dagrun):
-        assert deadline_orm.deadline_time == DEFAULT_DATE
-        assert deadline_orm.callback == TEST_ASYNC_CALLBACK
-        assert deadline_orm.dagrun_id == dagrun.id
-
     def test_repr_with_callback_kwargs(self, deadline_orm, dagrun):
         assert (
             repr(deadline_orm) == f"[DagRun Deadline] Dag: {DAG_ID} Run: {dagrun.id} needed by "

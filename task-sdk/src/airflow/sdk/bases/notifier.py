@@ -40,7 +40,7 @@ class BaseNotifier(LoggingMixin, Templater):
 
     Currently, the DAG/Task state change callbacks run on the DAG Processor and only support sync usage.
 
-    Usage:
+    Usage::
         # Asynchronous usage
         await Notifier(context)
 
