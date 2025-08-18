@@ -63,7 +63,7 @@ export const FieldDateTime = ({
         onChange={(event) => handleChange(event.target.value)}
         size="sm"
         value={
-          Boolean(param.value) && typeof param.value === "string"
+          typeof param.value === "string" && dayjs(param.value).isValid()
             ? dayjs(param.value).tz(selectedTimezone).format("YYYY-MM-DDTHH:mm")
             : ""
         }
