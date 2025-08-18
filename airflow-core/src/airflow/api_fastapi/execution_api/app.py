@@ -196,8 +196,8 @@ def create_task_execution_api_app() -> FastAPI:
 def get_extra_schemas() -> dict[str, dict]:
     """Get all the extra schemas that are not part of the main FastAPI app."""
     from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
-    from airflow.configuration import WeightRule
     from airflow.executors.workloads import BundleInfo
+    from airflow.task.weight_rule import WeightRule
     from airflow.utils.state import TaskInstanceState, TerminalTIState
 
     return {

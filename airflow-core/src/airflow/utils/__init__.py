@@ -49,7 +49,7 @@ __deprecated_classes = {
         "*": "airflow.sdk.definitions.operator_resources",
     },
     "weight_rule": {
-        "WeightRule": "airflow.configuration.WeightRule",
+        "WeightRule": "airflow.task.weight_rule.WeightRule",
         "DB_SAFE_MINIMUM": "airflow.sdk.bases.operator.DB_SAFE_MINIMUM",
         "DB_SAFE_MAXIMUM": "airflow.sdk.bases.operator.DB_SAFE_MAXIMUM",
         "db_safe_priority": "airflow.sdk.bases.operator.db_safe_priority",
