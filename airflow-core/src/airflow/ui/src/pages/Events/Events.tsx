@@ -29,6 +29,7 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import Time from "src/components/Time";
+import { getOrderBy } from "src/utils";
 
 type EventsColumn = {
   dagId?: string;
@@ -146,10 +147,9 @@ export const Events = () => {
   const { dagId, runId, taskId } = useParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
-  const [sort] = sorting;
   const { onClose, onOpen, open } = useDisclosure();
 
-  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-when"];
+  const orderBy = getOrderBy("-when");
 
   const { data, error, isFetching, isLoading } = useEventLogServiceGetEventLogs(
     {

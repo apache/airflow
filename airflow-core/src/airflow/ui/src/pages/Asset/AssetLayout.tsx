@@ -32,6 +32,7 @@ import { ProgressBar } from "src/components/ui";
 import { AssetGraph } from "./AssetGraph";
 import { CreateAssetEvent } from "./CreateAssetEvent";
 import { Header } from "./Header";
+import { getOrderBy } from "src/utils";
 
 export const AssetLayout = () => {
   const { i18n, t: translate } = useTranslation(["assets", "common"]);
@@ -40,8 +41,8 @@ export const AssetLayout = () => {
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
-  const [sort] = sorting;
-  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-timestamp"];
+
+  const orderBy = getOrderBy("-timestamp");
 
   const { data: asset, isLoading } = useAssetServiceGetAsset(
     { assetId: assetId === undefined ? 0 : parseInt(assetId, 10) },
