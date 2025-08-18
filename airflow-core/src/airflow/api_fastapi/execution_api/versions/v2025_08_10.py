@@ -19,16 +19,8 @@ from __future__ import annotations
 
 from cadwyn import ResponseInfo, VersionChange, convert_response_to_previous_version_for, endpoint, schema
 
-from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun, TaskInstance, TIRunContext
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun, TIRunContext
 from airflow.api_fastapi.execution_api.routes.xcoms import GetXComSliceFilterParams
-
-
-class AddDagVersionIdField(VersionChange):
-    """Add the `dag_version_id` field to the TaskInstance model."""
-
-    description = __doc__
-
-    instructions_to_migrate_to_previous_version = (schema(TaskInstance).field("dag_version_id").didnt_exist,)
 
 
 class AddDagRunStateFieldAndPreviousEndpoint(VersionChange):
