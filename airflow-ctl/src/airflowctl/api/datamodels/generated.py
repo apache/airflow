@@ -1159,7 +1159,6 @@ class BulkUpdateActionBulkTaskInstanceBody(BaseModel):
         list[str] | None,
         Field(
             description="A list of field names to update for each entity. Only these fields will be applied from the request body to the database model. Any extra fields provided will be ignored.",
-            examples=[["value"], ["description"], ["value", "description"]],
             title="Update Mask",
         ),
     ] = None
@@ -1180,7 +1179,6 @@ class BulkUpdateActionConnectionBody(BaseModel):
         list[str] | None,
         Field(
             description="A list of field names to update for each entity. Only these fields will be applied from the request body to the database model. Any extra fields provided will be ignored.",
-            examples=[["value"], ["description"], ["value", "description"]],
             title="Update Mask",
         ),
     ] = None
@@ -1201,7 +1199,6 @@ class BulkUpdateActionPoolBody(BaseModel):
         list[str] | None,
         Field(
             description="A list of field names to update for each entity. Only these fields will be applied from the request body to the database model. Any extra fields provided will be ignored.",
-            examples=[["value"], ["description"], ["value", "description"]],
             title="Update Mask",
         ),
     ] = None
@@ -1222,7 +1219,6 @@ class BulkUpdateActionVariableBody(BaseModel):
         list[str] | None,
         Field(
             description="A list of field names to update for each entity. Only these fields will be applied from the request body to the database model. Any extra fields provided will be ignored.",
-            examples=[["value"], ["description"], ["value", "description"]],
             title="Update Mask",
         ),
     ] = None

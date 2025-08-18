@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Common Data Models for Airflow REST API.
+Common Data Models for Airflow REST API.P
 
 :meta private:
 """
@@ -77,6 +77,14 @@ class BulkUpdateAction(BulkBaseAction[T]):
 
     action: Literal[BulkAction.UPDATE] = Field(description="The action to be performed on the entities.")
     entities: list[T] = Field(..., description="A list of entities to be updated.")
+    update_mask: list[str] | None = Field(
+        default=None,
+        description=(
+            "A list of field names to update for each entity. "
+            "Only these fields will be applied from the request body to the database model. "
+            "Any extra fields provided will be ignored."
+        ),
+    )
     action_on_non_existence: BulkActionNotOnExistence = BulkActionNotOnExistence.FAIL
 
 
