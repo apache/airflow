@@ -293,7 +293,7 @@ jobs:
           UPGRADE_PYTHON: "false"
           UPGRADE_GOLANG: "true"
           UPGRADE_PIP: "false"
-          UPGRADE_PREK: "false"
+          UPGRADE_PREK: "true"
           UPGRADE_NODE_LTS: "false"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: "Run automated upgrade for important versions minus uv(failing if needed)"
@@ -307,7 +307,7 @@ jobs:
           UPGRADE_PYTHON: "true"
           UPGRADE_GOLANG: "false"
           UPGRADE_PIP: "true"
-          UPGRADE_PREK: "true"
+          UPGRADE_PREK: "false"
           UPGRADE_NODE_LTS: "true"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
