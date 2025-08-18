@@ -156,7 +156,9 @@ class Credentials:
                 # Saving the URL set from the Auth Commands if Kind is AUTH
                 self.save()
             elif self.client_kind == ClientKind.CLI:
-                raise AirflowCtlCredentialNotFoundException(f"No credentials found in {default_config_dir}")
+                raise AirflowCtlCredentialNotFoundException(
+                    f"No credentials found in {default_config_dir} for environment {self.api_environment}."
+                )
             else:
                 raise AirflowCtlException(f"Unknown client kind: {self.client_kind}")
 

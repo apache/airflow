@@ -37,6 +37,7 @@ import type { ConnectionBody } from "./Connections";
 type AddConnectionFormProps = {
   readonly error: unknown;
   readonly initialConnection: ConnectionBody;
+  readonly isEditMode?: boolean;
   readonly isPending: boolean;
   readonly mutateConnection: (requestBody: ConnectionBody) => void;
 };
@@ -44,6 +45,7 @@ type AddConnectionFormProps = {
 const ConnectionForm = ({
   error,
   initialConnection,
+  isEditMode = false,
   isPending,
   mutateConnection,
 }: AddConnectionFormProps) => {
@@ -57,7 +59,7 @@ const ConnectionForm = ({
   const { conf: extra, setConf } = useParamStore();
   const {
     control,
-    formState: { isDirty, isValid },
+    formState: { isValid },
     handleSubmit,
     reset,
     watch,
@@ -94,17 +96,18 @@ const ConnectionForm = ({
     mutateConnection(data);
   };
 
-  const hasChanges = () => {
-    if (isDirty) {
-      return true;
-    }
-
-    return JSON.stringify(JSON.parse(extra)) !== JSON.stringify(JSON.parse(initialConnection.extra));
-  };
-
   const validateAndPrettifyJson = (value: string) => {
     try {
-      const parsedJson = JSON.parse(value) as JSON;
+      if (value.trim() === "") {
+        setErrors((prev) => ({ ...prev, conf: undefined }));
+
+        return value;
+      }
+      const parsedJson = JSON.parse(value) as Record<string, unknown>;
+
+      if (typeof parsedJson !== "object" || Array.isArray(parsedJson)) {
+        throw new TypeError('extra fields must be a valid JSON object (e.g., {"key": "value"})');
+      }
 
       setErrors((prev) => ({ ...prev, conf: undefined }));
       const formattedJson = JSON.stringify(parsedJson, undefined, 2);
@@ -210,6 +213,7 @@ const ConnectionForm = ({
               initialParamsDict={paramsDic}
               key={selectedConnType}
               setError={setFormErrors}
+              subHeader={isEditMode ? translate("connections.form.helperTextForRedactedFields") : undefined}
             />
             <Accordion.Item key="extraJson" value="extraJson">
               <Accordion.ItemTrigger cursor="button">
@@ -228,6 +232,11 @@ const ConnectionForm = ({
                         }}
                       />
                       {Boolean(errors.conf) ? <Field.ErrorText>{errors.conf}</Field.ErrorText> : undefined}
+                      {isEditMode ? (
+                        <Field.HelperText>
+                          {translate("connections.form.helperTextForRedactedFields")}
+                        </Field.HelperText>
+                      ) : undefined}
                     </Field.Root>
                   )}
                 />
@@ -242,7 +251,7 @@ const ConnectionForm = ({
           <Spacer />
           <Button
             colorPalette="blue"
-            disabled={Boolean(errors.conf) || formErrors || isPending || !isValid || !hasChanges()}
+            disabled={Boolean(errors.conf) || formErrors || isPending || !isValid}
             onClick={() => void handleSubmit(onSubmit)()}
           >
             <FiSave /> {translate("formActions.save")}

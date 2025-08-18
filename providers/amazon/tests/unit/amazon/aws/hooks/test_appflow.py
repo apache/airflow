@@ -24,7 +24,11 @@ from unittest.mock import ANY
 import pytest
 
 from airflow.providers.amazon.aws.hooks.appflow import AppflowHook
-from airflow.utils import timezone
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 FLOW_NAME = "flow0"
 EXECUTION_ID = "ex_id"

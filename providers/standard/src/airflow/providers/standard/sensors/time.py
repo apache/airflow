@@ -42,7 +42,10 @@ except ImportError:
         timeout: datetime.timedelta | None = None
 
 
-from airflow.utils import timezone
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     try:
@@ -116,9 +119,11 @@ class TimeSensor(BaseSensorOperator):
                 ),
                 method_name="execute_complete",
             )
+        else:
+            super().execute(context)
 
-    def execute_complete(self, context: Context) -> None:
-        return
+    def execute_complete(self, context: Context, event: Any = None) -> None:
+        return None
 
     def poke(self, context: Context) -> bool:
         self.log.info("Checking if the time (%s) has come", self.target_datetime)

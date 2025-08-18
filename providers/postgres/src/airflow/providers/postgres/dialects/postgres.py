@@ -16,9 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from methodtools import lru_cache
 
-from airflow.providers.common.sql.dialects.dialect import Dialect
+from airflow.providers.common.sql.dialects.dialect import Dialect, T
 
 
 class PostgresDialect(Dialect):
@@ -39,21 +41,54 @@ class PostgresDialect(Dialect):
         """
         if schema is None:
             table, schema = self.extract_schema_from_table(table)
-        sql = """
-            select kcu.column_name
-            from information_schema.table_constraints tco
-                    join information_schema.key_column_usage kcu
-                        on kcu.constraint_name = tco.constraint_name
-                            and kcu.constraint_schema = tco.constraint_schema
-                            and kcu.constraint_name = tco.constraint_name
-            where tco.constraint_type = 'PRIMARY KEY'
-            and kcu.table_schema = %s
-            and kcu.table_name = %s
-        """
         pk_columns = [
-            row[0] for row in self.get_records(sql, (self.unescape_word(schema), self.unescape_word(table)))
+            row["column_name"]
+            for row in self.get_records(
+                """
+                  select kcu.column_name as column_name
+                  from information_schema.table_constraints tco
+                           join information_schema.key_column_usage kcu
+                                on kcu.constraint_name = tco.constraint_name
+                                    and kcu.constraint_schema = tco.constraint_schema
+                                    and kcu.constraint_name = tco.constraint_name
+                  where tco.constraint_type = 'PRIMARY KEY'
+                    and kcu.table_schema = %s
+                    and kcu.table_name = %s
+                  order by kcu.ordinal_position
+                  """,
+                (self.unescape_word(schema), self.unescape_word(table)),
+            )
         ]
         return pk_columns or None
+
+    @lru_cache(maxsize=None)
+    def get_column_names(
+        self, table: str, schema: str | None = None, predicate: Callable[[T], bool] = lambda column: True
+    ) -> list[str] | None:
+        if schema is None:
+            table, schema = self.extract_schema_from_table(table)
+        column_names = list(
+            row["column_name"]
+            for row in filter(
+                predicate,
+                self.get_records(
+                    """
+                        select column_name,
+                               data_type,
+                               is_nullable,
+                               column_default,
+                               ordinal_position
+                        from information_schema.columns
+                        where table_schema = %s
+                          and table_name = %s
+                        order by ordinal_position
+                        """,
+                    (self.unescape_word(schema), self.unescape_word(table)),
+                ),
+            )
+        )
+        self.log.debug("Column names for table '%s': %s", table, column_names)
+        return column_names
 
     def generate_replace_sql(self, table, values, target_fields, **kwargs) -> str:
         """

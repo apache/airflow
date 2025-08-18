@@ -35,6 +35,97 @@
 Changelog
 ---------
 
+1.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat(HITL): add 'notifiers' to HITLOperator (#54128)``
+* ``feat(HITL): add HITLBranchOperator (#53960)``
+* ``feat(HITL): improve hitl trigger logging message (#53850)``
+* ``feat(HITL): add "timedout" column to HITLTriggerEventSuccessPayload (#53852)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Restore 'execute_complete' functionality 'TimeSensor' when 'deferrable=True' (#53669)``
+* ``Fix several deprecation warnings related to airflow.sdk (#53791)``
+* ``Fix pycache_cleanup path handling in PythonVirtualenvOperator (#54214)``
+* ``fix(HITL): guard empty options or chosen_options when writing response (#54355)``
+
+Misc
+~~~~
+
+* ``refactor(HITL): replace timezone usage with airflow.sdk.timezone (#53962)``
+* ``refactor(HITL): make default options class variables to avoid typo (#53849)``
+* ``Add a warning about python interpreter using with uv (#54262)``
+* ``Introduce 'StdoutCaptureManager' to isolate stdout from 'logging' logs (#54065)``
+* ``Move some items in 'airflow.utils.context' to appropriate places (#53600)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix BranchPythonOperator doc (#54205)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Documentation for Human-in-the-loop operator (#53694)``
+   * ``Correct HITL version warnings to avoid confusion (#53876)``
+   * ``Move functions in 'airflow.utils.decorator' to more appropriate places (#53420)``
+   * ``Prepare release for Aug 2025 1st wave of providers (#54193)``
+
+1.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add venv pycache clean up for the PythonVirtualenvOperator (#53390)``
+* ``Add Human-in-the-loop logic to core Airflow and implement 'HITLOperator', 'ApprovalOperator', 'HITLEntryOperator' in standard provider (#52868)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix key error in _handle_execution_date_fn for ExternalTaskSensor (#53728)``
+* ``fix: Type mismatch for DateInterval in latest only operator (#53541)``
+* ``fix(HITL): Fix HITLEntryOperator "options" and "defaults" handling (#53184)``
+* ``fix(HITL): handle hitl details when task instance is retried (#53824)``
+
+Misc
+~~~~
+
+* ``Fix unreachable code mypy warnings in standard provider (#53431)``
+* ``Align main branch after standard provider 1.4.1 release (#53511)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup mypy ignore in standard provider where possible (#53308)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove direct scheduler BaseOperator refs (#52234)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Move 'BaseHook' imports to version_compat for standard provider (#52766)``
+* ``Deprecate and move 'airflow.utils.task_group' to SDK (#53450)``
+* ``Deprecate decorators from Core (#53629)``
+* ``Replace usages of XCOM_RETURN_KEY in providers to not be from utils (#53170)``
+* ``Remove 'set_current_context' from 'airflow.models.taskinstance' (#53036)``
+* ``Replace direct BaseOperator import with version_compat import (#53847)``
+* ``Fix typo in serialized_params (#53848)``
+
+Doc-only
+~~~~~~~~
+
+* ``docs: Correct TaskFlow capitalization in documentation (#51794)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Set up process for sharing code between different components (#53149)``
+   * ``Replace 'mock.patch("utcnow")' with time_machine. (#53642)``
+   * ``Add run_on_latest_version support for backfill and clear operations (#52177)``
+   * ``docs(hitl): add example dag for all HITLOperator (#53360)``
+   * ``Prepare release for Standard Provider 1.4.1``
+   * ``Make dag_version_id in TI non-nullable (#50825)``
+   * ``Fix example dag example_external_task_parent_deferrable.py imports (#52956)``
+
 1.4.1
 .....
 

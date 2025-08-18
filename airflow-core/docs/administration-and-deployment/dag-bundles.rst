@@ -83,6 +83,30 @@ For example, adding multiple dag bundles to your ``airflow.cfg`` file:
     The whitespace, particularly on the last line, is important so a multi-line value works properly. More details can be found in the
     the `configparser docs <https://docs.python.org/3/library/configparser.html#supported-ini-file-structure>`_.
 
+If you want a view url different from the default provided by the dag bundle, you can change the url in the kwargs of the dag bundle configuration.
+For example, if you want to use a custom URL for the git dag bundle:
+
+.. code-block:: ini
+
+    [dag_processor]
+    dag_bundle_config_list = [
+        {
+          "name": "my_git_repo",
+          "classpath": "airflow.dag_processing.bundles.git.GitDagBundle",
+          "kwargs": {
+            "tracking_ref": "main",
+            "git_conn_id": "my_git_conn",
+            "view_url_template": "https://my.custom.git.repo/view/{subdir}",
+          }
+        }
+      ]
+
+Above, the ``view_url_template`` is set to a custom URL that will be used to view the Dags in the ``my_git_repo`` bundle. The ``{subdir}`` placeholder will be replaced
+with the ``subdir`` attribute of the bundle. The placeholders are attributes of the bundle. You cannot use any placeholder outside of the bundle's attributes.
+When you specify a custom URL, it overrides the default URL provided by the dag bundle.
+
+The url is verified for safety, and if it is not safe, the view url for the bundle will be set to ``None``. This is to prevent any potential security issues with unsafe URLs.
+
 You can also override the :ref:`config:dag_processor__refresh_interval` per dag bundle by passing it in kwargs.
 This controls how often the dag processor refreshes, or looks for new files, in the dag bundles.
 

@@ -23,8 +23,9 @@
 
 Package ``apache-airflow-providers-hashicorp``
 
-Release: ``4.3.1``
+Release: ``4.3.2``
 
+Release Date: ``|PypiReleaseDate|``
 
 Hashicorp including `Hashicorp Vault <https://www.vaultproject.io/>`__
 
@@ -36,7 +37,7 @@ This is a provider package for ``hashicorp`` provider. All classes for this prov
 are in ``airflow.providers.hashicorp`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-hashicorp/4.3.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-hashicorp/4.3.2/>`_.
 
 Installation
 ------------
@@ -77,4 +78,4 @@ Dependent package                                                               
 ====================================================================================================  ==========
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-hashicorp/4.3.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-hashicorp/4.3.2/changelog.html>`_.

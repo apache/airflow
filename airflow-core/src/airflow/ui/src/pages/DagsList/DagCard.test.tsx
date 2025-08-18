@@ -88,10 +88,10 @@ describe("DagCard", () => {
 
   it("DagCard should not show +X more text if there is only +1 over the limit", () => {
     const tags = [
-      { dag_id: "id", name: "tag1" },
-      { dag_id: "id", name: "tag2" },
-      { dag_id: "id", name: "tag3" },
-      { dag_id: "id", name: "tag4" },
+      { dag_display_name: "id", dag_id: "id", name: "tag1" },
+      { dag_display_name: "id", dag_id: "id", name: "tag2" },
+      { dag_display_name: "id", dag_id: "id", name: "tag3" },
+      { dag_display_name: "id", dag_id: "id", name: "tag4" },
     ] satisfies Array<DagTagResponse>;
 
     const expandedMockDag = {
@@ -108,11 +108,11 @@ describe("DagCard", () => {
 
   it("DagCard should show +X more text if there are more than 3 tags", () => {
     const tags = [
-      { dag_id: "id", name: "tag1" },
-      { dag_id: "id", name: "tag2" },
-      { dag_id: "id", name: "tag3" },
-      { dag_id: "id", name: "tag4" },
-      { dag_id: "id", name: "tag5" },
+      { dag_display_name: "id", dag_id: "id", name: "tag1" },
+      { dag_display_name: "id", dag_id: "id", name: "tag2" },
+      { dag_display_name: "id", dag_id: "id", name: "tag3" },
+      { dag_display_name: "id", dag_id: "id", name: "tag4" },
+      { dag_display_name: "id", dag_id: "id", name: "tag5" },
     ] satisfies Array<DagTagResponse>;
 
     const expandedMockDag = {

@@ -38,6 +38,22 @@ __deprecated_classes = {
         # should be in user code or custom providers, so redirect them to the public interface in Task SDK
         "*": "airflow.sdk.timezone"
     },
+    "decorators": {
+        "remove_task_decorator": "airflow.sdk.definitions._internal.decorators.remove_task_decorator",
+        "fixup_decorator_warning_stack": "airflow.sdk.definitions._internal.decorators.fixup_decorator_warning_stack",
+    },
+    "timeout": {
+        "timeout": "airflow.sdk.execution_time.timeout.timeout",
+    },
+    "operator_resources": {
+        "*": "airflow.sdk.definitions.operator_resources",
+    },
+    "weight_rule": {
+        "WeightRule": "airflow.task.weight_rule.WeightRule",
+        "DB_SAFE_MINIMUM": "airflow.sdk.bases.operator.DB_SAFE_MINIMUM",
+        "DB_SAFE_MAXIMUM": "airflow.sdk.bases.operator.DB_SAFE_MAXIMUM",
+        "db_safe_priority": "airflow.sdk.bases.operator.db_safe_priority",
+    },
 }
 
 add_deprecated_classes(__deprecated_classes, __name__)

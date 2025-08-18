@@ -98,6 +98,7 @@ class DagAccessEntity(Enum):
     AUDIT_LOG = "AUDIT_LOG"
     CODE = "CODE"
     DEPENDENCIES = "DEPENDENCIES"
+    HITL_DETAIL = "HITL_DETAIL"
     RUN = "RUN"
     TASK = "TASK"
     TASK_INSTANCE = "TASK_INSTANCE"

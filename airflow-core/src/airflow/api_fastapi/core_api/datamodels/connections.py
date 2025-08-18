@@ -17,12 +17,15 @@
 
 from __future__ import annotations
 
+import json
 from collections import abc
 from typing import Annotated
 
-from pydantic import Field
+from pydantic import Field, field_validator
+from pydantic_core.core_schema import ValidationInfo
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
+from airflow.sdk.execution_time.secrets_masker import redact
 
 
 # Response Models
@@ -38,6 +41,26 @@ class ConnectionResponse(BaseModel):
     port: int | None
     password: str | None
     extra: str | None
+
+    @field_validator("password", mode="after")
+    @classmethod
+    def redact_password(cls, v: str | None, field_info: ValidationInfo) -> str | None:
+        if v is None:
+            return None
+        return str(redact(v, field_info.field_name))
+
+    @field_validator("extra", mode="before")
+    @classmethod
+    def redact_extra(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        try:
+            extra_dict = json.loads(v)
+            redacted_dict = redact(extra_dict)
+            return json.dumps(redacted_dict)
+        except json.JSONDecodeError:
+            # we can't redact fields in an unstructured `extra`
+            return v
 
 
 class ConnectionCollectionResponse(BaseModel):
@@ -113,3 +136,26 @@ class ConnectionBody(StrictBaseModel):
     port: int | None = Field(default=None)
     password: str | None = Field(default=None)
     extra: str | None = Field(default=None)
+
+    @field_validator("extra")
+    @classmethod
+    def validate_extra(cls, v: str | None) -> str | None:
+        """
+        Validate that `extra` field is a JSON-encoded Python dict.
+
+        If `extra` field is not a valid JSON, it will be returned as is.
+        """
+        if v is None:
+            return v
+        if v == "":
+            return "{}"  # Backward compatibility: treat "" as empty JSON object
+        try:
+            extra_dict = json.loads(v)
+            if not isinstance(extra_dict, dict):
+                raise ValueError("The `extra` field must be a valid JSON object (e.g., {'key': 'value'})")
+        except json.JSONDecodeError:
+            raise ValueError(
+                "The `extra` field must be a valid JSON object (e.g., {'key': 'value'}), "
+                "but encountered non-JSON in `extra` field"
+            )
+        return v
