@@ -351,7 +351,7 @@ class ElasticsearchHook(BaseHook):
         # Configuration with fallback priority: connection -> env vars -> defaults
         host = conn.host or self.vars["host"] or "localhost"
         port = conn.port or (int(self.vars["port"]) if self.vars["port"] else None) or 9200
-        schema = conn.schema or ("https" if self.vars["use_ssl"] else "http")
+        schema = conn.schema or ("https" if self.vars.get("use_ssl") else None) or "http"
 
         # Build hosts list
         hosts = [f"{schema}://{host}:{port}"]
