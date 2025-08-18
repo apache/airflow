@@ -160,11 +160,15 @@ class Connection:
     @property
     def extra_dejson(self) -> dict:
         """Deserialize `extra` property to JSON."""
+        from airflow.sdk.execution_time.secrets_masker import mask_secret
+
         extra = {}
         if self.extra:
             try:
                 extra = json.loads(self.extra)
             except JSONDecodeError:
                 log.exception("Failed to deserialize extra property `extra`, returning empty dictionary")
-        # TODO: Mask sensitive keys from this list or revisit if it will be done in server
+            else:
+                mask_secret(extra)
+
         return extra

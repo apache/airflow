@@ -143,12 +143,10 @@ def downgrade():
     elif dialect_name == "mysql":
         op.execute(
             """
-            UPDATE task_instance_history tih
-            JOIN (
-                SELECT id, ROW_NUMBER() OVER (ORDER BY id) AS row_num
-                FROM task_instance_history
-            ) AS temp ON tih.id = temp.id
-            SET tih.id = temp.row_num;
+            SET @row_number = 0;
+            UPDATE task_instance_history
+            SET id = (@row_number := @row_number + 1)
+            ORDER BY try_id;
             """
         )
     else:

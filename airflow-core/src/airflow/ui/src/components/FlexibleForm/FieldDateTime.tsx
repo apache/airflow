@@ -23,8 +23,13 @@ import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 import type { FlexibleFormElementProps } from ".";
 import { DateTimeInput } from "../DateTimeInput";
 
-export const FieldDateTime = ({ name, onUpdate, ...rest }: FlexibleFormElementProps & InputProps) => {
-  const { disabled, paramsDict, setParamsDict } = useParamStore();
+export const FieldDateTime = ({
+  name,
+  namespace = "default",
+  onUpdate,
+  ...rest
+}: FlexibleFormElementProps & InputProps) => {
+  const { disabled, paramsDict, setParamsDict } = useParamStore(namespace);
   const param = paramsDict[name] ?? paramPlaceholder;
   const handleChange = (value: string) => {
     if (paramsDict[name]) {
