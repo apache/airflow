@@ -190,6 +190,23 @@ class TestConnections:
         assert connection.host == "localhost"
         assert connection.port == 5432
 
+    def test_extra_dejson_property(self, patched_secrets_masker):
+        """Test that extra_dejson property correctly deserializes JSON extra field."""
+        connection = Connection(
+            conn_id="test_conn",
+            conn_type="http",
+            extra='{"timeout": 30, "verify": false, "retries": 3}',
+        )
+
+        result = connection.extra_dejson
+        assert result == {"timeout": 30, "verify": False, "retries": 3}
+
+        connection.extra = None
+        assert connection.extra_dejson == {}
+
+        connection.extra = '{"auth": {"type": "oauth"}, "headers": {"User-Agent": "Airflow"}}'
+        assert connection.extra_dejson == {"auth": {"type": "oauth"}, "headers": {"User-Agent": "Airflow"}}
+
 
 class TestConnectionsFromSecrets:
     def test_get_connection_secrets_backend(self, mock_supervisor_comms, tmp_path):

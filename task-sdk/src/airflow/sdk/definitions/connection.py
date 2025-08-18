@@ -201,23 +201,30 @@ class Connection:
 
     @property
     def extra_dejson(self) -> dict:
-        """Deserialize `extra` property to JSON."""
-        return self.get_extra_dejson()
+        """Returns the extra property by deserializing json."""
+        from airflow.sdk.execution_time.secrets_masker import mask_secret
 
-    def get_extra_dejson(self, nested: bool = False) -> dict:
-        """
-        Deserialize extra property to JSON.
-
-        :param nested: Determines whether nested structures are also deserialized into JSON (default False).
-        """
         extra = {}
         if self.extra:
             try:
                 extra = json.loads(self.extra)
             except JSONDecodeError:
                 log.exception("Failed to deserialize extra property `extra`, returning empty dictionary")
-        # TODO: Mask sensitive keys from this list or revisit if it will be done in server
+            else:
+                mask_secret(extra)
+
         return extra
+
+    def get_extra_dejson(self) -> dict:
+        """Deserialize extra property to JSON."""
+        import warnings
+
+        warnings.warn(
+            "`get_extra_dejson` is deprecated and will be removed in a future release. ",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.extra_dejson
 
     def to_dict(self, *, prune_empty: bool = False, validate: bool = True) -> dict[str, Any]:
         """
