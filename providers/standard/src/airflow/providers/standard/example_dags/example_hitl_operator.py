@@ -95,7 +95,7 @@ with DAG(
     )
     # [END howto_hitl_operator]
 
-    # [START howto_hitl_operator_muliple]
+    # [START howto_hitl_operator_multiple]
     wait_for_multiple_options = HITLOperator(
         task_id="wait_for_multiple_options",
         subject="Please choose option to proceed: ",
@@ -105,7 +105,7 @@ with DAG(
         on_success_callback=hitl_success_callback,
         on_failure_callback=hitl_failure_callback,
     )
-    # [END howto_hitl_operator_muliple]
+    # [END howto_hitl_operator_multiple]
 
     # [START howto_hitl_operator_timeout]
     wait_for_default_option = HITLOperator(
