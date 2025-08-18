@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-18T07:02:00.137160
+# This constraints file was automatically generated on 2025-08-18T08:34:11.648890
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -461,7 +461,7 @@ polars==1.32.3
 portalocker==2.10.1
 pprintpp==0.4.0
 pre_commit==4.3.0
-prek==0.0.27
+prek==0.0.28
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.22.1
@@ -515,7 +515,7 @@ pytest-timeouts==1.2.1
 pytest-unordered==0.7.0
 pytest-xdist==3.8.0
 pytest==8.4.1
-python-arango==8.2.1
+python-arango==8.2.2
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
 python-dotenv==1.1.1
