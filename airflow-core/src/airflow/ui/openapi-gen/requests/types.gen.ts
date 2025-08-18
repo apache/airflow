@@ -2515,6 +2515,7 @@ export type GetMappedTaskInstancesData = {
     startDateLte?: string | null;
     state?: Array<(string)>;
     taskId: string;
+    tryNumber?: Array<(number)>;
     updatedAtGte?: string | null;
     updatedAtLte?: string | null;
     versionNumber?: Array<(number)>;
@@ -2603,6 +2604,7 @@ export type GetTaskInstancesData = {
      */
     taskDisplayNamePattern?: string | null;
     taskId?: string | null;
+    tryNumber?: Array<(number)>;
     updatedAtGte?: string | null;
     updatedAtLte?: string | null;
     versionNumber?: Array<(number)>;

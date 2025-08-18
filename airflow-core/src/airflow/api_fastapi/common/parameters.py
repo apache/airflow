@@ -733,6 +733,15 @@ QueryTIDagVersionFilter = Annotated[
         )
     ),
 ]
+QueryTITryNumberFilter = Annotated[
+    FilterParam[list[int]],
+    Depends(
+        filter_param_factory(
+            TaskInstance.try_number, list[int], FilterOptionEnum.ANY_EQUAL, default_factory=list
+        )
+    ),
+]
+
 
 # XCom
 QueryXComKeyPatternSearch = Annotated[

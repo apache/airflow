@@ -5264,6 +5264,14 @@ paths:
           items:
             type: integer
           title: Version Number
+      - name: try_number
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+          title: Try Number
       - name: limit
         in: query
         required: false
@@ -5942,6 +5950,14 @@ paths:
           items:
             type: integer
           title: Version Number
+      - name: try_number
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+          title: Try Number
       - name: limit
         in: query
         required: false
