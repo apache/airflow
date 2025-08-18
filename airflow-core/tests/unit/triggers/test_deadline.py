@@ -34,8 +34,8 @@ TEST_TRIGGER = DeadlineCallbackTrigger(callback_path=TEST_CALLBACK_PATH, callbac
 class ExampleAsyncNotifier(BaseNotifier):
     """Example of a properly implemented async notifier."""
 
-    def __init__(self, message):
-        super().__init__()
+    def __init__(self, message, **kwargs):
+        super().__init__(**kwargs)
         self.message = message
 
     async def async_notify(self, context):

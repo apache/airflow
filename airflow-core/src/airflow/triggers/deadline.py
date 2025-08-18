@@ -53,17 +53,7 @@ class DeadlineCallbackTrigger(BaseTrigger):
             # TODO: get airflow context
             context: dict = {}
 
-            # If callback is an awaitable class, callback_kwargs will be used as parameters to the constructor
-            if hasattr(callback, "__await__"):
-                callback_instance = callback(**self.callback_kwargs)
-
-                # Since parameters cannot be passed in __await__, context is passed as an attribute
-                callback_instance.context = context
-                result = await callback_instance
-
-            else:
-                result = await callback(**self.callback_kwargs, context=context)
-
+            result = await callback(**self.callback_kwargs, context=context)
             log.info("Deadline callback completed with return value: %s", result)
             yield TriggerEvent({PAYLOAD_STATUS_KEY: DeadlineCallbackState.SUCCESS, PAYLOAD_BODY_KEY: result})
         except Exception as e:

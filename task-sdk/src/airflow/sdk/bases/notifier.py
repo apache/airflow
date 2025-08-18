@@ -42,9 +42,7 @@ class BaseNotifier(LoggingMixin, Templater):
 
     Usage:
         # Asynchronous usage
-        notifier = Notifier()
-        notifier.context = context
-        await notifier
+        await Notifier(context)
 
         # Synchronous usage
         notifier = Notifier()
@@ -57,8 +55,9 @@ class BaseNotifier(LoggingMixin, Templater):
     # Context stored as attribute here because parameters can't be passed to __await__
     context: Context
 
-    def __init__(self):
+    def __init__(self, context: Context | None = None):
         super().__init__()
+        self.context = context or {}
         self.resolve_template_files()
 
     def _update_context(self, context: Context) -> Context:
