@@ -24,7 +24,7 @@
 
 .. towncrier release notes start
 
-Airflow 3.0.5 (2025-08-19)
+Airflow 3.0.5 (2025-08-20)
 --------------------------
 
 Significant Changes
@@ -63,6 +63,7 @@ Bug Fixes
 - Fix XCom lookup failures in nested mapped task groups by correctly resolving ``map_index`` for upstream tasks (#54249)
 - UI: Fix task name indentation in Graph view for deeply nested task groups beyond 5 levels (#54419)
 - Run failure callbacks for task instances that get stuck in queued state and fail after requeue attempts (#54401)
+- Make secrets masking work when connections are loaded from secrets backends (#54574, #54612)
 
 Miscellaneous
 """""""""""""
