@@ -135,6 +135,6 @@ PLEASE DO NOT MODIFY THE HASH BELOW! IT IS AUTOMATICALLY UPDATED BY PREK.
 
 ---------------------------------------------------------------------------------------------------------
 
-Package config hash: f7538d369c430a85cf62ca690d2440413a7fd402aad414c9b5a571b42dc19bb2cf5c430287f30849a92a0e1849bc6353812d6cec1b92c0ec4cfc12f5273e35d1
+Package config hash: 44115f7de7eedfe3274fc6754082b2d9c2a1a3e7600368186e28beca9ff2d92e1c8b339bb95107389e76c24993b23d94c14b73b06480e70a99da247a26f5b721
 
 ---------------------------------------------------------------------------------------------------------
