@@ -298,7 +298,7 @@ class ElasticsearchHook(BaseHook):
     hook_name = "Elasticsearch"
 
     def __init__(
-        self, elasticsearch_conn_id: str = "elasticsearch_default", log_query: bool = False, **kwargs: Any
+        self, elasticsearch_conn_id: str = None, log_query: bool = False, **kwargs: Any
     ) -> None:
         """
         Initialize the Elasticsearch Hook.
