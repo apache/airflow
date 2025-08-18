@@ -98,58 +98,6 @@ class BulkActionResponse(BaseModel):
     ] = []
 
 
-class BulkDeleteActionBulkTaskInstanceBody(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    action: Annotated[
-        Literal["delete"], Field(description="The action to be performed on the entities.", title="Action")
-    ]
-    entities: Annotated[
-        list[str], Field(description="A list of entity id/key to be deleted.", title="Entities")
-    ]
-    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
-
-
-class BulkDeleteActionConnectionBody(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    action: Annotated[
-        Literal["delete"], Field(description="The action to be performed on the entities.", title="Action")
-    ]
-    entities: Annotated[
-        list[str], Field(description="A list of entity id/key to be deleted.", title="Entities")
-    ]
-    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
-
-
-class BulkDeleteActionPoolBody(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    action: Annotated[
-        Literal["delete"], Field(description="The action to be performed on the entities.", title="Action")
-    ]
-    entities: Annotated[
-        list[str], Field(description="A list of entity id/key to be deleted.", title="Entities")
-    ]
-    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
-
-
-class BulkDeleteActionVariableBody(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    action: Annotated[
-        Literal["delete"], Field(description="The action to be performed on the entities.", title="Action")
-    ]
-    entities: Annotated[
-        list[str], Field(description="A list of entity id/key to be deleted.", title="Entities")
-    ]
-    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
-
-
 class BulkResponse(BaseModel):
     """
     Serializer for responses to bulk entity operations.
@@ -1732,38 +1680,6 @@ class BackfillCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
-class BulkBodyConnectionBody(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    actions: Annotated[
-        list[
-            BulkCreateActionConnectionBody | BulkUpdateActionConnectionBody | BulkDeleteActionConnectionBody
-        ],
-        Field(title="Actions"),
-    ]
-
-
-class BulkBodyPoolBody(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    actions: Annotated[
-        list[BulkCreateActionPoolBody | BulkUpdateActionPoolBody | BulkDeleteActionPoolBody],
-        Field(title="Actions"),
-    ]
-
-
-class BulkBodyVariableBody(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    actions: Annotated[
-        list[BulkCreateActionVariableBody | BulkUpdateActionVariableBody | BulkDeleteActionVariableBody],
-        Field(title="Actions"),
-    ]
-
-
 class BulkCreateActionBulkTaskInstanceBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -1775,6 +1691,62 @@ class BulkCreateActionBulkTaskInstanceBody(BaseModel):
         list[BulkTaskInstanceBody], Field(description="A list of entities to be created.", title="Entities")
     ]
     action_on_existence: BulkActionOnExistence | None = "fail"
+
+
+class BulkDeleteActionBulkTaskInstanceBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    action: Annotated[
+        Literal["delete"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
+    entities: Annotated[
+        list[str | BulkTaskInstanceBody],
+        Field(description="A list of entity id/key or entity objects to be deleted.", title="Entities"),
+    ]
+    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
+
+
+class BulkDeleteActionConnectionBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    action: Annotated[
+        Literal["delete"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
+    entities: Annotated[
+        list[str | BulkTaskInstanceBody],
+        Field(description="A list of entity id/key or entity objects to be deleted.", title="Entities"),
+    ]
+    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
+
+
+class BulkDeleteActionPoolBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    action: Annotated[
+        Literal["delete"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
+    entities: Annotated[
+        list[str | BulkTaskInstanceBody],
+        Field(description="A list of entity id/key or entity objects to be deleted.", title="Entities"),
+    ]
+    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
+
+
+class BulkDeleteActionVariableBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    action: Annotated[
+        Literal["delete"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
+    entities: Annotated[
+        list[str | BulkTaskInstanceBody],
+        Field(description="A list of entity id/key or entity objects to be deleted.", title="Entities"),
+    ]
+    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
 
 
 class DAGCollectionResponse(BaseModel):
@@ -1888,5 +1860,37 @@ class BulkBodyBulkTaskInstanceBody(BaseModel):
             | BulkUpdateActionBulkTaskInstanceBody
             | BulkDeleteActionBulkTaskInstanceBody
         ],
+        Field(title="Actions"),
+    ]
+
+
+class BulkBodyConnectionBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    actions: Annotated[
+        list[
+            BulkCreateActionConnectionBody | BulkUpdateActionConnectionBody | BulkDeleteActionConnectionBody
+        ],
+        Field(title="Actions"),
+    ]
+
+
+class BulkBodyPoolBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    actions: Annotated[
+        list[BulkCreateActionPoolBody | BulkUpdateActionPoolBody | BulkDeleteActionPoolBody],
+        Field(title="Actions"),
+    ]
+
+
+class BulkBodyVariableBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    actions: Annotated[
+        list[BulkCreateActionVariableBody | BulkUpdateActionVariableBody | BulkDeleteActionVariableBody],
         Field(title="Actions"),
     ]
