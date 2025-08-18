@@ -103,15 +103,17 @@ from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
-    from typing import Literal
+    from typing import Literal, TypeAlias
 
     from pydantic import NonNegativeInt
     from sqlalchemy.orm.query import Query
     from sqlalchemy.orm.session import Session
 
-    from airflow.models.dagbag import DagBag
-    from airflow.sdk.types import Operator
-    from airflow.serialization.serialized_objects import MaybeSerializedDAG
+    from airflow.models.dagbag import DBDagBag
+    from airflow.models.mappedoperator import MappedOperator
+    from airflow.serialization.serialized_objects import MaybeSerializedDAG, SerializedBaseOperator
+
+    Operator: TypeAlias = MappedOperator | SerializedBaseOperator
 
 log = logging.getLogger(__name__)
 
@@ -701,10 +703,6 @@ class DAG(TaskSDKDag, LoggingMixin):
     def dag_id(self, value: str) -> None:
         self._dag_id = value
 
-    @property
-    def timetable_summary(self) -> str:
-        return self.timetable.summary
-
     @provide_session
     def get_concurrency_reached(self, session=NEW_SESSION) -> bool:
         """Return a boolean indicating whether the max_active_tasks limit for this DAG has been reached."""
@@ -877,7 +875,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         exclude_task_ids: Collection[str | tuple[str, int]] | None,
         exclude_run_ids: frozenset[str] | None,
         session: Session,
-        dag_bag: DagBag | None = ...,
+        dag_bag: DBDagBag | None = ...,
     ) -> Iterable[TaskInstance]: ...  # pragma: no cover
 
     @overload
@@ -894,7 +892,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         exclude_task_ids: Collection[str | tuple[str, int]] | None,
         exclude_run_ids: frozenset[str] | None,
         session: Session,
-        dag_bag: DagBag | None = ...,
+        dag_bag: DBDagBag | None = ...,
         recursion_depth: int = ...,
         max_recursion_depth: int = ...,
         visited_external_tis: set[TaskInstanceKey] = ...,
@@ -913,11 +911,13 @@ class DAG(TaskSDKDag, LoggingMixin):
         exclude_task_ids: Collection[str | tuple[str, int]] | None,
         exclude_run_ids: frozenset[str] | None,
         session: Session,
-        dag_bag: DagBag | None = None,
+        dag_bag: DBDagBag | None = None,
         recursion_depth: int = 0,
         max_recursion_depth: int | None = None,
         visited_external_tis: set[TaskInstanceKey] | None = None,
     ) -> Iterable[TaskInstance] | set[TaskInstanceKey]:
+        from airflow.models.dagbag import DBDagBag
+
         TI = TaskInstance
 
         # If we are looking at dependent dags we want to avoid UNION calls
@@ -1020,10 +1020,11 @@ class DAG(TaskSDKDag, LoggingMixin):
 
                 for tii in external_tis:
                     if not dag_bag:
-                        from airflow.models.dagbag import DagBag
-
-                        dag_bag = DagBag(read_dags_from_db=True)
-                    external_dag = dag_bag.get_dag(tii.dag_id, session=session)
+                        dag_bag = DBDagBag()
+                    if not isinstance(dag_bag, DBDagBag):  # Compat: This used to take non-db object.
+                        external_dag = dag_bag.get_dag(tii.dag_id, session=session)
+                    else:
+                        external_dag = dag_bag.get_dag_for_run(tii.dag_run, session=session)
                     if not external_dag:
                         raise AirflowException(f"Could not find dag {tii.dag_id}")
                     downstream = external_dag.partial_subset(
@@ -1113,7 +1114,9 @@ class DAG(TaskSDKDag, LoggingMixin):
         """
         from airflow.api.common.mark_tasks import set_state
 
-        task = self.get_task(task_id)
+        # TODO (GH-52141): get_task in scheduler needs to return scheduler types
+        # instead, but currently it inherits SDK's DAG.
+        task = cast("Operator", self.get_task(task_id))
         task.dag = self
 
         tasks_to_set_state: list[Operator | tuple[Operator, int]]
@@ -1282,7 +1285,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         confirm_prompt: bool = False,
         dag_run_state: DagRunState = DagRunState.QUEUED,
         session: Session = NEW_SESSION,
-        dag_bag: DagBag | None = None,
+        dag_bag: DBDagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
@@ -1300,7 +1303,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         dag_run_state: DagRunState = DagRunState.QUEUED,
         dry_run: Literal[False] = False,
         session: Session = NEW_SESSION,
-        dag_bag: DagBag | None = None,
+        dag_bag: DBDagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
@@ -1319,7 +1322,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         confirm_prompt: bool = False,
         dag_run_state: DagRunState = DagRunState.QUEUED,
         session: Session = NEW_SESSION,
-        dag_bag: DagBag | None = None,
+        dag_bag: DBDagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
@@ -1338,7 +1341,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         dag_run_state: DagRunState = DagRunState.QUEUED,
         dry_run: Literal[False] = False,
         session: Session = NEW_SESSION,
-        dag_bag: DagBag | None = None,
+        dag_bag: DBDagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
@@ -1358,7 +1361,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         dag_run_state: DagRunState = DagRunState.QUEUED,
         dry_run: bool = False,
         session: Session = NEW_SESSION,
-        dag_bag: DagBag | None = None,
+        dag_bag: DBDagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
@@ -1594,7 +1597,6 @@ class DAG(TaskSDKDag, LoggingMixin):
                         run_id=run_id,
                     ),
                     callback=self.deadline.callback,
-                    dag_id=self.dag_id,
                     dagrun_id=orm_dagrun.id,
                 )
             )
@@ -1890,7 +1892,7 @@ class DagModel(Base):
     # associated zip.
     fileloc = Column(String(2000))
     relative_fileloc = Column(String(2000))
-    bundle_name = Column(StringID(), ForeignKey("dag_bundle.name"), nullable=True)
+    bundle_name = Column(StringID(), ForeignKey("dag_bundle.name"), nullable=False)
     # The version of the bundle the last time the DAG was processed
     bundle_version = Column(String(200), nullable=True)
     # String representing the owners

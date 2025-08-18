@@ -39,6 +39,11 @@
     "viewInExternal": "Bekijk logs in {{name}} (attempt {{attempt}})",
     "warning": "WARNING"
   },
+  "navigation": {
+    "jump": "Verspringen: Shift+{{arrow}}",
+    "navigation": "Navigatie: {{arrow}}",
+    "toggleGroup": "Groep in-/uitklappen: Spatie"
+  },
   "overview": {
     "buttons": {
       "failedRun_one": "Mislukte Run",

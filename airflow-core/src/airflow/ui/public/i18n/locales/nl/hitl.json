@@ -19,5 +19,6 @@
     "rejectionReceived": "Afwijzing ontvangen",
     "responseReceived": "Reactie ontvangen",
     "responseRequired": "Reactie vereist"
-  }
+  },
+  "subject": "Onderwerp"
 }
