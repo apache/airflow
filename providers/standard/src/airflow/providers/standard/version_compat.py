@@ -39,11 +39,12 @@ AIRFLOW_V_3_1_PLUS: bool = get_base_airflow_version_tuple() >= (3, 1, 0)
 # DecoratedOperator -- where `DecoratedOperator._handle_output` needed `xcom_push` to exist on `BaseOperator`
 # even though it wasn't used.
 if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk import BaseHook, BaseOperator
+    from airflow.sdk import BaseHook, BaseOperator, timezone
     from airflow.sdk.definitions.context import context_merge
 else:
     from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
     from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
     from airflow.utils.context import context_merge  # type: ignore[no-redef, attr-defined]
 
 if AIRFLOW_V_3_0_PLUS:
@@ -62,4 +63,5 @@ __all__ = [
     "BaseSensorOperator",
     "PokeReturnValue",
     "context_merge",
+    "timezone",
 ]

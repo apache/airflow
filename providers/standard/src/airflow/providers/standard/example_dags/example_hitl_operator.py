@@ -127,8 +127,8 @@ with DAG(
         body="""
         Input: {{ ti.xcom_pull(task_ids='wait_for_input')["params_input"]["information"] }}
         Option: {{ ti.xcom_pull(task_ids='wait_for_option')["chosen_options"] }}
-        Multiple Options: {{ ti.xcom_pull(task_ids='wait_for_option')["chosen_options"] }}
-        Timeout Option: {{ ti.xcom_pull(task_ids='wait_for_option')["chosen_options"] }}
+        Multiple Options: {{ ti.xcom_pull(task_ids='wait_for_multiple_options')["chosen_options"] }}
+        Timeout Option: {{ ti.xcom_pull(task_ids='wait_for_default_option')["chosen_options"] }}
         """,
         defaults="Reject",
         execution_timeout=datetime.timedelta(minutes=1),
