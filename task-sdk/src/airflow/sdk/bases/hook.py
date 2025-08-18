@@ -58,6 +58,7 @@ class BaseHook(LoggingMixin):
         """
         import sys
 
+        # if SUPERVISOR_COMMS is set, we're in task sdk context
         if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
             from airflow.sdk.definitions.connection import Connection
 
