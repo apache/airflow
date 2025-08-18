@@ -146,21 +146,25 @@ def merge(
     return _secrets_masker().merge(new_value, old_value, name, max_depth)
 
 
-@cache
+_global_secrets_masker: SecretsMasker | None = None
+
+
 def _secrets_masker() -> SecretsMasker:
-    for flt in logging.getLogger("airflow.task").filters:
-        # Use class name comparison instead of isinstance() to handle module instance mismatch.
-        # When using symlinks, the same class can be imported via different module paths
-        # (e.g., airflow._shared vs airflow.sdk._shared), creating different class objects
-        # that fail isinstance() checks even though they're functionally identical.
-        if type(flt).__name__ == "SecretsMasker":
-            return flt
-    raise RuntimeError(
-        "Logging Configuration Error! No SecretsMasker found! If you have custom logging, please make "
-        "sure you configure it taking airflow configuration as a base as explained at "
-        "https://airflow.apache.org/docs/apache-airflow/stable/logging-monitoring/logging-tasks.html"
-        "#advanced-configuration"
-    )
+    """
+    Get or create the global secrets masker instance.
+
+    This function implements a module level singleton pattern to ensure consistent
+    secrets masking behavior across all shared Airflow dists, regardless of import path.
+
+    Needed because:
+    - shared code can be accessed via different symlink paths (airflow._shared vs
+    airflow.sdk._shared)
+    - ensures all calls to mask_secret(), redact(), etc. use the same masker instance
+    """
+    global _global_secrets_masker
+    if _global_secrets_masker is None:
+        _global_secrets_masker = SecretsMasker()
+    return _global_secrets_masker
 
 
 def reset_secrets_masker() -> None:
