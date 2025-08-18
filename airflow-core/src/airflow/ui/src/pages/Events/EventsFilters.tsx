@@ -24,9 +24,9 @@ import { useSearchParams } from "react-router-dom";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { DateTimeInput } from "src/components/DateTimeInput";
 import { SearchBar } from "src/components/SearchBar";
+import { ResetButton } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
 
-import { ResetButton } from "./ResetButton";
 import { getFilterCount } from "./filterUtils";
 
 const {
