@@ -54,7 +54,7 @@ __deprecated_classes = {
         "DB_SAFE_MAXIMUM": "airflow.sdk.bases.operator.DB_SAFE_MAXIMUM",
         "db_safe_priority": "airflow.sdk.bases.operator.db_safe_priority",
     },
-    "state": {
+    __name__: {
         "JobState": "airflow.jobs.job.JobState",
     },
 }
