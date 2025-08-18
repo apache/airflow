@@ -28,6 +28,7 @@ from airflow.sdk.bases.sensor import (
     BaseSensorOperator as BaseSensorOperator,
     PokeReturnValue as PokeReturnValue,
 )
+from airflow.sdk.bases.trigger import StartTriggerArgs as StartTriggerArgs
 from airflow.sdk.definitions.asset import (
     Asset as Asset,
     AssetAlias as AssetAlias,
@@ -76,6 +77,7 @@ __all__ = [
     "ObjectStoragePath",
     "Param",
     "PokeReturnValue",
+    "StartTriggerArgs",
     "SecretCache",
     "TaskGroup",
     "Variable",
