@@ -72,7 +72,7 @@ class MessageQueueTrigger(BaseEventTrigger):
                 "The queue '%s' is not recognized by any of the registered providers. "
                 "The available providers are: '%s'.",
                 self.queue,
-                ", ".join([provider for provider in MESSAGE_QUEUE_PROVIDERS]),
+                ", ".join([type(provider).__name__ for provider in MESSAGE_QUEUE_PROVIDERS]),
             )
             raise ValueError("The queue is not recognized by any of the registered providers.")
         if len(providers) > 1:
@@ -81,7 +81,7 @@ class MessageQueueTrigger(BaseEventTrigger):
                 "At least two providers in ``MESSAGE_QUEUE_PROVIDERS`` are colliding with each "
                 "other: '%s'",
                 self.queue,
-                ", ".join([provider for provider in providers]),
+                ", ".join([type(provider).__name__ for provider in providers]),
             )
             raise ValueError(f"The queue '{self.queue}' is recognized by more than one provider.")
         return providers[0].trigger_class()(

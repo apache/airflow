@@ -81,13 +81,13 @@ if TYPE_CHECKING:
     from airflow.sdk.bases.trigger import StartTriggerArgs
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
+    from airflow.sdk.definitions.operator_resources import Resources
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.serialization.enums import DagAttributeTypes
     from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.triggers.base import BaseTrigger
     from airflow.typing_compat import Self
-    from airflow.utils.operator_resources import Resources
 
     TaskPreExecuteHook = Callable[[Context], None]
     TaskPostExecuteHook = Callable[[Context, Any], None]
@@ -178,7 +178,7 @@ def coerce_timedelta(value: float | timedelta, *, key: str | None = None) -> tim
 def coerce_resources(resources: dict[str, Any] | None) -> Resources | None:
     if resources is None:
         return None
-    from airflow.utils.operator_resources import Resources
+    from airflow.sdk.definitions.operator_resources import Resources
 
     return Resources(**resources)
 
@@ -1328,7 +1328,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if resources is None:
             return None
 
-        from airflow.utils.operator_resources import Resources
+        from airflow.sdk.definitions.operator_resources import Resources
 
         if isinstance(resources, Resources):
             return resources
