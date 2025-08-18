@@ -17,7 +17,9 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 from json import JSONDecodeError
+from os.path import dirname
 from typing import TYPE_CHECKING, cast
 from unittest.mock import Mock, patch
 
@@ -26,6 +28,7 @@ from httpx import Response
 from httpx._utils import URLPattern
 from kiota_abstractions.request_information import RequestInformation
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
+from kiota_serialization_json.json_parse_node import JsonParseNode
 from kiota_serialization_text.text_parse_node import TextParseNode
 from msgraph_core import APIVersion, NationalClouds
 from opentelemetry.trace import Span
@@ -36,12 +39,14 @@ from airflow.exceptions import (
     AirflowException,
     AirflowNotFoundException,
 )
-from airflow.providers.microsoft.msgraph.hooks.msgraph import (
+from airflow.providers.microsoft.azure.hooks.msgraph import (
     DefaultResponseHandler,
     KiotaRequestAdapterHook,
 )
 
-from tests.unit.conftest import (
+from tests_common.test_utils.file_loading import load_file_from_resources, load_json_from_resources
+from tests_common.test_utils.providers import get_provider_min_airflow_version
+from unit.microsoft.azure.test_utils import (
     get_airflow_connection,
     mock_connection,
     mock_json_response,
