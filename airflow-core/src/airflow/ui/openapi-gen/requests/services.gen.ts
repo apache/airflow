@@ -3022,6 +3022,15 @@ export class XcomService {
      * @param data.mapIndex
      * @param data.limit
      * @param data.offset
+     * @param data.xcomKeyPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.mapIndexFilter
+     * @param data.logicalDateGte
+     * @param data.logicalDateLte
+     * @param data.runAfterGte
+     * @param data.runAfterLte
      * @returns XComCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -3038,7 +3047,16 @@ export class XcomService {
                 xcom_key: data.xcomKey,
                 map_index: data.mapIndex,
                 limit: data.limit,
-                offset: data.offset
+                offset: data.offset,
+                xcom_key_pattern: data.xcomKeyPattern,
+                dag_display_name_pattern: data.dagDisplayNamePattern,
+                run_id_pattern: data.runIdPattern,
+                task_id_pattern: data.taskIdPattern,
+                map_index_filter: data.mapIndexFilter,
+                logical_date_gte: data.logicalDateGte,
+                logical_date_lte: data.logicalDateLte,
+                run_after_gte: data.runAfterGte,
+                run_after_lte: data.runAfterLte
             },
             errors: {
                 400: 'Bad Request',

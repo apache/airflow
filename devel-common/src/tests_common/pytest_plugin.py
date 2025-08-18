@@ -156,7 +156,7 @@ AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH = (
     AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json.sha256sum"
 )
 UPDATE_PROVIDER_DEPENDENCIES_SCRIPT = (
-    AIRFLOW_ROOT_PATH / "scripts" / "ci" / "pre_commit" / "update_providers_dependencies.py"
+    AIRFLOW_ROOT_PATH / "scripts" / "ci" / "prek" / "update_providers_dependencies.py"
 )
 
 # Deliberately copied from breeze - we want to keep it in sync but we do not want to import code from
@@ -2583,3 +2583,13 @@ def _import_timezone():
         except ModuleNotFoundError:
             from airflow.utils import timezone
     return timezone
+
+
+@pytest.fixture
+def create_dag_without_db():
+    def create_dag(dag_id: str):
+        from airflow.models.dag import DAG
+
+        return DAG(dag_id=dag_id, schedule=None, render_template_as_native_obj=True)
+
+    return create_dag
