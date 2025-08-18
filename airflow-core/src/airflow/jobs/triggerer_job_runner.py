@@ -58,6 +58,7 @@ from airflow.sdk.execution_time.comms import (
     GetTICount,
     GetVariable,
     GetXCom,
+    MaskSecret,
     OKResponse,
     PutVariable,
     SetXCom,
@@ -250,6 +251,7 @@ ToTriggerSupervisor = Annotated[
         GetTaskStates,
         GetDagRunState,
         GetDRCount,
+        MaskSecret,
     ],
     Field(discriminator="type"),
 ]
@@ -472,6 +474,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 resp = TaskStatesResult.from_api_response(run_id_task_state_map)
             else:
                 resp = run_id_task_state_map
+        elif isinstance(msg, MaskSecret):
+            from airflow.sdk.execution_time.secrets_masker import mask_secret
+
+            mask_secret(msg.value, msg.name)
         else:
             raise ValueError(f"Unknown message type {type(msg)}")
 
