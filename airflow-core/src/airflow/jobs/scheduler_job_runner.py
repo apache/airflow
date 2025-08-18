@@ -2055,6 +2055,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .values(
                 state=TaskInstanceState.SCHEDULED,
                 queued_dttm=None,
+                queued_by_job_id=None,
                 scheduled_dttm=timezone.utcnow(),
             )
             .execution_options(synchronize_session=False)

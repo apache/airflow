@@ -2955,10 +2955,14 @@ export const $DagTagResponse = {
         dag_id: {
             type: 'string',
             title: 'Dag Id'
+        },
+        dag_display_name: {
+            type: 'string',
+            title: 'Dag Display Name'
         }
     },
     type: 'object',
-    required: ['name', 'dag_id'],
+    required: ['name', 'dag_id', 'dag_display_name'],
     title: 'DagTagResponse',
     description: 'DAG Tag serializer for responses.'
 } as const;
@@ -3413,6 +3417,20 @@ export const $HITLDetail = {
             additionalProperties: true,
             type: 'object',
             title: 'Params'
+        },
+        respondents: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Respondents'
         },
         user_id: {
             anyOf: [

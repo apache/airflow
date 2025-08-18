@@ -453,6 +453,7 @@ class DagTagResponse(BaseModel):
 
     name: Annotated[str, Field(title="Name")]
     dag_id: Annotated[str, Field(title="Dag Id")]
+    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
 
 
 class DagVersionResponse(BaseModel):
@@ -1824,6 +1825,7 @@ class HITLDetail(BaseModel):
     defaults: Annotated[list[str] | None, Field(title="Defaults")] = None
     multiple: Annotated[bool | None, Field(title="Multiple")] = False
     params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
+    respondents: Annotated[list[str] | None, Field(title="Respondents")] = None
     user_id: Annotated[str | None, Field(title="User Id")] = None
     response_at: Annotated[datetime | None, Field(title="Response At")] = None
     chosen_options: Annotated[list[str] | None, Field(title="Chosen Options")] = None

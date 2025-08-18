@@ -99,11 +99,23 @@ def upgrade():
 
 def downgrade():
     """Make bundle_name nullable."""
-    with op.batch_alter_table("dag", schema=None) as batch_op:
-        batch_op.drop_constraint(batch_op.f("dag_bundle_name_fkey"), type_="foreignkey")
+    import contextlib
 
-        batch_op.alter_column("bundle_name", nullable=True, existing_type=StringID())
-    with op.batch_alter_table("dag", schema=None) as batch_op:
-        batch_op.create_foreign_key(
-            batch_op.f("dag_bundle_name_fkey"), "dag_bundle", ["bundle_name"], ["name"]
-        )
+    dialect_name = op.get_bind().dialect.name
+    exitstack = contextlib.ExitStack()
+
+    if dialect_name == "sqlite":
+        # SQLite requires foreign key constraints to be disabled during batch operations
+        conn = op.get_bind()
+        conn.execute(text("PRAGMA foreign_keys=OFF"))
+        exitstack.callback(conn.execute, text("PRAGMA foreign_keys=ON"))
+
+    with exitstack:
+        with op.batch_alter_table("dag", schema=None) as batch_op:
+            batch_op.drop_constraint(batch_op.f("dag_bundle_name_fkey"), type_="foreignkey")
+            batch_op.alter_column("bundle_name", nullable=True, existing_type=StringID())
+
+        with op.batch_alter_table("dag", schema=None) as batch_op:
+            batch_op.create_foreign_key(
+                batch_op.f("dag_bundle_name_fkey"), "dag_bundle", ["bundle_name"], ["name"]
+            )
