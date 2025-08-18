@@ -1138,9 +1138,9 @@ class TestSchedulerJob:
         task_maker(dag_maker, session, "dag_1300_tasks", 1300, 4)
         task_maker(dag_maker, session, "dag_1200_tasks", 1200, 4)
         task_maker(dag_maker, session, "dag_1100_tasks", 1100, 4)
-        task_maker(dag_maker, session, "dag_1000_tasks", 100, 4)
-        task_maker(dag_maker, session, "dag_900_tasks", 90, 4)
-        task_maker(dag_maker, session, "dag_800_tasks", 80, 4)
+        task_maker(dag_maker, session, "dag_100_tasks", 100, 4)
+        task_maker(dag_maker, session, "dag_90_tasks", 90, 4)
+        task_maker(dag_maker, session, "dag_80_tasks", 80, 4)
 
         count = 0
         iterations = 0
