@@ -1,5 +1,3 @@
-/* eslint-disable max-lines */
-
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -21,7 +19,6 @@
 import { ButtonGroup, Code, Flex, Heading, IconButton, useDisclosure, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import dayjs from "dayjs";
-import React from "react";
 import { useTranslation } from "react-i18next";
 import { MdCompress, MdExpand } from "react-icons/md";
 import { useParams, useSearchParams } from "react-router-dom";
@@ -186,68 +183,25 @@ export const Events = () => {
   // Handle date conversion - ensure valid ISO strings
   const afterDate = afterFilter !== null && dayjs(afterFilter).isValid() ? afterFilter : undefined;
   const beforeDate = beforeFilter !== null && dayjs(beforeFilter).isValid() ? beforeFilter : undefined;
-  const hasTextFilters = Boolean(dagIdFilter ?? eventTypeFilter ?? userFilter ?? runIdFilter ?? taskIdFilter);
 
   const { data, error, isFetching, isLoading } = useEventLogServiceGetEventLogs(
     {
       after: afterDate,
       before: beforeDate,
-      // URL params take precedence for context-specific views (exact match needed)
-      dagId: dagId ?? undefined, // Remove dagIdFilter to allow partial search
-      event: undefined, // Remove eventTypeFilter to allow partial search
-      limit: hasTextFilters ? pagination.pageSize * 5 : pagination.pageSize, // Load more data for filtering
+      dagId: dagId ?? dagIdFilter ?? undefined,
+      event: eventTypeFilter ?? undefined,
+      limit: pagination.pageSize,
       mapIndex: mapIndexNumber,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
-      owner: undefined, // Remove userFilter to allow partial search
-      runId: runId ?? undefined, // Remove runIdFilter to allow partial search
-      taskId: taskId ?? undefined, // Remove taskIdFilter to allow partial search
+      owner: userFilter ?? undefined,
+      runId: runId ?? runIdFilter ?? undefined,
+      taskId: taskId ?? taskIdFilter ?? undefined,
       tryNumber: tryNumberNumber,
     },
     undefined,
     { enabled: !isNaN(pagination.pageSize) },
   );
-
-  const filteredData = React.useMemo(() => {
-    if (!data?.event_logs || !hasTextFilters) {
-      return data;
-    }
-
-    const filtered = data.event_logs.filter((log) => {
-      if (dagIdFilter !== null && !log.dag_id?.toLowerCase().includes(dagIdFilter.toLowerCase())) {
-        return false;
-      }
-      if (eventTypeFilter !== null && !log.event.toLowerCase().includes(eventTypeFilter.toLowerCase())) {
-        return false;
-      }
-      if (userFilter !== null && !log.owner?.toLowerCase().includes(userFilter.toLowerCase())) {
-        return false;
-      }
-      if (runIdFilter !== null && !log.run_id?.toLowerCase().includes(runIdFilter.toLowerCase())) {
-        return false;
-      }
-      if (taskIdFilter !== null && !log.task_id?.toLowerCase().includes(taskIdFilter.toLowerCase())) {
-        return false;
-      }
-
-      return true;
-    });
-
-    return {
-      ...data,
-      event_logs: filtered.slice(0, pagination.pageSize), // Apply pagination to filtered results
-      total_entries: filtered.length,
-    };
-  }, [
-    data,
-    dagIdFilter,
-    eventTypeFilter,
-    userFilter,
-    runIdFilter,
-    taskIdFilter,
-    hasTextFilters,
-    pagination.pageSize,
-  ]);
 
   return (
     <VStack alignItems="stretch" gap={4}>
@@ -282,7 +236,7 @@ export const Events = () => {
       <ErrorAlert error={error} />
       <DataTable
         columns={eventsColumn({ dagId, open, runId, taskId }, translate)}
-        data={filteredData ? filteredData.event_logs : []}
+        data={data?.event_logs ?? []}
         displayMode="table"
         initialState={tableURLState}
         isFetching={isFetching}
@@ -290,7 +244,7 @@ export const Events = () => {
         modelName={translate("auditLog.columns.event")}
         onStateChange={setTableURLState}
         skeletonCount={undefined}
-        total={filteredData ? filteredData.total_entries : 0}
+        total={data?.total_entries ?? 0}
       />
     </VStack>
   );
