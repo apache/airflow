@@ -161,7 +161,6 @@ export const Events = () => {
       taskId,
     },
     undefined,
-    { enabled: !isNaN(pagination.pageSize) },
   );
 
   return (
