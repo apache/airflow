@@ -44,6 +44,14 @@ class TestExecutorLoader:
             with pytest.raises(AirflowConfigException, match=r".*not found in config$"):
                 executor_loader.ExecutorLoader.get_default_executor()
 
+    def test_empty_executor_configured(self):
+        with conf_vars({("core", "executor"): ""}):
+            with pytest.raises(
+                AirflowConfigException,
+                match="The 'executor' key in the 'coe' section of the configuration is mandatory and cannot be empty",
+            ):
+                executor_loader.ExecutorLoader.get_default_executor()
+
     @pytest.mark.parametrize(
         "executor_name",
         [

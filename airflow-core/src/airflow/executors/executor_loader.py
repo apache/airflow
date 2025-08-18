@@ -70,7 +70,7 @@ class ExecutorLoader:
         if _executor_names:
             return _executor_names
 
-        all_executor_names: list[tuple[None | str, list[str]]] = cls._get_team_executor_configs()
+        all_executor_names: list[tuple[str | None, list[str]]] = cls._get_team_executor_configs()
 
         executor_names = []
         for team_id, executor_names_config in all_executor_names:
@@ -162,6 +162,10 @@ class ExecutorLoader:
         from airflow.configuration import conf
 
         executor_config = conf.get_mandatory_value("core", "executor")
+        if not executor_config:
+            raise AirflowConfigException(
+                "The 'executor' key in the 'coe' section of the configuration is mandatory and cannot be empty"
+            )
         configs: list[tuple[str | None, list[str]]] = []
         # The executor_config can look like a few things. One is just a single executor name, such as
         # "CeleryExecutor". Or a list of executors, such as "CeleryExecutor,KubernetesExecutor,module.path.to.executor".
@@ -170,17 +174,16 @@ class ExecutorLoader:
         # prefixing each list of executors separated by a equal sign and then each team list separated by a
         # semi-colon.
         # "LocalExecutor;team1=CeleryExecutor;team2=KubernetesExecutor,module.path.to.executor".
-        if executor_config:
-            for team_executor_config in executor_config.split(";"):
-                # The first item in the list may not have a team id (either empty string before the equal
-                # sign or no equal sign at all), which means it is a global executor config.
-                if "=" not in team_executor_config or team_executor_config.startswith("="):
-                    team_executor_config = team_executor_config.strip("=")
-                    # Split by comma to get the individual executor names and strip spaces off of them
-                    configs.append((None, [name.strip() for name in team_executor_config.split(",")]))
-                else:
-                    team_id, executor_names = team_executor_config.split("=")
-                    configs.append((team_id, [name.strip() for name in executor_names.split(",")]))
+        for team_executor_config in executor_config.split(";"):
+            # The first item in the list may not have a team id (either empty string before the equal
+            # sign or no equal sign at all), which means it is a global executor config.
+            if "=" not in team_executor_config or team_executor_config.startswith("="):
+                team_executor_config = team_executor_config.strip("=")
+                # Split by comma to get the individual executor names and strip spaces off of them
+                configs.append((None, [name.strip() for name in team_executor_config.split(",")]))
+            else:
+                team_id, executor_names = team_executor_config.split("=")
+                configs.append((team_id, [name.strip() for name in executor_names.split(",")]))
         return configs
 
     @classmethod
