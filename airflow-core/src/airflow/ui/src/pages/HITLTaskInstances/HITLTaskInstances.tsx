@@ -123,7 +123,7 @@ const taskInstanceColumns = ({
 
 export const HITLTaskInstances = () => {
   const { t: translate } = useTranslation("hitl");
-  const { dagId, groupId, runId, taskId } = useParams();
+  const { dagId, runId, taskId } = useParams();
   const [searchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const responseReceived = searchParams.get(SearchParamsKeys.RESPONSE_RECEIVED);
@@ -135,8 +135,7 @@ export const HITLTaskInstances = () => {
       dagId,
       dagRunId: runId,
       responseReceived: Boolean(responseReceived) ? responseReceived === "true" : undefined,
-      taskId: Boolean(groupId) ? undefined : taskId,
-      taskIdPattern: groupId,
+      taskId,
     },
     undefined,
     {
@@ -155,7 +154,7 @@ export const HITLTaskInstances = () => {
         columns={taskInstanceColumns({
           dagId,
           runId,
-          taskId: Boolean(groupId) ? undefined : taskId,
+          taskId,
           translate,
         })}
         data={data?.hitl_details ?? []}
