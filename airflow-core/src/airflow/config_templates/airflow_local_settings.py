@@ -71,8 +71,11 @@ DEFAULT_LOGGING_CONFIG: dict[str, Any] = {
         },
     },
     "filters": {
-        "mask_secrets": {
-            "()": "airflow._shared.secrets_masker.secrets_masker.SecretsMasker",
+        "mask_secrets_core": {
+            "()": "airflow._shared.secrets_masker.secrets_masker._secrets_masker",
+        },
+        "mask_secrets_sdk": {
+            "()": "airflow.sdk._shared.secrets_masker.secrets_masker._secrets_masker",
         },
     },
     "handlers": {
@@ -80,13 +83,13 @@ DEFAULT_LOGGING_CONFIG: dict[str, Any] = {
             "class": "airflow.utils.log.logging_mixin.RedirectStdHandler",
             "formatter": "airflow_coloured",
             "stream": "sys.stdout",
-            "filters": ["mask_secrets"],
+            "filters": ["mask_secrets_core"],
         },
         "task": {
             "class": "airflow.utils.log.file_task_handler.FileTaskHandler",
             "formatter": "airflow",
             "base_log_folder": BASE_LOG_FOLDER,
-            "filters": ["mask_secrets"],
+            "filters": ["mask_secrets_sdk"],
         },
     },
     "loggers": {
@@ -95,7 +98,7 @@ DEFAULT_LOGGING_CONFIG: dict[str, Any] = {
             "level": LOG_LEVEL,
             # Set to true here (and reset via set_context) so that if no file is configured we still get logs!
             "propagate": True,
-            "filters": ["mask_secrets"],
+            "filters": ["mask_secrets_sdk"],
         },
         "flask_appbuilder": {
             "handlers": ["console"],
@@ -106,7 +109,7 @@ DEFAULT_LOGGING_CONFIG: dict[str, Any] = {
     "root": {
         "handlers": ["console"],
         "level": LOG_LEVEL,
-        "filters": ["mask_secrets"],
+        "filters": ["mask_secrets_core"],
     },
 }
 
