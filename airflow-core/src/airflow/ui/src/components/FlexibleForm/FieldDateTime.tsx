@@ -17,11 +17,16 @@
  * under the License.
  */
 import { Input, type InputProps } from "@chakra-ui/react";
+import dayjs from "dayjs";
+import tz from "dayjs/plugin/timezone";
 
+import { useTimezone } from "src/context/timezone";
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
 import { DateTimeInput } from "../DateTimeInput";
+
+dayjs.extend(tz);
 
 export const FieldDateTime = ({
   name,
@@ -30,13 +35,14 @@ export const FieldDateTime = ({
   ...rest
 }: FlexibleFormElementProps & InputProps) => {
   const { disabled, paramsDict, setParamsDict } = useParamStore(namespace);
+  const { selectedTimezone } = useTimezone();
   const param = paramsDict[name] ?? paramPlaceholder;
   const handleChange = (value: string) => {
     if (paramsDict[name]) {
       if (rest.type === "datetime-local") {
         // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
         // eslint-disable-next-line unicorn/no-null
-        paramsDict[name].value = value === "" ? null : `${value}:00+00:00`; // Need to suffix to make it UTC like
+        paramsDict[name].value = value === "" ? null : dayjs(value).tz(selectedTimezone).toISOString();
       } else {
         // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
         // eslint-disable-next-line unicorn/no-null
@@ -56,7 +62,11 @@ export const FieldDateTime = ({
         name={`element_${name}`}
         onChange={(event) => handleChange(event.target.value)}
         size="sm"
-        value={((param.value ?? "") as string).slice(0, 16)}
+        value={
+          Boolean(param.value) && typeof param.value === "string"
+            ? dayjs(param.value).tz(selectedTimezone).format("YYYY-MM-DDTHH:mm")
+            : ""
+        }
       />
     );
   }
