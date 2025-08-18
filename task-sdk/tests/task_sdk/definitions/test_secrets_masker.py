@@ -30,7 +30,6 @@ from unittest.mock import patch
 import pytest
 
 from airflow.models import Connection
-from airflow.sdk.api.datamodels._generated import JobState
 from airflow.sdk.execution_time.secrets_masker import (
     RedactedIO,
     SecretsMasker,
@@ -358,7 +357,6 @@ class TestSecretsMasker:
         [
             (DagRunState.SUCCESS, "success"),
             (TaskInstanceState.FAILED, "failed"),
-            (JobState.RUNNING, "running"),
             ([DagRunState.SUCCESS, DagRunState.RUNNING], ["success", "running"]),
             ([TaskInstanceState.FAILED, TaskInstanceState.SUCCESS], ["failed", "success"]),
             (State.failed_states, frozenset([TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED])),
