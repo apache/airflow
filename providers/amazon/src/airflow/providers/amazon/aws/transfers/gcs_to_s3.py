@@ -31,8 +31,8 @@ from airflow.providers.amazon.version_compat import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from airflow.providers.openlineage.extractors import OperatorLineage
+    from airflow.utils.context import Context
 
 
 class GCSToS3Operator(BaseOperator):
