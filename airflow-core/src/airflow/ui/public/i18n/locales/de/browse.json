@@ -10,6 +10,9 @@
       "user": "Benutzer",
       "when": "Datum und Uhrzeit"
     },
+    "filters": {
+      "eventType": "Ereignis Typ"
+    },
     "title": "Prüf-Log"
   },
   "xcom": {
