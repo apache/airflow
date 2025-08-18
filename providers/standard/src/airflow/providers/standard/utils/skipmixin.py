@@ -137,11 +137,9 @@ class SkipMixin(LoggingMixin):
             }
             if invalid_task_ids_type:
                 raise AirflowException(
-                    f"Cannot properly branch. "
-                    f"Invalid branch task ID's were returned by the python_callable. "
-                    f"These invalid 'branch_task_ids' were: {invalid_task_ids_type}. "
-                    f"Make sure your python_callable returns an Iterable of strings storing valid task_id's. "
-                    f"These task_id's should correspond to Tasks within your DAG."
+                    f"Unable to branch to the specified tasks. "
+                    f"The branching function returned invalid task IDs: {invalid_task_ids_type}. "
+                    f"Please check that your function returns an Iterable of valid task IDs that exist in your DAG."
                 )
         elif branch_task_ids is None:
             branch_task_id_set = set()
