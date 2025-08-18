@@ -24,13 +24,12 @@ import (
 	"path"
 	"strings"
 
+	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
+	"github.com/apache/airflow/go-sdk/worker"
 	cc "github.com/ivanpirog/coloredcobra"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-
-	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
-	"github.com/apache/airflow/go-sdk/worker"
 )
 
 var cfgFile string

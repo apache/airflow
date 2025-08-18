@@ -159,7 +159,7 @@ jobs:
         uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
           # yamllint disable rule:line-length
-          key: cache-prek-v6-${{ inputs.platform }}-${{ steps.breeze.outputs.host-python-version }}-${{ hashFiles('.pre-commit-config.yaml') }}
+          key: cache-prek-v6-${{ inputs.platform }}-${{ steps.breeze.outputs.host-python-version }}-${{ hashFiles('**/.pre-commit-config.yaml') }}
           path: /tmp/cache-prek.tar.gz
           if-no-files-found: 'error'
           retention-days: '2'

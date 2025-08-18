@@ -24,13 +24,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/apache/airflow/go-sdk/pkg/api"
+	"github.com/apache/airflow/go-sdk/pkg/api/mocks"
 	"github.com/google/uuid"
 	"github.com/jarcoal/httpmock"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-
-	"github.com/apache/airflow/go-sdk/pkg/api"
-	"github.com/apache/airflow/go-sdk/pkg/api/mocks"
 )
 
 const ExecutionAPIServer = "http://localhost:9999/execution"

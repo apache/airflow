@@ -9,7 +9,7 @@ require (
 	github.com/spf13/pflag v1.0.6
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0
-	resty.dev/v3 v3.0.0-beta.2
+	resty.dev/v3 v3.0.0-beta.3
 )
 
 require (

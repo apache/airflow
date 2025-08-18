@@ -189,7 +189,9 @@ jobs:
           PREK_VERSION: "0.0.29"  # Keep this comment to allow automatic replacement of prek version
         run: |
           pip install uv==${UV_VERSION} || true
-          uv tool install prek==${PREK_VERSION} --with uv==${UV_VERSION}
+          # TODO(potiuk): bring it back when we have prek with workspaces in PyPI
+          # uv tool install prek==${PREK_VERSION} --with uv==${UV_VERSION}
+          uv tool install "prek @ git+https://github.com/j178/prek.git@workspace"
       - name: "Run pin-versions"
         run: >
           prek -c .github/.pre-commit-config.yaml --all-files --verbose --hook-stage manual

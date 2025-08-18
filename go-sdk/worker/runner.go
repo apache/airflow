@@ -27,11 +27,10 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/spf13/viper"
-
 	"github.com/apache/airflow/go-sdk/pkg/api"
 	"github.com/apache/airflow/go-sdk/pkg/logging"
 	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
+	"github.com/spf13/viper"
 )
 
 type (
