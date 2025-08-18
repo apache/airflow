@@ -118,7 +118,7 @@ class TestMSGraphTrigger(Base):
             side_effect=get_airflow_connection,
         ):
             url = "https://graph.microsoft.com/v1.0/me/drive/items"
-            trigger = MSGraphTrigger(url, response_type="bytes", conn_id="msgraph_api")
+            trigger = MSGraphTrigger(url, response_type="bytes", conn_id="msgraph_api", api_version=APIVersion.v1.value)
 
             actual = trigger.serialize()
 
