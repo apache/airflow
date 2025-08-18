@@ -384,7 +384,7 @@ JSON example output:
 Testing for DAG Import Errors
 -----------------------------
 The CLI can be used to check whether any discovered dags have import errors via the ``list-import-errors`` subcommand. It is possible to create an automation step which fails if any dags cannot be imported by checking the command output, particularly when used with ``--output`` to generate a standard file format.
-For example, the default output when there are no errors is ``No data found``, and the json output is ``[]``. The check can then be run in CI or pre-commit to speed up the review process and testing.
+For example, the default output when there are no errors is ``No data found``, and the json output is ``[]``. The check can then be run in CI or as prek hook to speed up the review process and testing.
 
 Example command that fails if there are any errors, using `jq <https://jqlang.github.io/jq/>`__ to parse the output:
 

@@ -25,8 +25,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
-from airflow.models import DagBag
 from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel
+from airflow.models.dagbag import DBDagBag
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
@@ -89,10 +89,8 @@ FIRST_VERSION_DAG_RESPONSE["nodes"] = [
 
 
 @pytest.fixture(autouse=True, scope="module")
-def examples_dag_bag() -> DagBag:
-    # Speed up: We don't want example dags for this module
-
-    return DagBag(include_examples=False, read_dags_from_db=True)
+def examples_dag_bag() -> DBDagBag:
+    return DBDagBag()
 
 
 @pytest.fixture(autouse=True)
