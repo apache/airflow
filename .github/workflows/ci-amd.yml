@@ -186,7 +186,7 @@ jobs:
         shell: bash
         env:
           UV_VERSION: "0.8.11"  # Keep this comment to allow automatic replacement of uv version
-          PREK_VERSION: "0.0.28"  # Keep this comment to allow automatic replacement of prek version
+          PREK_VERSION: "0.0.29"  # Keep this comment to allow automatic replacement of prek version
         run: |
           pip install uv==${UV_VERSION} || true
           uv tool install prek==${PREK_VERSION} --with uv==${UV_VERSION}
