@@ -345,7 +345,7 @@ class TestXComObjectStorageBackend:
                     session=session,
                 ).with_only_columns(XComModel.value)
             ).first()
-        if AIRFLOW_V_3_0_PLUS:
+        elif AIRFLOW_V_3_0_PLUS:
             mock_supervisor_comms.send.return_value = XComResult(key=XCOM_RETURN_KEY, value=path)
             XCom.delete(
                 dag_id=task_instance.dag_id,
@@ -423,15 +423,9 @@ class TestXComObjectStorageBackend:
             ).first()
             data = XComModel.deserialize_value(res)
         elif AIRFLOW_V_3_0_PLUS:
-            session.add(task_instance)
-            session.commit()
-
-            XCom = resolve_xcom_backend()
-            airflow.models.xcom.XCom = XCom
-
-            XCom.set(
+            XComModel.set(
                 key=XCOM_RETURN_KEY,
-                value={"key": "superlargevalue" * 100},
+                value=self.path + ".gz",
                 dag_id=task_instance.dag_id,
                 task_id=task_instance.task_id,
                 run_id=task_instance.run_id,
@@ -448,6 +442,8 @@ class TestXComObjectStorageBackend:
                 .with_entities(XComModel.value)
                 .first()
             )
+            print(res)
+            print(type(res))
             data = XComModel.deserialize_value(res)
         else:
             res = (
@@ -465,7 +461,7 @@ class TestXComObjectStorageBackend:
 
         assert data.endswith(".gz")
 
-        if AIRFLOW_V_3_1_PLUS:
+        if AIRFLOW_V_3_0_PLUS:
             mock_supervisor_comms.send.return_value = XComResult(
                 key=XCOM_RETURN_KEY, value={"key": "superlargevalue" * 100}
             )

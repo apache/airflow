@@ -51,10 +51,14 @@ from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils import db
+<<<<<<< HEAD
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+=======
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+>>>>>>> 95bb79917c (fix tests)
 
-if AIRFLOW_V_3_0_PLUS:
+if AIRFLOW_V_3_0_PLUS or AIRFLOW_V_3_1_PLUS:
     from airflow.models.xcom import XComModel as XCom
 else:
     from airflow.models.xcom import XCom  # type: ignore[no-redef]
@@ -112,8 +116,43 @@ def create_context(task, persist_to_db=False, map_index=None):
         dag = DAG(dag_id="dag", schedule=None, start_date=pendulum.now())
         dag.add_task(task)
     now = timezone.utcnow()
+<<<<<<< HEAD
     if AIRFLOW_V_3_0_PLUS:
         sync_dag_to_db(dag)
+=======
+    if AIRFLOW_V_3_1_PLUS:
+        with create_session() as session:
+            from airflow.models.dagbundle import DagBundleModel
+
+            bundle_name = "testing"
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+            session.add(DagModel(dag_id=dag.dag_id, bundle_name=bundle_name))
+            session.commit()
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        dag_run = DagRun(
+            run_id=DagRun.generate_run_id(
+                run_type=DagRunType.MANUAL, logical_date=DEFAULT_DATE, run_after=DEFAULT_DATE
+            ),
+            run_type=DagRunType.MANUAL,
+            dag_id=dag.dag_id,
+            logical_date=now,
+            data_interval=(now, now),
+            run_after=now,
+        )
+    elif AIRFLOW_V_3_0_PLUS:
+        with create_session() as session:
+            from airflow.models.dagbundle import DagBundleModel
+
+            bundle_name = "testing"
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+            session.add(DagModel(dag_id=dag.dag_id, bundle_name=bundle_name))
+            session.commit()
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
+>>>>>>> 95bb79917c (fix tests)
         dag_run = DagRun(
             run_id=DagRun.generate_run_id(
                 run_type=DagRunType.MANUAL, logical_date=DEFAULT_DATE, run_after=DEFAULT_DATE
@@ -1462,7 +1501,7 @@ class TestKubernetesPodOperator:
         )
 
         pod, _ = self.run_pod(k)
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_1_PLUS:
             with create_session() as session:
                 pod_name = session.execute(
                     XCom.get_many(
@@ -1474,6 +1513,20 @@ class TestKubernetesPodOperator:
                         run_id=self.dag_run.run_id, task_ids="task", key="pod_namespace"
                     ).with_only_columns(XCom.value)
                 ).first()
+
+            pod_name = XCom.deserialize_value(pod_name)
+            pod_namespace = XCom.deserialize_value(pod_namespace)
+        elif AIRFLOW_V_3_0_PLUS:
+            pod_name = (
+                XCom.get_many(run_id=self.dag_run.run_id, task_ids="task", key="pod_name")
+                .with_entities(XCom.value)
+                .first()
+            )
+            pod_namespace = (
+                XCom.get_many(run_id=self.dag_run.run_id, task_ids="task", key="pod_namespace")
+                .with_entities(XCom.value)
+                .first()
+            )
 
             pod_name = XCom.deserialize_value(pod_name)
             pod_namespace = XCom.deserialize_value(pod_namespace)
