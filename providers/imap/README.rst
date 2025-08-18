@@ -23,8 +23,9 @@
 
 Package ``apache-airflow-providers-imap``
 
-Release: ``3.9.1``
+Release: ``3.9.2``
 
+Release Date: ``|PypiReleaseDate|``
 
 `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__
 
@@ -36,7 +37,7 @@ This is a provider package for ``imap`` provider. All classes for this provider 
 are in ``airflow.providers.imap`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-imap/3.9.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-imap/3.9.2/>`_.
 
 Installation
 ------------
@@ -57,4 +58,4 @@ PIP package         Version required
 ==================  ==================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-imap/3.9.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-imap/3.9.2/changelog.html>`_.

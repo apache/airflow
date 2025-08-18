@@ -114,7 +114,7 @@ def test_lineage_parent_id(mock_run_id):
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 3.0+")
 def test_lineage_root_run_id_with_runtime_task_instance(create_runtime_ti):
     """Test lineage_root_run_id with real RuntimeTaskInstance object doesn't throw AttributeError."""
-    from airflow.sdk.bases.operator import BaseOperator
+    from airflow.sdk import BaseOperator
 
     task = BaseOperator(task_id="test_task")
 

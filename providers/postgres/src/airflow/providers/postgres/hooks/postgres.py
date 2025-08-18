@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any, Literal, TypeAlias, cast, overload
 import psycopg2
 import psycopg2.extensions
 import psycopg2.extras
-from psycopg2.extras import DictCursor, Json, NamedTupleCursor, RealDictCursor
+from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor
 from sqlalchemy.engine import URL
 
 from airflow.exceptions import (
@@ -282,20 +282,19 @@ class PostgresHook(DbApiHook):
         """
         Serialize a cell.
 
-        In order to pass a Python object to the database as query argument you can use the
-         Json (class psycopg2.extras.Json) adapter.
+        Psycopg2 adapts all arguments to the ``execute()`` method internally,
+        hence we return the cell without any conversion.
 
-        Reading from the database, json and jsonb values will be automatically converted to Python objects.
+        See https://www.psycopg.org/docs/extensions.html#sql-adaptation-protocol-objects
+        for more information.
 
-        See https://www.psycopg.org/docs/extras.html#json-adaptation for
-        more information.
+        To perform custom type adaptation please use register_adapter function
+        https://www.psycopg.org/docs/extensions.html#psycopg2.extensions.register_adapter.
 
         :param cell: The cell to insert into the table
         :param conn: The database connection
         :return: The cell
         """
-        if isinstance(cell, (dict, list)):
-            cell = Json(cell)
         return cell
 
     def get_iam_token(self, conn: Connection) -> tuple[str, str, int]:

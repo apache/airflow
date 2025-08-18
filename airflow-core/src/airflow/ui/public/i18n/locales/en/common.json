@@ -15,6 +15,7 @@
   "backfill_other": "Backfills",
   "browse": {
     "auditLog": "Audit Log",
+    "requiredActions": "Required Actions",
     "xcoms": "XComs"
   },
   "collapseDetailsPanel": "Collapse Details Panel",
@@ -60,6 +61,7 @@
   },
   "dagRun_one": "Dag Run",
   "dagRun_other": "Dag Runs",
+  "dagRunId": "Dag Run ID",
   "dagWarnings": "Dag warnings/errors",
   "defaultToGraphView": "Default to graph view",
   "defaultToGridView": "Default to grid view",
@@ -89,6 +91,17 @@
     "and": "AND",
     "any": "Any",
     "or": "OR"
+  },
+  "filters": {
+    "dagDisplayNamePlaceholder": "Filter by Dag",
+    "keyPlaceholder": "Filter by XCom key",
+    "logicalDateFromPlaceholder": "Logical Date From",
+    "logicalDateToPlaceholder": "Logical Date To",
+    "mapIndexPlaceholder": "Filter by Map Index",
+    "runAfterFromPlaceholder": "Run After From",
+    "runAfterToPlaceholder": "Run After To",
+    "runIdPlaceholder": "Filter by Run ID",
+    "taskIdPlaceholder": "Filter by Task ID"
   },
   "logicalDate": "Logical Date",
   "logout": "Logout",
@@ -206,6 +219,7 @@
   },
   "task_one": "Task",
   "task_other": "Tasks",
+  "taskGroup": "Task Group",
   "taskId": "Task ID",
   "taskInstance": {
     "dagVersion": "Dag Version",

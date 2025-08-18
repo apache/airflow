@@ -16,11 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-import contextlib
 import importlib
 import logging
 import os
-from io import StringIO
 from unittest import mock
 
 import httpx
@@ -150,8 +148,8 @@ class TestAirflowInfo:
             ("database", "sql_alchemy_conn"): "postgresql+psycopg2://postgres:airflow@postgres/airflow",
         }
     )
-    def test_show_info(self):
-        with contextlib.redirect_stdout(StringIO()) as stdout:
+    def test_show_info(self, stdout_capture):
+        with stdout_capture as stdout:
             info_command.show_info(self.parser.parse_args(["info"]))
 
         output = stdout.getvalue()
@@ -164,8 +162,8 @@ class TestAirflowInfo:
             ("database", "sql_alchemy_conn"): "postgresql+psycopg2://postgres:airflow@postgres/airflow",
         }
     )
-    def test_show_info_anonymize(self):
-        with contextlib.redirect_stdout(StringIO()) as stdout:
+    def test_show_info_anonymize(self, stdout_capture):
+        with stdout_capture as stdout:
             info_command.show_info(self.parser.parse_args(["info", "--anonymize"]))
 
         output = stdout.getvalue()
@@ -184,7 +182,7 @@ class TestInfoCommandMockHttpx:
             ("database", "sql_alchemy_conn"): "postgresql+psycopg2://postgres:airflow@postgres/airflow",
         }
     )
-    def test_show_info_anonymize_fileio(self, setup_parser, cleanup_providers_manager):
+    def test_show_info_anonymize_fileio(self, setup_parser, cleanup_providers_manager, stdout_capture):
         with mock.patch("airflow.cli.commands.info_command.httpx.post") as post:
             post.return_value = httpx.Response(
                 status_code=200,
@@ -195,6 +193,6 @@ class TestInfoCommandMockHttpx:
                     "expiry": "14 days",
                 },
             )
-            with contextlib.redirect_stdout(StringIO()) as stdout:
+            with stdout_capture as stdout:
                 info_command.show_info(setup_parser.parse_args(["info", "--file-io", "--anonymize"]))
             assert "https://file.io/TEST" in stdout.getvalue()

@@ -323,6 +323,12 @@ If release name contains chart name it will be used as a full name.
     {{- toYaml . | nindent 4 }}
     {{- end }}
   resources: {{ toYaml .Values.dags.gitSync.resources | nindent 4 }}
+  {{- if and .Values.dags.gitSync.livenessProbe (not .is_init) }}
+  livenessProbe: {{ tpl (toYaml .Values.dags.gitSync.livenessProbe) . | nindent 4 }}
+  {{- end }}
+  {{- if and .Values.dags.gitSync.readinessProbe (not .is_init) }}
+  readinessProbe: {{ tpl (toYaml .Values.dags.gitSync.readinessProbe) . | nindent 4 }}
+  {{- end }}
   volumeMounts:
   - name: dags
     mountPath: /git

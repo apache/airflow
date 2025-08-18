@@ -288,7 +288,21 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         if status_code == 202:
             return {"status": "running", "message": "Query statements are still running"}
         if status_code == 422:
-            return {"status": "error", "message": resp["message"]}
+            error_message = resp.get("message", "Unknown error occurred")
+            error_details = []
+            if code := resp.get("code"):
+                error_details.append(f"Code: {code}")
+            if sql_state := resp.get("sqlState"):
+                error_details.append(f"SQL State: {sql_state}")
+            if statement_handle := resp.get("statementHandle"):
+                error_details.append(f"Statement Handle: {statement_handle}")
+
+            if error_details:
+                enhanced_message = f"{error_message} ({', '.join(error_details)})"
+            else:
+                enhanced_message = error_message
+
+            return {"status": "error", "message": enhanced_message}
         if status_code == 200:
             if resp_statement_handles := resp.get("statementHandles"):
                 statement_handles = resp_statement_handles
@@ -435,7 +449,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         :param url: The URL for the API endpoint.
         :param headers: The headers to include in the API call.
         :param params: (Optional) The query parameters to include in the API call.
-        :param data: (Optional) The data to include in the API call.
+        :param json: (Optional) The data to include in the API call.
         :return: The response object from the API call.
         """
         with requests.Session() as session:

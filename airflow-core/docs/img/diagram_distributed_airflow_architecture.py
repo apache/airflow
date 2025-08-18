@@ -96,7 +96,7 @@ def generate_distributed_airflow_diagram():
 
         operations_user = User("Operations User")
         with Cluster("UI"):
-            webservers = Custom("Webserver(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
+            webservers = Custom("API Server(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
 
         webservers >> Edge(color="black", style="solid", reverse=True, label="operate\n\n") >> operations_user
 

@@ -25,7 +25,7 @@ from google.cloud.logging_v2.types import LogSink
 from google.protobuf.field_mask_pb2 import FieldMask
 
 # [END howto_operator_import_protobuf_obj]
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.cloud_logging_sink import (
     CloudLoggingCreateSinkOperator,
     CloudLoggingDeleteSinkOperator,
@@ -41,8 +41,7 @@ CONN_ID = "google_cloud_default"
 
 with DAG(
     dag_id="google_cloud_logging_sink",
-    description="Example DAG showing usage of all Cloud Logging Sink operators",
-    schedule=None,
+    schedule="@once",
     start_date=datetime(2024, 1, 1),
     catchup=False,
     tags=["example", "gcp", "cloud-logging"],

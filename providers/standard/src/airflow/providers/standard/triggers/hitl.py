@@ -34,8 +34,8 @@ from airflow.sdk.execution_time.hitl import (
     get_hitl_detail_content_detail,
     update_htil_detail_response,
 )
+from airflow.sdk.timezone import utcnow
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from airflow.utils import timezone
 
 
 class HITLTriggerEventSuccessPayload(TypedDict, total=False):
@@ -43,6 +43,7 @@ class HITLTriggerEventSuccessPayload(TypedDict, total=False):
 
     chosen_options: list[str]
     params_input: dict[str, Any]
+    timedout: bool
 
 
 class HITLTriggerEventFailurePayload(TypedDict):
@@ -96,7 +97,7 @@ class HITLTrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Loop until the Human-in-the-loop response received or timeout reached."""
         while True:
-            if self.timeout_datetime and self.timeout_datetime < timezone.utcnow():
+            if self.timeout_datetime and self.timeout_datetime < utcnow():
                 if self.defaults is None:
                     yield TriggerEvent(
                         HITLTriggerEventFailurePayload(
@@ -111,21 +112,28 @@ class HITLTrigger(BaseTrigger):
                     chosen_options=self.defaults,
                     params_input=self.params,
                 )
+                self.log.info(
+                    "[HITL] timeout reached before receiving response, fallback to default %s", self.defaults
+                )
                 yield TriggerEvent(
                     HITLTriggerEventSuccessPayload(
                         chosen_options=self.defaults,
                         params_input=self.params,
+                        timedout=True,
                     )
                 )
                 return
 
             resp = await sync_to_async(get_hitl_detail_content_detail)(ti_id=self.ti_id)
             if resp.response_received and resp.chosen_options:
-                self.log.info("Responded by %s at %s", resp.user_id, resp.response_at)
+                self.log.info(
+                    "[HITL] user=%s options=%s at %s", resp.user_id, resp.chosen_options, resp.response_at
+                )
                 yield TriggerEvent(
                     HITLTriggerEventSuccessPayload(
                         chosen_options=resp.chosen_options,
                         params_input=resp.params_input,
+                        timedout=False,
                     )
                 )
                 return

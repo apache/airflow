@@ -29,12 +29,12 @@ import jinja2.sandbox
 
 from airflow.sdk import ObjectStoragePath
 from airflow.sdk.definitions._internal.mixins import ResolveMixin
-from airflow.utils.helpers import render_template_as_native, render_template_to_string
+from airflow.sdk.definitions.context import render_template_as_native, render_template_to_string
 
 if TYPE_CHECKING:
-    from airflow.models.operator import Operator
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
+    from airflow.sdk.types import Operator
 
 
 @dataclass(frozen=True)

@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+import json
+
 from fastapi import HTTPException, status
 from pydantic import ValidationError
 from sqlalchemy import select
@@ -32,6 +34,7 @@ from airflow.api_fastapi.core_api.datamodels.common import (
 from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
 from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.models.connection import Connection
+from airflow.sdk.execution_time.secrets_masker import merge
 
 
 def update_orm_from_pydantic(
@@ -56,11 +59,23 @@ def update_orm_from_pydantic(
     if (not update_mask and "password" in pydantic_conn.model_fields_set) or (
         update_mask and "password" in update_mask
     ):
-        orm_conn.set_password(pydantic_conn.password)
+        if pydantic_conn.password is None:
+            orm_conn.set_password(pydantic_conn.password)
+        else:
+            merged_password = merge(pydantic_conn.password, orm_conn.password, "password")
+            orm_conn.set_password(merged_password)
     if (not update_mask and "extra" in pydantic_conn.model_fields_set) or (
         update_mask and "extra" in update_mask
     ):
-        orm_conn.set_extra(pydantic_conn.extra)
+        if pydantic_conn.extra is None or orm_conn.extra is None:
+            orm_conn.set_extra(pydantic_conn.extra)
+            return
+        try:
+            merged_extra = merge(json.loads(pydantic_conn.extra), json.loads(orm_conn.extra))
+            orm_conn.set_extra(json.dumps(merged_extra))
+        except json.JSONDecodeError:
+            # We can't merge fields in an unstructured `extra`
+            orm_conn.set_extra(pydantic_conn.extra)
 
 
 class BulkConnectionService(BulkService[ConnectionBody]):

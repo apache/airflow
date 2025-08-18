@@ -23,22 +23,23 @@ from airflow.sdk import timezone
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
 from airflow.sdk.execution_time.comms import CreateHITLDetailPayload
 from airflow.sdk.execution_time.hitl import (
-    add_hitl_detail,
     get_hitl_detail_content_detail,
     update_htil_detail_response,
+    upsert_hitl_detail,
 )
 
 TI_ID = uuid7()
 
 
-def test_add_hitl_detail(mock_supervisor_comms) -> None:
-    add_hitl_detail(
+def test_upsert_hitl_detail(mock_supervisor_comms) -> None:
+    upsert_hitl_detail(
         ti_id=TI_ID,
         options=["Approve", "Reject"],
         subject="Subject",
         body="Optional body",
         defaults=["Approve", "Reject"],
         params={"input_1": 1},
+        respondents=["test"],
         multiple=False,
     )
     mock_supervisor_comms.send.assert_called_with(
@@ -49,6 +50,7 @@ def test_add_hitl_detail(mock_supervisor_comms) -> None:
             body="Optional body",
             defaults=["Approve", "Reject"],
             params={"input_1": 1},
+            respondents=["test"],
             multiple=False,
         )
     )

@@ -27,6 +27,27 @@
 Changelog
 ---------
 
+5.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Added JWT authentication support to TableauHook (#51756)``
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Cleanup type ignores in tableau provider where possible (#53256)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Imported BaseHook from version_compat in Tableau (#52787)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 5.1.1
 .....
 

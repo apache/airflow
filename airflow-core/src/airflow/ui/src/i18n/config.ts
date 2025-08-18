@@ -35,7 +35,20 @@ export const supportedLanguages = [
 ] as const;
 
 export const defaultLanguage = "en";
-export const namespaces = ["common", "dashboard", "dags", "admin", "browse", "assets", "components"] as const;
+export const namespaces = [
+  "common",
+  "dashboard",
+  "dags",
+  "admin",
+  "browse",
+  "assets",
+  "components",
+  "hitl",
+] as const;
+
+const baseHref = document.querySelector("head > base")?.getAttribute("href") ?? "";
+const baseUrl = new URL(baseHref, globalThis.location.origin);
+const basePath = new URL(baseUrl).pathname.replace(/\/$/u, "");
 
 void i18n
   .use(Backend)
@@ -43,7 +56,7 @@ void i18n
   .use(initReactI18next)
   .init({
     backend: {
-      loadPath: "/static/i18n/locales/{{lng}}/{{ns}}.json",
+      loadPath: `${basePath}/static/i18n/locales/{{lng}}/{{ns}}.json`,
     },
     defaultNS: "common",
     detection: {

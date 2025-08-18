@@ -38,7 +38,6 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 
 PS = ParamSpec("PS")
 RT = TypeVar("RT")
-AIRFLOW_API_APPS = "AIRFLOW_API_APPS"
 
 log = logging.getLogger(__name__)
 
@@ -105,17 +104,17 @@ def with_api_apps_env(func: Callable[[Namespace], RT]) -> Callable[[Namespace], 
     @wraps(func)
     def wrapper(args: Namespace) -> RT:
         apps: str = args.apps
-        original_value = os.environ.get(AIRFLOW_API_APPS)
+        original_value = os.environ.get("AIRFLOW_API_APPS")
         try:
             log.debug("Setting AIRFLOW_API_APPS to: %s", apps)
-            os.environ[AIRFLOW_API_APPS] = apps
+            os.environ["AIRFLOW_API_APPS"] = apps
             return func(args)
         finally:
             if original_value is not None:
-                os.environ[AIRFLOW_API_APPS] = original_value
+                os.environ["AIRFLOW_API_APPS"] = original_value
                 log.debug("Restored AIRFLOW_API_APPS to: %s", original_value)
             else:
-                os.environ.pop(AIRFLOW_API_APPS, None)
+                os.environ.pop("AIRFLOW_API_APPS", None)
                 log.debug("Removed AIRFLOW_API_APPS from environment")
 
     return wrapper

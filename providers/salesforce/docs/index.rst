@@ -77,7 +77,9 @@ apache-airflow-providers-salesforce package
 `Salesforce <https://www.salesforce.com/>`__
 
 
-Release: 5.11.1
+Release: 5.11.2
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------

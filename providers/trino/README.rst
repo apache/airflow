@@ -23,8 +23,9 @@
 
 Package ``apache-airflow-providers-trino``
 
-Release: ``6.3.1``
+Release: ``6.3.3``
 
+Release Date: ``|PypiReleaseDate|``
 
 `Trino <https://trino.io/>`__
 
@@ -36,7 +37,7 @@ This is a provider package for ``trino`` provider. All classes for this provider
 are in ``airflow.providers.trino`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-trino/6.3.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-trino/6.3.3/>`_.
 
 Installation
 ------------
@@ -82,4 +83,4 @@ Dependent package                                                               
 ==============================================================================================================  ===============
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-trino/6.3.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-trino/6.3.3/changelog.html>`_.
