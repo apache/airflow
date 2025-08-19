@@ -28,7 +28,7 @@ on:  # yamllint disable-line rule:truthy
         description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
         required: true
         type: string
-      needs-mypy:
+      run-mypy:
         description: "Whether to run mypy checks (true/false)"
         required: true
         type: string
@@ -88,7 +88,7 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to build docs (true/false)"
         required: true
         type: string
-      needs-api-codegen:
+      run-api-codegen:
         description: "Whether to run API codegen (true/false)"
         required: true
         type: string
@@ -209,7 +209,7 @@ jobs:
     name: "MyPy checks"
     runs-on: ${{ fromJSON(inputs.runners) }}
     needs: install-prek
-    if: inputs.needs-mypy == 'true'
+    if: inputs.run-mypy == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -404,7 +404,7 @@ jobs:
     timeout-minutes: 60
     name: "Test Python API client"
     runs-on: ${{ fromJSON(inputs.runners) }}
-    if: inputs.needs-api-codegen == 'true'
+    if: inputs.run-api-codegen == 'true'
     env:
       BACKEND: "postgres"
       BACKEND_VERSION: "${{ inputs.default-postgres-version }}"
