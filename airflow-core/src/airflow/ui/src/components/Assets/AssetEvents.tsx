@@ -19,12 +19,16 @@
 import { Box, Heading, Flex, HStack, Skeleton, Separator } from "@chakra-ui/react";
 import type { BoxProps } from "@chakra-ui/react";
 import { createListCollection } from "@chakra-ui/react/collection";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FiDatabase } from "react-icons/fi";
+import { useSearchParams } from "react-router-dom";
 
 import type { AssetEventCollectionResponse, AssetEventResponse } from "openapi/requests/types.gen";
+import { DateTimeInput } from "src/components/DateTimeInput";
 import { StateBadge } from "src/components/StateBadge";
 import { Select } from "src/components/ui";
+import { SearchParamsKeys } from "src/constants/searchParams";
 
 import { DataTable } from "../DataTable";
 import type { CardDef, TableState } from "../DataTable/types";
@@ -64,6 +68,45 @@ export const AssetEvents = ({
       { label: translate("sortBy.oldestFirst"), value: "timestamp" },
     ],
   });
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [START_DATE, END_DATE] = [SearchParamsKeys.START_DATE, SearchParamsKeys.END_DATE];
+  const startDate = searchParams.get(START_DATE) ?? "";
+  const endDate = searchParams.get(END_DATE) ?? "";
+
+  const handleFilterChange = useCallback(
+    (paramKey: string) => (value: string) => {
+      if (value === "") {
+        searchParams.delete(paramKey);
+      } else {
+        searchParams.set(paramKey, value);
+      }
+      setSearchParams(searchParams);
+    },
+    [searchParams, setSearchParams],
+  );
+  const filteredData = useMemo(() => {
+    if (!data) {
+      return {
+        asset_events: [],
+        total_entries: 0,
+      };
+    }
+    const filteredAssetEvents = data.asset_events.filter((event) => {
+      if (startDate !== "" && new Date(startDate) > new Date(event.timestamp)) {
+        return false;
+      }
+      if (endDate !== "" && new Date(endDate) < new Date(event.timestamp)) {
+        return false;
+      }
+
+      return true;
+    });
+
+    return {
+      asset_events: filteredAssetEvents,
+      total_entries: data.total_entries,
+    };
+  }, [data, startDate, endDate]);
 
   return (
     <Box borderBottomWidth={0} borderRadius={5} borderWidth={1} p={4} py={2} {...rest}>
@@ -101,11 +144,21 @@ export const AssetEvents = ({
           </Select.Root>
         )}
       </Flex>
+      <DateTimeInput
+        key={SearchParamsKeys.START_DATE}
+        onChange={(event) => handleFilterChange(START_DATE)(event.target.value)}
+        value={searchParams.get(START_DATE) ?? ""}
+      />
+      <DateTimeInput
+        key={SearchParamsKeys.END_DATE}
+        onChange={(event) => handleFilterChange(END_DATE)(event.target.value)}
+        value={searchParams.get(END_DATE) ?? ""}
+      />
       <Separator mt={2.5} />
       <DataTable
         cardDef={cardDef(assetId)}
         columns={[]}
-        data={data?.asset_events ?? []}
+        data={filteredData.asset_events}
         displayMode="card"
         initialState={tableUrlState}
         isLoading={isLoading}
@@ -113,7 +166,7 @@ export const AssetEvents = ({
         noRowsMessage={translate("noAssetEvents")}
         onStateChange={setTableUrlState}
         skeletonCount={5}
-        total={data?.total_entries}
+        total={filteredData.total_entries}
       />
     </Box>
   );
