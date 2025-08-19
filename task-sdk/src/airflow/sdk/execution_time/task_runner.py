@@ -689,8 +689,8 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
     log = structlog.get_logger(logger_name="task")
 
     if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1" and os.environ.get("_AIRFLOW__STARTUP_MSG"):
-        if "KRB5CCNAME" in os.environ:
-            del os.environ["KRB5CCNAME"]
+        # Clear any Kerberos replace cache if there is one, so new process can't reuse it.
+        os.environ.pop("KRB5CCNAME", None)
         # entrypoint of re-exec process
         msg = TypeAdapter(StartupDetails).validate_json(os.environ["_AIRFLOW__STARTUP_MSG"])
 
