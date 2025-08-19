@@ -331,7 +331,7 @@ class TestSkipMixin:
             # Improved error message for Airflow 3.0+
             error_message = (
                 r"Unable to branch to the specified tasks\. "
-                r"The branching function returned invalid task IDs: \{\(42, 'int'\)\}\. "
+                r"The branching function returned invalid 'branch_task_ids': \{\(42, 'int'\)\}\. "
                 r"Please check that your function returns an Iterable of valid task IDs that exist in your DAG\."
             )
         else:
