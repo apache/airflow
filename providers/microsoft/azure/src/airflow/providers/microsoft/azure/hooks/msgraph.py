@@ -245,7 +245,7 @@ class KiotaRequestAdapterHook(BaseHook):
                         return None
         return proxies
 
-    async def get_conn(self) -> RequestAdapter:
+    async def get_async_conn(self) -> RequestAdapter:
         if not self.conn_id:
             raise AirflowException("Failed to create the KiotaRequestAdapterHook. No conn_id provided!")
 
@@ -421,7 +421,7 @@ class KiotaRequestAdapterHook(BaseHook):
         return response
 
     async def send_request(self, request_info: RequestInformation, response_type: str | None = None):
-        conn = await self.get_conn()
+        conn = await self.get_async_conn()
 
         if response_type:
             return await conn.send_primitive_async(
