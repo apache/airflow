@@ -798,7 +798,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             if state in (TaskInstanceState.QUEUED, TaskInstanceState.RUNNING):
                 ti.external_executor_id = info
-                cls.logger().info("Setting external_id for %s to %s", ti, info)
+                cls.logger().info("Setting external_executor_id for %s to %s", ti, info)
                 continue
 
             msg = (
