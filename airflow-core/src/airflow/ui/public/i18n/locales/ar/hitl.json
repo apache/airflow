@@ -23,5 +23,6 @@
     "rejectionReceived": "تم استلام الرفض",
     "responseReceived": "تم استلام الاستجابة",
     "responseRequired": "تتطلب استجابة"
-  }
+  },
+  "subject": "الموضوع"
 }

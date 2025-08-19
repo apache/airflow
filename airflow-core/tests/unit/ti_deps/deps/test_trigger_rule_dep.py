@@ -1326,7 +1326,7 @@ class TestTriggerRuleDep:
 def test_upstream_in_mapped_group_triggers_only_relevant(dag_maker, session):
     from airflow.sdk import task, task_group
 
-    with dag_maker(session=session):
+    with dag_maker(session=session, serialized=True):
 
         @task
         def t(x):
@@ -1357,35 +1357,35 @@ def test_upstream_in_mapped_group_triggers_only_relevant(dag_maker, session):
     assert sorted(tis) == [("tg1.t1", 0), ("tg1.t1", 1), ("tg1.t1", 2)]
 
     # After running the first t1, the first t2 becomes immediately available.
-    tis["tg1.t1", 0].run()
+    dag_maker.run_ti(task_id="tg1.t1", map_index=0, dag_run=dr)
     tis = _one_scheduling_decision_iteration()
     assert sorted(tis) == [("tg1.t1", 1), ("tg1.t1", 2), ("tg1.t2", 0)]
 
     # Similarly for the subsequent t2 instances.
-    tis["tg1.t1", 2].run()
+    dag_maker.run_ti(task_id="tg1.t1", map_index=2, dag_run=dr)
     tis = _one_scheduling_decision_iteration()
     assert sorted(tis) == [("tg1.t1", 1), ("tg1.t2", 0), ("tg1.t2", 2)]
 
     # But running t2 partially does not make t3 available.
-    tis["tg1.t1", 1].run()
-    tis["tg1.t2", 0].run()
-    tis["tg1.t2", 2].run()
+    dag_maker.run_ti(task_id="tg1.t1", map_index=1, dag_run=dr)
+    dag_maker.run_ti(task_id="tg1.t2", map_index=0, dag_run=dr)
+    dag_maker.run_ti(task_id="tg1.t2", map_index=2, dag_run=dr)
     tis = _one_scheduling_decision_iteration()
     assert sorted(tis) == [("tg1.t2", 1)]
 
     # Only after all t2 instances are run does t3 become available.
-    tis["tg1.t2", 1].run()
+    dag_maker.run_ti(task_id="tg1.t2", map_index=1, dag_run=dr)
     tis = _one_scheduling_decision_iteration()
     assert sorted(tis) == [("tg2.t3", 0), ("tg2.t3", 1), ("tg2.t3", 2)]
 
     # But running t3 partially does not make t4 available.
-    tis["tg2.t3", 0].run()
-    tis["tg2.t3", 2].run()
+    dag_maker.run_ti(task_id="tg2.t3", map_index=0, dag_run=dr)
+    dag_maker.run_ti(task_id="tg2.t3", map_index=2, dag_run=dr)
     tis = _one_scheduling_decision_iteration()
     assert sorted(tis) == [("tg2.t3", 1)]
 
     # Only after all t3 instances are run does t4 become available.
-    tis["tg2.t3", 1].run()
+    dag_maker.run_ti(task_id="tg2.t3", map_index=1, dag_run=dr)
     tis = _one_scheduling_decision_iteration()
     assert sorted(tis) == [("t4", -1)]
 
@@ -1393,7 +1393,7 @@ def test_upstream_in_mapped_group_triggers_only_relevant(dag_maker, session):
 def test_upstream_in_mapped_group_when_mapped_tasks_list_is_empty(dag_maker, session):
     from airflow.sdk import task, task_group
 
-    with dag_maker(session=session):
+    with dag_maker(session=session, serialized=True):
 
         @task
         def t(x):
