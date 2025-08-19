@@ -610,6 +610,7 @@ repos:
             ^providers/apprise/.*\.py$|
             ^providers/arangodb/.*\.py$|
             ^providers/asana/.*\.py$|
+            ^providers/atlassian/jira/.*\.py$|
             ^providers/cloudant/.*\.py$|
             ^providers/cohere/.*\.py$|
             ^providers/common/compat/.*\.py$|
