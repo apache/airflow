@@ -17,9 +17,11 @@
 
 from __future__ import annotations
 
+import abc
 import asyncio
 import time
 from collections.abc import AsyncIterator
+from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 import tenacity
@@ -35,7 +37,31 @@ if TYPE_CHECKING:
     from msgraph_core import APIVersion
 
 
-class PowerBITrigger(BaseTrigger):
+class BasePowerBITrigger(abc.ABC, BaseTrigger):
+    def __init__(
+        self,
+        conn_id: str,
+        timeout: float | None = None,
+        proxies: dict | None = None,
+        api_version: APIVersion | str | None = None,
+    ):
+        super().__init__()
+        self.conn_id = conn_id
+        self.timeout = timeout
+        self.proxies = proxies
+        self.api_version = api_version
+
+    @cached_property
+    def hook(self) -> PowerBIHook:
+        return PowerBIHook(
+            conn_id=self.conn_id,
+            timeout=self.timeout,
+            proxies=self.proxies,
+            api_version=self.api_version,
+        )
+
+
+class PowerBITrigger(BasePowerBITrigger):
     """
     Triggers when Power BI dataset refresh is completed.
 
@@ -69,11 +95,9 @@ class PowerBITrigger(BaseTrigger):
         wait_for_termination: bool = True,
         request_body: dict[str, Any] | None = None,
     ):
-        super().__init__()
-        self.hook = PowerBIHook(conn_id=conn_id, proxies=proxies, api_version=api_version, timeout=timeout)
+        super().__init__(conn_id=conn_id, timeout=timeout, proxies=proxies, api_version=api_version)
         self.dataset_id = dataset_id
         self.dataset_refresh_id = dataset_refresh_id
-        self.timeout = timeout
         self.group_id = group_id
         self.check_interval = check_interval
         self.wait_for_termination = wait_for_termination
@@ -96,18 +120,6 @@ class PowerBITrigger(BaseTrigger):
                 "request_body": self.request_body,
             },
         )
-
-    @property
-    def conn_id(self) -> str:
-        return self.hook.conn_id
-
-    @property
-    def proxies(self) -> dict | None:
-        return self.hook.proxies
-
-    @property
-    def api_version(self) -> APIVersion | str:
-        return self.hook.api_version
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make async connection to the PowerBI and polls for the dataset refresh status."""
@@ -236,7 +248,7 @@ class PowerBITrigger(BaseTrigger):
             )
 
 
-class PowerBIWorkspaceListTrigger(BaseTrigger):
+class PowerBIWorkspaceListTrigger(BasePowerBITrigger):
     """
     Triggers a call to the API to request the available workspace IDs.
 
@@ -257,9 +269,7 @@ class PowerBIWorkspaceListTrigger(BaseTrigger):
         proxies: dict | None = None,
         api_version: APIVersion | str | None = None,
     ):
-        super().__init__()
-        self.hook = PowerBIHook(conn_id=conn_id, proxies=proxies, api_version=api_version, timeout=timeout)
-        self.timeout = timeout
+        super().__init__(conn_id=conn_id, timeout=timeout, proxies=proxies, api_version=api_version)
         self.workspace_ids = workspace_ids
 
     def serialize(self):
@@ -274,18 +284,6 @@ class PowerBIWorkspaceListTrigger(BaseTrigger):
                 "workspace_ids": self.workspace_ids,
             },
         )
-
-    @property
-    def conn_id(self) -> str:
-        return self.hook.conn_id
-
-    @property
-    def proxies(self) -> dict | None:
-        return self.hook.proxies
-
-    @property
-    def api_version(self) -> APIVersion | str:
-        return self.hook.api_version
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make async connection to the PowerBI and polls for the list of workspace IDs."""
@@ -313,7 +311,7 @@ class PowerBIWorkspaceListTrigger(BaseTrigger):
         return
 
 
-class PowerBIDatasetListTrigger(BaseTrigger):
+class PowerBIDatasetListTrigger(BasePowerBITrigger):
     """
     Triggers a call to the API to request the available dataset IDs.
 
@@ -336,9 +334,7 @@ class PowerBIDatasetListTrigger(BaseTrigger):
         proxies: dict | None = None,
         api_version: APIVersion | str | None = None,
     ):
-        super().__init__()
-        self.hook = PowerBIHook(conn_id=conn_id, proxies=proxies, api_version=api_version, timeout=timeout)
-        self.timeout = timeout
+        super().__init__(conn_id=conn_id, timeout=timeout, proxies=proxies, api_version=api_version)
         self.group_id = group_id
         self.dataset_ids = dataset_ids
 
@@ -355,18 +351,6 @@ class PowerBIDatasetListTrigger(BaseTrigger):
                 "dataset_ids": self.dataset_ids,
             },
         )
-
-    @property
-    def conn_id(self) -> str:
-        return self.hook.conn_id
-
-    @property
-    def proxies(self) -> dict | None:
-        return self.hook.proxies
-
-    @property
-    def api_version(self) -> APIVersion | str:
-        return self.hook.api_version
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make async connection to the PowerBI and polls for the list of dataset IDs."""
