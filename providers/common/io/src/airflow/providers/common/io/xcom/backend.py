@@ -51,13 +51,21 @@ def _get_compression_suffix(compression: str) -> str:
     """
     Return the compression suffix for the given compression.
 
-    :raises ValueError: if the compression is not supported
+    :raises ValueError: if the compression is not supported or no compression is available
     """
-    for suffix, c in fsspec.utils.compressions.items():
-        if c == compression:
-            return suffix
+    available = fsspec.available_compressions()  # returns list
 
-    raise ValueError(f"Compression {compression} is not supported. Make sure it is installed.")
+    if not available:
+        raise ValueError("No compression codecs are available. Did you install extra dependencies?")
+
+    # case-insensitive check
+    lower_available = [c.lower() for c in available if c is not None]
+
+    if compression.lower() in lower_available:
+        # return the version from available list (preserve case if needed)
+        return compression
+
+    raise ValueError(f"Compression {compression} is not supported. Available: {available}")
 
 
 @cache
