@@ -272,13 +272,6 @@ jobs:
       #   run: prek autoupdate --bleeding-edge --freeze --repo https://github.com/Lucas-C/pre-commit-hooks
       # - name: "Check if there are any changes in pre-commit hooks"
       #   run: git diff --exit-code
-      - name: "Run automated upgrade for black"
-        run: >
-          prek
-          --all-files --show-diff-on-failure --color always --verbose
-          --hook-stage manual
-          update-black-version
-        if: always()
       - name: "Run automated upgrade for chart dependencies"
         run: >
           prek
