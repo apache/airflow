@@ -98,7 +98,16 @@ const ConnectionForm = ({
 
   const validateAndPrettifyJson = (value: string) => {
     try {
-      const parsedJson = JSON.parse(value) as JSON;
+      if (value.trim() === "") {
+        setErrors((prev) => ({ ...prev, conf: undefined }));
+
+        return value;
+      }
+      const parsedJson = JSON.parse(value) as Record<string, unknown>;
+
+      if (typeof parsedJson !== "object" || Array.isArray(parsedJson)) {
+        throw new TypeError('extra fields must be a valid JSON object (e.g., {"key": "value"})');
+      }
 
       setErrors((prev) => ({ ...prev, conf: undefined }));
       const formattedJson = JSON.stringify(parsedJson, undefined, 2);

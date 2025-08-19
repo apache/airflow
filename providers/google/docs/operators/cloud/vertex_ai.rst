@@ -861,6 +861,19 @@ To delete experiment run you can use
     :start-after: [START how_to_cloud_vertex_ai_delete_experiment_run_operator]
     :end-before: [END how_to_cloud_vertex_ai_delete_experiment_run_operator]
 
+Use Private Service Connect interface
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You can configure Private Service Connect interface connections for
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomContainerTrainingJobOperator`,
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomPythonPackageTrainingJobOperator`,
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomTrainingJobOperator` and
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.ray.CreateRayClusterOperator`
+operators in Vertex AI. For doing it you must first configure the PSC interface by following the provided
+`documentation <https://cloud.google.com/vertex-ai/docs/general/vpc-psc-i-setup>`__.
+Then, specify the PSC configuration in the ``psc_interface_config`` parameter.
+
+
 Reference
 ^^^^^^^^^
 

@@ -36,6 +36,7 @@
     "activeDags": "Dags פעיל",
     "failedDags": "Dags בכשלון",
     "queuedDags": "Dags בתור",
+    "requiredActions": "פעולות נדרשות",
     "runningDags": "Dags בריצה",
     "stats": "סטטיסטיקות"
   },

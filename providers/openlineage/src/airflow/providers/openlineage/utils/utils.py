@@ -732,6 +732,12 @@ def get_airflow_state_run_facet(
         "airflowState": AirflowStateRunFacet(
             dagRunState=dag_run_state,
             tasksState={ti.task_id: ti.state for ti in tis},
+            tasksDuration={
+                ti.task_id: ti.duration
+                if ti.duration is not None
+                else (ti.end_date - ti.start_date).total_seconds()
+                for ti in tis
+            },
         )
     }
 
@@ -830,7 +836,7 @@ class OpenLineageRedactor(SecretsMasker):
         instance.replacer = other.replacer
         return instance
 
-    def _redact(self, item: Redactable, name: str | None, depth: int, max_depth: int) -> Redacted:
+    def _redact(self, item: Redactable, name: str | None, depth: int, max_depth: int, **kwargs) -> Redacted:  # type: ignore[override]
         if AIRFLOW_V_3_0_PLUS:
             # Keep compatibility for Airflow 2.x, remove when Airflow 3.0 is the minimum version
             class AirflowContextDeprecationWarning(UserWarning):
@@ -886,7 +892,7 @@ class OpenLineageRedactor(SecretsMasker):
                                 ),
                             )
                     return item
-                return super()._redact(item, name, depth, max_depth)
+                return super()._redact(item, name, depth, max_depth, **kwargs)
         except Exception as exc:
             log.warning("Unable to redact %r. Error was: %s: %s", item, type(exc).__name__, exc)
         return item

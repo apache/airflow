@@ -28,10 +28,12 @@ from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessE
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     QueryHITLDetailBodySearch,
+    QueryHITLDetailDagIdFilter,
     QueryHITLDetailDagIdPatternSearch,
     QueryHITLDetailDagRunIdFilter,
     QueryHITLDetailResponseReceivedFilter,
     QueryHITLDetailSubjectSearch,
+    QueryHITLDetailTaskIdFilter,
     QueryHITLDetailTaskIdPatternSearch,
     QueryHITLDetailUserIdFilter,
     QueryLimit,
@@ -117,6 +119,17 @@ def _update_hitl_detail(
             "and is not allowed to write again.",
         )
 
+    if hitl_detail_model.respondents:
+        user_id = user.get_id()
+        if isinstance(user_id, int):
+            # FabAuthManager (ab_user) store user id as integer, but common interface is string type
+            user_id = str(user_id)
+        if user_id not in hitl_detail_model.respondents:
+            log.error("User=%s is not a respondent for the task", user_id)
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN, f"User={user_id} is not a respondent for the task."
+            )
+
     hitl_detail_model.user_id = user.get_id()
     hitl_detail_model.response_at = timezone.utcnow()
     hitl_detail_model.chosen_options = update_hitl_detail_payload.chosen_options
@@ -169,11 +182,12 @@ def _get_hitl_detail(
     "/{dag_id}/{dag_run_id}/{task_id}",
     responses=create_openapi_http_exception_doc(
         [
+            status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
             status.HTTP_409_CONFLICT,
         ]
     ),
-    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.HITL_DETAIL))],
 )
 def update_hitl_detail(
     dag_id: str,
@@ -199,11 +213,12 @@ def update_hitl_detail(
     "/{dag_id}/{dag_run_id}/{task_id}/{map_index}",
     responses=create_openapi_http_exception_doc(
         [
+            status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
             status.HTTP_409_CONFLICT,
         ]
     ),
-    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.HITL_DETAIL))],
 )
 def update_mapped_ti_hitl_detail(
     dag_id: str,
@@ -230,7 +245,7 @@ def update_mapped_ti_hitl_detail(
     "/{dag_id}/{dag_run_id}/{task_id}",
     status_code=status.HTTP_200_OK,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
-    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
 )
 def get_hitl_detail(
     dag_id: str,
@@ -252,7 +267,7 @@ def get_hitl_detail(
     "/{dag_id}/{dag_run_id}/{task_id}/{map_index}",
     status_code=status.HTTP_200_OK,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
-    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
 )
 def get_mapped_ti_hitl_detail(
     dag_id: str,
@@ -274,7 +289,7 @@ def get_mapped_ti_hitl_detail(
 @hitl_router.get(
     "/",
     status_code=status.HTTP_200_OK,
-    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
 )
 def get_hitl_details(
     limit: QueryLimit,
@@ -301,9 +316,11 @@ def get_hitl_details(
     session: SessionDep,
     # ti related filter
     readable_ti_filter: ReadableTIFilterDep,
+    dag_id: QueryHITLDetailDagIdFilter,
     dag_id_pattern: QueryHITLDetailDagIdPatternSearch,
     dag_run_id: QueryHITLDetailDagRunIdFilter,
-    task_id: QueryHITLDetailTaskIdPatternSearch,
+    task_id: QueryHITLDetailTaskIdFilter,
+    task_id_pattern: QueryHITLDetailTaskIdPatternSearch,
     ti_state: QueryTIStateFilter,
     # hitl detail related filter
     response_received: QueryHITLDetailResponseReceivedFilter,
@@ -322,9 +339,11 @@ def get_hitl_details(
         filters=[
             # ti related filter
             readable_ti_filter,
+            dag_id,
             dag_id_pattern,
             dag_run_id,
             task_id,
+            task_id_pattern,
             ti_state,
             # hitl detail related filter
             response_received,

@@ -26,6 +26,41 @@
 Changelog
 ---------
 
+9.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add MwaaTaskSensor to Amazon Provider Package (#51719)``
+* ``Support executor_config on Lambda Executor (#53994)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix AWS Lambda executor error handling for DLQ vs task failures (#53990)``
+
+Misc
+~~~~
+
+* ``Set minimum version for common.messaging to 1.0.3 (#54160)``
+* ``Use timezone from new TaskSDK public API where possible (#53949)``
+* ``Use timezone from new TaskSDK public API where possible (second part) (#53986)``
+* ``Refactor bundle view_url to not instantiate bundle on server components (#52876)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add missing PR number in amazon changelog (#53880)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``SageMaker Unified Studios System Tests Update (#54038)``
+   * ``Do not run export operations in 'example_dynamodb_to_s3' (#54158)``
+   * ``Add system test for Lambda executor Dead Letter Queue (DLQ) processing (#54042)``
+   * ``Fix 'importskip' statements in tests (#54135)``
+   * ``Increase timeout to delete tables in 'example_s3_to_dynamodb' (#54096)``
+
 9.11.0
 ......
 

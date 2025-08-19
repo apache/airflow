@@ -25,11 +25,10 @@
 Changelog
 ---------
 
-1.0.0
+0.0.1
 .....
 
 .. note::
-  This release of provider is only available for Airflow 3.0+ as explained in the
-  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+    Provider is still WIP. It can be used with production but we may introduce breaking changes without following semver until version 1.0.0
 
 * ``Initial version of the provider (#46694)``

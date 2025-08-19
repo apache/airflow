@@ -42,6 +42,7 @@
       "extraFields": "Dodatkowe pola",
       "extraFieldsJson": "Dodatkowe pola JSON",
       "helperText": "Brakuje typu połączenia? Upewnij się, że zainstalowałeś odpowiedniego dostawcę.",
+      "helperTextForRedactedFields": "Ukryte pola ('***') nie bedą zapisane jeśli nie zostaną zmienione.",
       "selectConnectionType": "Wybierz typ połączenia",
       "standardFields": "Standardowe pola"
     },

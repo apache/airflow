@@ -19,14 +19,17 @@ from __future__ import annotations
 
 from sqlalchemy import func, select
 
+from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
 
 dagruns_select_with_state_count = (
     select(
         DagRun.dag_id,
         DagRun.state,
+        DagModel.dag_display_name,
         func.count(DagRun.state),
     )
-    .group_by(DagRun.dag_id, DagRun.state)
+    .join(DagModel, DagRun.dag_id == DagModel.dag_id)
+    .group_by(DagRun.dag_id, DagRun.state, DagModel.dag_display_name)
     .order_by(DagRun.dag_id)
 )

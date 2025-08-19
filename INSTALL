@@ -80,12 +80,12 @@ by running the following command:
     uv sync --all-packages
 
 With `uv` you can also install tools that are needed for other tasks described later - breeze,
-pre-commit, hatch, cherry-picker etc. It is highly recommended to install breeze and pre-commit, hatch
+prek, hatch, cherry-picker etc. It is highly recommended to install breeze and prek, hatch
 and flit are useful to build packages (so might be useful by release managers), and cherry-picker is
 useful for backporting changes to previous versions of Airflow.
 
     uv tool install -e ./dev/breeze
-    uv tool install pre-commit --with pre-commit-uv
+    uv tool install prek
 
     uv tool install hatch
     uv tool install flit
@@ -94,10 +94,10 @@ useful for backporting changes to previous versions of Airflow.
 
 Those are all tools useful for Airflow development.
 
-It is recommended to run `pre-commit install` after installing `pre-commit` to install the git hooks - they
-will take care about running airflow pre-commit checks automatically.
+It is recommended to run `prek install` after installing `prek` to install the git hooks - they
+will take care about running airflow prek checks automatically.
 
-    pre-commit install
+    prek install
 
 You can run any command in the virtual environment created by `uv` by prefixing it with `uv run`:
 
@@ -112,16 +112,16 @@ Compiling front-end assets
 
 In order to see UI in Airflow, you need to compile front-end assets first.
 
-In case you already installed `breeze` and `pre-commit`, you can build the assets with
+In case you already installed `breeze` and `prek`, you can build the assets with
 the following commands:
 
-    pre-commit run --hook-stage manual compile-ui-assets --all-files
+    prek --hook-stage manual compile-ui-assets --all-files
 
 or simply:
 
     breeze compile-ui-assets
 
-Both commands will install node and pmpm under the hood, to a dedicated pre-commit
+Both commands will install node and pmpm under the hood, to a dedicated prek
 node environment and then build the assets.
 
 If you want to manually run the build check for node and pnpm version in `.pre-commit-config.yaml` file,
@@ -140,7 +140,7 @@ This will also clean-up the generated files,update `git_version` file in the Air
 it in the UI) that should contain the git commit hash of the build and it will generate the assets.
 
 The result of this command is airflow sdist package built in the `dist` folder of `airflow-core`
-package as well. It requires ``pre-commit`` to be installed in your system.
+package as well. It requires ``prek`` to be installed in your system.
 
 Using pip and manually managing your virtualenv
 ===============================================

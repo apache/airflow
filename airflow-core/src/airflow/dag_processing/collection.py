@@ -76,10 +76,9 @@ def _create_orm_dags(
     bundle_name: str, dags: Iterable[MaybeSerializedDAG], *, session: Session
 ) -> Iterator[DagModel]:
     for dag in dags:
-        orm_dag = DagModel(dag_id=dag.dag_id)
+        orm_dag = DagModel(dag_id=dag.dag_id, bundle_name=bundle_name)
         if dag.is_paused_upon_creation is not None:
             orm_dag.is_paused = dag.is_paused_upon_creation
-        orm_dag.bundle_name = bundle_name
         log.info("Creating ORM DAG for %s", dag.dag_id)
         session.add(orm_dag)
         yield orm_dag
@@ -200,7 +199,7 @@ def _serialize_dag_capturing_errors(
         if not dag_was_updated:
             # Check and update DagCode
             DagCode.update_source_code(dag.dag_id, dag.fileloc)
-        elif "FabAuthManager" in conf.get("core", "auth_manager"):
+        if "FabAuthManager" in conf.get("core", "auth_manager"):
             _sync_dag_perms(dag, session=session)
 
         return []
@@ -476,22 +475,26 @@ class DagModelOperation(NamedTuple):
 
             # These "is not None" checks are because a LazySerializedDag object does not
             # provide the default value if the user doesn't provide an explicit value.
-            if dag.max_active_tasks is not None:
-                dm.max_active_tasks = dag.max_active_tasks
-            elif dag.max_active_tasks is None and dm.max_active_tasks is None:
+
+            # if dag.max_active_tasks come as None then default max_active_tasks should be updated
+            # similar for max_consecutive_failed_dag_runs, max_active_runs
+
+            if dag.max_active_tasks is None:
                 dm.max_active_tasks = conf.getint("core", "max_active_tasks_per_dag")
+            else:
+                dm.max_active_tasks = dag.max_active_tasks
 
-            if dag.max_active_runs is not None:
-                dm.max_active_runs = dag.max_active_runs
-            elif dag.max_active_runs is None and dm.max_active_runs is None:
+            if dag.max_active_runs is None:
                 dm.max_active_runs = conf.getint("core", "max_active_runs_per_dag")
+            else:
+                dm.max_active_runs = dag.max_active_runs
 
-            if dag.max_consecutive_failed_dag_runs is not None:
-                dm.max_consecutive_failed_dag_runs = dag.max_consecutive_failed_dag_runs
-            elif dag.max_consecutive_failed_dag_runs is None and dm.max_consecutive_failed_dag_runs is None:
+            if dag.max_consecutive_failed_dag_runs is None:
                 dm.max_consecutive_failed_dag_runs = conf.getint(
                     "core", "max_consecutive_failed_dag_runs_per_dag"
                 )
+            else:
+                dm.max_consecutive_failed_dag_runs = dag.max_consecutive_failed_dag_runs
 
             if dag.deadline is not None:
                 dm.deadline = dag.deadline

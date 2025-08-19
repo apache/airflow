@@ -99,7 +99,9 @@ class TestGCSTaskHandler:
     )
     @mock.patch("google.cloud.storage.Client")
     @mock.patch("google.cloud.storage.Blob")
-    def test_should_read_logs_from_remote(self, mock_blob, mock_client, mock_creds, session):
+    def test_should_read_logs_from_remote(
+        self, mock_blob, mock_client, mock_creds, session, sdk_connection_not_found
+    ):
         mock_obj = MagicMock()
         mock_obj.name = "remote/log/location/1.log"
         mock_client.return_value.list_blobs.return_value = [mock_obj]
