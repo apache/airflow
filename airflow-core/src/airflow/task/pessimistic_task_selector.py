@@ -137,22 +137,22 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
 
         total_tis_per_dagrun_count = (
             func.row_number()
-            .over(partition_by=(TI.dag_id, TI.run_id), order_by=priority_order)
+            .over(partition_by=(TI.dag_id, TI.run_id), order_by=priority_order, rows=(None, 0))
             .label("total_tis_per_dagrun_count")
         )
         tis_per_dag_count = (
             func.row_number()
-            .over(partition_by=(TI.dag_id, TI.task_id), order_by=priority_order)
+            .over(partition_by=(TI.dag_id, TI.task_id), order_by=priority_order, rows=(None, 0))
             .label("tis_per_dag_count")
         )
         mapped_tis_per_task_run_count = (
             func.row_number()
-            .over(partition_by=(TI.dag_id, TI.run_id, TI.task_id), order_by=priority_order)
+            .over(partition_by=(TI.dag_id, TI.run_id, TI.task_id), order_by=priority_order, rows=(None, 0))
             .label("mapped_tis_per_dagrun_count")
         )
         pool_slots_taken = (
             func.sum(TI.pool_slots)
-            .over(partition_by=(TI.pool), order_by=priority_order)
+            .over(partition_by=(TI.pool), order_by=priority_order, rows=(None, 0))
             .label("pool_slots_taken_sum")
         )
 
