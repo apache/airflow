@@ -35,6 +35,7 @@ import { Stats } from "./Stats";
 export const Dashboard = () => {
   const alerts = useConfig("dashboard_alert") as Array<UIAlert>;
   const { t: translate } = useTranslation("dashboard");
+  const instanceName = useConfig("instance_name");
 
   const { data: pluginData } = usePluginServiceGetPlugins();
 
@@ -70,7 +71,7 @@ export const Dashboard = () => {
           </Accordion.Root>
         ) : undefined}
         <Heading order={2} size="2xl">
-          {translate("welcome")}
+          {typeof instanceName === "string" && instanceName !== "" ? instanceName : translate("welcome")}
         </Heading>
         <Box order={3}>
           <Stats />
