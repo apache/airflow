@@ -99,8 +99,8 @@ class TestKiotaRequestAdapterHook:
             with pytest.warns(DeprecationWarning, match="get_conn is deprecated"):
                 actual = hook.get_conn()
 
-                assert isinstance(actual, HttpxRequestAdapter)
-                assert actual.base_url == "https://graph.microsoft.com/v1.0/"
+            assert isinstance(actual, HttpxRequestAdapter)
+            assert actual.base_url == "https://graph.microsoft.com/v1.0/"
 
     @pytest.mark.asyncio
     async def test_get_async_conn(self):
