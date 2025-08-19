@@ -56,9 +56,9 @@ func extract(ctx context.Context, log *slog.Logger) error {
 	return nil
 }
 
-func transform(ctx context.Context, log *slog.Logger) error {
+func transform(ctx context.Context, client sdk.Client, log *slog.Logger) error {
 	key := "my_variable"
-	val, err := sdk.VariableGet(ctx, key)
+	val, err := client.GetVariable(ctx, key)
 	if err != nil {
 		return err
 	}
