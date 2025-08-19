@@ -37,6 +37,18 @@ if TYPE_CHECKING:
 
 
 class BasePowerBITrigger(BaseTrigger):
+    """
+    Base class for all PowerBI related triggers.
+
+    :param conn_id: The connection Id to connect to PowerBI.
+    :param timeout: The HTTP timeout being used by the `KiotaRequestAdapter` (default is None).
+        When no timeout is specified or set to None then there is no HTTP timeout on each request.
+    :param proxies: A dict defining the HTTP proxies to be used (default is None).
+    :param api_version: The API version of the Microsoft Graph API to be used (default is v1).
+        You can pass an enum named APIVersion which has 2 possible members v1 and beta,
+        or you can pass a string as `v1.0` or `beta`.
+    """
+
     def __init__(
         self,
         conn_id: str,
