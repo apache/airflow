@@ -778,7 +778,7 @@ def test_task_run_with_user_impersonation_remove_krb5ccname_on_reexecuted_proces
     mock_os_env = {
         "KRB5CCNAME": "/tmp/airflow_krb5_ccache",
         "_AIRFLOW__REEXECUTED_PROCESS": "1",
-        "_AIRFLOW__STARTUP_MSG": what.model_dump_json()
+        "_AIRFLOW__STARTUP_MSG": what.model_dump_json(),
     }
     with mock.patch.dict("os.environ", mock_os_env, clear=True):
         startup()
