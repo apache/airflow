@@ -111,7 +111,7 @@ def test_logs_are_masked(captured_logs):
     secrets_masker = SecretsMasker()
     secrets_masker.add_mask("password")
     with mock.patch(
-        "airflow.sdk.secrets_masker.redact",
+        "airflow.sdk._shared.secrets_masker.redact",
         side_effect=lambda event: {
             "event": "Connection *** is ***",
             "level": "info",
