@@ -249,7 +249,7 @@ AIRFLOW_UV_VERSION = "0.8.11"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.45"
 RICH_VERSION = "14.1.0"
-PREK_VERSION = "0.0.28"
+PREK_VERSION = "0.0.29"
 HATCH_VERSION = "1.14.1"
 PYYAML_VERSION = "6.0.2"
 
@@ -257,7 +257,7 @@ PYYAML_VERSION = "6.0.2"
 AIRFLOW_BUILD_DOCKERFILE = f"""
 # syntax=docker/dockerfile:1.4
 FROM python:{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}-slim-{ALLOWED_DEBIAN_VERSIONS[0]}
-RUN apt-get update && apt-get install -y --no-install-recommends git curl build-essential
+RUN apt-get update && apt-get install -y --no-install-recommends git curl
 RUN pip install uv=={UV_VERSION}
 RUN --mount=type=cache,id=cache-airflow-build-dockerfile-installation,target=/root/.cache/ \
   uv pip install --system ignore pip=={AIRFLOW_PIP_VERSION} hatch=={HATCH_VERSION} \
