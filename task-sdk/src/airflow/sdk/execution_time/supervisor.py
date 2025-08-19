@@ -54,7 +54,6 @@ import structlog
 from pydantic import BaseModel, TypeAdapter
 
 from airflow.configuration import conf
-from airflow.sdk._shared.secrets_masker import mask_secret
 from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
@@ -120,6 +119,7 @@ from airflow.sdk.execution_time.comms import (
     _RequestFrame,
     _ResponseFrame,
 )
+from airflow.sdk.log import mask_secret
 
 try:
     from socket import send_fds
