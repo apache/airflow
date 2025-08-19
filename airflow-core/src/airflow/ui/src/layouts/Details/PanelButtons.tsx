@@ -32,6 +32,7 @@ import {
   Box,
 } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
+import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { FiChevronDown, FiGrid } from "react-icons/fi";
 import { LuKeyboard } from "react-icons/lu";
@@ -136,6 +137,21 @@ export const PanelButtons = ({
       }
     }
   };
+
+  useHotkeys(
+    "g",
+    () => {
+      if (dagView === "graph") {
+        setDagView("grid");
+        handleFocus("grid");
+      } else {
+        setDagView("graph");
+        handleFocus("graph");
+      }
+    },
+    [dagView],
+    { preventDefault: true },
+  );
 
   return (
     <Box position="absolute" top={1} width="100%" zIndex={1}>
