@@ -145,12 +145,10 @@ export const AssetEvents = ({
         )}
       </Flex>
       <DateTimeInput
-        key={START_DATE}
         onChange={(event) => handleFilterChange(START_DATE)(event.target.value)}
         value={searchParams.get(START_DATE) ?? ""}
       />
       <DateTimeInput
-        key={END_DATE}
         onChange={(event) => handleFilterChange(END_DATE)(event.target.value)}
         value={searchParams.get(END_DATE) ?? ""}
       />
