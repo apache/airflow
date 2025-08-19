@@ -120,9 +120,9 @@ Für die Deutsche Übersetzung wurden die folgenden Terme wie folgt übersetzt
   Bedingungen und zu welchem Zeitpunkt im Dag Lauf dieser Task gestartet werden
   kann.
 - `Try Number` --> `Versuch Nummer`: Direkt Übersetzung ist passend.
-- `XCom` --> `Task Kommunikation (XCom)`: Um es für neue Benutzer einfacher
-  verständlich zu machen ist der Begriff von der Bedeutung in das Deutsche
-  übertragen. Da aber intern und in Logs oft der Begriff XCom genutzt wird ist
-  dieser trotzdem extra nochmals in Klammern angegeben.
+- `XCom` --> `Task Kommunikation (XCom)`: Um die Navigation für neue Benutzer
+  verständlicher zu machen, wurde der Begriff sinngemäß auf Deutsch
+  übersetzt. Zusätzlich ist XCom, da der Begriff oft in Airflow Code und Logs erscheint, 
+  nochmals in Klammern angegeben.
 
 (Andere klassische Begriffsübersetzungen nicht im Einzelnen aufgeführt)
