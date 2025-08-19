@@ -25,6 +25,12 @@
     "requiredActions": "Required Actions",
     "xcoms": "XComs"
   },
+  "bulkAction": {
+    "success": {
+      "description": "{{count}} {{type}} {{action}} successfully. Keys: {{keys}}",
+      "title": "{{action}} {{type}} Request Successful"
+    }
+  },
   "collapseAllExtra": "Collapse all extra json",
   "collapseDetailsPanel": "Collapse Details Panel",
   "createdAssetEvent_one": "Created Asset Event",
@@ -74,6 +80,7 @@
   "dagWarnings": "Dag warnings/errors",
   "defaultToGraphView": "Default to graph view",
   "defaultToGridView": "Default to grid view",
+  "delete": "Delete",
   "direction": "Direction",
   "docs": {
     "documentation": "Documentation",
@@ -183,6 +190,7 @@
     "users": "Users"
   },
   "selectLanguage": "Select Language",
+  "selected": "Selected",
   "showDetailsPanel": "Show Details Panel",
   "signedInAs": "Signed in as",
   "source": {

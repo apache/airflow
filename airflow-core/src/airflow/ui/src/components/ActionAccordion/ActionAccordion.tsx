@@ -30,8 +30,8 @@ import { getColumns } from "./columns";
 
 type Props = {
   readonly affectedTasks?: TaskInstanceCollectionResponse;
-  readonly note: DAGRunResponse["note"];
-  readonly setNote: (value: string) => void;
+  readonly note?: DAGRunResponse["note"];
+  readonly setNote?: (value: string) => void;
 };
 
 // Table is in memory, pagination and sorting are disabled.
@@ -72,40 +72,42 @@ const ActionAccordion = ({ affectedTasks, note, setNote }: Props) => {
           </Accordion.ItemContent>
         </Accordion.Item>
       ) : undefined}
-      <Accordion.Item key="note" value="note">
-        <Accordion.ItemTrigger>
-          <Text fontWeight="bold">{translate("note.label")}</Text>
-        </Accordion.ItemTrigger>
-        <Accordion.ItemContent>
-          <Editable.Root
-            onChange={(event: ChangeEvent<HTMLInputElement>) => setNote(event.target.value)}
-            value={note ?? ""}
-          >
-            <Editable.Preview
-              _hover={{ backgroundColor: "transparent" }}
-              alignItems="flex-start"
-              as={VStack}
-              gap="0"
-              height="200px"
-              overflowY="auto"
-              width="100%"
+      {setNote && note !== undefined ? (
+        <Accordion.Item key="note" value="note">
+          <Accordion.ItemTrigger>
+            <Text fontWeight="bold">{translate("note.label")}</Text>
+          </Accordion.ItemTrigger>
+          <Accordion.ItemContent>
+            <Editable.Root
+              onChange={(event: ChangeEvent<HTMLInputElement>) => setNote(event.target.value)}
+              value={note ?? ""}
             >
-              {Boolean(note) ? (
-                <ReactMarkdown>{note}</ReactMarkdown>
-              ) : (
-                <Text color="fg.subtle">{translate("note.placeholder")}</Text>
-              )}
-            </Editable.Preview>
-            <Editable.Textarea
-              data-testid="notes-input"
-              height="200px"
-              overflowY="auto"
-              placeholder={translate("note.placeholder")}
-              resize="none"
-            />
-          </Editable.Root>
-        </Accordion.ItemContent>
-      </Accordion.Item>
+              <Editable.Preview
+                _hover={{ backgroundColor: "transparent" }}
+                alignItems="flex-start"
+                as={VStack}
+                gap="0"
+                height="200px"
+                overflowY="auto"
+                width="100%"
+              >
+                {Boolean(note) ? (
+                  <ReactMarkdown>{note}</ReactMarkdown>
+                ) : (
+                  <Text color="fg.subtle">{translate("note.placeholder")}</Text>
+                )}
+              </Editable.Preview>
+              <Editable.Textarea
+                data-testid="notes-input"
+                height="200px"
+                overflowY="auto"
+                placeholder={translate("note.placeholder")}
+                resize="none"
+              />
+            </Editable.Root>
+          </Accordion.ItemContent>
+        </Accordion.Item>
+      ) : undefined}
     </Accordion.Root>
   );
 };

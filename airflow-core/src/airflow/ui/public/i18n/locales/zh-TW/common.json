@@ -25,6 +25,12 @@
     "requiredActions": "待回應的任務實例",
     "xcoms": "XComs"
   },
+  "bulkAction": {
+    "success": {
+      "description": "{{count}} {{type}}{{action}}成功。鍵：{{keys}}",
+      "title": "{{action}}{{type}}請求成功"
+    }
+  },
   "collapseDetailsPanel": "收起詳細資訊",
   "createdAssetEvent_one": "已建立資源事件",
   "createdAssetEvent_other": "已建立資源事件",
@@ -73,6 +79,7 @@
   "dagWarnings": "Dag 警告 / 錯誤",
   "defaultToGraphView": "預設使用圖形視圖",
   "defaultToGridView": "預設使用網格視圖",
+  "delete": "刪除",
   "direction": "書寫方向",
   "docs": {
     "documentation": "文件",
