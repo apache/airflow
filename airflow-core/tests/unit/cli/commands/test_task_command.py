@@ -173,14 +173,11 @@ class TestCliTasks:
 
         Output should be filtered by SecretsMasker.
         """
+        # TODO: revisit during https://github.com/apache/airflow/issues/54658
+        from airflow.sdk.secrets_masker import mask_secret
+
         password = "somepassword1234!"
-        masker = logging.getLogger("airflow.task").filters[0]
-        masker.add_mask(password)
-
-        from airflow._shared.secrets_masker.secrets_masker import _secrets_masker
-
-        shared_masker = _secrets_masker()
-        shared_masker.add_mask(password)
+        mask_secret(password)
 
         args = self.parser.parse_args(
             ["tasks", "test", "example_python_operator", "print_the_context", "2018-01-01"],
