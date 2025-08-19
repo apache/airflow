@@ -232,7 +232,7 @@ class TestKiotaRequestAdapterHook:
 
     def test_api_version_when_none_is_explicitly_passed_as_api_version(self):
         with patch(
-            "airflow.hooks.base.BaseHook.get_connection",
+            f"{BASEHOOK_PATCH_PATH}.get_connection",
             side_effect=get_airflow_connection,
         ):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api", api_version=None)
@@ -310,7 +310,7 @@ class TestKiotaRequestAdapterHook:
         )
 
         with patch(
-            "airflow.hooks.base.BaseHook.get_connection",
+            f"{BASEHOOK_PATCH_PATH}.get_connection",
             side_effect=airflow_connection,
         ):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
