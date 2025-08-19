@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import warnings
 from ast import literal_eval
 from contextlib import suppress
 from http import HTTPStatus
@@ -115,7 +116,7 @@ class KiotaRequestAdapterHook(BaseHook):
 
     DEFAULT_HEADERS = {"Accept": "application/json;q=1"}
     DEFAULT_SCOPE = "https://graph.microsoft.com/.default"
-    cached_request_adapters: dict[str, tuple[APIVersion, RequestAdapter]] = {}
+    cached_request_adapters: dict[str, tuple[str, RequestAdapter]] = {}
     conn_type: str = "msgraph"
     conn_name_attr: str = "conn_id"
     default_conn_name: str = "msgraph_default"
@@ -245,6 +246,95 @@ class KiotaRequestAdapterHook(BaseHook):
                         return None
         return proxies
 
+    def _build_request_adapter(self, connection) -> tuple[str, RequestAdapter]:
+        client_id = connection.login
+        client_secret = connection.password
+        config = connection.extra_dejson if connection.extra else {}
+        api_version = self.get_api_version(config)
+        host = self.get_host(connection)  # type: ignore[arg-type]
+        base_url = self.get_base_url(host, api_version, config)
+        authority = config.get("authority")
+        proxies = self.get_proxies(config)
+        httpx_proxies = self.to_httpx_proxies(proxies=proxies)
+        scopes = config.get("scopes", self.scopes)
+        if isinstance(scopes, str):
+            scopes = scopes.split(",")
+        verify = config.get("verify", True)
+        trust_env = config.get("trust_env", False)
+        allowed_hosts = (config.get("allowed_hosts", authority) or "").split(",")
+
+        self.log.info(
+            "Creating Microsoft Graph SDK client %s for conn_id: %s",
+            api_version,
+            self.conn_id,
+        )
+        self.log.info("Host: %s", host)
+        self.log.info("Base URL: %s", base_url)
+        self.log.info("Client id: %s", client_id)
+        self.log.info("Client secret: %s", client_secret)
+        self.log.info("API version: %s", api_version)
+        self.log.info("Scope: %s", scopes)
+        self.log.info("Verify: %s", verify)
+        self.log.info("Timeout: %s", self.timeout)
+        self.log.info("Trust env: %s", trust_env)
+        self.log.info("Authority: %s", authority)
+        self.log.info("Allowed hosts: %s", allowed_hosts)
+        self.log.info("Proxies: %s", proxies)
+        self.log.info("HTTPX Proxies: %s", httpx_proxies)
+        credentials = self.get_credentials(
+            login=connection.login,
+            password=connection.password,
+            config=config,
+            authority=authority,
+            verify=verify,
+            proxies=proxies,
+        )
+        http_client = GraphClientFactory.create_with_default_middleware(
+            api_version=api_version,
+            client=httpx.AsyncClient(
+                mounts=httpx_proxies,
+                timeout=Timeout(timeout=self.timeout),
+                verify=verify,
+                trust_env=trust_env,
+                base_url=base_url,
+            ),
+            host=host,
+        )
+        auth_provider = AzureIdentityAuthenticationProvider(
+            credentials=credentials,
+            scopes=scopes,
+            allowed_hosts=allowed_hosts,
+        )
+        parse_node_factory = ParseNodeFactoryRegistry()
+        parse_node_factory.CONTENT_TYPE_ASSOCIATED_FACTORIES["text/plain"] = TextParseNodeFactory()
+        parse_node_factory.CONTENT_TYPE_ASSOCIATED_FACTORIES["application/json"] = JsonParseNodeFactory()
+        request_adapter = HttpxRequestAdapter(
+            authentication_provider=auth_provider,
+            parse_node_factory=parse_node_factory,
+            http_client=http_client,
+            base_url=base_url,
+        )
+        self.cached_request_adapters[self.conn_id] = (api_version, request_adapter)
+        return api_version, request_adapter
+
+    def get_conn(self) -> RequestAdapter:
+        if not self.conn_id:
+            raise AirflowException("Failed to create the KiotaRequestAdapterHook. No conn_id provided!")
+
+        warnings.warn(
+            "get_conn is deprecated, please use the async get_async_conn method!",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
+        api_version, request_adapter = self.cached_request_adapters.get(self.conn_id, (None, None))
+
+        if not request_adapter:
+            connection = self.get_connection(conn_id=self.conn_id)
+            api_version, request_adapter = self._build_request_adapter(connection)
+        self.api_version = api_version
+        return request_adapter
+
     async def get_async_conn(self) -> RequestAdapter:
         if not self.conn_id:
             raise AirflowException("Failed to create the KiotaRequestAdapterHook. No conn_id provided!")
@@ -253,74 +343,7 @@ class KiotaRequestAdapterHook(BaseHook):
 
         if not request_adapter:
             connection = await sync_to_async(self.get_connection)(conn_id=self.conn_id)
-            client_id = connection.login
-            client_secret = connection.password
-            config = connection.extra_dejson if connection.extra else {}
-            api_version = self.get_api_version(config)
-            host = self.get_host(connection)  # type: ignore[arg-type]
-            base_url = self.get_base_url(host, api_version, config)
-            authority = config.get("authority")
-            proxies = self.get_proxies(config)
-            httpx_proxies = self.to_httpx_proxies(proxies=proxies)
-            scopes = config.get("scopes", self.scopes)
-            if isinstance(scopes, str):
-                scopes = scopes.split(",")
-            verify = config.get("verify", True)
-            trust_env = config.get("trust_env", False)
-            allowed_hosts = (config.get("allowed_hosts", authority) or "").split(",")
-
-            self.log.info(
-                "Creating Microsoft Graph SDK client %s for conn_id: %s",
-                api_version,
-                self.conn_id,
-            )
-            self.log.info("Host: %s", host)
-            self.log.info("Base URL: %s", base_url)
-            self.log.info("Client id: %s", client_id)
-            self.log.info("Client secret: %s", client_secret)
-            self.log.info("API version: %s", api_version)
-            self.log.info("Scope: %s", scopes)
-            self.log.info("Verify: %s", verify)
-            self.log.info("Timeout: %s", self.timeout)
-            self.log.info("Trust env: %s", trust_env)
-            self.log.info("Authority: %s", authority)
-            self.log.info("Allowed hosts: %s", allowed_hosts)
-            self.log.info("Proxies: %s", proxies)
-            self.log.info("HTTPX Proxies: %s", httpx_proxies)
-            credentials = self.get_credentials(
-                login=connection.login,
-                password=connection.password,
-                config=config,
-                authority=authority,
-                verify=verify,
-                proxies=proxies,
-            )
-            http_client = GraphClientFactory.create_with_default_middleware(
-                api_version=api_version,
-                client=httpx.AsyncClient(
-                    mounts=httpx_proxies,
-                    timeout=Timeout(timeout=self.timeout),
-                    verify=verify,
-                    trust_env=trust_env,
-                    base_url=base_url,
-                ),
-                host=host,
-            )
-            auth_provider = AzureIdentityAuthenticationProvider(
-                credentials=credentials,
-                scopes=scopes,
-                allowed_hosts=allowed_hosts,
-            )
-            parse_node_factory = ParseNodeFactoryRegistry()
-            parse_node_factory.CONTENT_TYPE_ASSOCIATED_FACTORIES["text/plain"] = TextParseNodeFactory()
-            parse_node_factory.CONTENT_TYPE_ASSOCIATED_FACTORIES["application/json"] = JsonParseNodeFactory()
-            request_adapter = HttpxRequestAdapter(
-                authentication_provider=auth_provider,
-                parse_node_factory=parse_node_factory,
-                http_client=http_client,
-                base_url=base_url,
-            )
-            self.cached_request_adapters[self.conn_id] = (api_version, request_adapter)
+            api_version, request_adapter = self._build_request_adapter(connection)
         self.api_version = api_version
         return request_adapter
 

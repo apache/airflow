@@ -89,8 +89,21 @@ class TestKiotaRequestAdapterHook:
         tenant_id = credentials._tenant_id
         assert tenant_id == expected_tenant_id
 
+    def test_get_conn(self):
+        with patch(
+            f"{BASEHOOK_PATCH_PATH}.get_connection",
+            side_effect=get_airflow_connection,
+        ):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            with pytest.warns(DeprecationWarning, match="get_conn is deprecated"):
+                actual = hook.get_conn()
+
+                assert isinstance(actual, HttpxRequestAdapter)
+                assert actual.base_url == "https://graph.microsoft.com/v1.0/"
+
     @pytest.mark.asyncio
-    async def test_get_conn(self):
+    async def test_get_async_conn(self):
         with patch(
             f"{BASEHOOK_PATCH_PATH}.get_connection",
             side_effect=get_airflow_connection,
@@ -102,7 +115,7 @@ class TestKiotaRequestAdapterHook:
             assert actual.base_url == "https://graph.microsoft.com/v1.0/"
 
     @pytest.mark.asyncio
-    async def test_get_conn_with_custom_base_url(self):
+    async def test_get_async_conn_with_custom_base_url(self):
         connection = lambda conn_id: get_airflow_connection(
             conn_id=conn_id,
             host="api.fabric.microsoft.com",
@@ -120,7 +133,7 @@ class TestKiotaRequestAdapterHook:
             assert actual.base_url == "https://api.fabric.microsoft.com/v1/"
 
     @pytest.mark.asyncio
-    async def test_get_conn_with_proxies_as_string(self):
+    async def test_get_async_conn_with_proxies_as_string(self):
         connection = lambda conn_id: get_airflow_connection(
             conn_id=conn_id,
             host="api.fabric.microsoft.com",
@@ -140,7 +153,7 @@ class TestKiotaRequestAdapterHook:
             assert actual._http_client._mounts.get(URLPattern("https://"))
 
     @pytest.mark.asyncio
-    async def test_get_conn_with_proxies_as_invalid_string(self):
+    async def test_get_async_conn_with_proxies_as_invalid_string(self):
         connection = lambda conn_id: get_airflow_connection(
             conn_id=conn_id,
             host="api.fabric.microsoft.com",
@@ -158,7 +171,7 @@ class TestKiotaRequestAdapterHook:
                 await hook.get_async_conn()
 
     @pytest.mark.asyncio
-    async def test_get_conn_with_proxies_as_json(self):
+    async def test_get_async_conn_with_proxies_as_json(self):
         connection = lambda conn_id: get_airflow_connection(
             conn_id=conn_id,
             host="api.fabric.microsoft.com",
