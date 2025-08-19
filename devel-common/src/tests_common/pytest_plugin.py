@@ -1816,15 +1816,21 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
             yield
         return
 
+    targets = []
     if AIRFLOW_V_3_1_PLUS:
-        target = "airflow._shared.secrets_masker.secrets_masker.SecretsMasker.redact"
+        targets = [
+            "airflow._shared.secrets_masker.secrets_masker.SecretsMasker.redact",
+            "airflow.sdk._shared.secrets_masker.secrets_masker.SecretsMasker.redact",
+        ]
     elif AIRFLOW_V_3_0_PLUS:
-        target = "airflow.sdk.execution_time.secrets_masker.SecretsMasker.redact"
+        targets = ["airflow.sdk.execution_time.secrets_masker.SecretsMasker.redact"]
     else:
-        target = "airflow.utils.log.secrets_masker.SecretsMasker.redact"
+        targets = ["airflow.utils.log.secrets_masker.SecretsMasker.redact"]
 
-    mocked_redact = mocker.patch(target)
-    mocked_redact.side_effect = lambda item, *args, **kwargs: item
+    for target in targets:
+        mocked_redact = mocker.patch(target)
+        mocked_redact.side_effect = lambda item, *args, **kwargs: item
+
     with pytest.MonkeyPatch.context() as mp_ctx:
         mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", False)
         yield
