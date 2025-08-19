@@ -156,7 +156,7 @@ class MSGraphTrigger(BaseTrigger):
                 "conn_id": self.conn_id,
                 "timeout": self.timeout,
                 "proxies": self.proxies,
-                "scopes": self.hook.scopes,
+                "scopes": self.scopes,
                 "api_version": self.api_version,
                 "serializer": f"{self.serializer.__class__.__module__}.{self.serializer.__class__.__name__}",
                 "url": self.url,
