@@ -27,7 +27,7 @@ import traceback
 from collections import deque
 from time import perf_counter
 from types import FrameType
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import structlog
 
@@ -76,28 +76,6 @@ def _format_stack_from_frame(frame: FrameType, max_frames: int) -> str:
     # Limit frames from the BOTTOM (most recent last) to keep prints short.
     limit: int | None = max_frames if max_frames > 0 else None
     return "".join(traceback.format_stack(frame, limit=limit))
-
-
-def _task_descriptor(task: asyncio.Task[Any]) -> str:
-    try:
-        name = task.get_name()
-    except Exception:
-        name = None
-    coro = task.get_coro()
-    code = getattr(coro, "cr_code", getattr(coro, "__code__", None))
-    co_name = getattr(code, "co_name", "<unknown>")
-    co_file = getattr(code, "co_filename", "<unknown>")
-    try:
-        lineno = getattr(coro, "cr_frame", None)
-        lineno = getattr(lineno, "f_lineno", None)
-    except Exception:
-        lineno = None
-    base = f"Task id={id(task)} coro={co_name} file={co_file}"
-    if lineno:
-        base += f":{lineno}"
-    if name and name != co_name:
-        base += f" (name={name})"
-    return base
 
 
 class AsyncioStallMonitor:
@@ -226,7 +204,6 @@ class AsyncioStallMonitor:
 
         if phase == "start":
             log.warning("Event loop stall detected (gap≥%.3fs). Captured loop stack.", self.threshold)
-            Stats.incr("triggers.blocked_main_thread")
         else:
             log.warning(
                 "Event loop still stalled (%.3fs since start).",
@@ -253,53 +230,15 @@ class AsyncioStallMonitor:
         """Schedule correlation inside the loop thread, then store history and log a summary."""
 
         def correlate_and_store():
-            # Best-effort suspected task matching using stack text
-            suspects = self._correlate_tasks(incident.samples[-1].stack_text if incident.samples else "")
-            incident.suspected_tasks = suspects
-
             with self._lock:
                 self.history.append(incident)
 
             dur = incident.duration()
             log.warning(
-                "Event loop stall ended. Duration: %.3fs. Suspected tasks: %s",
+                "Event loop stall ended. Duration: %.3fs.",
                 dur if dur is not None else -1.0,
-                suspects or "[none]",
             )
 
         # Use thread-safe scheduling since we're in a background thread
         with contextlib.suppress(RuntimeError):
             self.loop.call_soon_threadsafe(correlate_and_store)
-
-    def _correlate_tasks(self, stack_text: str) -> list[str]:
-        suspects: list[str] = []
-        try:
-            tasks = list(asyncio.all_tasks(self.loop))
-            for t in tasks:
-                if t.done():
-                    continue
-                desc = _task_descriptor(t)
-                # Simple heuristics: task name / file / func appear in the captured stack
-                coro = t.get_coro()
-                code = getattr(coro, "cr_code", getattr(coro, "__code__", None))
-                co_name = getattr(code, "co_name", "")
-                co_file = getattr(code, "co_filename", "")
-                hit = False
-                if co_name and co_name in stack_text:
-                    hit = True
-                elif co_file and co_file in stack_text:
-                    hit = True
-                elif hasattr(t, "get_name") and t.get_name() and t.get_name() in stack_text:
-                    hit = True
-                if hit:
-                    suspects.append(desc)
-
-            # Fallback: if nothing matched, include the last "File ..." line as a hint
-            if not suspects and stack_text:
-                for line in reversed(stack_text.splitlines()):
-                    if line.lstrip().startswith('File "'):
-                        suspects.append(f"(stack hint) {line.strip()}")
-                        break
-        except Exception:
-            pass
-        return suspects
