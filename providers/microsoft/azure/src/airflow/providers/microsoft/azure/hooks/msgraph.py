@@ -51,6 +51,7 @@ from airflow.exceptions import (
     AirflowConfigException,
     AirflowException,
     AirflowNotFoundException,
+    AirflowProviderDeprecationWarning,
 )
 from airflow.providers.microsoft.azure.version_compat import BaseHook
 
@@ -323,7 +324,7 @@ class KiotaRequestAdapterHook(BaseHook):
 
         warnings.warn(
             "get_conn is deprecated, please use the async get_async_conn method!",
-            DeprecationWarning,
+            category=AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
 
