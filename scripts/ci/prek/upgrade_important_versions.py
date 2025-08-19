@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import os
 import re
+import subprocess
 import sys
 from enum import Enum
 from pathlib import Path
@@ -198,7 +199,7 @@ UPGRADE_PYYAML: bool = os.environ.get("UPGRADE_PYYAML", "true").lower() == "true
 UPGRADE_GITPYTHON: bool = os.environ.get("UPGRADE_GITPYTHON", "true").lower() == "true"
 UPGRADE_RICH: bool = os.environ.get("UPGRADE_RICH", "true").lower() == "true"
 
-ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
+ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.9", "3.10", "3.11", "3.12"]
 
 GITHUB_TOKEN: str | None = os.environ.get("GITHUB_TOKEN")
 
@@ -364,4 +365,15 @@ if __name__ == "__main__":
             console.print(f"[bright_blue]Updated {file}")
             changed = True
     if changed:
+        console.print("[bright_blue]Running breeze's uv sync to update the lock file")
+        copy_env = os.environ.copy()
+        del copy_env["VIRTUAL_ENV"]
+        subprocess.run(
+            ["uv", "sync", "--resolution", "highest"],
+            check=True,
+            cwd=AIRFLOW_ROOT_PATH / "dev" / "breeze",
+            env=copy_env,
+        )
+        if not os.environ.get("CI"):
+            console.print("[bright_blue]Please commit the changes")
         sys.exit(1)

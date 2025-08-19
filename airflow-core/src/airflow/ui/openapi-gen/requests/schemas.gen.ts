@@ -780,11 +780,18 @@ export const $BulkDeleteAction_BulkTaskInstanceBody_ = {
         },
         entities: {
             items: {
-                type: 'string'
+                anyOf: [
+                    {
+                        type: 'string'
+                    },
+                    {
+                        '$ref': '#/components/schemas/BulkTaskInstanceBody'
+                    }
+                ]
             },
             type: 'array',
             title: 'Entities',
-            description: 'A list of entity id/key to be deleted.'
+            description: 'A list of entity id/key or entity objects to be deleted.'
         },
         action_on_non_existence: {
             '$ref': '#/components/schemas/BulkActionNotOnExistence',
@@ -807,11 +814,18 @@ export const $BulkDeleteAction_ConnectionBody_ = {
         },
         entities: {
             items: {
-                type: 'string'
+                anyOf: [
+                    {
+                        type: 'string'
+                    },
+                    {
+                        '$ref': '#/components/schemas/BulkTaskInstanceBody'
+                    }
+                ]
             },
             type: 'array',
             title: 'Entities',
-            description: 'A list of entity id/key to be deleted.'
+            description: 'A list of entity id/key or entity objects to be deleted.'
         },
         action_on_non_existence: {
             '$ref': '#/components/schemas/BulkActionNotOnExistence',
@@ -834,11 +848,18 @@ export const $BulkDeleteAction_PoolBody_ = {
         },
         entities: {
             items: {
-                type: 'string'
+                anyOf: [
+                    {
+                        type: 'string'
+                    },
+                    {
+                        '$ref': '#/components/schemas/BulkTaskInstanceBody'
+                    }
+                ]
             },
             type: 'array',
             title: 'Entities',
-            description: 'A list of entity id/key to be deleted.'
+            description: 'A list of entity id/key or entity objects to be deleted.'
         },
         action_on_non_existence: {
             '$ref': '#/components/schemas/BulkActionNotOnExistence',
@@ -861,11 +882,18 @@ export const $BulkDeleteAction_VariableBody_ = {
         },
         entities: {
             items: {
-                type: 'string'
+                anyOf: [
+                    {
+                        type: 'string'
+                    },
+                    {
+                        '$ref': '#/components/schemas/BulkTaskInstanceBody'
+                    }
+                ]
             },
             type: 'array',
             title: 'Entities',
-            description: 'A list of entity id/key to be deleted.'
+            description: 'A list of entity id/key or entity objects to be deleted.'
         },
         action_on_non_existence: {
             '$ref': '#/components/schemas/BulkActionNotOnExistence',
@@ -3417,6 +3445,20 @@ export const $HITLDetail = {
             additionalProperties: true,
             type: 'object',
             title: 'Params'
+        },
+        respondents: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Respondents'
         },
         user_id: {
             anyOf: [

@@ -56,6 +56,7 @@ from airflow.providers.standard.triggers.temporal import TimeDeltaTrigger
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetWatcher
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_dags,
@@ -821,3 +822,59 @@ class TestUpdateDagParsingResults:
         orm_dag = session.get(DagModel, "mydag")
         assert orm_dag.bundle_name == "testing"
         assert orm_dag.bundle_version == "1.0"
+
+    def test_max_active_tasks_explicit_value_is_used(self, testing_dag_bundle, session, dag_maker):
+        with dag_maker("dag_max_tasks", schedule=None, max_active_tasks=5) as dag:
+            ...
+        update_dag_parsing_results_in_db("testing", None, [self.dag_to_lazy_serdag(dag)], {}, set(), session)
+        orm_dag = session.get(DagModel, "dag_max_tasks")
+        assert orm_dag.max_active_tasks == 5
+
+    def test_max_active_tasks_defaults_from_conf_when_none(self, testing_dag_bundle, session, dag_maker):
+        # Override config so that when DAG.max_active_tasks is None, DagModel gets the configured default
+        with conf_vars({("core", "max_active_tasks_per_dag"): "7"}):
+            with dag_maker("dag_max_tasks_default", schedule=None) as dag:
+                ...
+            update_dag_parsing_results_in_db(
+                "testing", None, [self.dag_to_lazy_serdag(dag)], {}, set(), session
+            )
+            orm_dag = session.get(DagModel, "dag_max_tasks_default")
+            assert orm_dag.max_active_tasks == 7
+
+    def test_max_active_runs_explicit_value_is_used(self, testing_dag_bundle, session, dag_maker):
+        with dag_maker("dag_max_runs", schedule=None, max_active_runs=3) as dag:
+            ...
+        update_dag_parsing_results_in_db("testing", None, [self.dag_to_lazy_serdag(dag)], {}, set(), session)
+        orm_dag = session.get(DagModel, "dag_max_runs")
+        assert orm_dag.max_active_runs == 3
+
+    def test_max_active_runs_defaults_from_conf_when_none(self, testing_dag_bundle, session, dag_maker):
+        with conf_vars({("core", "max_active_runs_per_dag"): "4"}):
+            with dag_maker("dag_max_runs_default", schedule=None) as dag:
+                ...
+            update_dag_parsing_results_in_db(
+                "testing", None, [self.dag_to_lazy_serdag(dag)], {}, set(), session
+            )
+            orm_dag = session.get(DagModel, "dag_max_runs_default")
+            assert orm_dag.max_active_runs == 4
+
+    def test_max_consecutive_failed_dag_runs_explicit_value_is_used(
+        self, testing_dag_bundle, session, dag_maker
+    ):
+        with dag_maker("dag_max_failed_runs", schedule=None, max_consecutive_failed_dag_runs=2) as dag:
+            ...
+        update_dag_parsing_results_in_db("testing", None, [self.dag_to_lazy_serdag(dag)], {}, set(), session)
+        orm_dag = session.get(DagModel, "dag_max_failed_runs")
+        assert orm_dag.max_consecutive_failed_dag_runs == 2
+
+    def test_max_consecutive_failed_dag_runs_defaults_from_conf_when_none(
+        self, testing_dag_bundle, session, dag_maker
+    ):
+        with conf_vars({("core", "max_consecutive_failed_dag_runs_per_dag"): "6"}):
+            with dag_maker("dag_max_failed_runs_default", schedule=None) as dag:
+                ...
+            update_dag_parsing_results_in_db(
+                "testing", None, [self.dag_to_lazy_serdag(dag)], {}, set(), session
+            )
+            orm_dag = session.get(DagModel, "dag_max_failed_runs_default")
+            assert orm_dag.max_consecutive_failed_dag_runs == 6

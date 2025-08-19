@@ -40,7 +40,7 @@ PATH_PARAMETER_NAMES = {"path", "src", "dst"}
 
 class TestSambaHook:
     @pytest.mark.db_test
-    def test_get_conn_should_fail_if_conn_id_does_not_exist(self):
+    def test_get_conn_should_fail_if_conn_id_does_not_exist(self, sdk_connection_not_found):
         with pytest.raises(AirflowNotFoundException):
             SambaHook("non-existed-connection-id")
 

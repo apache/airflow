@@ -244,9 +244,9 @@ export type BulkDeleteAction_BulkTaskInstanceBody_ = {
      */
     action: "delete";
     /**
-     * A list of entity id/key to be deleted.
+     * A list of entity id/key or entity objects to be deleted.
      */
-    entities: Array<(string)>;
+    entities: Array<(string | BulkTaskInstanceBody)>;
     action_on_non_existence?: BulkActionNotOnExistence;
 };
 
@@ -256,9 +256,9 @@ export type BulkDeleteAction_ConnectionBody_ = {
      */
     action: "delete";
     /**
-     * A list of entity id/key to be deleted.
+     * A list of entity id/key or entity objects to be deleted.
      */
-    entities: Array<(string)>;
+    entities: Array<(string | BulkTaskInstanceBody)>;
     action_on_non_existence?: BulkActionNotOnExistence;
 };
 
@@ -268,9 +268,9 @@ export type BulkDeleteAction_PoolBody_ = {
      */
     action: "delete";
     /**
-     * A list of entity id/key to be deleted.
+     * A list of entity id/key or entity objects to be deleted.
      */
-    entities: Array<(string)>;
+    entities: Array<(string | BulkTaskInstanceBody)>;
     action_on_non_existence?: BulkActionNotOnExistence;
 };
 
@@ -280,9 +280,9 @@ export type BulkDeleteAction_VariableBody_ = {
      */
     action: "delete";
     /**
-     * A list of entity id/key to be deleted.
+     * A list of entity id/key or entity objects to be deleted.
      */
-    entities: Array<(string)>;
+    entities: Array<(string | BulkTaskInstanceBody)>;
     action_on_non_existence?: BulkActionNotOnExistence;
 };
 
@@ -926,6 +926,7 @@ export type HITLDetail = {
     params?: {
         [key: string]: unknown;
     };
+    respondents?: Array<(string)> | null;
     user_id?: string | null;
     response_at?: string | null;
     chosen_options?: Array<(string)> | null;
