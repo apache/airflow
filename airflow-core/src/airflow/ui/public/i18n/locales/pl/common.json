@@ -226,6 +226,7 @@
   "task_many": "Zadań",
   "task_one": "Zadanie",
   "task_other": "Zadania",
+  "taskGroup": "Grupa zadań",
   "taskId": "Identifikator Zadania",
   "taskInstance": {
     "dagVersion": "Wersja Daga",

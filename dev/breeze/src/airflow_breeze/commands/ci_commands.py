@@ -285,6 +285,7 @@ class WorkflowInfo(NamedTuple):
     ref: str | None
     ref_name: str | None
     pr_number: int | None
+    head_ref: str | None = None
 
     def get_all_ga_outputs(self) -> Iterable[str]:
         from airflow_breeze.utils.github import get_ga_output
@@ -297,6 +298,7 @@ class WorkflowInfo(NamedTuple):
         yield get_ga_output(name="runs-on", value=self.get_runs_on())
         yield get_ga_output(name="canary-run", value=self.is_canary_run())
         yield get_ga_output(name="run-coverage", value=self.run_coverage())
+        yield get_ga_output(name="head-ref", value=self.head_ref)
 
     def print_all_ga_outputs(self):
         for output in self.get_all_ga_outputs():
@@ -348,6 +350,7 @@ def workflow_info(context: str) -> WorkflowInfo:
     pr_number: int | None = None
     ref_name = ctx.get("ref_name")
     ref = ctx.get("ref")
+    head_ref = ctx.get("head_ref")
     if event_name == GithubEvents.PULL_REQUEST.value:
         event = ctx.get("event")
         if event:
@@ -387,6 +390,7 @@ def workflow_info(context: str) -> WorkflowInfo:
         pr_number=pr_number,
         ref=ref,
         ref_name=ref_name,
+        head_ref=head_ref,
     )
 
 

@@ -382,6 +382,8 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--airflow-site-directory",
                 "--include-not-ready-providers",
                 "--include-removed-providers",
+                "--head-repo",
+                "--head-ref",
             ],
         },
     ],

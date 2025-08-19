@@ -35,7 +35,7 @@ dependencies = [
     "kgb>=7.2.0",
     "requests_mock>=1.11.0",
     "rich>=13.6.0",
-    "ruff==0.12.7",
+    "ruff==0.12.8",
     "semver>=3.0.2",
     "time-machine>=2.15.0",
     "wheel>=0.42.0",
@@ -139,7 +139,7 @@ dependencies = [
     "beautifulsoup4>=4.7.1",
 ]
 "sqlalchemy" = [
-    "sqlalchemy[asyncio]>=1.4.49,<2.0",
+    "sqlalchemy[asyncio]>=1.4.49",
     "sqlalchemy-jsonfield>=1.0",
     "sqlalchemy-utils>=0.41.2",
 ]

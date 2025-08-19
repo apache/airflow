@@ -308,7 +308,7 @@ uv tool install -e ./dev/breeze
 
 - Set your version in `airflow/__init__.py` (without the RC tag).
 - Run `git commit` without a message to update versions in `docs`.
-- Add supported Airflow version to `./scripts/ci/pre_commit/supported_versions.py` and let pre-commit do the job again.
+- Add supported Airflow version to `./scripts/ci/prek/supported_versions.py` and let prek do the job again.
 - Replace the versions in `README.md` about installation and verify that installation instructions work fine.
 - Add entry for default python version to `BASE_PROVIDERS_COMPATIBILITY_CHECKS` in `src/airflow_breeze/global_constants.py`
   with the new Airflow version, and empty exclusion for providers. This list should be updated later when providers
@@ -597,6 +597,7 @@ you are checking):
 
 ```shell script
 VERSION=X.Y.Zrc1
+git fetch apache --tags
 git checkout ${VERSION}
 export AIRFLOW_REPO_ROOT=$(pwd)
 rm -rf dist/*
@@ -1141,7 +1142,7 @@ EOF
 
 This includes:
 
-- Modify `./scripts/ci/pre_commit/supported_versions.py` and let pre-commit do the job.
+- Modify `./scripts/ci/prek/supported_versions.py` and let prek do the job.
 - For major/minor release, update version in `airflow/__init__.py` and `docs/docker-stack/` to the next likely minor version release.
 - Sync `RELEASE_NOTES.rst` (including deleting relevant `newsfragments`) and `README.md` changes.
 - Updating `Dockerfile` with the new version.
