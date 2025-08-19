@@ -32,7 +32,7 @@
     "fileLocation": "Local do Arquivo",
     "hasTaskConcurrencyLimits": "Tem Limite de Concorrência de Tarefas",
     "lastExpired": "Último Expirado",
-    "lastParsed": "Último Parsed",
+    "lastParsed": "Último Parseado",
     "latestDagVersion": "Última Versão do DAG",
     "latestRun": "Última Execução",
     "maxActiveRuns": "Máximo de Execuções Ativas",
