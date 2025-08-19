@@ -25,9 +25,6 @@ from airflow.providers.slack.notifications.slack_webhook import (
     SlackWebhookNotifier,
     send_slack_webhook_notification,
 )
-from airflow.providers.standard.operators.empty import EmptyOperator
-
-pytestmark = pytest.mark.db_test
 
 DEFAULT_HOOKS_PARAMETERS = {"timeout": None, "proxy": None, "retry_handlers": None}
 
@@ -94,16 +91,18 @@ class TestSlackNotifier:
         )
 
     @mock.patch("airflow.providers.slack.notifications.slack_webhook.SlackWebhookHook")
-    def test_slack_webhook_templated(self, mock_slack_hook, dag_maker):
-        with dag_maker("test_send_slack_webhook_notification_templated") as dag:
-            EmptyOperator(task_id="task1")
-
+    def test_slack_webhook_templated(self, mock_slack_hook, create_dag_without_db):
         notifier = send_slack_webhook_notification(
             text="Who am I? {{ username }}",
             blocks=[{"type": "header", "text": {"type": "plain_text", "text": "{{ dag.dag_id }}"}}],
             attachments=[{"image_url": "{{ dag.dag_id }}.png"}],
         )
-        notifier({"dag": dag, "username": "not-a-root"})
+        notifier(
+            {
+                "dag": create_dag_without_db("test_send_slack_webhook_notification_templated"),
+                "username": "not-a-root",
+            }
+        )
         mock_slack_hook.return_value.send.assert_called_once_with(
             text="Who am I? not-a-root",
             blocks=[
@@ -119,11 +118,8 @@ class TestSlackNotifier:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.slack.notifications.slack_webhook.SlackWebhookHook")
-    async def test_async_slack_webhook_templated(self, mock_slack_hook, dag_maker):
+    async def test_async_slack_webhook_templated(self, mock_slack_hook, create_dag_without_db):
         """Test async notification with template rendering."""
-        with dag_maker("test_send_slack_webhook_notification_templated") as dag:
-            EmptyOperator(task_id="task1")
-
         mock_hook = mock_slack_hook.return_value
         mock_hook.async_send = mock.AsyncMock()
 
@@ -134,20 +130,33 @@ class TestSlackNotifier:
         )
 
         # Call notifier first to handle template rendering
-        notifier({"dag": dag, "username": "not-a-root"})
+        notifier(
+            {
+                "dag": create_dag_without_db("test_async_send_slack_webhook_notification_templated"),
+                "username": "not-a-root",
+            }
+        )
 
         # Then call async_notify with rendered templates
-        await notifier.async_notify({"dag": dag, "username": "not-a-root"})
+        await notifier.async_notify(
+            {
+                "dag": create_dag_without_db("test_async_send_slack_webhook_notification_templated"),
+                "username": "not-a-root",
+            }
+        )
 
         mock_hook.async_send.assert_called_once_with(
             text="Who am I? not-a-root",
             blocks=[
                 {
                     "type": "header",
-                    "text": {"type": "plain_text", "text": "test_send_slack_webhook_notification_templated"},
+                    "text": {
+                        "type": "plain_text",
+                        "text": "test_async_send_slack_webhook_notification_templated",
+                    },
                 }
             ],
-            attachments=[{"image_url": "test_send_slack_webhook_notification_templated.png"}],
+            attachments=[{"image_url": "test_async_send_slack_webhook_notification_templated.png"}],
             unfurl_links=None,
             unfurl_media=None,
         )
