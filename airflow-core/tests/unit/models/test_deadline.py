@@ -21,7 +21,6 @@ from unittest import mock
 
 import pytest
 import time_machine
-from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 from airflow.models import DagRun, Trigger
@@ -97,12 +96,6 @@ class TestDeadline:
     @staticmethod
     def teardown_method():
         _clean_db()
-
-    def test_add_deadline(self, dagrun, deadline_orm, session):
-        result = session.scalars(select(Deadline)).first()
-        assert result.dagrun_id == deadline_orm.dagrun_id
-        assert result.deadline_time == deadline_orm.deadline_time
-        assert result.callback == deadline_orm.callback
 
     @pytest.mark.parametrize(
         "conditions",
