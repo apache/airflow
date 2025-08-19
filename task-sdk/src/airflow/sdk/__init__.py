@@ -104,6 +104,7 @@ __lazy_imports: dict[str, str] = {
     "Param": ".definitions.param",
     "PokeReturnValue": ".bases.sensor",
     "SecretCache": ".execution_time.cache",
+    "StartTriggerArgs": ".bases.trigger",
     "TaskGroup": ".definitions.taskgroup",
     "Variable": ".definitions.variable",
     "WeightRule": ".api.datamodels._generated",
