@@ -236,7 +236,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     def _exit_gracefully(self, signum: int, frame: FrameType | None) -> None:
         """Clean up processor_agent to avoid leaving orphan processes."""
-        self._end_active_spans()
+        if self._is_tracing_enabled():
+            self._end_active_spans()
 
         if not _is_parent_process():
             # Only the parent process should perform the cleanup.
@@ -1883,7 +1884,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 return callback
 
             if (
-                dag_run.scheduled_by_job_id is not None
+                self._is_tracing_enabled()
+                and dag_run.scheduled_by_job_id is not None
                 and dag_run.scheduled_by_job_id != self.job.id
                 and self.active_spans.get("dr:" + str(dag_run.id)) is None
             ):

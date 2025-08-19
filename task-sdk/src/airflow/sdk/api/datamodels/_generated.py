@@ -473,6 +473,12 @@ class TaskInstanceState(str, Enum):
     DEFERRED = "deferred"
 
 
+class WeightRule(str, Enum):
+    DOWNSTREAM = "downstream"
+    UPSTREAM = "upstream"
+    ABSOLUTE = "absolute"
+
+
 class AssetEventDagRunReference(BaseModel):
     """
     Schema for AssetEvent model used in DagRun.
