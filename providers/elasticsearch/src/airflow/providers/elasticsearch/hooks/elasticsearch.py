@@ -355,7 +355,7 @@ class ElasticsearchHook(BaseHook):
 
         # Build hosts list
         hosts = [f"{schema}://{host}:{port}"]
-        client_args: dict[str, Any] = {"hosts": hosts}
+        client_args: dict[str, str | int | bool | tuple[str, str] | list[str]] = {"hosts": hosts}
 
         # Authentication: prioritize Airflow connection
         if conn.login and conn.password:
