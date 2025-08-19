@@ -48,6 +48,12 @@ __deprecated_classes = {
     "operator_resources": {
         "*": "airflow.sdk.definitions.operator_resources",
     },
+    "weight_rule": {
+        "WeightRule": "airflow.task.weight_rule.WeightRule",
+        "DB_SAFE_MINIMUM": "airflow.sdk.bases.operator.DB_SAFE_MINIMUM",
+        "DB_SAFE_MAXIMUM": "airflow.sdk.bases.operator.DB_SAFE_MAXIMUM",
+        "db_safe_priority": "airflow.sdk.bases.operator.db_safe_priority",
+    },
 }
 
 add_deprecated_classes(__deprecated_classes, __name__)
