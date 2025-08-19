@@ -264,7 +264,7 @@ class SqlToS3Operator(BaseOperator):
     def _partition_dataframe(
         self, df: pd.DataFrame | pl.DataFrame
     ) -> Iterable[tuple[str, pd.DataFrame | pl.DataFrame]]:
-        """Partition dataframe using pandas groupby() method."""
+        """Partition dataframe using pandas or polars groupby() method."""
         try:
             import secrets
             import string
@@ -277,34 +277,34 @@ class SqlToS3Operator(BaseOperator):
 
         # if max_rows_per_file argument is specified, a temporary column with a random unusual name will be
         # added to the dataframe. This column is used to dispatch the dataframe into smaller ones using groupby()
-        if isinstance(df, pd.DataFrame):
-            random_column_name = ""
-            if self.max_rows_per_file and not self.groupby_kwargs:
-                random_column_name = "".join(secrets.choice(string.ascii_letters) for _ in range(20))
+        random_column_name = None
+        if self.max_rows_per_file and not self.groupby_kwargs:
+            random_column_name = "".join(secrets.choice(string.ascii_letters) for _ in range(20))
+            self.groupby_kwargs = {"by": random_column_name}
+
+        if random_column_name:
+            if isinstance(df, pd.DataFrame):
                 df[random_column_name] = np.arange(len(df)) // self.max_rows_per_file
-                self.groupby_kwargs = {"by": random_column_name}
-            if not self.groupby_kwargs:
-                yield "", df
-                return
-            for group_label in (grouped_df := df.groupby(**self.groupby_kwargs)).groups:
-                yield (
-                    cast("str", group_label),
-                    grouped_df.get_group(group_label)
-                    .drop(random_column_name, axis=1, errors="ignore")
-                    .reset_index(drop=True),
-                )
-        elif isinstance(df, pl.DataFrame):
-            random_column_name = ""
-            if self.max_rows_per_file and not self.groupby_kwargs:
-                random_column_name = "".join(secrets.choice(string.ascii_letters) for _ in range(20))
+            elif isinstance(df, pl.DataFrame):
                 df = df.with_columns(
                     (pl.int_range(pl.len()) // self.max_rows_per_file).alias(random_column_name)
                 )
-                self.groupby_kwargs = {"by": random_column_name}
-            if not self.groupby_kwargs:
-                yield "", df
-                return
-            for group_label, group_df in df.group_by(**self.groupby_kwargs):
+
+        if not self.groupby_kwargs:
+            yield "", df
+            return
+
+        if isinstance(df, pd.DataFrame):
+            for group_label in (grouped_df := df.groupby(**self.groupby_kwargs)).groups:
+                group_df = grouped_df.get_group(group_label)
+                if random_column_name:
+                    group_df = group_df.drop(random_column_name, axis=1, errors="ignore")
+                yield (
+                    cast("str", group_label[0] if isinstance(group_label, tuple) else group_label),
+                    group_df.reset_index(drop=True),
+                )
+        elif isinstance(df, pl.DataFrame):
+            for group_label, group_df in df.group_by(**self.groupby_kwargs):  # type: ignore[assignment]
                 if random_column_name:
                     group_df = group_df.drop(random_column_name)
                 yield (
