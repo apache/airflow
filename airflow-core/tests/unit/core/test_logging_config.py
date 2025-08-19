@@ -24,7 +24,7 @@ import os
 import pathlib
 import sys
 import tempfile
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 import pytest
 
@@ -96,17 +96,10 @@ SETTINGS_FILE_EMPTY = """
 # Other settings here
 """
 
-SETTINGS_FILE_WITH_REMOTE_VARS = (
-    SETTINGS_FILE_VALID
-    + """
+SETTINGS_FILE_WITH_REMOTE_VARS = f"""{SETTINGS_FILE_VALID}
 REMOTE_TASK_LOG = None
 DEFAULT_REMOTE_CONN_ID = "test_conn_id"
 """
-)
-
-SETTINGS_FILE_NO_REMOTE_VARS = SETTINGS_FILE_WITH_REMOTE_VARS.replace("REMOTE_TASK_LOG = None", "").replace(
-    'DEFAULT_REMOTE_CONN_ID = "test_conn_id"', ""
-)
 
 SETTINGS_DEFAULT_NAME = "custom_airflow_local_settings"
 
@@ -203,7 +196,9 @@ class TestLoggingSettings:
         importlib.reload(airflow_local_settings)
         configure_logging()
 
-    def _verify_basic_logging_config(self, logging_config: dict, logging_class_path: str, expected_path: str):
+    def _verify_basic_logging_config(
+        self, logging_config: dict, logging_class_path: str, expected_path: str
+    ) -> None:
         """Helper method to verify basic logging config structure"""
         assert isinstance(logging_config, dict)
         assert logging_config["version"] == 1
@@ -410,7 +405,7 @@ class TestLoggingSettings:
 
     def test_load_logging_config_fallback_behavior(self):
         """Test that load_logging_config falls back gracefully when remote logging vars are missing"""
-        with settings_context(SETTINGS_FILE_NO_REMOTE_VARS):
+        with settings_context(SETTINGS_FILE_VALID):
             from airflow.logging_config import load_logging_config
 
             with patch("airflow.logging_config.log") as mock_log:
@@ -420,7 +415,8 @@ class TestLoggingSettings:
                     logging_config, logging_class_path, f"{SETTINGS_DEFAULT_NAME}.LOGGING_CONFIG"
                 )
 
-                mock_log.info.assert_called_with(
-                    "Remote task logs will not be available due to an error:  %s",
-                    mock_log.info.call_args[0][1],
-                )
+                mock_log.info.mock_calls = [
+                    call(
+                        "Remote task logs will not be available due to an error:  %s",
+                    )
+                ]
