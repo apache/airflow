@@ -39,10 +39,12 @@ from airflow.exceptions import (
     TaskAlreadyInTaskGroup,
 )
 from airflow.sdk.definitions._internal.node import DAGNode, validate_group_key
+from airflow.sdk.exceptions import AirflowDagCycleException
 from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
     from airflow.models.expandinput import SchedulerExpandInput
+    from airflow.models.mappedoperator import MappedOperator
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput, ListOfDictsExpandInput
@@ -588,8 +590,10 @@ class TaskGroup(DAGNode):
                 yield group
             group = group.parent_group
 
-    def iter_tasks(self) -> Iterator[AbstractOperator | SerializedBaseOperator]:
+    # TODO (GH-52141): This should only return SDK operators. Have a db representation for db operators.
+    def iter_tasks(self) -> Iterator[AbstractOperator | MappedOperator | SerializedBaseOperator]:
         """Return an iterator of the child tasks."""
+        from airflow.models.mappedoperator import MappedOperator
         from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
         from airflow.serialization.serialized_objects import SerializedBaseOperator
 
@@ -599,7 +603,7 @@ class TaskGroup(DAGNode):
             visiting = groups_to_visit.pop(0)
 
             for child in visiting.children.values():
-                if isinstance(child, (AbstractOperator, SerializedBaseOperator)):
+                if isinstance(child, (AbstractOperator, MappedOperator, SerializedBaseOperator)):
                     yield child
                 elif isinstance(child, TaskGroup):
                     groups_to_visit.append(child)
@@ -730,13 +734,13 @@ def task_group_to_dict(task_item_or_group, parent_group_is_mapped=False):
 
 def task_group_to_dict_grid(task_item_or_group, parent_group_is_mapped=False):
     """Create a nested dict representation of this TaskGroup and its children used to construct the Graph."""
+    from airflow.models.mappedoperator import MappedOperator
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
-    from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.serialization.serialized_objects import SerializedBaseOperator
 
-    if isinstance(task := task_item_or_group, (AbstractOperator, SerializedBaseOperator)):
+    if isinstance(task := task_item_or_group, (AbstractOperator, MappedOperator, SerializedBaseOperator)):
         is_mapped = None
-        if isinstance(task, MappedOperator) or parent_group_is_mapped:
+        if task.is_mapped or parent_group_is_mapped:
             is_mapped = True
         setup_teardown_type = None
         if task.is_setup is True:

@@ -370,7 +370,6 @@ def materialize_asset(
         )
 
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
-
     return dag.create_dagrun(
         run_id=dag.timetable.generate_run_id(
             run_type=DagRunType.MANUAL,

@@ -36,6 +36,7 @@
     "activeDags": "Aktive Dags",
     "failedDags": "Fehlgeschlagene Dags",
     "queuedDags": "Dags in Warteschlange",
+    "requiredActions": "Erforderliche Interaktionen",
     "runningDags": "Laufende Dags",
     "stats": "Statistiken"
   },
