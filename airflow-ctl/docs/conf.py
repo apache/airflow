@@ -194,7 +194,7 @@ html_context = get_html_context(conf_py_path)
 # See: https://github.com/tardyp/sphinx-jinja
 airflowctl_version: Version = parse_version(
     re.search(  # type: ignore[union-attr,arg-type]
-        r"__version__ = \"([0-9.]*)(\.dev[0-9]*)?\"",
+        r"__version__ = \"([0-9.]*)(\.dev[0-9]*|b[0-9])?\"",
         (AIRFLOW_CTL_SRC_PATH / "airflowctl" / "__init__.py").read_text(),
     ).groups(0)[0]
 )
