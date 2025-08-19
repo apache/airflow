@@ -116,10 +116,6 @@ class FileLoadStat(NamedTuple):
     warning_num: int
 
 
-class AirflowDagCycleException(AirflowException):
-    """Raise when there is a cycle in DAG definition."""
-
-
 class DagBag(LoggingMixin):
     """
     A dagbag is a collection of dags, parsed out of a folder tree and has high level configuration settings.
@@ -595,9 +591,14 @@ class DagBag(LoggingMixin):
                 )
             self.dags[dag.dag_id] = dag
             self.log.debug("Loaded DAG %s", dag)
-        except (AirflowDagCycleException, AirflowDagDuplicatedIdException):
-            # There was an error in bagging the dag. Remove it from the list of dags
+        except AirflowDagDuplicatedIdException:
             self.log.exception("Exception bagging dag: %s", dag.dag_id)
+            raise
+        except Exception as e:
+            if type(e).__name__ == "AirflowDagCycleException":
+                self.log.exception("Cycle detected in DAG: %s", dag.dag_id)
+            else:
+                self.log.exception("Unexpected error bagging dag: %s", dag.dag_id)
             raise
 
     def collect_dags(
