@@ -68,6 +68,7 @@ class HITLOperator(BaseOperator):
         multiple: bool = False,
         params: ParamsDict | dict[str, Any] | None = None,
         notifiers: Sequence[BaseNotifier] | BaseNotifier | None = None,
+        respondents: str | list[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -83,6 +84,7 @@ class HITLOperator(BaseOperator):
         self.notifiers: Sequence[BaseNotifier] = (
             [notifiers] if isinstance(notifiers, BaseNotifier) else notifiers or []
         )
+        self.respondents = [respondents] if isinstance(respondents, str) else respondents
 
         self.validate_options()
         self.validate_defaults()
@@ -117,6 +119,7 @@ class HITLOperator(BaseOperator):
             defaults=self.defaults,
             multiple=self.multiple,
             params=self.serialized_params,
+            respondents=self.respondents,
         )
 
         if self.execution_timeout:

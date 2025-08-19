@@ -357,8 +357,7 @@ def get_dag_runs(
     query = select(DagRun)
 
     if dag_id != "~":
-        # Check if the DAG exists
-        get_latest_version_of_dag(dag_bag, dag_id, session)
+        get_latest_version_of_dag(dag_bag, dag_id, session)  # Check if the DAG exists.
         query = query.filter(DagRun.dag_id == dag_id).options(joinedload(DagRun.dag_model))
 
     dag_run_select, total_entries = paginated_select(

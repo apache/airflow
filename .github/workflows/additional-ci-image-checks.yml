@@ -48,8 +48,8 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to upgrade to newer dependencies (true/false)"
         required: true
         type: string
-      skip-pre-commits:
-        description: "Whether to skip pre-commits (true/false)"
+      skip-prek-hooks:
+        description: "Whether to skip prek hooks (true/false)"
         required: true
         type: string
       docker-cache:

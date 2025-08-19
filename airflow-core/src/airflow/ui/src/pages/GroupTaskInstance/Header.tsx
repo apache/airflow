@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next";
 import { MdOutlineTask } from "react-icons/md";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+import { ClearTaskInstanceButton } from "src/components/Clear";
 import { HeaderCard } from "src/components/HeaderCard";
 import Time from "src/components/Time";
 import { getDuration } from "src/utils";
@@ -56,6 +57,7 @@ export const Header = ({
   return (
     <Box>
       <HeaderCard
+        actions={<ClearTaskInstanceButton groupTaskInstance={taskInstance} isHotkeyEnabled withText={true} />}
         icon={<MdOutlineTask />}
         isRefreshing={isRefreshing}
         state={taskInstance.state}

@@ -94,6 +94,7 @@ from airflow.sdk.execution_time.comms import (
     GetXComSequenceItem,
     GetXComSequenceSlice,
     InactiveAssetsResult,
+    MaskSecret,
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
@@ -1064,7 +1065,10 @@ class ActivitySubprocess(WatchedSubprocess):
         return TaskInstanceState.FAILED
 
     def _handle_request(self, msg: ToSupervisor, log: FilteringBoundLogger, req_id: int):
-        log.debug("Received message from task runner", msg=msg)
+        if isinstance(msg, MaskSecret):
+            log.debug("Received message from task runner (body omitted)", msg=type(msg))
+        else:
+            log.debug("Received message from task runner", msg=msg)
         resp: BaseModel | None = None
         dump_opts = {}
         if isinstance(msg, TaskState):
@@ -1262,8 +1266,11 @@ class ActivitySubprocess(WatchedSubprocess):
                 defaults=msg.defaults,
                 params=msg.params,
                 multiple=msg.multiple,
+                respondents=msg.respondents,
             )
             self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
+        elif isinstance(msg, MaskSecret):
+            mask_secret(msg.value, msg.name)
         else:
             log.error("Unhandled request", msg=msg)
             self.send_msg(
@@ -1351,6 +1358,11 @@ class InProcessTestSupervisor(ActivitySubprocess):
 
     stdin: socket = attrs.field(init=False)
 
+    class _Client(Client):
+        def request(self, *args, **kwargs):
+            # Bypass the tenacity retries!
+            return super().request.__wrapped__(self, *args, **kwargs)  # type: ignore[attr-defined]
+
     @classmethod
     def start(  # type: ignore[override]
         cls,
@@ -1418,8 +1430,6 @@ class InProcessTestSupervisor(ActivitySubprocess):
 
     @staticmethod
     def _api_client(dag=None):
-        from airflow.sdk.api.client import Client
-
         api = in_process_api_server()
         if dag is not None:
             from airflow.api_fastapi.common.dagbag import dag_bag_from_app
@@ -1431,7 +1441,9 @@ class InProcessTestSupervisor(ActivitySubprocess):
 
             api.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag
 
-        client = Client(base_url=None, token="", dry_run=True, transport=api.transport)
+        client = InProcessTestSupervisor._Client(
+            base_url=None, token="", dry_run=True, transport=api.transport
+        )
         # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
         client.base_url = "http://in-process.invalid./"
         return client

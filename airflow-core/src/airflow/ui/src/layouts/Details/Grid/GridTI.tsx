@@ -143,7 +143,7 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, 
             id="tooltip"
             p={2}
             position="absolute"
-            right={0}
+            right={5}
             visibility="hidden"
             zIndex="tooltip"
           >
@@ -162,6 +162,17 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, 
                 {translate("endDate")}: <Time datetime={instance.max_end_date} />
               </>
             )}
+            {/* Tooltip arrow pointing to the badge */}
+            <chakra.div
+              bg="bg.inverted"
+              borderRadius={1}
+              bottom={1}
+              height={2}
+              position="absolute"
+              right="-3px"
+              transform="rotate(45deg)"
+              width={2}
+            />
           </chakra.span>
         </Badge>
       </Link>

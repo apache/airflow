@@ -61,6 +61,7 @@ from airflow.sdk.execution_time.comms import (
     GetTICount,
     GetVariable,
     GetXCom,
+    MaskSecret,
     OKResponse,
     PutVariable,
     SetXCom,
@@ -269,7 +270,8 @@ ToTriggerSupervisor = Annotated[
     | GetDagRunState
     | GetDRCount
     | GetHITLDetailResponse
-    | UpdateHITLDetail,
+    | UpdateHITLDetail
+    | MaskSecret,
     Field(discriminator="type"),
 ]
 """
@@ -501,6 +503,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         elif isinstance(msg, GetHITLDetailResponse):
             api_resp = self.client.hitl.get_detail_response(ti_id=msg.ti_id)
             resp = HITLDetailResponseResult.from_api_response(response=api_resp)
+        elif isinstance(msg, MaskSecret):
+            from airflow.sdk.execution_time.secrets_masker import mask_secret
+
+            mask_secret(msg.value, msg.name)
         else:
             raise ValueError(f"Unknown message type {type(msg)}")
 

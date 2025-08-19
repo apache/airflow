@@ -24,9 +24,9 @@ from datetime import datetime, timedelta
 from typing import Any, cast
 
 from airflow.models.deadline import DeadlineReferenceType, ReferenceModels
+from airflow.sdk.module_loading import import_string, is_valid_dotpath
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.serde import deserialize, serialize
-from airflow.utils.module_loading import import_string, is_valid_dotpath
 
 logger = logging.getLogger(__name__)
 

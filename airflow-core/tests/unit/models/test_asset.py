@@ -126,6 +126,7 @@ class TestAssetAliasModel:
         ),
     ],
 )
+@pytest.mark.usefixtures("testing_dag_bundle")
 def test_remove_reference_for_inactive_dag(
     dag_maker,
     session,
@@ -144,9 +145,8 @@ def test_remove_reference_for_inactive_dag(
         EmptyOperator(task_id="t2", outlets=Asset(name="a", uri="b://b/"))
     with dag_maker(dag_id="test2", schedule=schedule, session=session) as dag2:
         EmptyOperator(task_id="t1", outlets=Asset(name="a", uri="b://b/"))
-
     DAG.bulk_write_to_db(
-        bundle_name=None,
+        bundle_name="testing",
         bundle_version=None,
         dags=[dag1, dag2],
         session=session,

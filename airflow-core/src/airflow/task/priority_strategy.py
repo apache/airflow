@@ -22,6 +22,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any
 
+from airflow.task.weight_rule import WeightRule
+
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
 
@@ -111,9 +113,9 @@ class _UpstreamPriorityWeightStrategy(PriorityWeightStrategy):
 
 
 airflow_priority_weight_strategies: dict[str, type[PriorityWeightStrategy]] = {
-    "absolute": _AbsolutePriorityWeightStrategy,
-    "downstream": _DownstreamPriorityWeightStrategy,
-    "upstream": _UpstreamPriorityWeightStrategy,
+    WeightRule.ABSOLUTE: _AbsolutePriorityWeightStrategy,
+    WeightRule.DOWNSTREAM: _DownstreamPriorityWeightStrategy,
+    WeightRule.UPSTREAM: _UpstreamPriorityWeightStrategy,
 }
 
 

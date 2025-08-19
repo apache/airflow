@@ -55,6 +55,7 @@ class HITLDetail(BaseModel):
     defaults: list[str] | None = None
     multiple: bool = False
     params: dict[str, Any] = Field(default_factory=dict)
+    respondents: list[str] | None = None
 
     # Response Content Detail
     user_id: str | None = None

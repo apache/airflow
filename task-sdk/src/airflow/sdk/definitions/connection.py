@@ -126,7 +126,7 @@ class Connection:
     def get_hook(self, *, hook_params=None):
         """Return hook based on conn_type."""
         from airflow.providers_manager import ProvidersManager
-        from airflow.utils.module_loading import import_string
+        from airflow.sdk.module_loading import import_string
 
         hook = ProvidersManager().hooks.get(self.conn_type, None)
 
@@ -160,11 +160,15 @@ class Connection:
     @property
     def extra_dejson(self) -> dict:
         """Deserialize `extra` property to JSON."""
+        from airflow.sdk.execution_time.secrets_masker import mask_secret
+
         extra = {}
         if self.extra:
             try:
                 extra = json.loads(self.extra)
             except JSONDecodeError:
                 log.exception("Failed to deserialize extra property `extra`, returning empty dictionary")
-        # TODO: Mask sensitive keys from this list or revisit if it will be done in server
+            else:
+                mask_secret(extra)
+
         return extra

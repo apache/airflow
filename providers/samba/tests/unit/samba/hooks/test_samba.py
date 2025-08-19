@@ -148,14 +148,38 @@ class TestSambaHook:
             assert dict(kwargs, **connection_settings) == p_kwargs
 
     @pytest.mark.parametrize(
-        "path, full_path",
+        "path, path_type, full_path",
         [
-            ("/start/path/with/slash", "//ip/share/start/path/with/slash"),
-            ("start/path/without/slash", "//ip/share/start/path/without/slash"),
+            # Linux path -> Linux path, no path_type (default)
+            ("/start/path/with/slash", None, "//ip/share/start/path/with/slash"),
+            ("start/path/without/slash", None, "//ip/share/start/path/without/slash"),
+            # Linux path -> Linux path, explicit path_type (posix)
+            ("/start/path/with/slash/posix", "posix", "//ip/share/start/path/with/slash/posix"),
+            ("start/path/without/slash/posix", "posix", "//ip/share/start/path/without/slash/posix"),
+            # Linux path -> Windows path, explicit path_type (windows)
+            ("/start/path/with/slash/windows", "windows", r"\\ip\share\start\path\with\slash\windows"),
+            ("start/path/without/slash/windows", "windows", r"\\ip\share\start\path\without\slash\windows"),
+            # Windows path -> Windows path, explicit path_type (windows)
+            (
+                r"\start\path\with\backslash\windows",
+                "windows",
+                r"\\ip\share\start\path\with\backslash\windows",
+            ),
+            (
+                r"start\path\without\backslash\windows",
+                "windows",
+                r"\\ip\share\start\path\without\backslash\windows",
+            ),
         ],
     )
     @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
-    def test__join_path(self, get_conn_mock, path, full_path):
+    def test__join_path(
+        self,
+        get_conn_mock,
+        path,
+        path_type,
+        full_path,
+    ):
         CONNECTION = Connection(
             host="ip",
             schema="share",
@@ -164,7 +188,7 @@ class TestSambaHook:
         )
 
         get_conn_mock.return_value = CONNECTION
-        hook = SambaHook("samba_default")
+        hook = SambaHook("samba_default", share_type=path_type)
         assert hook._join_path(path) == full_path
 
     @mock.patch("airflow.providers.samba.hooks.samba.smbclient.open_file", return_value=mock.Mock())

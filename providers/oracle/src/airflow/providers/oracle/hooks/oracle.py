@@ -358,21 +358,19 @@ class OracleHook(DbApiHook):
             )
 
         if sequence_column and sequence_name:
-            prepared_stm = "insert into {tablename} {columns} values ({values})".format(
-                tablename=table,
-                columns="({})".format(", ".join([sequence_column] + target_fields))
+            columns = (
+                f"({', '.join([sequence_column] + target_fields)})"
                 if target_fields
-                else f"({sequence_column})",
-                values=", ".join(
-                    [f"{sequence_name}.NEXTVAL"] + [f":{i}" for i in range(1, len(values_base) + 1)]
-                ),
+                else f"({sequence_column})"
+            )
+            value_placeholders = ", ".join(
+                [f"{sequence_name}.NEXTVAL"] + [f":{i}" for i in range(1, len(values_base) + 1)]
             )
         else:
-            prepared_stm = "insert into {tablename} {columns} values ({values})".format(
-                tablename=table,
-                columns="({})".format(", ".join(target_fields)) if target_fields else "",
-                values=", ".join(f":{i}" for i in range(1, len(values_base) + 1)),
-            )
+            columns = f"({', '.join(target_fields)})" if target_fields else ""
+            value_placeholders = ", ".join(f":{i}" for i in range(1, len(values_base) + 1))
+        prepared_stm = f"insert into {table} {columns} values ({value_placeholders})"
+
         row_count = 0
         # Chunk the rows
         row_chunk = []

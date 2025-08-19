@@ -119,6 +119,17 @@ def _update_hitl_detail(
             "and is not allowed to write again.",
         )
 
+    if hitl_detail_model.respondents:
+        user_id = user.get_id()
+        if isinstance(user_id, int):
+            # FabAuthManager (ab_user) store user id as integer, but common interface is string type
+            user_id = str(user_id)
+        if user_id not in hitl_detail_model.respondents:
+            log.error("User=%s is not a respondent for the task", user_id)
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN, f"User={user_id} is not a respondent for the task."
+            )
+
     hitl_detail_model.user_id = user.get_id()
     hitl_detail_model.response_at = timezone.utcnow()
     hitl_detail_model.chosen_options = update_hitl_detail_payload.chosen_options
@@ -171,6 +182,7 @@ def _get_hitl_detail(
     "/{dag_id}/{dag_run_id}/{task_id}",
     responses=create_openapi_http_exception_doc(
         [
+            status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
             status.HTTP_409_CONFLICT,
         ]
@@ -201,6 +213,7 @@ def update_hitl_detail(
     "/{dag_id}/{dag_run_id}/{task_id}/{map_index}",
     responses=create_openapi_http_exception_doc(
         [
+            status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
             status.HTTP_409_CONFLICT,
         ]
