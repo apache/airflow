@@ -20,6 +20,8 @@ import pytest
 
 from airflow.providers.redis.triggers.redis_await_message import AwaitMessageTrigger
 
+from tests_common.test_utils.common_msg_queue import mark_common_msg_queue_test
+
 pytest.importorskip("airflow.providers.common.messaging.providers.base_provider")
 
 
@@ -39,19 +41,6 @@ class TestRedisPubSubMessageQueueProvider:
         assert isinstance(self.provider, BaseMessageQueueProvider)
 
     @pytest.mark.parametrize(
-        "queue_uri, expected_result",
-        [
-            pytest.param("redis+pubsub://localhost:6379/channel1", True, id="single_channel"),
-            pytest.param("redis+pubsub://localhost:6379/channel1,channel2", True, id="multiple_channels"),
-            pytest.param("http://example.com", False, id="http_url"),
-            pytest.param("not-a-url", False, id="invalid_url"),
-        ],
-    )
-    def test_queue_matches(self, queue_uri, expected_result):
-        """Test the queue_matches method with various URLs."""
-        assert self.provider.queue_matches(queue_uri) == expected_result
-
-    @pytest.mark.parametrize(
         "scheme, expected_result",
         [
             pytest.param("redis+pubsub", True, id="redis_pubsub_scheme"),
@@ -68,41 +57,13 @@ class TestRedisPubSubMessageQueueProvider:
         """Test the trigger_class method."""
         assert self.provider.trigger_class() == AwaitMessageTrigger
 
-    @pytest.mark.parametrize(
-        "queue_uri, extra_kwargs, expected_result",
-        [
-            pytest.param(
-                "redis+pubsub://localhost:6379/channel1,channel2",
-                {"channels": ["channel1", "channel2"]},
-                {},
-                id="channels_from_uri",
-            ),
-            pytest.param(
-                "redis+pubsub://localhost:6379/",
-                {"channels": ["channel1", "channel2"]},
-                {},
-                id="channels_from_kwargs",
-            ),
-        ],
-    )
-    def test_trigger_kwargs_valid_cases(self, queue_uri, extra_kwargs, expected_result):
-        """Test the trigger_kwargs method with valid parameters."""
-        kwargs = self.provider.trigger_kwargs(queue_uri, **extra_kwargs)
-        assert kwargs == expected_result
 
-    @pytest.mark.parametrize(
-        "queue_uri, extra_kwargs, expected_error, error_match",
-        [
-            pytest.param(
-                "redis+pubsub://localhost:6379/",
-                {},
-                ValueError,
-                "channels is required in RedisPubSubMessageQueueProvider kwargs or provide them in the queue URI",
-                id="missing_channels",
-            ),
-        ],
-    )
-    def test_trigger_kwargs_error_cases(self, queue_uri, extra_kwargs, expected_error, error_match):
-        """Test that trigger_kwargs raises appropriate errors with invalid parameters."""
-        with pytest.raises(expected_error, match=error_match):
-            self.provider.trigger_kwargs(queue_uri, **extra_kwargs)
+@mark_common_msg_queue_test
+class TestMessageQueueTrigger:
+    @pytest.mark.usefixtures("cleanup_providers_manager")
+    def test_provider_integrations_with_scheme_param(self):
+        from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
+        from airflow.providers.redis.triggers.redis_await_message import AwaitMessageTrigger
+
+        trigger = MessageQueueTrigger(scheme="redis+pubsub", channels="test_channel")
+        assert isinstance(trigger.trigger, AwaitMessageTrigger)

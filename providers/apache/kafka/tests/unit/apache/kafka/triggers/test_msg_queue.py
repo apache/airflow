@@ -58,6 +58,7 @@ class MockedConsumer:
         return True
 
 
+@pytest.mark.usefixtures("collect_queue_param_deprecation_warning")
 class TestMessageQueueTrigger:
     @pytest.fixture(autouse=True)
     def setup_connections(self, create_connection_without_db):

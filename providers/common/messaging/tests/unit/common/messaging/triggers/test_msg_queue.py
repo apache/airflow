@@ -70,17 +70,7 @@ MULTIPLE_PROVIDERS_ERROR = "The {match_type} '{queue}' is recognized by more tha
 MESSAGE_QUEUE_PROVIDERS_PATH = "airflow.providers.common.messaging.triggers.msg_queue.MESSAGE_QUEUE_PROVIDERS"
 
 
-@pytest.fixture
-def collect_deprecation_warning():
-    """Collect deprecation warnings for the test cases."""
-    with pytest.warns(
-        AirflowProviderDeprecationWarning,
-        match="The `queue` parameter is deprecated and will be removed in future versions. Use the `scheme` parameter instead and pass configuration as keyword arguments to `MessageQueueTrigger`.",
-    ):
-        yield
-
-
-@pytest.mark.usefixtures("collect_deprecation_warning")
+@pytest.mark.usefixtures("collect_queue_param_deprecation_warning")
 class TestMessageQueueTrigger:
     """Test cases for MessageQueueTrigger error handling and provider matching."""
 
@@ -216,7 +206,7 @@ class TestMessageQueueTrigger:
 class TestMessageQueueTriggerScheme:
     """Test cases for the new scheme parameter functionality."""
 
-    @pytest.mark.usefixtures("collect_deprecation_warning")
+    @pytest.mark.usefixtures("collect_queue_param_deprecation_warning")
     def test_queue_takes_precedence_over_scheme(self):
         """Test that queue parameter takes precedence when both are provided."""
         trigger = MessageQueueTrigger(queue=PROVIDER_1_QUEUE, scheme=PROVIDER_2_SCHEME)
@@ -292,7 +282,7 @@ class TestMessageQueueTriggerScheme:
 
 
 class TestMessageQueueTriggerIntegration:
-    @pytest.mark.usefixtures("collect_deprecation_warning")
+    @pytest.mark.usefixtures("collect_queue_param_deprecation_warning")
     @mock.patch(
         MESSAGE_QUEUE_PROVIDERS_PATH,
         new_callable=mock.PropertyMock,
