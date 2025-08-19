@@ -49,7 +49,7 @@ Where:
     - Must start with a letter
     - Can contain letters, numbers, hyphens, underscores, tildes, plus signs, and percent signs
     - Must be between 3 and 255 characters long
-    - Cannot start with "goog"
+    - Cannot start with `goog`
 
 The queue parameter is used to configure the underlying
 :class:`~airflow.providers.google.cloud.triggers.pubsub.PubsubPullTrigger` class.
