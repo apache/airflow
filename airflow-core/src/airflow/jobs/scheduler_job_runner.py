@@ -411,15 +411,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             # Create a subquery with row numbers partitioned by run_id.
             #
-            # dag_id | task_id | priority_weight | row_num
-            # -------|---------|-----------------|--------
-            # dag1   | task1   | 100             | 1
-            # dag1   | task22  | 90              | 2
-            # dag1   | task5   | 80              | 3
-            # dag1   | task13  | 70              | 4
-            # dag2   | task3   | 95              | 1
-            # dag2   | task1   | 85              | 2
-            # dag2   | task5   | 75              | 3
+            # run_id    | task_id | priority_weight | row_num
+            # ----------|---------|-----------------|--------
+            # dag1_dr1  | task1   | 100             | 1
+            # dag1_dr1  | task22  | 90              | 2
+            # dag1_dr1  | task5   | 80              | 3
+            # dag1_dr1  | task13  | 70              | 4
+            # dag2_dr1  | task3   | 95              | 1
+            # dag2_dr1  | task1   | 85              | 2
+            # dag2_dr1  | task5   | 75              | 3
             ranked_query = (
                 query.add_columns(
                     func.row_number()
