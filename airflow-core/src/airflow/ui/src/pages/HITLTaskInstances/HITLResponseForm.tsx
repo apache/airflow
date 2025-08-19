@@ -47,7 +47,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
   const { t: translate } = useTranslation();
   const [errors, setErrors] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const { paramsDict } = useParamStore();
+  const { paramsDict } = useParamStore("hitl");
   const { updateHITLResponse } = useUpdateHITLDetail({
     dagId: hitlDetail?.task_instance.dag_id ?? "",
     dagRunId: hitlDetail?.task_instance.dag_run_id ?? "",
@@ -90,6 +90,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
         defaultValue={[hitlDetail.subject]}
         mb={4}
         mt={4}
+        overflow="visible"
         size="lg"
         variant="enclosed"
       >
@@ -102,6 +103,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
           }}
           isHITL
           key={hitlDetail.subject}
+          namespace="hitl"
           setError={setErrors}
         />
       </Accordion.Root>
@@ -113,7 +115,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
             hitlDetail.options.map((option) => (
               <Button
                 colorPalette={isHighlightOption(option, hitlDetail) ? "blue" : "gray"}
-                disabled={(hitlDetail.response_received ?? errors) || isSubmitting}
+                disabled={errors || isSubmitting || hitlDetail.response_received}
                 key={option}
                 onClick={() => handleSubmit(option)}
                 variant={isHighlightOption(option, hitlDetail) ? "solid" : "subtle"}

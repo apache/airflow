@@ -32,6 +32,7 @@ type Props = {
   readonly isGroup?: boolean;
   readonly isMapped?: boolean | null;
   readonly label: string;
+  readonly onClick?: () => void;
   readonly runId: string;
   readonly search: string;
   readonly taskId: string;
@@ -53,7 +54,7 @@ const onMouseLeave = (event: MouseEvent<HTMLDivElement>) => {
   });
 };
 
-const Instance = ({ dagId, instance, isGroup, isMapped, runId, search, taskId }: Props) => {
+const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, taskId }: Props) => {
   const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
   const { t: translate } = useTranslation();
   const debounceTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
@@ -108,6 +109,7 @@ const Instance = ({ dagId, instance, isGroup, isMapped, runId, search, taskId }:
       zIndex={1}
     >
       <Link
+        onClick={onClick}
         replace
         to={{
           pathname: `/dags/${dagId}/runs/${runId}/tasks/${isGroup ? "group/" : ""}${taskId}${isMapped ? "/mapped" : ""}`,
@@ -141,7 +143,7 @@ const Instance = ({ dagId, instance, isGroup, isMapped, runId, search, taskId }:
             id="tooltip"
             p={2}
             position="absolute"
-            right={0}
+            right={5}
             visibility="hidden"
             zIndex="tooltip"
           >
@@ -160,6 +162,17 @@ const Instance = ({ dagId, instance, isGroup, isMapped, runId, search, taskId }:
                 {translate("endDate")}: <Time datetime={instance.max_end_date} />
               </>
             )}
+            {/* Tooltip arrow pointing to the badge */}
+            <chakra.div
+              bg="bg.inverted"
+              borderRadius={1}
+              bottom={1}
+              height={2}
+              position="absolute"
+              right="-3px"
+              transform="rotate(45deg)"
+              width={2}
+            />
           </chakra.span>
         </Badge>
       </Link>

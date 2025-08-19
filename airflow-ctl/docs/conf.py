@@ -63,6 +63,9 @@ SYSTEM_TESTS_DIR: pathlib.Path | None
 
 os.environ["AIRFLOW_PACKAGE_NAME"] = PACKAGE_NAME
 
+# Disable color output for documentation generation
+os.environ["NO_COLOR"] = "1"
+
 # Hack to allow changing for piece of the code to behave differently while
 # the docs are being built. The main objective was to alter the
 # behavior of the utils.apply_default that was hiding function headers

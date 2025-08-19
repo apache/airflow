@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+6.2.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix the PostgresHook ignoring custom adapters registered (#53707)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 6.2.2
 .....
 
