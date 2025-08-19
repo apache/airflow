@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-import abc
 import asyncio
 import time
 from collections.abc import AsyncIterator
@@ -37,11 +36,11 @@ if TYPE_CHECKING:
     from msgraph_core import APIVersion
 
 
-class BasePowerBITrigger(abc.ABC, BaseTrigger):
+class BasePowerBITrigger(BaseTrigger):
     def __init__(
         self,
         conn_id: str,
-        timeout: float | None = None,
+        timeout: float = 60 * 60 * 24 * 7,
         proxies: dict | None = None,
         api_version: APIVersion | str | None = None,
     ):
