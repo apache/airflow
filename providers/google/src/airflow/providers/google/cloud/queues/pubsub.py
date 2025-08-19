@@ -47,15 +47,15 @@ class PubsubMessageQueueProvider(BaseMessageQueueProvider):
         return bool(re.match(QUEUE_REGEXP, queue))
 
     def trigger_class(self) -> type[BaseEventTrigger]:
-        return PubsubPullTrigger # type: ignore[return-value]
+        return PubsubPullTrigger  # type: ignore[return-value]
 
     def trigger_kwargs(self, queue: str, **kwargs) -> dict:
         pattern = re.compile(QUEUE_REGEXP)
         match = pattern.match(queue)
-        
+
         if match is None:
             raise ValueError(f"Queue '{queue}' does not match the expected PubSub format")
-            
+
         project_id = match.group("project_id")
         subscription = match.group("subscription")
 
