@@ -42,69 +42,65 @@ class TestSortParam:
             param.to_orm(None)
 
 
-@pytest.fixture
-def mock_dagmodel():
-    """
-    Patch DagModel in the parameters module's namespace so the filter uses our mock.
-    """
-    with patch("airflow.api_fastapi.common.parameters.DagModel", autospec=True) as mock_dm:
-        timetable_mock = MagicMock()
-        mock_dm.timetable_description = timetable_mock
-        yield mock_dm
+class TestIsDagScheduledFilter:
+    @pytest.fixture
+    def mock_dagmodel(self):
+        """
+        Patch DagModel in the parameters module's namespace so the filter uses our mock.
+        """
+        with patch("airflow.api_fastapi.common.parameters.DagModel", autospec=True) as mock_dm:
+            timetable_mock = MagicMock()
+            mock_dm.timetable_description = timetable_mock
+            yield mock_dm
 
+    @pytest.fixture
+    def mock_select(self):
+        """
+        Create a mock SQLAlchemy Select with .where().
+        """
+        select = MagicMock(spec=Select)
+        select.where.return_value = "filtered"
+        return select
 
-@pytest.fixture
-def mock_select():
-    """
-    Create a mock SQLAlchemy Select with .where().
-    """
-    select = MagicMock(spec=Select)
-    select.where.return_value = "filtered"
-    return select
+    def test_to_orm_value_none_returns_original(self, mock_select):
+        f = _IsDagScheduledFilter()
+        f.value = None
+        f.skip_none = True
 
+        result = f.to_orm(mock_select)
 
-def test_to_orm_value_none_returns_original(mock_select, mock_dagmodel):
-    f = _IsDagScheduledFilter()
-    f.value = None
-    f.skip_none = True
+        assert result == mock_select
+        mock_select.where.assert_not_called()
 
-    result = f.to_orm(mock_select)
+    def test_to_orm_false_applies_never_filter(self, mock_select, mock_dagmodel):
+        f = _IsDagScheduledFilter()
+        f.value = False
+        f.skip_none = True
 
-    assert result == mock_select
-    mock_select.where.assert_not_called()
+        mock_condition = MagicMock(name="ilike_condition")
+        mock_dagmodel.timetable_description.ilike.return_value = mock_condition
 
+        result = f.to_orm(mock_select)
 
-def test_to_orm_false_applies_never_filter(mock_select, mock_dagmodel):
-    f = _IsDagScheduledFilter()
-    f.value = False
-    f.skip_none = True
+        assert result == "filtered"
+        mock_dagmodel.timetable_description.ilike.assert_called_once_with("Never%")
+        mock_select.where.assert_called_once_with(mock_condition)
 
-    mock_condition = MagicMock(name="ilike_condition")
-    mock_dagmodel.timetable_description.ilike.return_value = mock_condition
+    def test_to_orm_true_applies_not_never_filter(self, mock_select, mock_dagmodel):
+        f = _IsDagScheduledFilter()
+        f.value = True
+        f.skip_none = True
 
-    result = f.to_orm(mock_select)
+        mock_condition = MagicMock(name="not_like_condition")
+        mock_dagmodel.timetable_description.not_like.return_value = mock_condition
 
-    assert result == "filtered"
-    mock_dagmodel.timetable_description.ilike.assert_called_once_with("Never%")
-    mock_select.where.assert_called_once_with(mock_condition)
+        result = f.to_orm(mock_select)
 
+        assert result == "filtered"
+        mock_dagmodel.timetable_description.not_like.assert_called_once_with("Never%")
+        mock_select.where.assert_called_once_with(mock_condition)
 
-def test_to_orm_true_applies_not_never_filter(mock_select, mock_dagmodel):
-    f = _IsDagScheduledFilter()
-    f.value = True
-    f.skip_none = True
-
-    mock_condition = MagicMock(name="not_like_condition")
-    mock_dagmodel.timetable_description.not_like.return_value = mock_condition
-
-    result = f.to_orm(mock_select)
-
-    assert result == "filtered"
-    mock_dagmodel.timetable_description.not_like.assert_called_once_with("Never%")
-    mock_select.where.assert_called_once_with(mock_condition)
-
-
-def test_depends_sets_value():
-    f = _IsDagScheduledFilter.depends(True)
-    assert isinstance(f, _IsDagScheduledFilter)
-    assert f.value is True
+    def test_depends_sets_value(self):
+        f = _IsDagScheduledFilter.depends(True)
+        assert isinstance(f, _IsDagScheduledFilter)
+        assert f.value is True
