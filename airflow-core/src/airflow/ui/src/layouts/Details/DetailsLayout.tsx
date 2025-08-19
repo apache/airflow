@@ -53,7 +53,7 @@ type Props = {
 
 export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const { t: translate } = useTranslation();
-  const { dagId = "" } = useParams();
+  const { dagId = "", runId } = useParams();
   const { data: dag } = useDagServiceGetDag({ dagId });
   const [defaultDagView] = useLocalStorage<"graph" | "grid">("default_dag_view", "grid");
   const panelGroupRef = useRef(null);
@@ -116,7 +116,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
           <Panel
             defaultSize={dagView === "graph" ? 70 : 20}
             id="main-panel"
-            minSize={showGantt && dagView === "grid" ? 60 : 20}
+            minSize={showGantt && dagView === "grid" && Boolean(runId) ? 30 : 6}
             order={1}
           >
             <Box height="100%" marginInlineEnd={2} overflowY="auto" position="relative">
@@ -133,7 +133,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                 <Graph />
               ) : (
                 <HStack gap={0}>
-                  <Grid limit={limit} />
+                  <Grid limit={limit} showGantt={Boolean(runId) && showGantt} />
                   {showGantt ? <Gantt limit={limit} /> : undefined}
                 </HStack>
               )}
