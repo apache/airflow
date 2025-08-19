@@ -48,8 +48,8 @@
   "dagRun": {
     "conf": "Conf",
     "dagVersions": "Versão(s) do DAG",
-    "dataIntervalEnd": "Intervalo de Data Final",
-    "dataIntervalStart": "Intervalo de Data Inicial",
+    "dataIntervalEnd": "Fim do Intervalo de Dados",
+    "dataIntervalStart": "Início do Intervalo de Dados",
     "lastSchedulingDecision": "Última Decisão de Agendamento",
     "queuedAt": "Enfileirado Em",
     "runAfter": "Executar Depois",
