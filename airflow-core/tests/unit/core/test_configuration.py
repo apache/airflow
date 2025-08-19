@@ -1893,7 +1893,7 @@ class TestWriteDefaultAirflowConfigurationIfNeeded:
     def test_mask_conf_values(self, mock_sensitive_config_values):
         with (
             patch("airflow._shared.secrets_masker.secrets_masker.mask_secret") as mock_mask_secret_core,
-            patch("airflow.sdk._shared.secrets_masker.secrets_masker.mask_secret") as mock_mask_secret_sdk,
+            patch("airflow.sdk.log.mask_secret") as mock_mask_secret_sdk,
         ):
             conf.mask_secrets()
 
