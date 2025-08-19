@@ -17,24 +17,28 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
+from enum import Enum
 
-from airflow.utils.weight_rule import DB_SAFE_MAXIMUM, DB_SAFE_MINIMUM, WeightRule, db_safe_priority
-
-
-def test_db_safe_priority():
-    assert db_safe_priority(1) == 1
-    assert db_safe_priority(-1) == -1
-    assert db_safe_priority(9999999999) == DB_SAFE_MAXIMUM
-    assert db_safe_priority(-9999999999) == DB_SAFE_MINIMUM
+import methodtools
 
 
-class TestWeightRule:
-    def test_valid_weight_rules(self):
-        assert WeightRule.is_valid(WeightRule.DOWNSTREAM)
-        assert WeightRule.is_valid(WeightRule.UPSTREAM)
-        assert WeightRule.is_valid(WeightRule.ABSOLUTE)
-        assert len(WeightRule.all_weight_rules()) == 3
+class WeightRule(str, Enum):
+    """Weight rules for task priority calculation."""
 
-        with pytest.raises(ValueError):
-            WeightRule("NOT_EXIST_WEIGHT_RULE")
+    DOWNSTREAM = "downstream"
+    UPSTREAM = "upstream"
+    ABSOLUTE = "absolute"
+
+    @classmethod
+    def is_valid(cls, weight_rule: str) -> bool:
+        """Check if weight rule is valid."""
+        return weight_rule in cls.all_weight_rules()
+
+    @methodtools.lru_cache(maxsize=None)
+    @classmethod
+    def all_weight_rules(cls) -> set[str]:
+        """Return all weight rules."""
+        return set(cls.__members__.values())
+
+    def __str__(self) -> str:
+        return self.value
