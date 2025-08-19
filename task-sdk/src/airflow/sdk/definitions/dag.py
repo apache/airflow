@@ -1200,8 +1200,8 @@ class DAG:
 
             # ``Dag.test()`` works in two different modes depending on ``use_executor``:
             # - if ``use_executor`` is False, runs the task locally with no executor using ``_run_task``
-            # - if ``use_executor`` is True, sends the task instances to the executor with
-            #   ``BaseExecutor.queue_task_instance``
+            # - if ``use_executor`` is True, sends workloads to the executor with
+            #   ``BaseExecutor.queue_workload``
             if use_executor:
                 from airflow.executors.base_executor import ExecutorLoader
 
