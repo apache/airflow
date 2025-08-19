@@ -295,7 +295,7 @@ class SFTPHook(SSHHook):
             # We use hasattr checking for 'write' for cases like google.cloud.storage.fileio.BlobWriter
             elif hasattr(local_full_path, "write"):
                 self.log.info("Using streaming download for %s", remote_full_path)
-                # We need to cast to pass pre-commit checks
+                # We need to cast to pass prek hook checks
                 stream_full_path = cast("IO[bytes]", local_full_path)
                 conn.getfo(remote_full_path, stream_full_path, prefetch=prefetch)
             elif isinstance(local_full_path, (str, bytes, os.PathLike)):
@@ -358,7 +358,11 @@ class SFTPHook(SSHHook):
                 self.retrieve_file(file_path, new_local_path, prefetch)
 
     def retrieve_directory_concurrently(
-        self, remote_full_path: str, local_full_path: str, workers: int = os.cpu_count() or 2
+        self,
+        remote_full_path: str,
+        local_full_path: str,
+        workers: int = os.cpu_count() or 2,
+        prefetch: bool = True,
     ) -> None:
         """
         Transfer the remote directory to a local location concurrently.
@@ -405,6 +409,7 @@ class SFTPHook(SSHHook):
                         conns[i],
                         local_file_chunks[i],
                         remote_file_chunks[i],
+                        prefetch,
                     )
                     for i in range(workers)
                 ]

@@ -29,6 +29,7 @@ services:
       test: rabbitmq-diagnostics -q ping
       interval: 5s
       timeout: 30s
+      start_period: 30s
       retries: 50
     restart: "on-failure"
   redis:

@@ -37,17 +37,7 @@ export const PoolSummary = () => {
   const hasPoolsAccess = authLinks?.authorized_menu_items.includes("Pools");
 
   const pools = data?.pools;
-  const totalSlots =
-    pools?.reduce(
-      (sum, pool) =>
-        sum +
-        pool.running_slots +
-        pool.queued_slots +
-        pool.deferred_slots +
-        pool.scheduled_slots +
-        pool.open_slots,
-      0,
-    ) ?? 0;
+  const totalSlots = pools?.reduce((sum, pool) => sum + pool.slots, 0) ?? 0;
   const aggregatePool: Slots = {
     deferred_slots: 0,
     open_slots: 0,

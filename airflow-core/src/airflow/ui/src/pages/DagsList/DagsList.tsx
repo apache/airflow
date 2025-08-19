@@ -28,7 +28,7 @@ import {
   Box,
 } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useCallback, useState, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
@@ -203,9 +203,7 @@ export const DagsList = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
 
   const { pagination, sorting } = tableURLState;
-  const [dagDisplayNamePattern, setDagDisplayNamePattern] = useState(
-    searchParams.get(NAME_PATTERN) ?? undefined,
-  );
+  const dagDisplayNamePattern = searchParams.get(NAME_PATTERN) ?? "";
 
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "dag_display_name";
@@ -213,17 +211,16 @@ export const DagsList = () => {
   const columns = useMemo(() => createColumns(translate), [translate]);
 
   const handleSearchChange = (value: string) => {
+    setTableURLState({
+      pagination: { ...pagination, pageIndex: 0 },
+      sorting,
+    });
     if (value) {
       searchParams.set(NAME_PATTERN, value);
     } else {
       searchParams.delete(NAME_PATTERN);
     }
     setSearchParams(searchParams);
-    setTableURLState({
-      pagination: { ...pagination, pageIndex: 0 },
-      sorting,
-    });
-    setDagDisplayNamePattern(value);
   };
 
   let paused = defaultShowPaused;
@@ -244,7 +241,7 @@ export const DagsList = () => {
   }
 
   const { data, error, isLoading } = useDags({
-    dagDisplayNamePattern: Boolean(dagDisplayNamePattern) ? `${dagDisplayNamePattern}` : undefined,
+    dagDisplayNamePattern: Boolean(dagDisplayNamePattern) ? dagDisplayNamePattern : undefined,
     dagRunsLimit,
     isFavorite,
     lastDagRunState,
@@ -275,7 +272,7 @@ export const DagsList = () => {
       <VStack alignItems="none">
         <SearchBar
           buttonProps={{ disabled: true }}
-          defaultValue={dagDisplayNamePattern ?? ""}
+          defaultValue={dagDisplayNamePattern}
           onChange={handleSearchChange}
           placeHolder={translate("dags:search.dags")}
         />

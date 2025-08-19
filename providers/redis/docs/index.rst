@@ -36,6 +36,7 @@
 
     Connection types <connections>
     Logging <logging/index>
+    Message Queues <message-queues>
     Triggers <triggers>
 
 .. toctree::
@@ -78,7 +79,9 @@ apache-airflow-providers-redis package
 `Redis <https://redis.io/>`__
 
 
-Release: 4.1.1
+Release: 4.3.0
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------
@@ -104,3 +107,31 @@ PIP package         Version required
 ``apache-airflow``  ``>=2.10.0``
 ``redis``           ``>=4.5.2,!=4.5.5,!=5.0.2``
 ==================  ===========================
+
+Cross provider package dependencies
+-----------------------------------
+
+Those are dependencies that might be needed in order to use all the features of the package.
+You need to install the specified provider distributions in order to use them.
+
+You can install such cross-provider dependencies when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-redis[common.messaging]
+
+
+========================================================================================================================  ====================
+Dependent package                                                                                                         Extra
+========================================================================================================================  ====================
+`apache-airflow-providers-common-messaging <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging>`_  ``common.messaging``
+========================================================================================================================  ====================
+
+Downloading official packages
+-----------------------------
+
+You can download officially released packages and verify their checksums and signatures from the
+`Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
+
+* `The apache-airflow-providers-redis 4.3.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_redis-4.3.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_redis-4.3.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_redis-4.3.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-redis 4.3.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_redis-4.3.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_redis-4.3.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_redis-4.3.0-py3-none-any.whl.sha512>`__)

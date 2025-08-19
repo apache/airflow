@@ -84,6 +84,11 @@ and both at the same time. We decided to keep our dependencies as open as possib
 from time to time plain ``pip install apache-airflow`` will not work or will produce an unusable
 Airflow installation.
 
+.. warning::
+
+    As of Airflow 3.1, constraint files do not contain developer dependencies such as pytest, moto and
+    other development dependencies that are only used in tests.
+
 Reproducible Airflow installation
 =================================
 

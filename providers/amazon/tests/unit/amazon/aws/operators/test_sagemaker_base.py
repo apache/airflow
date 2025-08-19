@@ -31,7 +31,11 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerBaseOperator,
     SageMakerCreateExperimentOperator,
 )
-from airflow.utils import timezone
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
@@ -196,7 +200,9 @@ class TestSageMakerExperimentOperator:
         "airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn",
         new_callable=mock.PropertyMock,
     )
-    def test_create_experiment(self, conn_mock, session, clean_dags_and_dagruns):
+    def test_create_experiment(
+        self, conn_mock, session, clean_dags_dagruns_and_dagbundles, testing_dag_bundle
+    ):
         conn_mock().create_experiment.return_value = {"ExperimentArn": "abcdef"}
 
         # putting a DAG around the operator so that jinja template gets rendered
@@ -212,8 +218,9 @@ class TestSageMakerExperimentOperator:
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
 
-            dag.sync_to_db()
-            SerializedDagModel.write_dag(dag, bundle_name="testing")
+            bundle_name = "testing"
+            DAG.bulk_write_to_db(bundle_name, None, [dag])
+            SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
             dag_version = DagVersion.get_latest_version(dag.dag_id)
             ti = TaskInstance(task=op, dag_version_id=dag_version.id)
             dag_run = DagRun(

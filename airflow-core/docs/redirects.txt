@@ -183,3 +183,14 @@ howto/operator/file.rst ../../apache-airflow-providers-standard/stable/sensors/f
 howto/operator/python.rst ../../apache-airflow-providers-standard/stable/operators/python.rst
 howto/operator/time.rst ../../apache-airflow-providers-standard/stable/sensors/datetime.rst
 howto/operator/weekday.rst ../../apache-airflow-providers-standard/stable/operators/datetime.rst#branchdayofweekoperator
+
+_api/airflow/operators/datetime/index.html ../../apache-airflow-providers-standard/stable/_api/airflow/providers/standard/operators/datetime/index.html
+_api/airflow/operators/empty/index.html ../../apache-airflow-providers-standard/stable/_api/airflow/providers/standard/operators/empty/index.html
+_api/airflow/operators/bash/index.html ../../apache-airflow-providers-standard/stable/_api/airflow/providers/standard/operators/bash/index.html
+_api/airflow/operators/branch/index.html ../../apache-airflow-providers-standard/stable/_api/airflow/providers/standard/operators/branch/index.html
+_api/airflow/operators/latest_only/index.html ../../apache-airflow-providers-standard/stable/_api/airflow/providers/standard/operators/latest_only/index.html
+_api/airflow/operators/python/index.html ../../apache-airflow-providers-standard/stable/_api/airflow/providers/standard/operators/python/index.html
+_api/airflow/operators/trigger_dagrun/index.html ../../apache-airflow-providers-standard/stable/_api/airflow/providers/standard/operators/trigger_dagrun/index.html
+
+_api/airflow/operators/email/index.html ../../apache-airflow-providers-smtp/stable/_api/airflow/providers/smtp/operators/smtp/index.html
+_api/airflow/operators/generic_transfer/index.html ../../apache-airflow-providers-common-sql/stable/_api/airflow/providers/common/sql/operators/generic_transfer/index.html

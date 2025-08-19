@@ -103,14 +103,16 @@ class LazyRichHelpFormatter(RawTextRichHelpFormatter):
 
 
 @cache
-def get_parser(dag_parser: bool = False) -> argparse.ArgumentParser:
+def get_parser() -> argparse.ArgumentParser:
     """Create and returns command line argument parser."""
     parser = DefaultHelpParser(prog="airflowctl", formatter_class=AirflowHelpFormatter)
     subparsers = parser.add_subparsers(dest="subcommand", metavar="GROUP_OR_COMMAND")
     subparsers.required = True
 
     for _, sub in sorted(ALL_COMMANDS_DICT.items()):
-        _add_command(subparsers, sub)
+        _add_command(
+            subparsers, GroupCommandParser.from_group_command(sub) if isinstance(sub, GroupCommand) else sub
+        )
     return parser
 
 

@@ -24,6 +24,8 @@ from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence, Siz
 from functools import singledispatch
 from typing import TYPE_CHECKING, Any, overload
 
+import attrs
+
 from airflow.exceptions import AirflowException, XComNotFound
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 from airflow.sdk.definitions._internal.mixins import DependencyMixin, ResolveMixin
@@ -188,6 +190,7 @@ class XComArg(ResolveMixin, DependencyMixin):
         SetupTeardownContext.set_work_task_roots_and_leaves()
 
 
+@attrs.define
 class PlainXComArg(XComArg):
     """
     Reference to one single XCom without any additional semantics.
@@ -207,14 +210,8 @@ class PlainXComArg(XComArg):
     :meta private:
     """
 
-    def __init__(self, operator: Operator, key: str = BaseXCom.XCOM_RETURN_KEY):
-        self.operator = operator
-        self.key = key
-
-    def __eq__(self, other: Any) -> bool:
-        if not isinstance(other, PlainXComArg):
-            return NotImplemented
-        return self.operator == other.operator and self.key == other.key
+    operator: Operator
+    key: str = BaseXCom.XCOM_RETURN_KEY
 
     def __getitem__(self, item: str) -> XComArg:
         """Implement xcomresult['some_result_key']."""
@@ -377,10 +374,10 @@ def _get_callable_name(f: Callable | str) -> str:
     return "<function>"
 
 
+@attrs.define
 class _MapResult(Sequence):
-    def __init__(self, value: Sequence | dict, callables: MapCallables) -> None:
-        self.value = value
-        self.callables = callables
+    value: Sequence | dict
+    callables: MapCallables
 
     def __getitem__(self, index: Any) -> Any:
         value = self.value[index]
@@ -393,6 +390,7 @@ class _MapResult(Sequence):
         return len(self.value)
 
 
+@attrs.define
 class MapXComArg(XComArg):
     """
     An XCom reference with ``map()`` call(s) applied.
@@ -403,12 +401,13 @@ class MapXComArg(XComArg):
     :meta private:
     """
 
-    def __init__(self, arg: XComArg, callables: MapCallables) -> None:
-        for c in callables:
+    arg: XComArg
+    callables: MapCallables
+
+    def __attrs_post_init__(self) -> None:
+        for c in self.callables:
             if getattr(c, "_airflow_is_task_decorator", False):
                 raise ValueError("map() argument must be a plain function, not a @task operator")
-        self.arg = arg
-        self.callables = callables
 
     def __repr__(self) -> str:
         map_calls = "".join(f".map({_get_callable_name(f)})" for f in self.callables)
@@ -434,10 +433,10 @@ class MapXComArg(XComArg):
         return _MapResult(value, self.callables)
 
 
+@attrs.define
 class _ZipResult(Sequence):
-    def __init__(self, values: Sequence[Sequence | dict], *, fillvalue: Any = NOTSET) -> None:
-        self.values = values
-        self.fillvalue = fillvalue
+    values: Sequence[Sequence | dict]
+    fillvalue: Any = attrs.field(default=NOTSET, kw_only=True)
 
     @staticmethod
     def _get_or_fill(container: Sequence | dict, index: Any, fillvalue: Any) -> Any:
@@ -458,6 +457,7 @@ class _ZipResult(Sequence):
         return max(lengths)
 
 
+@attrs.define
 class ZipXComArg(XComArg):
     """
     An XCom reference with ``zip()`` applied.
@@ -467,11 +467,8 @@ class ZipXComArg(XComArg):
     ``itertools.zip_longest()`` if ``fillvalue`` is provided).
     """
 
-    def __init__(self, args: Sequence[XComArg], *, fillvalue: Any = NOTSET) -> None:
-        if not args:
-            raise ValueError("At least one input is required")
-        self.args = args
-        self.fillvalue = fillvalue
+    args: Sequence[XComArg] = attrs.field(validator=attrs.validators.min_len(1))
+    fillvalue: Any = attrs.field(default=NOTSET, kw_only=True)
 
     def __repr__(self) -> str:
         args_iter = iter(self.args)
@@ -499,9 +496,9 @@ class ZipXComArg(XComArg):
         return _ZipResult(values, fillvalue=self.fillvalue)
 
 
+@attrs.define
 class _ConcatResult(Sequence):
-    def __init__(self, values: Sequence[Sequence | dict]) -> None:
-        self.values = values
+    values: Sequence[Sequence | dict]
 
     def __getitem__(self, index: Any) -> Any:
         if index >= 0:
@@ -523,6 +520,7 @@ class _ConcatResult(Sequence):
         return sum(len(v) for v in self.values)
 
 
+@attrs.define
 class ConcatXComArg(XComArg):
     """
     Concatenating multiple XCom references into one.
@@ -532,10 +530,7 @@ class ConcatXComArg(XComArg):
     return value also supports index access.
     """
 
-    def __init__(self, args: Sequence[XComArg]) -> None:
-        if not args:
-            raise ValueError("At least one input is required")
-        self.args = args
+    args: Sequence[XComArg] = attrs.field(validator=attrs.validators.min_len(1))
 
     def __repr__(self) -> str:
         args_iter = iter(self.args)

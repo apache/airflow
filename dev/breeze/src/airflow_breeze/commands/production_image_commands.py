@@ -145,7 +145,7 @@ def run_build_in_parallel(
             ]
     check_async_run_results(
         results=results,
-        success="All images built correctly",
+        success_message="All images built correctly",
         outputs=outputs,
         include_success_outputs=include_success_outputs,
         skip_cleanup=skip_cleanup,
@@ -527,7 +527,7 @@ def run_verify_in_parallel(
             ]
     check_async_run_results(
         results=results,
-        success="All images verified",
+        success_message="All images verified",
         outputs=outputs,
         include_success_outputs=include_success_outputs,
         skip_cleanup=skip_cleanup,

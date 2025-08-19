@@ -201,3 +201,45 @@ class TestGitSyncWorker:
             },
             "preStop": {"exec": {"command": ["/bin/sh", "-c", "echo preStop handler > /git/message_start"]}},
         }
+
+    def test_liveliness_and_readiness_probes_are_configurable(self):
+        livenessProbe = {
+            "failureThreshold": 10,
+            "exec": {"command": ["/bin/true"]},
+            "initialDelaySeconds": 0,
+            "periodSeconds": 1,
+            "successThreshold": 1,
+            "timeoutSeconds": 5,
+        }
+        readinessProbe = {
+            "failureThreshold": 10,
+            "exec": {"command": ["/bin/true"]},
+            "initialDelaySeconds": 0,
+            "periodSeconds": 1,
+            "successThreshold": 1,
+            "timeoutSeconds": 5,
+        }
+        docs = render_chart(
+            values={
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "livenessProbe": livenessProbe,
+                        "readinessProbe": readinessProbe,
+                    },
+                }
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        container_search_result = jmespath.search(
+            "spec.template.spec.containers[?name == 'git-sync']", docs[0]
+        )
+        init_container_search_result = jmespath.search(
+            "spec.template.spec.initContainers[?name == 'git-sync-init']", docs[0]
+        )
+        assert "livenessProbe" in container_search_result[0]
+        assert "readinessProbe" in container_search_result[0]
+        assert "readinessProbe" not in init_container_search_result[0]
+        assert "readinessProbe" not in init_container_search_result[0]
+        assert livenessProbe == container_search_result[0]["livenessProbe"]
+        assert readinessProbe == container_search_result[0]["readinessProbe"]

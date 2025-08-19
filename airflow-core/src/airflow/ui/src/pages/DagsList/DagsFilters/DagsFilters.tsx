@@ -22,13 +22,13 @@ import { useCallback, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
+import { ResetButton } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
 import { useDagTagsInfinite } from "src/queries/useDagTagsInfinite";
 
 import { FavoriteFilter } from "./FavoriteFilter";
 import { PausedFilter } from "./PausedFilter";
-import { ResetButton } from "./ResetButton";
 import { StateFilters } from "./StateFilters";
 import { TagFilter } from "./TagFilter";
 

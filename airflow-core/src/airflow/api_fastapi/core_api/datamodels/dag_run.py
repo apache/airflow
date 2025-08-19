@@ -57,7 +57,7 @@ class DAGRunClearBody(StrictBaseModel):
     only_failed: bool = False
     run_on_latest_version: bool = Field(
         default=False,
-        description="(Experimental) Run on the latest bundle version of the DAG after clearing the DAG Run.",
+        description="(Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run.",
     )
 
 
@@ -102,7 +102,7 @@ class TriggerDAGRunPostBody(StrictBaseModel):
     logical_date: AwareDatetime | None
     run_after: datetime | None = Field(default_factory=timezone.utcnow)
 
-    conf: dict = Field(default_factory=dict)
+    conf: dict | None = Field(default_factory=dict)
     note: str | None = None
 
     @model_validator(mode="after")

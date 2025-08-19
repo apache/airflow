@@ -23,8 +23,9 @@
 
 Package ``apache-airflow-providers-qdrant``
 
-Release: ``1.4.1``
+Release: ``1.4.3``
 
+Release Date: ``|PypiReleaseDate|``
 
 `Qdrant <https://qdrant.tech/documentation>`__
 
@@ -36,7 +37,7 @@ This is a provider package for ``qdrant`` provider. All classes for this provide
 are in ``airflow.providers.qdrant`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-qdrant/1.4.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-qdrant/1.4.3/>`_.
 
 Installation
 ------------
@@ -54,9 +55,8 @@ Requirements
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.10.0``
-``qdrant_client``   ``>=1.10.1``
-``portalocker``     ``>=2.8.1``
+``qdrant_client``   ``>=1.15.1``
 ==================  ==================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-qdrant/1.4.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-qdrant/1.4.3/changelog.html>`_.

@@ -125,11 +125,12 @@ I/O Helpers
 Execution Time Components
 -------------------------
 .. rubric:: Context
-.. autoapiclass:: airflow.sdk.Context
-.. autoapimodule:: airflow.sdk.execution_time.context
-   :members:
-   :undoc-members:
 
+.. autoapiclass:: airflow.sdk.Context
+
+.. rubric:: Logging
+
+.. autofunction:: airflow.sdk.log.mask_secret
 
 Everything else
 ---------------

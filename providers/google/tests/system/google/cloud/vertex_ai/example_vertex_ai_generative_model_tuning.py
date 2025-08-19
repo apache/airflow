@@ -27,18 +27,22 @@ from datetime import datetime
 
 import requests
 
+try:
+    from airflow.sdk import task
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.vertex_ai.generative_model import (
     SupervisedFineTuningTrainOperator,
 )
+from airflow.providers.google.common.utils.get_secret import get_secret
 
 
-def get_actual_model() -> str:
+def _get_actual_model(key) -> str:
     source_model: str | None = None
     try:
-        response = requests.get(
-            "https://generativelanguage.googleapis.com/v1/models", {"key": GEMINI_API_KEY}
-        )
+        response = requests.get("https://generativelanguage.googleapis.com/v1/models", {"key": key})
         response.raise_for_status()
         available_models = response.json()
     except requests.exceptions.RequestException as e:
@@ -79,8 +83,8 @@ def get_actual_model() -> str:
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 DAG_ID = "vertex_ai_generative_model_tuning_dag"
 REGION = "us-central1"
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-SOURCE_MODEL = get_actual_model()
+GEMINI_API_KEY = "api_key"
+SOURCE_MODEL = "{{ task_instance.xcom_pull('get_actual_model') }}"
 TRAIN_DATASET = "gs://cloud-samples-data/ai-platform/generative_ai/gemini-2_0/text/sft_train_data.jsonl"
 TUNED_MODEL_DISPLAY_NAME = "my_tuned_gemini_model"
 
@@ -91,7 +95,21 @@ with DAG(
     start_date=datetime(2024, 1, 1),
     catchup=False,
     tags=["example", "vertex_ai", "generative_model"],
+    render_template_as_native_obj=True,
 ) as dag:
+
+    @task
+    def get_gemini_api_key():
+        return get_secret(GEMINI_API_KEY)
+
+    get_gemini_api_key_task = get_gemini_api_key()
+
+    @task
+    def get_actual_model(key):
+        return _get_actual_model(key)
+
+    get_actual_model_task = get_actual_model(get_gemini_api_key_task)
+
     # [START how_to_cloud_vertex_ai_supervised_fine_tuning_train_operator]
     sft_train_task = SupervisedFineTuningTrainOperator(
         task_id="sft_train_task",
@@ -102,6 +120,8 @@ with DAG(
         tuned_model_display_name=TUNED_MODEL_DISPLAY_NAME,
     )
     # [END how_to_cloud_vertex_ai_supervised_fine_tuning_train_operator]
+
+    get_gemini_api_key_task >> get_actual_model_task >> sft_train_task
 
     from tests_common.test_utils.watcher import watcher
 

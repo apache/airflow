@@ -26,6 +26,56 @@
 Changelog
 ---------
 
+2.6.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Allow secrets redact function to have different redaction than '***' (#53977)``
+* ``Fix several deprecation warnings related to airflow.sdk (#53791)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add OpenLineage support for EmptyOperator (#53730)``
+* ``feat: Add new documentation facet to all OL events (#52343)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: Adjust emits_ol_events to account for inlets check since AF3.0.2 (#53449)``
+* ``fix: Check dynamic transport env vars in is_disabled() (#53370)``
+* ``Remove direct scheduler BaseOperator refs (#52234)``
+* ``Fix Task Group Deprecation error from plugin (#53813)``
+
+Misc
+~~~~
+
+* ``Updating openlineage-integration-common and openlineage-python dependencies for apache-airflow-providers-openlineage provider. (#53671)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup type ignores in openlineage provider where possible (#53284)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Make openlineage compatible with mypy 1.16.1 (#53119)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Restore ''get_previous_dagrun'' functionality for task context (#53655)``
+   * ``Deprecate decorators from Core (#53629)``
+   * ``Replace 'mock.patch("utcnow")' with time_machine. (#53642)``
+   * ``Update main with Airflow 3.0.3 release details (#53349)``
+   * ``Cleanup mypy ignores in openlineage test_listener (#53326)``
+   * ``Make dag_version_id in TI non-nullable (#50825)``
+   * ``fix: Adjust OL system test to latest changes (#52971)``
+
 2.5.0
 .....
 

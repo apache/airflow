@@ -25,8 +25,8 @@ import pytest
 from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
-from airflow.models import DagBag
 from airflow.models.dag import DagModel
+from airflow.models.dagbag import DBDagBag
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import task_group
@@ -109,8 +109,7 @@ GRID_NODES = [
 
 @pytest.fixture(autouse=True, scope="module")
 def examples_dag_bag():
-    # Speed up: We don't want example dags for this module
-    return DagBag(include_examples=False, read_dags_from_db=True)
+    return DBDagBag()
 
 
 @pytest.fixture(autouse=True)

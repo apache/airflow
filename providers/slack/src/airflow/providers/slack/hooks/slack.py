@@ -237,7 +237,6 @@ class SlackHook(BaseHook):
         initial_comment: str | None = None,
         title: str | None = None,
         snippet_type: str | None = None,
-        **kwargs,
     ) -> list[SlackResponse]:
         """
         Smooth transition between ``send_file`` and ``send_file_v2`` methods.

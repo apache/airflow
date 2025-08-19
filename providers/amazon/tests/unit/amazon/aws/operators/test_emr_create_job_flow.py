@@ -32,7 +32,11 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.amazon.aws.operators.emr import EmrCreateJobFlowOperator
 from airflow.providers.amazon.aws.triggers.emr import EmrCreateJobFlowTrigger
 from airflow.providers.amazon.aws.utils.waiter import WAITER_POLICY_NAME_MAPPING, WaitPolicy
-from airflow.utils import timezone
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
@@ -98,13 +102,14 @@ class TestEmrCreateJobFlowOperator:
         assert self.operator.region_name == "ap-southeast-2"
 
     @pytest.mark.db_test
-    def test_render_template(self, session, clean_dags_and_dagruns):
+    def test_render_template(self, session, clean_dags_dagruns_and_dagbundles, testing_dag_bundle):
         self.operator.job_flow_overrides = self._config
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
 
-            self.operator.dag.sync_to_db()
-            SerializedDagModel.write_dag(self.operator.dag, bundle_name="testing")
+            bundle_name = "testing"
+            DAG.bulk_write_to_db(bundle_name, None, [self.operator.dag])
+            SerializedDagModel.write_dag(self.operator.dag, bundle_name=bundle_name)
             dag_version = DagVersion.get_latest_version(self.operator.dag.dag_id)
             ti = TaskInstance(task=self.operator, dag_version_id=dag_version.id)
             dag_run = DagRun(
@@ -150,15 +155,18 @@ class TestEmrCreateJobFlowOperator:
         assert self.operator.job_flow_overrides == expected_args
 
     @pytest.mark.db_test
-    def test_render_template_from_file(self, mocked_hook_client, session, clean_dags_and_dagruns):
+    def test_render_template_from_file(
+        self, mocked_hook_client, session, clean_dags_dagruns_and_dagbundles, testing_dag_bundle
+    ):
         self.operator.job_flow_overrides = "job.j2.json"
         self.operator.params = {"releaseLabel": "5.11.0"}
 
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
 
-            self.operator.dag.sync_to_db()
-            SerializedDagModel.write_dag(self.operator.dag, bundle_name="testing")
+            bundle_name = "testing"
+            DAG.bulk_write_to_db(bundle_name, None, [self.operator.dag])
+            SerializedDagModel.write_dag(self.operator.dag, bundle_name=bundle_name)
             dag_version = DagVersion.get_latest_version(self.operator.dag.dag_id)
             ti = TaskInstance(task=self.operator, dag_version_id=dag_version.id)
             dag_run = DagRun(

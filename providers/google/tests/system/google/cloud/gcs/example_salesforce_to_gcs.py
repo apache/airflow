@@ -52,6 +52,7 @@ QUERY = "SELECT Id, Name, Company, Phone, Email, CreatedDate, LastModifiedDate, 
 
 with DAG(
     DAG_ID,
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "salesforce_to_gcs"],

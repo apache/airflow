@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+4.1.2
+.....
+
+Misc
+~~~~
+
+* ``Fix unreachable code mypy warnings in sqlite provider (#53433)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Refactoring get con part dbapihook in providers (#53335)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.1.1
 .....
 

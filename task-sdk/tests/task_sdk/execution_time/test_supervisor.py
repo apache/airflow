@@ -2001,6 +2001,7 @@ class TestHandleRequest:
                     "defaults": ["Approve"],
                     "multiple": False,
                     "params": {},
+                    "respondents": None,
                     "type": "HITLDetailRequestResult",
                 },
                 "hitl.add_response",
@@ -2011,6 +2012,7 @@ class TestHandleRequest:
                     "multiple": False,
                     "options": ["Approve", "Reject"],
                     "params": {},
+                    "respondents": None,
                     "subject": "This is subject",
                     "ti_id": TI_ID,
                 },
@@ -2227,6 +2229,26 @@ class TestInProcessTestSupervisor:
         # Ensure we got back what we expect
         assert isinstance(response, VariableResult)
         assert response.value == "value"
+
+
+class TestInProcessClient:
+    def test_no_retries(self):
+        called = 0
+
+        def noop_handler(request: httpx.Request) -> httpx.Response:
+            nonlocal called
+            called += 1
+            return httpx.Response(500)
+
+        transport = httpx.MockTransport(noop_handler)
+        client = InProcessTestSupervisor._Client(
+            base_url="http://local.invalid", token="", transport=transport
+        )
+
+        with pytest.raises(httpx.HTTPStatusError):
+            client.get("/goo")
+
+        assert called == 1
 
 
 @pytest.mark.parametrize(

@@ -27,6 +27,25 @@
 Changelog
 ---------
 
+5.3.3
+.....
+
+Misc
+~~~~
+
+* ``Cleanup type ignores (#53294)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Make http provider compatible with mypy 1.16.1 (#53108)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Move all BaseHook usages to version_compat in HTTP (#52814)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Bump aiohttp to 3.12.14 (#53830)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Resolve timeout in ''HttpSensor'' test by fixing template rendering (#53676)``
+
 5.3.2
 .....
 

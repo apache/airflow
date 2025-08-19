@@ -15,12 +15,13 @@
     specific language governing permissions and limitations
     under the License.
 
-**PUBLIC INTERFACE FOR AIRFLOW 3.0+**
+=====================================
+Public Interface for Airflow 3.0+
 =====================================
 
 .. warning::
 
-   **This documentation covers the Public Interface for Airflow 3.0+**
+   This documentation covers the Public Interface for Airflow 3.0+
 
    If you are using Airflow 2.x, please refer to the
    `Airflow 2.11 Public Interface Documentation <https://airflow.apache.org/docs/apache-airflow/2.11.0/public-airflow-interface.html>`_
@@ -36,8 +37,8 @@ and extending Airflow capabilities by writing new executors, plugins, operators 
 Public Interface can be useful for building custom tools and integrations with other systems,
 and for automating certain aspects of the Airflow workflow.
 
-The primary public interface for DAG Authors and task execution is using task SDK
-Airflow task SDK is the primary public interface for DAG Authors and for task execution
+The primary public interface for Dag authors and task execution is using task SDK
+Airflow task SDK is the primary public interface for Dag authors and for task execution
 :doc:`airflow.sdk namespace <core-concepts/taskflow>`. Direct access to the metadata database
 from task code is no longer allowed. Instead, use the :doc:`Stable REST API <stable-rest-api-ref>`,
 `Python Client <https://github.com/apache/airflow-client-python>`_, or Task Context methods.
@@ -87,12 +88,12 @@ in details (such as output format and available flags) so if you want to rely on
 way, the Stable REST API is recommended.
 
 
-Using the Public Interface for DAG Authors
+Using the Public Interface for Dag authors
 ==========================================
 
-The primary interface for DAG Authors is the :doc:`airflow.sdk namespace <core-concepts/taskflow>`.
+The primary interface for Dag authors is the :doc:`airflow.sdk namespace <core-concepts/taskflow>`.
 This provides a stable, well-defined interface for creating DAGs and tasks that is not subject to internal
-implementation changes. The goal of this change is to decouple DAG authoring from Airflow internals (Scheduler,
+implementation changes. The goal of this change is to decouple Dag authoring from Airflow internals (Scheduler,
 API Server, etc.), providing a version-agnostic, stable interface for writing and maintaining DAGs across Airflow versions.
 
 **Key Imports from airflow.sdk:**
@@ -155,6 +156,7 @@ Airflow has a set of example dags that you can use to learn how to write dags
 .. toctree::
   :includehidden:
   :glob:
+  :hidden:
   :maxdepth: 1
 
   _api/airflow/example_dags/index
@@ -164,17 +166,17 @@ You can read more about dags in :doc:`Dags <core-concepts/dags>`.
 References for the modules used in dags are here:
 
 .. note::
-   The airflow.sdk namespace provides the primary interface for DAG Authors.
+   The airflow.sdk namespace provides the primary interface for Dag authors.
    For detailed API documentation, see the `Task SDK Reference <https://airflow.apache.org/docs/task-sdk/stable/>`_.
 
 .. note::
    The :class:`~airflow.models.dagbag.DagBag` class is used internally by Airflow for loading DAGs
-   from files and folders. DAG Authors should use the :class:`~airflow.sdk.DAG` class from the
+   from files and folders. Dag authors should use the :class:`~airflow.sdk.DAG` class from the
    airflow.sdk namespace instead.
 
 .. note::
    The :class:`~airflow.models.dagrun.DagRun` class is used internally by Airflow for DAG run
-   management. DAG Authors should access DAG run information through the Task Context via
+   management. Dag authors should access DAG run information through the Task Context via
    :func:`~airflow.sdk.get_current_context` or use the :class:`~airflow.sdk.types.DagRunProtocol`
    interface.
 
@@ -231,7 +233,7 @@ Example of accessing task instance information through Task Context:
 
 .. note::
    The :class:`~airflow.models.taskinstancekey.TaskInstanceKey` class is used internally by Airflow
-   for identifying task instances. DAG Authors should access task instance information through the
+   for identifying task instances. Dag authors should access task instance information through the
    Task Context via :func:`~airflow.sdk.get_current_context` instead.
 
 
@@ -250,6 +252,7 @@ by extending them:
 .. toctree::
   :includehidden:
   :glob:
+  :hidden:
   :maxdepth: 1
 
   _api/airflow/hooks/index
@@ -257,7 +260,7 @@ by extending them:
 Public Airflow utilities
 ========================
 
-When writing or extending Hooks and Operators, DAG Authors and developers can
+When writing or extending Hooks and Operators, Dag authors and developers can
 use the following classes:
 
 * The :class:`~airflow.sdk.Connection`, which provides access to external service credentials and configuration.
@@ -314,6 +317,7 @@ exposes:
 .. toctree::
   :includehidden:
   :glob:
+  :hidden:
   :maxdepth: 1
 
   _api/airflow/exceptions/index
@@ -324,6 +328,7 @@ Public Utility classes
 .. toctree::
   :includehidden:
   :glob:
+  :hidden:
   :maxdepth: 1
 
   _api/airflow/utils/state/index
@@ -354,6 +359,7 @@ by extending them:
 .. toctree::
   :includehidden:
   :glob:
+  :hidden:
   :maxdepth: 1
 
   _api/airflow/triggers/index
@@ -372,6 +378,7 @@ by extending them:
 
 .. toctree::
   :includehidden:
+  :hidden:
   :maxdepth: 1
 
   _api/airflow/timetables/index
@@ -441,6 +448,7 @@ All Secrets Backend implementations are public. You can extend their functionali
 .. toctree::
   :includehidden:
   :glob:
+  :hidden:
   :maxdepth: 1
 
   _api/airflow/secrets/index
@@ -485,10 +493,10 @@ implemented in the community providers.
 
 Decorators
 ==========
-DAG Authors can use decorators to author dags using the :doc:`TaskFlow <core-concepts/taskflow>` concept.
+Dag authors can use decorators to author dags using the :doc:`TaskFlow <core-concepts/taskflow>` concept.
 All Decorators derive from :class:`~airflow.sdk.bases.decorator.TaskDecorator`.
 
-The primary decorators for DAG Authors are now in the airflow.sdk namespace:
+The primary decorators for Dag authors are now in the airflow.sdk namespace:
 :func:`~airflow.sdk.dag`, :func:`~airflow.sdk.task`, :func:`~airflow.sdk.asset`,
 :func:`~airflow.sdk.setup`, :func:`~airflow.sdk.task_group`, :func:`~airflow.sdk.teardown`,
 :func:`~airflow.sdk.chain`, :func:`~airflow.sdk.chain_linear`, :func:`~airflow.sdk.cross_downstream`,

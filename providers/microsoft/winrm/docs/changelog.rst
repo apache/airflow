@@ -27,6 +27,33 @@
 Changelog
 ---------
 
+3.11.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'test_connection' method to 'WinRMHook' (#47477)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.10.2
+......
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup type ignores in 4 microsoft providers where possible (#53312)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Move all BaseHook usages to version_compat in Microsoft WinRM (#52855)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.10.1
 ......
 

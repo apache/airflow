@@ -332,7 +332,7 @@ class DbApiHook(BaseHook):
     def dialect_name(self) -> str:
         try:
             return make_url(self.get_uri()).get_dialect().name
-        except (ArgumentError, NoSuchModuleError):
+        except (ArgumentError, NoSuchModuleError, ValueError):
             config = self.connection_extra
             sqlalchemy_scheme = config.get("sqlalchemy_scheme")
             if sqlalchemy_scheme:
