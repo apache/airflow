@@ -520,7 +520,7 @@ core:
       version_added: ~
       type: string
       example: "/opt/airflow/dags/templates,/opt/airflow/cutom_templates"
-      default: "{AIRFLOW_HOME}/dags/include"
+      default: ~
 
 database:
   description: ~
