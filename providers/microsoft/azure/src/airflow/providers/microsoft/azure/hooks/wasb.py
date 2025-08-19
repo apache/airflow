@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import TYPE_CHECKING, Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from asgiref.sync import sync_to_async
 from azure.core.exceptions import HttpResponseError, ResourceExistsError, ResourceNotFoundError
@@ -272,9 +272,7 @@ class WasbHook(BaseHook):
         blobs = self.get_blobs_list(container_name=container_name, prefix=prefix, **kwargs)
         return bool(blobs)
 
-    T = TypeVar("T", BlobServiceClient, ContainerClient, AsyncContainerClient)
-
-    def check_for_variable_type(self, variable_name: str, container: T, expected_type: type[T]) -> None:
+    def check_for_variable_type(self, variable_name: str, container: Any, expected_type: type[Any]) -> None:
         if not isinstance(container, expected_type):
             raise TypeError(
                 f"{variable_name} for {self.__class__.__name__} must be {expected_type.__name__}, got {type(container).__name__}"
