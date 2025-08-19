@@ -153,15 +153,12 @@ _global_secrets_masker: SecretsMasker | None = None
 
 def _secrets_masker() -> SecretsMasker:
     """
-    Get or create the global secrets masker instance.
+    Get or create the module-level secrets masker instance.
 
-    This function implements a module level singleton pattern to ensure consistent
-    secrets masking behavior across all shared Airflow dists, regardless of import path.
-
-    Needed because:
-    - shared code can be accessed via different symlink paths (airflow._shared vs
-    airflow.sdk._shared)
-    - ensures all calls to mask_secret(), redact(), etc. use the same masker instance
+    This function implements a module level singleton pattern within this specific
+    module. Note that different import paths (e.g., airflow._shared vs
+    airflow.sdk._shared) will have separate global variables and thus separate
+    masker instances.
     """
     global _global_secrets_masker
     if _global_secrets_masker is None:
