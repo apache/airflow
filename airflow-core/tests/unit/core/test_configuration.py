@@ -1891,13 +1891,19 @@ class TestWriteDefaultAirflowConfigurationIfNeeded:
         new_callable=lambda: [("mysection1", "mykey1"), ("mysection2", "mykey2")],
     )
     def test_mask_conf_values(self, mock_sensitive_config_values):
-        with patch("airflow._shared.secrets_masker.secrets_masker.mask_secret") as mock_mask_secret:
+        with (
+            patch("airflow._shared.secrets_masker.secrets_masker.mask_secret") as mock_mask_secret_core,
+            patch("airflow.sdk._shared.secrets_masker.secrets_masker.mask_secret") as mock_mask_secret_sdk,
+        ):
             conf.mask_secrets()
 
-            mock_mask_secret.assert_any_call("supersecret1")
-            mock_mask_secret.assert_any_call("supersecret2")
+            mock_mask_secret_core.assert_any_call("supersecret1")
+            mock_mask_secret_core.assert_any_call("supersecret2")
+            assert mock_mask_secret_core.call_count == 2
 
-            assert mock_mask_secret.call_count == 2
+            mock_mask_secret_sdk.assert_any_call("supersecret1")
+            mock_mask_secret_sdk.assert_any_call("supersecret2")
+            assert mock_mask_secret_sdk.call_count == 2
 
 
 @conf_vars({("core", "unit_test_mode"): "False"})
