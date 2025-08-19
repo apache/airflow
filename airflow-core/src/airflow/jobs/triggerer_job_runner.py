@@ -504,7 +504,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             api_resp = self.client.hitl.get_detail_response(ti_id=msg.ti_id)
             resp = HITLDetailResponseResult.from_api_response(response=api_resp)
         elif isinstance(msg, MaskSecret):
-            from airflow.sdk.execution_time.secrets_masker import mask_secret
+            from airflow.sdk.secrets_masker import mask_secret
 
             mask_secret(msg.value, msg.name)
         else:
