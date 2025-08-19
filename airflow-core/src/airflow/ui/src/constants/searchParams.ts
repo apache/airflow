@@ -17,11 +17,17 @@
  * under the License.
  */
 export enum SearchParamsKeys {
+  AFTER = "after",
+  BEFORE = "before",
   DAG_DISPLAY_NAME_PATTERN = "dag_display_name_pattern",
+  DAG_ID = "dag_id",
   DAG_ID_PATTERN = "dag_id_pattern",
   DEPENDENCIES = "dependencies",
   END_DATE = "end_date",
+  EVENT_TYPE = "event_type",
+  EXCLUDED_EVENTS = "excluded_events",
   FAVORITE = "favorite",
+  INCLUDED_EVENTS = "included_events",
   KEY_PATTERN = "key_pattern",
   LAST_DAG_RUN_STATE = "last_dag_run_state",
   LIMIT = "limit",
@@ -37,6 +43,7 @@ export enum SearchParamsKeys {
   RESPONSE_RECEIVED = "response_received",
   RUN_AFTER_GTE = "run_after_gte",
   RUN_AFTER_LTE = "run_after_lte",
+  RUN_ID = "run_id",
   RUN_ID_PATTERN = "run_id_pattern",
   RUN_TYPE = "run_type",
   SORT = "sort",
@@ -45,9 +52,11 @@ export enum SearchParamsKeys {
   STATE = "state",
   TAGS = "tags",
   TAGS_MATCH_MODE = "tags_match_mode",
+  TASK_ID = "task_id",
   TASK_ID_PATTERN = "task_id_pattern",
   TRIGGERING_USER_NAME_PATTERN = "triggering_user_name_pattern",
   TRY_NUMBER = "try_number",
+  USER = "user",
   VERSION_NUMBER = "version_number",
 }
 
