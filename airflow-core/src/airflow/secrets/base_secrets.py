@@ -61,8 +61,9 @@ class BaseSecretsBackend(ABC):
         from airflow.models.connection import Connection
 
         value = value.strip()
-        if value[0] == "{":
-            return Connection.from_json(conn_id=conn_id, value=value)
+        conn = Connection.from_json(conn_id=conn_id, value=value)
+        if conn is not None:
+            return conn
         return Connection(conn_id=conn_id, uri=value)
 
     def get_connection(self, conn_id: str) -> Connection | None:

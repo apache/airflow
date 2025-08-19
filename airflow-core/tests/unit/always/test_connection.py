@@ -854,7 +854,7 @@ class TestConnection:
         result = conn.as_json()
         assert result == expected_json
         restored_conn = Connection.from_json(result)
-
+        assert restored_conn is not None
         assert restored_conn.conn_type == conn.conn_type
         assert restored_conn.description == conn.description
         assert restored_conn.host == conn.host
