@@ -23,7 +23,7 @@ from airflow.models.dagrun import DagRunNote
 from airflow.models.taskinstance import TaskInstanceNote
 
 try:
-    from airflow.sdk._shared.secrets_masker.secrets_masker import DEFAULT_SENSITIVE_FIELDS
+    from airflow.sdk._shared.secrets_masker import DEFAULT_SENSITIVE_FIELDS
 except ImportError:
     from airflow.sdk.execution_time.secrets_masker import DEFAULT_SENSITIVE_FIELDS  # type:ignore[no-redef]
 

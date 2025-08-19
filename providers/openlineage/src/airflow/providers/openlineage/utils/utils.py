@@ -97,7 +97,7 @@ else:
             from airflow.datasets import Dataset as Asset
 
     try:
-        from airflow.sdk.secrets_masker import (
+        from airflow.sdk._shared.secrets_masker import (
             Redactable,
             Redacted,
             SecretsMasker,

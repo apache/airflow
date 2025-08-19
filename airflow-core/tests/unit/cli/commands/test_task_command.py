@@ -174,7 +174,7 @@ class TestCliTasks:
         Output should be filtered by SecretsMasker.
         """
         # TODO: revisit during https://github.com/apache/airflow/issues/54658
-        from airflow.sdk.secrets_masker import mask_secret
+        from airflow.sdk.log import mask_secret
 
         password = "somepassword1234!"
         mask_secret(password)

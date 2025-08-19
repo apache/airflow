@@ -26,9 +26,9 @@ import pytest
 import structlog
 from uuid6 import UUID
 
+from airflow.sdk._shared.secrets_masker import SecretsMasker
 from airflow.sdk.api.datamodels._generated import TaskInstance
 from airflow.sdk.log import configure_logging, reset_logging
-from airflow.sdk.secrets_masker import SecretsMasker
 
 
 @pytest.mark.parametrize(

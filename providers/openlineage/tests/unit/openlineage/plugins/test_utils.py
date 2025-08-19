@@ -60,7 +60,7 @@ if TYPE_CHECKING:
     from airflow.sdk.execution_time.secrets_masker import _secrets_masker
 else:
     try:
-        from airflow.sdk.secrets_masker import _secrets_masker
+        from airflow.sdk._shared.secrets_masker import _secrets_masker
     except ImportError:
         try:
             from airflow.sdk.execution_time.secrets_masker import _secrets_masker

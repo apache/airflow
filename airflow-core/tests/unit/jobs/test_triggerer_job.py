@@ -658,7 +658,7 @@ class CustomTrigger(BaseTrigger):
         from airflow.sdk.execution_time.xcom import XCom
 
         # Use sdk masker in dag processor and triggerer because those use the task sdk machinery
-        from airflow.sdk.secrets_masker import mask_secret
+        from airflow.sdk.log import mask_secret
 
         conn = await sync_to_async(BaseHook.get_connection)("test_connection")
         self.log.info("Loaded conn %s", conn.conn_id)

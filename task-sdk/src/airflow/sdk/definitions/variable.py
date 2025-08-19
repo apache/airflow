@@ -23,7 +23,7 @@ from typing import Any
 import attrs
 
 from airflow.sdk.definitions._internal.types import NOTSET
-from airflow.sdk.secrets_masker import mask_secret
+from airflow.sdk.log import mask_secret
 
 log = logging.getLogger(__name__)
 

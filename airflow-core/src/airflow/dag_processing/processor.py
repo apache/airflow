@@ -431,7 +431,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
             dump_opts = {"exclude_unset": True}
         elif isinstance(msg, MaskSecret):
             # Use sdk masker in dag processor and triggerer because those use the task sdk machinery
-            from airflow.sdk.secrets_masker import mask_secret
+            from airflow.sdk.log import mask_secret
 
             mask_secret(msg.value, msg.name)
         else:

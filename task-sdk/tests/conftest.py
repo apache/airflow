@@ -129,7 +129,7 @@ def captured_logs(request):
         structlog.configure(processors=processors)
         task_logger = logging.getLogger("airflow.task")
 
-        from airflow.sdk.secrets_masker import SecretsMasker
+        from airflow.sdk._shared.secrets_masker import SecretsMasker
 
         task_logger.addFilter(SecretsMasker())
         yield cap.entries
@@ -278,7 +278,7 @@ def make_ti_context_dict(make_ti_context: MakeTIContextCallable) -> MakeTIContex
 
 @pytest.fixture
 def patched_secrets_masker():
-    from airflow.sdk.secrets_masker import SecretsMasker
+    from airflow.sdk._shared.secrets_masker import SecretsMasker
 
     secrets_masker = SecretsMasker()
     with patch(

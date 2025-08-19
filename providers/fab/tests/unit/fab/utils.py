@@ -29,7 +29,7 @@ import pytest
 from airflow.models import Log
 
 try:
-    from airflow.sdk.secrets_masker import DEFAULT_SENSITIVE_FIELDS
+    from airflow.sdk._shared.secrets_masker import DEFAULT_SENSITIVE_FIELDS
 except ImportError:
     from airflow.sdk.execution_time.secrets_masker import DEFAULT_SENSITIVE_FIELDS  # type:ignore[no-redef]
 

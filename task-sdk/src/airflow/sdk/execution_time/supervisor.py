@@ -54,7 +54,7 @@ import structlog
 from pydantic import BaseModel, TypeAdapter
 
 from airflow.configuration import conf
-from airflow.sdk._shared.secrets_masker.secrets_masker import mask_secret
+from airflow.sdk._shared.secrets_masker import mask_secret
 from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
@@ -1766,7 +1766,7 @@ def supervise(
     :raises ValueError: If server URL is empty or invalid.
     """
     # One or the other
-    from airflow.sdk.secrets_masker import reset_secrets_masker
+    from airflow.sdk._shared.secrets_masker import reset_secrets_masker
 
     if not client:
         if dry_run and server:

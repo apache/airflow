@@ -14,3 +14,38 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+from airflow.sdk._shared.secrets_masker.secrets_masker import (
+    DEFAULT_SENSITIVE_FIELDS,
+    Redactable,
+    Redacted,
+    RedactedIO,
+    SecretsMasker,
+    _is_v1_env_var,
+    _secrets_masker,
+    get_min_secret_length,
+    get_sensitive_variables_fields,
+    mask_secret,
+    merge,
+    redact,
+    reset_secrets_masker,
+    should_hide_value_for_key,
+)
+
+__all__ = [
+    "SecretsMasker",
+    "get_sensitive_variables_fields",
+    "mask_secret",
+    "redact",
+    "reset_secrets_masker",
+    "_is_v1_env_var",
+    "get_min_secret_length",
+    "RedactedIO",
+    "merge",
+    "should_hide_value_for_key",
+    "_secrets_masker",
+    "DEFAULT_SENSITIVE_FIELDS",
+    "Redactable",
+    "Redacted",
+]

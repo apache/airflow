@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from airflow.sdk.execution_time.secrets_masker import mask_secret
 else:
     try:
-        from airflow.sdk.secrets_masker import mask_secret
+        from airflow.sdk.log import mask_secret
     except ImportError:
         try:
             from airflow.sdk.execution_time.secrets_masker import mask_secret

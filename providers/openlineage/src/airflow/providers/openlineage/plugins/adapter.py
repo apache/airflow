@@ -55,7 +55,7 @@ if TYPE_CHECKING:
     from airflow.utils.state import DagRunState
 else:
     try:
-        from airflow.sdk.secrets_masker import SecretsMasker, _secrets_masker
+        from airflow.sdk._shared.secrets_masker import SecretsMasker, _secrets_masker
     except ImportError:
         try:
             from airflow.sdk.execution_time.secrets_masker import SecretsMasker, _secrets_masker
