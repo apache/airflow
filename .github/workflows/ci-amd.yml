@@ -212,6 +212,7 @@ jobs:
       canary-run: ${{needs.build-info.outputs.canary-run}}
       latest-versions-only: ${{needs.build-info.outputs.latest-versions-only}}
       use-uv: ${{needs.build-info.outputs.use-uv}}
+      platform: "linux/amd64"
 
   build-ci-images:
     name: Build CI images
