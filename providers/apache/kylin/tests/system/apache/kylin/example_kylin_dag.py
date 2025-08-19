@@ -27,7 +27,11 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.providers.apache.kylin.operators.kylin_cube import KylinCubeOperator
-from airflow.sdk import chain
+
+try:
+    from airflow.sdk import chain
+except ImportError:
+    from airflow.models.baseoperator import chain  # type: ignore[no-redef]
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_kylin_operator"

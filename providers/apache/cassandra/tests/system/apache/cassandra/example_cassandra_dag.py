@@ -45,13 +45,13 @@ with DAG(
     catchup=False,
     tags=["example"],
 ) as dag:
+    # Replace <table_name> with your actual table name
+
     table_sensor = CassandraTableSensor(task_id="cassandra_table_sensor", table="<table_name>")
 
     record_sensor = CassandraRecordSensor(
         task_id="cassandra_record_sensor", keys={"p1": "v1", "p2": "v2"}, table="<table_name>"
     )
-
-    # Replace <table_name> with your actual table name
 
 # [END howto_operator_cassandra_sensors]
 
