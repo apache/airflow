@@ -25,7 +25,7 @@
   "dagDetails": {
     "catchup": "Catchup",
     "concurrency": "Concorrência",
-    "dagRunTimeout": "Tempo de Execução do DAG",
+    "dagRunTimeout": "Tempo Limite da Execução do DAG",
     "defaultArgs": "Argumentos Padrão",
     "description": "Descrição",
     "documentation": "Documentação do DAG",
