@@ -25,6 +25,12 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
 from airflow.triggers.base import BaseEventTrigger
 
+from tests_common.test_utils.common_msg_queue import (
+    collect_queue_param_deprecation_warning,
+)
+
+USED_FIXTURES = [collect_queue_param_deprecation_warning]
+
 
 class MockProvider:
     """Mock provider for testing."""

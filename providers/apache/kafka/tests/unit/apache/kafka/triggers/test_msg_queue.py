@@ -24,11 +24,16 @@ import pytest
 from airflow.models import Connection
 from airflow.providers.apache.kafka.hooks.consume import KafkaConsumerHook
 
+from tests_common.test_utils.common_msg_queue import (
+    collect_queue_param_deprecation_warning,
+)
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, get_base_airflow_version_tuple
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.providers.apache.kafka.triggers.msg_queue import KafkaMessageQueueTrigger
     from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
+
+USED_FIXTURES = [collect_queue_param_deprecation_warning]
 
 
 def apply_function_false(message):
