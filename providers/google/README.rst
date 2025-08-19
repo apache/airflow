@@ -91,7 +91,7 @@ PIP package                                 Version required
 ``google-cloud-dataflow-client``            ``>=0.8.6``
 ``google-cloud-dataform``                   ``>=0.5.0``
 ``google-cloud-dataplex``                   ``>=2.6.0``
-``google-cloud-dataproc``                   ``>=5.12.0``
+``google-cloud-dataproc``                   ``>=5.21.0``
 ``google-cloud-dataproc-metastore``         ``>=1.12.0``
 ``google-cloud-dlp``                        ``>=3.12.0``
 ``google-cloud-kms``                        ``>=2.15.0``

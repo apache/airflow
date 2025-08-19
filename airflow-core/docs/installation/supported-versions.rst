@@ -23,7 +23,7 @@ Version Life Cycle
 
 Apache Airflow® version life cycle:
 
- .. This table is automatically updated by pre-commit scripts/ci/pre_commit/supported_versions.py
+ .. This table is automatically updated by prek hook scripts/ci/prek/supported_versions.py
  .. Beginning of auto-generated table
 
 =========  =====================  =========  ===============  =====================  ================
