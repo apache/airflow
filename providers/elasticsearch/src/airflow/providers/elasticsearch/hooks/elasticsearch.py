@@ -349,8 +349,8 @@ class ElasticsearchHook(BaseHook):
         conn = self.get_connection(self.conn_id)
 
         # Configuration with fallback priority: connection -> env vars -> defaults
-        host = conn.host or self.vars["host"] or "localhost"
-        port = conn.port or (int(self.vars["port"]) if self.vars["port"] else None) or 9200
+        host = conn.host or self.vars.get("host") or "localhost"
+        port = conn.port or (int(self.vars.get("port")) if self.vars.get("port") else None) or 9200
         schema = conn.schema or ("https" if self.vars.get("use_ssl") else None) or "http"
 
         # Build hosts list
@@ -360,24 +360,24 @@ class ElasticsearchHook(BaseHook):
         # Authentication: prioritize Airflow connection
         if conn.login and conn.password:
             client_args["basic_auth"] = (conn.login, conn.password)
-        elif self.vars["username"] and self.vars["password"]:
-            client_args["basic_auth"] = (self.vars["username"], self.vars["password"])
+        elif self.vars.get("username") and self.vars.get("password"):
+            client_args["basic_auth"] = (self.vars.get("username"), self.vars.get("password"))
 
         # Handle extra configuration from connection
         extra = conn.extra_dejson or {}
 
         # SSL configuration with fallback
-        use_ssl = extra.get("use_ssl", self.vars["use_ssl"])
+        use_ssl = extra.get("use_ssl", self.vars.get("use_ssl"))
         if use_ssl:
             client_args["use_ssl"] = True
-            client_args["verify_certs"] = extra.get("verify_certs", self.vars["verify_certs"])
+            client_args["verify_certs"] = extra.get("verify_certs", self.vars.get("verify_certs"))
 
         # Add timeout and retry configuration
-        if extra.get("timeout") or self.vars["timeout"]:
-            client_args["timeout"] = extra.get("timeout") or int(self.vars["timeout"])
+        if extra.get("timeout") or self.vars.get("timeout"):
+            client_args["timeout"] = extra.get("timeout") or int(self.vars.get("timeout"))
 
-        if extra.get("max_retries") or self.vars["max_retries"]:
-            client_args["max_retries"] = extra.get("max_retries") or int(self.vars["max_retries"])
+        if extra.get("max_retries") or self.vars.get("max_retries"):
+            client_args["max_retries"] = extra.get("max_retries") or int(self.vars.get("max_retries"))
 
         # Add other extra configuration, excluding already handled fields
         excluded_fields = ["use_ssl", "verify_certs", "timeout", "max_retries"]
@@ -400,7 +400,7 @@ class ElasticsearchHook(BaseHook):
 
         if conn.host:
             config_sources.append("Airflow connection")
-        if self.vars["host"]:
+        if self.vars.get("host"):
             config_sources.append("Environment variables")
 
         if config_sources:
