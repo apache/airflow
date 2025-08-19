@@ -1119,10 +1119,8 @@ def test_permissions_work_for_dags_with_dot_in_dagname(
             assert_user_has_dag_perms(perms=["GET", "PUT"], dag_id=dag_id, user=user)
             assert_user_does_not_have_dag_perms(perms=["GET", "PUT"], dag_id=dag_id_2, user=user)
             # Clean up DAG models and bundle
-            #session.query(DagModel).delete()
-            session.delete(DagModel)
-            session.delete(DagBundleModel).where(DagBundleModel.name == bundle_name)
-            #session.query(DagBundleModel).filter(DagBundleModel.name == bundle_name).delete()
+            session.execute(delete(DagModel))
+            session.execute(delete(DagBundleModel).where(DagBundleModel.name == bundle_name))
             session.commit()
 
 
