@@ -106,7 +106,7 @@ class PowerBITrigger(BasePowerBITrigger):
     def serialize(self):
         """Serialize the trigger instance."""
         return (
-            "airflow.providers.microsoft.azure.triggers.powerbi.PowerBITrigger",
+            f"{self.__class__.__module__}.{self.__class__.__name__}",
             {
                 "conn_id": self.conn_id,
                 "proxies": self.proxies,
@@ -275,7 +275,7 @@ class PowerBIWorkspaceListTrigger(BasePowerBITrigger):
     def serialize(self):
         """Serialize the trigger instance."""
         return (
-            "airflow.providers.microsoft.azure.triggers.powerbi.PowerBIWorkspaceListTrigger",
+            f"{self.__class__.__module__}.{self.__class__.__name__}",
             {
                 "conn_id": self.conn_id,
                 "proxies": self.proxies,
@@ -341,7 +341,7 @@ class PowerBIDatasetListTrigger(BasePowerBITrigger):
     def serialize(self):
         """Serialize the trigger instance."""
         return (
-            "airflow.providers.microsoft.azure.triggers.powerbi.PowerBIDatasetListTrigger",
+            f"{self.__class__.__module__}.{self.__class__.__name__}",
             {
                 "conn_id": self.conn_id,
                 "proxies": self.proxies,
