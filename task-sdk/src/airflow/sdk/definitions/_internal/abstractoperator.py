@@ -95,8 +95,9 @@ class AbstractOperator(Templater, DAGNode):
     interface. Unfortunately it's difficult to use this as the common base class
     for typing due to BaseOperator carrying too much historical baggage.
 
-    The union type ``from airflow.models.operator import Operator`` is easier
-    to use for typing purposes.
+    For internal typing purposes, use ``airflow.sdk.types.Operator`` — a union
+    type representing both mapped and unmapped operators. This is not part of
+    the public API and should not be imported directly by users.
 
     :meta private:
     """
