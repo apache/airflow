@@ -90,10 +90,10 @@ def logger(caplog):
     return logger
 
 
+@pytest.mark.usefixtures("patched_secrets_masker")
 class TestSecretsMasker:
     def test_message(self, logger, caplog):
         logger.info("XpasswordY")
-
         assert caplog.text == "INFO X***Y\n"
 
     def test_args(self, logger, caplog):
