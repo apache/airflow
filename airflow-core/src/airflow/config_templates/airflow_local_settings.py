@@ -291,6 +291,7 @@ if REMOTE_LOGGING:
 
         ELASTICSEARCH_WRITE_STDOUT: bool = conf.getboolean("elasticsearch", "WRITE_STDOUT")
         ELASTICSEARCH_WRITE_TO_ES: bool = conf.getboolean("elasticsearch", "WRITE_TO_ES")
+        ELASTICSEARCH_JSON_FORMAT: bool = conf.getboolean("elasticsearch", "JSON_FORMAT")
         ELASTICSEARCH_TARGET_INDEX: str = conf.get_mandatory_value("elasticsearch", "TARGET_INDEX")
         ELASTICSEARCH_HOST_FIELD: str = conf.get_mandatory_value("elasticsearch", "HOST_FIELD")
         ELASTICSEARCH_OFFSET_FIELD: str = conf.get_mandatory_value("elasticsearch", "OFFSET_FIELD")
@@ -304,6 +305,7 @@ if REMOTE_LOGGING:
             host_field=ELASTICSEARCH_HOST_FIELD,
             base_log_folder=BASE_LOG_FOLDER,
             delete_local_copy=delete_local_copy,
+            json_format=ELASTICSEARCH_JSON_FORMAT,
         )
 
     elif OPENSEARCH_HOST:

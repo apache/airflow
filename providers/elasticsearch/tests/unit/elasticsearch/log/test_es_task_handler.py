@@ -40,6 +40,8 @@ from airflow.providers.elasticsearch.log.es_task_handler import (
     VALID_ES_CONFIG_KEYS,
     ElasticsearchRemoteLogIO,
     ElasticsearchTaskHandler,
+    _clean_date,
+    _render_log_id,
     get_es_kwargs_from_config,
     getattr_nested,
 )
@@ -75,7 +77,7 @@ class TestElasticsearchTaskHandler:
     TASK_ID = "task_for_testing_es_log_handler"
     LOGICAL_DATE = datetime(2016, 1, 1)
     LOG_ID = f"{DAG_ID}-{TASK_ID}-2016-01-01T00:00:00+00:00-1"
-    JSON_LOG_ID = f"{DAG_ID}-{TASK_ID}-{ElasticsearchTaskHandler._clean_date(LOGICAL_DATE)}-1"
+    JSON_LOG_ID = f"{DAG_ID}-{TASK_ID}-{_clean_date(LOGICAL_DATE)}-1"
     FILENAME_TEMPLATE = "{try_number}.log"
 
     @pytest.fixture
@@ -751,13 +753,13 @@ class TestElasticsearchTaskHandler:
 
     @pytest.mark.db_test
     def test_render_log_id(self, ti):
-        assert self.es_task_handler._render_log_id(ti, 1) == self.LOG_ID
+        assert _render_log_id(ti, 1, self.es_task_handler.json_format) == self.LOG_ID
 
         self.es_task_handler.json_format = True
-        assert self.es_task_handler._render_log_id(ti, 1) == self.JSON_LOG_ID
+        assert _render_log_id(ti, 1, self.es_task_handler.json_format) == self.JSON_LOG_ID
 
     def test_clean_date(self):
-        clean_logical_date = self.es_task_handler._clean_date(datetime(2016, 7, 8, 9, 10, 11, 12))
+        clean_logical_date = _clean_date(datetime(2016, 7, 8, 9, 10, 11, 12))
         assert clean_logical_date == "2016_07_08T09_10_11_000012"
 
     @pytest.mark.db_test
@@ -1022,7 +1024,7 @@ class TestElasticsearchRemoteLogIO:
 
         offset = 1
         expected_msg = ["start", "processing", "end"]
-        expected_log_id = f"{ti.dag_id}-{ti.task_id}-{ti.run_id}-{ti.map_index}-{ti.try_number}"
+        expected_log_id = _render_log_id(ti, 1, self.elasticsearch_io.json_format)
         assert res["hits"]["total"]["value"] == 3
         for msg, hit in zip(expected_msg, res["hits"]["hits"]):
             assert hit["_index"] == "airflow-logs"
@@ -1038,7 +1040,6 @@ class TestElasticsearchRemoteLogIO:
 
         captured = capsys.readouterr()
         stdout_lines = captured.out.strip().splitlines()
-
         log_entries = [json.loads(line) for line in stdout_lines]
         assert log_entries[0]["message"] == "start"
         assert log_entries[1]["message"] == "processing"
@@ -1081,7 +1082,7 @@ class TestElasticsearchRemoteLogIO:
     @patch("elasticsearch.Elasticsearch.count", return_value={"count": 0})
     def test_read_with_missing_log(self, mocked_count, ti):
         log_source_info, log_messages = self.elasticsearch_io.read("", ti)
-        log_id = f"{ti.dag_id}-{ti.task_id}-{ti.run_id}-{ti.map_index}-{ti.try_number}"
+        log_id = _render_log_id(ti, ti.try_number, self.elasticsearch_io.json_format)
         assert log_source_info == []
         assert f"*** Log {log_id} not found in Elasticsearch" in log_messages[0]
         mocked_count.assert_called_once()
