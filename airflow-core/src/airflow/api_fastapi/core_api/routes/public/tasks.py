@@ -29,7 +29,7 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.tasks import TaskCollectionResponse, TaskResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_dag
-from airflow.sdk.exceptions import TaskNotFound
+from airflow.exceptions import TaskNotFound
 
 tasks_router = AirflowRouter(tags=["Task"], prefix="/dags/{dag_id}/tasks")
 
