@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncGenerator
-
+from typing import Any
 from asgiref.sync import sync_to_async
 
 from airflow.providers.microsoft.azure.hooks.asb import MessageHook
