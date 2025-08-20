@@ -95,7 +95,12 @@ def _update_hitl_detail(
     update_hitl_detail_payload: UpdateHITLDetailPayload,
     user: GetUserDep,
     session: SessionDep,
+<<<<<<< HEAD
     map_index: int,
+=======
+    map_index: int | None = None,
+    update_mask: list[str] | None = Query(None),
+>>>>>>> 8b66fdcaeb (Update Mask with Query Parameter suggestion)
 ) -> HITLDetailResponse:
     task_instance = _get_task_instance(
         dag_id=dag_id,
