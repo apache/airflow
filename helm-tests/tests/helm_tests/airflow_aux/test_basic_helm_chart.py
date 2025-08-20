@@ -629,7 +629,7 @@ class TestBaseChartTest:
     @pytest.mark.parametrize(
         "invalid_executor",
         [
-            "Executor",       # class name must include more than just Executor
+            "Executor", # class name must include more than just Executor
             "ExecutorCustom", # class name must end with Executor
             "Customexecutor", # lowercase Executor is disallowed
         ],
