@@ -8,8 +8,8 @@
   "code": {
     "bundleUrl": "Bundle Url",
     "noCode": "No Code Found",
-    "parsedAt": "Parsed at:",
-    "parseDuration": "Parse Duration:"
+    "parseDuration": "Parse Duration:",
+    "parsedAt": "Parsed at:"
   },
   "extraLinks": "Extra Links",
   "grid": {
