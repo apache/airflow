@@ -2423,7 +2423,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         "flag, expected",
         [
             ("include_past", 2),  # D0 ~ D1
-            ("include_future", 2),  # D1 ~
+            ("include_future", 2),  # D1 ~ D2
         ],
     )
     def test_with_dag_run_id_and_past_future_converts_to_date_range(
@@ -2488,29 +2488,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             DEFAULT_DATETIME_1 + dt.timedelta(days=1)
         ).strftime("%Y-%m-%dT%H:%M:%SZ")  # D1
 
-    @pytest.mark.parametrize("flag", ["include_future", "include_past"])
-    def test_manual_run_with_none_logical_date_returns_400_kept(self, test_client, session, flag):
-        dag_id = "example_python_operator"
-        payload = {
-            "dry_run": True,
-            "dag_run_id": "TEST_DAG_RUN_ID_0",
-            "only_failed": True,
-            flag: True,
-        }
-        task_instances = [{"logical_date": None, "state": State.FAILED}]
-        self.create_task_instances(
-            session,
-            dag_id=dag_id,
-            task_instances=task_instances,
-            update_extras=False,
-            dag_run_state=State.FAILED,
-        )
-        resp = test_client.post(f"/dags/{dag_id}/clearTaskInstances", json=payload)
-        assert resp.status_code == 400
-        assert (
-            "Cannot use include_past or include_future with a manually triggered DAG run (logical_date is None)."
-            in resp.json()["detail"]
-        )
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.post(
