@@ -2004,18 +2004,23 @@ class DagRun(Base, LoggingMixin):
                 and not task.inlets
             ):
                 empty_ti_ids.append(ti.id)
-            # check "start_trigger_args" to see whether the operator supports start execution from triggerer
-            # if so, we'll then check "start_from_trigger" to see whether this feature is turned on and defer
-            # this task.
-            # if not, we'll add this "ti" into "schedulable_ti_ids" and later execute it to run in the worker
-            elif task.start_trigger_args is not None:
-                if task.expand_start_from_trigger(context=ti.get_template_context()):
-                    ti.start_date = timezone.utcnow()
-                    if ti.state != TaskInstanceState.UP_FOR_RESCHEDULE:
-                        ti.try_number += 1
-                    ti.defer_task(exception=None, session=session)
-                else:
-                    schedulable_ti_ids.append(ti.id)
+            # Check "start_trigger_args" to see whether the operator supports
+            # start execution from triggerer. If so, we'll check "start_from_trigger"
+            # to see whether this feature is turned on and defer this task.
+            # If not, we'll add this "ti" into "schedulable_ti_ids" and later
+            # execute it to run in the worker.
+            # TODO TaskSDK: This is disabled since we haven't figured out how
+            # to render start_from_trigger in the scheduler. If we need to
+            # render the value in a worker, it kind of defeats the purpose of
+            # this feature (which is to save a worker process if possible).
+            # elif task.start_trigger_args is not None:
+            #     if task.expand_start_from_trigger(context=ti.get_template_context()):
+            #         ti.start_date = timezone.utcnow()
+            #         if ti.state != TaskInstanceState.UP_FOR_RESCHEDULE:
+            #             ti.try_number += 1
+            #         ti.defer_task(exception=None, session=session)
+            #     else:
+            #         schedulable_ti_ids.append(ti.id)
             else:
                 schedulable_ti_ids.append(ti.id)
 
