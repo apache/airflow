@@ -411,7 +411,7 @@ class PubSubCreateSubscriptionOperator(GoogleCloudBaseOperator):
         project_id = self.subscription_project_id or self.project_id or self.pubsub_hook.project_id
 
         output_dataset = [
-            Dataset(namespace=f"pubsub", name=f"subscription:{project_id}:{self.__created_subscription_name}")
+            Dataset(namespace="pubsub", name=f"subscription:{project_id}:{self.__created_subscription_name}")
         ]
 
         return OperatorLineage(outputs=output_dataset)
