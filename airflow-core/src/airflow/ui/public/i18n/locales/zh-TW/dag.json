@@ -65,6 +65,7 @@
   "panel": {
     "buttons": {
       "options": "選項",
+      "showGantt": "顯示甘特圖",
       "showGraph": "顯示圖表",
       "showGrid": "顯示網格"
     },
