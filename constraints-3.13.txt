@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-19T13:55:02.683186
+# This constraints file was automatically generated on 2025-08-20T02:23:06.002074
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -34,7 +34,7 @@ APScheduler==3.11.0
 Authlib==1.6.1
 Deprecated==1.2.18
 Events==0.5
-Flask==3.1.1
+Flask==3.1.2
 GitPython==3.1.45
 JayDeBeApi==1.2.3
 Jinja2==3.1.6
@@ -445,7 +445,7 @@ neo4j==5.28.2
 nest-asyncio==1.6.0
 numpy==2.3.2
 oauthlib==3.3.1
-openai==1.100.1
+openai==1.100.2
 openlineage-integration-common==1.37.0
 openlineage-python==1.37.0
 openlineage_sql==1.37.0
@@ -511,7 +511,7 @@ pydata-google-auth==1.9.1
 pydruid==0.6.9
 pyexasol==0.27.0
 pykerberos==1.2.4
-pymongo==4.14.0
+pymongo==4.14.1
 pymssql==2.3.7
 pyodbc==5.2.0
 pyodps==0.12.4.1
@@ -526,7 +526,7 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.1.1
 python-http-client==3.3.7
 python-jenkins==1.8.3
-python-keycloak==5.8.0
+python-keycloak==5.8.1
 python-ldap==3.4.4
 python-multipart==0.0.20
 python-slugify==8.0.4
@@ -580,7 +580,7 @@ sortedcontainers==2.4.0
 soupsieve==2.7
 spython==0.3.14
 sqlalchemy-bigquery==1.15.0
-sqlalchemy-spanner==1.14.0
+sqlalchemy-spanner==1.15.0
 sqlalchemy_drill==1.1.9
 sqlparse==0.5.3
 sshtunnel==0.4.0
@@ -593,7 +593,7 @@ svcs==25.1.0
 tableauserverclient==0.38
 tabulate==0.9.0
 tenacity==9.1.2
-teradatasql==20.0.0.34
+teradatasql==20.0.0.35
 teradatasqlalchemy==20.0.0.6
 termcolor==3.1.0
 text-unidecode==1.3
