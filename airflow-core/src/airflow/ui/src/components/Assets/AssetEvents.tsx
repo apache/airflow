@@ -32,6 +32,7 @@ import { SearchParamsKeys } from "src/constants/searchParams";
 
 import { DataTable } from "../DataTable";
 import type { CardDef, TableState } from "../DataTable/types";
+import { SearchBar } from "../SearchBar";
 import { AssetEvent } from "./AssetEvent";
 
 const cardDef = (assetId?: number): CardDef<AssetEventResponse> => ({
@@ -69,9 +70,11 @@ export const AssetEvents = ({
     ],
   });
   const [searchParams, setSearchParams] = useSearchParams();
-  const [START_DATE, END_DATE] = [SearchParamsKeys.START_DATE, SearchParamsKeys.END_DATE];
+  const { DAG_ID_PATTERN, END_DATE, START_DATE, TASK_ID_PATTERN } = SearchParamsKeys;
   const startDate = searchParams.get(START_DATE) ?? "";
   const endDate = searchParams.get(END_DATE) ?? "";
+  const dagIdPattern = searchParams.get(DAG_ID_PATTERN) ?? "";
+  const taskIdPattern = searchParams.get(TASK_ID_PATTERN) ?? "";
 
   const handleFilterChange = useCallback(
     (paramKey: string) => (value: string) => {
@@ -98,6 +101,12 @@ export const AssetEvents = ({
       if (endDate !== "" && new Date(endDate) < new Date(event.timestamp)) {
         return false;
       }
+      if (dagIdPattern !== "" && !event.source_dag_id?.includes(dagIdPattern)) {
+        return false;
+      }
+      if (taskIdPattern !== "" && !event.source_task_id?.includes(taskIdPattern)) {
+        return false;
+      }
 
       return true;
     });
@@ -106,7 +115,7 @@ export const AssetEvents = ({
       asset_events: filteredAssetEvents,
       total_entries: data.total_entries,
     };
-  }, [data, startDate, endDate]);
+  }, [data, startDate, endDate, dagIdPattern, taskIdPattern]);
 
   return (
     <Box borderBottomWidth={0} borderRadius={5} borderWidth={1} p={4} py={2} {...rest}>
@@ -151,6 +160,20 @@ export const AssetEvents = ({
       <DateTimeInput
         onChange={(event) => handleFilterChange(END_DATE)(event.target.value)}
         value={searchParams.get(END_DATE) ?? ""}
+      />
+      <SearchBar
+        defaultValue={searchParams.get(DAG_ID_PATTERN) ?? ""}
+        hideAdvanced
+        hotkeyDisabled={true}
+        onChange={handleFilterChange(DAG_ID_PATTERN)}
+        placeHolder={translate("common:filters.dagDisplayNamePlaceholder")}
+      />
+      <SearchBar
+        defaultValue={searchParams.get(TASK_ID_PATTERN) ?? ""}
+        hideAdvanced
+        hotkeyDisabled={true}
+        onChange={handleFilterChange(TASK_ID_PATTERN)}
+        placeHolder={translate("common:filters.taskIdPlaceholder")}
       />
       <Separator mt={2.5} />
       <DataTable
