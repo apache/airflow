@@ -6,14 +6,22 @@
       "warning": "Bu işlem, Çalıştırmalar ve Görevler dahil olmak üzere Dag ile ilgili tüm meta verileri kaldıracaktır."
     }
   },
+  "favoriteDag": "Favori Dag",
   "filters": {
     "allRunTypes": "Tüm Çalıştırma Tipleri",
     "allStates": "Tüm Durumlar",
+    "favorite": {
+      "all": "Tümü",
+      "favorite": "Favori",
+      "unfavorite": "Favoriden Çıkar"
+    },
     "paused": {
       "active": "Aktif",
       "all": "Tümü",
       "paused": "Duraklatılmış"
-    }
+    },
+    "runIdPatternFilter": "Dag Çalıştırmalarında Ara",
+    "triggeringUserNameFilter": "Tetikleyen Kullanıcıya Göre Ara"
   },
   "ownerLink": "{{owner}} için sahip bağlantısı",
   "runAndTaskActions": {
@@ -55,6 +63,7 @@
       "onlyFailed": "Sadece başarısız görevleri temizle",
       "past": "Geçmiş",
       "queueNew": "Yeni görevleri kuyruğa al",
+      "runOnLatestVersion": "En son paket sürümü ile çalıştır",
       "upstream": "Yukarı Akış"
     }
   },
@@ -83,5 +92,6 @@
       "desc": "Sonraki Dag Çalıştırmasına Göre Sırala (Geç-Erken)"
     },
     "placeholder": "Sıralama kriteri"
-  }
+  },
+  "unfavoriteDag": "Favoriden Çıkar"
 }

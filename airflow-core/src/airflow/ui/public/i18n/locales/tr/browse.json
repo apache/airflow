@@ -10,11 +10,14 @@
       "user": "Kullanıcı",
       "when": "Zaman"
     },
+    "filters": {
+      "eventType": "Etkinlik Türü"
+    },
     "title": "Denetim Günlüğü"
   },
   "xcom": {
     "columns": {
-      "Dag": "Dag",
+      "dag": "Dag",
       "key": "Anahtar",
       "value": "Değer"
     },

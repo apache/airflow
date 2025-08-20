@@ -15,11 +15,11 @@
   "importErrors": {
     "dagImportError_one": "Dag İçe Aktarma Hatası",
     "dagImportError_other": "Dag İçe Aktarma Hataları",
-    "searchByFile": "Dosyaya göre ara",
+    "searchByFile": "Dosyaya Göre Ara",
     "timestamp": "Zaman Damgası"
   },
   "managePools": "Havuzları Yönet",
-  "noAssetEvents": "Varlık Etkinliği bulunamadı.",
+  "noAssetEvents": "Varlık Etkinliği Bulunamadı",
   "poolSlots": "Havuz Slotları",
   "sortBy": {
     "newestFirst": "Önce En Yeni",
@@ -33,6 +33,6 @@
     "runningDags": "Çalışan Dag'ler",
     "stats": "İstatistikler"
   },
-  "uri": "Uri",
+  "uri": "URI",
   "welcome": "Hoş Geldiniz"
 }

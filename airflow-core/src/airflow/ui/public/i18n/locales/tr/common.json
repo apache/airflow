@@ -7,19 +7,30 @@
     "Providers": "Sağlayıcılar",
     "Variables": "Değişkenler"
   },
+  "asset_few": "Varlıklar",
+  "asset_many": "Varlıklar",
   "asset_one": "Varlık",
   "asset_other": "Varlıklar",
+  "assetEvent_few": "Varlık Etkinlikleri",
+  "assetEvent_many": "Varlık Etkinlikleri",
   "assetEvent_one": "Varlık Etkinliği",
   "assetEvent_other": "Varlık Etkinlikleri",
-  "backfill_one": "Geriye Doldurma",
-  "backfill_other": "Geriye Doldurma İşlemleri",
+  "backfill_few": "Geriye Dönük Çalıştırmalar",
+  "backfill_many": "Geriye Dönük Çalıştırmalar",
+  "backfill_one": "Geriye Dönük Çalıştırma",
+  "backfill_other": "Geriye Dönük Çalıştırmalar",
   "browse": {
     "auditLog": "Denetim Günlüğü",
+    "requiredActions": "Gerekli Eylemler",
     "xcoms": "XCom'lar"
   },
   "collapseDetailsPanel": "Detay Panelini Daralt",
+  "createdAssetEvent_few": "Oluşturulan Varlık Etkinlikleri",
+  "createdAssetEvent_many": "Oluşturulan Varlık Etkinlikleri",
   "createdAssetEvent_one": "Oluşturulan Varlık Etkinliği",
   "createdAssetEvent_other": "Oluşturulan Varlık Etkinlikleri",
+  "dag_few": "Dag'ler",
+  "dag_many": "Dag'ler",
   "dag_one": "Dag",
   "dag_other": "Dag'ler",
   "dagDetails": {
@@ -44,7 +55,7 @@
     "schedule": "Zamanlama",
     "tags": "Etiketler"
   },
-  "dagId": "Dag Kimliği",
+  "dagId": "Eşsiz Dag Kimliği",
   "dagRun": {
     "conf": "Yapılandırma",
     "dagVersions": "Dag Versiyonu(ları)",
@@ -55,11 +66,15 @@
     "runAfter": "Sonra Çalıştır",
     "runType": "Çalıştırma Tipi",
     "sourceAssetEvent": "Kaynak Varlık Etkinliği",
-    "triggeredBy": "Tetikleyen"
+    "triggeredBy": "Tetikleyen",
+    "triggeringUser": "Çalıştıran Kullanıcı"
   },
+  "dagRun_few": "Dag Çalıştırmaları",
+  "dagRun_many": "Dag Çalıştırmaları",
   "dagRun_one": "Dag Çalıştırması",
   "dagRun_other": "Dag Çalıştırmaları",
-  "dagWarnings": "Dag uyarıları/hataları",
+  "dagRunId": "Eşsiz Dag Çalıştırma Kimliği",
+  "dagWarnings": "Dag Uyarıları/Hataları",
   "defaultToGraphView": "Varsayılan olarak grafik görünümü",
   "defaultToGridView": "Varsayılan olarak ızgara görünümü",
   "direction": "Yön",
@@ -77,11 +92,28 @@
     "notFound": "Sayfa Bulunamadı",
     "title": "Hata"
   },
+  "expand": {
+    "collapse": "Daralt",
+    "expand": "Genişlet",
+    "hotkey": "e",
+    "tooltip": "{{hotkey}} tuşuna basarak genişletmeyi değiştir"
+  },
   "expression": {
     "all": "Tümü",
     "and": "VE",
     "any": "Herhangi",
     "or": "VEYA"
+  },
+  "filters": {
+    "dagDisplayNamePlaceholder": "Dag adına göre filtrele",
+    "keyPlaceholder": "XCom anahtarına göre filtrele",
+    "logicalDateFromPlaceholder": "Mantıksal tarih başlangıcı",
+    "logicalDateToPlaceholder": "Mantıksal tarih bitişi",
+    "mapIndexPlaceholder": "Harita indeksine göre filtrele",
+    "runAfterFromPlaceholder": "Şu tarihten sonra çalıştır (başlangıç)",
+    "runAfterToPlaceholder": "Şu tarihten sonra çalıştır (bitiş)",
+    "runIdPlaceholder": "Çalıştırma kimliğine göre filtrele",
+    "taskIdPlaceholder": "Görev kimliğine göre filtrele"
   },
   "logicalDate": "Mantıksal Tarih",
   "logout": "Çıkış",
@@ -100,8 +132,9 @@
     "assets": "Varlıklar",
     "browse": "Göz At",
     "dags": "Dag'ler",
-    "docs": "Dökümanlar",
+    "docs": "Dokümantasyon",
     "home": "Ana Sayfa",
+    "legacyFabViews": "Airflow 2 Fab Görünümleri",
     "plugins": "Eklentiler",
     "security": "Güvenlik"
   },
@@ -116,8 +149,10 @@
   "pools": {
     "deferred": "Ertelenmiş",
     "open": "Açık",
-    "pools_one": "havuz",
-    "pools_other": "havuzlar",
+    "pools_few": "Havuzlar",
+    "pools_many": "Havuzlar",
+    "pools_one": "Havuz",
+    "pools_other": "Havuzlar",
     "queued": "Kuyrukta",
     "running": "Çalışıyor",
     "scheduled": "Planlanmış"
@@ -125,7 +160,7 @@
   "runId": "Çalıştırma Kimliği",
   "runTypes": {
     "asset_triggered": "Varlık Tetiklemeli",
-    "backfill": "Geriye Doldurma",
+    "backfill": "Geriye Dönük Çalıştırma",
     "manual": "Manuel",
     "scheduled": "Planlanmış"
   },
@@ -146,6 +181,8 @@
   },
   "selectLanguage": "Dil Seçin",
   "showDetailsPanel": "Detay Panelini Göster",
+  "sourceAssetEvent_few": "Kaynak Varlık Etkinlikleri",
+  "sourceAssetEvent_many": "Kaynak Varlık Etkinlikleri",
   "sourceAssetEvent_one": "Kaynak Varlık Etkinliği",
   "sourceAssetEvent_other": "Kaynak Varlık Etkinlikleri",
   "startDate": "Başlangıç Tarihi",
@@ -169,14 +206,16 @@
   "switchToDarkMode": "Karanlık Moda Geç",
   "switchToLightMode": "Aydınlık Moda Geç",
   "table": {
-    "completedAt": "Tamamlanma",
-    "createdAt": "Oluşturulma",
+    "completedAt": "Tamamlanma Tarihi",
+    "createdAt": "Oluşturulma Tarihi",
     "filterByTag": "Dag'ları etikete göre filtrele",
     "filterColumns": "Tablo sütunlarını filtrele",
+    "filterReset_few": "Filtreleri sıfırla",
+    "filterReset_many": "Filtreleri sıfırla",
     "filterReset_one": "Filtreyi sıfırla",
     "filterReset_other": "Filtreleri sıfırla",
     "from": "Başlangıç",
-    "maxActiveRuns": "Maksimum Aktif Çalıştırma",
+    "maxActiveRuns": "Maksimum Aktif Dag Çalıştırmaları",
     "noTagsFound": "Etiket bulunamadı",
     "tagMode": {
       "all": "Tümü",
@@ -191,6 +230,8 @@
     "operator": "Operatör",
     "triggerRule": "Tetikleme Kuralı"
   },
+  "task_few": "Görevler",
+  "task_many": "Görevler",
   "task_one": "Görev",
   "task_other": "Görevler",
   "taskId": "Görev Kimliği",
@@ -201,8 +242,8 @@
     "hostname": "Sunucu Adı",
     "maxTries": "Maksimum Deneme",
     "pid": "PID",
-    "pool": "Havuz",
-    "poolSlots": "Havuz Slotları",
+    "pool": "İşlem Havuzu",
+    "poolSlots": "İşlem Havuz Kotaları",
     "priorityWeight": "Öncelik Ağırlığı",
     "queue": "Kuyruk",
     "queuedWhen": "Kuyruğa Alınma",
@@ -217,6 +258,8 @@
     },
     "unixname": "Unix Adı"
   },
+  "taskInstance_few": "Görev Örnekleri",
+  "taskInstance_many": "Görev Örnekleri",
   "taskInstance_one": "Görev Örneği",
   "taskInstance_other": "Görev Örnekleri",
   "timeRange": {
@@ -224,6 +267,11 @@
     "last24Hours": "Son 24 Saat",
     "lastHour": "Son Saat",
     "pastWeek": "Geçen Hafta"
+  },
+  "timestamp": {
+    "hide": "Zaman damgalarını gizle",
+    "hotkey": "t",
+    "show": "Zaman damgalarını göster"
   },
   "timezone": "Saat Dilimi",
   "timezoneModal": {
@@ -269,6 +317,7 @@
       }
     }
   },
+  "total": "Tümü {{state}}",
   "triggered": "Tetiklendi",
   "tryNumber": "Deneme Sayısı",
   "user": "Kullanıcı",

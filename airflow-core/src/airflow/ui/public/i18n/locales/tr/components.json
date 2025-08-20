@@ -3,24 +3,24 @@
     "affected_one": "1 çalıştırma tetiklenecek.",
     "affected_other": "{{count}} çalıştırma tetiklenecek.",
     "affectedNone": "Seçilen kriterlere uygun çalıştırma bulunamadı.",
-    "backwards": "Geriye Doğru Çalıştır",
+    "backwards": "Geriye Dönük Çalıştır",
     "dateRange": "Tarih Aralığı",
     "dateRangeFrom": "Başlangıç",
     "dateRangeTo": "Bitiş",
     "errorStartDateBeforeEndDate": "Başlangıç Tarihi, Bitiş Tarihinden önce olmalıdır",
     "maxRuns": "Maksimum Aktif Çalıştırma",
     "reprocessBehavior": "Yeniden İşleme Davranışı",
-    "run": "Geriye Doldurma Çalıştır",
+    "run": "Geriye Dönük Çalıştır",
     "selectDescription": "Bu Dag'ı bir tarih aralığı için çalıştır",
-    "selectLabel": "Geriye Doldurma",
+    "selectLabel": "Geriye Dönük Çalıştırma",
     "title": "Geriye Doldurma Çalıştır",
     "toaster": {
       "success": {
-        "description": "Geriye doldurma işlemleri başarıyla tetiklendi.",
-        "title": "Geriye doldurma oluşturuldu"
+        "description": "Geriye dönük çalıştırma işlemleri başarıyla tetiklendi.",
+        "title": "Geriye dönük çalıştırma oluşturuldu"
       }
     },
-    "tooltip": "Geriye doldurma için bir zamanlama gereklidir",
+    "tooltip": "Geriye dönük çalıştırma için bir zamanlama gereklidir",
     "unpause": "Tetiklendiğinde {{dag_display_name}} duraklatmasını kaldır",
     "validation": {
       "datesRequired": "Hem Veri Aralığı Başlangıç Tarihi hem de Bitiş Tarihi sağlanmalıdır.",
@@ -28,10 +28,10 @@
     }
   },
   "banner": {
-    "backfillInProgress": "Geriye doldurma devam ediyor",
-    "cancel": "Geriye doldurmayı iptal et",
-    "pause": "Geriye doldurmayı duraklat",
-    "unpause": "Geriye doldurmayı devam ettir"
+    "backfillInProgress": "Geriye dönük çalıştırma devam ediyor",
+    "cancel": "Geriye dönük çalıştırmayı iptal et",
+    "pause": "Geriye dönük çalıştırmayı duraklat",
+    "unpause": "Geriye dönük çalıştırmayı devam ettir"
   },
   "clipboard": {
     "copy": "Kopyala"
@@ -61,7 +61,6 @@
   "fileUpload": {
     "files_other": "{{count}} dosya"
   },
-
   "flexibleForm": {
     "placeholder": "Değer Seçin",
     "placeholderArray": "Metinleri yeni satır olarak girin",
