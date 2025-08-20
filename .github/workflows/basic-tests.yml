@@ -32,7 +32,7 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run WWW tests (true/false)"
         required: true
         type: string
-      needs-api-codegen:
+      run-api-codegen:
         description: "Whether to run API codegen (true/false)"
         required: true
         type: string

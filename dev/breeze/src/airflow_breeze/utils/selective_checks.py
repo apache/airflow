@@ -141,7 +141,7 @@ class HashableDict(dict[T, list[str]]):
         return hash(frozenset(self))
 
 
-CI_FILE_GROUP_MATCHES = HashableDict(
+CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
     {
         FileGroupForCi.ENVIRONMENT_FILES: [
             r"^.github/workflows",
@@ -306,7 +306,7 @@ PYTHON_OPERATOR_FILES = [
     r"^providers/tests/standard/operators/test_python.py",
 ]
 
-TEST_TYPE_MATCHES = HashableDict(
+TEST_TYPE_MATCHES: HashableDict[SelectiveCoreTestType] = HashableDict(
     {
         SelectiveCoreTestType.API: [
             r"^airflow-core/src/airflow/api/",
@@ -751,27 +751,27 @@ class SelectiveChecks:
         return checks_to_run
 
     @cached_property
-    def needs_mypy(self) -> bool:
+    def run_mypy(self) -> bool:
         return self.mypy_checks != []
 
     @cached_property
-    def needs_python_scans(self) -> bool:
+    def run_python_scans(self) -> bool:
         return self._should_be_run(FileGroupForCi.PYTHON_PRODUCTION_FILES)
 
     @cached_property
-    def needs_javascript_scans(self) -> bool:
+    def run_javascript_scans(self) -> bool:
         return self._should_be_run(FileGroupForCi.JAVASCRIPT_PRODUCTION_FILES)
 
     @cached_property
-    def needs_api_tests(self) -> bool:
+    def run_api_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.API_FILES)
 
     @cached_property
-    def needs_ol_tests(self) -> bool:
+    def run_ol_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.ASSET_FILES)
 
     @cached_property
-    def needs_api_codegen(self) -> bool:
+    def run_api_codegen(self) -> bool:
         return self._should_be_run(FileGroupForCi.API_CODEGEN_FILES)
 
     @cached_property
@@ -808,23 +808,34 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.DOC_FILES)
 
     @cached_property
-    def needs_helm_tests(self) -> bool:
+    def run_helm_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.HELM_FILES) and self._default_branch == "main"
 
     @cached_property
-    def run_tests(self) -> bool:
+    def run_unit_tests(self) -> bool:
+        def _only_new_ui_files() -> bool:
+            all_source_files = set(
+                self._matching_files(FileGroupForCi.ALL_SOURCE_FILES, CI_FILE_GROUP_MATCHES)
+            )
+            new_ui_source_files = set(self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES))
+            remaining_files = all_source_files - new_ui_source_files
+
+            if all_source_files and new_ui_source_files and not remaining_files:
+                return True
+            return False
+
         if self.full_tests_needed:
             return True
         if self._is_canary_run():
             return True
-        if self.only_new_ui_files:
+        if _only_new_ui_files():
             return False
         # we should run all test
         return self._should_be_run(FileGroupForCi.ALL_SOURCE_FILES)
 
     @cached_property
     def run_system_tests(self) -> bool:
-        return self.run_tests
+        return self.run_unit_tests
 
     @cached_property
     def only_pyproject_toml_files_changed(self) -> bool:
@@ -836,10 +847,10 @@ class SelectiveChecks:
         # changes because some of our tests - those that need CI image might need to be run depending on
         # changed rules for static checks that are part of the pyproject.toml file
         return (
-            self.run_tests
+            self.run_unit_tests
             or self.docs_build
             or self.run_kubernetes_tests
-            or self.needs_helm_tests
+            or self.run_helm_tests
             or self.run_ui_tests
             or self.pyproject_toml_changed
             or self.any_provider_yaml_or_pyproject_toml_changed
@@ -847,7 +858,7 @@ class SelectiveChecks:
 
     @cached_property
     def prod_image_build(self) -> bool:
-        return self.run_kubernetes_tests or self.needs_helm_tests
+        return self.run_kubernetes_tests or self.run_helm_tests
 
     def _select_test_type_if_matching(
         self, test_types: set[str], test_type: SelectiveCoreTestType
@@ -954,7 +965,7 @@ class SelectiveChecks:
             len(all_providers_source_files) == 0
             and len(all_providers_distribution_config_files) == 0
             and len(assets_source_files) == 0
-            and not self.needs_api_tests
+            and not self.run_api_tests
         ):
             # IF API tests are needed, that will trigger extra provider checks
             return []
@@ -1015,14 +1026,14 @@ class SelectiveChecks:
 
     @cached_property
     def core_test_types_list_as_strings_in_json(self) -> str | None:
-        if not self.run_tests:
+        if not self.run_unit_tests:
             return None
         current_test_types = sorted(set(self._get_core_test_types_to_run()))
         return json.dumps(_get_test_list_as_json([current_test_types]))
 
     @cached_property
     def providers_test_types_list_as_strings_in_json(self) -> str:
-        if not self.run_tests:
+        if not self.run_unit_tests:
             return "[]"
         current_test_types = set(self._get_providers_test_types_to_run())
         if self._default_branch != "main":
@@ -1050,7 +1061,7 @@ class SelectiveChecks:
     @cached_property
     def individual_providers_test_types_list_as_strings_in_json(self) -> str | None:
         """Splits the list of test types into several lists of strings (to run them in parallel)."""
-        if not self.run_tests:
+        if not self.run_unit_tests:
             return None
         current_test_types = sorted(self._get_individual_providers_list())
         if not current_test_types:
@@ -1260,7 +1271,7 @@ class SelectiveChecks:
             return False
         if self._get_providers_test_types_to_run():
             return False
-        if not self.run_tests:
+        if not self.run_unit_tests:
             return True
         return True
 
@@ -1331,18 +1342,8 @@ class SelectiveChecks:
         return json.dumps(sorted_providers_to_exclude)
 
     @cached_property
-    def only_new_ui_files(self) -> bool:
-        all_source_files = set(self._matching_files(FileGroupForCi.ALL_SOURCE_FILES, CI_FILE_GROUP_MATCHES))
-        new_ui_source_files = set(self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES))
-        remaining_files = all_source_files - new_ui_source_files
-
-        if all_source_files and new_ui_source_files and not remaining_files:
-            return True
-        return False
-
-    @cached_property
     def testable_core_integrations(self) -> list[str]:
-        if not self.run_tests:
+        if not self.run_unit_tests:
             return []
         return [
             integration
@@ -1352,7 +1353,7 @@ class SelectiveChecks:
 
     @cached_property
     def testable_providers_integrations(self) -> list[str]:
-        if not self.run_tests:
+        if not self.run_unit_tests:
             return []
         return [
             integration
@@ -1380,9 +1381,9 @@ class SelectiveChecks:
                     suspended_providers.add(provider)
                 else:
                     affected_providers.add(provider)
-        if self.needs_api_tests:
+        if self.run_api_tests:
             affected_providers.add("fab")
-        if self.needs_ol_tests:
+        if self.run_ol_tests:
             affected_providers.add("openlineage")
         if all_providers_affected:
             return ALL_PROVIDERS_SENTINEL
