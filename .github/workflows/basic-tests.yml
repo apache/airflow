@@ -264,14 +264,12 @@ jobs:
           python-version: ${{steps.breeze.outputs.host-python-version}}
           skip-prek-hooks: ${{ inputs.skip-prek-hooks }}
           platform: ${{ inputs.platform }}
-      # TODO(potiuk): enable this once prek supports automatic upgrade of hooks
-      #               after https://github.com/j178/prek/issues/35 is implemented§
-      # - name: "Autoupdate all prek hooks"
-      #   run: prek autoupdate --freeze
-      # - name: "Autoupdate Lucas-C hooks to bleeding edge"
-      #   run: prek autoupdate --bleeding-edge --freeze --repo https://github.com/Lucas-C/pre-commit-hooks
-      # - name: "Check if there are any changes in pre-commit hooks"
-      #   run: git diff --exit-code
+      - name: "Autoupdate all prek hooks"
+        run: prek autoupdate --freeze
+      - name: "Autoupdate Lucas-C hooks to bleeding edge"
+        run: prek autoupdate --bleeding-edge --freeze --repo https://github.com/Lucas-C/pre-commit-hooks
+      - name: "Check if there are any changes in pre-commit hooks"
+        run: git diff --exit-code
       - name: "Run automated upgrade for chart dependencies"
         run: >
           prek
