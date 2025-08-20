@@ -17,7 +17,7 @@
   "dependencies": {
     "@chakra-ui/react": "^3.14.2",
     "@tanstack/react-query": "^5.70.0",
-    "axios": "^1.8.4",
+    "axios": "^1.11.0",
     "next-themes": "^0.4.6",
     "react": "^19.0.0",
     "react-cookie": "^8.0.1",
