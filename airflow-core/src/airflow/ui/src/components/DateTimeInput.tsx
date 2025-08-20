@@ -17,26 +17,45 @@
  * under the License.
  */
 import { Input, type InputProps } from "@chakra-ui/react";
+import dayjs from "dayjs";
+import tz from "dayjs/plugin/timezone";
 import { forwardRef } from "react";
+
+import { useTimezone } from "src/context/timezone";
+
+dayjs.extend(tz);
 
 type Props = {
   readonly value: string;
 } & InputProps;
 
-export const DateTimeInput = forwardRef<HTMLInputElement, Props>(({ onChange, value, ...rest }, ref) => (
-  <Input
-    onChange={(event) =>
-      onChange?.({
-        ...event,
-        target: {
-          ...event.target,
-          value: event.target.value,
-        },
-      })
-    }
-    ref={ref}
-    type="datetime-local"
-    value={value}
-    {...rest}
-  />
-));
+export const DateTimeInput = forwardRef<HTMLInputElement, Props>(({ onChange, value, ...rest }, ref) => {
+  const { selectedTimezone } = useTimezone();
+
+  // Convert stored UTC value to local timezone for display
+  const displayValue =
+    Boolean(value) && dayjs(value).isValid()
+      ? dayjs(value).tz(selectedTimezone).format("YYYY-MM-DDTHH:mm")
+      : "";
+
+  return (
+    <Input
+      onChange={(event) =>
+        onChange?.({
+          ...event,
+          target: {
+            ...event.target,
+            // Convert local time input to UTC for storage/API
+            value: dayjs(event.target.value).isValid()
+              ? dayjs(event.target.value).tz(selectedTimezone, true).toISOString()
+              : "",
+          },
+        })
+      }
+      ref={ref}
+      type="datetime-local"
+      value={displayValue}
+      {...rest}
+    />
+  );
+});
