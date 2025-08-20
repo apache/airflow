@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-20T02:19:57.686645
+# This constraints file was automatically generated on 2025-08-20T13:52:53.722926
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -80,7 +80,7 @@ async-timeout==4.0.3
 asyncpg==0.30.0
 asyncssh==2.21.0
 atlasclient==1.0.0
-atlassian-python-api==4.0.4
+atlassian-python-api==4.0.5
 attrs==25.3.0
 aws-sam-translator==1.99.0
 aws-xray-sdk==2.14.0
@@ -435,7 +435,7 @@ polars==1.32.3
 portalocker==3.2.0
 pprintpp==0.4.0
 pre_commit==4.3.0
-prek==0.0.29
+prek==0.1.1
 presto-python-client==0.8.4
 prometheus_client==0.22.1
 prompt_toolkit==3.0.51
@@ -642,7 +642,7 @@ uritemplate==4.2.0
 urllib3==2.5.0
 userpath==1.9.2
 uuid6==2025.0.1
-uv==0.8.11
+uv==0.8.12
 uvicorn==0.35.0
 uvloop==0.21.0
 validators==0.35.0
