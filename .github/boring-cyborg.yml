@@ -519,8 +519,8 @@ firstPRWelcomeComment: >
 
   Here are some useful points:
 
-  - Pay attention to the quality of your code (ruff, mypy and type annotations). Our [pre-commits](
-  https://github.com/apache/airflow/blob/main/contributing-docs/08_static_code_checks.rst#prerequisites-for-pre-commit-hooks)
+  - Pay attention to the quality of your code (ruff, mypy and type annotations). Our [prek-hooks](
+  https://github.com/apache/airflow/blob/main/contributing-docs/08_static_code_checks.rst#prerequisites-for-prek-hooks)
   will help you with that.
 
   - In case of a new feature add useful documentation (in docstrings or in `docs/` directory).

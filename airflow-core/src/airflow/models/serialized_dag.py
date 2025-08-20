@@ -295,7 +295,7 @@ class SerializedDagModel(Base):
 
     dag_runs = relationship(
         DagRun,
-        primaryjoin=dag_id == foreign(DagRun.dag_id),
+        primaryjoin=dag_id == foreign(DagRun.dag_id),  # type: ignore[has-type]
         backref=backref("serialized_dag", uselist=False, innerjoin=True),
     )
 
@@ -321,7 +321,6 @@ class SerializedDagModel(Base):
         from airflow.sdk import DAG
 
         self.dag_id = dag.dag_id
-        dag_data = {}
         if isinstance(dag, DAG):
             dag_data = SerializedDAG.to_dict(dag)
         else:
@@ -350,7 +349,13 @@ class SerializedDagModel(Base):
     def hash(cls, dag_data):
         """Hash the data to get the dag_hash."""
         dag_data = cls._sort_serialized_dag_dict(dag_data)
-        data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
+        data_ = dag_data.copy()
+        # Remove fileloc from the hash so changes to fileloc
+        # does not affect the hash. In 3.0+, a combination of
+        # bundle_path and relative fileloc more correctly determines the
+        # dag file location.
+        data_["dag"].pop("fileloc", None)
+        data_json = json.dumps(data_, sort_keys=True).encode("utf-8")
         return md5(data_json).hexdigest()
 
     @classmethod

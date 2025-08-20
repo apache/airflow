@@ -26,12 +26,12 @@ if TYPE_CHECKING:
     import jinja2
     from pendulum import DateTime
 
-    from airflow.models.operator import Operator
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.execution_time.context import InletEventsAccessors
     from airflow.sdk.types import (
         DagRunProtocol,
+        Operator,
         OutletEventAccessorsProtocol,
         RuntimeTaskInstanceProtocol,
     )
@@ -81,6 +81,28 @@ class Context(TypedDict, total=False):
     ts_nodash: str
     ts_nodash_with_tz: str
     var: Any
+
+
+KNOWN_CONTEXT_KEYS: set[str] = set(Context.__annotations__.keys())
+
+
+def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
+    """
+    Merge parameters into an existing context.
+
+    Like ``dict.update()`` , this take the same parameters, and updates
+    ``context`` in-place.
+
+    This is implemented as a free function because the ``Context`` type is
+    "faked" as a ``TypedDict`` in ``context.pyi``, which cannot have custom
+    functions.
+
+    :meta private:
+    """
+    if not context:
+        context = Context()
+
+    context.update(*args, **kwargs)
 
 
 def get_current_context() -> Context:

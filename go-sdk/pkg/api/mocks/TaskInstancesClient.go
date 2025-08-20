@@ -1154,3 +1154,139 @@ func (_c *TaskInstancesClient_UpdateStateResponse_Call) RunAndReturn(run func(ct
 	_c.Call.Return(run)
 	return _c
 }
+
+// ValidateInletsAndOutlets provides a mock function for the type TaskInstancesClient
+func (_mock *TaskInstancesClient) ValidateInletsAndOutlets(ctx context.Context, taskInstanceId types.UUID) (*api.InactiveAssetsResponse, error) {
+	ret := _mock.Called(ctx, taskInstanceId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ValidateInletsAndOutlets")
+	}
+
+	var r0 *api.InactiveAssetsResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, types.UUID) (*api.InactiveAssetsResponse, error)); ok {
+		return returnFunc(ctx, taskInstanceId)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, types.UUID) *api.InactiveAssetsResponse); ok {
+		r0 = returnFunc(ctx, taskInstanceId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*api.InactiveAssetsResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, types.UUID) error); ok {
+		r1 = returnFunc(ctx, taskInstanceId)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// TaskInstancesClient_ValidateInletsAndOutlets_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ValidateInletsAndOutlets'
+type TaskInstancesClient_ValidateInletsAndOutlets_Call struct {
+	*mock.Call
+}
+
+// ValidateInletsAndOutlets is a helper method to define mock.On call
+//   - ctx context.Context
+//   - taskInstanceId types.UUID
+func (_e *TaskInstancesClient_Expecter) ValidateInletsAndOutlets(ctx interface{}, taskInstanceId interface{}) *TaskInstancesClient_ValidateInletsAndOutlets_Call {
+	return &TaskInstancesClient_ValidateInletsAndOutlets_Call{Call: _e.mock.On("ValidateInletsAndOutlets", ctx, taskInstanceId)}
+}
+
+func (_c *TaskInstancesClient_ValidateInletsAndOutlets_Call) Run(run func(ctx context.Context, taskInstanceId types.UUID)) *TaskInstancesClient_ValidateInletsAndOutlets_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 types.UUID
+		if args[1] != nil {
+			arg1 = args[1].(types.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *TaskInstancesClient_ValidateInletsAndOutlets_Call) Return(inactiveAssetsResponse *api.InactiveAssetsResponse, err error) *TaskInstancesClient_ValidateInletsAndOutlets_Call {
+	_c.Call.Return(inactiveAssetsResponse, err)
+	return _c
+}
+
+func (_c *TaskInstancesClient_ValidateInletsAndOutlets_Call) RunAndReturn(run func(ctx context.Context, taskInstanceId types.UUID) (*api.InactiveAssetsResponse, error)) *TaskInstancesClient_ValidateInletsAndOutlets_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ValidateInletsAndOutletsResponse provides a mock function for the type TaskInstancesClient
+func (_mock *TaskInstancesClient) ValidateInletsAndOutletsResponse(ctx context.Context, taskInstanceId types.UUID) (*resty.Response, error) {
+	ret := _mock.Called(ctx, taskInstanceId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ValidateInletsAndOutletsResponse")
+	}
+
+	var r0 *resty.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, types.UUID) (*resty.Response, error)); ok {
+		return returnFunc(ctx, taskInstanceId)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, types.UUID) *resty.Response); ok {
+		r0 = returnFunc(ctx, taskInstanceId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*resty.Response)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, types.UUID) error); ok {
+		r1 = returnFunc(ctx, taskInstanceId)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// TaskInstancesClient_ValidateInletsAndOutletsResponse_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ValidateInletsAndOutletsResponse'
+type TaskInstancesClient_ValidateInletsAndOutletsResponse_Call struct {
+	*mock.Call
+}
+
+// ValidateInletsAndOutletsResponse is a helper method to define mock.On call
+//   - ctx context.Context
+//   - taskInstanceId types.UUID
+func (_e *TaskInstancesClient_Expecter) ValidateInletsAndOutletsResponse(ctx interface{}, taskInstanceId interface{}) *TaskInstancesClient_ValidateInletsAndOutletsResponse_Call {
+	return &TaskInstancesClient_ValidateInletsAndOutletsResponse_Call{Call: _e.mock.On("ValidateInletsAndOutletsResponse", ctx, taskInstanceId)}
+}
+
+func (_c *TaskInstancesClient_ValidateInletsAndOutletsResponse_Call) Run(run func(ctx context.Context, taskInstanceId types.UUID)) *TaskInstancesClient_ValidateInletsAndOutletsResponse_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 types.UUID
+		if args[1] != nil {
+			arg1 = args[1].(types.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *TaskInstancesClient_ValidateInletsAndOutletsResponse_Call) Return(response *resty.Response, err error) *TaskInstancesClient_ValidateInletsAndOutletsResponse_Call {
+	_c.Call.Return(response, err)
+	return _c
+}
+
+func (_c *TaskInstancesClient_ValidateInletsAndOutletsResponse_Call) RunAndReturn(run func(ctx context.Context, taskInstanceId types.UUID) (*resty.Response, error)) *TaskInstancesClient_ValidateInletsAndOutletsResponse_Call {
+	_c.Call.Return(run)
+	return _c
+}

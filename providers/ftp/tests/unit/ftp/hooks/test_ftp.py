@@ -176,6 +176,15 @@ class TestIntegrationFTPHook:
             )
         )
 
+        create_connection_without_db(
+            Connection(
+                conn_id="ftp_encoding",
+                conn_type="ftp",
+                host="localhost",
+                extra='{"encoding": "cp1251"}',
+            )
+        )
+
     def _test_mode(self, hook_type, connection_id, expected_mode):
         hook = hook_type(connection_id)
         conn = hook.get_conn()
@@ -224,3 +233,19 @@ class TestIntegrationFTPHook:
         from airflow.providers.ftp.hooks.ftp import FTPSHook
 
         self._test_mode(FTPSHook, "ftp_active", False)
+
+    @mock.patch("ftplib.FTP")
+    def test_ftp_encoding_extra(self, mock_ftp):
+        from airflow.providers.ftp.hooks.ftp import FTPHook
+
+        hook = FTPHook("ftp_encoding")
+        hook.get_conn()
+        assert mock_ftp.mock_calls[0] == mock.call(encoding="cp1251")
+
+    @mock.patch("ftplib.FTP_TLS")
+    def test_ftps_encoding_extra(self, mock_ftp_tls):
+        from airflow.providers.ftp.hooks.ftp import FTPSHook
+
+        hook = FTPSHook("ftp_encoding")
+        hook.get_conn()
+        assert any(call.kwargs.get("encoding") == "cp1251" for call in mock_ftp_tls.mock_calls)

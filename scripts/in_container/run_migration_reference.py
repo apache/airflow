@@ -205,7 +205,7 @@ def ensure_filenames_are_sorted(revisions, app):
         )
         raise SystemExit(
             "You have multiple alembic heads; please merge them with by running `alembic merge` command under "
-            f'"airflow" directory (where alembic.ini located) and re-run pre-commit. '
+            f'"airflow" directory (where alembic.ini located) and re-run prek. '
             f"It should fail once more before succeeding.\nhint: `{alembic_command}`"
         )
     for old, new in renames:

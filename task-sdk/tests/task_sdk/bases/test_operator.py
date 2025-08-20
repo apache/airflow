@@ -273,6 +273,22 @@ class TestBaseOperator:
                 weight_rule=NotRegisteredPriorityWeightStrategy(),
             )
 
+    def test_db_safe_priority(self):
+        """Test the db_safe_priority function."""
+        from airflow.sdk.bases.operator import DB_SAFE_MAXIMUM, DB_SAFE_MINIMUM, db_safe_priority
+
+        assert db_safe_priority(1) == 1
+        assert db_safe_priority(-1) == -1
+        assert db_safe_priority(9999999999) == DB_SAFE_MAXIMUM
+        assert db_safe_priority(-9999999999) == DB_SAFE_MINIMUM
+
+    def test_db_safe_constants(self):
+        """Test the database safe constants."""
+        from airflow.sdk.bases.operator import DB_SAFE_MAXIMUM, DB_SAFE_MINIMUM
+
+        assert DB_SAFE_MINIMUM == -2147483648
+        assert DB_SAFE_MAXIMUM == 2147483647
+
     def test_warnings_are_properly_propagated(self):
         with pytest.warns(DeprecationWarning, match="deprecated") as warnings:
             DeprecatedOperator(task_id="test")
