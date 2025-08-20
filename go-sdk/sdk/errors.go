@@ -22,7 +22,7 @@ import (
 )
 
 // VariableNotFound is an error value used to signal that a variable could not be found (and that there were
-// no communication issues to the API server.
+// no communication issues to the API server).
 //
 // See the “GetVariable“ method of [VariableClient] for an example
 var VariableNotFound = errors.New("variable not found")
