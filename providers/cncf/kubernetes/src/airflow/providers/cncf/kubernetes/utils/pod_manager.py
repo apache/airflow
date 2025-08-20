@@ -456,6 +456,26 @@ class PodManager(LoggingMixin):
 
             await asyncio.sleep(check_interval)
 
+    def _log_message(
+        self,
+        message: str,
+        container_name: str,
+        container_name_log_prefix_enabled: bool,
+        log_formatter: Callable[[str, str], str] | None,
+    ) -> None:
+        """Log a message with appropriate formatting."""
+        if is_log_group_marker(message):
+            print(message)
+        else:
+            if log_formatter:
+                formatted_message = log_formatter(container_name, message)
+                self.log.info("%s", formatted_message)
+            else:
+                log_message = (
+                    f"[{container_name}] {message}" if container_name_log_prefix_enabled else message
+                )
+                self.log.info("%s", log_message)
+
     def fetch_container_logs(
         self,
         pod: V1Pod,
@@ -464,7 +484,7 @@ class PodManager(LoggingMixin):
         follow=False,
         since_time: DateTime | None = None,
         post_termination_timeout: int = 120,
-        log_prefix: bool = True,
+        container_name_log_prefix_enabled: bool = True,
         log_formatter: Callable[[str, str], str] | None = None,
     ) -> PodLoggingStatus:
         """
@@ -531,20 +551,12 @@ class PodManager(LoggingMixin):
                                             line=line, client=self._client, mode=ExecutionMode.SYNC
                                         )
                                 if message_to_log is not None:
-                                    if is_log_group_marker(message_to_log):
-                                        print(message_to_log)
-                                    else:
-                                        # Apply custom formatter or prefix logic
-                                        if log_formatter:
-                                            formatted_message = log_formatter(container_name, message_to_log)
-                                            self.log.info("%s", formatted_message)
-                                        else:
-                                            log_message = (
-                                                f"[{container_name}] {message_to_log}"
-                                                if log_prefix
-                                                else message_to_log
-                                            )
-                                            self.log.info("%s", log_message)
+                                    self._log_message(
+                                        message_to_log,
+                                        container_name,
+                                        container_name_log_prefix_enabled,
+                                        log_formatter,
+                                    )
                                 last_captured_timestamp = message_timestamp
                                 message_to_log = message
                                 message_timestamp = line_timestamp
@@ -560,17 +572,9 @@ class PodManager(LoggingMixin):
                                 line=line, client=self._client, mode=ExecutionMode.SYNC
                             )
                     if message_to_log is not None:
-                        if is_log_group_marker(message_to_log):
-                            print(message_to_log)
-                        else:
-                            if log_formatter:
-                                formatted_message = log_formatter(container_name, message_to_log)
-                                self.log.info("%s", formatted_message)
-                            else:
-                                log_message = (
-                                    f"[{container_name}] {message_to_log}" if log_prefix else message_to_log
-                                )
-                                self.log.info("%s", log_message)
+                        self._log_message(
+                            message_to_log, container_name, container_name_log_prefix_enabled, log_formatter
+                        )
                     last_captured_timestamp = message_timestamp
             except TimeoutError as e:
                 # in case of timeout, increment return time by 2 seconds to avoid
@@ -653,7 +657,7 @@ class PodManager(LoggingMixin):
         pod: V1Pod,
         init_containers: Iterable[str] | str | Literal[True] | None,
         follow_logs=False,
-        log_prefix: bool = True,
+        container_name_log_prefix_enabled: bool = True,
         log_formatter: Callable[[str, str], str] | None = None,
     ) -> list[PodLoggingStatus]:
         """
@@ -678,7 +682,7 @@ class PodManager(LoggingMixin):
                 pod=pod,
                 container_name=c,
                 follow=follow_logs,
-                log_prefix=log_prefix,
+                container_name_log_prefix_enabled=container_name_log_prefix_enabled,
                 log_formatter=log_formatter,
             )
             pod_logging_statuses.append(status)
@@ -689,7 +693,7 @@ class PodManager(LoggingMixin):
         pod: V1Pod,
         containers: Iterable[str] | str | Literal[True],
         follow_logs=False,
-        log_prefix: bool = True,
+        container_name_log_prefix_enabled: bool = True,
         log_formatter: Callable[[str, str], str] | None = None,
     ) -> list[PodLoggingStatus]:
         """
@@ -711,7 +715,7 @@ class PodManager(LoggingMixin):
                 pod=pod,
                 container_name=c,
                 follow=follow_logs,
-                log_prefix=log_prefix,
+                container_name_log_prefix_enabled=container_name_log_prefix_enabled,
                 log_formatter=log_formatter,
             )
             pod_logging_statuses.append(status)

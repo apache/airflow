@@ -552,7 +552,7 @@ class TestKubernetesPodOperatorSystem:
                 task_id=str(uuid4()),
                 in_cluster=False,
                 do_xcom_push=False,
-                log_prefix=False,
+                container_name_log_prefix_enabled=False,
             )
             context = create_context(k)
             k.execute(context=context)
@@ -1452,15 +1452,11 @@ class TestKubernetesPodOperatorSystem:
             ),
         ],
     )
-    def test_log_output_configurations(
-        self, mock_get_connection, log_prefix_enabled, log_formatter, expected_log_message_check
-    ):
+    def test_log_output_configurations(self, log_prefix_enabled, log_formatter, expected_log_message_check):
         """
-        Tests various log output configurations (log_prefix, log_formatter)
+        Tests various log output configurations (container_name_log_prefix_enabled, log_formatter)
         for KubernetesPodOperator.
         """
-        from airflow.providers.cncf.kubernetes.utils.pod_manager import PodLoggingStatus
-
         marker = f"test_log_{uuid4()}"
         k = KubernetesPodOperator(
             namespace="default",
@@ -1472,36 +1468,24 @@ class TestKubernetesPodOperatorSystem:
             in_cluster=False,
             do_xcom_push=False,
             get_logs=True,
-            log_prefix=log_prefix_enabled,
+            container_name_log_prefix_enabled=log_prefix_enabled,
             log_formatter=log_formatter,
         )
-        context = create_context(k)
+
+        # Test the _log_message method directly
         logger = logging.getLogger("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager")
         with mock.patch.object(logger, "info") as mock_info:
-            with mock.patch.object(PodManager, "fetch_container_logs") as mock_fetch_logs:
-                # Mock the fetch_container_logs to simulate log output
-                def side_effect(
-                    pod,
-                    container_name,
-                    follow,
-                    since_time=None,
-                    post_termination_timeout=120,
-                    log_prefix=True,
-                    log_formatter=None,
-                ):
-                    log_message = marker
-                    if log_formatter:
-                        log_message = log_formatter(container_name, marker)
-                    else:
-                        log_message = f"[{container_name}] {marker}" if log_prefix else marker
-                    logger.info(log_message)
-                    return PodLoggingStatus(last_log_time=pendulum.now(), running=False)
+            k.pod_manager._log_message(
+                message=marker,
+                container_name="base",
+                container_name_log_prefix_enabled=log_prefix_enabled,
+                log_formatter=log_formatter,
+            )
 
-                mock_fetch_logs.side_effect = side_effect
-                k.execute(context)
-
-            captured_messages = [call_args[0][0] for call_args in mock_info.call_args_list if call_args]
-            assert any(expected_log_message_check(marker, msg) for msg in captured_messages)
+            # Check that the message was logged with the expected format
+            mock_info.assert_called_once()
+            logged_message = mock_info.call_args[0][1]  # Second argument is the message
+            assert expected_log_message_check(marker, logged_message)
 
 
 # TODO: Task SDK: https://github.com/apache/airflow/issues/45438
