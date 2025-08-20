@@ -2176,7 +2176,7 @@ class TestInProcessTestSupervisor:
         pytest.param(False, "", "", id="no-remote-logging"),
     ),
 )
-def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypatch):
+def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypatch, mocker):
     # This doesn't strictly need the AWS provider, but it does need something that
     # airflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG knows about
     pytest.importorskip("airflow.providers.amazon", reason="'amazon' provider not installed")
@@ -2195,6 +2195,9 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
             },
         )
 
+    mock_masker = mocker.Mock()
+    mocker.patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=mock_masker)
+
     with conf_vars(
         {
             ("logging", "remote_logging"): str(remote_logging),
@@ -2211,3 +2214,29 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
                 assert new_keys == {expected_env}
             else:
                 assert not new_keys
+
+        if remote_logging and expected_env:
+            connection_available = {"available": False, "conn_uri": None}
+
+            def mock_upload_to_remote(process_log, ti):
+                connection_available["available"] = expected_env in os.environ
+                connection_available["conn_uri"] = os.environ.get(expected_env)
+
+            mocker.patch("airflow.sdk.log.upload_to_remote", side_effect=mock_upload_to_remote)
+
+            activity_subprocess = ActivitySubprocess(
+                process_log=mocker.MagicMock(),
+                id=TI_ID,
+                pid=12345,
+                stdin=mocker.MagicMock(),
+                client=client,
+                process=mocker.MagicMock(),
+            )
+            activity_subprocess.ti = mocker.MagicMock()
+
+            activity_subprocess._upload_logs()
+
+            assert connection_available["available"], (
+                f"Connection {expected_env} was not available during upload_to_remote call"
+            )
+            assert connection_available["conn_uri"] is not None, "Connection URI was None during upload"
