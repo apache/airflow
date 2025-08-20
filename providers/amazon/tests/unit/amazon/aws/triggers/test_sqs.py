@@ -103,8 +103,8 @@ class TestSqsTriggers:
 
 @mark_common_msg_queue_test
 class TestMessageQueueTrigger:
-    @pytest.mark.usefixtures("collect_queue_param_deprecation_warning, cleanup_providers_manager")
-    def test_provider_integrations_with_queue_param(self):
+    @pytest.mark.usefixtures("collect_queue_param_deprecation_warning")
+    def test_provider_integrations_with_queue_param(self, cleanup_providers_manager):
         queue = "https://sqs.us-east-1.amazonaws.com/0123456789/Test"
         from airflow.providers.amazon.aws.triggers.sqs import SqsSensorTrigger
         from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
@@ -112,8 +112,7 @@ class TestMessageQueueTrigger:
         trigger = MessageQueueTrigger(queue=queue)
         assert isinstance(trigger.trigger, SqsSensorTrigger)
 
-    @pytest.mark.usefixtures("cleanup_providers_manager")
-    def test_provider_integrations_with_scheme_param(self):
+    def test_provider_integrations_with_scheme_param(self, cleanup_providers_manager):
         from airflow.providers.amazon.aws.triggers.sqs import SqsSensorTrigger
         from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
 
