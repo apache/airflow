@@ -71,6 +71,11 @@ from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
+from airflow.exceptions import (
+    AirflowInactiveAssetInInletOrOutletException,
+    TaskDeferralError,
+    TaskDeferred,
+)
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies
@@ -82,11 +87,6 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComSelectSequence, XComModel
-from airflow.sdk.exceptions import (
-    AirflowInactiveAssetInInletOrOutletException,
-    TaskDeferralError,
-    TaskDeferred,
-)
 from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext

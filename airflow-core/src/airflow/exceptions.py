@@ -45,6 +45,10 @@ class AirflowException(Exception):
         return f"{cls.__module__}.{cls.__name__}", (str(self),), {}
 
 
+class AirflowDagCycleException(AirflowException):
+    """Raise when there is a cycle in DAG definition."""
+
+
 class AirflowBadRequest(AirflowException):
     """Raise when the application or server cannot handle the request."""
 
