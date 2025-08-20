@@ -45,7 +45,9 @@ runs:
         SKIP: ${{ inputs.skip-prek-hooks }}
       run: |
         pip install uv==${UV_VERSION} || true
-        uv tool install prek==${PREK_VERSION} --with uv==${UV_VERSION}
+        # TODO(potiuk): bring it back when we have prek with workspaces in PyPI
+        # uv tool install prek==${PREK_VERSION} --with uv==${UV_VERSION}
+        uv tool install "prek @ git+https://github.com/j178/prek.git@workspace" --with uv==${UV_VERSION}
       working-directory: ${{ github.workspace }}
     # We need to use tar file with archive to restore all the permissions and symlinks
     - name: "Delete ~.cache"
@@ -61,7 +63,7 @@ runs:
       uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
       with:
         # yamllint disable rule:line-length
-        key: cache-prek-v6-${{ inputs.platform }}-${{ inputs.python-version }}-${{ hashFiles('.pre-commit-config.yaml') }}
+        key: cache-prek-v6-${{ inputs.platform }}-${{ inputs.python-version }}-${{ hashFiles('**/.pre-commit-config.yaml') }}
         path: /tmp/
       id: restore-prek-cache
     - name: "Check if prek cache tarball exists"

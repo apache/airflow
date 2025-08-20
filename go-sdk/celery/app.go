@@ -25,14 +25,13 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/apache/airflow/go-sdk/pkg/api"
+	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
+	"github.com/apache/airflow/go-sdk/worker"
 	celery "github.com/marselester/gopher-celery"
 	celeryredis "github.com/marselester/gopher-celery/goredis"
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/viper"
-
-	"github.com/apache/airflow/go-sdk/pkg/api"
-	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
-	"github.com/apache/airflow/go-sdk/worker"
 )
 
 func Run(ctx context.Context, config Config) error {

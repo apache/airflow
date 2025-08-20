@@ -630,7 +630,9 @@ function common::install_packaging_tools() {
         echo "${COLOR_BLUE}Installing predefined versions of prek, uv:${COLOR_RESET}"
         echo "${COLOR_BLUE}prek(${AIRFLOW_PREK_VERSION}) uv(${AIRFLOW_UV_VERSION})${COLOR_RESET}"
         echo
-        uv tool install "prek==${AIRFLOW_PREK_VERSION}" --with "uv==${AIRFLOW_UV_VERSION}"
+        # TODO(potiuk): bring it back when we have prek with workspaces in PyPI
+        #uv tool install "prek==${AIRFLOW_PREK_VERSION}" --with "uv==${AIRFLOW_UV_VERSION}"
+        uv tool install "prek @ git+https://github.com/j178/prek.git@workspace"
         # make sure that the venv/user in .local exists
         mkdir -p "${HOME}/.local/bin"
     fi

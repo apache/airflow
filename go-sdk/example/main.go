@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/MatusOllah/slogcolor"
-
 	airflow "github.com/apache/airflow/go-sdk/celery/cmd"
 	"github.com/apache/airflow/go-sdk/sdk"
 	"github.com/apache/airflow/go-sdk/worker"

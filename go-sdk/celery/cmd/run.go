@@ -18,10 +18,9 @@
 package cmd
 
 import (
+	"github.com/apache/airflow/go-sdk/celery"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-
-	"github.com/apache/airflow/go-sdk/celery"
 )
 
 var runCmd = &cobra.Command{
