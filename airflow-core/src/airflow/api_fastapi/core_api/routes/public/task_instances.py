@@ -704,7 +704,6 @@ def post_clear_task_instances(
     downstream = body.include_downstream
     upstream = body.include_upstream
 
-    # Improved logic - resolve logical_date for scheduled DAGRun
     if dag_run_id is not None:
         dag_run: DagRun | None = session.scalar(
             select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)
