@@ -409,6 +409,10 @@ class DagFileProcessorProcess(WatchedSubprocess):
         elif isinstance(msg, GetVariable):
             var = self.client.variables.get(msg.key)
             if isinstance(var, VariableResponse):
+                if var.value:
+                    from airflow.sdk.log import mask_secret
+
+                    mask_secret(var.value, var.key)
                 var_result = VariableResult.from_variable_response(var)
                 resp = var_result
                 dump_opts = {"exclude_unset": True}

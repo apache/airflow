@@ -436,6 +436,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         elif isinstance(msg, GetVariable):
             var = self.client.variables.get(msg.key)
             if isinstance(var, VariableResponse):
+                if var.value:
+                    from airflow.sdk.log import mask_secret
+
+                    mask_secret(var.value, var.key)
                 var_result = VariableResult.from_variable_response(var)
                 resp = var_result
                 dump_opts = {"exclude_unset": True}
@@ -514,10 +518,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
     def run(self) -> None:
         """Run synchronously and handle all database reads/writes."""
-        from airflow._shared.secrets_masker.secrets_masker import reset_secrets_masker
-
-        reset_secrets_masker()
-
         while not self.stop:
             if not self.is_alive():
                 log.error("Trigger runner process has died! Exiting.")
