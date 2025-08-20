@@ -152,7 +152,7 @@ class AzureServiceBusSubscriptionTrigger(BaseAzureServiceBusTrigger):
         self.topics = topics
         self.subscription_name = subscription_name
 
-    def serialize(self) -> tuple[str, dict[str, any]]:
+    def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
             self.__class__.__module__ + "." + self.__class__.__qualname__,
             {
