@@ -17,15 +17,15 @@
  * under the License.
  */
 import { Heading, Skeleton, Box, HStack } from "@chakra-ui/react";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskServiceGetTasks } from "openapi/queries";
 import type { TaskResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import type { CardDef } from "src/components/DataTable/types";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { SearchParamsKeys } from "src/constants/searchParams.ts";
 import { AttrSelectFilter } from "src/pages/Dag/Tasks/AttrSelectFilter.tsx";
 import { AttrSelectFilterMulti } from "src/pages/Dag/Tasks/AttrSelectFilterMulti.tsx";
 import { ResetButton } from "src/pages/DagsList/DagsFilters/ResetButton.tsx";
@@ -42,10 +42,37 @@ const cardDef = (dagId: string): CardDef<TaskResponse> => ({
 export const Tasks = () => {
   const { t: translate } = useTranslation();
   const { dagId = "" } = useParams();
-  const [selectedOperators, setSelectedOperators] = useState<Array<string> | undefined>(undefined);
-  const [selectedTriggerRules, setSelectedTriggerRules] = useState<Array<string> | undefined>(undefined);
-  const [selectedRetryValues, setSelectedRetryValues] = useState<Array<string> | undefined>(undefined);
-  const [selectedMapped, setSelectedMapped] = useState<string | undefined>(undefined);
+  const { MAPPED, OPERATOR, RETRIES, TRIGGER_RULE } = SearchParamsKeys;
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedOperators = searchParams.getAll(OPERATOR);
+  const selectedTriggerRules = searchParams.getAll(TRIGGER_RULE);
+  const selectedRetries = searchParams.getAll(RETRIES);
+  const selectedMapped = searchParams.get(MAPPED) ?? undefined;
+
+  const handleSelectedOperators = (value: Array<string> | undefined) => {
+    searchParams.delete(OPERATOR);
+    value?.forEach((x) => searchParams.append(OPERATOR, x));
+    setSearchParams(searchParams);
+  };
+  const handleSelectedRetries = (value: Array<string> | undefined) => {
+    searchParams.delete(RETRIES);
+    value?.forEach((x) => searchParams.append(RETRIES, x));
+    setSearchParams(searchParams);
+  };
+  const handleSelectedTriggerRules = (value: Array<string> | undefined) => {
+    searchParams.delete(TRIGGER_RULE);
+    value?.forEach((x) => searchParams.append(TRIGGER_RULE, x));
+    setSearchParams(searchParams);
+  };
+  const handleSelectedMapped = (value: string | undefined) => {
+    searchParams.delete(MAPPED);
+    if (value !== undefined) {
+      searchParams.set(MAPPED, value);
+    }
+    setSearchParams(searchParams);
+  };
+
   const {
     data,
     error: tasksError,
@@ -56,10 +83,10 @@ export const Tasks = () => {
   });
 
   const onClearFilters = () => {
-    setSelectedOperators(undefined);
-    setSelectedTriggerRules(undefined);
-    setSelectedRetryValues(undefined);
-    setSelectedMapped(undefined);
+    handleSelectedOperators(undefined);
+    handleSelectedTriggerRules(undefined);
+    handleSelectedRetries(undefined);
+    handleSelectedMapped(undefined);
   };
 
   const allOperatorNames: Array<string> = [
@@ -101,10 +128,10 @@ export const Tasks = () => {
 
   const filteredTasks = filterTasks({
     mapped: selectedMapped,
-    operatorNames: selectedOperators ?? [],
-    retryValues: selectedRetryValues ?? [],
+    operatorNames: selectedOperators,
+    retryValues: selectedRetries,
     tasks: data ? data.tasks : [],
-    triggerRuleNames: selectedTriggerRules ?? [],
+    triggerRuleNames: selectedTriggerRules,
   });
 
   return (
@@ -117,27 +144,27 @@ export const Tasks = () => {
       <HStack>
         <AttrSelectFilterMulti
           displayPrefix={undefined}
-          handleSelect={setSelectedOperators}
+          handleSelect={handleSelectedOperators}
           placeholderText={translate("selectOperator")}
           selectedValues={selectedOperators}
           values={allOperatorNames}
         />
         <AttrSelectFilterMulti
           displayPrefix={undefined}
-          handleSelect={setSelectedTriggerRules}
+          handleSelect={handleSelectedTriggerRules}
           placeholderText={translate("selectTriggerRules")}
           selectedValues={selectedTriggerRules}
           values={allTriggerRules}
         />
         <AttrSelectFilterMulti
           displayPrefix="Retries"
-          handleSelect={setSelectedRetryValues}
+          handleSelect={handleSelectedRetries}
           placeholderText={translate("selectRetryValues")}
-          selectedValues={selectedRetryValues}
+          selectedValues={selectedRetries}
           values={allRetryValues}
         />
         <AttrSelectFilter
-          handleSelect={setSelectedMapped}
+          handleSelect={handleSelectedMapped}
           placeholderText="Select mapped"
           selectedValue={selectedMapped}
           values={allMappedValues}
