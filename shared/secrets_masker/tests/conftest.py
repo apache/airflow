@@ -16,18 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import patch
+import os
 
-import pytest
-
-
-@pytest.fixture
-def patched_secrets_masker():
-    from airflow_shared.secrets_masker.secrets_masker import SecretsMasker
-
-    secrets_masker = SecretsMasker()
-    with (
-        patch("airflow_shared.secrets_masker.secrets_masker._secrets_masker", return_value=secrets_masker),
-        patch("airflow.settings.MASK_SECRETS_IN_LOGS", True),
-    ):
-        yield secrets_masker
+os.environ["_AIRFLOW__AS_LIBRARY"] = "true"

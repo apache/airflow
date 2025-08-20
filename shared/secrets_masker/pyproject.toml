@@ -24,7 +24,17 @@ classifiers = [
 ]
 
 dependencies = [
-    # No external dependencies - only standard library
+    'pendulum>=3.1.0',
+    "methodtools>=0.4.7",
+    "colorlog>=6.8.2",
+    "pydantic>=2.11.0",
+    "lazy-object-proxy>=1.2.0",
+    "aiosqlite>=0.20.0",
+]
+
+[dependency-groups]
+dev = [
+    "apache-airflow-devel-common",
 ]
 
 [build-system]

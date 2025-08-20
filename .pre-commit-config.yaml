@@ -1719,6 +1719,7 @@ repos:
           ^airflow-core/src/airflow/settings\.py$|
           ^airflow-core/src/airflow/models/renderedtifields\.py$|
           ^airflow-core/src/airflow/serialization/helpers\.py$|
-          ^airflow-core/src/airflow/models/expandinput\.py$
+          ^airflow-core/src/airflow/models/expandinput\.py$|
+          ^airflow-core/src/airflow/cli/commands/triggerer_command.py$
         additional_dependencies: ['rich>=12.4.4']
         ## ONLY ADD PREK HOOKS HERE THAT REQUIRE CI IMAGE

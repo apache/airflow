@@ -1812,10 +1812,30 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
 
     if next(request.node.iter_markers("enable_redact"), None):
         with pytest.MonkeyPatch.context() as mp_ctx:
-            mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", True)
+            if AIRFLOW_V_3_1_PLUS:
+                try:
+                    from airflow._shared.secrets_masker.secrets_masker import (
+                        SecretsMasker as CoreSecretsMasker,
+                    )
+
+                    mp_ctx.setattr(CoreSecretsMasker, "MASK_SECRETS_IN_LOGS", True)
+                except ImportError:
+                    pass
+                try:
+                    from airflow.sdk._shared.secrets_masker.secrets_masker import (
+                        SecretsMasker as SDKSecretsMasker,
+                    )
+
+                    mp_ctx.setattr(SDKSecretsMasker, "MASK_SECRETS_IN_LOGS", True)
+                except ImportError:
+                    pass
+            else:
+                # Fallback for older versions
+                mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", True)
             yield
         return
 
+    # Rest of the mocking logic remains the same
     targets = []
     if AIRFLOW_V_3_1_PLUS:
         targets = [
@@ -1832,7 +1852,25 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
         mocked_redact.side_effect = lambda item, *args, **kwargs: item
 
     with pytest.MonkeyPatch.context() as mp_ctx:
-        mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", False)
+        # NEW: Set class variable instead of settings
+        if AIRFLOW_V_3_1_PLUS:
+            try:
+                from airflow._shared.secrets_masker.secrets_masker import SecretsMasker
+
+                mp_ctx.setattr(SecretsMasker, "MASK_SECRETS_IN_LOGS", False)
+            except ImportError:
+                pass
+            try:
+                from airflow.sdk._shared.secrets_masker.secrets_masker import (
+                    SecretsMasker as SDKSecretsMasker,
+                )
+
+                mp_ctx.setattr(SDKSecretsMasker, "MASK_SECRETS_IN_LOGS", False)
+            except ImportError:
+                pass
+        else:
+            # Fallback for older versions
+            mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", False)
         yield
     return
 

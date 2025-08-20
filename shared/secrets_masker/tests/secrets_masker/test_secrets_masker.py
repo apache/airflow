@@ -84,13 +84,13 @@ def logger(caplog):
     caplog.handler.setFormatter(formatter)
     logger.handlers = [caplog.handler]
     filt = SecretsMasker()
+    filt.MASK_SECRETS_IN_LOGS = True
     logger.addFilter(filt)
 
     filt.add_mask("password")
     return logger
 
 
-@pytest.mark.usefixtures("patched_secrets_masker")
 class TestSecretsMasker:
     def test_message(self, logger, caplog):
         logger.info("XpasswordY")
@@ -353,17 +353,9 @@ class TestSecretsMasker:
         # we expect the object's __str__() output to be logged (no warnings due to a failed masking)
         assert caplog.messages == ["redacted: ***"]
 
-    from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
-
     @pytest.mark.parametrize(
         "state, expected",
         [
-            (DagRunState.SUCCESS, "success"),
-            (TaskInstanceState.FAILED, "failed"),
-            (JobState.RUNNING, "running"),
-            ([DagRunState.SUCCESS, DagRunState.RUNNING], ["success", "running"]),
-            ([TaskInstanceState.FAILED, TaskInstanceState.SUCCESS], ["failed", "success"]),
-            (State.failed_states, frozenset([TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED])),
             (MyEnum.testname, "testvalue"),
         ],
     )
@@ -771,7 +763,6 @@ class TestSecretsMaskerMerge:
             ("new_value", "original_value", None, "new_value"),
         ],
     )
-    @pytest.mark.usefixtures("patched_secrets_masker")
     def test_merge_simple_strings(self, new_value, old_value, name, expected):
         result = merge(new_value, old_value, name)
         assert result == expected
@@ -824,7 +815,6 @@ class TestSecretsMaskerMerge:
             ),
         ],
     )
-    @pytest.mark.usefixtures("patched_secrets_masker")
     def test_merge_dictionaries(self, old_data, new_data, expected):
         result = merge(new_data, old_data)
         assert result == expected
@@ -909,12 +899,10 @@ class TestSecretsMaskerMerge:
             ),
         ],
     )
-    @pytest.mark.usefixtures("patched_secrets_masker")
     def test_merge_collections(self, old_data, new_data, name, expected):
         result = merge(new_data, old_data, name)
         assert result == expected
 
-    @pytest.mark.usefixtures("patched_secrets_masker")
     def test_merge_mismatched_types(self):
         old_data = {"key": "value"}
         new_data = "some_string"  # Different type
@@ -925,7 +913,6 @@ class TestSecretsMaskerMerge:
         result = merge(new_data, old_data)
         assert result == expected
 
-    @pytest.mark.usefixtures("patched_secrets_masker")
     def test_merge_with_missing_keys(self):
         old_data = {"password": "original_password", "old_only_key": "old_value", "common_key": "old_common"}
 
@@ -944,7 +931,6 @@ class TestSecretsMaskerMerge:
         result = merge(new_data, old_data)
         assert result == expected
 
-    @pytest.mark.usefixtures("patched_secrets_masker")
     def test_merge_complex_redacted_structures(self):
         old_data = {
             "some_config": {
@@ -969,7 +955,6 @@ class TestSecretsMaskerMerge:
         }
         assert result == expected
 
-    @pytest.mark.usefixtures("patched_secrets_masker")
     def test_merge_partially_redacted_structures(self):
         old_data = {
             "config": {
@@ -1004,7 +989,6 @@ class TestSecretsMaskerMerge:
         result = merge(new_data, old_data)
         assert result == expected
 
-    @pytest.mark.usefixtures("patched_secrets_masker")
     def test_merge_max_depth(self):
         old_data = {"level1": {"level2": {"level3": {"password": "original_password"}}}}
         new_data = {"level1": {"level2": {"level3": {"password": "***"}}}}
@@ -1015,7 +999,6 @@ class TestSecretsMaskerMerge:
         result = merge(new_data, old_data, max_depth=10)
         assert result["level1"]["level2"]["level3"]["password"] == "original_password"
 
-    @pytest.mark.usefixtures("patched_secrets_masker")
     def test_merge_enum_values(self):
         old_enum = MyEnum.testname
         new_enum = MyEnum.testname2
@@ -1024,7 +1007,6 @@ class TestSecretsMaskerMerge:
         assert result == new_enum
         assert isinstance(result, MyEnum)
 
-    @pytest.mark.usefixtures("patched_secrets_masker")
     def test_merge_round_trip(self):
         # Original data with sensitive information
         original_config = {

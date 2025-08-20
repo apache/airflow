@@ -202,6 +202,8 @@ class SecretsMasker(logging.Filter):
     ALREADY_FILTERED_FLAG = "__SecretsMasker_filtered"
     MAX_RECURSION_DEPTH = 5
     _has_warned_short_secret = False
+    # default to false
+    MASK_SECRETS_IN_LOGS = False
 
     def __init__(self):
         super().__init__()
@@ -262,9 +264,7 @@ class SecretsMasker(logging.Filter):
             self._redact_exception_with_context(exception.__cause__)
 
     def filter(self, record) -> bool:
-        from airflow import settings
-
-        if settings.MASK_SECRETS_IN_LOGS is not True:
+        if self.MASK_SECRETS_IN_LOGS is not True:
             return True
 
         if self.ALREADY_FILTERED_FLAG in record.__dict__:
