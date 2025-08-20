@@ -1169,8 +1169,7 @@ def _get_email_subject_content(
     :meta private:
     """
     from airflow.sdk.definitions._internal.templater import SandboxedEnvironment
-    from airflow.sdk.definitions.context import Context
-    from airflow.utils.helpers import render_template_to_string
+    from airflow.sdk.definitions.context import Context, render_template_to_string
 
     exception_html = str(exception).replace("\n", "<br>")
 
