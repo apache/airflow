@@ -40,6 +40,7 @@ import { ProgressBar } from "src/components/ui";
 import { useColorMode } from "src/context/colorMode";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { useConfig } from "src/queries/useConfig";
+import { renderDuration } from "src/utils";
 
 SyntaxHighlighter.registerLanguage("python", python);
 
@@ -98,6 +99,11 @@ export const Code = () => {
           {dag?.last_parsed_time !== undefined && (
             <Heading as="h4" fontSize="14px" size="md">
               {translate("code.parsedAt")} <Time datetime={dag.last_parsed_time} />
+            </Heading>
+          )}
+          {dag?.last_parse_duration !== undefined && (
+            <Heading as="h4" fontSize="14px" size="md">
+              {translate("code.parseDuration")} {renderDuration(dag.last_parse_duration)}
             </Heading>
           )}
 

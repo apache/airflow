@@ -623,6 +623,7 @@ class TestDagDetails(TestDagEndpoint):
             "last_expired": None,
             "last_parsed": last_parsed,
             "last_parsed_time": last_parsed_time,
+            "last_parse_duration": mock.ANY,
             "max_active_runs": 16,
             "max_active_tasks": 16,
             "max_consecutive_failed_dag_runs": 0,
@@ -678,6 +679,7 @@ class TestDagDetails(TestDagEndpoint):
         res_json = response.json()
         last_parsed = res_json["last_parsed"]
         last_parsed_time = res_json["last_parsed_time"]
+        last_parse_duration = res_json["last_parse_duration"]
         file_token = res_json["file_token"]
         expected = {
             "bundle_name": "dag_maker",
@@ -716,6 +718,7 @@ class TestDagDetails(TestDagEndpoint):
             "last_expired": None,
             "last_parsed": last_parsed,
             "last_parsed_time": last_parsed_time,
+            "last_parse_duration": last_parse_duration,
             "max_active_runs": 16,
             "max_active_tasks": 16,
             "max_consecutive_failed_dag_runs": 0,
@@ -774,6 +777,7 @@ class TestGetDag(TestDagEndpoint):
         # Match expected and actual responses below.
         res_json = response.json()
         last_parsed_time = res_json["last_parsed_time"]
+        last_parse_duration = res_json["last_parse_duration"]
         file_token = res_json["file_token"]
         tags = res_json.get("tags", [])
 
@@ -805,6 +809,7 @@ class TestGetDag(TestDagEndpoint):
             "last_expired": None,
             "max_active_tasks": 16,
             "last_parsed_time": last_parsed_time,
+            "last_parse_duration": last_parse_duration,
             "timetable_description": "Never, external triggers only",
             "has_import_errors": False,
             "bundle_name": "dag_maker",

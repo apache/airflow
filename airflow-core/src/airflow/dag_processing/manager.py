@@ -1164,6 +1164,7 @@ def process_parse_results(
             bundle_version=bundle_version,
             dags=parsing_result.serialized_dags,
             import_errors=import_errors,
+            parse_duration=run_duration,
             warnings=set(parsing_result.warnings or []),
             session=session,
         )
