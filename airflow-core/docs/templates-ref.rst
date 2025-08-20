@@ -109,8 +109,9 @@ Variable                                    Type                  Description
 Accessing Airflow context variables from TaskFlow tasks
 -------------------------------------------------------
 
-``@task`` decorated tasks support rendering jinja templates for all of the none default
-arguments.
+``@task`` decorated tasks support rendering jinja templates for all of the arguments without
+default value, or in other words, an argument with a default value to a template string (e.g.,
+"{{ task_instance.run_id }}", the argument won't be rendered.
 Beside that, we can access the context variables using the following code block:
 
 .. include:: /../../devel-common/src/docs/shared/template-examples/taskflow.rst
