@@ -33,6 +33,7 @@ from sqlalchemy.sql.expression import func, literal
 from sqlalchemy_utils import UUIDType
 
 from airflow._shared.timezones import timezone
+from airflow.exceptions import TaskNotFound
 from airflow.models.asset import (
     AssetAliasModel,
     AssetModel,
@@ -43,7 +44,6 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun
 from airflow.sdk.definitions.asset import AssetUniqueKey
-from airflow.sdk.exceptions import TaskNotFound
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import COMPRESS_SERIALIZED_DAGS, json
