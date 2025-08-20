@@ -1747,7 +1747,8 @@ def _configure_logging(log_path: str, client: Client) -> tuple[FilteringBoundLog
         log_file_descriptor = log_file.open("ab")
         underlying_logger = structlog.BytesLogger(cast("BinaryIO", log_file_descriptor))
 
-    processors = logging_processors(enable_pretty_log=pretty_logs)[0]
+    with _remote_logging_conn(client):
+        processors = logging_processors(enable_pretty_log=pretty_logs)[0]
     logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
 
     return logger, log_file_descriptor
