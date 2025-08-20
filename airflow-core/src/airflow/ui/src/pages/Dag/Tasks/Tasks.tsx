@@ -101,8 +101,8 @@ export const Tasks = () => {
     ),
   ];
   const allMappedValues = [
-    { key: "true", label: "Mapped" },
-    { key: "false", label: "Not mapped" },
+    { key: "true", label: translate("mapped") },
+    { key: "false", label: translate("notMapped") },
   ];
 
   const filterTasks = ({
@@ -157,7 +157,7 @@ export const Tasks = () => {
           values={allTriggerRules}
         />
         <AttrSelectFilterMulti
-          displayPrefix="Retries"
+          displayPrefix={translate("retries")}
           handleSelect={handleSelectedRetries}
           placeholderText={translate("selectRetryValues")}
           selectedValues={selectedRetries}
@@ -165,7 +165,7 @@ export const Tasks = () => {
         />
         <AttrSelectFilter
           handleSelect={handleSelectedMapped}
-          placeholderText="Select mapped"
+          placeholderText={translate("selectMapped")}
           selectedValue={selectedMapped}
           values={allMappedValues}
         />

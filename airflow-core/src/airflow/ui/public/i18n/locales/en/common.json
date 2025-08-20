@@ -97,6 +97,7 @@
   "logout": "Logout",
   "logoutConfirmation": "You are about to logout from the application.",
   "mapIndex": "Map Index",
+  "mapped": "Mapped",
   "modal": {
     "cancel": "Cancel",
     "confirm": "Confirm",
@@ -117,6 +118,7 @@
     "security": "Security"
   },
   "noItemsFound": "No {{modelName}} found",
+  "notMapped": "Not mapped",
   "note": {
     "add": "Add a note",
     "dagRun": "Dag Run Note",
@@ -133,6 +135,7 @@
     "running": "Running",
     "scheduled": "Scheduled"
   },
+  "retries": "Retries",
   "runId": "Run ID",
   "runTypes": {
     "asset_triggered": "Asset Triggered",
@@ -156,7 +159,8 @@
     "users": "Users"
   },
   "selectLanguage": "Select Language",
-  "selectOperator": "Select Operators",
+  "selectMapped": "Select mapped",
+  "selectOperator": "Select operators",
   "selectRetryValues": "Select retry values",
   "selectTriggerRules": "Select trigger rules",
   "showDetailsPanel": "Show Details Panel",
