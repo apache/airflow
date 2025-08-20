@@ -629,9 +629,9 @@ class TestBaseChartTest:
     @pytest.mark.parametrize(
         "invalid_executor",
         [
-            "Executor", # class name must include more than just Executor
-            "ExecutorCustom", # class name must end with Executor
-            "Customexecutor", # lowercase Executor is disallowed
+            "Executor",  # class name must include more than just Executor
+            "ExecutorCustom",  # class name must end with Executor
+            "Customexecutor",  # lowercase Executor is disallowed
         ],
     )
     def test_unsupported_executor(self, invalid_executor):
