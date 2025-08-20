@@ -57,6 +57,8 @@ jobs:
     outputs:
       all-python-versions-list-as-string: >-
         ${{ steps.selective-checks.outputs.all-python-versions-list-as-string }}
+      amd-runners: ${{ steps.selective-checks.outputs.amd-runners }}
+      arm-runners: ${{ steps.selective-checks.outputs.arm-runners }}
       basic-checks-only: ${{ steps.selective-checks.outputs.basic-checks-only }}
       canary-run: ${{ steps.source-run-info.outputs.canary-run }}
       ci-image-build: ${{ steps.selective-checks.outputs.ci-image-build }}
@@ -92,11 +94,6 @@ jobs:
       mypy-checks: ${{ steps.selective-checks.outputs.mypy-checks }}
       mysql-exclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
       mysql-versions: ${{ steps.selective-checks.outputs.mysql-versions }}
-      needs-api-codegen: ${{ steps.selective-checks.outputs.needs-api-codegen }}
-      needs-api-tests: ${{ steps.selective-checks.outputs.needs-api-tests }}
-      needs-helm-tests: ${{ steps.selective-checks.outputs.needs-helm-tests }}
-      needs-mypy: ${{ steps.selective-checks.outputs.needs-mypy }}
-      only-new-ui-files: ${{ steps.selective-checks.outputs.only-new-ui-files }}
       postgres-exclude: ${{ steps.selective-checks.outputs.postgres-exclude }}
       postgres-versions: ${{ steps.selective-checks.outputs.postgres-versions }}
       prod-image-build: ${{ steps.selective-checks.outputs.prod-image-build }}
@@ -108,18 +105,20 @@ jobs:
       pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
       python-versions-list-as-string: ${{ steps.selective-checks.outputs.python-versions-list-as-string }}
       python-versions: ${{ steps.selective-checks.outputs.python-versions }}
-      run-amazon-tests: ${{ steps.selective-checks.outputs.run-amazon-tests }}
       run-airflow-ctl-tests: ${{ steps.selective-checks.outputs.run-airflow-ctl-tests }}
+      run-amazon-tests: ${{ steps.selective-checks.outputs.run-amazon-tests }}
+      run-api-codegen: ${{ steps.selective-checks.outputs.run-api-codegen }}
+      run-api-tests: ${{ steps.selective-checks.outputs.run-api-tests }}
       run-coverage: ${{ steps.source-run-info.outputs.run-coverage }}
-      run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
-      run-task-sdk-tests: ${{ steps.selective-checks.outputs.run-task-sdk-tests }}
       run-go-sdk-tests: ${{ steps.selective-checks.outputs.run-go-sdk-tests }}
+      run-helm-tests: ${{ steps.selective-checks.outputs.run-helm-tests }}
+      run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
+      run-mypy: ${{ steps.selective-checks.outputs.run-mypy }}
       run-system-tests: ${{ steps.selective-checks.outputs.run-system-tests }}
-      run-tests: ${{ steps.selective-checks.outputs.run-tests }}
+      run-task-sdk-tests: ${{ steps.selective-checks.outputs.run-task-sdk-tests }}
       run-ui-tests: ${{ steps.selective-checks.outputs.run-ui-tests }}
+      run-unit-tests: ${{ steps.selective-checks.outputs.run-unit-tests }}
       run-www-tests: ${{ steps.selective-checks.outputs.run-www-tests }}
-      amd-runners: ${{ steps.selective-checks.outputs.amd-runners }}
-      arm-runners: ${{ steps.selective-checks.outputs.arm-runners }}
       selected-providers-list-as-string: >-
         ${{ steps.selective-checks.outputs.selected-providers-list-as-string }}
       skip-prek-hooks: ${{ steps.selective-checks.outputs.skip-prek-hooks }}
@@ -205,13 +204,14 @@ jobs:
       runners: ${{ needs.build-info.outputs.amd-runners }}
       run-ui-tests: ${{needs.build-info.outputs.run-ui-tests}}
       run-www-tests: ${{needs.build-info.outputs.run-www-tests}}
-      needs-api-codegen: ${{needs.build-info.outputs.needs-api-codegen}}
+      run-api-codegen: ${{needs.build-info.outputs.run-api-codegen}}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       basic-checks-only: ${{needs.build-info.outputs.basic-checks-only}}
       skip-prek-hooks: ${{needs.build-info.outputs.skip-prek-hooks}}
       canary-run: ${{needs.build-info.outputs.canary-run}}
       latest-versions-only: ${{needs.build-info.outputs.latest-versions-only}}
       use-uv: ${{needs.build-info.outputs.use-uv}}
+      platform: "linux/amd64"
 
   build-ci-images:
     name: Build CI images
@@ -289,7 +289,7 @@ jobs:
     with:
       runners: ${{ needs.build-info.outputs.amd-runners }}
       platform: "linux/amd64"
-      needs-mypy: ${{ needs.build-info.outputs.needs-mypy }}
+      run-mypy: ${{ needs.build-info.outputs.run-mypy }}
       mypy-checks: ${{ needs.build-info.outputs.mypy-checks }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       branch: ${{ needs.build-info.outputs.default-branch }}
@@ -304,7 +304,7 @@ jobs:
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       docs-build: ${{ needs.build-info.outputs.docs-build }}
-      needs-api-codegen: ${{ needs.build-info.outputs.needs-api-codegen }}
+      run-api-codegen: ${{ needs.build-info.outputs.run-api-codegen }}
       default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
@@ -324,7 +324,7 @@ jobs:
     if: >
       needs.build-info.outputs.skip-providers-tests != 'true' &&
       needs.build-info.outputs.latest-versions-only != 'true' &&
-      needs.build-info.outputs.run-tests == 'true'
+      needs.build-info.outputs.run-unit-tests == 'true'
     with:
       runners: ${{ needs.build-info.outputs.amd-runners }}
       platform: "linux/amd64"
@@ -355,7 +355,7 @@ jobs:
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       use-uv: ${{ needs.build-info.outputs.use-uv }}
     if: >
-      needs.build-info.outputs.needs-helm-tests == 'true' &&
+      needs.build-info.outputs.run-helm-tests == 'true' &&
       needs.build-info.outputs.default-branch == 'main' &&
       needs.build-info.outputs.latest-versions-only != 'true'
 
@@ -386,8 +386,7 @@ jobs:
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       default-branch: ${{ needs.build-info.outputs.default-branch }}
-
-    if: needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-unit-tests == 'true'
 
   tests-postgres-providers:
     name: "Postgres tests: providers"
@@ -416,7 +415,7 @@ jobs:
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       default-branch: ${{ needs.build-info.outputs.default-branch }}
-    if: needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-unit-tests == 'true'
 
   tests-mysql-core:
     name: "MySQL tests: core"
@@ -445,7 +444,7 @@ jobs:
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       default-branch: ${{ needs.build-info.outputs.default-branch }}
-    if: needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-unit-tests == 'true'
 
   tests-mysql-providers:
     name: "MySQL tests: providers"
@@ -474,7 +473,7 @@ jobs:
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       default-branch: ${{ needs.build-info.outputs.default-branch }}
-    if: needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-unit-tests == 'true'
 
 
   tests-sqlite-core:
@@ -506,7 +505,7 @@ jobs:
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       default-branch: ${{ needs.build-info.outputs.default-branch }}
-    if: needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-unit-tests == 'true'
 
   tests-sqlite-providers:
     name: "Sqlite tests: providers"
@@ -537,7 +536,7 @@ jobs:
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       default-branch: ${{ needs.build-info.outputs.default-branch }}
-    if: needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-unit-tests == 'true'
 
 
   tests-non-db-core:
@@ -568,7 +567,7 @@ jobs:
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       default-branch: ${{ needs.build-info.outputs.default-branch }}
-    if: needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-unit-tests == 'true'
 
   tests-non-db-providers:
     name: "Non-DB tests: providers"
@@ -598,7 +597,7 @@ jobs:
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       default-branch: ${{ needs.build-info.outputs.default-branch }}
-    if: needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-unit-tests == 'true'
 
   tests-special:
     name: "Special tests"
@@ -608,7 +607,7 @@ jobs:
       contents: read
       packages: read
     if: >
-      needs.build-info.outputs.run-tests == 'true' &&
+      needs.build-info.outputs.run-unit-tests == 'true' &&
       (needs.build-info.outputs.canary-run == 'true' ||
        needs.build-info.outputs.upgrade-to-newer-dependencies != 'false' ||
        needs.build-info.outputs.full-tests-needed == 'true')
@@ -644,7 +643,7 @@ jobs:
       platform: "linux/amd64"
       testable-core-integrations: ${{ needs.build-info.outputs.testable-core-integrations }}
       testable-providers-integrations: ${{ needs.build-info.outputs.testable-providers-integrations }}
-      run-system-tests: ${{ needs.build-info.outputs.run-tests }}
+      run-system-tests: ${{ needs.build-info.outputs.run-system-tests }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
       default-mysql-version: ${{ needs.build-info.outputs.default-mysql-version }}
@@ -652,7 +651,7 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
-    if: needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-unit-tests == 'true'
 
   tests-with-lowest-direct-resolution-core:
     name: "Low dep tests:core"
@@ -662,7 +661,7 @@ jobs:
       contents: read
       packages: read
     if: >
-      needs.build-info.outputs.run-tests == 'true'
+      needs.build-info.outputs.run-unit-tests == 'true'
     with:
       runners: ${{ needs.build-info.outputs.amd-runners }}
       platform: "linux/amd64"
@@ -692,7 +691,7 @@ jobs:
     permissions:
       contents: read
       packages: read
-    if: needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-unit-tests == 'true'
     with:
       runners: ${{ needs.build-info.outputs.amd-runners }}
       platform: "linux/amd64"
@@ -775,7 +774,7 @@ jobs:
       kubernetes-combos: ${{ needs.build-info.outputs.kubernetes-combos }}
     if: >
       ( needs.build-info.outputs.run-kubernetes-tests == 'true' ||
-      needs.build-info.outputs.needs-helm-tests == 'true')
+      needs.build-info.outputs.run-helm-tests == 'true')
 
   tests-task-sdk:
     name: "Task SDK tests"
@@ -796,23 +795,17 @@ jobs:
       test-type: "task-sdk-tests"
       use-local-venv: 'false'
       test-timeout: 20
-    if: >
-      ( needs.build-info.outputs.run-task-sdk-tests == 'true' ||
-      needs.build-info.outputs.run-tests == 'true' &&
-      needs.build-info.outputs.only-new-ui-files != 'true')
+    if: needs.build-info.outputs.run-task-sdk-tests == 'true'
 
   tests-go-sdk:
     name: "Go SDK tests"
-    needs: [build-info, build-ci-images]
+    needs: [build-info]
     runs-on: ${{ fromJSON(needs.build-info.outputs.amd-runners) }}
     timeout-minutes: 15
     permissions:
       contents: read
       packages: read
-    if: >
-      ( needs.build-info.outputs.run-go-sdk-tests == 'true' ||
-      needs.build-info.outputs.run-tests == 'true' &&
-      needs.build-info.outputs.only-new-ui-files != 'true')
+    if: needs.build-info.outputs.run-go-sdk-tests == 'true'
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -823,24 +816,20 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-
       # keep this in sync with go.mod in go-sdk/
       - name: Setup Go
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5  # v5.5.0
         with:
           go-version: 1.24
           cache-dependency-path: go-sdk/go.sum
-
       # keep this in sync with go.mod in go-sdk/
       - name: Setup Gotestsum
         shell: bash
         run: |
           go install gotest.tools/gotestsum@ddd0b05a6878e2e8257a2abe6e7df66cebc53d0e  # v1.12.3
           gotestsum --version
-
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
-
       - name: Run Go tests
         working-directory: ./go-sdk
         run: gotestsum --format testname ./...
@@ -864,10 +853,7 @@ jobs:
       test-type: "airflow-ctl-tests"
       use-local-venv: 'true'
       test-timeout: 20
-    if: >
-      ( needs.build-info.outputs.run-airflow-ctl-tests == 'true' ||
-      needs.build-info.outputs.run-tests == 'true' &&
-      needs.build-info.outputs.only-new-ui-files != 'true')
+    if: needs.build-info.outputs.run-airflow-ctl-tests == 'true'
 
   finalize-tests:
     name: Finalize tests
@@ -899,6 +885,7 @@ jobs:
       - tests-sqlite-providers
       - tests-task-sdk
       - tests-airflow-ctl
+      - tests-go-sdk
       - tests-with-lowest-direct-resolution-core
       - tests-with-lowest-direct-resolution-providers
     uses: ./.github/workflows/finalize-tests.yml
@@ -946,7 +933,7 @@ jobs:
     timeout-minutes: 15
     name: "Summarize warnings"
     runs-on: ${{ fromJSON(needs.build-info.outputs.amd-runners) }}
-    if: needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-unit-tests == 'true'
     steps:
       - name: "Cleanup repo"
         shell: bash

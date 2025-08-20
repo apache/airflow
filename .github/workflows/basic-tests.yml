@@ -32,7 +32,7 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run WWW tests (true/false)"
         required: true
         type: string
-      needs-api-codegen:
+      run-api-codegen:
         description: "Whether to run API codegen (true/false)"
         required: true
         type: string
@@ -58,6 +58,10 @@ on:  # yamllint disable-line rule:truthy
         type: string
       use-uv:
         description: "Whether to use uv in the image"
+        required: true
+        type: string
+      platform:
+        description: 'Platform for the build - linux/amd64 or linux/arm64'
         required: true
         type: string
 permissions:
@@ -174,6 +178,7 @@ jobs:
         with:
           python-version: ${{steps.breeze.outputs.host-python-version}}
           skip-prek-hooks: ${{ inputs.skip-prek-hooks }}
+          platform: ${{ inputs.platform }}
 
   # Those checks are run if no image needs to be built for checks. This is for simple changes that
   # Do not touch any of the python code or any of the important files that might require building
@@ -203,6 +208,7 @@ jobs:
         with:
           python-version: ${{ steps.breeze.outputs.host-python-version }}
           skip-prek-hooks: ${{ inputs.skip-prek-hooks }}
+          platform: ${{ inputs.platform }}
       - name: Fetch incoming commit ${{ github.sha }} with its parent
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
@@ -257,6 +263,7 @@ jobs:
         with:
           python-version: ${{steps.breeze.outputs.host-python-version}}
           skip-prek-hooks: ${{ inputs.skip-prek-hooks }}
+          platform: ${{ inputs.platform }}
       # TODO(potiuk): enable this once prek supports automatic upgrade of hooks
       #               after https://github.com/j178/prek/issues/35 is implemented§
       # - name: "Autoupdate all prek hooks"
@@ -265,13 +272,6 @@ jobs:
       #   run: prek autoupdate --bleeding-edge --freeze --repo https://github.com/Lucas-C/pre-commit-hooks
       # - name: "Check if there are any changes in pre-commit hooks"
       #   run: git diff --exit-code
-      - name: "Run automated upgrade for black"
-        run: >
-          prek
-          --all-files --show-diff-on-failure --color always --verbose
-          --hook-stage manual
-          update-black-version
-        if: always()
       - name: "Run automated upgrade for chart dependencies"
         run: >
           prek

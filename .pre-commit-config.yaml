@@ -192,15 +192,6 @@ repos:
         language: python
         additional_dependencies: ['rich>=12.4.4']
         require_serial: true
-      - id: update-black-version
-        name: Update black versions everywhere (manual)
-        entry: ./scripts/ci/prek/update_black_version.py
-        stages: ['manual']
-        language: python
-        files: ^\.pre-commit-config\.yaml$
-        additional_dependencies: ['pyyaml>=6.0.2']
-        pass_filenames: false
-        require_serial: true
       - id: upgrade-important-versions
         name: Upgrade important versions (manual)
         entry: ./scripts/ci/prek/upgrade_important_versions.py
@@ -249,8 +240,10 @@ repos:
           - --target-version=py310
           - --target-version=py311
           - --target-version=py312
+          - --target-version=py313
         alias: blacken-docs
-        additional_dependencies: ['black==24.10.0']
+        additional_dependencies:
+         - 'black==25.1.0'
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
     hooks:
@@ -617,6 +610,7 @@ repos:
             ^providers/apprise/.*\.py$|
             ^providers/arangodb/.*\.py$|
             ^providers/asana/.*\.py$|
+            ^providers/atlassian/jira/.*\.py$|
             ^providers/cloudant/.*\.py$|
             ^providers/cohere/.*\.py$|
             ^providers/common/compat/.*\.py$|
@@ -650,6 +644,8 @@ repos:
             ^providers/segment/.*\.py$|
             ^providers/sendgrid/.*\.py$|
             ^providers/singularity/.*\.py$|
+            ^providers/slack/.*\.py$|
+            ^providers/smtp/.*\.py$|
             ^providers/tableau/.*\.py$|
             ^providers/teradata/.*\.py$|
             ^providers/trino/.*\.py$|
@@ -1001,7 +997,7 @@ repos:
         entry: ./scripts/ci/prek/check_integrations_list.py
         language: python
         files: ^scripts/ci/docker-compose/integration-.*\.yml$|^contributing-docs/testing/integration_tests\.rst$
-        additional_dependencies: ['black==24.10.0', 'tabulate>=0.9.0', 'rich>=12.4.4', 'pyyaml>=6.0.2']
+        additional_dependencies: ['tabulate>=0.9.0', 'rich>=12.4.4', 'pyyaml>=6.0.2']
         require_serial: true
         pass_filenames: false
       - id: update-breeze-readme-config-hash
