@@ -153,6 +153,7 @@ class TestDagEndpoint:
         self._create_dag_tags(session)
 
         dag_maker.sync_dagbag_to_db()
+        dag_maker.dag_model.last_parse_duration = 0.24
         dag_maker.dag_model.has_task_concurrency_limits = True
         session.merge(dag_maker.dag_model)
         session.commit()
@@ -556,10 +557,10 @@ class TestDagDetails(TestDagEndpoint):
     """Unit tests for DAG Details."""
 
     @pytest.mark.parametrize(
-        "query_params, dag_id, expected_status_code, dag_display_name, start_date, owner_links",
+        "query_params, dag_id, expected_status_code, dag_display_name, start_date, owner_links, last_parse_duration",
         [
-            ({}, "fake_dag_id", 404, "fake_dag", "2023-12-31T00:00:00Z", {}),
-            ({}, DAG2_ID, 200, DAG2_ID, "2021-06-15T00:00:00Z", {}),
+            ({}, "fake_dag_id", 404, "fake_dag", "2023-12-31T00:00:00Z", {}, None),
+            ({}, DAG2_ID, 200, DAG2_ID, "2021-06-15T00:00:00Z", {}, 0.24),
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -574,6 +575,7 @@ class TestDagDetails(TestDagEndpoint):
         dag_display_name,
         start_date,
         owner_links,
+        last_parse_duration,
     ):
         mock_hasattr.return_value = False
         response = test_client.get(f"/dags/{dag_id}/details", params=query_params)
@@ -623,7 +625,7 @@ class TestDagDetails(TestDagEndpoint):
             "last_expired": None,
             "last_parsed": last_parsed,
             "last_parsed_time": last_parsed_time,
-            "last_parse_duration": mock.ANY,
+            "last_parse_duration": last_parse_duration,
             "max_active_runs": 16,
             "max_active_tasks": 16,
             "max_consecutive_failed_dag_runs": 0,
