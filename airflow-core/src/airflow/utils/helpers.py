@@ -357,7 +357,7 @@ def __getattr__(name: str):
 
         warnings.warn(
             "airflow.utils.helpers.render_template_to_string is deprecated. "
-            "Use airflow.sdk.definitions.context.render_template_as_native instead.",
+            "Use airflow.sdk.definitions.context.render_template_to_string instead.",
             DeprecationWarning,
             stacklevel=2,
         )
