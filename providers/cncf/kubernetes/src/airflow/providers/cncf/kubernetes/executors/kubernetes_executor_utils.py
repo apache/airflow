@@ -211,16 +211,6 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         if POD_REVOKED_KEY in pod.metadata.labels.keys():
             return
 
-        # Collect failure details for failed pods using the new function
-        failure_details = None
-        if status == "Failed":
-            try:
-                failure_details = collect_pod_failure_details(pod)
-            except Exception as e:
-                self.log.warning(
-                    "Failed to collect pod failure details for %s/%s: %s", namespace, pod_name, e
-                )
-
         annotations_string = annotations_for_logging_task_metadata(annotations)
         if event["type"] == "DELETED" and not pod.metadata.deletion_timestamp:
             # This will happen only when the task pods are adopted by another executor.
@@ -245,7 +235,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                     TaskInstanceState.FAILED,
                     annotations,
                     resource_version,
-                    failure_details,
+                    None,
                 )
             )
         elif status == "Pending":
@@ -293,7 +283,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                                     TaskInstanceState.FAILED,
                                     annotations,
                                     resource_version,
-                                    failure_details,
+                                    None,
                                 )
                             )
                             break
@@ -302,6 +292,14 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             else:
                 self.log.debug("Event: %s Pending, annotations: %s", pod_name, annotations_string)
         elif status == "Failed":
+            # Collect failure details for failed pods
+            try:
+                failure_details = collect_pod_failure_details(pod, self.log)
+            except Exception as e:
+                self.log.warning(
+                    "Failed to collect pod failure details for %s/%s: %s", namespace, pod_name, e
+                )
+
             key = annotations_to_key(annotations=annotations)
             task_key_str = f"{key.dag_id}.{key.task_id}.{key.try_number}" if key else "unknown"
             self.log.warning(
@@ -336,7 +334,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                         TaskInstanceState.FAILED,
                         annotations,
                         resource_version,
-                        failure_details,
+                        None,
                     )
                 )
             else:
@@ -353,7 +351,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             )
 
 
-def collect_pod_failure_details(pod: k8s.V1Pod) -> FailureDetails | None:
+def collect_pod_failure_details(pod: k8s.V1Pod, logger) -> FailureDetails | None:
     """
     Collect detailed failure information from a failed pod.
 
@@ -362,6 +360,7 @@ def collect_pod_failure_details(pod: k8s.V1Pod) -> FailureDetails | None:
 
     Args:
         pod: The Kubernetes V1Pod object to analyze
+        logger: Logger instance to use for error logging
 
     Returns:
         FailureDetails dict with failure information, or None if no failure details found
@@ -392,9 +391,7 @@ def collect_pod_failure_details(pod: k8s.V1Pod) -> FailureDetails | None:
 
     except Exception:
         # Log unexpected exception for debugging
-        import logging
-
-        logging.getLogger(__name__).exception(
+        logger.exception(
             "Unexpected error while collecting pod failure details for pod %s",
             getattr(pod.metadata, "name", "unknown"),
         )

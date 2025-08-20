@@ -53,7 +53,12 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     get_logs_task_metadata,
 )
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils import timezone  # type: ignore[attr-defined]
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    # Fallback for older Airflow location where timezone is in utils
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 from airflow.utils.state import State, TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
