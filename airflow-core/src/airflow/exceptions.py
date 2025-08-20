@@ -21,18 +21,28 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from datetime import datetime, timedelta
 from http import HTTPStatus
-
 from typing import TYPE_CHECKING, Any, NamedTuple
-
-from airflow.sdk.exceptions import AirflowException, AirflowNotFoundException
 
 if TYPE_CHECKING:
     from airflow.models import DagRun
+    from airflow.utils.state import DagRunState
 
 
-class TaskNotFound(AirflowException):
-    """Raise when a Task is not available in the system."""
+class AirflowException(Exception):
+    """
+    Base class for all Airflow's errors.
+
+    Each custom exception should be derived from this class.
+    """
+
+    status_code = HTTPStatus.INTERNAL_SERVER_ERROR
+
+    def serialize(self):
+        cls = self.__class__
+        return f"{cls.__module__}.{cls.__name__}", (str(self),), {}
 
 
 class AirflowBadRequest(AirflowException):
@@ -41,12 +51,53 @@ class AirflowBadRequest(AirflowException):
     status_code = HTTPStatus.BAD_REQUEST
 
 
+class AirflowNotFoundException(AirflowException):
+    """Raise when the requested object/resource is not available in the system."""
+
+    status_code = HTTPStatus.NOT_FOUND
+
+
 class AirflowConfigException(AirflowException):
     """Raise when there is configuration problem."""
 
 
+class AirflowSensorTimeout(AirflowException):
+    """Raise when there is a timeout on sensor polling."""
+
+
+class AirflowRescheduleException(AirflowException):
+    """
+    Raise when the task should be re-scheduled at a later time.
+
+    :param reschedule_date: The date when the task should be rescheduled
+    """
+
+    def __init__(self, reschedule_date):
+        super().__init__()
+        self.reschedule_date = reschedule_date
+
+    def serialize(self):
+        cls = self.__class__
+        return f"{cls.__module__}.{cls.__name__}", (), {"reschedule_date": self.reschedule_date}
+
+
 class InvalidStatsNameException(AirflowException):
     """Raise when name of the stats is invalid."""
+
+
+# Important to inherit BaseException instead of AirflowException->Exception, since this Exception is used
+# to explicitly interrupt ongoing task. Code that does normal error-handling should not treat
+# such interrupt as an error that can be handled normally. (Compare with KeyboardInterrupt)
+class AirflowTaskTimeout(BaseException):
+    """Raise when the task execution times-out."""
+
+
+class AirflowSkipException(AirflowException):
+    """Raise when the task should be skipped."""
+
+
+class AirflowFailException(AirflowException):
+    """Raise when the task should be failed without retrying."""
 
 
 class AirflowOptionalProviderFeatureException(AirflowException):
@@ -61,6 +112,27 @@ class AirflowInternalRuntimeError(BaseException):
 
     :meta private:
     """
+
+
+class XComNotFound(AirflowException):
+    """Raise when an XCom reference is being resolved against a non-existent XCom."""
+
+    def __init__(self, dag_id: str, task_id: str, key: str) -> None:
+        super().__init__()
+        self.dag_id = dag_id
+        self.task_id = task_id
+        self.key = key
+
+    def __str__(self) -> str:
+        return f'XComArg result from {self.task_id} at {self.dag_id} with key="{self.key}" is not found!'
+
+    def serialize(self):
+        cls = self.__class__
+        return (
+            f"{cls.__module__}.{cls.__name__}",
+            (),
+            {"dag_id": self.dag_id, "task_id": self.task_id, "key": self.key},
+        )
 
 
 class AirflowDagDuplicatedIdException(AirflowException):
@@ -134,6 +206,14 @@ class SerializationError(AirflowException):
     """A problem occurred when trying to serialize something."""
 
 
+class ParamValidationError(AirflowException):
+    """Raise when DAG params is invalid."""
+
+
+class TaskNotFound(AirflowNotFoundException):
+    """Raise when a Task is not available in the system."""
+
+
 class TaskInstanceNotFound(AirflowNotFoundException):
     """Raise when a task instance is not available in the system."""
 
@@ -196,6 +276,108 @@ class VariableNotUnique(AirflowException):
     """Raise when multiple values are found for the same variable name."""
 
 
+class DownstreamTasksSkipped(AirflowException):
+    """
+    Signal by an operator to skip its downstream tasks.
+
+    Special exception raised to signal that the operator it was raised from wishes to skip
+    downstream tasks. This is used in the ShortCircuitOperator.
+
+    :param tasks: List of task_ids to skip or a list of tuples with task_id and map_index to skip.
+    """
+
+    def __init__(self, *, tasks: Sequence[str | tuple[str, int]]):
+        super().__init__()
+        self.tasks = tasks
+
+
+# TODO: workout this to correct place https://github.com/apache/airflow/issues/44353
+class DagRunTriggerException(AirflowException):
+    """
+    Signal by an operator to trigger a specific Dag Run of a dag.
+
+    Special exception raised to signal that the operator it was raised from wishes to trigger
+    a specific Dag Run of a dag. This is used in the ``TriggerDagRunOperator``.
+    """
+
+    def __init__(
+        self,
+        *,
+        trigger_dag_id: str,
+        dag_run_id: str,
+        conf: dict | None,
+        logical_date: datetime | None,
+        reset_dag_run: bool,
+        skip_when_already_exists: bool,
+        wait_for_completion: bool,
+        allowed_states: list[str | DagRunState],
+        failed_states: list[str | DagRunState],
+        poke_interval: int,
+        deferrable: bool,
+    ):
+        super().__init__()
+        self.trigger_dag_id = trigger_dag_id
+        self.dag_run_id = dag_run_id
+        self.conf = conf
+        self.logical_date = logical_date
+        self.reset_dag_run = reset_dag_run
+        self.skip_when_already_exists = skip_when_already_exists
+        self.wait_for_completion = wait_for_completion
+        self.allowed_states = allowed_states
+        self.failed_states = failed_states
+        self.poke_interval = poke_interval
+        self.deferrable = deferrable
+
+
+class TaskDeferred(BaseException):
+    """
+    Signal an operator moving to deferred state.
+
+    Special exception raised to signal that the operator it was raised from
+    wishes to defer until a trigger fires. Triggers can send execution back to task or end the task instance
+    directly. If the trigger should end the task instance itself, ``method_name`` does not matter,
+    and can be None; otherwise, provide the name of the method that should be used when
+    resuming execution in the task.
+    """
+
+    def __init__(
+        self,
+        *,
+        trigger,
+        method_name: str,
+        kwargs: dict[str, Any] | None = None,
+        timeout: timedelta | int | float | None = None,
+    ):
+        super().__init__()
+        self.trigger = trigger
+        self.method_name = method_name
+        self.kwargs = kwargs
+        self.timeout: timedelta | None
+        # Check timeout type at runtime
+        if isinstance(timeout, (int, float)):
+            self.timeout = timedelta(seconds=timeout)
+        else:
+            self.timeout = timeout
+        if self.timeout is not None and not hasattr(self.timeout, "total_seconds"):
+            raise ValueError("Timeout value must be a timedelta")
+
+    def serialize(self):
+        cls = self.__class__
+        return (
+            f"{cls.__module__}.{cls.__name__}",
+            (),
+            {
+                "trigger": self.trigger,
+                "method_name": self.method_name,
+                "kwargs": self.kwargs,
+                "timeout": self.timeout,
+            },
+        )
+
+    def __repr__(self) -> str:
+        return f"<TaskDeferred trigger={self.trigger} method={self.method_name}>"
+
+
 # The try/except handling is needed after we moved all k8s classes to cncf.kubernetes provider
 # These two exceptions are used internally by Kubernetes Executor but also by PodGenerator, so we need
 # to leave them here in case older version of cncf.kubernetes provider is used to run KubernetesPodOperator
@@ -249,25 +431,13 @@ class UnknownExecutorException(ValueError):
 
 
 _DEPRECATED_EXCEPTIONS = {
-    "AirflowDagCycleException": "airflow.sdk.exceptions.AirflowDagCycleException",
-    "AirflowFailException": "airflow.sdk.exceptions.AirflowFailException",
     "AirflowInactiveAssetInInletOrOutletException": "airflow.sdk.exceptions.AirflowInactiveAssetInInletOrOutletException",
-    "AirflowNotFoundException": "airflow.sdk.exceptions.AirflowNotFoundException",
-    "AirflowRescheduleException": "airflow.sdk.exceptions.AirflowRescheduleException",
-    "AirflowSensorTimeout": "airflow.sdk.exceptions.AirflowSensorTimeout",
-    "AirflowSkipException": "airflow.sdk.exceptions.AirflowSkipException",
     "AirflowTaskTerminated": "airflow.sdk.exceptions.AirflowTaskTerminated",
-    "AirflowTaskTimeout": "airflow.sdk.exceptions.AirflowTaskTimeout",
-    "DagRunTriggerException": "airflow.sdk.exceptions.DagRunTriggerException",
-    "DownstreamTasksSkipped": "airflow.sdk.exceptions.DownstreamTasksSkipped",
     "DuplicateTaskIdFound": "airflow.sdk.exceptions.DuplicateTaskIdFound",
     "FailFastDagInvalidTriggerRule": "airflow.sdk.exceptions.FailFastDagInvalidTriggerRule",
-    "ParamValidationError": "airflow.sdk.exceptions.ParamValidationError",
     "TaskAlreadyInTaskGroup": "airflow.sdk.exceptions.TaskAlreadyInTaskGroup",
-    "TaskDeferred": "airflow.sdk.exceptions.TaskDeferred",
     "TaskDeferralError": "airflow.sdk.exceptions.TaskDeferralError",
     "TaskDeferralTimeout": "airflow.sdk.exceptions.TaskDeferralTimeout",
-    "XComNotFound": "airflow.sdk.exceptions.XComNotFound",
 }
 
 

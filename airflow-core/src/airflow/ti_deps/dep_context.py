@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, cast
 
 import attr
 
-from airflow.sdk.exceptions import TaskNotFound
+from airflow.exceptions import TaskNotFound
 from airflow.utils.state import State
 
 if TYPE_CHECKING:

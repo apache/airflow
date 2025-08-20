@@ -47,11 +47,11 @@ from airflow.exceptions import (
     AirflowClusterPolicyViolation,
     AirflowDagDuplicatedIdException,
     AirflowException,
+    AirflowTaskTimeout,
 )
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base, StringID
 from airflow.models.dag_version import DagVersion
-from airflow.sdk.exceptions import AirflowTaskTimeout
 from airflow.utils.docs import get_docs_url
 from airflow.utils.file import (
     correct_maybe_zipped,

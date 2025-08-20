@@ -24,8 +24,8 @@ from typing import TYPE_CHECKING
 
 import pendulum
 
+from airflow.exceptions import AirflowSkipException
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk.exceptions import AirflowSkipException
 from airflow.sdk import DAG, BaseOperator, TriggerRule
 
 if TYPE_CHECKING:
