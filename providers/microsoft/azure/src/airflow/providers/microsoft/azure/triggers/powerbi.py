@@ -70,7 +70,6 @@ class BasePowerBITrigger(BaseTrigger):
         .. warning::
            This method is deprecated.
         """
-
         return self.hook.get_conn()
 
     @cached_property
