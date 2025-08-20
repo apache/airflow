@@ -49,10 +49,10 @@ from airflow.api_fastapi.core_api.datamodels.xcom import (
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import ReadableXComFilterDep, requires_access_dag
 from airflow.api_fastapi.logging.decorators import action_logging
+from airflow.exceptions import TaskNotFound
 from airflow.models import DagRun as DR
 from airflow.models.dag import DagModel
 from airflow.models.xcom import XComModel
-from airflow.sdk.exceptions import TaskNotFound
 
 xcom_router = AirflowRouter(
     tags=["XCom"], prefix="/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries"
