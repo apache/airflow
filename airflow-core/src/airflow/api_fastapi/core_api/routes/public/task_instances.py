@@ -718,8 +718,6 @@ def post_clear_task_instances(
                 status.HTTP_400_BAD_REQUEST,
                 "Cannot use include_past or include_future with a manually triggered DAG run (logical_date is None).",
             )
-        if past or future:
-            dag_run_id = None  # Use date-based clearing
         body.start_date = dag_run.logical_date
         body.end_date = dag_run.logical_date
 
