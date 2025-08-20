@@ -36,11 +36,6 @@ in all templates
 =========================================== ===================== ===================================================================
 Variable                                    Type                  Description
 =========================================== ===================== ===================================================================
-``{{ data_interval_start }}``               `pendulum.DateTime`_  Start of the data interval. Added in version 2.2.
-``{{ data_interval_end }}``                 `pendulum.DateTime`_  End of the data interval. Added in version 2.2.
-``{{ logical_date }}``                      `pendulum.DateTime`_  | A date-time that logically identifies the current DAG run. This value does not contain any semantics, but is simply a value for identification.
-                                                                  | Use ``data_interval_start`` and ``data_interval_end`` instead if you want a value that has real-world semantics,
-                                                                  | such as to get a slice of rows from the database based on timestamps.
 ``{{ exception }}``                         None | str |          | Error occurred while running task instance.
                                             Exception             |
                                             KeyboardInterrupt     |
@@ -90,6 +85,11 @@ The following are only available when the DagRun has a ``logical_date``
 =========================================== ===================== ===================================================================
 Variable                                    Type                  Description
 =========================================== ===================== ===================================================================
+``{{ data_interval_start }}``               `pendulum.DateTime`_  Start of the data interval. Added in version 2.2.
+``{{ data_interval_end }}``                 `pendulum.DateTime`_  End of the data interval. Added in version 2.2.
+``{{ logical_date }}``                      `pendulum.DateTime`_  | A date-time that logically identifies the current DAG run. This value does not contain any semantics, but is simply a value for identification.
+                                                                  | Use ``data_interval_start`` and ``data_interval_end`` instead if you want a value that has real-world semantics,
+                                                                  | such as to get a slice of rows from the database based on timestamps.
 ``{{ ds }}``                                str                   | The DAG run's logical date as ``YYYY-MM-DD``.
                                                                   | Same as ``{{ logical_date | ds }}``.
 ``{{ ds_nodash }}``                         str                   Same as ``{{ logical_date | ds_nodash }}``.
@@ -109,11 +109,15 @@ Variable                                    Type                  Description
 Accessing Airflow context variables from TaskFlow tasks
 -------------------------------------------------------
 
-While ``@task`` decorated tasks don't support rendering jinja templates passed as arguments,
-all of the variables listed above can be accessed directly from tasks. The following code block
-is an example of accessing a ``task_instance`` object from its task:
+``@task`` decorated tasks support rendering jinja templates for all of the none default
+arguments.
+Beside that, we can access the context variables using the following code block:
 
 .. include:: /../../devel-common/src/docs/shared/template-examples/taskflow.rst
+
+Or
+
+.. include:: /../../devel-common/src/docs/shared/template-examples/taskflow-kwargs.rst
 
 Note that you can access the object's attributes and methods with simple
 dot notation. Here are some examples of what is possible:
