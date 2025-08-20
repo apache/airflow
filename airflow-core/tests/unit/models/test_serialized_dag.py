@@ -544,3 +544,17 @@ class TestSerializedDagModel:
         # Verify that the original data still has fileloc (method shouldn't modify original)
         assert "fileloc" in test_data["dag"]
         assert test_data["dag"]["fileloc"] == "/different/path/to/dag.py"
+
+    def test_get_serialized_dag_catches_tasknotfound_and_returns_none(self, dag_maker, session):
+        with dag_maker("dag1"):
+            EmptyOperator(task_id="exists")
+
+        # Sanity
+        found = SDM.get_serialized_dag("dag1", "exists", session=session)
+        assert found is not None
+        assert found.task_id == "exists"
+
+        # Missing task -> SerializedDAG.get_task would raise TaskNotFound,
+        # but SDM.get_serialized_dag should catch it and return None
+        missing = SDM.get_serialized_dag("dag1", "does_not_exist", session=session)
+        assert missing is None

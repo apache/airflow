@@ -31,6 +31,10 @@ if TYPE_CHECKING:
     from airflow.models import DagRun
 
 
+class TaskNotFound(AirflowException):
+    """Raise when a Task is not available in the system."""
+
+
 class AirflowBadRequest(AirflowException):
     """Raise when the application or server cannot handle the request."""
 
