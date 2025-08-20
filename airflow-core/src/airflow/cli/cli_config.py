@@ -422,6 +422,12 @@ ARG_DAG_REGEX = Arg(
 # show_dag
 ARG_SAVE = Arg(("-s", "--save"), help="Saves the result to the indicated file.")
 
+# dag_docs
+ARG_OUTPUT_FILE = Arg(
+    ("-o", "--output-file"), 
+    help="Write markdown output to the specified file instead of stdout."
+)
+
 ARG_IMGCAT = Arg(("--imgcat",), help="Displays graph using the imgcat tool.", action="store_true")
 
 # trigger_dag
@@ -987,6 +993,12 @@ DAGS_COMMANDS = (
         help="Get DAG details given a DAG id",
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_details"),
         args=(ARG_DAG_ID, ARG_OUTPUT, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="docs",
+        help="Show DAG documentation (__doc_md__) in markdown format",
+        func=lazy_load_command("airflow.cli.commands.dag_command.dag_docs"),
+        args=(ARG_DAG_ID_OPT, ARG_SUBDIR, ARG_OUTPUT_FILE, ARG_VERBOSE),
     ),
     ActionCommand(
         name="list",

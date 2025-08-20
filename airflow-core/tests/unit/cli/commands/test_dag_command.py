@@ -395,6 +395,87 @@ class TestCliDags:
         assert str(path_to_parse) in log_output
         assert "[0 100 * * *] is not acceptable, out of range" in log_output
 
+    @conf_vars({("core", "load_examples"): "true"})
+    def test_cli_dag_docs(self):
+        """Test the dag docs CLI command."""
+        # Test listing docs for all DAGs
+        args = self.parser.parse_args(["dags", "docs"])
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            dag_command.dag_docs(args)
+            markdown_output = temp_stdout.getvalue()
+        
+        # Check that output is in markdown format
+        assert isinstance(markdown_output, str)
+        assert len(markdown_output) > 0
+        
+        # Should start with main header for multiple DAGs
+        assert markdown_output.startswith("# DAG Documentation\n")
+        
+        # Should contain DAG headers (## format for multiple DAGs)
+        assert "## tutorial_dag" in markdown_output
+        
+        # Should contain separators between DAGs
+        assert "---" in markdown_output
+        
+        # Should contain actual documentation content
+        assert "tutorial_dag" in markdown_output
+        
+        # Should not contain placeholder text for tutorial_dag
+        # (since tutorial_dag should have real documentation)
+        tutorial_section_start = markdown_output.find("## tutorial_dag")
+        if tutorial_section_start != -1:
+            next_dag_start = markdown_output.find("## ", tutorial_section_start + 1)
+            tutorial_section = markdown_output[tutorial_section_start:next_dag_start] if next_dag_start != -1 else markdown_output[tutorial_section_start:]
+            assert "*No documentation available*" not in tutorial_section
+
+    @conf_vars({("core", "load_examples"): "true"})
+    def test_cli_dag_docs_specific_dag(self):
+        """Test the dag docs CLI command for a specific DAG."""
+        # Test getting docs for a specific DAG
+        args = self.parser.parse_args([
+            "dags", "docs", "--dag-id", "tutorial_dag"
+        ])
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            dag_command.dag_docs(args)
+            markdown_output = temp_stdout.getvalue()
+        
+        # Check markdown format for single DAG
+        assert isinstance(markdown_output, str)
+        assert len(markdown_output) > 0
+        
+        # Should start with DAG name as main header (# format for single DAG)
+        assert markdown_output.startswith("# tutorial_dag\n")
+        
+        # Should not contain the main "DAG Documentation" header
+        assert "# DAG Documentation" not in markdown_output
+        
+        # Should contain actual documentation content
+        assert len(markdown_output.split('\n')) > 2  # More than just header
+        
+        # Should not contain placeholder for tutorial_dag
+        assert "*No documentation available*" not in markdown_output
+
+    @conf_vars({("core", "load_examples"): "true"})
+    def test_cli_dag_docs_no_documentation(self):
+        """Test the dag docs CLI command for a DAG without documentation."""
+        # Test with a DAG that likely has no doc_md
+        args = self.parser.parse_args([
+            "dags", "docs", "--dag-id", "example_complex"
+        ])
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            dag_command.dag_docs(args)
+            markdown_output = temp_stdout.getvalue()
+        
+        # Check markdown format for DAG without documentation
+        assert isinstance(markdown_output, str)
+        assert len(markdown_output) > 0
+        
+        # Should start with DAG name as header
+        assert markdown_output.startswith("# example_complex\n")
+        
+        # Should contain the placeholder text for no documentation
+        assert "*No documentation available*" in markdown_output
+
     def test_cli_list_dag_runs(self):
         dag_command.dag_trigger(
             self.parser.parse_args(
