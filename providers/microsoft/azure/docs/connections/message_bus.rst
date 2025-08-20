@@ -93,21 +93,6 @@ Implemented by :class:`~airflow.providers.microsoft.azure.triggers.message_bus.A
 The Azure Service Bus Queue Provider is a message queue provider that uses Azure Service Bus queues.
 It allows you to monitor Azure Service Bus queues for new messages and trigger DAG runs when messages arrive.
 
-Queue URI Format:
-
-.. code-block:: text
-
-   azure_service_bus_queue://<connection_id>/<queue_list>
-
-Where:
-
-- ``connection_id``: The Airflow connection ID for Azure Service Bus.
-- ``queue_list``: Comma-separated list of Azure Service Bus queues to monitor.
-
-The ``queues`` parameter is used to configure the underlying
-:class:`~airflow.providers.microsoft.azure.triggers.message_bus.AzureServiceBusQueueTrigger` class.
-
-Queues can also be specified via the Queue URI instead of the ``queues`` kwarg. The provider will extract queues from the URI.
 
 Azure Service Bus Subscription Provider
 ---------------------------------------
@@ -116,21 +101,3 @@ Implemented by :class:`~airflow.providers.microsoft.azure.triggers.message_bus.A
 
 The Azure Service Bus Subscription Provider is a message queue provider that uses Azure Service Bus topic subscriptions.
 It allows you to monitor Azure Service Bus topic subscriptions for new messages and trigger DAG runs when messages arrive.
-
-Queue URI Format:
-
-.. code-block:: text
-
-   azure_service_bus_subscription://<connection_id>/<topic_list>?subscription_name=<subscription_name>
-
-Where:
-
-- ``connection_id``: The Airflow connection ID for Azure Service Bus.
-- ``topic_list``: Comma-separated list of Azure Service Bus topics to monitor.
-- ``subscription_name``: The name of the subscription to use.
-
-The ``topics`` and ``subscription_name`` parameters are used to configure the underlying
-:class:`~airflow.providers.microsoft.azure.triggers.message_bus.AzureServiceBusSubscriptionTrigger` class.
-
-Topics can also be specified via the Queue URI instead of the ``topics`` kwarg. The provider will extract topics from the URI.
-``subscription_name`` must be specified in the URI.
