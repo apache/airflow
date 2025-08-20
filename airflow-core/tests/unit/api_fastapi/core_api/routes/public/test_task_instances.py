@@ -2480,13 +2480,14 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             "only_failed": True,
             "dag_run_id": "TEST_DAG_RUN_ID_1",
         }
+        a= (
+            DEFAULT_DATETIME_1 + dt.timedelta(days=1)
+        ).strftime("%Y-%m-%dT%H:%M:%SZ")  # T1
         resp = test_client.post(f"/dags/{dag_id}/clearTaskInstances", json=payload)
         assert resp.status_code == 200
         a = resp.json()
         assert resp.json()["total_entries"] == 1
-        assert resp.json()["task_instances"][0]["logical_date"] == (
-            DEFAULT_DATETIME_1 + dt.timedelta(days=1)
-        ).strftime("%Y-%m-%dT%H:%M:%SZ")  # T1
+        assert resp.json()["task_instances"][0]["logical_date"] == '2020-01-02T00:00:00Z' # T1
 
 
     def test_should_respond_401(self, unauthenticated_test_client):
