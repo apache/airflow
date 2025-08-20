@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.sdk._shared.secrets_masker.secrets_masker import (
+from airflow_shared.secrets_masker.secrets_masker import (
     DEFAULT_SENSITIVE_FIELDS,
     Redactable,
     Redacted,
