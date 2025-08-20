@@ -361,7 +361,7 @@ class PubSubCreateSubscriptionOperator(GoogleCloudBaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.impersonation_chain = impersonation_chain
-        self.__resolved_subscription_name: str | None = None
+        self._resolved_subscription_name: str | None = None
 
     @cached_property
     def pubsub_hook(self):
@@ -396,11 +396,11 @@ class PubSubCreateSubscriptionOperator(GoogleCloudBaseOperator):
         self.log.info("Created subscription for topic %s", self.topic)
 
         # Store resolved subscription for Open Lineage
-        self.__resolved_subscription_name = self.subscription or result
+        self._resolved_subscription_name = self.subscription or result
 
         PubSubSubscriptionLink.persist(
             context=context,
-            subscription_id=self.__resolved_subscription_name,  # result returns subscription name
+            subscription_id=self._resolved_subscription_name,  # result returns subscription name
             project_id=self.project_id or self.pubsub_hook.project_id,
         )
         return result
@@ -412,7 +412,7 @@ class PubSubCreateSubscriptionOperator(GoogleCloudBaseOperator):
         project_id = self.subscription_project_id or self.project_id or self.pubsub_hook.project_id
 
         output_dataset = [
-            Dataset(namespace="pubsub", name=f"subscription:{project_id}:{self.__resolved_subscription_name}")
+            Dataset(namespace="pubsub", name=f"subscription:{project_id}:{self._resolved_subscription_name}")
         ]
 
         return OperatorLineage(outputs=output_dataset)
