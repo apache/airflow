@@ -47,7 +47,7 @@
       "standardFields": "Standart Alanlar"
     },
     "nothingFound": {
-      "description": "Ortam değişkenleri veya gizli sır yönetimi ile tanımlanan bağlantılar burada listelenmez.",
+      "description": "Sistem Ortam değişkenleri veya gizli sır yönetimi ile tanımlanan bağlantılar burada listelenmez.",
       "documentationLink": "Airflow dokümantasyonuna daha fazla bilgi edinin.",
       "learnMore": "Bunlar çalışma zamanında çözümlenir ve arayüzde görünmez.",
       "title": "Bağlantı bulunamadı!"
