@@ -2422,8 +2422,8 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
     @pytest.mark.parametrize(
         "flag, expected",
         [
-            ("include_past", 2),  # D0 ~ D1
-            ("include_future", 2),  # D1 ~ D2
+            ("include_past", 2),  # T0 ~ T1
+            ("include_future", 2),  # T1 ~ T2
         ],
     )
     def test_with_dag_run_id_and_past_future_converts_to_date_range(
@@ -2431,9 +2431,9 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
     ):
         dag_id = "example_python_operator"
         task_instances = [
-            {"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED},  # D0
-            {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1), "state": State.FAILED},  # D1
-            {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2), "state": State.FAILED},  # D2
+            {"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED},  # T0
+            {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1), "state": State.FAILED},  # T1
+            {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2), "state": State.FAILED},  # T2
         ]
         self.create_task_instances(session, dag_id=dag_id, task_instances=task_instances, update_extras=False)
         payload = {
@@ -2444,35 +2444,35 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         }
         resp = test_client.post(f"/dags/{dag_id}/clearTaskInstances", json=payload)
         assert resp.status_code == 200
-        assert resp.json()["total_entries"] == expected  # include_past => D0,D1 / include_future => D1,D2
+        assert resp.json()["total_entries"] == expected  # include_past => T0,1 / include_future => T1,T2
 
     def test_with_dag_run_id_and_both_past_and_future_means_full_range(self, test_client, session):
         dag_id = "example_python_operator"
         task_instances = [
-            {"logical_date": DEFAULT_DATETIME_1 - dt.timedelta(days=1), "state": State.FAILED},  # D0
-            {"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED},  # D1
-            {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1), "state": State.FAILED},  # D2
-            {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2), "state": State.FAILED},  # D3
-            {"logical_date": None, "state": State.FAILED},  # D4
+            {"logical_date": DEFAULT_DATETIME_1 - dt.timedelta(days=1), "state": State.FAILED},  # T0
+            {"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED},  # T1
+            {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1), "state": State.FAILED},  # T2
+            {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2), "state": State.FAILED},  # T3
+            {"logical_date": None, "state": State.FAILED},  # T4
         ]
         self.create_task_instances(session, dag_id=dag_id, task_instances=task_instances, update_extras=False)
         payload = {
             "dry_run": True,
             "only_failed": False,
-            "dag_run_id": "TEST_DAG_RUN_ID_1",  # D1
+            "dag_run_id": "TEST_DAG_RUN_ID_1",  # T1
             "include_past": True,
             "include_future": True,
         }
         resp = test_client.post(f"/dags/{dag_id}/clearTaskInstances", json=payload)
         assert resp.status_code == 200
-        assert resp.json()["total_entries"] == 5  # D0 ~ #D4
+        assert resp.json()["total_entries"] == 5  # T0 ~ #T4
 
     def test_with_dag_run_id_only_uses_run_id_based_clearing(self, test_client, session):
         dag_id = "example_python_operator"
         task_instances = [
-            {"logical_date": DEFAULT_DATETIME_1, "state": State.SUCCESS},  # D0
-            {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1), "state": State.FAILED},  # D1
-            {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2), "state": State.SUCCESS},  # D2
+            {"logical_date": DEFAULT_DATETIME_1, "state": State.SUCCESS},  # T0
+            {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1), "state": State.FAILED},  # T1
+            {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2), "state": State.SUCCESS},  # T2
         ]
         self.create_task_instances(session, dag_id=dag_id, task_instances=task_instances, update_extras=False)
         payload = {
@@ -2486,7 +2486,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert resp.json()["total_entries"] == 1
         assert resp.json()["task_instances"][0]["logical_date"] == (
             DEFAULT_DATETIME_1 + dt.timedelta(days=1)
-        ).strftime("%Y-%m-%dT%H:%M:%SZ")  # D1
+        ).strftime("%Y-%m-%dT%H:%M:%SZ")  # T1
 
 
     def test_should_respond_401(self, unauthenticated_test_client):
