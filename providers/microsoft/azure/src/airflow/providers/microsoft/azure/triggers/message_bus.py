@@ -93,7 +93,7 @@ class AzureServiceBusQueueTrigger(BaseAzureServiceBusTrigger):
         super().__init__(poll_interval, azure_service_bus_conn_id, max_wait_time)
         self.queues = queues
 
-    def serialize(self) -> tuple[str, dict[str, any]]:
+    def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
             self.__class__.__module__ + "." + self.__class__.__qualname__,
             {
