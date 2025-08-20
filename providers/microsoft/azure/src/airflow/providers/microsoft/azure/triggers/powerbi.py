@@ -33,6 +33,7 @@ from airflow.providers.microsoft.azure.hooks.powerbi import (
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
+    from kiota_abstractions.request_adapter import RequestAdapter
     from msgraph_core import APIVersion
 
 
@@ -61,6 +62,16 @@ class BasePowerBITrigger(BaseTrigger):
         self.timeout = timeout
         self.proxies = proxies
         self.api_version = api_version
+
+    def get_conn(self) -> RequestAdapter:
+        """
+        Initiate a new RequestAdapter connection.
+
+        .. warning::
+           This method is deprecated.
+        """
+
+        return self.hook.get_conn()
 
     @cached_property
     def hook(self) -> PowerBIHook:

@@ -40,6 +40,7 @@ from airflow.utils.module_loading import import_string
 if TYPE_CHECKING:
     from io import BytesIO
 
+    from kiota_abstractions.request_adapter import RequestAdapter
     from msgraph_core import APIVersion
 
 
@@ -169,6 +170,16 @@ class MSGraphTrigger(BaseTrigger):
                 "response_type": self.response_type,
             },
         )
+
+    def get_conn(self) -> RequestAdapter:
+        """
+        Initiate a new RequestAdapter connection.
+
+        .. warning::
+           This method is deprecated.
+        """
+
+        return self.hook.get_conn()
 
     @cached_property
     def hook(self) -> KiotaRequestAdapterHook:

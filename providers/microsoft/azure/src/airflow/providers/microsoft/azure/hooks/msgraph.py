@@ -319,6 +319,13 @@ class KiotaRequestAdapterHook(BaseHook):
         return api_version, request_adapter
 
     def get_conn(self) -> RequestAdapter:
+        """
+        Initiate a new RequestAdapter connection.
+
+        .. warning::
+           This method is deprecated.
+        """
+
         if not self.conn_id:
             raise AirflowException("Failed to create the KiotaRequestAdapterHook. No conn_id provided!")
 
@@ -337,6 +344,8 @@ class KiotaRequestAdapterHook(BaseHook):
         return request_adapter
 
     async def get_async_conn(self) -> RequestAdapter:
+        """Initiate a new RequestAdapter connection asynchronously."""
+
         if not self.conn_id:
             raise AirflowException("Failed to create the KiotaRequestAdapterHook. No conn_id provided!")
 
