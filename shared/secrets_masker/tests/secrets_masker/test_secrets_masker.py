@@ -40,7 +40,7 @@ from airflow_shared.secrets_masker.secrets_masker import (
     should_hide_value_for_key,
 )
 
-from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import env_vars
 
 pytestmark = pytest.mark.enable_redact
 p = "password"
@@ -84,7 +84,7 @@ def logger(caplog):
     caplog.handler.setFormatter(formatter)
     logger.handlers = [caplog.handler]
     filt = SecretsMasker()
-    filt.MASK_SECRETS_IN_LOGS = True
+    SecretsMasker.MASK_SECRETS_IN_LOGS = True
     logger.addFilter(filt)
 
     filt.add_mask("password")
@@ -416,7 +416,8 @@ class TestShouldHideValueForKey:
         ],
     )
     def test_hiding_config(self, sensitive_variable_fields, key, expected_result):
-        with conf_vars({("core", "sensitive_var_conn_names"): str(sensitive_variable_fields)}):
+        env_value = str(sensitive_variable_fields) if sensitive_variable_fields is not None else ""
+        with env_vars({"AIRFLOW__CORE__SENSITIVE_VAR_CONN_NAMES": env_value}):
             get_sensitive_variables_fields.cache_clear()
             try:
                 assert expected_result == should_hide_value_for_key(key)
@@ -484,13 +485,13 @@ class TestMaskSecretAdapter:
                 yield
 
     def test_calling_mask_secret_adds_adaptations_for_returned_str(self):
-        with conf_vars({("logging", "secret_mask_adapter"): "urllib.parse.quote"}):
+        with env_vars({"AIRFLOW__LOGGING__SECRET_MASK_ADAPTER": "urllib.parse.quote"}):
             mask_secret("secret<>&", None)
 
         assert self.secrets_masker.patterns == {"secret%3C%3E%26", "secret<>&"}
 
     def test_calling_mask_secret_adds_adaptations_for_returned_iterable(self):
-        with conf_vars({("logging", "secret_mask_adapter"): "urllib.parse.urlparse"}):
+        with env_vars({"AIRFLOW__LOGGING__SECRET_MASK_ADAPTER": "urllib.parse.urlparse"}):
             mask_secret("https://airflow.apache.org/docs/apache-airflow/stable", "password")
 
         assert self.secrets_masker.patterns == {
@@ -501,7 +502,7 @@ class TestMaskSecretAdapter:
         }
 
     def test_calling_mask_secret_not_set(self):
-        with conf_vars({("logging", "secret_mask_adapter"): None}):
+        with env_vars({"AIRFLOW__LOGGING__SECRET_MASK_ADAPTER": ""}):
             mask_secret("a secret")
 
         assert self.secrets_masker.patterns == {"a secret"}
