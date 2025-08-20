@@ -655,8 +655,7 @@ class TestGitDagBundle:
 
                 assert "Repository path: %s not found" in str(exc_info.value)
 
-    @pytest.mark.db_test
-    @patch.dict(os.environ, {"AIRFLOW_CONN_MY_TEST_GIT": '{"host": "something"}'})
+    @patch.dict(os.environ, {"AIRFLOW_CONN_MY_TEST_GIT": '{"host": "something", "conn_type": "git"}'})
     @pytest.mark.parametrize(
         "conn_id, expected_hook_type",
         [("my_test_git", GitHook), ("something-else", type(None))],
