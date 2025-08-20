@@ -777,12 +777,12 @@ class TestGetMappedTaskInstances:
             ({"order_by": "map_index", "limit": 100}, list(range(100))),
             ({"order_by": "-map_index", "limit": 100}, list(range(109, 9, -1))),
             (
-                    {"order_by": "state", "limit": 108},
-                    list(range(5, 25)) + list(range(25, 110)) + list(range(3)),
+                {"order_by": "state", "limit": 108},
+                list(range(5, 25)) + list(range(25, 110)) + list(range(3)),
             ),
             (
-                    {"order_by": "-state", "limit": 100},
-                    list(range(5)[::-1]) + list(range(25, 110)[::-1]) + list(range(15, 25)[::-1]),
+                {"order_by": "-state", "limit": 100},
+                list(range(5)[::-1]) + list(range(25, 110)[::-1]) + list(range(15, 25)[::-1]),
             ),
             ({"order_by": "logical_date", "limit": 100}, list(range(100))),
             ({"order_by": "-logical_date", "limit": 100}, list(range(109, 9, -1))),
@@ -1403,37 +1403,37 @@ class TestGetTaskDependencies(TestTaskInstanceEndpoint):
         "state, dependencies",
         [
             (
-                    State.SCHEDULED,
-                    {
-                        "dependencies": [
-                            {
-                                "name": "Logical Date",
-                                "reason": "The logical date is 2020-01-01T00:00:00+00:00 but this is "
-                                          "before the task's start date 2021-01-01T00:00:00+00:00.",
-                            },
-                            {
-                                "name": "Logical Date",
-                                "reason": "The logical date is 2020-01-01T00:00:00+00:00 but this is "
-                                          "before the task's DAG's start date 2021-01-01T00:00:00+00:00.",
-                            },
-                        ],
-                    },
+                State.SCHEDULED,
+                {
+                    "dependencies": [
+                        {
+                            "name": "Logical Date",
+                            "reason": "The logical date is 2020-01-01T00:00:00+00:00 but this is "
+                            "before the task's start date 2021-01-01T00:00:00+00:00.",
+                        },
+                        {
+                            "name": "Logical Date",
+                            "reason": "The logical date is 2020-01-01T00:00:00+00:00 but this is "
+                            "before the task's DAG's start date 2021-01-01T00:00:00+00:00.",
+                        },
+                    ],
+                },
             ),
             (
-                    State.NONE,
-                    {
-                        "dependencies": [
-                            {
-                                "name": "Logical Date",
-                                "reason": "The logical date is 2020-01-01T00:00:00+00:00 but this is before the task's start date 2021-01-01T00:00:00+00:00.",
-                            },
-                            {
-                                "name": "Logical Date",
-                                "reason": "The logical date is 2020-01-01T00:00:00+00:00 but this is before the task's DAG's start date 2021-01-01T00:00:00+00:00.",
-                            },
-                            {"name": "Task Instance State", "reason": "Task is in the 'None' state."},
-                        ]
-                    },
+                State.NONE,
+                {
+                    "dependencies": [
+                        {
+                            "name": "Logical Date",
+                            "reason": "The logical date is 2020-01-01T00:00:00+00:00 but this is before the task's start date 2021-01-01T00:00:00+00:00.",
+                        },
+                        {
+                            "name": "Logical Date",
+                            "reason": "The logical date is 2020-01-01T00:00:00+00:00 but this is before the task's DAG's start date 2021-01-01T00:00:00+00:00.",
+                        },
+                        {"name": "Task Instance State", "reason": "Task is in the 'None' state."},
+                    ]
+                },
             ),
         ],
     )
@@ -2405,17 +2405,16 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             ("include_future", 2),  # D1 ~
         ],
     )
-    def test_with_dag_run_id_and_past_future_converts_to_date_range(self, test_client, session, flag,
-                                                                    expected):
+    def test_with_dag_run_id_and_past_future_converts_to_date_range(
+        self, test_client, session, flag, expected
+    ):
         dag_id = "example_python_operator"
         task_instances = [
             {"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED},  # D0
             {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1), "state": State.FAILED},  # D1
             {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2), "state": State.FAILED},  # D2
         ]
-        self.create_task_instances(
-            session, dag_id=dag_id, task_instances=task_instances, update_extras=False
-        )
+        self.create_task_instances(session, dag_id=dag_id, task_instances=task_instances, update_extras=False)
         payload = {
             "dry_run": True,
             "only_failed": True,
@@ -2430,14 +2429,12 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         dag_id = "example_python_operator"
         task_instances = [
             {"logical_date": DEFAULT_DATETIME_1 - dt.timedelta(days=1), "state": State.FAILED},  # D0
-            {"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED},  #D1
+            {"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED},  # D1
             {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1), "state": State.FAILED},  # D2
             {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2), "state": State.FAILED},  # D3
             {"logical_date": None, "state": State.FAILED},  # D4
         ]
-        self.create_task_instances(
-            session, dag_id=dag_id, task_instances=task_instances, update_extras=False
-        )
+        self.create_task_instances(session, dag_id=dag_id, task_instances=task_instances, update_extras=False)
         payload = {
             "dry_run": True,
             "only_failed": False,
@@ -2447,7 +2444,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         }
         resp = test_client.post(f"/dags/{dag_id}/clearTaskInstances", json=payload)
         assert resp.status_code == 200
-        assert resp.json()["total_entries"] == 5 #D0 ~ #D4
+        assert resp.json()["total_entries"] == 5  # D0 ~ #D4
 
     def test_with_dag_run_id_only_uses_run_id_based_clearing(self, test_client, session):
         dag_id = "example_python_operator"
@@ -2456,9 +2453,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1), "state": State.FAILED},  # D1
             {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2), "state": State.SUCCESS},  # D2
         ]
-        self.create_task_instances(
-            session, dag_id=dag_id, task_instances=task_instances, update_extras=False
-        )
+        self.create_task_instances(session, dag_id=dag_id, task_instances=task_instances, update_extras=False)
         payload = {
             "dry_run": True,
             "only_failed": True,
@@ -2468,7 +2463,9 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert resp.status_code == 200
         a = resp.json()
         assert resp.json()["total_entries"] == 1
-        assert resp.json()["task_instances"][0]["logical_date"] == (DEFAULT_DATETIME_1 + dt.timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ") #D1
+        assert resp.json()["task_instances"][0]["logical_date"] == (
+            DEFAULT_DATETIME_1 + dt.timedelta(days=1)
+        ).strftime("%Y-%m-%dT%H:%M:%SZ")  # D1
 
     @pytest.mark.parametrize("flag", ["include_future", "include_past"])
     def test_manual_run_with_none_logical_date_returns_400_kept(self, test_client, session, flag):
@@ -2481,8 +2478,11 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         }
         task_instances = [{"logical_date": None, "state": State.FAILED}]
         self.create_task_instances(
-            session, dag_id=dag_id, task_instances=task_instances, update_extras=False,
-            dag_run_state=State.FAILED
+            session,
+            dag_id=dag_id,
+            task_instances=task_instances,
+            update_extras=False,
+            dag_run_state=State.FAILED,
         )
         resp = test_client.post(f"/dags/{dag_id}/clearTaskInstances", json=payload)
         assert resp.status_code == 400
@@ -2963,58 +2963,58 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         "payload, expected",
         [
             (
-                    {"end_date": "2020-11-10T12:42:39.442973"},
-                    {
-                        "detail": [
-                            {
-                                "type": "timezone_aware",
-                                "loc": ["body", "end_date"],
-                                "msg": "Input should have timezone info",
-                                "input": "2020-11-10T12:42:39.442973",
-                            }
-                        ]
-                    },
+                {"end_date": "2020-11-10T12:42:39.442973"},
+                {
+                    "detail": [
+                        {
+                            "type": "timezone_aware",
+                            "loc": ["body", "end_date"],
+                            "msg": "Input should have timezone info",
+                            "input": "2020-11-10T12:42:39.442973",
+                        }
+                    ]
+                },
             ),
             (
-                    {"end_date": "2020-11-10T12:4po"},
-                    {
-                        "detail": [
-                            {
-                                "type": "datetime_from_date_parsing",
-                                "loc": ["body", "end_date"],
-                                "msg": "Input should be a valid datetime or date, unexpected extra characters at the end of the input",
-                                "input": "2020-11-10T12:4po",
-                                "ctx": {"error": "unexpected extra characters at the end of the input"},
-                            }
-                        ]
-                    },
+                {"end_date": "2020-11-10T12:4po"},
+                {
+                    "detail": [
+                        {
+                            "type": "datetime_from_date_parsing",
+                            "loc": ["body", "end_date"],
+                            "msg": "Input should be a valid datetime or date, unexpected extra characters at the end of the input",
+                            "input": "2020-11-10T12:4po",
+                            "ctx": {"error": "unexpected extra characters at the end of the input"},
+                        }
+                    ]
+                },
             ),
             (
-                    {"start_date": "2020-11-10T12:42:39.442973"},
-                    {
-                        "detail": [
-                            {
-                                "type": "timezone_aware",
-                                "loc": ["body", "start_date"],
-                                "msg": "Input should have timezone info",
-                                "input": "2020-11-10T12:42:39.442973",
-                            }
-                        ]
-                    },
+                {"start_date": "2020-11-10T12:42:39.442973"},
+                {
+                    "detail": [
+                        {
+                            "type": "timezone_aware",
+                            "loc": ["body", "start_date"],
+                            "msg": "Input should have timezone info",
+                            "input": "2020-11-10T12:42:39.442973",
+                        }
+                    ]
+                },
             ),
             (
-                    {"start_date": "2020-11-10T12:4po"},
-                    {
-                        "detail": [
-                            {
-                                "type": "datetime_from_date_parsing",
-                                "loc": ["body", "start_date"],
-                                "msg": "Input should be a valid datetime or date, unexpected extra characters at the end of the input",
-                                "input": "2020-11-10T12:4po",
-                                "ctx": {"error": "unexpected extra characters at the end of the input"},
-                            }
-                        ]
-                    },
+                {"start_date": "2020-11-10T12:4po"},
+                {
+                    "detail": [
+                        {
+                            "type": "datetime_from_date_parsing",
+                            "loc": ["body", "start_date"],
+                            "msg": "Input should be a valid datetime or date, unexpected extra characters at the end of the input",
+                            "input": "2020-11-10T12:4po",
+                            "ctx": {"error": "unexpected extra characters at the end of the input"},
+                        }
+                    ]
+                },
             ),
         ],
     )
@@ -3686,16 +3686,16 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         "payload, expected",
         [
             (
-                    {
-                        "new_state": "failede",
-                    },
-                    f"'failede' is not one of ['{State.SUCCESS}', '{State.FAILED}', '{State.SKIPPED}']",
+                {
+                    "new_state": "failede",
+                },
+                f"'failede' is not one of ['{State.SUCCESS}', '{State.FAILED}', '{State.SKIPPED}']",
             ),
             (
-                    {
-                        "new_state": "queued",
-                    },
-                    f"'queued' is not one of ['{State.SUCCESS}', '{State.FAILED}', '{State.SKIPPED}']",
+                {
+                    "new_state": "queued",
+                },
+                f"'queued' is not one of ['{State.SUCCESS}', '{State.FAILED}', '{State.SKIPPED}']",
             ),
         ],
     )
@@ -3722,50 +3722,49 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         "new_state,expected_status_code,expected_json,set_ti_state_call_count",
         [
             (
-                "failed",
-                200,
-                {
-                    "task_instances": [
-                        {
-                            "dag_id": "example_python_operator",
-                            "dag_display_name": "example_python_operator",
-                            "dag_version": mock.ANY,
-                            "dag_run_id": "TEST_DAG_RUN_ID",
-                            "logical_date": "2020-01-01T00:00:00Z",
-                            "task_id": "print_the_context",
-                            "duration": 10000.0,
-                            "end_date": "2020-01-03T00:00:00Z",
-                            "executor": None,
-                            "executor_config": "{}",
-                            "hostname": "",
-                            "id": mock.ANY,
-                            "map_index": -1,
-                            "max_tries": 0,
-                            "note": "placeholder-note",
-                            "operator": "PythonOperator",
-                            "operator_name": "PythonOperator",
-                            "pid": 100,
-                            "pool": "default_pool",
-                            "pool_slots": 1,
-                            "priority_weight": 9,
-                            "queue": "default_queue",
-                            "queued_when": None,
-                            "scheduled_when": None,
-                            "start_date": "2020-01-02T00:00:00Z",
-                            "state": "running",
-                            "task_display_name": "print_the_context",
-                            "try_number": 0,
-                            "unixname": getuser(),
-                            "rendered_fields": {},
-                            "rendered_map_index": None,
-                            "run_after": "2020-01-01T00:00:00Z",
-                            "trigger": None,
-                            "triggerer_job": None,
-                        }
-                    ],
-                    "total_entries": 1,
-                },
-                1,
+                    "failed",
+                    200,
+                    {
+                        "task_instances": [
+                            {
+                                "dag_id": "example_python_operator",
+                                "dag_display_name": "example_python_operator",
+                                "dag_version": mock.ANY,
+                                "dag_run_id": "TEST_DAG_RUN_ID",
+                                "logical_date": "2020-01-01T00:00:00Z",
+                                "task_id": "print_the_context",
+                                "duration": 10000.0,
+                                "end_date": "2020-01-03T00:00:00Z",
+                                "executor": None,
+                                "executor_config": "{}",
+                                "hostname": "",
+                                "id": mock.ANY,
+                                "map_index": -1,
+                                "max_tries": 0,
+                                "note": "placeholder-note",
+                                "operator": "PythonOperator",
+                                "pid": 100,
+                                "pool": "default_pool",
+                                "pool_slots": 1,
+                                "priority_weight": 9,
+                                "queue": "default_queue",
+                                "queued_when": None,
+                                "scheduled_when": None,
+                                "start_date": "2020-01-02T00:00:00Z",
+                                "state": "running",
+                                "task_display_name": "print_the_context",
+                                "try_number": 0,
+                                "unixname": getuser(),
+                                "rendered_fields": {},
+                                "rendered_map_index": None,
+                                "run_after": "2020-01-01T00:00:00Z",
+                                "trigger": None,
+                                "triggerer_job": None,
+                            }
+                        ],
+                        "total_entries": 1,
+                    },
+                    1,
             ),
             (
                 None,
@@ -3822,12 +3821,12 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         "new_note_value,ti_note_data",
         [
             (
-                    "My super cool TaskInstance note.",
-                    {"content": "My super cool TaskInstance note.", "user_id": "test"},
+                "My super cool TaskInstance note.",
+                {"content": "My super cool TaskInstance note.", "user_id": "test"},
             ),
             (
-                    None,
-                    {"content": None, "user_id": "test"},
+                None,
+                {"content": None, "user_id": "test"},
             ),
         ],
     )
@@ -4382,16 +4381,16 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
         "payload, expected",
         [
             (
-                    {
-                        "new_state": "failede",
-                    },
-                    f"'failede' is not one of ['{State.SUCCESS}', '{State.FAILED}', '{State.SKIPPED}']",
+                {
+                    "new_state": "failede",
+                },
+                f"'failede' is not one of ['{State.SUCCESS}', '{State.FAILED}', '{State.SKIPPED}']",
             ),
             (
-                    {
-                        "new_state": "queued",
-                    },
-                    f"'queued' is not one of ['{State.SUCCESS}', '{State.FAILED}', '{State.SKIPPED}']",
+                {
+                    "new_state": "queued",
+                },
+                f"'queued' is not one of ['{State.SUCCESS}', '{State.FAILED}', '{State.SKIPPED}']",
             ),
         ],
     )
@@ -4464,20 +4463,20 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                 1,
             ),
             (
-                None,
-                422,
-                {
-                    "detail": [
-                        {
-                            "type": "value_error",
-                            "loc": ["body", "new_state"],
-                            "msg": "Value error, 'new_state' should not be empty",
-                            "input": None,
-                            "ctx": {"error": {}},
-                        }
-                    ]
-                },
-                0,
+                    None,
+                    422,
+                    {
+                        "detail": [
+                            {
+                                "type": "value_error",
+                                "loc": ["body", "new_state"],
+                                "msg": "Value error, 'new_state' should not be empty",
+                                "input": None,
+                                "ctx": {"error": {}},
+                            }
+                        ]
+                    },
+                    0,
             ),
         ],
     )
@@ -4550,19 +4549,19 @@ class TestDeleteTaskInstance(TestTaskInstanceEndpoint):
         "test_url, setup_needed, expected_error",
         [
             (
-                    f"/dags/non_existent_dag/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}",
-                    False,
-                    "The Task Instance with dag_id: `non_existent_dag`, run_id: `TEST_DAG_RUN_ID`, task_id: `print_the_context` and map_index: `-1` was not found",
+                f"/dags/non_existent_dag/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}",
+                False,
+                "The Task Instance with dag_id: `non_existent_dag`, run_id: `TEST_DAG_RUN_ID`, task_id: `print_the_context` and map_index: `-1` was not found",
             ),
             (
-                    f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/non_existent_task",
-                    True,
-                    "The Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, task_id: `non_existent_task` and map_index: `-1` was not found",
+                f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/non_existent_task",
+                True,
+                "The Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, task_id: `non_existent_task` and map_index: `-1` was not found",
             ),
             (
-                    f"/dags/{DAG_ID}/dagRuns/NON_EXISTENT_DAG_RUN/taskInstances/{TASK_ID}",
-                    True,
-                    "The Task Instance with dag_id: `example_python_operator`, run_id: `NON_EXISTENT_DAG_RUN`, task_id: `print_the_context` and map_index: `-1` was not found",
+                f"/dags/{DAG_ID}/dagRuns/NON_EXISTENT_DAG_RUN/taskInstances/{TASK_ID}",
+                True,
+                "The Task Instance with dag_id: `example_python_operator`, run_id: `NON_EXISTENT_DAG_RUN`, task_id: `print_the_context` and map_index: `-1` was not found",
             ),
         ],
     )
