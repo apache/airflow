@@ -2622,3 +2622,27 @@ def create_dag_without_db():
         return DAG(dag_id=dag_id, schedule=None, render_template_as_native_obj=True)
 
     return create_dag
+
+
+@pytest.fixture
+def mock_task_instance():
+    def _create_mock_task_instance(
+        task_id: str = "test_task",
+        dag_id: str = "test_dag",
+        run_id: str = "test_run",
+        try_number: int = 0,
+        state: str = "running",
+        max_tries: int = 0,
+    ):
+        from airflow.models import TaskInstance
+
+        mock_ti = mock.MagicMock(spec=TaskInstance)
+        mock_ti.task_id = task_id
+        mock_ti.dag_id = dag_id
+        mock_ti.run_id = run_id
+        mock_ti.try_number = try_number
+        mock_ti.state = state
+        mock_ti.max_tries = max_tries
+        return mock_ti
+
+    return _create_mock_task_instance
