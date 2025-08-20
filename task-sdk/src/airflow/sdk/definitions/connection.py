@@ -30,6 +30,48 @@ from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 log = logging.getLogger(__name__)
 
 
+def _prune_dict(val: Any, mode="strict"):
+    """
+    Given dict ``val``, returns new dict based on ``val`` with all empty elements removed.
+
+    What constitutes "empty" is controlled by the ``mode`` parameter.  If mode is 'strict'
+    then only ``None`` elements will be removed.  If mode is ``truthy``, then element ``x``
+    will be removed if ``bool(x) is False``.
+    """
+    if mode == "strict":
+        is_empty = lambda x: x is None
+    elif mode == "truthy":
+        is_empty = lambda x: not bool(x)
+    else:
+        raise ValueError("allowable values for `mode` include 'truthy' and 'strict'")
+
+    if isinstance(val, dict):
+        new_dict = {}
+        for k, v in val.items():
+            if is_empty(v):
+                continue
+            if isinstance(v, (list, dict)):
+                new_val = _prune_dict(v, mode=mode)
+                if not is_empty(new_val):
+                    new_dict[k] = new_val
+            else:
+                new_dict[k] = v
+        return new_dict
+    if isinstance(val, list):
+        new_list = []
+        for v in val:
+            if is_empty(v):
+                continue
+            if isinstance(v, (list, dict)):
+                new_val = _prune_dict(v, mode=mode)
+                if not is_empty(new_val):
+                    new_list.append(new_val)
+            else:
+                new_list.append(v)
+        return new_list
+    return val
+
+
 @attrs.define
 class Connection:
     """
@@ -159,7 +201,7 @@ class Connection:
 
     @property
     def extra_dejson(self) -> dict:
-        """Deserialize `extra` property to JSON."""
+        """Returns the extra property by deserializing json."""
         from airflow.sdk.execution_time.secrets_masker import mask_secret
 
         extra = {}
@@ -172,3 +214,73 @@ class Connection:
                 mask_secret(extra)
 
         return extra
+
+    def get_extra_dejson(self) -> dict:
+        """Deserialize extra property to JSON."""
+        import warnings
+
+        warnings.warn(
+            "`get_extra_dejson` is deprecated and will be removed in a future release. ",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.extra_dejson
+
+    def to_dict(self, *, prune_empty: bool = False, validate: bool = True) -> dict[str, Any]:
+        """
+        Convert Connection to json-serializable dictionary.
+
+        :param prune_empty: Whether or not remove empty values.
+        :param validate: Validate dictionary is JSON-serializable
+
+        :meta private:
+        """
+        conn: dict[str, Any] = {
+            "conn_id": self.conn_id,
+            "conn_type": self.conn_type,
+            "description": self.description,
+            "host": self.host,
+            "login": self.login,
+            "password": self.password,
+            "schema": self.schema,
+            "port": self.port,
+        }
+        if prune_empty:
+            conn = _prune_dict(val=conn, mode="strict")
+        if (extra := self.extra_dejson) or not prune_empty:
+            conn["extra"] = extra
+
+        if validate:
+            json.dumps(conn)
+        return conn
+
+    @classmethod
+    def from_json(cls, value, conn_id=None) -> Connection:
+        kwargs = json.loads(value)
+        extra = kwargs.pop("extra", None)
+        if extra:
+            kwargs["extra"] = extra if isinstance(extra, str) else json.dumps(extra)
+        conn_type = kwargs.pop("conn_type", None)
+        if conn_type:
+            kwargs["conn_type"] = cls._normalize_conn_type(conn_type)
+        port = kwargs.pop("port", None)
+        if port:
+            try:
+                kwargs["port"] = int(port)
+            except ValueError:
+                raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.")
+        return cls(conn_id=conn_id, **kwargs)
+
+    def as_json(self) -> str:
+        """Convert Connection to JSON-string object."""
+        conn_repr = self.to_dict(prune_empty=True, validate=False)
+        conn_repr.pop("conn_id", None)
+        return json.dumps(conn_repr)
+
+    @staticmethod
+    def _normalize_conn_type(conn_type):
+        if conn_type == "postgresql":
+            conn_type = "postgres"
+        elif "-" in conn_type:
+            conn_type = conn_type.replace("-", "_")
+        return conn_type

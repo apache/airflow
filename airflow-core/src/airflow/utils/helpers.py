@@ -147,6 +147,16 @@ def log_filename_template_renderer() -> Callable[..., str]:
     return f_str_format
 
 
+def _render_template_to_string(template: jinja2.Template, context: Context) -> str:
+    """
+    Render a Jinja template to string using the provided context.
+
+    This is a private utility function specifically for log filename rendering.
+    It ensures templates are rendered as strings rather than native Python objects.
+    """
+    return render_template(template, cast("MutableMapping[str, Any]", context), native=False)
+
+
 def render_log_filename(ti: TaskInstance, try_number, filename_template) -> str:
     """
     Given task instance, try_number, filename_template, return the rendered log filename.
@@ -160,7 +170,7 @@ def render_log_filename(ti: TaskInstance, try_number, filename_template) -> str:
     if filename_jinja_template:
         jinja_context = ti.get_template_context()
         jinja_context["try_number"] = try_number
-        return render_template_to_string(filename_jinja_template, jinja_context)
+        return _render_template_to_string(filename_jinja_template, jinja_context)
 
     return filename_template.format(
         dag_id=ti.dag_id,
@@ -237,11 +247,6 @@ def render_template(template: Any, context: MutableMapping[str, Any], *, native:
 
         return jinja2.nativetypes.native_concat(nodes)
     return "".join(nodes)
-
-
-def render_template_to_string(template: jinja2.Template, context: Context) -> str:
-    """Shorthand to ``render_template(native=False)`` with better typing support."""
-    return render_template(template, cast("MutableMapping[str, Any]", context), native=False)
 
 
 def exactly_one(*args) -> bool:
@@ -344,5 +349,18 @@ def __getattr__(name: str):
             stacklevel=2,
         )
         return prevent_duplicates
+
+    if name == "render_template_to_string":
+        import warnings
+
+        from airflow.sdk.definitions.context import render_template_as_native
+
+        warnings.warn(
+            "airflow.utils.helpers.render_template_to_string is deprecated. "
+            "Use airflow.sdk.definitions.context.render_template_to_string instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return render_template_as_native
 
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

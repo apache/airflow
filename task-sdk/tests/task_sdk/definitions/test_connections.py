@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest import mock
 from urllib.parse import urlparse
 
@@ -128,6 +129,83 @@ class TestConnections:
 
         with pytest.raises(AirflowNotFoundException, match="The conn_id `mysql_conn` isn't defined"):
             _ = Connection.get(conn_id="mysql_conn")
+
+    def test_to_dict(self):
+        """Test that to_dict returns correct dictionary representation."""
+        connection = Connection(
+            conn_id="test_conn",
+            conn_type="http",
+            login="user",
+            password="pass",
+            host="https://api.example.com/",
+            port=443,
+            schema="https",
+            extra='{"timeout": 30, "verify": false}',
+        )
+
+        result = connection.to_dict()
+
+        assert result == {
+            "conn_id": "test_conn",
+            "conn_type": "http",
+            "description": None,
+            "host": "https://api.example.com/",
+            "login": "user",
+            "password": "pass",
+            "schema": "https",
+            "port": 443,
+            "extra": {"timeout": 30, "verify": False},
+        }
+
+    def test_as_json(self):
+        """Test that as_json returns valid JSON string without conn_id."""
+        connection = Connection(
+            conn_id="test_conn",
+            conn_type="postgres",
+            host="localhost",
+            port=5432,
+        )
+
+        json_str = connection.as_json()
+        result = json.loads(json_str)
+
+        # Should not include conn_id
+        assert "conn_id" not in result
+        assert result["conn_type"] == "postgres"
+        assert result["host"] == "localhost"
+        assert result["port"] == 5432
+
+    def test_from_json(self):
+        """Test that from_json creates Connection with type normalization."""
+        json_data = {
+            "conn_type": "postgresql",
+            "host": "localhost",
+            "port": "5432",
+        }
+        expected_id = "postgres"
+        connection = Connection.from_json(json.dumps(json_data), conn_id="test_conn")
+
+        assert connection.conn_id == "test_conn"
+        assert connection.conn_type == expected_id
+        assert connection.host == "localhost"
+        assert connection.port == 5432
+
+    def test_extra_dejson_property(self, patched_secrets_masker):
+        """Test that extra_dejson property correctly deserializes JSON extra field."""
+        connection = Connection(
+            conn_id="test_conn",
+            conn_type="http",
+            extra='{"timeout": 30, "verify": false, "retries": 3}',
+        )
+
+        result = connection.extra_dejson
+        assert result == {"timeout": 30, "verify": False, "retries": 3}
+
+        connection.extra = None
+        assert connection.extra_dejson == {}
+
+        connection.extra = '{"auth": {"type": "oauth"}, "headers": {"User-Agent": "Airflow"}}'
+        assert connection.extra_dejson == {"auth": {"type": "oauth"}, "headers": {"User-Agent": "Airflow"}}
 
 
 class TestConnectionsFromSecrets:
