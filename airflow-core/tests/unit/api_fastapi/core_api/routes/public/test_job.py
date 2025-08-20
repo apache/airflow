@@ -20,10 +20,10 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from airflow.jobs.job import Job
+from airflow.jobs.job import Job, JobState
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.utils.session import provide_session
-from airflow.utils.state import JobState, State
+from airflow.utils.state import State
 
 from tests_common.test_utils.db import clear_db_jobs
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu

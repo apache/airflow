@@ -1088,18 +1088,36 @@ export const ensureUseXcomServiceGetXcomEntryData = (queryClient: QueryClient, {
 * @param data.mapIndex
 * @param data.limit
 * @param data.offset
+* @param data.xcomKeyPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.mapIndexFilter
+* @param data.logicalDateGte
+* @param data.logicalDateLte
+* @param data.runAfterGte
+* @param data.runAfterLte
 * @returns XComCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseXcomServiceGetXcomEntriesData = (queryClient: QueryClient, { dagId, dagRunId, limit, mapIndex, offset, taskId, xcomKey }: {
+export const ensureUseXcomServiceGetXcomEntriesData = (queryClient: QueryClient, { dagDisplayNamePattern, dagId, dagRunId, limit, logicalDateGte, logicalDateLte, mapIndex, mapIndexFilter, offset, runAfterGte, runAfterLte, runIdPattern, taskId, taskIdPattern, xcomKey, xcomKeyPattern }: {
+  dagDisplayNamePattern?: string;
   dagId: string;
   dagRunId: string;
   limit?: number;
+  logicalDateGte?: string;
+  logicalDateLte?: string;
   mapIndex?: number;
+  mapIndexFilter?: number;
   offset?: number;
+  runAfterGte?: string;
+  runAfterLte?: string;
+  runIdPattern?: string;
   taskId: string;
+  taskIdPattern?: string;
   xcomKey?: string;
-}) => queryClient.ensureQueryData({ queryKey: Common.UseXcomServiceGetXcomEntriesKeyFn({ dagId, dagRunId, limit, mapIndex, offset, taskId, xcomKey }), queryFn: () => XcomService.getXcomEntries({ dagId, dagRunId, limit, mapIndex, offset, taskId, xcomKey }) });
+  xcomKeyPattern?: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseXcomServiceGetXcomEntriesKeyFn({ dagDisplayNamePattern, dagId, dagRunId, limit, logicalDateGte, logicalDateLte, mapIndex, mapIndexFilter, offset, runAfterGte, runAfterLte, runIdPattern, taskId, taskIdPattern, xcomKey, xcomKeyPattern }), queryFn: () => XcomService.getXcomEntries({ dagDisplayNamePattern, dagId, dagRunId, limit, logicalDateGte, logicalDateLte, mapIndex, mapIndexFilter, offset, runAfterGte, runAfterLte, runIdPattern, taskId, taskIdPattern, xcomKey, xcomKeyPattern }) });
 /**
 * Get Tasks
 * Get tasks for DAG.
@@ -1231,8 +1249,10 @@ export const ensureUseHumanInTheLoopServiceGetMappedTiHitlDetailData = (queryCli
 * @param data.limit
 * @param data.offset
 * @param data.orderBy
+* @param data.dagId
 * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @param data.dagRunId
+* @param data.taskId
 * @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @param data.state
 * @param data.responseReceived
@@ -1242,8 +1262,9 @@ export const ensureUseHumanInTheLoopServiceGetMappedTiHitlDetailData = (queryCli
 * @returns HITLDetailCollection Successful Response
 * @throws ApiError
 */
-export const ensureUseHumanInTheLoopServiceGetHitlDetailsData = (queryClient: QueryClient, { bodySearch, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, taskIdPattern, userId }: {
+export const ensureUseHumanInTheLoopServiceGetHitlDetailsData = (queryClient: QueryClient, { bodySearch, dagId, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, taskId, taskIdPattern, userId }: {
   bodySearch?: string;
+  dagId?: string;
   dagIdPattern?: string;
   dagRunId?: string;
   limit?: number;
@@ -1252,9 +1273,10 @@ export const ensureUseHumanInTheLoopServiceGetHitlDetailsData = (queryClient: Qu
   responseReceived?: boolean;
   state?: string[];
   subjectSearch?: string;
+  taskId?: string;
   taskIdPattern?: string;
   userId?: string[];
-} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailsKeyFn({ bodySearch, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, taskIdPattern, userId }), queryFn: () => HumanInTheLoopService.getHitlDetails({ bodySearch, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, taskIdPattern, userId }) });
+} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailsKeyFn({ bodySearch, dagId, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, taskId, taskIdPattern, userId }), queryFn: () => HumanInTheLoopService.getHitlDetails({ bodySearch, dagId, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, taskId, taskIdPattern, userId }) });
 /**
 * Get Health
 * @returns HealthInfoResponse Successful Response

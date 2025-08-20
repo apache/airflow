@@ -618,7 +618,20 @@ class TestSnowflakeSqlApiHook:
                 },
             ),
             (202, {}, {"status": "running", "message": "Query statements are still running"}),
-            (422, {"status": "error", "message": "test"}, {"status": "error", "message": "test"}),
+            (422, {"message": "test"}, {"status": "error", "message": "test"}),
+            (
+                422,
+                {
+                    "message": "SQL compilation error",
+                    "code": "000904",
+                    "sqlState": "42000",
+                    "statementHandle": "handle123",
+                },
+                {
+                    "status": "error",
+                    "message": "SQL compilation error (Code: 000904, SQL State: 42000, Statement Handle: handle123)",
+                },
+            ),
             (404, {"status": "error", "message": "test"}, {"status": "error", "message": "test"}),
         ],
     )
@@ -678,7 +691,7 @@ class TestSnowflakeSqlApiHook:
                 },
             ),
             (202, {}, {"status": "running", "message": "Query statements are still running"}),
-            (422, {"status": "error", "message": "test"}, {"status": "error", "message": "test"}),
+            (422, {"message": "test"}, {"status": "error", "message": "test"}),
             (404, {"status": "error", "message": "test"}, {"status": "error", "message": "test"}),
         ],
     )

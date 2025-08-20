@@ -35,6 +35,7 @@ export type FlexibleFormProps = {
   readonly initialParamsDict: { paramsDict: ParamsSpec };
   readonly isHITL?: boolean;
   readonly key?: string;
+  readonly namespace?: string;
   readonly setError: (error: boolean) => void;
   readonly subHeader?: string;
 };
@@ -45,10 +46,11 @@ export const FlexibleForm = ({
   flexibleFormDefaultSection,
   initialParamsDict,
   isHITL,
+  namespace = "default",
   setError,
   subHeader,
 }: FlexibleFormProps) => {
-  const { paramsDict: params, setDisabled, setInitialParamDict, setParamsDict } = useParamStore();
+  const { paramsDict: params, setDisabled, setInitialParamDict, setParamsDict } = useParamStore(namespace);
   const processedSections = new Map();
   const [sectionError, setSectionError] = useState<Map<string, boolean>>(new Map());
 
@@ -153,7 +155,7 @@ export const FlexibleForm = ({
                         (currentSection === flexibleFormDefaultSection && !Boolean(param.schema.section)),
                     )
                     .map(([name]) => (
-                      <Row key={name} name={name} onUpdate={onUpdate} />
+                      <Row key={name} name={name} namespace={namespace} onUpdate={onUpdate} />
                     ))}
                 </Stack>
               </Accordion.ItemBody>

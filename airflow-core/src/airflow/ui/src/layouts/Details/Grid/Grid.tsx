@@ -35,6 +35,7 @@ import { Bar } from "./Bar";
 import { DurationAxis } from "./DurationAxis";
 import { DurationTick } from "./DurationTick";
 import { TaskNames } from "./TaskNames";
+import { useGridStore } from "./useGridStore";
 import { flattenNodes } from "./utils";
 
 dayjs.extend(dayjsDuration);
@@ -54,12 +55,13 @@ const getArrowsForMode = (navigationMode: string) => {
 
 type Props = {
   readonly limit: number;
+  readonly showGantt?: boolean;
 };
 
-export const Grid = ({ limit }: Props) => {
+export const Grid = ({ limit, showGantt }: Props) => {
   const { t: translate } = useTranslation("dag");
   const gridRef = useRef<HTMLDivElement>(null);
-  const [isGridFocused, setIsGridFocused] = useState(false);
+  const { isGridFocused, setIsGridFocused } = useGridStore();
 
   const [selectedIsVisible, setSelectedIsVisible] = useState<boolean | undefined>();
   const [hasActiveRun, setHasActiveRun] = useState<boolean | undefined>();
@@ -104,14 +106,17 @@ export const Grid = ({ limit }: Props) => {
 
   const { flatNodes } = useMemo(() => flattenNodes(dagStructure, openGroupIds), [dagStructure, openGroupIds]);
 
-  const setGridFocus = useCallback((focused: boolean) => {
-    setIsGridFocused(focused);
-    if (focused) {
-      gridRef.current?.focus();
-    } else {
-      gridRef.current?.blur();
-    }
-  }, []);
+  const setGridFocus = useCallback(
+    (focused: boolean) => {
+      setIsGridFocused(focused);
+      if (focused) {
+        gridRef.current?.focus();
+      } else {
+        gridRef.current?.blur();
+      }
+    },
+    [setIsGridFocused],
+  );
 
   const { mode, setMode } = useNavigation({
     enabled: isGridFocused,
@@ -120,12 +125,6 @@ export const Grid = ({ limit }: Props) => {
     runs: gridRuns ?? [],
     tasks: flatNodes,
   });
-
-  useEffect(() => {
-    if (gridRef.current && gridRuns && flatNodes.length > 0) {
-      setGridFocus(true);
-    }
-  }, [gridRuns, flatNodes.length, setGridFocus]);
 
   return (
     <Flex
@@ -140,10 +139,10 @@ export const Grid = ({ limit }: Props) => {
       onMouseDown={() => setGridFocus(true)}
       outline="none"
       position="relative"
-      pt={50}
+      pt={20}
       ref={gridRef}
       tabIndex={0}
-      width="100%"
+      width={showGantt ? undefined : "100%"}
     >
       <Box borderRadius="md" color="gray.400" fontSize="xs" position="absolute" px={0} py={12} top={0}>
         <Text>{translate("navigation.navigation", { arrow: getArrowsForMode(mode) })}</Text>
@@ -159,7 +158,12 @@ export const Grid = ({ limit }: Props) => {
           <DurationAxis top="100px" />
           <DurationAxis top="50px" />
           <DurationAxis top="4px" />
-          <Flex flexDirection="column-reverse" height="100px" position="relative" width="100%">
+          <Flex
+            flexDirection="column-reverse"
+            height="100px"
+            position="relative"
+            width={showGantt ? undefined : "100%"}
+          >
             {Boolean(gridRuns?.length) && (
               <>
                 <DurationTick bottom="92px" duration={max} />

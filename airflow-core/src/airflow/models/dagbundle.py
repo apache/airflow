@@ -40,7 +40,7 @@ class DagBundleModel(Base, LoggingMixin):
     """
 
     __tablename__ = "dag_bundle"
-    name = Column(StringID(), primary_key=True)
+    name = Column(StringID(), primary_key=True, nullable=False)
     active = Column(Boolean, default=True)
     version = Column(String(200), nullable=True)
     last_refreshed = Column(UtcDateTime, nullable=True)

@@ -26,20 +26,8 @@ from unittest import mock
 import pytest
 
 from airflow import settings
-from airflow.exceptions import (
-    AirflowException,
-    AirflowSensorTimeout,
-    AirflowSkipException,
-    TaskDeferred,
-)
+from airflow.exceptions import AirflowException, AirflowSensorTimeout, AirflowSkipException, TaskDeferred
 from airflow.models import DagBag, DagRun, TaskInstance
-
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperator
-else:
-    from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.xcom_arg import XComArg
@@ -56,38 +44,37 @@ from airflow.providers.standard.exceptions import (
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.providers.standard.sensors.external_task import (
-    ExternalTaskMarker,
-    ExternalTaskSensor,
-)
+from airflow.providers.standard.sensors.external_task import ExternalTaskMarker, ExternalTaskSensor
 from airflow.providers.standard.sensors.time import TimeSensor
 from airflow.providers.standard.triggers.external_task import WorkflowTrigger
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.timetables.base import DataInterval
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.timezone import coerce_datetime, datetime
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.mock_operators import MockOperator
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.models.dag_version import DagVersion
-    from airflow.sdk import task as task_deco
+    from airflow.sdk import BaseOperator, task as task_deco
     from airflow.utils.types import DagRunTriggeredByType
 else:
     from airflow.decorators import task as task_deco  # type: ignore[attr-defined,no-redef]
+    from airflow.models import BaseOperator  # type: ignore[assignment,no-redef]
 
-try:
-    from airflow.sdk.definitions.taskgroup import TaskGroup
-except ImportError:
-    # Fallback for Airflow < 3.1
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import TaskGroup
+    from airflow.sdk.timezone import coerce_datetime, datetime
+else:
     from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
+    from airflow.utils.timezone import coerce_datetime, datetime  # type: ignore[attr-defined,no-redef]
 
 pytestmark = pytest.mark.db_test
 
+TI = TaskInstance
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = "unit_test_dag"
@@ -372,7 +359,6 @@ class TestExternalTaskSensorV2:
 
         # then
         session = settings.Session()
-        TI = TaskInstance
         task_instances: list[TI] = session.query(TI).filter(TI.task_id == op.task_id).all()
         assert len(task_instances) == 1, "Unexpected number of task instances"
         assert task_instances[0].state == State.SKIPPED, "Unexpected external task state"
@@ -392,7 +378,6 @@ class TestExternalTaskSensorV2:
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         # then
-        TI = TaskInstance
         task_instances: list[TI] = session.query(TI).filter(TI.task_id == op.task_id).all()
         assert len(task_instances) == 1, "Unexpected number of task instances"
         assert task_instances[0].state == State.SKIPPED, "Unexpected external task state"
@@ -500,7 +485,6 @@ class TestExternalTaskSensorV2:
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         # then
-        TI = TaskInstance
         task_instances: list[TI] = session.query(TI).filter(TI.task_id == op.task_id).all()
         assert len(task_instances) == 1, "Unexpected number of task instances"
         assert task_instances[0].state == State.SKIPPED, "Unexpected external task state"
@@ -529,7 +513,6 @@ exit 0
         )
 
         session = settings.Session()
-        TI = TaskInstance
         try:
             task_external_with_failure.run(
                 start_date=DEFAULT_DATE, end_date=DEFAULT_DATE + timedelta(seconds=1), ignore_ti_state=True

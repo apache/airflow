@@ -33,11 +33,9 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
 
-from sqlalchemy import (
-    Column,
-    String,
-)
+from sqlalchemy import Column, String, inspect, select
 from sqlalchemy.orm import joinedload
+from sqlalchemy.orm.attributes import NO_VALUE
 from tabulate import tabulate
 
 from airflow import settings
@@ -47,14 +45,13 @@ from airflow.exceptions import (
     AirflowClusterPolicyError,
     AirflowClusterPolicySkipDag,
     AirflowClusterPolicyViolation,
-    AirflowDagCycleException,
     AirflowDagDuplicatedIdException,
     AirflowException,
+    AirflowTaskTimeout,
 )
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base, StringID
 from airflow.models.dag_version import DagVersion
-from airflow.stats import Stats
 from airflow.utils.docs import get_docs_url
 from airflow.utils.file import (
     correct_maybe_zipped,
@@ -64,8 +61,12 @@ from airflow.utils.file import (
 )
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.timeout import timeout
 from airflow.utils.types import NOTSET
+
+try:
+    from airflow.sdk.exceptions import AirflowDagCycleException
+except ImportError:
+    from airflow.exceptions import AirflowDagCycleException  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -75,6 +76,7 @@ if TYPE_CHECKING:
     from airflow.models import DagRun
     from airflow.models.dag import DAG
     from airflow.models.dagwarning import DagWarning
+    from airflow.models.serialized_dag import SerializedDagModel
     from airflow.utils.types import ArgNotSet
 
 
@@ -117,6 +119,30 @@ class FileLoadStat(NamedTuple):
     warning_num: int
 
 
+@contextlib.contextmanager
+def timeout(seconds=1, error_message="Timeout"):
+    import logging
+
+    log = logging.getLogger(__name__)
+    error_message = error_message + ", PID: " + str(os.getpid())
+
+    def handle_timeout(signum, frame):
+        """Log information and raises AirflowTaskTimeout."""
+        log.error("Process timed out, PID: %s", str(os.getpid()))
+        raise AirflowTaskTimeout(error_message)
+
+    try:
+        try:
+            signal.signal(signal.SIGALRM, handle_timeout)
+            signal.setitimer(signal.ITIMER_REAL, seconds)
+        except ValueError:
+            log.warning("timeout can't be used in the current context", exc_info=True)
+        yield
+    finally:
+        with contextlib.suppress(ValueError):
+            signal.setitimer(signal.ITIMER_REAL, 0)
+
+
 class DagBag(LoggingMixin):
     """
     A dagbag is a collection of dags, parsed out of a folder tree and has high level configuration settings.
@@ -133,8 +159,6 @@ class DagBag(LoggingMixin):
     :param safe_mode: when ``False``, scans all python modules for dags.
         When ``True`` uses heuristics (files containing ``DAG`` and ``airflow`` strings)
         to filter python modules to scan for dags.
-    :param read_dags_from_db: Read DAGs from DB if ``True`` is passed.
-        If ``False`` DAGs are read from python files.
     :param load_op_links: Should the extra operator link be loaded via plugins when
         de-serializing the DAG? This flag is set to False in Scheduler so that Extra Operator links
         are not loaded to not run User code in Scheduler.
@@ -147,7 +171,6 @@ class DagBag(LoggingMixin):
         dag_folder: str | Path | None = None,  # todo AIP-66: rename this to path
         include_examples: bool | ArgNotSet = NOTSET,
         safe_mode: bool | ArgNotSet = NOTSET,
-        read_dags_from_db: bool = False,
         load_op_links: bool = True,
         collect_dags: bool = True,
         known_pools: set[str] | None = None,
@@ -173,9 +196,6 @@ class DagBag(LoggingMixin):
         self.import_errors: dict[str, str] = {}
         self.captured_warnings: dict[str, tuple[str, ...]] = {}
         self.has_logged = False
-        self.read_dags_from_db = read_dags_from_db
-        # Only used by read_dags_from_db=True
-        self.dags_last_fetched: dict[str, datetime] = {}
         # Only used by SchedulerJob to compare the dag_hash to identify change in DAGs
         self.dags_hash: dict[str, str] = {}
 
@@ -216,67 +236,19 @@ class DagBag(LoggingMixin):
         # Avoid circular import
         from airflow.models.dag import DagModel
 
-        if self.read_dags_from_db:
-            # Import here so that serialized dag is only imported when serialization is enabled
-            from airflow.models.serialized_dag import SerializedDagModel
-
-            if dag_id not in self.dags:
-                # Load from DB if not (yet) in the bag
-                self._add_dag_from_db(dag_id=dag_id, session=session)
-                return self.dags.get(dag_id)
-
-            # If DAG is in the DagBag, check the following
-            # 1. if time has come to check if DAG is updated (controlled by min_serialized_dag_fetch_secs)
-            # 2. check the last_updated and hash columns in SerializedDag table to see if
-            # Serialized DAG is updated
-            # 3. if (2) is yes, fetch the Serialized DAG.
-            # 4. if (2) returns None (i.e. Serialized DAG is deleted), remove dag from dagbag
-            # if it exists and return None.
-            min_serialized_dag_fetch_secs = timedelta(seconds=settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL)
-            if (
-                dag_id in self.dags_last_fetched
-                and timezone.utcnow() > self.dags_last_fetched[dag_id] + min_serialized_dag_fetch_secs
-            ):
-                sd_latest_version_and_updated_datetime = (
-                    SerializedDagModel.get_latest_version_hash_and_updated_datetime(
-                        dag_id=dag_id, session=session
-                    )
-                )
-                if not sd_latest_version_and_updated_datetime:
-                    self.log.warning("Serialized DAG %s no longer exists", dag_id)
-                    del self.dags[dag_id]
-                    del self.dags_last_fetched[dag_id]
-                    del self.dags_hash[dag_id]
-                    return None
-
-                sd_latest_version, sd_last_updated_datetime = sd_latest_version_and_updated_datetime
-
-                if (
-                    sd_last_updated_datetime > self.dags_last_fetched[dag_id]
-                    or sd_latest_version != self.dags_hash[dag_id]
-                ):
-                    self._add_dag_from_db(dag_id=dag_id, session=session)
-
-            return self.dags.get(dag_id)
-
-        # If asking for a known subdag, we want to refresh the parent
-        dag = None
-        if dag_id in self.dags:
-            dag = self.dags[dag_id]
+        dag = self.dags.get(dag_id)
 
         # If DAG Model is absent, we can't check last_expired property. Is the DAG not yet synchronized?
-        orm_dag = DagModel.get_current(dag_id, session=session)
-        if not orm_dag:
-            return self.dags.get(dag_id)
+        if (orm_dag := DagModel.get_current(dag_id, session=session)) is None:
+            return dag
 
-        is_missing = dag_id not in self.dags
         is_expired = (
             orm_dag.last_expired and dag and dag.last_loaded and dag.last_loaded < orm_dag.last_expired
         )
         if is_expired:
             # Remove associated dags so we can re-add them.
             self.dags.pop(dag_id, None)
-        if is_missing or is_expired:
+        if dag is None or is_expired:
             # Reprocess source file.
             found_dags = self.process_file(
                 filepath=correct_maybe_zipped(orm_dag.fileloc), only_if_updated=False
@@ -285,23 +257,8 @@ class DagBag(LoggingMixin):
             # If the source file no longer exports `dag_id`, delete it from self.dags
             if found_dags and dag_id in [found_dag.dag_id for found_dag in found_dags]:
                 return self.dags[dag_id]
-            if dag_id in self.dags:
-                del self.dags[dag_id]
+            self.dags.pop(dag_id, None)
         return self.dags.get(dag_id)
-
-    def _add_dag_from_db(self, dag_id: str, session: Session):
-        """Add DAG to DagBag from DB."""
-        from airflow.models.serialized_dag import SerializedDagModel
-
-        row: SerializedDagModel | None = SerializedDagModel.get(dag_id, session)
-        if not row:
-            return None
-
-        row.load_op_links = self.load_op_links
-        dag = row.dag
-        self.dags[dag.dag_id] = dag
-        self.dags_last_fetched[dag.dag_id] = timezone.utcnow()
-        self.dags_hash[dag.dag_id] = row.dag_hash
 
     def process_file(self, filepath, only_if_updated=True, safe_mode=True):
         """Given a path to a python module or zip file, import the module and look for dag objects within."""
@@ -616,9 +573,6 @@ class DagBag(LoggingMixin):
         un-anchored regexes or gitignore-like glob expressions, depending on
         the ``DAG_IGNORE_FILE_SYNTAX`` configuration parameter.
         """
-        if self.read_dags_from_db:
-            return
-
         self.log.info("Filling up the DagBag from %s", dag_folder)
         dag_folder = dag_folder or self.dag_folder
         # Used to store stats around DagBag processing
@@ -657,17 +611,6 @@ class DagBag(LoggingMixin):
 
         self.dagbag_stats = sorted(stats, key=lambda x: x.duration, reverse=True)
 
-    def collect_dags_from_db(self):
-        """Collect DAGs from database."""
-        from airflow.models.serialized_dag import SerializedDagModel
-
-        with Stats.timer("collect_db_dags"):
-            self.log.info("Filling up the DagBag from database")
-
-            # The dagbag contains all rows in serialized_dag table. Deleted DAGs are deleted
-            # from the table by the scheduler job.
-            self.dags = SerializedDagModel.read_all_dags()
-
     def dagbag_report(self):
         """Print a report around DagBag loading stats."""
         stats = self.dagbag_stats
@@ -689,29 +632,36 @@ class DagBag(LoggingMixin):
         )
         return report
 
-    @provide_session
-    def sync_to_db(self, bundle_name: str, bundle_version: str | None, session: Session = NEW_SESSION):
-        """Save attributes about list of DAG to the DB."""
-        import airflow.models.dag
-        from airflow.dag_processing.collection import update_dag_parsing_results_in_db
-        from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 
-        dags = [
-            dag
-            if isinstance(dag, airflow.models.dag.DAG)
-            else LazyDeserializedDAG(data=SerializedDAG.to_dict(dag))
-            for dag in self.dags.values()
-        ]
-        import_errors = {(bundle_name, rel_path): error for rel_path, error in self.import_errors.items()}
+@provide_session
+def sync_bag_to_db(
+    dagbag: DagBag,
+    bundle_name: str,
+    bundle_version: str | None,
+    *,
+    session: Session = NEW_SESSION,
+) -> None:
+    """Save attributes about list of DAG to the DB."""
+    import airflow.models.dag
+    from airflow.dag_processing.collection import update_dag_parsing_results_in_db
+    from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 
-        update_dag_parsing_results_in_db(
-            bundle_name,
-            bundle_version,
-            dags,
-            import_errors,
-            self.dag_warnings,
-            session=session,
-        )
+    dags = [
+        dag
+        if isinstance(dag, airflow.models.dag.DAG)
+        else LazyDeserializedDAG(data=SerializedDAG.to_dict(dag))
+        for dag in dagbag.dags.values()
+    ]
+    import_errors = {(bundle_name, rel_path): error for rel_path, error in dagbag.import_errors.items()}
+
+    update_dag_parsing_results_in_db(
+        bundle_name,
+        bundle_version,
+        dags,
+        import_errors,
+        dagbag.dag_warnings,
+        session=session,
+    )
 
 
 class DBDagBag:
@@ -725,53 +675,57 @@ class DBDagBag:
         self._dags: dict[str, DAG] = {}  # dag_version_id to dag
         self.load_op_links = load_op_links
 
+    def _read_dag(self, serdag: SerializedDagModel) -> DAG | None:
+        serdag.load_op_links = self.load_op_links
+        if dag := serdag.dag:
+            self._dags[serdag.dag_version_id] = dag
+        return dag
+
     def _get_dag(self, version_id: str, session: Session) -> DAG | None:
         if dag := self._dags.get(version_id):
             return dag
         dag_version = session.get(DagVersion, version_id, options=[joinedload(DagVersion.serialized_dag)])
         if not dag_version:
             return None
-        serdag = dag_version.serialized_dag
-        if not serdag:
+        if not (serdag := dag_version.serialized_dag):
             return None
-        serdag.load_op_links = self.load_op_links
-        dag = serdag.dag
-        if not dag:
-            return None
-        self._dags[version_id] = dag
-        return dag
+        return self._read_dag(serdag)
 
     @staticmethod
-    def _version_from_dag_run(dag_run, session):
+    def _version_from_dag_run(dag_run: DagRun, *, session: Session) -> DagVersion:
         if not dag_run.bundle_version:
-            dag_version = DagVersion.get_latest_version(dag_id=dag_run.dag_id, session=session)
-            if dag_version:
+            if dag_version := DagVersion.get_latest_version(dag_id=dag_run.dag_id, session=session):
                 return dag_version
 
-        return dag_run.created_dag_version
+        # Check if created_dag_version relationship is already loaded to avoid DetachedInstanceError
+        info = inspect(dag_run)
+        if info.attrs.created_dag_version.loaded_value is not NO_VALUE:
+            # Relationship is already loaded, safe to access
+            return dag_run.created_dag_version
+
+        # Relationship not loaded, fetch it explicitly from current session
+        return session.get(DagVersion, dag_run.created_dag_version_id)
 
     def get_dag_for_run(self, dag_run: DagRun, session: Session) -> DAG | None:
-        version = self._version_from_dag_run(dag_run=dag_run, session=session)
-        if not version:
-            return None
-        return self._get_dag(version_id=version.id, session=session)
+        if version := self._version_from_dag_run(dag_run=dag_run, session=session):
+            return self._get_dag(version_id=version.id, session=session)
+        return None
 
-    def get_latest_version_of_dag(self, dag_id: str, session: Session) -> DAG | None:
-        """
-        Get the latest version of a DAG by its ID.
-
-        This method retrieves the latest version of the DAG with the given ID.
-        """
+    def iter_all_latest_version_dags(self, *, session: Session) -> Generator[DAG, None, None]:
+        """Walk through all latest version dags available in the database."""
         from airflow.models.serialized_dag import SerializedDagModel
 
-        serdag = SerializedDagModel.get(dag_id, session=session)
-        if not serdag:
-            return None
-        serdag.load_op_links = self.load_op_links
-        dag = serdag.dag
+        for sdm in session.scalars(select(SerializedDagModel)):
+            if dag := self._read_dag(sdm):
+                yield dag
 
-        self._dags[serdag.dag_version.id] = dag
-        return dag
+    def get_latest_version_of_dag(self, dag_id: str, *, session: Session) -> DAG | None:
+        """Get the latest version of a dag by its id."""
+        from airflow.models.serialized_dag import SerializedDagModel
+
+        if not (serdag := SerializedDagModel.get(dag_id, session=session)):
+            return None
+        return self._read_dag(serdag)
 
 
 def generate_md5_hash(context):

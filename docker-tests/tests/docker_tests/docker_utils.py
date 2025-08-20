@@ -70,7 +70,7 @@ in the image.
 It can mean one of those:
 
 1) The main is currently broken (other PRs will fail with the same error)
-2) You changed some dependencies in pyproject.toml (either manually or automatically by pre-commit)
+2) You changed some dependencies in pyproject.toml (either manually or automatically by prek)
    and they are conflicting.
 
 
