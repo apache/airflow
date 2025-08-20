@@ -21,10 +21,10 @@ import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
 import type { TaskCollectionResponse } from "openapi/requests";
+import { ResetButton } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams.ts";
 import { AttrSelectFilter } from "src/pages/Dag/Tasks/AttrSelectFilter.tsx";
 import { AttrSelectFilterMulti } from "src/pages/Dag/Tasks/AttrSelectFilterMulti.tsx";
-import { ResetButton } from "src/pages/DagsList/DagsFilters/ResetButton.tsx";
 
 export const TaskFilters = ({ tasksData }: { readonly tasksData: TaskCollectionResponse | undefined }) => {
   const { MAPPED, OPERATOR, RETRIES, TRIGGER_RULE } = SearchParamsKeys;
