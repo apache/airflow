@@ -24,4 +24,4 @@
     @task
     def print_ti_info(task_instance: RuntimeTaskInstance, dag_run: DagRun):
         print(f"Run ID: {task_instance.run_id}")  # Run ID: scheduled__2023-08-09T00:00:00+00:00
-        print(f"Dag Run Conf: {dag_run.conf}")    # Dag Run Conf: {'key': 'value'}
+        print(f"Dag Run Conf: {dag_run.conf}")  # Dag Run Conf: {'key': 'value'}
