@@ -33,6 +33,7 @@ from collections import deque
 from collections.abc import Generator
 from contextlib import contextmanager, suppress
 from datetime import datetime, timezone
+from functools import lru_cache
 from http import HTTPStatus
 from socket import socket, socketpair
 from typing import (
@@ -815,6 +816,82 @@ class WatchedSubprocess:
         return self._exit_code
 
 
+@lru_cache
+def _get_remote_logging_conn(conn_id: str, client: Client) -> Connection | None:
+    """
+    Fetch and cache connection for remote logging.
+
+    Args:
+        conn_id: Connection ID to fetch
+        client: API client for making requests
+
+    Returns:
+        Connection object or None if not found
+    """
+    # Since we need to use the API Client directly, we can't use Connection.get as that would try to use
+    # SUPERVISOR_COMMS
+
+    # TODO: Store in the SecretsCache if its enabled - see #48858
+
+    backends = ensure_secrets_backend_loaded()
+    for secrets_backend in backends:
+        try:
+            conn = secrets_backend.get_connection(conn_id=conn_id)
+            if conn:
+                return conn
+        except Exception:
+            log.exception(
+                "Unable to retrieve connection from secrets backend (%s). "
+                "Checking subsequent secrets backend.",
+                type(secrets_backend).__name__,
+            )
+
+    conn = client.connections.get(conn_id)
+    if isinstance(conn, ConnectionResponse):
+        conn_result = ConnectionResult.from_conn_response(conn)
+        from airflow.sdk.definitions.connection import Connection
+
+        return Connection(**conn_result.model_dump(exclude={"type"}, by_alias=True))
+    return None
+
+
+@contextlib.contextmanager
+def _remote_logging_conn(client: Client):
+    """
+    Pre-fetch the needed remote logging connection with caching.
+
+    If a remote logger is in use, and has the logging/remote_logging option set, we try to fetch the
+    connection it needs, now, directly from the API client, and store it in an env var, so that when the logging
+    hook tries to get the connection it can find it easily from the env vars.
+
+    This is needed as the BaseHook.get_connection looks for SUPERVISOR_COMMS, but we are still in the
+    supervisor process when this is needed, so that doesn't exist yet.
+
+    This function uses @lru_cache for connection caching to avoid repeated API calls.
+    """
+    from airflow.sdk.log import load_remote_conn_id, load_remote_log_handler
+
+    if load_remote_log_handler() is None or not (conn_id := load_remote_conn_id()):
+        # Nothing to do
+        yield
+        return
+
+    # Use cached connection fetcher
+    conn = _get_remote_logging_conn(conn_id, client)
+
+    if conn:
+        key = f"AIRFLOW_CONN_{conn_id.upper()}"
+        old = os.getenv(key)
+        os.environ[key] = conn.get_uri()
+        try:
+            yield
+        finally:
+            if old is None:
+                del os.environ[key]
+            else:
+                os.environ[key] = old
+
+
 @attrs.define(kw_only=True)
 class ActivitySubprocess(WatchedSubprocess):
     client: Client
@@ -931,7 +1008,8 @@ class ActivitySubprocess(WatchedSubprocess):
         """
         from airflow.sdk.log import upload_to_remote
 
-        upload_to_remote(self.process_log, self.ti)
+        with _remote_logging_conn(self.client):
+            upload_to_remote(self.process_log, self.ti)
 
     def _monitor_subprocess(self):
         """
@@ -1635,68 +1713,6 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     backends = ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
 
     return backends
-
-
-@contextlib.contextmanager
-def _remote_logging_conn(client: Client):
-    """
-    Pre-fetch the needed remote logging connection.
-
-    If a remote logger is in use, and has the logging/remote_logging option set, we try to fetch the
-    connection it needs, now, directly from the API client, and store it in an env var, so that when the logging
-    hook tries to get the connection it
-    can find it easily from the env vars
-
-    This is needed as the BaseHook.get_connection looks for SUPERVISOR_COMMS, but we are still in the
-    supervisor process when this is needed, so that doesn't exist yet.
-    """
-    from airflow.sdk.log import load_remote_conn_id, load_remote_log_handler
-
-    if load_remote_log_handler() is None or not (conn_id := load_remote_conn_id()):
-        # Nothing to do
-        yield
-        return
-
-    # Since we need to use the API Client directly, we can't use Connection.get as that would try to use
-    # SUPERVISOR_COMMS
-
-    # TODO: Store in the SecretsCache if its enabled - see #48858
-
-    def _get_conn() -> Connection | None:
-        backends = ensure_secrets_backend_loaded()
-        for secrets_backend in backends:
-            try:
-                conn = secrets_backend.get_connection(conn_id=conn_id)
-                if conn:
-                    return conn
-            except Exception:
-                log.exception(
-                    "Unable to retrieve connection from secrets backend (%s). "
-                    "Checking subsequent secrets backend.",
-                    type(secrets_backend).__name__,
-                )
-
-        conn = client.connections.get(conn_id)
-        if isinstance(conn, ConnectionResponse):
-            conn_result = ConnectionResult.from_conn_response(conn)
-            from airflow.sdk.definitions.connection import Connection
-
-            return Connection(**conn_result.model_dump(exclude={"type"}, by_alias=True))
-        return None
-
-    if conn := _get_conn():
-        key = f"AIRFLOW_CONN_{conn_id.upper()}"
-        old = os.getenv(key)
-
-        os.environ[key] = conn.get_uri()
-
-        try:
-            yield
-        finally:
-            if old is None:
-                del os.environ[key]
-            else:
-                os.environ[key] = old
 
 
 def _configure_logging(log_path: str, client: Client) -> tuple[FilteringBoundLogger, BinaryIO | TextIO]:
