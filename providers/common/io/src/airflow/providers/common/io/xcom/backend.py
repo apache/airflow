@@ -49,23 +49,24 @@ SECTION = "common.io"
 
 def _get_compression_suffix(compression: str) -> str:
     """
-    Return the compression suffix for the given compression.
+    Return the compression suffix (e.g., 'gz' for gzip) for the given compression.
 
-    :raises ValueError: if the compression is not supported or no compression is available
+    :raises ValueError: if the compression is not supported.
     """
-    available = fsspec.available_compressions()  # returns list
+    if compression is None:
+        return ""
 
-    if not available:
-        raise ValueError("No compression codecs are available. Did you install extra dependencies?")
+    # fsspec >=2023: list of available compression algorithms
+    available = {c.lower(): c for c in fsspec.available_compressions() if c is not None}
 
-    # case-insensitive check
-    lower_available = [c.lower() for c in available if c is not None]
+    # fsspec <2023: dict mapping suffix -> codec (e.g., {'gz': 'gzip'})
+    legacy_compressions = {k.lower(): v for k, v in fsspec.utils.compressions.items() if v}
 
-    if compression.lower() in lower_available:
-        # return the version from available list (preserve case if needed)
-        return compression
+    if compression.lower() in available:
+        canonical_name = available[compression.lower()]  # e.g. 'gzip'
+        return legacy_compressions.get(canonical_name.lower(), canonical_name)
 
-    raise ValueError(f"Compression {compression} is not supported. Available: {available}")
+    raise ValueError(f"Compression {compression} is not supported.Available: {available}")
 
 
 @cache
