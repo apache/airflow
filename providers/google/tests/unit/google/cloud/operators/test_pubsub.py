@@ -212,14 +212,18 @@ class TestPubSubSubscriptionCreateOperator:
             # 1. Subscription provided, project_id provided, subscription_project_id not provided
             (TEST_SUBSCRIPTION, TEST_PROJECT, None, f"subscription:{TEST_PROJECT}:{TEST_SUBSCRIPTION}"),
             # 2. Subscription provided, subscription_project_id provided
-            (TEST_SUBSCRIPTION, TEST_PROJECT, "another-project",
-             f"subscription:another-project:{TEST_SUBSCRIPTION}"),
+            (
+                TEST_SUBSCRIPTION,
+                TEST_PROJECT,
+                "another-project",
+                f"subscription:another-project:{TEST_SUBSCRIPTION}"
+            ),
             # 3. Subscription not provided (generated), project_id provided
             (None, TEST_PROJECT, None, f"subscription:{TEST_PROJECT}:generated"),
             # 4. Subscription not provided, subscription_project_id provided
-            (None, TEST_PROJECT, "another-project", f"subscription:another-project:generated"),
+            (None, TEST_PROJECT, "another-project", "subscription:another-project:generated"),
             # 5. Neither subscription nor project_id provided (use project_id from connection)
-            (None, None, None, f"subscription:connection-project:generated"),
+            (None, None, None, "subscription:connection-project:generated"),
         ]
     )
     @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
