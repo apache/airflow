@@ -57,6 +57,7 @@ from airflow.sdk.definitions.asset import AssetAll, BaseAsset
 from airflow.sdk.definitions.context import Context
 from airflow.sdk.definitions.deadline import DeadlineAlert
 from airflow.sdk.definitions.param import DagParam, ParamsDict
+from airflow.sdk.exceptions import AirflowDagCycleException
 from airflow.timetables.base import Timetable
 from airflow.timetables.simple import (
     AssetTriggeredTimetable,
@@ -986,8 +987,6 @@ class DAG:
 
         :raises AirflowDagCycleException: If cycle is found in the DAG.
         """
-        from airflow.sdk.exceptions import AirflowDagCycleException
-
         # default of int is 0 which corresponds to CYCLE_NEW
         CYCLE_NEW = 0
         CYCLE_IN_PROGRESS = 1

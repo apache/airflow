@@ -39,6 +39,7 @@ from airflow.exceptions import (
     TaskAlreadyInTaskGroup,
 )
 from airflow.sdk.definitions._internal.node import DAGNode, validate_group_key
+from airflow.sdk.exceptions import AirflowDagCycleException
 from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
@@ -526,8 +527,6 @@ class TaskGroup(DAGNode):
 
         :return: list of tasks in topological order
         """
-        from airflow.sdk.exceptions import AirflowDagCycleException
-
         # This uses a modified version of Kahn's Topological Sort algorithm to
         # not have to pre-compute the "in-degree" of the nodes.
         graph_unsorted = copy.copy(self.children)

@@ -63,6 +63,11 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.types import NOTSET
 
+try:
+    from airflow.sdk.exceptions import AirflowDagCycleException
+except ImportError:
+    from airflow.exceptions import AirflowDagCycleException  # type: ignore[no-redef]
+
 if TYPE_CHECKING:
     from collections.abc import Generator
 
@@ -544,14 +549,9 @@ class DagBag(LoggingMixin):
                 )
             self.dags[dag.dag_id] = dag
             self.log.debug("Loaded DAG %s", dag)
-        except AirflowDagDuplicatedIdException:
+        except (AirflowDagCycleException, AirflowDagDuplicatedIdException):
+            # There was an error in bagging the dag. Remove it from the list of dags
             self.log.exception("Exception bagging dag: %s", dag.dag_id)
-            raise
-        except Exception as e:
-            if type(e).__name__ == "AirflowDagCycleException":
-                self.log.exception("Cycle detected in DAG: %s", dag.dag_id)
-            else:
-                self.log.exception("Unexpected error bagging dag: %s", dag.dag_id)
             raise
 
     def collect_dags(
