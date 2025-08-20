@@ -89,6 +89,8 @@ SIMPLE_LOG_FORMAT = conf.get("logging", "simple_log_format")
 
 SQL_ALCHEMY_CONN: str | None = None
 SQL_ALCHEMY_CONN_ASYNC: str | None = None
+SQL_ALCHEMY_CONN_READONLY: str | None = None
+SQL_ALCHEMY_CONN_READONLY_ASYNC: str | None = None
 PLUGINS_FOLDER: str | None = None
 LOGGING_CLASS_PATH: str | None = None
 DONOT_MODIFY_HANDLERS: bool | None = None
@@ -110,6 +112,13 @@ Session: scoped_session
 NonScopedSession: sessionmaker
 async_engine: AsyncEngine
 AsyncSession: Callable[..., SAAsyncSession]
+
+# Read-only database connection components
+readonly_engine: Engine
+ReadOnlySession: scoped_session
+NonScopedReadOnlySession: sessionmaker
+readonly_async_engine: AsyncEngine
+ReadOnlyAsyncSession: Callable[..., SAAsyncSession]
 
 # The JSON library to use for DAG Serialization and De-Serialization
 json = json
@@ -222,6 +231,8 @@ def configure_vars():
     """Configure Global Variables from airflow.cfg."""
     global SQL_ALCHEMY_CONN
     global SQL_ALCHEMY_CONN_ASYNC
+    global SQL_ALCHEMY_CONN_READONLY
+    global SQL_ALCHEMY_CONN_READONLY_ASYNC
     global DAGS_FOLDER
     global PLUGINS_FOLDER
     global DONOT_MODIFY_HANDLERS
@@ -231,6 +242,19 @@ def configure_vars():
         SQL_ALCHEMY_CONN_ASYNC = conf.get("database", "sql_alchemy_conn_async")
     else:
         SQL_ALCHEMY_CONN_ASYNC = _get_async_conn_uri_from_sync(sync_uri=SQL_ALCHEMY_CONN)
+
+    # Configure read-only database connections
+    if conf.has_option("database", "sql_alchemy_conn_readonly"):
+        SQL_ALCHEMY_CONN_READONLY = conf.get("database", "sql_alchemy_conn_readonly")
+    else:
+        SQL_ALCHEMY_CONN_READONLY = SQL_ALCHEMY_CONN
+
+    if conf.has_option("database", "sql_alchemy_conn_readonly_async"):
+        SQL_ALCHEMY_CONN_READONLY_ASYNC = conf.get("database", "sql_alchemy_conn_readonly_async")
+    elif SQL_ALCHEMY_CONN_READONLY:
+        SQL_ALCHEMY_CONN_READONLY_ASYNC = _get_async_conn_uri_from_sync(sync_uri=SQL_ALCHEMY_CONN_READONLY)
+    else:
+        SQL_ALCHEMY_CONN_READONLY_ASYNC = SQL_ALCHEMY_CONN_ASYNC
 
     DAGS_FOLDER = os.path.expanduser(conf.get("core", "DAGS_FOLDER"))
 
@@ -360,6 +384,31 @@ def _configure_async_session() -> None:
     )
 
 
+def _configure_readonly_async_session() -> None:
+    """
+    Configure read-only async SQLAlchemy session.
+
+    This exists so tests can reconfigure the session. How SQLAlchemy configures
+    this does not work well with Pytest and you can end up with issues when the
+    session and runs in a different event loop from the test itself.
+    """
+    global ReadOnlyAsyncSession
+    global readonly_async_engine
+
+    readonly_async_engine = create_async_engine(
+        SQL_ALCHEMY_CONN_READONLY_ASYNC,
+        connect_args=_get_connect_args("async"),
+        future=True,
+    )
+    ReadOnlyAsyncSession = sessionmaker(
+        bind=readonly_async_engine,
+        autocommit=False,
+        autoflush=False,
+        class_=SAAsyncSession,
+        expire_on_commit=False,
+    )
+
+
 def configure_orm(disable_connection_pool=False, pool_class=None):
     """Configure ORM using SQLAlchemy."""
     from airflow.sdk.execution_time.secrets_masker import mask_secret
@@ -375,11 +424,16 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
     global NonScopedSession
     global Session
     global engine
+    global NonScopedReadOnlySession
+    global ReadOnlySession
+    global readonly_engine
 
     if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
         # Skip DB initialization in unit tests, if DB tests are skipped
         Session = SkipDBTestsSession
+        ReadOnlySession = SkipDBTestsSession
         engine = None
+        readonly_engine = None
         return
     log.debug("Setting up DB connection pool (PID %s)", os.getpid())
     engine_args = prepare_engine_args(disable_connection_pool, pool_class)
@@ -401,6 +455,22 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
     mask_secret(engine.url.password)
     setup_event_handlers(engine)
 
+    # Configure read-only database connections
+    readonly_connect_args = _get_connect_args("sync")
+    if SQL_ALCHEMY_CONN_READONLY.startswith("sqlite"):
+        readonly_connect_args["check_same_thread"] = False
+
+    readonly_engine_args = prepare_engine_args(disable_connection_pool, pool_class)
+    readonly_engine = create_engine(
+        SQL_ALCHEMY_CONN_READONLY,
+        connect_args=readonly_connect_args,
+        **readonly_engine_args,
+        future=True,
+    )
+    _configure_readonly_async_session()
+    mask_secret(readonly_engine.url.password)
+    setup_event_handlers(readonly_engine)
+
     if conf.has_option("database", "sql_alchemy_session_maker"):
         _session_maker = conf.getimport("database", "sql_alchemy_session_maker")
     else:
@@ -412,6 +482,10 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
         )
     NonScopedSession = _session_maker(engine)
     Session = scoped_session(NonScopedSession)
+    
+    # Configure read-only sessions
+    NonScopedReadOnlySession = _session_maker(readonly_engine)
+    ReadOnlySession = scoped_session(NonScopedReadOnlySession)
 
     if register_at_fork := getattr(os, "register_at_fork", None):
         # https://docs.sqlalchemy.org/en/20/core/pooling.html#using-connection-pools-with-multiprocessing-or-os-fork
@@ -421,6 +495,10 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
                 engine.dispose(close=False)
             if async_engine := _globals.get("async_engine"):
                 async_engine.sync_engine.dispose(close=False)
+            if readonly_engine := _globals.get("readonly_engine"):
+                readonly_engine.dispose(close=False)
+            if readonly_async_engine := _globals.get("readonly_async_engine"):
+                readonly_async_engine.sync_engine.dispose(close=False)
 
         # Won't work on Windows
         register_at_fork(after_in_child=clean_in_fork)
@@ -515,9 +593,15 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
 def dispose_orm(do_log: bool = True):
     """Properly close pooled database connections."""
     global Session, engine, NonScopedSession
+    global ReadOnlySession, readonly_engine, NonScopedReadOnlySession
 
     _globals = globals()
-    if _globals.get("engine") is None and _globals.get("Session") is None:
+    if (
+        _globals.get("engine") is None 
+        and _globals.get("Session") is None
+        and _globals.get("readonly_engine") is None
+        and _globals.get("ReadOnlySession") is None
+    ):
         return
 
     if do_log:
@@ -531,9 +615,18 @@ def dispose_orm(do_log: bool = True):
         NonScopedSession = None
         close_all_sessions()
 
+    if "ReadOnlySession" in _globals and ReadOnlySession is not None:
+        ReadOnlySession.remove()
+        ReadOnlySession = None
+        NonScopedReadOnlySession = None
+
     if "engine" in _globals and engine is not None:
         engine.dispose()
         engine = None
+
+    if "readonly_engine" in _globals and readonly_engine is not None:
+        readonly_engine.dispose()
+        readonly_engine = None
 
 
 def reconfigure_orm(disable_connection_pool=False, pool_class=None):

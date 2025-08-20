@@ -544,6 +544,27 @@ database:
       sensitive: true
       example: "postgresql+asyncpg://postgres:airflow@postgres/airflow"
       default: ~
+    sql_alchemy_conn_readonly:
+      description: |
+        The SQLAlchemy connection string to a read-only replica of the metadata database.
+        This is used for read-heavy operations to offload traffic from the master database.
+        If not set, read operations will use the same connection as ``sql_alchemy_conn``.
+        The read-only database should be a replica or read-only instance of the master database.
+      version_added: 3.1.0
+      type: string
+      sensitive: true
+      example: "postgresql://postgres:airflow@postgres-readonly/airflow"
+      default: ~
+    sql_alchemy_conn_readonly_async:
+      description: |
+        The SQLAlchemy connection string to a read-only replica of the metadata database for async connections.
+        If not set, Airflow will automatically derive this from ``sql_alchemy_conn_readonly`` if available,
+        or fall back to ``sql_alchemy_conn_async``.
+      version_added: 3.1.0
+      type: string
+      sensitive: true
+      example: "postgresql+asyncpg://postgres:airflow@postgres-readonly/airflow"
+      default: ~
     sql_alchemy_engine_args:
       description: |
         Extra engine specific keyword args passed to SQLAlchemy's create_engine, as a JSON-encoded value

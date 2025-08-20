@@ -48,7 +48,7 @@ from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import COMPRESS_SERIALIZED_DAGS, json
 from airflow.utils.hashlib_wrapper import md5
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import NEW_SESSION, NEW_READONLY_SESSION, provide_session, provide_readonly_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
@@ -472,9 +472,9 @@ class SerializedDagModel(Base):
         return select(cls).where(cls.dag_id == dag_id).order_by(cls.created_at.desc()).limit(1)
 
     @classmethod
-    @provide_session
+    @provide_readonly_session
     def get_latest_serialized_dags(
-        cls, *, dag_ids: list[str], session: Session = NEW_SESSION
+        cls, *, dag_ids: list[str], session: Session = NEW_READONLY_SESSION
     ) -> list[SerializedDagModel]:
         """
         Get the latest serialized dags of given DAGs.
@@ -501,8 +501,8 @@ class SerializedDagModel(Base):
         return latest_serdags or []
 
     @classmethod
-    @provide_session
-    def read_all_dags(cls, session: Session = NEW_SESSION) -> dict[str, SerializedDAG]:
+    @provide_readonly_session
+    def read_all_dags(cls, session: Session = NEW_READONLY_SESSION) -> dict[str, SerializedDAG]:
         """
         Read all DAGs in serialized_dag table.
 
