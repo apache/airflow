@@ -277,3 +277,9 @@ required-version = ">=0.6.3"
 [tool.uv.sources]
 apache-airflow-core = {workspace = true}
 apache-airflow-devel-common = { workspace = true }
+
+[tool.airflow]
+shared_distributions = [
+    "apache-airflow-shared-timezones",
+    "apache-airflow-shared-secrets_masker",
+]

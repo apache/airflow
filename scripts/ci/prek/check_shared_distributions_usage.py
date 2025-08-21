@@ -262,12 +262,62 @@ def add_shared_dependencies_block(
     console.print(f"[yellow]Added shared dependencies for {dist_name} in {project_pyproject_path}[/yellow]")
 
 
+def extract_existing_dependencies(project_pyproject_path: Path) -> set[str]:
+    """
+    Extract existing dependency names (without version constraints) from a pyproject.toml file.
+    Returns a set of package names that are already in the main dependencies list.
+    """
+    try:
+        with open(project_pyproject_path, "rb") as f:
+            data = tomllib.load(f)
+
+        deps = data.get("project", {}).get("dependencies", [])
+        existing_deps = set()
+
+        for dep in deps:
+            # Extract package name (everything before >=, >, <, ==, etc.)
+            # Handle cases like 'pendulum>=3.1.0', 'requests[security]>=2.0', etc.
+            package_name = re.split(r"[<>=!]", dep)[0].strip()
+            # Remove any extras like [security]
+            package_name = re.split(r"\[", package_name)[0].strip()
+            # Remove quotes
+            package_name = package_name.strip("\"'")
+            if package_name:
+                existing_deps.add(package_name)
+
+        return existing_deps
+    except Exception as e:
+        console.print(f"[red]Error extracting dependencies from {project_pyproject_path}: {e}[/red]")
+        return set()
+
+
+def filter_duplicate_dependencies(shared_deps: list[str], existing_deps: set[str]) -> list[str]:
+    """
+    Filter out shared dependencies that already exist in the consuming package.
+    """
+    filtered_deps = []
+    for dep in shared_deps:
+        package_name = re.split(r"[<>=!]", dep)[0].strip()
+        package_name = re.split(r"\[", package_name)[0].strip()
+        package_name = package_name.strip("\"'")
+
+        if package_name not in existing_deps:
+            filtered_deps.append(dep)
+        else:
+            console.print(f"[dim]  Skipping duplicate dependency: {dep}[/dim]")
+
+    return filtered_deps
+
+
 def sync_shared_dependencies(project_pyproject_path: Path, shared_distributions: list[str]) -> None:
     """
     Synchronize dependencies from shared distributions into the project's pyproject.toml.
     Updates or inserts blocks marked with start/end comments for each shared distribution using insert_documentation.
-    Adds the block if missing.
+    Adds the block if missing. Skips dependencies that already exist in the main dependencies list.
     """
+    # Extract existing dependencies to avoid duplicates
+    existing_deps = extract_existing_dependencies(project_pyproject_path)
+
     for dist in shared_distributions:
         dist_name = dist.replace("apache-airflow-shared-", "")
         console.print(
@@ -281,26 +331,33 @@ def sync_shared_dependencies(project_pyproject_path: Path, shared_distributions:
             shared_data = tomllib.load(f)
         shared_deps = shared_data.get("project", {}).get("dependencies", [])
         if shared_deps:
+            # Filter out dependencies that already exist in the main dependencies
+            filtered_deps = filter_duplicate_dependencies(shared_deps, existing_deps)
+
             header = f"# Start of shared {dist_name} dependencies"
             footer = f"# End of shared {dist_name} dependencies"
-            content = [f'    "{dep}",\n' for dep in shared_deps]
-            # Check if header exists in file
-            file_text = project_pyproject_path.read_text()
-            if header not in file_text:
-                # Insert at end of dependencies array
-                lines = file_text.splitlines(keepends=True)
-                dep_start, dep_end = find_dependencies_array_range(lines)
-                if dep_start is not None and dep_end is not None:
-                    add_shared_dependencies_block(
-                        project_pyproject_path, dep_end, header, footer, content, dist_name
-                    )
+
+            if filtered_deps:
+                content = [f'    "{dep}",\n' for dep in filtered_deps]
+                # Check if header exists in file
+                file_text = project_pyproject_path.read_text()
+                if header not in file_text:
+                    # Insert at end of dependencies array
+                    lines = file_text.splitlines(keepends=True)
+                    dep_start, dep_end = find_dependencies_array_range(lines)
+                    if dep_start is not None and dep_end is not None:
+                        add_shared_dependencies_block(
+                            project_pyproject_path, dep_end, header, footer, content, dist_name
+                        )
+                    else:
+                        console.print(
+                            f"[red]Failed to determine dependencies array range in {project_pyproject_path}[/red]"
+                        )
                 else:
-                    console.print(
-                        f"[red]Failed to determine dependencies array range in {project_pyproject_path}[/red]"
-                    )
+                    insert_documentation(project_pyproject_path, content, header, footer, add_comment=False)
+                    console.print("[green]OK[/green]")
             else:
-                insert_documentation(project_pyproject_path, content, header, footer, add_comment=False)
-                console.print("[green]OK[/green]")
+                console.print("[dim]No new dependencies to add (all already exist)[/dim]")
 
 
 def main() -> None:
