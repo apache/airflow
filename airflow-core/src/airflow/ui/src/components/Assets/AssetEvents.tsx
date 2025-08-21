@@ -72,7 +72,7 @@ export const AssetEvents = ({
   const runTypes = ["asset_triggered", "backfill", "manual", "scheduled"];
   const runTypeOptions = createListCollection({
     items: runTypes.map((type) => ({
-      label: translate(`runTypes.${type}`),
+      label: translate(`common:runTypes.${type}`),
       value: type,
     })),
   });
