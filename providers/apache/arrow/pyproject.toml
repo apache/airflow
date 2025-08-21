@@ -98,8 +98,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-arrow/5.2.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-arrow/5.2.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-arrow/1.0.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-arrow/1.0.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
@@ -107,7 +107,7 @@ apache-airflow-providers-standard = {workspace = true}
 "YouTube" = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
 [project.entry-points."apache_airflow_provider"]
-provider_info = "airflow.providers.arrow.get_provider_info:get_provider_info"
+provider_info = "airflow.providers.apache.arrow.get_provider_info:get_provider_info"
 
 [tool.flit.module]
 name = "airflow.providers.apache.arrow"
