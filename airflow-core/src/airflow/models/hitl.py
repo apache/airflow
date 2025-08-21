@@ -44,6 +44,7 @@ class HITLDetail(Base):
     defaults = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
     multiple = Column(Boolean, unique=False, default=False)
     params = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
+    respondents = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
 
     # Response Content Detail
     response_at = Column(UtcDateTime, nullable=True)

@@ -49,6 +49,8 @@ const onMouseLeave = (event: MouseEvent<HTMLDivElement>) => {
   });
 };
 
+const indent = (depth: number) => `${depth * 0.75 + 0.5}rem`;
+
 export const TaskNames = ({ nodes, onRowClick }: Props) => {
   const { t: translate } = useTranslation("dag");
   const { toggleGroupId } = useOpenGroups();
@@ -86,7 +88,7 @@ export const TaskNames = ({ nodes, onRowClick }: Props) => {
                 isGroup={true}
                 isMapped={Boolean(node.is_mapped)}
                 label={node.label}
-                paddingLeft={node.depth * 3 + 2}
+                paddingLeft={indent(node.depth)}
                 setupTeardownType={node.setup_teardown_type}
               />
               <chakra.span
@@ -129,7 +131,7 @@ export const TaskNames = ({ nodes, onRowClick }: Props) => {
               fontWeight="normal"
               isMapped={Boolean(node.is_mapped)}
               label={node.label}
-              paddingLeft={node.depth * 3 + 2}
+              paddingLeft={indent(node.depth)}
               setupTeardownType={node.setup_teardown_type}
             />
           </RouterLink>

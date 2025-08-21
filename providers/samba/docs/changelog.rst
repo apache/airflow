@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+4.10.3
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix: make samba hook open_file method return (#54107)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.10.2
 ......
 

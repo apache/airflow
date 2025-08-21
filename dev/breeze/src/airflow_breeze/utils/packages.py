@@ -1092,11 +1092,14 @@ def apply_version_suffix_to_non_provider_pyproject_tomls(
     from packaging.version import Version
 
     original_version_search = re.search('__version__ = "([^"]+)"', init_file_path.read_text())
+    # Search beta version
+    beta_version_search = re.search('__version__ = "([^"]+)b[0-9]+"', init_file_path.read_text())
     if not original_version_search:
         raise RuntimeError(f"Could not find __version__ in {init_file_path}")
     original_distribution_version = original_version_search.group(1)
     packaging_version = Version(original_distribution_version)
-    if packaging_version.base_version != str(packaging_version):
+    # Forgiving check for beta versions
+    if not beta_version_search and packaging_version.base_version != str(packaging_version):
         raise RuntimeError(
             f"The package version in {init_file_path} should be `simple version` "
             f"(no suffixes) and it is `{original_distribution_version}`."

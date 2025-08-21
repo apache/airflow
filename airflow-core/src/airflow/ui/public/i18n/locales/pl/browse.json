@@ -10,6 +10,9 @@
       "user": "Użytkownik",
       "when": "Kiedy"
     },
+    "filters": {
+      "eventType": "Typ zdarzenia"
+    },
     "title": "Dziennik audytu"
   },
   "xcom": {

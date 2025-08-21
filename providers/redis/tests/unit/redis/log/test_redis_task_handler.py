@@ -31,6 +31,7 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 from tests_common.test_utils.file_task_handler import extract_events
 from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_PLUS,
@@ -39,6 +40,13 @@ from tests_common.test_utils.version_compat import (
 
 
 class TestRedisTaskHandler:
+    @staticmethod
+    def clear_db():
+        clear_db_dags()
+        clear_db_runs()
+        if AIRFLOW_V_3_0_PLUS:
+            clear_db_dag_bundles()
+
     @pytest.fixture
     def ti(self):
         date = datetime(2020, 1, 1)
@@ -69,9 +77,15 @@ class TestRedisTaskHandler:
 
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
+            from airflow.models.dagbundle import DagBundleModel
 
-            dag.sync_to_db()
-            SerializedDagModel.write_dag(dag, bundle_name="testing")
+            bundle_name = "testing"
+            with create_session() as session:
+                orm_dag_bundle = DagBundleModel(name=bundle_name)
+                session.add(orm_dag_bundle)
+                session.commit()
+            DAG.bulk_write_to_db(bundle_name, None, [dag])
+            SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
             dag_version = DagVersion.get_latest_version(dag.dag_id)
             ti = TaskInstance(task=task, run_id=dag_run.run_id, dag_version_id=dag_version.id)
         else:
@@ -82,8 +96,7 @@ class TestRedisTaskHandler:
 
         yield ti
 
-        with create_session() as session:
-            session.query(DagRun).delete()
+        self.clear_db()
 
     @pytest.mark.db_test
     @conf_vars({("logging", "remote_log_conn_id"): "redis_default"})
@@ -124,7 +137,7 @@ class TestRedisTaskHandler:
             logs = handler.read(ti)
 
         if AIRFLOW_V_3_0_PLUS:
-            if get_base_airflow_version_tuple() < (3, 1, 0):
+            if get_base_airflow_version_tuple() < (3, 0, 4):
                 assert logs == (["Line 1\nLine 2"], {"end_of_log": True})
             else:
                 log_stream, metadata = logs

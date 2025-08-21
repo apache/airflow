@@ -124,7 +124,7 @@ detect which distribution you are in and build the documentation for it.
 
 .. note::
 
-    You can also run all those commands directly (without ``uv run --group-doc``) inside ``breeze``
+    You can also run all those commands directly (without ``uv run --group docs``) inside ``breeze``
     container, because there all dependencies are already installed and there is no need to
     sync dependencies.
 

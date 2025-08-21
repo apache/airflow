@@ -20,17 +20,11 @@ from __future__ import annotations
 import tempfile
 from unittest import mock
 
-import pytest
-
 from airflow.providers.smtp.hooks.smtp import SmtpHook
 from airflow.providers.smtp.notifications.smtp import (
     SmtpNotifier,
     send_smtp_notification,
 )
-from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils import timezone
-
-pytestmark = pytest.mark.db_test
 
 SMTP_API_DEFAULT_CONN_ID = SmtpHook.default_conn_name
 
@@ -40,16 +34,14 @@ NUM_TRY = 0
 
 class TestSmtpNotifier:
     @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
-    def test_notifier(self, mock_smtphook_hook, dag_maker):
-        with dag_maker("test_notifier") as dag:
-            EmptyOperator(task_id="task1")
+    def test_notifier(_self, mock_smtphook_hook, create_dag_without_db):
         notifier = send_smtp_notification(
             from_email="test_sender@test.com",
             to="test_reciver@test.com",
             subject="subject",
             html_content="body",
         )
-        notifier({"dag": dag})
+        notifier({"dag": create_dag_without_db("test_notifier")})
         mock_smtphook_hook.return_value.__enter__().send_email_smtp.assert_called_once_with(
             from_email="test_sender@test.com",
             to="test_reciver@test.com",
@@ -65,16 +57,14 @@ class TestSmtpNotifier:
         )
 
     @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
-    def test_notifier_with_notifier_class(self, mock_smtphook_hook, dag_maker):
-        with dag_maker("test_notifier") as dag:
-            EmptyOperator(task_id="task1")
+    def test_notifier_with_notifier_class(self, mock_smtphook_hook, create_dag_without_db):
         notifier = SmtpNotifier(
             from_email="test_sender@test.com",
             to="test_reciver@test.com",
             subject="subject",
             html_content="body",
         )
-        notifier({"dag": dag})
+        notifier({"dag": create_dag_without_db("test_notifier")})
         mock_smtphook_hook.return_value.__enter__().send_email_smtp.assert_called_once_with(
             from_email="test_sender@test.com",
             to="test_reciver@test.com",
@@ -90,17 +80,14 @@ class TestSmtpNotifier:
         )
 
     @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
-    def test_notifier_templated(self, mock_smtphook_hook, dag_maker):
-        with dag_maker("test_notifier") as dag:
-            EmptyOperator(task_id="task1")
-
+    def test_notifier_templated(self, mock_smtphook_hook, create_dag_without_db):
         notifier = SmtpNotifier(
             from_email="test_sender@test.com {{dag.dag_id}}",
             to="test_reciver@test.com {{dag.dag_id}}",
             subject="subject {{dag.dag_id}}",
             html_content="body {{dag.dag_id}}",
         )
-        context = {"dag": dag}
+        context = {"dag": create_dag_without_db("test_notifier")}
         notifier(context)
         mock_smtphook_hook.return_value.__enter__().send_email_smtp.assert_called_once_with(
             from_email="test_sender@test.com test_notifier",
@@ -117,9 +104,18 @@ class TestSmtpNotifier:
         )
 
     @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
-    def test_notifier_with_defaults(self, mock_smtphook_hook, create_task_instance):
-        ti = create_task_instance(dag_id="dag", task_id="op", logical_date=timezone.datetime(2018, 1, 1))
-        context = {"dag": ti.dag_run.dag, "ti": ti}
+    def test_notifier_with_defaults(self, mock_smtphook_hook, create_dag_without_db, mock_task_instance):
+        # TODO: we can use create_runtime_ti fixture in place of mock_task_instance once provider has minimum AF to Airflow 3.0+
+        mock_ti = mock_task_instance(
+            dag_id="test_dag",
+            task_id="op",
+            run_id="test",
+            try_number=NUM_TRY,
+            max_tries=0,
+            state=None,
+        )
+
+        context = {"dag": create_dag_without_db("test_dag"), "ti": mock_ti}
         notifier = SmtpNotifier(
             from_email="any email",
             to="test_reciver@test.com",
@@ -130,7 +126,7 @@ class TestSmtpNotifier:
         mock_smtphook_hook.return_value.__enter__().send_email_smtp.assert_called_once_with(
             from_email="any email",
             to="test_reciver@test.com",
-            subject="DAG dag - Task op - Run ID test in State None",
+            subject="DAG test_dag - Task op - Run ID test in State None",
             html_content=mock.ANY,
             smtp_conn_id="smtp_default",
             files=None,
@@ -144,9 +140,19 @@ class TestSmtpNotifier:
         assert f"{NUM_TRY} of 1" in content
 
     @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
-    def test_notifier_with_nondefault_connection_extra(self, mock_smtphook_hook, create_task_instance):
-        ti = create_task_instance(dag_id="dag", task_id="op", logical_date=timezone.datetime(2018, 1, 1))
-        context = {"dag": ti.dag_run.dag, "ti": ti}
+    def test_notifier_with_nondefault_connection_extra(
+        self, mock_smtphook_hook, create_dag_without_db, mock_task_instance
+    ):
+        # TODO: we can use create_runtime_ti fixture in place of mock_task_instance once provider has minimum AF to Airflow 3.0+
+        ti = mock_task_instance(
+            dag_id="test_dag",
+            task_id="op",
+            run_id="test_run",
+            try_number=NUM_TRY,
+            max_tries=0,
+            state=None,
+        )
+        context = {"dag": create_dag_without_db("test_dag"), "ti": ti}
 
         with (
             tempfile.NamedTemporaryFile(mode="wt", suffix=".txt") as f_subject,
@@ -179,10 +185,7 @@ class TestSmtpNotifier:
             )
 
     @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
-    def test_notifier_oauth2_passes_auth_type(self, mock_smtphook_hook, dag_maker):
-        with dag_maker("test_notifier_oauth2") as dag:
-            EmptyOperator(task_id="task1")
-
+    def test_notifier_oauth2_passes_auth_type(self, mock_smtphook_hook, create_dag_without_db):
         notifier = SmtpNotifier(
             from_email="test_sender@test.com",
             to="test_reciver@test.com",
@@ -191,7 +194,7 @@ class TestSmtpNotifier:
             html_content="body",
         )
 
-        notifier({"dag": dag})
+        notifier({"dag": create_dag_without_db("test_notifier")})
 
         mock_smtphook_hook.assert_called_once_with(
             smtp_conn_id="smtp_default",

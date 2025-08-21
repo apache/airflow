@@ -399,13 +399,16 @@ def test_get_most_impactful_change(changes, expected):
     [
         pytest.param("slack", ["providers/slack/docs/slack.rst"], "documentation", id="only_docs"),
         pytest.param(
-            "flink", ["providers/apache/flink/docs/slack.rst"], "documentation", id="only_docs_longer_path"
+            "apache.flink",
+            ["providers/apache/flink/docs/slack.rst"],
+            "documentation",
+            id="only_docs_longer_path",
         ),
         pytest.param(
             "slack", ["providers/slack/tests/test_slack.py"], "test_or_example_only", id="only_tests"
         ),
         pytest.param(
-            "flink",
+            "apache.flink",
             ["providers/apache/flink/tests/unit/apache/flink/sensors/test_flink_kubernetes.py"],
             "test_or_example_only",
             id="only_tests_longer_path",

@@ -28,6 +28,22 @@ Changelog
 ---------
 
 
+10.7.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add support for taking the config file as a dict for KubernetesHook (#53126)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Kill kube watcher instance if it doesnt terminate gracefully in 60 seconds (#52662)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 10.6.2
 ......
 

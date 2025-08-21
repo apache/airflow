@@ -47,7 +47,7 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun, DagRunType
     from airflow.models.taskinstance import TaskInstance
     from airflow.providers.standard.operators.empty import EmptyOperator
-    from airflow.sdk import Context
+    from airflow.sdk import Context, TriggerRule
     from airflow.sdk.api.datamodels._generated import TaskInstanceState as TIState
     from airflow.sdk.bases.operator import BaseOperator as TaskSDKBaseOperator
     from airflow.sdk.execution_time.comms import StartupDetails, ToSupervisor
@@ -56,7 +56,6 @@ if TYPE_CHECKING:
     from airflow.timetables.base import DataInterval
     from airflow.typing_compat import Self
     from airflow.utils.state import DagRunState, TaskInstanceState
-    from airflow.utils.trigger_rule import TriggerRule
 
     from tests_common._internals.capture_warnings import CaptureWarningsPlugin  # noqa: F401
     from tests_common._internals.forbidden_warnings import ForbiddenWarningsPlugin  # noqa: F401
@@ -156,7 +155,7 @@ AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH = (
     AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json.sha256sum"
 )
 UPDATE_PROVIDER_DEPENDENCIES_SCRIPT = (
-    AIRFLOW_ROOT_PATH / "scripts" / "ci" / "pre_commit" / "update_providers_dependencies.py"
+    AIRFLOW_ROOT_PATH / "scripts" / "ci" / "prek" / "update_providers_dependencies.py"
 )
 
 # Deliberately copied from breeze - we want to keep it in sync but we do not want to import code from
@@ -812,6 +811,7 @@ class DagMaker(Protocol):
         task_id: str,
         dag_run: DagRun | None = ...,
         dag_run_kwargs: dict | None = ...,
+        map_index: int = ...,
         **kwargs,
     ) -> TaskInstance: ...
 
@@ -864,7 +864,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
     # This fixture is "called" early on in the pytest collection process, and
     # if we import airflow.* here the wrong (non-test) config will be loaded
     # and "baked" in to various constants
-    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
     want_serialized = False
     want_activate_assets = True  # Only has effect if want_serialized=True on Airflow 3.
@@ -886,7 +886,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             from airflow.models import DagBag
 
             # Keep all the serialized dags we've created in this test
-            self.dagbag = DagBag(os.devnull, include_examples=False, read_dags_from_db=False)
+            self.dagbag = DagBag(os.devnull, include_examples=False)
 
         def __enter__(self):
             self.serialized_model = None
@@ -925,8 +925,6 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
             from airflow.models.asset import AssetModel, DagScheduleAssetReference, TaskOutletAssetReference
-
-            from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
             if AIRFLOW_V_3_1_PLUS:
                 from airflow.models.asset import TaskInletAssetReference
@@ -1110,7 +1108,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 **kwargs,
             )
 
-        def run_ti(self, task_id, dag_run=None, dag_run_kwargs=None, **kwargs):
+        def run_ti(self, task_id, dag_run=None, dag_run_kwargs=None, map_index=-1, **kwargs):
             """
             Create a dagrun and run a specific task instance with proper task refresh.
 
@@ -1122,13 +1120,11 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             Returns the created TaskInstance.
             """
-            from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
-
             if dag_run is None:
                 if dag_run_kwargs is None:
                     dag_run_kwargs = {}
                 dag_run = self.create_dagrun(**dag_run_kwargs)
-            ti = dag_run.get_task_instance(task_id=task_id)
+            ti = dag_run.get_task_instance(task_id=task_id, map_index=map_index)
             if ti is None:
                 available_task_ids = [task.task_id for task in self.dag.tasks]
                 raise ValueError(
@@ -1154,14 +1150,14 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             return ti
 
         def sync_dagbag_to_db(self):
-            if not AIRFLOW_V_3_0_PLUS:
-                self.dagbag.sync_to_db()
-                return
+            if AIRFLOW_V_3_1_PLUS:
+                from airflow.models.dagbag import sync_bag_to_db
 
-            self.dagbag.sync_to_db(
-                self.bundle_name,
-                None,
-            )
+                sync_bag_to_db(self.dagbag, self.bundle_name, None)
+            elif AIRFLOW_V_3_0_PLUS:
+                self.dagbag.sync_to_db(self.bundle_name, None)
+            else:
+                self.dagbag.sync_to_db()
 
         def __call__(
             self,
@@ -1856,15 +1852,20 @@ def hook_lineage_collector():
 
 
 @pytest.fixture
-def clean_dags_and_dagruns():
+def clean_dags_dagruns_and_dagbundles():
     """Fixture that cleans the database before and after every test."""
-    from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+    from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
     clear_db_runs()
     clear_db_dags()
+    if AIRFLOW_V_3_0_PLUS:
+        clear_db_dag_bundles()
     yield  # Test runs here
     clear_db_dags()
     clear_db_runs()
+    if AIRFLOW_V_3_0_PLUS:
+        clear_db_dag_bundles()
 
 
 @pytest.fixture
@@ -2067,6 +2068,35 @@ def mock_supervisor_comms(monkeypatch):
         comms.send = comms.get_message
         monkeypatch.setattr(task_runner, "SUPERVISOR_COMMS", comms, raising=False)
     yield comms
+
+
+@pytest.fixture
+def sdk_connection_not_found(mock_supervisor_comms):
+    """
+    Fixture that mocks supervisor comms to return CONNECTION_NOT_FOUND error.
+
+    This eliminates the need to manually set up the mock in every test that
+    needs a connection not found message through supervisor comms.
+
+    Example:
+        @pytest.mark.db_test
+        def test_invalid_location(self, sdk_connection_not_found):
+            # Test logic that expects CONNECTION_NOT_FOUND error
+            with pytest.raises(AirflowException):
+                operator.execute(context)
+    """
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+    if not AIRFLOW_V_3_0_PLUS:
+        yield None
+        return
+
+    from airflow.sdk.exceptions import ErrorType
+    from airflow.sdk.execution_time.comms import ErrorResponse
+
+    mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
+
+    yield mock_supervisor_comms
 
 
 @pytest.fixture
@@ -2543,13 +2573,16 @@ def mock_xcom_backend():
 
 @pytest.fixture
 def testing_dag_bundle():
-    from airflow.models.dagbundle import DagBundleModel
-    from airflow.utils.session import create_session
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-    with create_session() as session:
-        if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
-            testing = DagBundleModel(name="testing")
-            session.add(testing)
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.models.dagbundle import DagBundleModel
+        from airflow.utils.session import create_session
+
+        with create_session() as session:
+            if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
+                testing = DagBundleModel(name="testing")
+                session.add(testing)
 
 
 @pytest.fixture
@@ -2578,3 +2611,37 @@ def _import_timezone():
         except ModuleNotFoundError:
             from airflow.utils import timezone
     return timezone
+
+
+@pytest.fixture
+def create_dag_without_db():
+    def create_dag(dag_id: str):
+        from airflow.models.dag import DAG
+
+        return DAG(dag_id=dag_id, schedule=None, render_template_as_native_obj=True)
+
+    return create_dag
+
+
+@pytest.fixture
+def mock_task_instance():
+    def _create_mock_task_instance(
+        task_id: str = "test_task",
+        dag_id: str = "test_dag",
+        run_id: str = "test_run",
+        try_number: int = 0,
+        state: str = "running",
+        max_tries: int = 0,
+    ):
+        from airflow.models import TaskInstance
+
+        mock_ti = mock.MagicMock(spec=TaskInstance)
+        mock_ti.task_id = task_id
+        mock_ti.dag_id = dag_id
+        mock_ti.run_id = run_id
+        mock_ti.try_number = try_number
+        mock_ti.state = state
+        mock_ti.max_tries = max_tries
+        return mock_ti
+
+    return _create_mock_task_instance

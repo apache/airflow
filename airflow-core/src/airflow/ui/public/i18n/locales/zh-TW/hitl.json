@@ -19,5 +19,6 @@
     "rejectionReceived": "已拒絕",
     "responseReceived": "已回應",
     "responseRequired": "需要回應"
-  }
+  },
+  "subject": "標題"
 }

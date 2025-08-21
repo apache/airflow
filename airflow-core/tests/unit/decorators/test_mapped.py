@@ -28,7 +28,7 @@ DEFAULT_DATE = timezone.datetime(2025, 1, 1)
 @pytest.mark.db_test
 def test_mapped_task_with_arbitrary_default_args(dag_maker, session):
     default_args = {"some": "value", "not": "in", "the": "task", "or": "dag"}
-    with dag_maker(session=session, default_args=default_args):
+    with dag_maker(session=session, default_args=default_args, serialized=True):
 
         @task.python(do_xcom_push=True)
         def f(x: int, y: int) -> int:
@@ -40,7 +40,7 @@ def test_mapped_task_with_arbitrary_default_args(dag_maker, session):
     decision = dag_run.task_instance_scheduling_decisions(session=session)
     xcoms = set()
     for ti in decision.schedulable_tis:
-        ti.run(session=session)
+        dag_maker.run_ti(ti.task_id, dag_run, map_index=ti.map_index)
         xcoms.add(ti.xcom_pull(session=session, task_ids=ti.task_id, map_indexes=ti.map_index))
 
     assert xcoms == {11, 12, 13}

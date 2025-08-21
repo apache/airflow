@@ -329,9 +329,8 @@ class ShellParams:
             backend_docker_compose_file = DOCKER_COMPOSE_DIR / f"backend-{backend}.yml"
         if backend in ("sqlite", "none") or not self.forward_ports:
             return [backend_docker_compose_file]
-        if self.project_name == "pre-commit":
-            # do not forward ports for pre-commit runs - to not clash with running containers from
-            # breeze
+        if self.project_name == "prek":
+            # do not forward ports for prek - to not clash with running containers from breeze
             return [backend_docker_compose_file]
         return [backend_docker_compose_file, DOCKER_COMPOSE_DIR / f"backend-{backend}-port.yml"]
 
@@ -388,9 +387,9 @@ class ShellParams:
                 f"{USE_AIRFLOW_MOUNT_SOURCES} mount sources[/]"
             )
             sys.exit(1)
-        if self.forward_ports and not self.project_name == "pre-commit":
+        if self.forward_ports and not self.project_name == "prek":
             compose_file_list.append(DOCKER_COMPOSE_DIR / "base-ports.yml")
-        if self.debug_components and not self.project_name == "pre-commit":
+        if self.debug_components and not self.project_name == "prek":
             compose_file_list.append(DOCKER_COMPOSE_DIR / "debug-ports.yml")
         if self.mount_sources == MOUNT_SELECTED:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "local.yml")

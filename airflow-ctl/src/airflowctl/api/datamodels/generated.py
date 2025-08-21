@@ -98,58 +98,6 @@ class BulkActionResponse(BaseModel):
     ] = []
 
 
-class BulkDeleteActionBulkTaskInstanceBody(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    action: Annotated[
-        Literal["delete"], Field(description="The action to be performed on the entities.", title="Action")
-    ]
-    entities: Annotated[
-        list[str], Field(description="A list of entity id/key to be deleted.", title="Entities")
-    ]
-    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
-
-
-class BulkDeleteActionConnectionBody(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    action: Annotated[
-        Literal["delete"], Field(description="The action to be performed on the entities.", title="Action")
-    ]
-    entities: Annotated[
-        list[str], Field(description="A list of entity id/key to be deleted.", title="Entities")
-    ]
-    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
-
-
-class BulkDeleteActionPoolBody(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    action: Annotated[
-        Literal["delete"], Field(description="The action to be performed on the entities.", title="Action")
-    ]
-    entities: Annotated[
-        list[str], Field(description="A list of entity id/key to be deleted.", title="Entities")
-    ]
-    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
-
-
-class BulkDeleteActionVariableBody(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    action: Annotated[
-        Literal["delete"], Field(description="The action to be performed on the entities.", title="Action")
-    ]
-    entities: Annotated[
-        list[str], Field(description="A list of entity id/key to be deleted.", title="Entities")
-    ]
-    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
-
-
 class BulkResponse(BaseModel):
     """
     Serializer for responses to bulk entity operations.
@@ -453,6 +401,7 @@ class DagTagResponse(BaseModel):
 
     name: Annotated[str, Field(title="Name")]
     dag_id: Annotated[str, Field(title="Dag Id")]
+    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
 
 
 class DagVersionResponse(BaseModel):
@@ -583,7 +532,7 @@ class HITLDetailResponse(BaseModel):
 
     user_id: Annotated[str, Field(title="User Id")]
     response_at: Annotated[datetime, Field(title="Response At")]
-    chosen_options: Annotated[list[str], Field(title="Chosen Options")]
+    chosen_options: Annotated[list[str], Field(min_length=1, title="Chosen Options")]
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
 
 
@@ -927,7 +876,7 @@ class UpdateHITLDetailPayload(BaseModel):
     Schema for updating the content of a Human-in-the-loop detail.
     """
 
-    chosen_options: Annotated[list[str], Field(title="Chosen Options")]
+    chosen_options: Annotated[list[str], Field(min_length=1, title="Chosen Options")]
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
 
 
@@ -1434,6 +1383,7 @@ class DagStatsResponse(BaseModel):
     """
 
     dag_id: Annotated[str, Field(title="Dag Id")]
+    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     stats: Annotated[list[DagStatsStateResponse], Field(title="Stats")]
 
 
@@ -1617,7 +1567,6 @@ class TaskInstanceResponse(BaseModel):
     id: Annotated[str, Field(title="Id")]
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
-    dag_version: DagVersionResponse
     dag_run_id: Annotated[str, Field(title="Dag Run Id")]
     map_index: Annotated[int, Field(title="Map Index")]
     logical_date: Annotated[datetime | None, Field(title="Logical Date")] = None
@@ -1647,6 +1596,7 @@ class TaskInstanceResponse(BaseModel):
     rendered_fields: Annotated[dict[str, Any] | None, Field(title="Rendered Fields")] = None
     trigger: TriggerResponse | None = None
     triggerer_job: JobResponse | None = None
+    dag_version: DagVersionResponse | None = None
 
 
 class TaskResponse(BaseModel):
@@ -1730,38 +1680,6 @@ class BackfillCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
-class BulkBodyConnectionBody(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    actions: Annotated[
-        list[
-            BulkCreateActionConnectionBody | BulkUpdateActionConnectionBody | BulkDeleteActionConnectionBody
-        ],
-        Field(title="Actions"),
-    ]
-
-
-class BulkBodyPoolBody(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    actions: Annotated[
-        list[BulkCreateActionPoolBody | BulkUpdateActionPoolBody | BulkDeleteActionPoolBody],
-        Field(title="Actions"),
-    ]
-
-
-class BulkBodyVariableBody(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    actions: Annotated[
-        list[BulkCreateActionVariableBody | BulkUpdateActionVariableBody | BulkDeleteActionVariableBody],
-        Field(title="Actions"),
-    ]
-
-
 class BulkCreateActionBulkTaskInstanceBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -1773,6 +1691,62 @@ class BulkCreateActionBulkTaskInstanceBody(BaseModel):
         list[BulkTaskInstanceBody], Field(description="A list of entities to be created.", title="Entities")
     ]
     action_on_existence: BulkActionOnExistence | None = "fail"
+
+
+class BulkDeleteActionBulkTaskInstanceBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    action: Annotated[
+        Literal["delete"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
+    entities: Annotated[
+        list[str | BulkTaskInstanceBody],
+        Field(description="A list of entity id/key or entity objects to be deleted.", title="Entities"),
+    ]
+    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
+
+
+class BulkDeleteActionConnectionBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    action: Annotated[
+        Literal["delete"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
+    entities: Annotated[
+        list[str | BulkTaskInstanceBody],
+        Field(description="A list of entity id/key or entity objects to be deleted.", title="Entities"),
+    ]
+    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
+
+
+class BulkDeleteActionPoolBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    action: Annotated[
+        Literal["delete"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
+    entities: Annotated[
+        list[str | BulkTaskInstanceBody],
+        Field(description="A list of entity id/key or entity objects to be deleted.", title="Entities"),
+    ]
+    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
+
+
+class BulkDeleteActionVariableBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    action: Annotated[
+        Literal["delete"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
+    entities: Annotated[
+        list[str | BulkTaskInstanceBody],
+        Field(description="A list of entity id/key or entity objects to be deleted.", title="Entities"),
+    ]
+    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
 
 
 class DAGCollectionResponse(BaseModel):
@@ -1817,12 +1791,13 @@ class HITLDetail(BaseModel):
     """
 
     task_instance: TaskInstanceResponse
-    options: Annotated[list[str], Field(title="Options")]
+    options: Annotated[list[str], Field(min_length=1, title="Options")]
     subject: Annotated[str, Field(title="Subject")]
     body: Annotated[str | None, Field(title="Body")] = None
     defaults: Annotated[list[str] | None, Field(title="Defaults")] = None
     multiple: Annotated[bool | None, Field(title="Multiple")] = False
     params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
+    respondents: Annotated[list[str] | None, Field(title="Respondents")] = None
     user_id: Annotated[str | None, Field(title="User Id")] = None
     response_at: Annotated[datetime | None, Field(title="Response At")] = None
     chosen_options: Annotated[list[str] | None, Field(title="Chosen Options")] = None
@@ -1885,5 +1860,37 @@ class BulkBodyBulkTaskInstanceBody(BaseModel):
             | BulkUpdateActionBulkTaskInstanceBody
             | BulkDeleteActionBulkTaskInstanceBody
         ],
+        Field(title="Actions"),
+    ]
+
+
+class BulkBodyConnectionBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    actions: Annotated[
+        list[
+            BulkCreateActionConnectionBody | BulkUpdateActionConnectionBody | BulkDeleteActionConnectionBody
+        ],
+        Field(title="Actions"),
+    ]
+
+
+class BulkBodyPoolBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    actions: Annotated[
+        list[BulkCreateActionPoolBody | BulkUpdateActionPoolBody | BulkDeleteActionPoolBody],
+        Field(title="Actions"),
+    ]
+
+
+class BulkBodyVariableBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    actions: Annotated[
+        list[BulkCreateActionVariableBody | BulkUpdateActionVariableBody | BulkDeleteActionVariableBody],
         Field(title="Actions"),
     ]

@@ -21,22 +21,24 @@ import collections.abc
 import functools
 from collections import Counter
 from collections.abc import Iterator, KeysView
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, NamedTuple, cast
 
 from sqlalchemy import and_, func, or_, select
 
 from airflow.models.taskinstance import PAST_DEPENDS_MET
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup
+from airflow.task.trigger_rule import TriggerRule as TR
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.trigger_rule import TriggerRule as TR
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.expression import ColumnOperators
 
     from airflow import DAG
+    from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
     from airflow.ti_deps.dep_context import DepContext
     from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 
@@ -147,10 +149,10 @@ class TriggerRuleDep(BaseTIDep):
             return get_mapped_ti_count(ti.task, ti.run_id, session=session)
 
         def _iter_expansion_dependencies(task_group: MappedTaskGroup) -> Iterator[str]:
-            from airflow.sdk.definitions.mappedoperator import MappedOperator
+            from airflow.models.mappedoperator import is_mapped
 
-            if isinstance(ti.task, MappedOperator):
-                for op in ti.task.iter_mapped_dependencies():
+            if (task := ti.task) is not None and is_mapped(task):
+                for op in task.iter_mapped_dependencies():
                     yield op.task_id
             if task_group and task_group.iter_mapped_task_groups():
                 yield from (
@@ -184,7 +186,9 @@ class TriggerRuleDep(BaseTIDep):
             except (NotFullyPopulated, NotMapped):
                 return None
             return ti.get_relevant_upstream_map_indexes(
-                upstream=ti.task.dag.task_dict[upstream_id],
+                # TODO (GH-52141): task_dict in scheduler should contain
+                # scheduler types instead, but currently it inherits SDK's DAG.
+                upstream=cast("MappedOperator | SerializedBaseOperator", ti.task.dag.task_dict[upstream_id]),
                 ti_count=expanded_ti_count,
                 session=session,
             )
