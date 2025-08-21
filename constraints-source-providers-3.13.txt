@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-21T02:21:45.868890
+# This constraints file was automatically generated on 2025-08-21T07:46:47.952142
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -150,7 +150,7 @@ cron-descriptor==1.4.5
 croniter==6.0.0
 cryptography==45.0.6
 curlify==3.0.0
-databricks-sql-connector==4.0.5
+databricks-sql-connector==4.1.1
 databricks-sqlalchemy==2.0.7
 dataclasses-json==0.6.7
 datadog==0.52.1
@@ -434,7 +434,7 @@ polars==1.32.3
 portalocker==3.2.0
 pprintpp==0.4.0
 pre_commit==4.3.0
-prek==0.1.1
+prek==0.1.2
 presto-python-client==0.8.4
 prometheus_client==0.22.1
 prompt_toolkit==3.0.51
@@ -500,7 +500,7 @@ python-slugify==8.0.4
 python-telegram-bot==22.3
 pytz==2025.2
 pywinrm==0.5.0
-pyzmq==27.0.1
+pyzmq==27.0.2
 qdrant-client==1.15.1
 reactivex==4.0.4
 readme_renderer==44.0
