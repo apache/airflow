@@ -88,6 +88,8 @@ Tasks & Operators
 
 .. autoapiclass:: airflow.sdk.Param
 
+.. autoclass:: airflow.sdk.TriggerRule
+
 Setting Dependencies
 ~~~~~~~~~~~~~~~~~~~~
 .. autoapifunction:: airflow.sdk.chain
