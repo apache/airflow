@@ -61,7 +61,7 @@ def triggerer(args):
     """Start Airflow Triggerer."""
     from airflow.sdk._shared.secrets_masker import SecretsMasker
 
-    SecretsMasker.MASK_SECRETS_IN_LOGS = True
+    SecretsMasker.enable_log_masking()
 
     print(settings.HEADER)
     triggerer_heartrate = conf.getfloat("triggerer", "JOB_HEARTBEAT_SEC")

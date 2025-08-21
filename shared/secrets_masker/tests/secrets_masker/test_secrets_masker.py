@@ -84,7 +84,7 @@ def logger(caplog):
     caplog.handler.setFormatter(formatter)
     logger.handlers = [caplog.handler]
     filt = SecretsMasker()
-    SecretsMasker.MASK_SECRETS_IN_LOGS = True
+    SecretsMasker.enable_log_masking()
     logger.addFilter(filt)
 
     filt.add_mask("password")
@@ -384,6 +384,22 @@ class TestSecretsMasker:
 
             got = redact(val)
             assert got == val
+
+    def test_property_for_log_masking(self):
+        """Test that log masking enable/disable methods."""
+        masker1 = SecretsMasker()
+        masker2 = SecretsMasker()
+
+        assert not masker1.is_log_masking_enabled()
+        assert not masker2.is_log_masking_enabled()
+
+        masker1.enable_log_masking()
+        assert masker1.is_log_masking_enabled()
+        assert masker2.is_log_masking_enabled()
+
+        masker2.disable_log_masking()
+        assert not masker1.is_log_masking_enabled()
+        assert not masker2.is_log_masking_enabled()
 
 
 class TestShouldHideValueForKey:

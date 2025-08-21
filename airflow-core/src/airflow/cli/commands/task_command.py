@@ -371,7 +371,7 @@ def task_test(args, dag: DAG | None = None) -> None:
 
     from airflow.sdk._shared.secrets_masker import SecretsMasker
 
-    SecretsMasker.MASK_SECRETS_IN_LOGS = True
+    SecretsMasker.enable_log_masking()
 
     handlers = logging.getLogger("airflow.task").handlers
     already_has_stream_handler = False

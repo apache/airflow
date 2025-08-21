@@ -202,8 +202,8 @@ class SecretsMasker(logging.Filter):
     ALREADY_FILTERED_FLAG = "__SecretsMasker_filtered"
     MAX_RECURSION_DEPTH = 5
     _has_warned_short_secret = False
-    # default to false
-    MASK_SECRETS_IN_LOGS = False
+    # Private variable with method access
+    _mask_secrets_in_logs = False
 
     def __init__(self):
         super().__init__()
@@ -231,6 +231,21 @@ class SecretsMasker(logging.Filter):
 
                 cls._redact = _redact
                 ...
+
+    @classmethod
+    def enable_log_masking(cls) -> None:
+        """Enable secret masking in logs."""
+        cls._mask_secrets_in_logs = True
+
+    @classmethod
+    def disable_log_masking(cls) -> None:
+        """Disable secret masking in logs."""
+        cls._mask_secrets_in_logs = False
+
+    @classmethod
+    def is_log_masking_enabled(cls) -> bool:
+        """Check if secret masking in logs is enabled."""
+        return cls._mask_secrets_in_logs
 
     @cached_property
     def _record_attrs_to_ignore(self) -> Iterable[str]:
@@ -264,7 +279,7 @@ class SecretsMasker(logging.Filter):
             self._redact_exception_with_context(exception.__cause__)
 
     def filter(self, record) -> bool:
-        if self.MASK_SECRETS_IN_LOGS is not True:
+        if not self.is_log_masking_enabled():
             return True
 
         if self.ALREADY_FILTERED_FLAG in record.__dict__:

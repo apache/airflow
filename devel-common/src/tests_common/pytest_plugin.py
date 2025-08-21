@@ -1818,7 +1818,7 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
                         SecretsMasker as CoreSecretsMasker,
                     )
 
-                    mp_ctx.setattr(CoreSecretsMasker, "MASK_SECRETS_IN_LOGS", True)
+                    mp_ctx.setattr(CoreSecretsMasker, "_mask_secrets_in_logs", True)
                 except ImportError:
                     pass
                 try:
@@ -1826,7 +1826,7 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
                         SecretsMasker as SDKSecretsMasker,
                     )
 
-                    mp_ctx.setattr(SDKSecretsMasker, "MASK_SECRETS_IN_LOGS", True)
+                    mp_ctx.setattr(SDKSecretsMasker, "_mask_secrets_in_logs", True)
                 except ImportError:
                     pass
             else:
@@ -1857,7 +1857,7 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
             try:
                 from airflow._shared.secrets_masker import SecretsMasker
 
-                mp_ctx.setattr(SecretsMasker, "MASK_SECRETS_IN_LOGS", False)
+                mp_ctx.setattr(SecretsMasker, "_mask_secrets_in_logs", False)
             except ImportError:
                 pass
             try:
@@ -1865,7 +1865,7 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
                     SecretsMasker as SDKSecretsMasker,
                 )
 
-                mp_ctx.setattr(SDKSecretsMasker, "MASK_SECRETS_IN_LOGS", False)
+                mp_ctx.setattr(SDKSecretsMasker, "_mask_secrets_in_logs", False)
             except ImportError:
                 pass
         else:
