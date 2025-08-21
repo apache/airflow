@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
-    from airflow.utils.log.file_task_handler import LogMessages, LogSourceInfo
+    from airflow.utils.log.file_task_handler import LogMessages, LogResponse, LogSourceInfo
 
 
 @attrs.define
@@ -120,6 +120,9 @@ class WasbRemoteLogIO(LoggingMixin):  # noqa: D101
                 )
                 self.log.exception("Could not read blob")
         return messages, logs
+
+    def stream(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
+        raise NotImplementedError
 
     def wasb_log_exists(self, remote_log_location: str) -> bool:
         """

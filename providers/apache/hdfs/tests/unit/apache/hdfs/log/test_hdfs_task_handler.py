@@ -25,7 +25,7 @@ from unittest.mock import PropertyMock
 import pytest
 
 from airflow.providers.apache.hdfs.hooks.webhdfs import WebHDFSHook
-from airflow.providers.apache.hdfs.log.hdfs_task_handler import HdfsTaskHandler
+from airflow.providers.apache.hdfs.log.hdfs_task_handler import HdfsRemoteLogIO, HdfsTaskHandler
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import datetime
 
@@ -35,6 +35,28 @@ from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = datetime(2020, 8, 10)
+
+
+class TestHdfsRemoteLogIO:
+    @pytest.fixture(autouse=True)
+    def setup_tests(self, create_runtime_ti):
+        from airflow.sdk import BaseOperator
+
+        # setup remote IO
+        self.base_log_folder = "local/airflow/logs"
+        self.remote_base = "/remote/log/location"
+        self.hdfs_remote_log_io = HdfsRemoteLogIO(
+            remote_base=self.remote_base,
+            base_log_folder=self.base_log_folder,
+            delete_local_copy=True,
+        )
+        # setup task instance
+        self.ti = create_runtime_ti(BaseOperator(task_id="task_1"))
+
+    def test_stream(self):
+        """Test that the stream method raises NotImplementedError."""
+        with pytest.raises(NotImplementedError):
+            self.hdfs_remote_log_io.stream("some/log/path", self.ti)
 
 
 class TestHdfsTaskHandler:
