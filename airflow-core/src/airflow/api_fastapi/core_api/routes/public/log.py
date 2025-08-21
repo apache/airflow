@@ -146,7 +146,9 @@ def get_log(
 
     if accept == Mimetype.NDJSON:  # only specified application/x-ndjson will return streaming response
         # LogMetadata(TypedDict) is used as type annotation for log_reader; added ignore to suppress mypy error
-        log_stream = task_log_reader.read_log_stream(ti, try_number, metadata)  # type: ignore[arg-type]
+        ndjson_log_stream = list(task_log_reader.read_log_stream(ti, try_number, metadata))  # type: ignore[arg-type]
+        reversed_stream = reversed(ndjson_log_stream)
+        log_stream = (line for line in reversed_stream)
         headers = None
         if not metadata.get("end_of_log", False):
             headers = {
