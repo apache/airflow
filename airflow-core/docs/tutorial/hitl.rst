@@ -23,7 +23,7 @@ HITLOperator (Human-in-the-loop)
 Human-in-the-Loop (HITL) functionality allows you to incorporate human decision-making directly into your workflows.
 This powerful feature enables workflows to pause and wait for human input, making it perfect for approval processes, manual quality checks, and scenarios where human judgment is essential.
 
-In this tutorial, we will explore how to use the HITL operators in workflows.
+In this tutorial, we will explore how to use the HITL operators in workflows and demonstrate how it would look like in Airflow UI.
 
 An HITL Example Dag
 -------------------
@@ -48,6 +48,14 @@ This is useful for workflows involving human guidance within large language mode
    :start-after: [START howto_hitl_entry_operator]
    :end-before: [END howto_hitl_entry_operator]
 
+|
+
+You can click the task and find the Required Actions tab in the details panel.
+
+.. image:: /img/hitl_wait_for_input.png
+  :alt: Demo HITL task instance waiting for input
+
+|
 
 Option Selection
 ----------------
@@ -61,6 +69,28 @@ Users can select one of the available options, which can be used to direct the w
    :start-after: [START howto_hitl_operator]
    :end-before: [END howto_hitl_operator]
 
+|
+
+.. image:: /img/hitl_wait_for_option.png
+  :alt: Demo HITL task instance waiting for an option
+
+|
+
+Multiple options are also allowed.
+
+.. exampleinclude:: /../../providers/standard/src/airflow/providers/standard/example_dags/example_hitl_operator.py
+   :language: python
+   :dedent: 4
+   :start-after: [START howto_hitl_operator_multiple]
+   :end-before: [END howto_hitl_operator_multiple]
+
+|
+
+.. image:: /img/hitl_wait_for_multiple_options.png
+  :alt: Demo HITL task instance waiting for multiple options
+
+|
+
 Approval or Rejection
 ---------------------
 
@@ -72,7 +102,14 @@ A specialized form of option selection, which has only 'Approval' and 'Rejection
    :start-after: [START howto_hitl_approval_operator]
    :end-before: [END howto_hitl_approval_operator]
 
+|
+
 As you can see in the body of this code snippet, you can use XComs to get information provided by the user.
+
+.. image:: /img/hitl_approve_reject.png
+  :alt: Demo HITL task instance waiting for approval or rejection
+
+|
 
 Branch Selection
 ----------------
@@ -89,11 +126,52 @@ And remember to specify their relationship in the workflow.
    :start-after: [START howto_hitl_branch_operator]
    :end-before: [END howto_hitl_branch_operator]
 
+|
+
 .. exampleinclude:: /../../providers/standard/src/airflow/providers/standard/example_dags/example_hitl_operator.py
    :language: python
    :dedent: 4
    :start-after: [START howto_hitl_workflow]
    :end-before: [END howto_hitl_workflow]
+
+|
+
+.. image:: /img/hitl_branch_selection.png
+  :alt: Demo HITL task instance waiting for branch selection
+
+|
+
+After the branch is chosen, the workflow will proceed along the selected path.
+
+.. image:: /img/hitl_branch_selected.png
+  :alt: Demo HITL task instance after branch selection
+
+Notifiers
+---------
+
+A notifier is a callback mechanism that allows you to handle HITL events, such as when a task is waiting for human input, succeeds, or fails.
+The example uses a notifier ``LocalLogNotifier`` that logs messages for demonstration.
+You can implement your own notifier for different functionalities.
+For more details, please refer to `Creating a notifier <https://airflow.apache.org/docs/apache-airflow/stable/howto/notifications.html>`_ and `Notifications <https://airflow.apache.org/docs/apache-airflow-providers/core-extensions/notifications.html>`_.
+
+In the example Dag, the notifier is defined as follows:
+
+.. exampleinclude:: /../../providers/standard/src/airflow/providers/standard/example_dags/example_hitl_operator.py
+   :language: python
+   :start-after: [START hitl_notifier]
+   :end-before: [END hitl_notifier]
+
+|
+
+You can pass a list of notifiers to HITL operators using the ``notifiers`` argument as follows.
+When the operator creates an HITL request that is waiting for a human response, the ``notify`` method will be called with a single argument, ``context``.
+
+.. exampleinclude:: /../../providers/standard/src/airflow/providers/standard/example_dags/example_hitl_operator.py
+   :language: python
+   :dedent: 4
+   :start-after: [START howto_hitl_entry_operator]
+   :end-before: [END howto_hitl_entry_operator]
+
 
 Benefits and Common Use Cases
 -----------------------------

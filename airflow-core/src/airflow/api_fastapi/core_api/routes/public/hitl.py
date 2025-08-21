@@ -77,12 +77,16 @@ def _get_task_instance(
     task_instance = session.scalar(query)
     if task_instance is None:
         raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=(
+                f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, "
+                f"task_id: `{task_id}` and map_index: `{map_index}` was not found"
+            ),
         )
     if map_index is None and task_instance.map_index != -1:
         raise HTTPException(
-            status.HTTP_404_NOT_FOUND, "Task instance is mapped, add the map_index value to the URL"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task instance is mapped, add the map_index value to the URL",
         )
 
     return task_instance
@@ -108,15 +112,17 @@ def _update_hitl_detail(
     hitl_detail_model = session.scalar(select(HITLDetailModel).where(HITLDetailModel.ti_id == ti_id_str))
     if not hitl_detail_model:
         raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            f"Human-in-the-loop detail does not exist for Task Instance with id {ti_id_str}",
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Human-in-the-loop detail does not exist for Task Instance with id {ti_id_str}",
         )
 
     if hitl_detail_model.response_received:
         raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            f"Human-in-the-loop detail has already been updated for Task Instance with id {ti_id_str} "
-            "and is not allowed to write again.",
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Human-in-the-loop detail has already been updated for Task Instance with id {ti_id_str} "
+                "and is not allowed to write again."
+            ),
         )
 
     if hitl_detail_model.respondents:
@@ -127,7 +133,8 @@ def _update_hitl_detail(
         if user_id not in hitl_detail_model.respondents:
             log.error("User=%s is not a respondent for the task", user_id)
             raise HTTPException(
-                status.HTTP_403_FORBIDDEN, f"User={user_id} is not a respondent for the task."
+                status.HTTP_403_FORBIDDEN,
+                f"User={user_id} is not a respondent for the task.",
             )
 
     hitl_detail_model.user_id = user.get_id()
@@ -154,11 +161,6 @@ def _get_hitl_detail(
         session=session,
         map_index=map_index,
     )
-    if task_instance is None:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
-        )
 
     ti_id_str = str(task_instance.id)
     hitl_detail_model = session.scalar(
@@ -167,13 +169,10 @@ def _get_hitl_detail(
         .options(joinedload(HITLDetailModel.task_instance))
     )
     if not hitl_detail_model:
-        log.error("Human-in-the-loop detail not found")
+        log.error("Human-in-the-loop detail does not exist for Task Instance with id %s", ti_id_str)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": "Human-in-the-loop detail not found",
-            },
+            detail=f"Human-in-the-loop detail does not exist for Task Instance with id {ti_id_str}",
         )
     return HITLDetail.model_validate(hitl_detail_model)
 
