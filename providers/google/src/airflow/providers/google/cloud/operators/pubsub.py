@@ -413,13 +413,11 @@ class PubSubCreateSubscriptionOperator(GoogleCloudBaseOperator):
         subscription_project_id = self.subscription_project_id or topic_project_id
 
         return OperatorLineage(
-            inputs=[
-                Dataset(namespace="pubsub", name=f"topic:{topic_project_id}:{self.topic}")
-            ],
+            inputs=[Dataset(namespace="pubsub", name=f"topic:{topic_project_id}:{self.topic}")],
             outputs=[
                 Dataset(
                     namespace="pubsub",
-                    name=f"subscription:{subscription_project_id}:{self._resolved_subscription_name}"
+                    name=f"subscription:{subscription_project_id}:{self._resolved_subscription_name}",
                 )
             ],
         )
