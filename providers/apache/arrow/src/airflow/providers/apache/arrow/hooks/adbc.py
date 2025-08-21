@@ -184,7 +184,7 @@ class AdbcHook(DbApiHook):
         self,
         sql: str | list[str],
         parameters: Iterable | Mapping[str, Any] | None = None,
-        handler: Callable[[Any], T] = fetch_all_handler,
+        handler: Callable[[Any], T] | None = fetch_all_handler,
     ) -> Any:
         """
         Execute the sql and return a set of records.
