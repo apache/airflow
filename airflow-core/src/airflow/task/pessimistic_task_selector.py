@@ -106,10 +106,10 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
             )
 
         def add_window_limit(query: Select, limit: LimitWindowDescriptor) -> Select:
-            inner_query = query.add_columns(limit.window).subquery()
+            cte_query = query.add_columns(limit.window).cte()
             query = (
                 select(TI.id)
-                .join(inner_query, TI.id == inner_query.c.id)
+                .join(cte_query, TI.id == cte_query.c.id)
                 .outerjoin(
                     limit.running_now_join,
                     and_(
@@ -125,7 +125,7 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
 
             return query.where(
                 and_(
-                    func.coalesce(getattr(inner_query.c, limit.window.name), text("0"))
+                    func.coalesce(getattr(cte_query.c, limit.window.name), text("0"))
                     + func.coalesce(limit.running_now_join.c.now_running, text("0"))
                     <= func.coalesce(limit.limit_column, max_tis)
                 )

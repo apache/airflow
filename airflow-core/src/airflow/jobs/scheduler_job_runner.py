@@ -400,6 +400,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             session.execute(
                 update(TI)
                 .where(filter_for_tis)
+                .where(TI.task_id != "sleep_task")
                 .values(
                     # TODO[ha]: should we use func.now()? How does that work with DB timezone
                     # on mysql when it's not UTC?
