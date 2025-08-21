@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import json
 
-from adbc_driver_manager import dbapi
 import pytest
+from adbc_driver_manager import dbapi
 
 from airflow.models import Connection
 from airflow.providers.apache.arrow.hooks.adbc import AdbcHook
