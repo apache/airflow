@@ -61,23 +61,30 @@ class TestDeadlineCallbackTrigger:
         mock_callback = mock.AsyncMock(return_value=callback_return_value)
         mock_import_string.return_value = mock_callback
 
-        event = await TEST_TRIGGER.run().asend(None)
+        trigger_gen = TEST_TRIGGER.run()
 
+        running_event = await anext(trigger_gen)
+        assert running_event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.RUNNING
+
+        success_event = await anext(trigger_gen)
         mock_import_string.assert_called_once_with(TEST_CALLBACK_PATH)
         mock_callback.assert_called_once_with(**TEST_CALLBACK_KWARGS)
-
-        assert event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.SUCCESS
-        assert event.payload[PAYLOAD_BODY_KEY] == callback_return_value
+        assert success_event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.SUCCESS
+        assert success_event.payload[PAYLOAD_BODY_KEY] == callback_return_value
 
     @pytest.mark.asyncio
     async def test_run_failure(self, mock_import_string):
-        mock_callback = mock.AsyncMock(side_effect=RuntimeError("Something went wrong"))
+        exc_msg = "Something went wrong"
+        mock_callback = mock.AsyncMock(side_effect=RuntimeError(exc_msg))
         mock_import_string.return_value = mock_callback
 
-        event = await TEST_TRIGGER.run().asend(None)
+        trigger_gen = TEST_TRIGGER.run()
 
+        running_event = await anext(trigger_gen)
+        assert running_event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.RUNNING
+
+        failure_event = await anext(trigger_gen)
         mock_import_string.assert_called_once_with(TEST_CALLBACK_PATH)
         mock_callback.assert_called_once_with(**TEST_CALLBACK_KWARGS)
-
-        assert event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.FAILED
-        assert PAYLOAD_BODY_KEY in event.payload
+        assert failure_event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.FAILED
+        assert all(s in failure_event.payload[PAYLOAD_BODY_KEY] for s in ["raise", "RuntimeError", exc_msg])
