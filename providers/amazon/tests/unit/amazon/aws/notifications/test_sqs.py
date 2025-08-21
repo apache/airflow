@@ -21,7 +21,6 @@ from unittest import mock
 import pytest
 
 from airflow.providers.amazon.aws.notifications.sqs import SqsNotifier, send_sqs_notification
-from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.types import NOTSET
 
 PARAM_DEFAULT_VALUE = pytest.param(NOTSET, id="default-value")
@@ -61,11 +60,7 @@ class TestSqsNotifier:
             notifier.notify({})
             mock_hook.return_value.send_message.assert_called_once_with(**send_message_kwargs)
 
-    @pytest.mark.db_test
-    def test_sqs_notifier_templated(self, dag_maker):
-        with dag_maker("test_sns_notifier_templated") as dag:
-            EmptyOperator(task_id="task1")
-
+    def test_sqs_notifier_templated(self, create_dag_without_db):
         notifier = SqsNotifier(
             aws_conn_id="{{ dag.dag_id }}",
             queue_url="https://sqs.{{ var_region }}.amazonaws.com/{{ var_account }}/{{ var_queue }}",
@@ -77,7 +72,7 @@ class TestSqsNotifier:
         with mock.patch("airflow.providers.amazon.aws.notifications.sqs.SqsHook") as m:
             notifier(
                 {
-                    "dag": dag,
+                    "dag": create_dag_without_db("test_sqs_notifier_templated"),
                     "var_username": "truman",
                     "var_region": "ca-central-1",
                     "var_account": "123321123321",
@@ -86,12 +81,12 @@ class TestSqsNotifier:
                 }
             )
             # Hook initialisation
-            m.assert_called_once_with(aws_conn_id="test_sns_notifier_templated", region_name="ca-central-1")
+            m.assert_called_once_with(aws_conn_id="test_sqs_notifier_templated", region_name="ca-central-1")
             # Send message
             m.return_value.send_message.assert_called_once_with(
                 queue_url="https://sqs.ca-central-1.amazonaws.com/123321123321/AwesomeQueue",
                 message_body="The Truman Show",
                 message_group_id="spam",
-                message_attributes={"bar": "test_sns_notifier_templated"},
+                message_attributes={"bar": "test_sqs_notifier_templated"},
                 delay_seconds=0,
             )

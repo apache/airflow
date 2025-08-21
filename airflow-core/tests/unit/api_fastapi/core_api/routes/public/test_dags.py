@@ -317,18 +317,51 @@ class TestPatchDag(TestDagEndpoint):
     """Unit tests for Patch DAG."""
 
     @pytest.mark.parametrize(
-        "query_params, dag_id, body, expected_status_code, expected_is_paused",
+        "query_params, dag_id, body, expected_status_code, expected_is_paused, expected_tags, expected_display_name",
         [
-            ({}, "fake_dag_id", {"is_paused": True}, 404, None),
-            ({"update_mask": ["field_1", "is_paused"]}, DAG1_ID, {"is_paused": True}, 400, None),
-            ({}, DAG1_ID, {"is_paused": True}, 200, True),
-            ({}, DAG1_ID, {"is_paused": False}, 200, False),
-            ({"update_mask": ["is_paused"]}, DAG1_ID, {"is_paused": True}, 200, True),
-            ({"update_mask": ["is_paused"]}, DAG1_ID, {"is_paused": False}, 200, False),
+            ({}, "fake_dag_id", {"is_paused": True}, 404, None, [], "fake_dag_display_name"),
+            (
+                {"update_mask": ["field_1", "is_paused"]},
+                DAG1_ID,
+                {"is_paused": True},
+                400,
+                None,
+                [],
+                DAG1_DISPLAY_NAME,
+            ),
+            ({}, DAG1_ID, {"is_paused": True}, 200, True, ["example", "tag_2"], DAG1_DISPLAY_NAME),
+            ({}, DAG1_ID, {"is_paused": False}, 200, False, ["example", "tag_2"], DAG1_DISPLAY_NAME),
+            (
+                {"update_mask": ["is_paused"]},
+                DAG1_ID,
+                {"is_paused": True},
+                200,
+                True,
+                ["example", "tag_2"],
+                DAG1_DISPLAY_NAME,
+            ),
+            (
+                {"update_mask": ["is_paused"]},
+                DAG1_ID,
+                {"is_paused": False},
+                200,
+                False,
+                ["example", "tag_2"],
+                DAG1_DISPLAY_NAME,
+            ),
         ],
     )
     def test_patch_dag(
-        self, test_client, query_params, dag_id, body, expected_status_code, expected_is_paused, session
+        self,
+        test_client,
+        query_params,
+        dag_id,
+        body,
+        expected_status_code,
+        expected_is_paused,
+        expected_tags,
+        expected_display_name,
+        session,
     ):
         response = test_client.patch(f"/dags/{dag_id}", json=body, params=query_params)
 
@@ -337,6 +370,14 @@ class TestPatchDag(TestDagEndpoint):
             body = response.json()
             assert body["is_paused"] == expected_is_paused
             check_last_log(session, dag_id=dag_id, event="patch_dag", logical_date=None)
+
+            tags = body.get("tags", [])
+            assert len(tags) == len(expected_tags)
+
+            for tag in tags:
+                assert tag["name"] in expected_tags
+                assert tag["dag_id"] == dag_id
+                assert tag["dag_display_name"] == expected_display_name
 
     def test_patch_dag_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch(f"/dags/{DAG1_ID}", json={"is_paused": True})
@@ -716,13 +757,15 @@ class TestGetDag(TestDagEndpoint):
     """Unit tests for Get DAG."""
 
     @pytest.mark.parametrize(
-        "query_params, dag_id, expected_status_code, dag_display_name",
+        "query_params, dag_id, expected_status_code, dag_display_name, expected_tags",
         [
-            ({}, "fake_dag_id", 404, "fake_dag"),
-            ({}, DAG2_ID, 200, DAG2_ID),
+            ({}, "fake_dag_id", 404, "fake_dag", []),
+            ({}, DAG2_ID, 200, DAG2_ID, []),
         ],
     )
-    def test_get_dag(self, test_client, query_params, dag_id, expected_status_code, dag_display_name):
+    def test_get_dag(
+        self, test_client, query_params, dag_id, expected_status_code, dag_display_name, expected_tags
+    ):
         response = test_client.get(f"/dags/{dag_id}", params=query_params)
         assert response.status_code == expected_status_code
         if expected_status_code != 200:
@@ -732,6 +775,15 @@ class TestGetDag(TestDagEndpoint):
         res_json = response.json()
         last_parsed_time = res_json["last_parsed_time"]
         file_token = res_json["file_token"]
+        tags = res_json.get("tags", [])
+
+        assert len(tags) == len(expected_tags)
+
+        for tag in tags:
+            assert tag["name"] in expected_tags
+            assert tag["dag_id"] == dag_id
+            assert tag["dag_display_name"] == dag_display_name
+
         expected = {
             "dag_id": dag_id,
             "dag_display_name": dag_display_name,
@@ -742,7 +794,7 @@ class TestGetDag(TestDagEndpoint):
             "is_stale": False,
             "owners": ["airflow"],
             "timetable_summary": None,
-            "tags": [],
+            "tags": tags,
             "has_task_concurrency_limits": True,
             "next_dagrun_data_interval_start": None,
             "next_dagrun_data_interval_end": None,

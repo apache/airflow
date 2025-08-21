@@ -32,9 +32,10 @@ import lazy_object_proxy
 from airflow._shared.timezones.timezone import parse as parsedate
 from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
+from airflow.jobs.job import JobState
 from airflow.utils.cli import ColorMode
 from airflow.utils.module_loading import import_string
-from airflow.utils.state import DagRunState, JobState
+from airflow.utils.state import DagRunState
 
 BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
 
@@ -540,7 +541,7 @@ ARG_VAR_DESCRIPTION = Arg(
 )
 ARG_DESERIALIZE_JSON = Arg(("-j", "--json"), help="Deserialize JSON variable", action="store_true")
 ARG_SERIALIZE_JSON = Arg(("-j", "--json"), help="Serialize JSON variable", action="store_true")
-ARG_VAR_IMPORT = Arg(("file",), help="Import variables from JSON file")
+ARG_VAR_IMPORT = Arg(("file",), help="Import variables from .env, .json, .yaml or .yml file")
 ARG_VAR_EXPORT = Arg(
     ("file",),
     help="Export all variables to JSON file",

@@ -24,7 +24,6 @@ import os
 import re
 import sys
 import warnings
-from collections.abc import Callable
 from functools import cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, BinaryIO, Generic, TextIO, TypeVar, cast
@@ -33,15 +32,19 @@ import msgspec
 import structlog
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from structlog.typing import EventDict, ExcInfo, FilteringBoundLogger, Processor
 
     from airflow.logging_config import RemoteLogIO
+    from airflow.sdk.execution_time.secrets_masker import mask_secret as mask_secret
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
 
 
 __all__ = [
     "configure_logging",
     "reset_logging",
+    "mask_secret",
 ]
 
 
@@ -569,3 +572,12 @@ def upload_to_remote(logger: FilteringBoundLogger, ti: RuntimeTI):
 
     log_relative_path = relative_path.as_posix()
     handler.upload(log_relative_path, ti)
+
+
+def __getattr__(name: str):
+    if name == "mask_secret":
+        from airflow.sdk.execution_time.secrets_masker import mask_secret
+
+        globals()["mask_secret"] = mask_secret
+        return mask_secret
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

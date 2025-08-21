@@ -38,7 +38,7 @@ from unit.microsoft.azure.test_utils import mock_json_response, mock_response
 try:
     from airflow.sdk import timezone
 except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+    from airflow.utils import timezone  # type: ignore[no-redef]
 
 try:
     from airflow.sdk.definitions.context import Context

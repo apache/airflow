@@ -39,6 +39,7 @@ def test_upsert_hitl_detail(mock_supervisor_comms) -> None:
         body="Optional body",
         defaults=["Approve", "Reject"],
         params={"input_1": 1},
+        respondents=["test"],
         multiple=False,
     )
     mock_supervisor_comms.send.assert_called_with(
@@ -49,6 +50,7 @@ def test_upsert_hitl_detail(mock_supervisor_comms) -> None:
             body="Optional body",
             defaults=["Approve", "Reject"],
             params={"input_1": 1},
+            respondents=["test"],
             multiple=False,
         )
     )

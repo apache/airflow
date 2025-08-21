@@ -550,6 +550,18 @@ class Connection(Base, LoggingMixin):
 
     @classmethod
     def from_json(cls, value, conn_id=None) -> Connection:
+        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
+            from airflow.sdk import Connection as TaskSDKConnection
+
+            warnings.warn(
+                "Using Connection.from_json from `airflow.models` is deprecated."
+                "Please use `from airflow.sdk import Connection` instead",
+                DeprecationWarning,
+                stacklevel=1,
+            )
+
+            return TaskSDKConnection.from_json(value, conn_id=conn_id)  # type: ignore[return-value]
+
         kwargs = json.loads(value)
         extra = kwargs.pop("extra", None)
         if extra:

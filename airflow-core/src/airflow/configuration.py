@@ -47,9 +47,9 @@ from typing_extensions import overload
 
 from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
+from airflow.task.weight_rule import WeightRule
 from airflow.utils import yaml
 from airflow.utils.module_loading import import_string
-from airflow.utils.weight_rule import WeightRule
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager

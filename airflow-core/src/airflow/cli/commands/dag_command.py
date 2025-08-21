@@ -40,6 +40,7 @@ from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.jobs.job import Job
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
+from airflow.models.dagbag import sync_bag_to_db
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import cli as cli_utils
@@ -351,6 +352,8 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
     dagbag_import_errors = 0
     dags_list = []
     if args.local:
+        from airflow.models.dagbag import DagBag
+
         # Get import errors from the local area
         if args.bundle_name:
             manager = DagBundlesManager()
@@ -370,16 +373,11 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
             dags_list.extend(list(dagbag.dags.values()))
             dagbag_import_errors += len(dagbag.import_errors)
     else:
-        # Get import errors from the DB
-        dagbag = DagBag(read_dags_from_db=True)
-        dagbag.collect_dags_from_db()
-        dags_list = list(dagbag.dags.values())
-
-        query = select(func.count()).select_from(ParseImportError)
+        dags_list.extend(sm.dag for sm in session.scalars(select(SerializedDagModel)))
+        pie_stmt = select(func.count()).select_from(ParseImportError)
         if args.bundle_name:
-            query = query.where(ParseImportError.bundle_name.in_(args.bundle_name))
-
-        dagbag_import_errors = session.scalar(query)
+            pie_stmt = pie_stmt.where(ParseImportError.bundle_name.in_(args.bundle_name))
+        dagbag_import_errors = session.scalar(pie_stmt)
 
     if dagbag_import_errors > 0:
         from rich import print as rich_print
@@ -671,4 +669,4 @@ def dag_reserialize(args, session: Session = NEW_SESSION) -> None:
             continue
         bundle.initialize()
         dag_bag = DagBag(bundle.path, bundle_path=bundle.path, include_examples=False)
-        dag_bag.sync_to_db(bundle.name, bundle_version=bundle.get_current_version(), session=session)
+        sync_bag_to_db(dag_bag, bundle.name, bundle_version=bundle.get_current_version(), session=session)

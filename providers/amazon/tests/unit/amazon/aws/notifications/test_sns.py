@@ -21,7 +21,6 @@ from unittest import mock
 import pytest
 
 from airflow.providers.amazon.aws.notifications.sns import SnsNotifier, send_sns_notification
-from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.types import NOTSET
 
 PARAM_DEFAULT_VALUE = pytest.param(NOTSET, id="default-value")
@@ -60,11 +59,7 @@ class TestSnsNotifier:
             notifier.notify({})
             mock_hook.return_value.publish_to_target.assert_called_once_with(**publish_kwargs)
 
-    @pytest.mark.db_test
-    def test_sns_notifier_templated(self, dag_maker):
-        with dag_maker("test_sns_notifier_templated") as dag:
-            EmptyOperator(task_id="task1")
-
+    def test_sns_notifier_templated(self, create_dag_without_db):
         notifier = SnsNotifier(
             aws_conn_id="{{ dag.dag_id }}",
             target_arn="arn:aws:sns:{{ var_region }}:{{ var_account }}:{{ var_topic }}",
@@ -76,7 +71,7 @@ class TestSnsNotifier:
         with mock.patch("airflow.providers.amazon.aws.notifications.sns.SnsHook") as m:
             notifier(
                 {
-                    "dag": dag,
+                    "dag": create_dag_without_db("test_sns_notifier_templated"),
                     "var_username": "Robot",
                     "var_region": "us-west-1",
                     "var_account": "000000000000",

@@ -27,6 +27,10 @@ To get started, you can use the following command to create a new Airflow CTL en
 
   airflowctl auth login --username <username> --password <password> --api-url <api_url> --env <env_name>
 
+To persist the environment, you can set ``AIRFLOW_CLI_ENVIRONMENT``.
+The environment variable should be the name of the environment you want to use.
+This will allow users to switch environments easily.
+
 OR
 
 .. code-block:: bash

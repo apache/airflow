@@ -35,6 +35,7 @@ from airflow._shared.timezones import timezone
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.db_cleanup import (
@@ -55,6 +56,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import (
     clear_db_assets,
+    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_runs,
     drop_tables_with_prefix,
@@ -69,10 +71,12 @@ def clean_database():
     clear_db_runs()
     clear_db_assets()
     clear_db_dags()
+    clear_db_dag_bundles()
     yield  # Test runs here
     clear_db_dags()
     clear_db_assets()
     clear_db_runs()
+    clear_db_dag_bundles()
 
 
 class TestDBCleanup:
@@ -672,11 +676,15 @@ class TestDBCleanup:
 
 def create_tis(base_date, num_tis, run_type=DagRunType.SCHEDULED):
     with create_session() as session:
+        bundle_name = "testing"
+        session.add(DagBundleModel(name=bundle_name))
+        session.flush()
+
         dag_id = f"test-dag_{uuid4()}"
         dag = DAG(dag_id=dag_id)
-        dm = DagModel(dag_id=dag_id)
+        dm = DagModel(dag_id=dag_id, bundle_name=bundle_name)
         session.add(dm)
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
         dag_version = DagVersion.get_latest_version(dag.dag_id)
         for num in range(num_tis):
             start_date = base_date.add(days=num)

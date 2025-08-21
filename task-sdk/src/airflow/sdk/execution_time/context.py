@@ -130,6 +130,11 @@ def _get_connection(conn_id: str) -> Connection:
         try:
             conn = secrets_backend.get_connection(conn_id=conn_id)
             if conn:
+                # TODO: this should probably be in get conn
+                if conn.password:
+                    mask_secret(conn.password)
+                if conn.extra:
+                    mask_secret(conn.extra)
                 return conn
         except Exception:
             log.exception(

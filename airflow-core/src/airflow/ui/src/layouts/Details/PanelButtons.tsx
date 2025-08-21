@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -25,6 +27,7 @@ import {
   Popover,
   Portal,
   Select,
+  VStack,
 } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
@@ -36,6 +39,7 @@ import { useLocalStorage } from "usehooks-ts";
 import { DagVersionSelect } from "src/components/DagVersionSelect";
 import { directionOptions, type Direction } from "src/components/Graph/useGraphLayout";
 import { Button } from "src/components/ui";
+import { Checkbox } from "src/components/ui/Checkbox";
 
 import { DagRunSelect } from "./DagRunSelect";
 import { ToggleGroups } from "./ToggleGroups";
@@ -46,6 +50,8 @@ type Props = {
   readonly panelGroupRef: React.RefObject<{ setLayout?: (layout: Array<number>) => void } & HTMLDivElement>;
   readonly setDagView: (x: "graph" | "grid") => void;
   readonly setLimit: React.Dispatch<React.SetStateAction<number>>;
+  readonly setShowGantt: React.Dispatch<React.SetStateAction<boolean>>;
+  readonly showGantt: boolean;
 };
 
 const getOptions = (translate: (key: string) => string) =>
@@ -72,10 +78,19 @@ const deps = ["all", "immediate", "tasks"];
 
 type Dependency = (typeof deps)[number];
 
-export const PanelButtons = ({ dagView, limit, panelGroupRef, setDagView, setLimit }: Props) => {
+export const PanelButtons = ({
+  dagView,
+  limit,
+  panelGroupRef,
+  setDagView,
+  setLimit,
+  setShowGantt,
+  showGantt,
+}: Props) => {
   const { t: translate } = useTranslation(["components", "dag"]);
-  const { dagId = "" } = useParams();
+  const { dagId = "", runId } = useParams();
   const { fitView } = useReactFlow();
+  const shouldShowToggleButtons = Boolean(runId);
   const [dependencies, setDependencies, removeDependencies] = useLocalStorage<Dependency>(
     `dependencies-${dagId}`,
     "tasks",
@@ -165,7 +180,7 @@ export const PanelButtons = ({ dagView, limit, panelGroupRef, setDagView, setLim
             <Popover.Positioner>
               <Popover.Content>
                 <Popover.Arrow />
-                <Popover.Body p={2}>
+                <Popover.Body display="flex" flexDirection="column" gap={4} p={2}>
                   {dagView === "graph" ? (
                     <>
                       <DagVersionSelect />
@@ -227,33 +242,42 @@ export const PanelButtons = ({ dagView, limit, panelGroupRef, setDagView, setLim
                       </Select.Root>
                     </>
                   ) : (
-                    <Select.Root
-                      // @ts-expect-error The expected option type is incorrect
-                      collection={displayRunOptions}
-                      data-testid="display-dag-run-options"
-                      onValueChange={handleLimitChange}
-                      size="sm"
-                      value={[limit.toString()]}
-                    >
-                      <Select.Label>{translate("dag:panel.dagRuns.label")}</Select.Label>
-                      <Select.Control>
-                        <Select.Trigger>
-                          <Select.ValueText />
-                        </Select.Trigger>
-                        <Select.IndicatorGroup>
-                          <Select.Indicator />
-                        </Select.IndicatorGroup>
-                      </Select.Control>
-                      <Select.Positioner>
-                        <Select.Content>
-                          {displayRunOptions.items.map((option) => (
-                            <Select.Item item={option} key={option.value}>
-                              {option.label}
-                            </Select.Item>
-                          ))}
-                        </Select.Content>
-                      </Select.Positioner>
-                    </Select.Root>
+                    <>
+                      <Select.Root
+                        // @ts-expect-error The expected option type is incorrect
+                        collection={displayRunOptions}
+                        data-testid="display-dag-run-options"
+                        onValueChange={handleLimitChange}
+                        size="sm"
+                        value={[limit.toString()]}
+                      >
+                        <Select.Label>{translate("dag:panel.dagRuns.label")}</Select.Label>
+                        <Select.Control>
+                          <Select.Trigger>
+                            <Select.ValueText />
+                          </Select.Trigger>
+                          <Select.IndicatorGroup>
+                            <Select.Indicator />
+                          </Select.IndicatorGroup>
+                        </Select.Control>
+                        <Select.Positioner>
+                          <Select.Content>
+                            {displayRunOptions.items.map((option) => (
+                              <Select.Item item={option} key={option.value}>
+                                {option.label}
+                              </Select.Item>
+                            ))}
+                          </Select.Content>
+                        </Select.Positioner>
+                      </Select.Root>
+                      {shouldShowToggleButtons ? (
+                        <VStack alignItems="flex-start" px={1}>
+                          <Checkbox checked={showGantt} onChange={() => setShowGantt(!showGantt)} size="sm">
+                            {translate("dag:panel.buttons.showGantt")}
+                          </Checkbox>
+                        </VStack>
+                      ) : undefined}
+                    </>
                   )}
                 </Popover.Body>
               </Popover.Content>

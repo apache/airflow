@@ -206,6 +206,80 @@ class TestPubSubSubscriptionCreateOperator:
         )
         assert response == TEST_SUBSCRIPTION
 
+    @pytest.mark.parametrize(
+        "subscription, project_id, subscription_project_id, expected_dataset",
+        [
+            # 1. Subscription provided, project_id provided, subscription_project_id not provided
+            (TEST_SUBSCRIPTION, TEST_PROJECT, None, f"subscription:{TEST_PROJECT}:{TEST_SUBSCRIPTION}"),
+            # 2. Subscription provided, subscription_project_id provided
+            (
+                TEST_SUBSCRIPTION,
+                TEST_PROJECT,
+                "another-project",
+                f"subscription:another-project:{TEST_SUBSCRIPTION}",
+            ),
+            # 3. Subscription not provided (generated), project_id provided
+            (None, TEST_PROJECT, None, f"subscription:{TEST_PROJECT}:generated"),
+            # 4. Subscription not provided, subscription_project_id provided
+            (None, TEST_PROJECT, "another-project", "subscription:another-project:generated"),
+            # 5. Neither subscription nor project_id provided (use project_id from connection)
+            (None, None, None, "subscription:connection-project:generated"),
+        ],
+    )
+    @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
+    def test_get_openlineage_facets(
+        self,
+        mock_hook,
+        subscription,
+        project_id,
+        subscription_project_id,
+        expected_dataset,
+    ):
+        operator = PubSubCreateSubscriptionOperator(
+            task_id=TASK_ID,
+            project_id=project_id,
+            topic=TEST_TOPIC,
+            subscription=subscription,
+            subscription_project_id=subscription_project_id,
+        )
+        mock_hook.return_value.create_subscription.return_value = subscription or "generated"
+        mock_hook.return_value.project_id = subscription_project_id or project_id or "connection-project"
+        context = mock.MagicMock()
+        response = operator.execute(context=context)
+        mock_hook.return_value.create_subscription.assert_called_once_with(
+            project_id=project_id,
+            topic=TEST_TOPIC,
+            subscription=subscription,
+            subscription_project_id=subscription_project_id,
+            ack_deadline_secs=10,
+            fail_if_exists=False,
+            push_config=None,
+            retain_acked_messages=None,
+            message_retention_duration=None,
+            labels=None,
+            enable_message_ordering=False,
+            expiration_policy=None,
+            filter_=None,
+            dead_letter_policy=None,
+            retry_policy=None,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+        if subscription:
+            assert response == TEST_SUBSCRIPTION
+        else:
+            assert response == "generated"
+
+        result = operator.get_openlineage_facets_on_complete(operator)
+        assert not result.run_facets
+        assert not result.job_facets
+        assert len(result.inputs) == 0
+        assert len(result.outputs) == 1
+        assert result.outputs[0].namespace == "pubsub"
+        assert result.outputs[0].name == expected_dataset
+
 
 class TestPubSubSubscriptionDeleteOperator:
     @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")

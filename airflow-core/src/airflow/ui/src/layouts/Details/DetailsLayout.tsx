@@ -39,6 +39,7 @@ import { Tooltip } from "src/components/ui/Tooltip";
 import { OpenGroupsProvider } from "src/context/openGroups";
 
 import { DagBreadcrumb } from "./DagBreadcrumb";
+import { Gantt } from "./Gantt/Gantt";
 import { Graph } from "./Graph";
 import { Grid } from "./Grid";
 import { NavTabs } from "./NavTabs";
@@ -52,12 +53,14 @@ type Props = {
 
 export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const { t: translate } = useTranslation();
-  const { dagId = "" } = useParams();
+  const { dagId = "", runId } = useParams();
   const { data: dag } = useDagServiceGetDag({ dagId });
   const [defaultDagView] = useLocalStorage<"graph" | "grid">("default_dag_view", "grid");
   const panelGroupRef = useRef(null);
   const [dagView, setDagView] = useLocalStorage<"graph" | "grid">(`dag_view-${dagId}`, defaultDagView);
   const [limit, setLimit] = useLocalStorage<number>(`dag_runs_limit-${dagId}`, 10);
+
+  const [showGantt, setShowGantt] = useLocalStorage<boolean>(`show_gantt-${dagId}`, true);
   const { fitView, getZoom } = useReactFlow();
   const { data: warningData } = useDagWarningServiceListDagWarnings({ dagId });
   const { onClose, onOpen, open } = useDisclosure();
@@ -110,7 +113,12 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
           key={`${dagView}-${direction}`}
           ref={panelGroupRef}
         >
-          <Panel defaultSize={dagView === "graph" ? 70 : 20} id="main-panel" minSize={6} order={1}>
+          <Panel
+            defaultSize={dagView === "graph" ? 70 : 20}
+            id="main-panel"
+            minSize={showGantt && dagView === "grid" && Boolean(runId) ? 30 : 6}
+            order={1}
+          >
             <Box height="100%" marginInlineEnd={2} overflowY="auto" position="relative">
               <PanelButtons
                 dagView={dagView}
@@ -118,8 +126,17 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                 panelGroupRef={panelGroupRef}
                 setDagView={setDagView}
                 setLimit={setLimit}
+                setShowGantt={setShowGantt}
+                showGantt={showGantt}
               />
-              {dagView === "graph" ? <Graph /> : <Grid limit={limit} />}
+              {dagView === "graph" ? (
+                <Graph />
+              ) : (
+                <HStack gap={0}>
+                  <Grid limit={limit} showGantt={Boolean(runId) && showGantt} />
+                  {showGantt ? <Gantt limit={limit} /> : undefined}
+                </HStack>
+              )}
             </Box>
           </Panel>
           {!isRightPanelCollapsed && (

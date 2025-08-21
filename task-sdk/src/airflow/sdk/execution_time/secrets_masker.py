@@ -104,18 +104,27 @@ def should_hide_value_for_key(name):
 
 def mask_secret(secret: str | dict | Iterable, name: str | None = None) -> None:
     """
-    Mask a secret from appearing in the task logs.
+    Mask a secret from appearing in the logs.
 
-    If ``name`` is provided, then it will only be masked if the name matches
-    one of the configured "sensitive" names.
+    If ``name`` is provided, then it will only be masked if the name matches one of the configured "sensitive"
+    names.
 
-    If ``secret`` is a dict or a iterable (excluding str) then it will be
-    recursively walked and keys with sensitive names will be hidden.
+    If ``secret`` is a dict or a iterable (excluding str) then it will be recursively walked and keys with
+    sensitive names will be hidden.
+
+    If the secret value is too short (by default 5 characters or fewer, configurable via the
+    :ref:`[logging] min_length_masked_secret <config:logging__min_length_masked_secret>` setting) it will not
+    be masked
     """
-    # Filtering all log messages is not a free process, so we only do it when
-    # running tasks
     if not secret:
         return
+
+    from airflow.sdk.execution_time import task_runner
+    from airflow.sdk.execution_time.comms import MaskSecret
+
+    if comms := getattr(task_runner, "SUPERVISOR_COMMS", None):
+        # Tell the parent, the process which handles all logs writing and output, about the values to mask
+        comms.send(MaskSecret(value=secret, name=name))
 
     _secrets_masker().add_mask(secret, name)
 

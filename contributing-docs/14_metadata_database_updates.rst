@@ -36,12 +36,12 @@ database schema that you have made. To generate a new migration file, run the fo
        Generating
     ~/airflow-core/src/airflow/migrations/versions/a1e23c41f123_add_new_field_to_db.py
 
-Note that migration file names are standardized by pre-commit hook ``update-migration-references``, so that they sort alphabetically and indicate
-the Airflow version in which they first appear (the alembic revision ID is removed). As a result you should expect to see a pre-commit failure
+Note that migration file names are standardized by prek hook ``update-migration-references``, so that they sort alphabetically and indicate
+the Airflow version in which they first appear (the alembic revision ID is removed). As a result you should expect to see a prek failure
 on the first attempt.  Just stage the modified file and commit again
 (or run the hook manually before committing).
 
-After your new migration file is run through pre-commit it will look like this:
+After your new migration file is run through prek hook it will look like this:
 
 .. code-block::
 
@@ -70,8 +70,8 @@ To resolve these conflicts:
 
 .. code-block:: bash
 
-    pre-commit run update-migration-references --all
-    pre-commit run update-er-diagram --all
+    prek update-migration-references --all-files
+    prek update-er-diagram --all-files
 
 3. Add the updated files to the staging area and continue with the rebase.
 

@@ -39,7 +39,7 @@ from airflow.sdk.execution_time.secrets_masker import (
     reset_secrets_masker,
     should_hide_value_for_key,
 )
-from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
 
@@ -357,7 +357,6 @@ class TestSecretsMasker:
         [
             (DagRunState.SUCCESS, "success"),
             (TaskInstanceState.FAILED, "failed"),
-            (JobState.RUNNING, "running"),
             ([DagRunState.SUCCESS, DagRunState.RUNNING], ["success", "running"]),
             ([TaskInstanceState.FAILED, TaskInstanceState.SUCCESS], ["failed", "success"]),
             (State.failed_states, frozenset([TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED])),
