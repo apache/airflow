@@ -54,6 +54,7 @@ class SFTPSensor(BaseSensorOperator):
 
     template_fields: Sequence[str] = (
         "path",
+        "file_pattern",
         "newer_than",
     )
 

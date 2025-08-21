@@ -65,15 +65,20 @@ from airflow.sdk.definitions.deadline import (
     DeadlineReference,
 )
 from airflow.sdk.definitions.decorators import task
+from airflow.sdk.definitions.operator_resources import Resources
 from airflow.sdk.definitions.param import Param
 from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
-from airflow.serialization.serialized_objects import BaseSerialization, LazyDeserializedDAG, SerializedDAG
+from airflow.serialization.serialized_objects import (
+    BaseSerialization,
+    LazyDeserializedDAG,
+    SerializedDAG,
+    create_scheduler_operator,
+)
 from airflow.timetables.base import DataInterval
 from airflow.triggers.base import BaseTrigger
 from airflow.utils.db import LazySelectSequence
-from airflow.utils.operator_resources import Resources
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
 
@@ -179,14 +184,14 @@ def test_serde_validate_schema_valid_json():
 
 
 TI = TaskInstance(
-    task=EmptyOperator(task_id="test-task"),
+    task=create_scheduler_operator(EmptyOperator(task_id="test-task")),
     run_id="fake_run",
     state=State.RUNNING,
     dag_version_id=uuid7(),
 )
 
 TI_WITH_START_DAY = TaskInstance(
-    task=EmptyOperator(task_id="test-task"),
+    task=create_scheduler_operator(EmptyOperator(task_id="test-task")),
     run_id="fake_run",
     state=State.RUNNING,
     dag_version_id=uuid7(),

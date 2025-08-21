@@ -86,10 +86,18 @@ def _bootstrap_dagbag():
 
         dagbag = DagBag()
         # Save DAGs in the ORM
-        if AIRFLOW_V_3_0_PLUS:
-            dagbag.sync_to_db(bundle_name="dags-folder", bundle_version=None, session=session)
+        if AIRFLOW_V_3_1_PLUS:
+            from airflow.models.dagbag import sync_bag_to_db
+
+            sync_bag_to_db(dagbag, bundle_name="dags-folder", bundle_version=None, session=session)
+        elif AIRFLOW_V_3_0_PLUS:
+            dagbag.sync_to_db(  # type: ignore[attr-defined]
+                bundle_name="dags-folder",
+                bundle_version=None,
+                session=session,
+            )
         else:
-            dagbag.sync_to_db(session=session)
+            dagbag.sync_to_db(session=session)  # type: ignore[attr-defined]
 
         # Deactivate the unknown ones
         DAG.deactivate_unknown_dags(dagbag.dags.keys(), session=session)
@@ -150,11 +158,17 @@ def parse_and_sync_to_db(folder: Path | str, include_examples: bool = False):
             session.commit()
 
         dagbag = DagBag(dag_folder=folder, include_examples=include_examples)
-        if AIRFLOW_V_3_0_PLUS:
-            dagbag.sync_to_db("dags-folder", None, session)
+        if AIRFLOW_V_3_1_PLUS:
+            from airflow.models.dagbag import sync_bag_to_db
+
+            sync_bag_to_db(dagbag, "dags-folder", None, session=session)
+        elif AIRFLOW_V_3_0_PLUS:
+            dagbag.sync_to_db("dags-folder", None, session)  # type: ignore[attr-defined]
         else:
-            dagbag.sync_to_db(session=session)  # type: ignore[call-arg]
+            dagbag.sync_to_db(session=session)  # type: ignore[attr-defined]
         session.commit()
+
+    return dagbag
 
 
 def clear_db_runs():

@@ -313,19 +313,25 @@ class SFTPHook(SSHHook):
         :param prefetch: controls whether prefetch is performed (default: True)
         """
         if isinstance(local_full_path, BytesIO):
-            self.conn.getfo(remote_full_path, local_full_path, prefetch=prefetch)  # type: ignore[arg-type]
+            # It's a file-like object ( BytesIO), so use getfo().
+            self.log.info("Using streaming download for %s", remote_full_path)
+            conn.getfo(remote_full_path, local_full_path, prefetch=prefetch)
+        # We use hasattr checking for 'write' for cases like google.cloud.storage.fileio.BlobWriter
         elif hasattr(local_full_path, "write"):
             self.log.info("Using streaming download for %s", remote_full_path)
-            # We need to cast to pass pre-commit checks
+            # We need to cast to pass prek hook checks
             stream_full_path = cast("IO[bytes]", local_full_path)
-            self.conn.getfo(remote_full_path, stream_full_path, prefetch=prefetch)  # type: ignore[arg-type]
+            conn.getfo(remote_full_path, stream_full_path, prefetch=prefetch)
         elif isinstance(local_full_path, (str, bytes, os.PathLike)):
             # It's a string path, so use get().
             self.log.info("Using standard file download for %s", remote_full_path)
-            self.conn.get(remote_full_path, local_full_path, prefetch=prefetch)  # type: ignore[arg-type]
+            conn.get(remote_full_path, local_full_path, prefetch=prefetch)
         # If it's neither, it's an unsupported type.
         else:
-            self.conn.get(remote_full_path, local_full_path, prefetch=prefetch)
+            raise TypeError(
+                f"Unsupported type for local_full_path: {type(local_full_path)}. "
+                "Expected a stream-like object or a path-like object."
+            )
 
     @handle_connection_management
     def store_file(self, remote_full_path: str, local_full_path: str, confirm: bool = True) -> None:
@@ -731,19 +737,16 @@ class SFTPHookAsync(BaseHook):
             self.private_key = extra_options["private_key"]
 
         host_key = extra_options.get("host_key")
-        no_host_key_check = extra_options.get("no_host_key_check")
+        nhkc_raw = extra_options.get("no_host_key_check")
+        no_host_key_check = True if nhkc_raw is None else (str(nhkc_raw).lower() == "true")
 
-        if no_host_key_check is not None:
-            no_host_key_check = str(no_host_key_check).lower() == "true"
-            if host_key is not None and no_host_key_check:
-                raise ValueError("Host key check was skipped, but `host_key` value was given")
-            if no_host_key_check:
-                self.log.warning(
-                    "No Host Key Verification. This won't protect against Man-In-The-Middle attacks"
-                )
-                self.known_hosts = "none"
+        if host_key is not None and no_host_key_check:
+            raise ValueError("Host key check was skipped, but `host_key` value was given")
 
-        if host_key is not None:
+        if no_host_key_check:
+            self.log.warning("No Host Key Verification. This won't protect against Man-In-The-Middle attacks")
+            self.known_hosts = "none"
+        elif host_key is not None:
             self.known_hosts = f"{conn.host} {host_key}".encode()
 
     async def _get_conn(self) -> asyncssh.SSHClientConnection:

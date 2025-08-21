@@ -68,6 +68,7 @@ from airflow.sdk.bases.decorator import DecoratedOperator
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
 from airflow.sdk.definitions.asset import Asset, AssetUniqueKey
+from airflow.sdk.definitions.operator_resources import Resources
 from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.security import permissions
@@ -84,7 +85,6 @@ from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.module_loading import qualname
-from airflow.utils.operator_resources import Resources
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker, skip_if_not_on_main
@@ -728,10 +728,10 @@ class TestStringifiedDAGs:
         task,
     ):
         """Verify non-Airflow operators are casted to BaseOperator or MappedOperator."""
+        from airflow.models.mappedoperator import MappedOperator as SchedulerMappedOperator
         from airflow.sdk import BaseOperator
         from airflow.sdk.definitions.mappedoperator import MappedOperator
 
-        assert not isinstance(task, SerializedBaseOperator)
         assert isinstance(task, (BaseOperator, MappedOperator))
 
         # Every task should have a task_group property -- even if it's the DAG's root task group
@@ -762,7 +762,7 @@ class TestStringifiedDAGs:
                 "_is_sensor",
             }
         else:  # Promised to be mapped by the assert above.
-            assert isinstance(serialized_task, MappedOperator)
+            assert isinstance(serialized_task, SchedulerMappedOperator)
             fields_to_check = {f.name for f in attrs.fields(MappedOperator)}
             fields_to_check -= {
                 "map_index_template",
@@ -829,7 +829,9 @@ class TestStringifiedDAGs:
             assert serialized_partial_kwargs == original_partial_kwargs
 
             # ExpandInputs have different classes between scheduler and definition
-            assert attrs.asdict(serialized_task.expand_input) == attrs.asdict(task.expand_input)
+            assert attrs.asdict(serialized_task._get_specified_expand_input()) == attrs.asdict(
+                task._get_specified_expand_input()
+            )
 
     @pytest.mark.parametrize(
         "dag_start_date, task_start_date, expected_task_start_date",
@@ -1391,7 +1393,7 @@ class TestStringifiedDAGs:
         This test verifies that there are no new fields added to BaseOperator. And reminds that
         tests should be added for it.
         """
-        from airflow.utils.trigger_rule import TriggerRule
+        from airflow.task.trigger_rule import TriggerRule
 
         base_operator = BaseOperator(task_id="10")
         # Return the name of any annotated class property, or anything explicitly listed in serialized fields

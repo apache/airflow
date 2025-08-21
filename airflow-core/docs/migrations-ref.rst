@@ -32,14 +32,18 @@ Here's the list of all the Database Migrations that are executed via when you ru
 
 
 
- .. This table is automatically updated by pre-commit by ``scripts/ci/pre_commit/migration_reference.py``
+ .. This table is automatically updated by prek hook by ``scripts/ci/prek/migration_reference.py``
  .. All table elements are scraped from migration files
  .. Beginning of auto-generated table
 
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``808787349f22`` (head) | ``3bda03debd04`` | ``3.1.0``         | Modify deadline's callback schema.                           |
+| ``7582ea3f3dd5`` (head) | ``a169942745c2`` | ``3.1.0``         | Make bundle_name not nullable.                               |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``a169942745c2``        | ``808787349f22`` | ``3.1.0``         | Remove dag_id from Deadline.                                 |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``808787349f22``        | ``3bda03debd04`` | ``3.1.0``         | Modify deadline's callback schema.                           |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``3bda03debd04``        | ``f56f68b9e02f`` | ``3.1.0``         | Add url template and template params to DagBundleModel.      |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+

@@ -28,6 +28,7 @@ from typing import Annotated, Any, Generic, Literal, TypeVar, Union
 from pydantic import Discriminator, Field, Tag
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
+from airflow.api_fastapi.core_api.datamodels.task_instances import BulkTaskInstanceBody
 
 # Common Bulk Data Models
 T = TypeVar("T")
@@ -83,7 +84,10 @@ class BulkDeleteAction(BulkBaseAction[T]):
     """Bulk Delete entity serializer for request bodies."""
 
     action: Literal[BulkAction.DELETE] = Field(description="The action to be performed on the entities.")
-    entities: list[str] = Field(..., description="A list of entity id/key to be deleted.")
+    entities: list[Union[str, BulkTaskInstanceBody]] = Field(
+        ...,
+        description="A list of entity id/key or entity objects to be deleted.",
+    )
     action_on_non_existence: BulkActionNotOnExistence = BulkActionNotOnExistence.FAIL
 
 

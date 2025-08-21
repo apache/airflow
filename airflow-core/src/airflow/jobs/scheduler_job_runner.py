@@ -30,7 +30,7 @@ from contextlib import ExitStack
 from datetime import date, datetime, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import and_, delete, desc, exists, func, inspect, or_, select, text, tuple_, update
 from sqlalchemy.exc import OperationalError
@@ -45,7 +45,7 @@ from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
-from airflow.jobs.job import Job, perform_heartbeat
+from airflow.jobs.job import Job, JobState, perform_heartbeat
 from airflow.models import Deadline, Log
 from airflow.models.asset import (
     AssetActive,
@@ -78,7 +78,7 @@ from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import is_lock_not_available_error, prohibit_commit, with_row_locks
-from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.thread_safe_dict import ThreadSafeDict
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -91,10 +91,10 @@ if TYPE_CHECKING:
 
     from airflow.executors.base_executor import BaseExecutor
     from airflow.executors.executor_utils import ExecutorName
+    from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstanceKey
-    from airflow.utils.sqlalchemy import (
-        CommitProhibitorGuard,
-    )
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
+    from airflow.utils.sqlalchemy import CommitProhibitorGuard
 
 TI = TaskInstance
 DR = DagRun
@@ -236,7 +236,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     def _exit_gracefully(self, signum: int, frame: FrameType | None) -> None:
         """Clean up processor_agent to avoid leaving orphan processes."""
-        self._end_active_spans()
+        if self._is_tracing_enabled():
+            self._end_active_spans()
 
         if not _is_parent_process():
             # Only the parent process should perform the cleanup.
@@ -797,7 +798,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             if state in (TaskInstanceState.QUEUED, TaskInstanceState.RUNNING):
                 ti.external_executor_id = info
-                cls.logger().info("Setting external_id for %s to %s", ti, info)
+                cls.logger().info("Setting external_executor_id for %s to %s", ti, info)
                 continue
 
             msg = (
@@ -887,7 +888,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
                     if TYPE_CHECKING:
                         assert dag
-                    task = dag.get_task(ti.task_id)
+                    # TODO (GH-52141): get_task in scheduler needs to return scheduler types
+                    # instead, but currently it inherits SDK's DAG.
+                    task = cast("MappedOperator | SerializedBaseOperator", dag.get_task(ti.task_id))
                 except Exception:
                     cls.logger().exception("Marking task instance %s as %s", ti, state)
                     ti.set_state(state)
@@ -1582,7 +1585,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
             asset_events = session.scalars(
-                select(AssetEvent).where(
+                select(AssetEvent)
+                .where(
                     or_(
                         AssetEvent.asset_id.in_(
                             select(DagScheduleAssetReference.asset_id).where(
@@ -1598,6 +1602,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     AssetEvent.timestamp <= triggered_date,
                     AssetEvent.timestamp > func.coalesce(cte.c.previous_dag_run_run_after, date.min),
                 )
+                .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
             ).all()
 
             dag_run = dag.create_dagrun(
@@ -1879,7 +1884,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 return callback
 
             if (
-                dag_run.scheduled_by_job_id is not None
+                self._is_tracing_enabled()
+                and dag_run.scheduled_by_job_id is not None
                 and dag_run.scheduled_by_job_id != self.job.id
                 and self.active_spans.get("dr:" + str(dag_run.id)) is None
             ):
@@ -2051,6 +2057,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .values(
                 state=TaskInstanceState.SCHEDULED,
                 queued_dttm=None,
+                queued_by_job_id=None,
                 scheduled_dttm=timezone.utcnow(),
             )
             .execution_options(synchronize_session=False)

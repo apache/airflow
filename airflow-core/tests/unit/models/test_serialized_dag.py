@@ -522,3 +522,31 @@ class TestSerializedDagModel:
 
         # There should now be two versions of the DAG
         assert session.query(DagVersion).count() == 2
+
+    def test_hash_method_removes_fileloc_and_remains_consistent(self):
+        """Test that the hash method removes fileloc before hashing."""
+        test_data = {
+            "__version": 1,
+            "dag": {
+                "fileloc": "/path/to/dag.py",
+                "dag_id": "test_dag",
+                "tasks": {
+                    "task1": {"task_id": "task1"},
+                },
+            },
+        }
+
+        hash_with_fileloc = SDM.hash(test_data)
+
+        # Modify only the top-level dag.fileloc path (simulating file location changes)
+        test_data["dag"]["fileloc"] = "/different/path/to/dag.py"
+
+        # Get hash with different top-level fileloc (should be the same)
+        hash_with_different_fileloc = SDM.hash(test_data)
+
+        # Hashes should be identical since top-level dag.fileloc is removed before hashing
+        assert hash_with_fileloc == hash_with_different_fileloc
+
+        # Verify that the original data still has fileloc (method shouldn't modify original)
+        assert "fileloc" in test_data["dag"]
+        assert test_data["dag"]["fileloc"] == "/different/path/to/dag.py"
