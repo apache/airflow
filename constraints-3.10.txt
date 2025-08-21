@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-21T07:50:01.520659
+# This constraints file was automatically generated on 2025-08-21T19:48:25.555193
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -202,7 +202,7 @@ async-timeout==5.0.1
 asyncpg==0.30.0
 asyncssh==2.21.0
 atlasclient==1.0.0
-atlassian-python-api==4.0.6
+atlassian-python-api==4.0.7
 attrs==25.3.0
 azure-batch==14.2.0
 azure-common==1.1.28
@@ -273,7 +273,7 @@ croniter==6.0.0
 cryptography==42.0.8
 curlify==3.0.0
 darabonba-core==1.0.3
-databricks-sql-connector==4.1.1
+databricks-sql-connector==4.0.5
 databricks-sqlalchemy==1.0.2
 dataclasses-json==0.6.7
 datadog==0.52.1
@@ -449,11 +449,11 @@ matplotlib-inline==0.1.7
 mdurl==0.1.2
 mergedeep==1.3.4
 methodtools==0.4.7
-microsoft-kiota-abstractions==1.9.5
-microsoft-kiota-authentication-azure==1.9.5
-microsoft-kiota-http==1.9.5
-microsoft-kiota-serialization-json==1.9.5
-microsoft-kiota-serialization-text==1.9.5
+microsoft-kiota-abstractions==1.9.6
+microsoft-kiota-authentication-azure==1.9.6
+microsoft-kiota-http==1.9.6
+microsoft-kiota-serialization-json==1.9.6
+microsoft-kiota-serialization-text==1.9.6
 milvus-lite==2.5.1
 mistune==3.1.3
 more-itertools==10.7.0
@@ -510,7 +510,7 @@ papermill==2.6.0
 paramiko==3.5.1
 parso==0.8.4
 pathspec==0.12.1
-pbr==7.0.0
+pbr==7.0.1
 pendulum==3.1.0
 pexpect==4.9.0
 pgvector==0.4.1
@@ -551,7 +551,7 @@ pydot==1.4.2
 pydruid==0.6.9
 pyexasol==0.27.0
 pykerberos==1.2.4
-pymilvus==2.5.14
+pymilvus==2.5.15
 pymongo==4.14.1
 pymssql==2.3.7
 pyodbc==5.2.0
@@ -637,7 +637,7 @@ svcs==25.1.0
 tableauserverclient==0.38
 tabulate==0.9.0
 tenacity==9.1.2
-teradatasql==20.0.0.36
+teradatasql==20.0.0.37
 teradatasqlalchemy==20.0.0.6
 termcolor==3.1.0
 text-unidecode==1.3
@@ -668,7 +668,7 @@ universal_pathlib==0.2.6
 uritemplate==4.2.0
 urllib3==2.5.0
 uuid6==2025.0.1
-uv==0.8.12
+uv==0.8.13
 uvicorn==0.35.0
 uvloop==0.21.0
 validators==0.35.0
