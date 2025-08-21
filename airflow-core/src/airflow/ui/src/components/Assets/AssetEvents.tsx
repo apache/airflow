@@ -69,12 +69,20 @@ export const AssetEvents = ({
       { label: translate("sortBy.oldestFirst"), value: "timestamp" },
     ],
   });
+  const runTypes = ["asset_triggered", "backfill", "manual", "scheduled"];
+  const runTypeOptions = createListCollection({
+    items: runTypes.map((type) => ({
+      label: translate(`runTypes.${type}`),
+      value: type,
+    })),
+  });
   const [searchParams, setSearchParams] = useSearchParams();
-  const { DAG_ID_PATTERN, END_DATE, START_DATE, TASK_ID_PATTERN } = SearchParamsKeys;
+  const { DAG_ID_PATTERN, END_DATE, RUN_TYPE, START_DATE, TASK_ID_PATTERN } = SearchParamsKeys;
   const startDate = searchParams.get(START_DATE) ?? "";
   const endDate = searchParams.get(END_DATE) ?? "";
   const dagIdPattern = searchParams.get(DAG_ID_PATTERN) ?? "";
   const taskIdPattern = searchParams.get(TASK_ID_PATTERN) ?? "";
+  const runType = searchParams.get(RUN_TYPE) ?? "";
 
   const handleFilterChange = useCallback(
     (paramKey: string) => (value: string) => {
@@ -107,6 +115,9 @@ export const AssetEvents = ({
       if (taskIdPattern !== "" && !event.source_task_id?.includes(taskIdPattern)) {
         return false;
       }
+      if (runType !== "" && !event.source_run_id?.startsWith(`${runType}__`)) {
+        return false;
+      }
 
       return true;
     });
@@ -115,7 +126,7 @@ export const AssetEvents = ({
       asset_events: filteredAssetEvents,
       total_entries: data.total_entries,
     };
-  }, [data, startDate, endDate, dagIdPattern, taskIdPattern]);
+  }, [data, startDate, endDate, dagIdPattern, taskIdPattern, runType]);
 
   return (
     <Box borderBottomWidth={0} borderRadius={5} borderWidth={1} p={4} py={2} {...rest}>
@@ -175,6 +186,24 @@ export const AssetEvents = ({
         onChange={handleFilterChange(TASK_ID_PATTERN)}
         placeHolder={translate("common:filters.taskIdPlaceholder")}
       />
+      <Select.Root
+        borderWidth={0}
+        collection={runTypeOptions}
+        defaultValue={[""]}
+        onValueChange={(option) => handleFilterChange(RUN_TYPE)(option.value[0] as string)}
+      >
+        <Select.Trigger>
+          <Select.ValueText placeholder="Triggered Run Type" />
+        </Select.Trigger>
+
+        <Select.Content>
+          {runTypeOptions.items.map((option) => (
+            <Select.Item item={option} key={option.value[0]}>
+              {option.label}
+            </Select.Item>
+          ))}
+        </Select.Content>
+      </Select.Root>
       <Separator mt={2.5} />
       <DataTable
         cardDef={cardDef(assetId)}
