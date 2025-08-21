@@ -27,7 +27,6 @@ from airflow_breeze.commands.release_management_group import release_management
 from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.path_utils import (
-    AIRFLOW_CTL_DIST_PATH,
     AIRFLOW_CTL_ROOT_PATH,
     AIRFLOW_DIST_PATH,
     AIRFLOW_ROOT_PATH,
@@ -284,7 +283,7 @@ def tarball_release_ctl(version: str, version_without_rc: str, source_date_epoch
     console_print(f"[info]Creating tarball for Airflow CTL {version}")
     shutil.rmtree(OUT_PATH, ignore_errors=True)
     OUT_PATH.mkdir(exist_ok=True)
-    AIRFLOW_CTL_DIST_PATH.mkdir(exist_ok=True)
+    AIRFLOW_DIST_PATH.mkdir(exist_ok=True)
     archive_name = f"apache-airflowctl-{version_without_rc}-source.tar.gz"
     temporary_archive = OUT_PATH / archive_name
     result = run_command(
@@ -306,7 +305,7 @@ def tarball_release_ctl(version: str, version_without_rc: str, source_date_epoch
         console_print(f"[error]Failed to create tarball {temporary_archive} for Airflow CTL {version}")
         print(f"Error: {result}")
         exit(result.returncode)
-    final_archive = AIRFLOW_CTL_DIST_PATH / archive_name
+    final_archive = AIRFLOW_ROOT_PATH / archive_name
     result = repack_deterministically(
         source_archive=temporary_archive,
         dest_archive=final_archive,
