@@ -1306,7 +1306,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             elif k == "resources":
                 v = Resources.from_dict(v)
             elif k.endswith("_date"):
-                v = cls._deserialize_datetime(v)
+                if isinstance(v, (int, float)):
+                    v = cls._deserialize_datetime(v)
             elif k == "_operator_extra_links":
                 if cls._load_operator_extra_links:
                     op_predefined_extra_links = cls._deserialize_operator_extra_links(v)
@@ -1708,7 +1709,8 @@ class SerializedDAG(DAG, BaseSerialization):
             elif k == "dagrun_timeout":
                 v = cls._deserialize_timedelta(v)
             elif k.endswith("_date"):
-                v = cls._deserialize_datetime(v)
+                if isinstance(v, (int, float)):
+                    v = cls._deserialize_datetime(v)
             elif k == "edge_info":
                 # Value structure matches exactly
                 pass
