@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack } from "@chakra-ui/react";
+import { Box, HStack, Stack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
@@ -98,7 +98,7 @@ export const TaskFilters = ({ tasksData }: { readonly tasksData: TaskCollectionR
           placeHolder={translate("searchTasks")}
         />
       </HStack>
-      <HStack>
+      <Stack direction={{ base: "column", md: "row" }}>
         <AttrSelectFilterMulti
           displayPrefix={undefined}
           handleSelect={handleSelectedOperators}
@@ -129,7 +129,7 @@ export const TaskFilters = ({ tasksData }: { readonly tasksData: TaskCollectionR
         <Box>
           <ResetButton filterCount={2} onClearFilters={onClearFilters} />
         </Box>
-      </HStack>
+      </Stack>
     </>
   );
 };
