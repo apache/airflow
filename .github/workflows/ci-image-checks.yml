@@ -28,7 +28,7 @@ on:  # yamllint disable-line rule:truthy
         description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
         required: true
         type: string
-      needs-mypy:
+      run-mypy:
         description: "Whether to run mypy checks (true/false)"
         required: true
         type: string
@@ -88,7 +88,7 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to build docs (true/false)"
         required: true
         type: string
-      needs-api-codegen:
+      run-api-codegen:
         description: "Whether to run API codegen (true/false)"
         required: true
         type: string
@@ -148,6 +148,7 @@ jobs:
         id: prek
         with:
           python-version: ${{steps.breeze.outputs.host-python-version}}
+          platform: ${{ inputs.platform }}
         if: inputs.canary-run == 'true'
       - name: "Prepare .tar file from prek cache"
         run: |
@@ -158,7 +159,7 @@ jobs:
         uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
           # yamllint disable rule:line-length
-          key: cache-prek-v5-${{ steps.breeze.outputs.host-python-version }}-${{ hashFiles('.pre-commit-config.yaml') }}
+          key: cache-prek-v6-${{ inputs.platform }}-${{ steps.breeze.outputs.host-python-version }}-${{ hashFiles('.pre-commit-config.yaml') }}
           path: /tmp/cache-prek.tar.gz
           if-no-files-found: 'error'
           retention-days: '2'
@@ -194,6 +195,7 @@ jobs:
         id: prek
         with:
           python-version: ${{steps.breeze.outputs.host-python-version}}
+          platform: ${{ inputs.platform }}
       - name: "Static checks"
         run: prek --all-files --show-diff-on-failure --color always
         env:
@@ -209,7 +211,7 @@ jobs:
     name: "MyPy checks"
     runs-on: ${{ fromJSON(inputs.runners) }}
     needs: install-prek
-    if: inputs.needs-mypy == 'true'
+    if: inputs.run-mypy == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -237,6 +239,7 @@ jobs:
         id: prek
         with:
           python-version: ${{steps.breeze.outputs.host-python-version}}
+          platform: ${{ inputs.platform }}
       - name: "MyPy checks for ${{ matrix.mypy-check }}"
         run: prek --color always --verbose --hook-stage manual "$MYPY_CHECK" --all-files
         env:
@@ -404,7 +407,7 @@ jobs:
     timeout-minutes: 60
     name: "Test Python API client"
     runs-on: ${{ fromJSON(inputs.runners) }}
-    if: inputs.needs-api-codegen == 'true'
+    if: inputs.run-api-codegen == 'true'
     env:
       BACKEND: "postgres"
       BACKEND_VERSION: "${{ inputs.default-postgres-version }}"

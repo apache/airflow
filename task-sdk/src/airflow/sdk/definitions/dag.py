@@ -1200,8 +1200,8 @@ class DAG:
 
             # ``Dag.test()`` works in two different modes depending on ``use_executor``:
             # - if ``use_executor`` is False, runs the task locally with no executor using ``_run_task``
-            # - if ``use_executor`` is True, sends the task instances to the executor with
-            #   ``BaseExecutor.queue_task_instance``
+            # - if ``use_executor`` is True, sends workloads to the executor with
+            #   ``BaseExecutor.queue_workload``
             if use_executor:
                 from airflow.executors.base_executor import ExecutorLoader
 
@@ -1287,7 +1287,7 @@ def _run_task(*, ti, task, run_triggerer=False):
     Bypasses a lot of extra steps used in `task.run` to keep our local running as fast as
     possible.  This function is only meant for the `dag.test` function as a helper function.
     """
-    from airflow.utils.module_loading import import_string
+    from airflow.sdk.module_loading import import_string
     from airflow.utils.state import State
 
     log.info("[DAG TEST] starting task_id=%s map_index=%s", ti.task_id, ti.map_index)
