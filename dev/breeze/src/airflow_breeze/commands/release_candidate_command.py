@@ -26,7 +26,13 @@ from airflow_breeze.commands.common_options import option_answer, option_dry_run
 from airflow_breeze.commands.release_management_group import release_management
 from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
-from airflow_breeze.utils.path_utils import AIRFLOW_DIST_PATH, AIRFLOW_ROOT_PATH, OUT_PATH
+from airflow_breeze.utils.path_utils import (
+    AIRFLOW_CTL_DIST_PATH,
+    AIRFLOW_CTL_ROOT_PATH,
+    AIRFLOW_DIST_PATH,
+    AIRFLOW_ROOT_PATH,
+    OUT_PATH,
+)
 from airflow_breeze.utils.reproducible import get_source_date_epoch, repack_deterministically
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
@@ -269,6 +275,46 @@ def tarball_release(version: str, version_without_rc: str, source_date_epoch: in
     )
     if result.returncode != 0:
         console_print(f"[error]Failed to create tarball {temporary_archive} for Airflow {version}")
+        exit(result.returncode)
+    console_print(f"[success]Tarball created in {final_archive}")
+
+
+# TODO (bugraoz93): Unify the tarball creation for airflowctl and airflow via a common function
+def tarball_release_ctl(version: str, version_without_rc: str, source_date_epoch: int):
+    console_print(f"[info]Creating tarball for Airflow CTL {version}")
+    shutil.rmtree(OUT_PATH, ignore_errors=True)
+    OUT_PATH.mkdir(exist_ok=True)
+    AIRFLOW_CTL_DIST_PATH.mkdir(exist_ok=True)
+    archive_name = f"apache-airflowctl-{version_without_rc}-source.tar.gz"
+    temporary_archive = OUT_PATH / archive_name
+    result = run_command(
+        [
+            "git",
+            "-c",
+            "tar.umask=0077",
+            "archive",
+            "--format=tar.gz",
+            f"{version}",
+            f"--prefix=apache-airflowctl-{version_without_rc}/",
+            "-o",
+            temporary_archive.as_posix(),
+        ],
+        cwd=AIRFLOW_CTL_ROOT_PATH,
+        check=False,
+    )
+    if result.returncode != 0:
+        console_print(f"[error]Failed to create tarball {temporary_archive} for Airflow CTL {version}")
+        print(f"Error: {result}")
+        exit(result.returncode)
+    final_archive = AIRFLOW_CTL_DIST_PATH / archive_name
+    result = repack_deterministically(
+        source_archive=temporary_archive,
+        dest_archive=final_archive,
+        prepend_path=None,
+        timestamp=source_date_epoch,
+    )
+    if result.returncode != 0:
+        console_print(f"[error]Failed to create tarball {temporary_archive} for Airflow CTL {version}")
         exit(result.returncode)
     console_print(f"[success]Tarball created in {final_archive}")
 
@@ -540,6 +586,29 @@ def prepare_airflow_tarball(version: str):
     version_without_rc = airflow_version.base_version
     # Create the tarball
     tarball_release(
+        version=version, version_without_rc=version_without_rc, source_date_epoch=source_date_epoch
+    )
+
+
+@release_management.command(
+    name="prepare-airflow-ctl-tarball",
+    help="Prepare airflowctl's source tarball.",
+)
+@click.option(
+    "--version", required=True, help="The release candidate version e.g. 2.4.3rc1", envvar="VERSION"
+)
+@option_dry_run
+@option_verbose
+def prepare_airflow_ctl_tarball(version: str):
+    from packaging.version import Version
+
+    airflowctl_version = Version(version)
+    if not airflowctl_version.is_prerelease:
+        exit("--version value must be a pre-release")
+    source_date_epoch = get_source_date_epoch(AIRFLOW_ROOT_PATH)
+    version_without_rc = airflowctl_version.base_version
+    # Create the tarball
+    tarball_release_ctl(
         version=version, version_without_rc=version_without_rc, source_date_epoch=source_date_epoch
     )
 
