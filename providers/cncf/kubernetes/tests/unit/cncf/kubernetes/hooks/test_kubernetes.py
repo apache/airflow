@@ -27,6 +27,7 @@ from unittest.mock import MagicMock, PropertyMock, patch
 import anyio
 import kubernetes
 import pytest
+import pytest_asyncio
 import yaml
 from kubernetes.client import V1Deployment, V1DeploymentStatus
 from kubernetes.client.rest import ApiException
@@ -437,11 +438,10 @@ class TestKubernetesHook:
             mock_get_client.assert_called_with(cluster_context="test")
             assert kubernetes_hook.get_namespace() == "test"
 
-    def test_missing_default_connection_is_ok(self, remove_default_conn):
+    def test_missing_default_connection_is_ok(self, remove_default_conn, sdk_connection_not_found):
         # prove to ourselves that the default conn doesn't exist
         k8s_conn_exists = os.environ.get(f"AIRFLOW_CONN_{DEFAULT_CONN_ID.upper()}")
         assert k8s_conn_exists is None
-
         # verify K8sHook still works
         hook = KubernetesHook()
         assert hook.conn_extras == {}
@@ -797,6 +797,22 @@ class TestKubernetesHook:
         mock_get.assert_called_with(YAML_URL, allow_redirects=True)
         mock_yaml.safe_load_all.assert_not_called()
 
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.incluster_config.InClusterConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    def test_load_config_with_config_dict(self, kube_config_merger, incluster_config, kube_config_loader):
+        hook = KubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_dict={"a": "b"},
+            cluster_context=None,
+        )
+        api_conn = hook.get_conn()
+        assert not incluster_config.called
+        assert hook._is_in_cluster is False
+        kube_config_loader.assert_called_once()
+        assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
+
 
 class TestKubernetesHookIncorrectConfiguration:
     @pytest.mark.parametrize(
@@ -831,8 +847,8 @@ class TestAsyncKubernetesHook:
         f.set_result(return_value)
         return f
 
-    @pytest.fixture
-    def kube_config_loader(self):
+    @pytest_asyncio.fixture
+    async def kube_config_loader(self):
         with mock.patch(self.KUBE_LOADER_CONFIG) as kube_config_loader:
             kube_config_loader.return_value.load_and_set.return_value = self.mock_await_result(None)
             yield kube_config_loader
@@ -984,9 +1000,7 @@ class TestAsyncKubernetesHook:
         assert kube_client is None
 
     @pytest.mark.asyncio
-    async def test_load_config_with_several_params(
-        self,
-    ):
+    async def test_load_config_with_several_params(self, sdk_connection_not_found):
         hook = AsyncKubernetesHook(
             conn_id=CONN_ID,
             in_cluster=True,

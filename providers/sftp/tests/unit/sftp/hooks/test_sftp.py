@@ -854,7 +854,7 @@ class TestSFTPHookAsync:
             "username": "username",
             "password": "password",
             "client_keys": "~/keys/my_key",
-            "known_hosts": "~/.ssh/known_hosts",
+            "known_hosts": None,
             "passphrase": "mypassphrase",
         }
 
@@ -882,6 +882,7 @@ class TestSFTPHookAsync:
             "username": "username",
             "password": "password",
             "client_keys": ["test"],
+            "known_hosts": None,
             "passphrase": "mypassphrase",
         }
 

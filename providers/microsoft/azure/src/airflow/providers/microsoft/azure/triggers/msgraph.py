@@ -23,6 +23,7 @@ from base64 import b64encode
 from collections.abc import AsyncIterator, Sequence
 from contextlib import suppress
 from datetime import datetime
+from functools import cached_property
 from json import JSONDecodeError
 from typing import (
     TYPE_CHECKING,
@@ -125,13 +126,11 @@ class MSGraphTrigger(BaseTrigger):
         serializer: type[ResponseSerializer] = ResponseSerializer,
     ):
         super().__init__()
-        self.hook = KiotaRequestAdapterHook(
-            conn_id=conn_id,
-            timeout=timeout,
-            proxies=proxies,
-            scopes=scopes,
-            api_version=api_version,
-        )
+        self.conn_id = conn_id
+        self.timeout = timeout
+        self.proxies = proxies
+        self.scopes = scopes
+        self.api_version = api_version
         self.url = url
         self.response_type = response_type
         self.path_parameters = path_parameters
@@ -158,7 +157,7 @@ class MSGraphTrigger(BaseTrigger):
                 "conn_id": self.conn_id,
                 "timeout": self.timeout,
                 "proxies": self.proxies,
-                "scopes": self.hook.scopes,
+                "scopes": self.scopes,
                 "api_version": self.api_version,
                 "serializer": f"{self.serializer.__class__.__module__}.{self.serializer.__class__.__name__}",
                 "url": self.url,
@@ -173,23 +172,23 @@ class MSGraphTrigger(BaseTrigger):
         )
 
     def get_conn(self) -> RequestAdapter:
+        """
+        Initiate a new RequestAdapter connection.
+
+        .. warning::
+           This method is deprecated.
+        """
         return self.hook.get_conn()
 
-    @property
-    def conn_id(self) -> str:
-        return self.hook.conn_id
-
-    @property
-    def timeout(self) -> float | None:
-        return self.hook.timeout
-
-    @property
-    def proxies(self) -> dict | None:
-        return self.hook.proxies
-
-    @property
-    def api_version(self) -> APIVersion | str:
-        return self.hook.api_version
+    @cached_property
+    def hook(self) -> KiotaRequestAdapterHook:
+        return KiotaRequestAdapterHook(
+            conn_id=self.conn_id,
+            timeout=self.timeout,
+            proxies=self.proxies,
+            scopes=self.scopes,
+            api_version=self.api_version,
+        )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make a series of asynchronous HTTP calls via a KiotaRequestAdapterHook."""

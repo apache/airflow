@@ -113,7 +113,7 @@ This example shows the structure of a basic trigger, a very simplified version o
     import asyncio
 
     from airflow.triggers.base import BaseTrigger, TriggerEvent
-    from airflow.utils import timezone
+    from airflow.sdk.timezone import utcnow
 
 
     class DateTimeTrigger(BaseTrigger):
@@ -125,7 +125,7 @@ This example shows the structure of a basic trigger, a very simplified version o
             return ("airflow.providers.standard.triggers.temporal.DateTimeTrigger", {"moment": self.moment})
 
         async def run(self):
-            while self.moment > timezone.utcnow():
+            while self.moment > utcnow():
                 await asyncio.sleep(1)
             yield TriggerEvent(self.moment)
 

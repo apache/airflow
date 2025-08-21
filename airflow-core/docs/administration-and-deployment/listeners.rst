@@ -127,7 +127,7 @@ To create a listener:
 - import ``airflow.listeners.hookimpl``
 - implement the ``hookimpls`` for events that you'd like to generate notifications
 
-Airflow defines the specification as `hookspec <https://github.com/apache/airflow/tree/main/airflow/listeners/spec>`__. Your implementation must accept the same named parameters as defined in hookspec. If you don't use the same parameters as hookspec, Pluggy throws an error when you try to use your plugin. But you don't need to implement every method. Many listeners only implement one method, or a subset of methods.
+Airflow defines the specification as `hookspec <https://github.com/apache/airflow/tree/main/airflow-core/src/airflow/listeners/spec>`__. Your implementation must accept the same named parameters as defined in hookspec. If you don't use the same parameters as hookspec, Pluggy throws an error when you try to use your plugin. But you don't need to implement every method. Many listeners only implement one method, or a subset of methods.
 
 To include the listener in your Airflow installation, include it as a part of an :doc:`Airflow Plugin </administration-and-deployment/plugins>`.
 

@@ -30,6 +30,7 @@ from unittest.mock import patch
 import pytest
 
 from airflow.models import Connection
+from airflow.sdk.execution_time.comms import MaskSecret
 from airflow.sdk.execution_time.secrets_masker import (
     RedactedIO,
     SecretsMasker,
@@ -39,7 +40,7 @@ from airflow.sdk.execution_time.secrets_masker import (
     reset_secrets_masker,
     should_hide_value_for_key,
 )
-from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
 
@@ -287,6 +288,26 @@ class TestSecretsMasker:
 
         assert filt.redact(value, name) == expected
 
+    @pytest.mark.parametrize(
+        ("name", "value", "expected"),
+        [
+            ("api_key", "pass", "*️⃣*️⃣*️⃣"),
+            ("api_key", ("pass",), ("*️⃣*️⃣*️⃣",)),
+            (None, {"data": {"secret": "secret"}}, {"data": {"secret": "*️⃣*️⃣*️⃣"}}),
+            # Non string dict keys
+            (None, {1: {"secret": "secret"}}, {1: {"secret": "*️⃣*️⃣*️⃣"}}),
+            (
+                "api_key",
+                {"other": "innoent", "nested": ["x", "y"]},
+                {"other": "*️⃣*️⃣*️⃣", "nested": ["*️⃣*️⃣*️⃣", "*️⃣*️⃣*️⃣"]},
+            ),
+        ],
+    )
+    def test_redact_replacement(self, name, value, expected):
+        filt = SecretsMasker()
+
+        assert filt.redact(value, name, replacement="*️⃣*️⃣*️⃣") == expected
+
     def test_redact_filehandles(self, caplog):
         filt = SecretsMasker()
         with open("/dev/null", "w") as handle:
@@ -337,7 +358,6 @@ class TestSecretsMasker:
         [
             (DagRunState.SUCCESS, "success"),
             (TaskInstanceState.FAILED, "failed"),
-            (JobState.RUNNING, "running"),
             ([DagRunState.SUCCESS, DagRunState.RUNNING], ["success", "running"]),
             ([TaskInstanceState.FAILED, TaskInstanceState.SUCCESS], ["failed", "success"]),
             (State.failed_states, frozenset([TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED])),
@@ -545,6 +565,36 @@ class TestMaskSecretAdapter:
         if should_be_masked:
             assert filt.replacer is not None
 
+    @pytest.mark.parametrize(
+        "object_to_mask",
+        [
+            {
+                "key_path": "/files/airflow-breeze-config/keys2/keys.json",
+                "scope": "https://www.googleapis.com/auth/cloud-platform",
+                "project": "project_id",
+                "num_retries": 6,
+            },
+            ["iter1", "iter2", {"key": "value"}],
+            "string",
+            {
+                "key1": "value1",
+            },
+        ],
+    )
+    def test_mask_secret_with_objects(self, object_to_mask):
+        mask_secret_object = MaskSecret(value=object_to_mask, name="test_secret")
+        assert mask_secret_object.value == object_to_mask
+
+    def test_mask_secret_with_list(self):
+        example_dict = ["test"]
+        mask_secret_object = MaskSecret(value=example_dict, name="test_secret")
+        assert mask_secret_object.value == example_dict
+
+    def test_mask_secret_with_iterable(self):
+        example_dict = ["test"]
+        mask_secret_object = MaskSecret(value=example_dict, name="test_secret")
+        assert mask_secret_object.value == example_dict
+
 
 class TestStructuredVsUnstructuredMasking:
     def test_structured_sensitive_fields_always_masked(self):
@@ -609,7 +659,10 @@ class TestContainerTypesRedaction:
         secrets_masker = SecretsMasker()
 
         with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
-            with patch("airflow.sdk.execution_time.secrets_masker._is_v1_env_var", return_value=True):
+            with patch(
+                "airflow.sdk.execution_time.secrets_masker._is_v1_env_var",
+                side_effect=lambda a: isinstance(a, MockV1EnvVar),
+            ):
                 redacted_secret = redact(secret_env_var)
                 redacted_normal = redact(normal_env_var)
 
@@ -696,7 +749,7 @@ class TestDirectMethodCalls:
             "nested": {"tuple": ("a", "b", "c"), "set": {"x", "y", "z"}},
         }
 
-        result = secrets_masker._redact_all(test_data, depth=0)
+        result = secrets_masker._redact_all(test_data, depth=0, replacement="***")
 
         assert result["string"] == "***"
         assert result["number"] == 12345

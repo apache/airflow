@@ -102,7 +102,7 @@ class TriggerDAGRunPostBody(StrictBaseModel):
     logical_date: AwareDatetime | None
     run_after: datetime | None = Field(default_factory=timezone.utcnow)
 
-    conf: dict = Field(default_factory=dict)
+    conf: dict | None = Field(default_factory=dict)
     note: str | None = None
 
     @model_validator(mode="after")

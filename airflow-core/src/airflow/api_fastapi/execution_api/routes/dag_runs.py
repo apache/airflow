@@ -24,6 +24,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func, select
 
 from airflow.api.common.trigger_dag import trigger_dag
+from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.execution_api.datamodels.dagrun import DagRunStateResponse, TriggerDAGRunPayload
@@ -106,6 +107,7 @@ def clear_dag_run(
     dag_id: str,
     run_id: str,
     session: SessionDep,
+    dag_bag: DagBagDep,
 ):
     """Clear a DAG Run."""
     dm = session.scalar(select(DagModel).where(~DagModel.is_stale, DagModel.dag_id == dag_id).limit(1))
@@ -123,21 +125,11 @@ def clear_dag_run(
                 "message": f"DAG with dag_id: '{dag_id}' has import errors and cannot be triggered",
             },
         )
-    from airflow.models.dagbag import SchedulerDagBag
 
     dag_run = session.scalar(
         select(DagRunModel).where(DagRunModel.dag_id == dag_id, DagRunModel.run_id == run_id)
     )
-    dag_bag = SchedulerDagBag()
-    dag = dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
-    if not dag:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "Not Found",
-                "message": f"DAG with dag_id: '{dag_id}' was not found in the DagBag",
-            },
-        )
+    dag = get_dag_for_run(dag_bag, dag_run=dag_run, session=session)
 
     dag.clear(run_id=run_id)
 
