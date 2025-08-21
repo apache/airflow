@@ -25,9 +25,11 @@ from typing import Any
 import pytest
 
 from airflow.exceptions import DuplicateTaskIdFound, RemovedInAirflow4Warning
+from airflow.sdk import Context, Label, TaskGroup
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions.dag import DAG, dag as dag_decorator
 from airflow.sdk.definitions.param import DagParam, Param, ParamsDict
+from airflow.sdk.exceptions import AirflowDagCycleException
 
 DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
 
@@ -547,3 +549,153 @@ class TestDagDecorator:
         assert isinstance(self.operator.op_args[0], DagParam)
         self.operator.render_template_fields({})
         assert self.operator.op_args[0] == 42
+
+
+class DoNothingOperator(BaseOperator):
+    """
+    An operator that does nothing.
+    Used to test DAG cycle detection.
+    """
+
+    def execute(self, context: Context) -> None:
+        pass
+
+
+class TestCycleTester:
+    def test_cycle_empty(self):
+        # test empty
+        dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
+
+        assert not dag.check_cycle()
+
+    def test_cycle_single_task(self):
+        # test single task
+        dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
+
+        with dag:
+            DoNothingOperator(task_id="A")
+
+        assert not dag.check_cycle()
+
+    def test_semi_complex(self):
+        dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
+
+        # A -> B -> C
+        #      B -> D
+        # E -> F
+        with dag:
+            create_cluster = DoNothingOperator(task_id="c")
+            pod_task = DoNothingOperator(task_id="p")
+            pod_task_xcom = DoNothingOperator(task_id="x")
+            delete_cluster = DoNothingOperator(task_id="d")
+            pod_task_xcom_result = DoNothingOperator(task_id="r")
+            create_cluster >> pod_task >> delete_cluster
+            create_cluster >> pod_task_xcom >> delete_cluster
+            pod_task_xcom >> pod_task_xcom_result
+
+    def test_cycle_no_cycle(self):
+        # test no cycle
+        dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
+
+        # A -> B -> C
+        #      B -> D
+        # E -> F
+        with dag:
+            op1 = DoNothingOperator(task_id="A")
+            op2 = DoNothingOperator(task_id="B")
+            op3 = DoNothingOperator(task_id="C")
+            op4 = DoNothingOperator(task_id="D")
+            op5 = DoNothingOperator(task_id="E")
+            op6 = DoNothingOperator(task_id="F")
+            op1.set_downstream(op2)
+            op2.set_downstream(op3)
+            op2.set_downstream(op4)
+            op5.set_downstream(op6)
+
+        assert not dag.check_cycle()
+
+    def test_cycle_loop(self):
+        # test self loop
+        dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
+
+        # A -> A
+        with dag:
+            op1 = DoNothingOperator(task_id="A")
+            op1.set_downstream(op1)
+
+        with pytest.raises(AirflowDagCycleException):
+            assert not dag.check_cycle()
+
+    def test_cycle_downstream_loop(self):
+        # test downstream self loop
+        dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
+
+        # A -> B -> C -> D -> E -> E
+        with dag:
+            op1 = DoNothingOperator(task_id="A")
+            op2 = DoNothingOperator(task_id="B")
+            op3 = DoNothingOperator(task_id="C")
+            op4 = DoNothingOperator(task_id="D")
+            op5 = DoNothingOperator(task_id="E")
+            op1.set_downstream(op2)
+            op2.set_downstream(op3)
+            op3.set_downstream(op4)
+            op4.set_downstream(op5)
+            op5.set_downstream(op5)
+
+        with pytest.raises(AirflowDagCycleException):
+            assert not dag.check_cycle()
+
+    def test_cycle_large_loop(self):
+        # large loop
+        dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
+
+        # A -> B -> C -> D -> E -> A
+        with dag:
+            start = DoNothingOperator(task_id="start")
+            current = start
+
+            for i in range(10000):
+                next_task = DoNothingOperator(task_id=f"task_{i}")
+                current.set_downstream(next_task)
+                current = next_task
+
+            current.set_downstream(start)
+        with pytest.raises(AirflowDagCycleException):
+            assert not dag.check_cycle()
+
+    def test_cycle_arbitrary_loop(self):
+        # test arbitrary loop
+        dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
+
+        # E-> A -> B -> F -> A
+        #       -> C -> F
+        with dag:
+            op1 = DoNothingOperator(task_id="A")
+            op2 = DoNothingOperator(task_id="B")
+            op3 = DoNothingOperator(task_id="C")
+            op4 = DoNothingOperator(task_id="E")
+            op5 = DoNothingOperator(task_id="F")
+            op1.set_downstream(op2)
+            op1.set_downstream(op3)
+            op4.set_downstream(op1)
+            op3.set_downstream(op5)
+            op2.set_downstream(op5)
+            op5.set_downstream(op1)
+
+        with pytest.raises(AirflowDagCycleException):
+            assert not dag.check_cycle()
+
+    def test_cycle_task_group_with_edge_labels(self):
+        # Test a cycle is not detected when Labels are used between tasks in Task Groups.
+
+        dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
+
+        with dag:
+            with TaskGroup(group_id="group"):
+                op1 = DoNothingOperator(task_id="A")
+                op2 = DoNothingOperator(task_id="B")
+
+                op1 >> Label("label") >> op2
+
+        assert not dag.check_cycle()
