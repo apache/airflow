@@ -22,6 +22,6 @@ from __future__ import annotations
 
 import os
 
-os.environ["AIRFLOW_PACKAGE_NAME"] = "apache-airflow-providers-arrow"
+os.environ["AIRFLOW_PACKAGE_NAME"] = "apache-airflow-providers-apache-arrow"
 
 from docs.provider_conf import *  # noqa: F403
