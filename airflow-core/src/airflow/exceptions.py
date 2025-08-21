@@ -21,10 +21,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from datetime import datetime, timedelta
+from datetime import datetime
 from http import HTTPStatus
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 if TYPE_CHECKING:
     from airflow.models import DagRun
@@ -65,10 +64,6 @@ class AirflowConfigException(AirflowException):
     """Raise when there is configuration problem."""
 
 
-class AirflowSensorTimeout(AirflowException):
-    """Raise when there is a timeout on sensor polling."""
-
-
 class AirflowRescheduleException(AirflowException):
     """
     Raise when the task should be re-scheduled at a later time.
@@ -96,14 +91,6 @@ class AirflowTaskTimeout(BaseException):
     """Raise when the task execution times-out."""
 
 
-class AirflowSkipException(AirflowException):
-    """Raise when the task should be skipped."""
-
-
-class AirflowFailException(AirflowException):
-    """Raise when the task should be failed without retrying."""
-
-
 class AirflowOptionalProviderFeatureException(AirflowException):
     """Raise by providers when imports are missing for optional provider features."""
 
@@ -116,27 +103,6 @@ class AirflowInternalRuntimeError(BaseException):
 
     :meta private:
     """
-
-
-class XComNotFound(AirflowException):
-    """Raise when an XCom reference is being resolved against a non-existent XCom."""
-
-    def __init__(self, dag_id: str, task_id: str, key: str) -> None:
-        super().__init__()
-        self.dag_id = dag_id
-        self.task_id = task_id
-        self.key = key
-
-    def __str__(self) -> str:
-        return f'XComArg result from {self.task_id} at {self.dag_id} with key="{self.key}" is not found!'
-
-    def serialize(self):
-        cls = self.__class__
-        return (
-            f"{cls.__module__}.{cls.__name__}",
-            (),
-            {"dag_id": self.dag_id, "task_id": self.task_id, "key": self.key},
-        )
 
 
 class AirflowDagDuplicatedIdException(AirflowException):
@@ -280,21 +246,6 @@ class VariableNotUnique(AirflowException):
     """Raise when multiple values are found for the same variable name."""
 
 
-class DownstreamTasksSkipped(AirflowException):
-    """
-    Signal by an operator to skip its downstream tasks.
-
-    Special exception raised to signal that the operator it was raised from wishes to skip
-    downstream tasks. This is used in the ShortCircuitOperator.
-
-    :param tasks: List of task_ids to skip or a list of tuples with task_id and map_index to skip.
-    """
-
-    def __init__(self, *, tasks: Sequence[str | tuple[str, int]]):
-        super().__init__()
-        self.tasks = tasks
-
-
 # TODO: workout this to correct place https://github.com/apache/airflow/issues/44353
 class DagRunTriggerException(AirflowException):
     """
@@ -331,55 +282,6 @@ class DagRunTriggerException(AirflowException):
         self.failed_states = failed_states
         self.poke_interval = poke_interval
         self.deferrable = deferrable
-
-
-class TaskDeferred(BaseException):
-    """
-    Signal an operator moving to deferred state.
-
-    Special exception raised to signal that the operator it was raised from
-    wishes to defer until a trigger fires. Triggers can send execution back to task or end the task instance
-    directly. If the trigger should end the task instance itself, ``method_name`` does not matter,
-    and can be None; otherwise, provide the name of the method that should be used when
-    resuming execution in the task.
-    """
-
-    def __init__(
-        self,
-        *,
-        trigger,
-        method_name: str,
-        kwargs: dict[str, Any] | None = None,
-        timeout: timedelta | int | float | None = None,
-    ):
-        super().__init__()
-        self.trigger = trigger
-        self.method_name = method_name
-        self.kwargs = kwargs
-        self.timeout: timedelta | None
-        # Check timeout type at runtime
-        if isinstance(timeout, (int, float)):
-            self.timeout = timedelta(seconds=timeout)
-        else:
-            self.timeout = timeout
-        if self.timeout is not None and not hasattr(self.timeout, "total_seconds"):
-            raise ValueError("Timeout value must be a timedelta")
-
-    def serialize(self):
-        cls = self.__class__
-        return (
-            f"{cls.__module__}.{cls.__name__}",
-            (),
-            {
-                "trigger": self.trigger,
-                "method_name": self.method_name,
-                "kwargs": self.kwargs,
-                "timeout": self.timeout,
-            },
-        )
-
-    def __repr__(self) -> str:
-        return f"<TaskDeferred trigger={self.trigger} method={self.method_name}>"
 
 
 # The try/except handling is needed after we moved all k8s classes to cncf.kubernetes provider
@@ -442,6 +344,12 @@ _DEPRECATED_EXCEPTIONS = {
     "TaskAlreadyInTaskGroup": "airflow.sdk.exceptions.TaskAlreadyInTaskGroup",
     "TaskDeferralError": "airflow.sdk.exceptions.TaskDeferralError",
     "TaskDeferralTimeout": "airflow.sdk.exceptions.TaskDeferralTimeout",
+    "XComNotFound": "airflow.sdk.exceptions.XComNotFound",
+    "TaskDeferred": "airflow.sdk.exceptions.TaskDeferred",
+    "DownstreamTasksSkipped": "airflow.sdk.exceptions.DownstreamTasksSkipped",
+    "AirflowSkipException": "airflow.sdk.exceptions.AirflowSkipException",
+    "AirflowFailException": "airflow.sdk.exceptions.AirflowFailException",
+    "AirflowSensorTimeout": "airflow.sdk.exceptions.AirflowSensorTimeout",
 }
 
 
