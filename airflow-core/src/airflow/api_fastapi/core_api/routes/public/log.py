@@ -166,7 +166,7 @@ def get_log(
     log_chunks.reverse()
     if not out_metadata.get("end_of_log", False):
         encoded_token = URLSafeSerializer(request.app.state.secret_key).dumps(out_metadata)
-    return TaskInstancesLogResponse.model_construct(continuation_token=encoded_token, content=log_chunks)
+    return TaskInstancesLogResponse.model_construct(continuation_token=encoded_token, content=log_chunks, **out_metadata)
 
 
 @task_instances_log_router.get(
