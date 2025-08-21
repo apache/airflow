@@ -31,35 +31,6 @@ class PostgresDialect(Dialect):
         return "postgresql"
 
     @lru_cache(maxsize=None)
-    def get_column_names(
-        self, table: str, schema: str | None = None, predicate: Callable[[T], bool] = lambda column: True
-    ) -> list[str] | None:
-        if schema is None:
-            table, schema = self.extract_schema_from_table(table)
-        column_names = list(
-            column["column_name"]
-            for column in filter(
-                predicate,
-                self.get_records(
-                    f"""
-                            select column_name,
-                                   data_type,
-                                   is_nullable,
-                                   column_default,
-                                   ordinal_position
-                            from information_schema.columns
-                            where table_schema = %s
-                              and table_name = %s
-                            order by ordinal_position
-                            """,
-                    (self.unescape_word(schema), self.unescape_word(table)),
-                ),
-            )
-        )
-        self.log.debug("Column names for table '%s': %s", table, column_names)
-        return column_names
-
-    @lru_cache(maxsize=None)
     def get_primary_keys(self, table: str, schema: str | None = None) -> list[str] | None:
         """
         Get the table's primary key.
