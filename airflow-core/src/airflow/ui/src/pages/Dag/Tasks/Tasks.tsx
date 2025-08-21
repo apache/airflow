@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, Skeleton, Box } from "@chakra-ui/react";
+import { Skeleton, Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 
@@ -26,7 +26,7 @@ import { DataTable } from "src/components/DataTable";
 import type { CardDef } from "src/components/DataTable/types";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchParamsKeys } from "src/constants/searchParams.ts";
-import { TaskFilters } from "src/pages/Dag/Tasks/TaskFilters.tsx";
+import { TaskFilters } from "src/pages/Dag/Tasks/TaskFilters/TaskFilters.tsx";
 
 import { TaskCard } from "./TaskCard";
 
@@ -90,9 +90,6 @@ export const Tasks = () => {
   return (
     <Box>
       <ErrorAlert error={tasksError} />
-      <Heading my={1} size="md">
-        {translate("task", { count: data?.total_entries ?? 0 })}
-      </Heading>
 
       <TaskFilters tasksData={data} />
 
