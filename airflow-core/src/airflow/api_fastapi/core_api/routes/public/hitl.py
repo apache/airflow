@@ -83,11 +83,6 @@ def _get_task_instance(
                 f"task_id: `{task_id}` and map_index: `{map_index}` was not found"
             ),
         )
-    if map_index is None and task_instance.map_index != -1:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Task instance is mapped, add the map_index value to the URL",
-        )
 
     return task_instance
 
