@@ -85,11 +85,11 @@ class SFTPSensor(BaseSensorOperator):
         self.deferrable = deferrable
 
     def _get_files(self) -> list[str]:
-        files_from_pattern = []
-        files_found = []
+        files_from_pattern: list[str] = []
+        files_found: list[str] = []
 
         if self.file_pattern:
-            files_from_pattern = self.hook.get_files_by_pattern(self.path, self.file_pattern)
+            files_from_pattern = self.hook.get_files_by_pattern(self.path, self.file_pattern)  # type: ignore[union-attr]
             if files_from_pattern:
                 actual_files_present = [
                     os.path.join(self.path, file_from_pattern) for file_from_pattern in files_from_pattern
@@ -101,14 +101,14 @@ class SFTPSensor(BaseSensorOperator):
                 # If a file is present, it is the single element added to the actual_files_present list to be
                 # processed. If the file is a directory, actual_file_present will be assigned an empty list,
                 # since SFTPHook.isfile(...) returns False
-                actual_files_present = [self.path] if self.hook.isfile(self.path) else []
+                actual_files_present = [self.path] if self.hook.isfile(self.path) else []  # type: ignore[union-attr]
             except Exception as e:
                 raise AirflowException from e
 
         if self.newer_than:
             for actual_file_present in actual_files_present:
                 try:
-                    mod_time = self.hook.get_mod_time(actual_file_present)
+                    mod_time = self.hook.get_mod_time(actual_file_present)  # type: ignore[union-attr]
                     self.log.info("Found File %s last modified: %s", actual_file_present, mod_time)
                 except OSError as e:
                     if e.errno != SFTP_NO_SUCH_FILE:
