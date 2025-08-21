@@ -37,6 +37,10 @@ from typing import (
     overload,
 )
 
+# We have to import this here, as it is used in the type annotations at runtime even if it seems it is
+# not used in the code. This is because Pydantic uses type at runtime to validate the types of the fields.
+from pydantic import JsonValue  # noqa: TC002
+
 from airflow import settings
 
 if TYPE_CHECKING:
@@ -105,7 +109,7 @@ def should_hide_value_for_key(name):
     return False
 
 
-def mask_secret(secret: str | dict | Iterable, name: str | None = None) -> None:
+def mask_secret(secret: JsonValue, name: str | None = None) -> None:
     """
     Mask a secret from appearing in the logs.
 
@@ -475,7 +479,7 @@ class SecretsMasker(logging.Filter):
             else:
                 yield secret_or_secrets
 
-    def add_mask(self, secret: str | dict | Iterable, name: str | None = None):
+    def add_mask(self, secret: JsonValue, name: str | None = None):
         """Add a new secret to be masked to this filter instance."""
         if isinstance(secret, dict):
             for k, v in secret.items():
