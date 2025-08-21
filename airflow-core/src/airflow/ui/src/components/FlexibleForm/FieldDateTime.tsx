@@ -33,8 +33,7 @@ export const FieldDateTime = ({
   const param = paramsDict[name] ?? paramPlaceholder;
   const handleChange = (value: string) => {
     if (paramsDict[name]) {
-      // DateTimeInput already returns UTC ISO string for datetime-local
-      paramsDict[name].value = value === "" ? null : value;
+      paramsDict[name].value = value === "" ? undefined : value;
     }
 
     setParamsDict(paramsDict);
