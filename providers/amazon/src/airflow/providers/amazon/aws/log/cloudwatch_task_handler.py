@@ -81,7 +81,7 @@ def json_serialize(value: Any) -> str | None:
 class DateTimeEncoder(json.JSONEncoder):
     """Custom JSON encoder to handle datetime serialization."""
 
-    def default(self, obj):
+    def default(self, obj: object) -> str:
         if isinstance(obj, datetime):
             return obj.isoformat()
         return super().default(obj)
@@ -180,17 +180,15 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
 
     def read(self, relative_path, ti: RuntimeTI) -> LegacyLogResponse:
         messages, logs = self.stream(relative_path, ti)
+        str_logs: list[str] = []
 
-        return messages, [
-            json.dumps(
-                msg,
-                cls=DateTimeEncoder,
-            )
-            if isinstance(msg, dict)
-            else msg
-            for group in logs
-            for msg in group
-        ]
+        for group in logs:
+            for msg in group:
+                if isinstance(msg, dict):
+                    msg = json.dumps(msg, cls=DateTimeEncoder)
+                str_logs.append(msg)
+
+        return messages, str_logs
 
     def stream(self, relative_path, ti: RuntimeTI) -> LogResponse:
         logs: list[RawLogStream] = []
