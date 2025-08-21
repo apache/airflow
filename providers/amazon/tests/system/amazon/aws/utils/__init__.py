@@ -35,8 +35,13 @@ except ImportError:
     # Airflow 2 path
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.providers.amazon.aws.hooks.ssm import SsmHook
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 from airflow.utils.state import DagRunState, State
-from airflow.utils.trigger_rule import TriggerRule
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
