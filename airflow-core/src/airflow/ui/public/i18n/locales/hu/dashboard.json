@@ -37,7 +37,7 @@
     "failedDags": "Sikertelen Dag-ek",
     "queuedDags": "Sorban álló Dag-ek",
     "requiredActions": "Szükséges műveletek",
-    "runningDags": "Futó Dag-ok",
+    "runningDags": "Futó Dag-ek",
     "stats": "Statisztika"
   },
   "uri": "Uri",
