@@ -20,7 +20,7 @@ default_language_version:
   python: python3
   node: 22.18.0
   golang: 1.24.0
-minimum_prek_version: '0.0.29'
+minimum_prek_version: '0.1.1'
 exclude: ^.*/.*_vendor/
 repos:
   - repo: meta
@@ -610,6 +610,7 @@ repos:
             ^providers/apprise/.*\.py$|
             ^providers/arangodb/.*\.py$|
             ^providers/asana/.*\.py$|
+            ^providers/atlassian/jira/.*\.py$|
             ^providers/cloudant/.*\.py$|
             ^providers/cohere/.*\.py$|
             ^providers/common/compat/.*\.py$|
@@ -644,6 +645,7 @@ repos:
             ^providers/sendgrid/.*\.py$|
             ^providers/singularity/.*\.py$|
             ^providers/slack/.*\.py$|
+            ^providers/smtp/.*\.py$|
             ^providers/tableau/.*\.py$|
             ^providers/teradata/.*\.py$|
             ^providers/trino/.*\.py$|

@@ -30,10 +30,10 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import task, task_group
 from airflow.sdk.bases.operator import BaseOperator
+from airflow.task.trigger_rule import TriggerRule
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
 from airflow.utils.state import DagRunState, TaskInstanceState
-from airflow.utils.trigger_rule import TriggerRule
 
 pytestmark = pytest.mark.db_test
 

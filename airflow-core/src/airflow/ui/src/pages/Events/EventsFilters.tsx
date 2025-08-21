@@ -27,6 +27,8 @@ import { SearchBar } from "src/components/SearchBar";
 import { ResetButton } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
 
+import { getFilterCount } from "./filterUtils";
+
 const {
   AFTER: AFTER_PARAM,
   BEFORE: BEFORE_PARAM,
@@ -82,11 +84,19 @@ export const EventsFilters = ({ urlDagId, urlRunId, urlTaskId }: EventsFiltersPr
     [resetPagination, searchParams, setSearchParams],
   );
 
-  const handleClearFilters = useCallback(() => {
-    // Clear all URL params
+  const onClearFilters = useCallback(() => {
+    searchParams.delete(AFTER_PARAM);
+    searchParams.delete(BEFORE_PARAM);
+    searchParams.delete(DAG_ID_PARAM);
+    searchParams.delete(EVENT_TYPE_PARAM);
+    searchParams.delete(MAP_INDEX_PARAM);
+    searchParams.delete(RUN_ID_PARAM);
+    searchParams.delete(TASK_ID_PARAM);
+    searchParams.delete(TRY_NUMBER_PARAM);
+    searchParams.delete(USER_PARAM);
     resetPagination();
-    setSearchParams(new URLSearchParams());
-  }, [resetPagination, setSearchParams]);
+    setSearchParams(searchParams);
+  }, [resetPagination, searchParams, setSearchParams]);
 
   const handleSearchChange = useCallback(
     (paramName: string) => (value: string) => {
@@ -104,10 +114,20 @@ export const EventsFilters = ({ urlDagId, urlRunId, urlTaskId }: EventsFiltersPr
     [updateSearchParams],
   );
 
-  const filterCount = searchParams.size;
+  const filterCount = getFilterCount({
+    after: afterFilter,
+    before: beforeFilter,
+    dagId: dagIdFilter,
+    eventType: eventTypeFilter,
+    mapIndex: mapIndexFilter,
+    runId: runIdFilter,
+    taskId: taskIdFilter,
+    tryNumber: tryNumberFilter,
+    user: userFilter,
+  });
 
   return (
-    <HStack justifyContent="space-between">
+    <HStack alignItems="end" justifyContent="space-between">
       <HStack alignItems="end" gap={4}>
         {/* Timestamp Range Filters */}
         <VStack alignItems="flex-start" gap={1}>
@@ -225,7 +245,7 @@ export const EventsFilters = ({ urlDagId, urlRunId, urlTaskId }: EventsFiltersPr
       </HStack>
 
       <Box>
-        <ResetButton filterCount={filterCount} onClearFilters={handleClearFilters} />
+        <ResetButton filterCount={filterCount} onClearFilters={onClearFilters} />
       </Box>
     </HStack>
   );
