@@ -770,6 +770,14 @@ QueryTITryNumberFilter = Annotated[
     ),
 ]
 
+QueryTIOperatorFilter = Annotated[
+    FilterParam[list[str]],
+    Depends(
+        filter_param_factory(
+            TaskInstance.operator, list[str], FilterOptionEnum.ANY_EQUAL, default_factory=list
+        )
+    ),
+]
 
 # XCom
 QueryXComKeyPatternSearch = Annotated[

@@ -5594,6 +5594,14 @@ paths:
           items:
             type: integer
           title: Try Number
+      - name: operator
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Operator
       - name: limit
         in: query
         required: false
@@ -6386,6 +6394,14 @@ paths:
           items:
             type: integer
           title: Try Number
+      - name: operator
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Operator
       - name: limit
         in: query
         required: false
