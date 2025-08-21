@@ -192,41 +192,11 @@ jobs:
       - name: "Run Task SDK integration tests"
         run: breeze testing task-sdk-integration-tests
 
-  # This is currently to test the changes working in CI, will move it its own workflow to
-  # trigger on schedules like canary run
   test-e2e-integration-tests:
-    timeout-minutes: 60
     name: "Test e2e integration tests with PROD image"
-    runs-on: ${{ fromJSON(inputs.runners) }}
-    env:
-      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
-      GITHUB_REPOSITORY: ${{ github.repository }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GITHUB_USERNAME: ${{ github.actor }}
-      VERBOSE: "true"
-    steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
-        with:
-          fetch-depth: 2
-          persist-credentials: false
-      - name: "Prepare breeze & PROD image: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
-        uses: ./.github/actions/prepare_breeze_and_image
-        with:
-          platform: ${{ inputs.platform }}
-          image-type: "prod"
-          python: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
-          use-uv: ${{ inputs.use-uv }}
-        id: breeze
-      - name: "Test e2e integration tests"
-        run: cd ./airflow-e2e-tests && uv run pytest ./tests/
-      - name: "Upload e2e test report"
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
-        with:
-          name: e2e-test-report
-          path: './airflow-e2e-tests/_e2e_test_report.json'
-          retention-days: '7'
-          if-no-files-found: 'error'
+    uses: ./.github/workflows/airflow-e2e-tests.yml
+    with:
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
+      default-python-version: "${{ inputs.default-python-version }}"
+      use-uv: ${{ inputs.use-uv }}
