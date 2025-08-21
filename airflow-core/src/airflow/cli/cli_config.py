@@ -998,7 +998,7 @@ DAGS_COMMANDS = (
         name="docs",
         help="Show DAG documentation (__doc_md__) in markdown format",
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_docs"),
-        args=(ARG_DAG_ID_OPT, ARG_SUBDIR, ARG_OUTPUT_FILE, ARG_VERBOSE),
+        args=(ARG_DAG_ID_OPT, ARG_OUTPUT_FILE, ARG_VERBOSE),
     ),
     ActionCommand(
         name="list",
