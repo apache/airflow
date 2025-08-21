@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-20T16:11:06.605669
+# This constraints file was automatically generated on 2025-08-21T06:22:10.777507
 # via `uv pip install --resolution highest` for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -81,7 +81,7 @@ aiosqlite==0.21.0
 airbyte-api==0.52.2
 alabaster==0.7.16
 alembic==1.16.4
-alibabacloud-adb20211201==3.1.3
+alibabacloud-adb20211201==3.2.0
 alibabacloud-credentials-api==1.0.0
 alibabacloud-credentials==1.0.2
 alibabacloud-tea-openapi==0.4.1
@@ -207,7 +207,7 @@ async-timeout==5.0.1
 asyncpg==0.30.0
 asyncssh==2.21.0
 atlasclient==1.0.0
-atlassian-python-api==4.0.5
+atlassian-python-api==4.0.6
 attrs==25.3.0
 aws-sam-translator==1.99.0
 aws-xray-sdk==2.14.0
@@ -264,7 +264,7 @@ cfn-lint==1.39.0
 chardet==5.2.0
 charset-normalizer==3.4.3
 checksumdir==1.3.0
-ciso8601==2.3.2
+ciso8601==2.3.3
 click-didyoumean==0.3.1
 click-plugins==1.1.1.2
 click-repl==0.3.0
@@ -285,7 +285,7 @@ croniter==6.0.0
 cryptography==42.0.8
 curlify==3.0.0
 darabonba-core==1.0.3
-databricks-sql-connector==4.0.5
+databricks-sql-connector==4.1.1
 databricks-sqlalchemy==1.0.2
 dataclasses-json==0.6.7
 datadog==0.52.1
@@ -354,7 +354,7 @@ google-cloud-automl==2.16.4
 google-cloud-batch==0.17.36
 google-cloud-bigquery-datatransfer==3.19.2
 google-cloud-bigquery-storage==2.32.0
-google-cloud-bigquery==3.35.1
+google-cloud-bigquery==3.36.0
 google-cloud-bigtable==2.32.0
 google-cloud-build==3.31.3
 google-cloud-compute==1.35.0
@@ -478,7 +478,7 @@ lazy-object-proxy==1.11.0
 libcst==1.8.2
 limits==4.2
 linkify-it-py==2.0.3
-litellm==1.75.8
+litellm==1.75.9
 lockfile==0.12.2
 looker-sdk==25.10.0
 lxml==5.4.0
@@ -654,7 +654,7 @@ python-telegram-bot==22.3
 python3-saml==1.16.0
 pytz==2025.2
 pywinrm==0.5.0
-pyzmq==27.0.1
+pyzmq==27.0.2
 qdrant-client==1.15.1
 ray==2.42.0
 reactivex==4.0.4
@@ -699,7 +699,7 @@ sentry-sdk==2.35.0
 setproctitle==1.3.6
 shapely==2.0.7
 shellingham==1.5.4
-simple-salesforce==1.12.7
+simple-salesforce==1.12.8
 six==1.17.0
 slack_sdk==3.36.0
 smart_open==7.3.0.post1
