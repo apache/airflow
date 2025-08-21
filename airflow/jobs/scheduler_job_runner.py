@@ -1350,7 +1350,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
         for dag_model in dag_models:
-            dag = self.dagbag.get_dag(dag_model.dag_id, session=session)
+            try:
+                dag = self.dagbag.get_dag(dag_model.dag_id, session=session)
+            except Exception:
+                self.log.exception("Failed to load DAG '%s' for DagRun creation", dag_model.dag_id)
+                continue
             if not dag:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_model.dag_id)
                 continue
@@ -1421,7 +1425,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
         for dag_model in dag_models:
-            dag = self.dagbag.get_dag(dag_model.dag_id, session=session)
+            try:
+                dag = self.dagbag.get_dag(dag_model.dag_id, session=session)
+            except Exception:
+                self.log.exception(
+                    "Failed to load DAG '%s' for dataset-triggered DagRun creation", dag_model.dag_id
+                )
+                continue
             if not dag:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_model.dag_id)
                 continue
