@@ -55,9 +55,10 @@ const getArrowsForMode = (navigationMode: string) => {
 
 type Props = {
   readonly limit: number;
+  readonly showGantt?: boolean;
 };
 
-export const Grid = ({ limit }: Props) => {
+export const Grid = ({ limit, showGantt }: Props) => {
   const { t: translate } = useTranslation("dag");
   const gridRef = useRef<HTMLDivElement>(null);
   const { isGridFocused, setIsGridFocused } = useGridStore();
@@ -138,10 +139,10 @@ export const Grid = ({ limit }: Props) => {
       onMouseDown={() => setGridFocus(true)}
       outline="none"
       position="relative"
-      pt={50}
+      pt={20}
       ref={gridRef}
       tabIndex={0}
-      width="100%"
+      width={showGantt ? undefined : "100%"}
     >
       <Box borderRadius="md" color="gray.400" fontSize="xs" position="absolute" px={0} py={12} top={0}>
         <Text>{translate("navigation.navigation", { arrow: getArrowsForMode(mode) })}</Text>
@@ -157,7 +158,12 @@ export const Grid = ({ limit }: Props) => {
           <DurationAxis top="100px" />
           <DurationAxis top="50px" />
           <DurationAxis top="4px" />
-          <Flex flexDirection="column-reverse" height="100px" position="relative" width="100%">
+          <Flex
+            flexDirection="column-reverse"
+            height="100px"
+            position="relative"
+            width={showGantt ? undefined : "100%"}
+          >
             {Boolean(gridRuns?.length) && (
               <>
                 <DurationTick bottom="92px" duration={max} />

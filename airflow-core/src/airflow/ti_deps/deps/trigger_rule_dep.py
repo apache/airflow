@@ -27,9 +27,9 @@ from sqlalchemy import and_, func, or_, select
 
 from airflow.models.taskinstance import PAST_DEPENDS_MET
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup
+from airflow.task.trigger_rule import TriggerRule as TR
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.trigger_rule import TriggerRule as TR
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
