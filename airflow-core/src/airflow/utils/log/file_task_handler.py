@@ -73,7 +73,7 @@ LogSourceInfo: TypeAlias = list[str]
 """Information _about_ the log fetching process for display to a user"""
 RawLogStream: TypeAlias = Generator[str, None, None]
 """Raw log stream, containing unparsed log lines."""
-LegacyLogResponse: TypeAlias = tuple[LogSourceInfo, LogMessages]
+LegacyLogResponse: TypeAlias = tuple[LogSourceInfo, LogMessages | None]
 """Legacy log response, containing source information and log messages."""
 LogResponse: TypeAlias = tuple[LogSourceInfo, list[RawLogStream]]
 LogResponseWithSize: TypeAlias = tuple[LogSourceInfo, list[RawLogStream], int]
@@ -936,5 +936,12 @@ class FileTaskHandler(logging.Handler):
         # This living here is not really a good plan, but it just about works for now.
         # Ideally we move all the read+combine logic in to TaskLogReader and out of the task handler.
         path = self._render_filename(ti, try_number)
-        sources, logs = remote_io.read(path, ti)
-        return sources, logs or []
+        logs: LogMessages | list[RawLogStream] | None  # extra typing to void mypy assignment error
+        try:
+            # Use .stream interface if provider's RemoteIO supports it
+            sources, logs = remote_io.stream(path, ti)
+            return sources, logs or []
+        except (AttributeError, NotImplementedError):
+            # Fallback to .read interface
+            sources, logs = remote_io.read(path, ti)
+            return sources, logs or []

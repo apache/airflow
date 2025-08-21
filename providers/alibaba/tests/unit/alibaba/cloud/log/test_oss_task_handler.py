@@ -24,7 +24,7 @@ from unittest.mock import PropertyMock
 
 import pytest
 
-from airflow.providers.alibaba.cloud.log.oss_task_handler import OSSRemoteLogIO, OSSTaskHandler  # noqa: F401
+from airflow.providers.alibaba.cloud.log.oss_task_handler import OSSRemoteLogIO, OSSTaskHandler
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import datetime
 
@@ -43,6 +43,28 @@ MOCK_KEY = "mock_key"
 MOCK_KEYS = ["mock_key1", "mock_key2", "mock_key3"]
 MOCK_CONTENT = "mock_content"
 MOCK_FILE_PATH = "mock_file_path"
+
+
+class TestOSSRemoteLogIO:
+    @pytest.fixture(autouse=True)
+    def setup_tests(self, create_runtime_ti):
+        from airflow.sdk import BaseOperator
+
+        # setup remote IO
+        self.base_log_folder = "local/airflow/logs"
+        self.oss_log_folder = f"oss://{MOCK_BUCKET_NAME}/airflow/logs"
+        self.oss_remote_log_io = OSSRemoteLogIO(
+            remote_base=self.oss_log_folder,
+            base_log_folder=self.base_log_folder,
+            delete_local_copy=True,
+        )
+        # setup task instance
+        self.ti = create_runtime_ti(BaseOperator(task_id="task_1"))
+
+    def test_stream(self):
+        """Test that the stream method raises NotImplementedError."""
+        with pytest.raises(NotImplementedError):
+            self.oss_remote_log_io.stream("some/log/path", self.ti)
 
 
 class TestOSSTaskHandler:
