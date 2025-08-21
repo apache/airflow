@@ -18,7 +18,7 @@
 Dependencies
 ------------
 
-Airflow CTL dependencies
+airflowctl dependencies
 ''''''''''''''''''''''''''
 
 The ``apache-airflow-ctl`` PyPI basic package only installs what's needed to get started.

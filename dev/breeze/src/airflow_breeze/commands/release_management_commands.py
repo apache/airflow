@@ -717,7 +717,7 @@ def prepare_task_sdk_distributions(
 
 @release_management.command(
     name="prepare-airflow-ctl-distributions",
-    help="Prepare sdist/whl distributions of Airflow CTL.",
+    help="Prepare sdist/whl distributions of airflowctl.",
 )
 @option_distribution_format
 @option_version_suffix

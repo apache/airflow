@@ -68,15 +68,15 @@ Constraints files
 Why we need constraints
 =======================
 
-Airflow CTL installation can be tricky because Airflow CTL is both a library and an application.
+airflowctl installation can be tricky because airflowctl is both a library and an application.
 
 Libraries usually keep their dependencies open and applications usually pin them, but we should do neither
 and both at the same time. We decided to keep our dependencies as open as possible
 (in ``pyproject.toml``) so users can install different version of libraries if needed. This means that
 from time to time plain ``pip install apache-airflow-ctl`` will not work or will produce an unusable
-Airflow CTL installation.
+airflowctl installation.
 
-Reproducible Airflow CTL installation
+Reproducible airflowctl installation
 =====================================
 
 In order to have a reproducible installation, we also keep a set of constraint files in the
@@ -85,8 +85,8 @@ for each released version e.g. :subst-code:`constraints-|version|`.
 
 This way, we keep a tested set of dependencies at the moment of release. This provides you with the ability
 of having the exact same installation of airflowctl + dependencies as was known to be working
-at the moment of release - frozen set of dependencies for that version of Airflow CTL. There is a separate
-constraints file for each version of Python that Airflow CTL supports.
+at the moment of release - frozen set of dependencies for that version of airflowctl. There is a separate
+constraints file for each version of Python that airflowctl supports.
 
 You can create the URL to the file substituting the variables in the template below.
 
@@ -96,7 +96,7 @@ You can create the URL to the file substituting the variables in the template be
 
 where:
 
-- ``AIRFLOW_CTL_VERSION`` - Airflow CTL version (e.g. :subst-code:`|version|`) or ``main``, ``2-0``, for latest development version
+- ``AIRFLOW_CTL_VERSION`` - airflowctl version (e.g. :subst-code:`|version|`) or ``main``, ``2-0``, for latest development version
 - ``PYTHON_VERSION`` Python version e.g. ``3.10``, ``3.11``
 
 
@@ -121,8 +121,8 @@ Using your own constraints
 ==========================
 
 When you decide to install your own dependencies, or want to upgrade or downgrade providers, you might want
-to continue being able to keep reproducible installation of Airflow CTL and those dependencies via a single command.
-In order to do that, you can produce your own constraints file and use it to install Airflow CTL instead of the
+to continue being able to keep reproducible installation of airflowctl and those dependencies via a single command.
+In order to do that, you can produce your own constraints file and use it to install airflowctl instead of the
 one provided by the community.
 
 .. code-block:: bash
@@ -139,25 +139,25 @@ a local constraints file:
     pip install "apache-airflow-ctl==|version|" --constraint "my-constraints.txt"
 
 
-Similarly as in case of Airflow CTL original constraints, you can also host your constraints at your own
+Similarly as in case of airflowctl original constraints, you can also host your constraints at your own
 repository or server and use it remotely from there.
 
 Fixing Constraints at release time
 ''''''''''''''''''''''''''''''''''
 
-The released "versioned" constraints are mostly ``fixed`` when we release Airflow CTL version and we only
+The released "versioned" constraints are mostly ``fixed`` when we release airflowctl version and we only
 update them in exceptional circumstances. For example when we find out that the released constraints might prevent
-Airflow CTL from being installed consistently from the scratch.
+airflowctl from being installed consistently from the scratch.
 
-In normal circumstances, the constraint files are not going to change if new version of Airflow CTL
+In normal circumstances, the constraint files are not going to change if new version of airflowctl
 dependencies are released - not even when those versions contain critical security fixes.
-The process of Airflow CTL releases is designed around upgrading dependencies automatically where
-applicable but only when we release a new version of Airflow CTL, not for already released versions.
+The process of airflowctl releases is designed around upgrading dependencies automatically where
+applicable but only when we release a new version of airflowctl, not for already released versions.
 
 Between the releases you can upgrade dependencies on your own and you can keep your own constraints
 updated as described in the previous section.
 
 The easiest way to keep-up with the latest released dependencies is to upgrade to the latest released
-Airflow CTL version. Whenever we release a new version of Airflow CTL, we upgrade all dependencies to the latest
+airflowctl version. Whenever we release a new version of airflowctl, we upgrade all dependencies to the latest
 applicable versions and test them together, so if you want to keep up with those tests - staying up-to-date
-with latest version of Airflow CTL is the easiest way to update those dependencies.
+with latest version of airflowctl is the easiest way to update those dependencies.

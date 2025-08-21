@@ -21,9 +21,9 @@ Supported versions
 Version Life Cycle
 ``````````````````
 
-Apache Airflow CTL is compatible with Apache Airflow® versions 3.0.0 and later.
+Apache airflowctl is compatible with Apache Airflow® versions 3.0.0 and later.
 
-Apache Airflow CTL version life cycle:
+Apache airflowctl version life cycle:
 
  .. This table is automatically updated by prek hook scripts/ci/prek/supported_versions.py
  .. Beginning of auto-generated table
@@ -39,4 +39,4 @@ Version    Current Patch/Minor    State      First Release    Limited Support   
 
 Limited support versions will be supported with security and critical bug fix only.
 EOL versions will not get any fixes nor support.
-We **highly** recommend installing the latest Airflow CTL release which has richer features.
+We **highly** recommend installing the latest airflowctl release which has richer features.

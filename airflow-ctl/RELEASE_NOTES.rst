@@ -15,8 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-Airflow CTL 1.0.0b1 (2025-08-19)
+airflowctl 1.0.0b1 (2025-08-19)
 ------------------------------
 
-Beta Release of Airflow CTL, a command-line tool. There are lots of great features to use from start.
+Beta Release of airflowctl, a command-line tool. There are lots of great features to use from start.
 Please check the documentation for quick start and usage instructions.
