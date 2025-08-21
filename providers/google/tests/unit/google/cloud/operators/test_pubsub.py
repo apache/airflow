@@ -329,6 +329,38 @@ class TestPubSubPublishOperator:
             project_id=TEST_PROJECT, topic=TEST_TOPIC, messages=TEST_MESSAGES_ORDERING_KEY
         )
 
+    @pytest.mark.parametrize(
+        "project_id, expected_dataset",
+        [
+            # 1. project_id provided
+            (TEST_PROJECT, f"topic:{TEST_PROJECT}:{TEST_TOPIC}"),
+            # 2. project_id not provided (use project_id from connection)
+            (None, f"topic:connection-project:{TEST_TOPIC}"),
+        ],
+    )
+    @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
+    def test_get_openlineage_facets(self, mock_hook, project_id, expected_dataset):
+        operator = PubSubPublishMessageOperator(
+            task_id=TASK_ID,
+            project_id=project_id,
+            topic=TEST_TOPIC,
+            messages=TEST_MESSAGES,
+        )
+
+        operator.execute(None)
+        mock_hook.return_value.publish.assert_called_once_with(
+            project_id=project_id, topic=TEST_TOPIC, messages=TEST_MESSAGES
+        )
+        mock_hook.return_value.project_id = project_id or "connection-project"
+
+        result = operator.get_openlineage_facets_on_complete(operator)
+        assert not result.run_facets
+        assert not result.job_facets
+        assert len(result.inputs) == 0
+        assert len(result.outputs) == 1
+        assert result.outputs[0].namespace == "pubsub"
+        assert result.outputs[0].name == expected_dataset
+
 
 class TestPubSubPullOperator:
     def _generate_messages(self, count):
