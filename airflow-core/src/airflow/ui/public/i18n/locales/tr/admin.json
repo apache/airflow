@@ -19,17 +19,11 @@
       "host": "Host",
       "port": "Port"
     },
-    "connection_few": "Bağlantılar",
-    "connection_many": "Bağlantılar",
     "connection_one": "Bağlantı",
     "connection_other": "Bağlantılar",
     "delete": {
-      "deleteConnection_few": "{{count}} bağlantıyı sil",
-      "deleteConnection_many": "{{count}} bağlantıyı sil",
       "deleteConnection_one": "1 bağlantıyı sil",
       "deleteConnection_other": "{{count}} bağlantıyı sil",
-      "firstConfirmMessage_few": "Aşağıdaki bağlantıları silmek üzeresiniz:",
-      "firstConfirmMessage_many": "Aşağıdaki bağlantıları silmek üzeresiniz:",
       "firstConfirmMessage_one": "Aşağıdaki bağlantıyı silmek üzeresiniz:",
       "firstConfirmMessage_other": "Aşağıdaki bağlantıları silmek üzeresiniz:",
       "title": "Bağlantıyı Sil"
@@ -85,8 +79,6 @@
     "columns": {
       "source": "Kaynak"
     },
-    "importError_few": "Eklenti İçe Aktarma Hataları",
-    "importError_many": "Eklenti İçe Aktarma Hataları",
     "importError_one": "Eklenti İçe Aktarma Hatası",
     "importError_other": "Eklenti İçe Aktarma Hataları",
     "searchPlaceholder": "Dosyaya göre ara"
@@ -108,8 +100,6 @@
       "slots": "İşlem yuvaları"
     },
     "noPoolsFound": "Havuz bulunamadı",
-    "pool_few": "Havuzlar",
-    "pool_many": "Havuzlar",
     "pool_one": "Havuz",
     "pool_other": "Havuzlar",
     "searchPlaceholder": "Havuzları Ara",
@@ -131,12 +121,8 @@
       "isEncrypted": "Şifrelenmiş"
     },
     "delete": {
-      "deleteVariable_few": "{{count}} Değişkeni Sil",
-      "deleteVariable_many": "{{count}} Değişkeni Sil",
       "deleteVariable_one": "1 Değişkeni Sil",
       "deleteVariable_other": "{{count}} Değişkeni Sil",
-      "firstConfirmMessage_few": "Aşağıdaki değişkenleri silmek üzeresiniz:",
-      "firstConfirmMessage_many": "Aşağıdaki değişkenleri silmek üzeresiniz:",
       "firstConfirmMessage_one": "Aşağıdaki değişkeni silmek üzeresiniz:",
       "firstConfirmMessage_other": "Aşağıdaki değişkenleri silmek üzeresiniz:",
       "title": "Değişkeni Sil",
@@ -175,8 +161,6 @@
     },
     "noRowsMessage": "Değişken bulunamadı",
     "searchPlaceholder": "Anahtarları Ara",
-    "variable_few": "Değişkenler",
-    "variable_many": "Değişkenler",
     "variable_one": "Değişken",
     "variable_other": "Değişkenler"
   }

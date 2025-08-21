@@ -46,22 +46,14 @@
   },
   "overview": {
     "buttons": {
-      "failedRun_few": "Başarısız Çalıştırmalar",
-      "failedRun_many": "Başarısız Çalıştırmalar",
       "failedRun_one": "Başarısız Çalıştırma",
       "failedRun_other": "Başarısız Çalıştırmalar",
-      "failedTask_few": "Başarısız Görevler",
-      "failedTask_many": "Başarısız Görevler",
       "failedTask_one": "Başarısız Görev",
       "failedTask_other": "Başarısız Görevler",
-      "failedTaskInstance_few": "Başarısız Görev Örnekleri",
-      "failedTaskInstance_many": "Başarısız Görev Örnekleri",
       "failedTaskInstance_one": "Başarısız Görev Örneği",
       "failedTaskInstance_other": "Başarısız Görev Örnekleri"
     },
     "charts": {
-      "assetEvent_few": "Oluşturulan Varlık Etkinlikleri",
-      "assetEvent_many": "Oluşturulan Varlık Etkinlikleri",
       "assetEvent_one": "Oluşturulan Varlık Etkinliği",
       "assetEvent_other": "Oluşturulan Varlık Etkinlikleri"
     },
@@ -73,6 +65,7 @@
   "panel": {
     "buttons": {
       "options": "Seçenekler",
+      "showGantt": "Gantt Grafiğini Göster",
       "showGraph": "Grafiği Göster",
       "showGrid": "Izgarayı Göster"
     },
@@ -112,8 +105,6 @@
     "code": "Kod",
     "details": "Detaylar",
     "logs": "Günlükler",
-    "mappedTaskInstances_few": "Görev Örnekleri [{{count}}]",
-    "mappedTaskInstances_many": "Görev Örnekleri [{{count}}]",
     "mappedTaskInstances_one": "Görev Örneği [{{count}}]",
     "mappedTaskInstances_other": "Görev Örnekleri [{{count}}]",
     "overview": "Genel Bakış",

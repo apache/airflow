@@ -25,5 +25,6 @@
   "lastAssetEvent": "Son kaynak olayı",
   "name": "Ad",
   "producingTasks": "Üreten görevler",
+  "scheduledDags": "Planlanan Dag'ler",
   "searchPlaceholder": "Kaynakları ara"
 }

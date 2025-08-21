@@ -3,12 +3,15 @@
     "affected_one": "1 çalıştırma tetiklenecek.",
     "affected_other": "{{count}} çalıştırma tetiklenecek.",
     "affectedNone": "Seçilen kriterlere uygun çalıştırma bulunamadı.",
+    "allRuns": "Bütün Dag Çalıştırmaları",
     "backwards": "Geriye Dönük Çalıştır",
     "dateRange": "Tarih Aralığı",
     "dateRangeFrom": "Başlangıç",
     "dateRangeTo": "Bitiş",
     "errorStartDateBeforeEndDate": "Başlangıç Tarihi, Bitiş Tarihinden önce olmalıdır",
     "maxRuns": "Maksimum Aktif Çalıştırma",
+    "missingAndErroredRuns": "Eksik ve Hata Almış Dag Çalıştırmaları",
+    "missingRuns": "Eksik Dag Çalıştırmaları",
     "reprocessBehavior": "Yeniden İşleme Davranışı",
     "run": "Geriye Dönük Çalıştır",
     "selectDescription": "Bu Dag'ı bir tarih aralığı için çalıştır",
@@ -44,6 +47,7 @@
   },
   "dagWarnings": {
     "error_one": "1 Hata",
+    "error_other": "{{count}} Hata(lar)",
     "errorAndWarning": "1 Hata ve {{warningText}}",
     "warning_one": "1 Uyarı",
     "warning_other": "{{count}} Uyarı"
@@ -59,6 +63,7 @@
     "runDuration": "Çalışma Süresi"
   },
   "fileUpload": {
+    "files_one": "{{count}} dosya(lar)",
     "files_other": "{{count}} dosya"
   },
   "flexibleForm": {

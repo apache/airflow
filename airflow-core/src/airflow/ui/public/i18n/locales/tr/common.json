@@ -7,16 +7,10 @@
     "Providers": "Sağlayıcılar",
     "Variables": "Değişkenler"
   },
-  "asset_few": "Varlıklar",
-  "asset_many": "Varlıklar",
   "asset_one": "Varlık",
   "asset_other": "Varlıklar",
-  "assetEvent_few": "Varlık Etkinlikleri",
-  "assetEvent_many": "Varlık Etkinlikleri",
   "assetEvent_one": "Varlık Etkinliği",
   "assetEvent_other": "Varlık Etkinlikleri",
-  "backfill_few": "Geriye Dönük Çalıştırmalar",
-  "backfill_many": "Geriye Dönük Çalıştırmalar",
   "backfill_one": "Geriye Dönük Çalıştırma",
   "backfill_other": "Geriye Dönük Çalıştırmalar",
   "browse": {
@@ -25,12 +19,8 @@
     "xcoms": "XCom'lar"
   },
   "collapseDetailsPanel": "Detay Panelini Daralt",
-  "createdAssetEvent_few": "Oluşturulan Varlık Etkinlikleri",
-  "createdAssetEvent_many": "Oluşturulan Varlık Etkinlikleri",
   "createdAssetEvent_one": "Oluşturulan Varlık Etkinliği",
   "createdAssetEvent_other": "Oluşturulan Varlık Etkinlikleri",
-  "dag_few": "Dag'ler",
-  "dag_many": "Dag'ler",
   "dag_one": "Dag",
   "dag_other": "Dag'ler",
   "dagDetails": {
@@ -69,8 +59,6 @@
     "triggeredBy": "Tetikleyen",
     "triggeringUser": "Çalıştıran Kullanıcı"
   },
-  "dagRun_few": "Dag Çalıştırmaları",
-  "dagRun_many": "Dag Çalıştırmaları",
   "dagRun_one": "Dag Çalıştırması",
   "dagRun_other": "Dag Çalıştırmaları",
   "dagRunId": "Eşsiz Dag Çalıştırma Kimliği",
@@ -149,8 +137,6 @@
   "pools": {
     "deferred": "Ertelenmiş",
     "open": "Açık",
-    "pools_few": "Havuzlar",
-    "pools_many": "Havuzlar",
     "pools_one": "Havuz",
     "pools_other": "Havuzlar",
     "queued": "Kuyrukta",
@@ -181,8 +167,11 @@
   },
   "selectLanguage": "Dil Seçin",
   "showDetailsPanel": "Detay Panelini Göster",
-  "sourceAssetEvent_few": "Kaynak Varlık Etkinlikleri",
-  "sourceAssetEvent_many": "Kaynak Varlık Etkinlikleri",
+  "source": {
+    "hide": "Kaynağı Gizle",
+    "hotkey": "s",
+    "show": "Kaynağı Göster"
+  },
   "sourceAssetEvent_one": "Kaynak Varlık Etkinliği",
   "sourceAssetEvent_other": "Kaynak Varlık Etkinlikleri",
   "startDate": "Başlangıç Tarihi",
@@ -210,8 +199,6 @@
     "createdAt": "Oluşturulma Tarihi",
     "filterByTag": "Dag'ları etikete göre filtrele",
     "filterColumns": "Tablo sütunlarını filtrele",
-    "filterReset_few": "Filtreleri sıfırla",
-    "filterReset_many": "Filtreleri sıfırla",
     "filterReset_one": "Filtreyi sıfırla",
     "filterReset_other": "Filtreleri sıfırla",
     "from": "Başlangıç",
@@ -230,10 +217,9 @@
     "operator": "Operatör",
     "triggerRule": "Tetikleme Kuralı"
   },
-  "task_few": "Görevler",
-  "task_many": "Görevler",
   "task_one": "Görev",
   "task_other": "Görevler",
+  "taskGroup": "Görev Grubu",
   "taskId": "Görev Kimliği",
   "taskInstance": {
     "dagVersion": "Dag Versiyonu",
@@ -258,8 +244,6 @@
     },
     "unixname": "Unix Adı"
   },
-  "taskInstance_few": "Görev Örnekleri",
-  "taskInstance_many": "Görev Örnekleri",
   "taskInstance_one": "Görev Örneği",
   "taskInstance_other": "Görev Örnekleri",
   "timeRange": {
@@ -322,6 +306,7 @@
   "tryNumber": "Deneme Sayısı",
   "user": "Kullanıcı",
   "wrap": {
+    "hotkey": "w",
     "tooltip": "Kaydırmayı açıp kapatmak için {{hotkey}} tuşuna basın",
     "unwrap": "Kaydırmayı Kapat",
     "wrap": "Kaydır"
