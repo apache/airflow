@@ -26,6 +26,7 @@ This module contains Google PubSub operators.
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
+from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -52,6 +53,7 @@ from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
 
+    from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.utils.context import Context
 
 
@@ -359,15 +361,18 @@ class PubSubCreateSubscriptionOperator(GoogleCloudBaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.impersonation_chain = impersonation_chain
+        self._resolved_subscription_name: str | None = None
 
-    def execute(self, context: Context) -> str:
-        hook = PubSubHook(
+    @cached_property
+    def pubsub_hook(self):
+        return PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
 
+    def execute(self, context: Context) -> str:
         self.log.info("Creating subscription for topic %s", self.topic)
-        result = hook.create_subscription(
+        result = self.pubsub_hook.create_subscription(
             project_id=self.project_id,
             topic=self.topic,
             subscription=self.subscription,
@@ -389,12 +394,28 @@ class PubSubCreateSubscriptionOperator(GoogleCloudBaseOperator):
         )
 
         self.log.info("Created subscription for topic %s", self.topic)
+
+        # Store resolved subscription for Open Lineage
+        self._resolved_subscription_name = self.subscription or result
+
         PubSubSubscriptionLink.persist(
             context=context,
-            subscription_id=self.subscription or result,  # result returns subscription name
-            project_id=self.project_id or hook.project_id,
+            subscription_id=self._resolved_subscription_name,  # result returns subscription name
+            project_id=self.project_id or self.pubsub_hook.project_id,
         )
         return result
+
+    def get_openlineage_facets_on_complete(self, _) -> OperatorLineage:
+        from airflow.providers.common.compat.openlineage.facet import Dataset
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        project_id = self.subscription_project_id or self.project_id or self.pubsub_hook.project_id
+
+        output_dataset = [
+            Dataset(namespace="pubsub", name=f"subscription:{project_id}:{self._resolved_subscription_name}")
+        ]
+
+        return OperatorLineage(outputs=output_dataset)
 
 
 class PubSubDeleteTopicOperator(GoogleCloudBaseOperator):
