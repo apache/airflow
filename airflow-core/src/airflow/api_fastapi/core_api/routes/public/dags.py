@@ -47,6 +47,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryOwnersFilter,
     QueryPausedFilter,
     QueryTagsFilter,
+    QueryTimeTableTypesFilter,
     RangeFilter,
     SortParam,
     _transform_dag_run_states,
@@ -121,6 +122,7 @@ def get_dags(
     readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
     is_favorite: QueryFavoriteFilter,
+    timetable_type: QueryTimeTableTypesFilter,
 ) -> DAGCollectionResponse:
     """Get all DAGs."""
     query = generate_dag_with_latest_run_query(
@@ -146,6 +148,7 @@ def get_dags(
             readable_dags_filter,
             bundle_name,
             bundle_version,
+            timetable_type,
         ],
         order_by=order_by,
         offset=offset,
