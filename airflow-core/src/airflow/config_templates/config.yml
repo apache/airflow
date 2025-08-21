@@ -516,7 +516,7 @@ core:
         absolute paths.
         When multiple paths are specified, Airflow searches them in the provided order
         until the requested template file is found. Relative paths are resolved against
-        `AIRFLOW_HOME`.
+        ``AIRFLOW_HOME``.
       version_added: ~
       type: string
       example: "/opt/airflow/dags/templates,/opt/airflow/cutom_templates"
