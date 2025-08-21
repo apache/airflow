@@ -35,7 +35,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
-    from airflow.utils.log.file_task_handler import LogMessages, LogSourceInfo
+    from airflow.utils.log.file_task_handler import LogMessages, LogResponse, LogSourceInfo
 
 
 @attrs.define
@@ -163,6 +163,9 @@ class S3RemoteLogIO(LoggingMixin):  # noqa: D101
                 logs.append(self.s3_read(key, return_error=True))
             return messages, logs
         return messages, None
+
+    def stream(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
+        raise NotImplementedError
 
 
 class S3TaskHandler(FileTaskHandler, LoggingMixin):

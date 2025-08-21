@@ -177,6 +177,11 @@ class TestCloudRemoteLogIO:
             ]
         )
 
+    def test_stream(self):
+        """Test that the stream method raises NotImplementedError."""
+        with pytest.raises(NotImplementedError):
+            self.subject.stream("some/log/path", self.ti)
+
 
 @pytest.mark.db_test
 class TestCloudwatchTaskHandler:
