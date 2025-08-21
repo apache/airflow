@@ -101,7 +101,7 @@ export const TaskFilters = ({ tasksData }: { readonly tasksData: TaskCollectionR
           <ResetButton filterCount={2} onClearFilters={onClearFilters} />
         </Box>
       </HStack>
-      <HStack>
+      <HStack justifyContent="space-between">
         <AttrSelectFilterMulti
           displayPrefix={undefined}
           handleSelect={handleSelectedOperators}
