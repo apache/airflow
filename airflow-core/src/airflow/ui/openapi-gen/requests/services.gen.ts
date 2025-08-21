@@ -3239,7 +3239,6 @@ export class XcomService {
      * @param data.dagRunId
      * @param data.xcomKey
      * @param data.requestBody
-     * @param data.updateMask
      * @returns XComResponseNative Successful Response
      * @throws ApiError
      */
@@ -3252,9 +3251,6 @@ export class XcomService {
                 task_id: data.taskId,
                 dag_run_id: data.dagRunId,
                 xcom_key: data.xcomKey
-            },
-            query: {
-                update_mask: data.updateMask
             },
             body: data.requestBody,
             mediaType: 'application/json',

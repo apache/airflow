@@ -32,7 +32,7 @@ from airflow.api_fastapi.core_api.datamodels.common import (
 from airflow.api_fastapi.core_api.datamodels.variables import (
     VariableBody,
 )
-from airflow.api_fastapi.core_api.services.public.common import BulkService
+from airflow.api_fastapi.core_api.services.public.common import BulkService, PatchUtil
 from airflow.models.variable import Variable
 
 
@@ -81,6 +81,7 @@ class BulkVariableService(BulkService[VariableBody]):
         """Bulk Update variables."""
         to_update_keys = {variable.key for variable in action.entities}
         matched_keys, not_found_keys = self.categorize_keys(to_update_keys)
+        non_update_fields = {"key"}
 
         try:
             if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found_keys:
@@ -94,14 +95,17 @@ class BulkVariableService(BulkService[VariableBody]):
                 update_keys = to_update_keys
 
             for variable in action.entities:
-                if variable.key in update_keys:
-                    old_variable = self.session.scalar(select(Variable).filter_by(key=variable.key).limit(1))
-                    VariableBody(**variable.model_dump())
-                    data = variable.model_dump(exclude={"key"}, by_alias=True)
+                if variable.key not in update_keys:
+                    continue
+                old_variable = self.session.scalar(select(Variable).filter_by(key=variable.key).limit(1))
+                if not old_variable:
+                    continue  # shouldn't happen because we filtered above
 
-                    for key, val in data.items():
-                        setattr(old_variable, key, val)
-                    results.success.append(variable.key)
+                variable = PatchUtil.apply_patch_with_update_mask(
+                    old_variable, variable, action.update_mask, non_update_fields
+                )
+
+                results.success.append(variable.key)
 
         except HTTPException as e:
             results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})

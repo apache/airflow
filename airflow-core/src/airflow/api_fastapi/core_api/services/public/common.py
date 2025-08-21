@@ -20,6 +20,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Generic
 
+from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.core_api.datamodels.common import (
@@ -72,3 +73,71 @@ class BulkService(Generic[T], ABC):
     def handle_bulk_delete(self, action: BulkDeleteAction[T], results: BulkActionResponse) -> None:
         """Bulk delete entities."""
         raise NotImplementedError
+
+
+class PatchUtil:
+    """
+    Utility class for applying patch operations with support for update masks.
+
+    This helper is used to update only selected fields of a Pydantic model instance,
+    while ensuring:
+      - Only fields present in the update_mask are modified.
+      - Non-updatable fields can be excluded explicitly.
+      - Both raw field names and aliases are handled correctly.
+    """
+
+    @staticmethod
+    def apply_patch_with_update_mask(
+        model,
+        patch_body,
+        update_mask: list[str] | None,
+        non_update_fields: set[str] | None = None,
+    ):
+        """
+        Apply a patch to the given model using the provided update mask.
+
+        Args:
+            model: The model instance to update.
+            patch_body: Pydantic model containing patch data.
+            update_mask (list[str] | None): Optional list of fields to update.
+            non_update_fields (set[str] | None): Fields that should not be updated.
+
+        Returns:
+            The updated model instance.
+
+        Raises:
+            HTTPException: If invalid fields are provided in update_mask.
+        """
+        print("Inside patch")
+
+        # Always dump without aliases for internal validation
+        raw_data = patch_body.model_dump(by_alias=False)
+
+        fields_set = set(patch_body.model_fields_set)
+        allowed_fields = set(patch_body.model_fields.keys())
+
+        print(fields_set, update_mask)
+        if update_mask:
+            invalid = set(update_mask) - allowed_fields
+            if invalid:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Invalid field(s) in update_mask: {invalid}",
+                )
+            fields_set = fields_set.intersection(update_mask)
+
+        if non_update_fields:
+            fields_set = fields_set - non_update_fields
+
+        # Validate only the subset of fields we want to update
+        print("Validating data with fields_set:", fields_set, raw_data)
+        validated_data = {key: raw_data[key] for key in fields_set if key in raw_data}
+
+        data = patch_body.model_dump(include=set(validated_data.keys()), by_alias=True)
+
+        # Update the model with the validated data
+        print("Updating model with data:", data)
+        for key, value in data.items():
+            setattr(model, key, value)
+
+        return model
