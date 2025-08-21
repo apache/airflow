@@ -1814,7 +1814,7 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
         with pytest.MonkeyPatch.context() as mp_ctx:
             if AIRFLOW_V_3_1_PLUS:
                 try:
-                    from airflow._shared.secrets_masker.secrets_masker import (
+                    from airflow._shared.secrets_masker import (
                         SecretsMasker as CoreSecretsMasker,
                     )
 
@@ -1822,7 +1822,7 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
                 except ImportError:
                     pass
                 try:
-                    from airflow.sdk._shared.secrets_masker.secrets_masker import (
+                    from airflow.sdk._shared.secrets_masker import (
                         SecretsMasker as SDKSecretsMasker,
                     )
 
@@ -1839,8 +1839,8 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
     targets = []
     if AIRFLOW_V_3_1_PLUS:
         targets = [
-            "airflow._shared.secrets_masker.secrets_masker.SecretsMasker.redact",
-            "airflow.sdk._shared.secrets_masker.secrets_masker.SecretsMasker.redact",
+            "airflow._shared.secrets_masker.SecretsMasker.redact",
+            "airflow.sdk._shared.secrets_masker.SecretsMasker.redact",
         ]
     elif AIRFLOW_V_3_0_PLUS:
         targets = ["airflow.sdk.execution_time.secrets_masker.SecretsMasker.redact"]
@@ -1855,13 +1855,13 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
         # NEW: Set class variable instead of settings
         if AIRFLOW_V_3_1_PLUS:
             try:
-                from airflow._shared.secrets_masker.secrets_masker import SecretsMasker
+                from airflow._shared.secrets_masker import SecretsMasker
 
                 mp_ctx.setattr(SecretsMasker, "MASK_SECRETS_IN_LOGS", False)
             except ImportError:
                 pass
             try:
-                from airflow.sdk._shared.secrets_masker.secrets_masker import (
+                from airflow.sdk._shared.secrets_masker import (
                     SecretsMasker as SDKSecretsMasker,
                 )
 
