@@ -344,6 +344,47 @@ class TestDag:
         with pytest.raises(ValueError, match="ContinuousTimetable requires max_active_runs <= 1"):
             dag = DAG("continuous", start_date=DEFAULT_DATE, schedule="@continuous", max_active_runs=25)
 
+    def test_dag_add_task_checks_trigger_rule(self):
+        # A non fail stop dag should allow any trigger rule
+        from airflow.sdk import TriggerRule
+        from airflow.sdk.exceptions import FailFastDagInvalidTriggerRule
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                pass
+
+        task_with_non_default_trigger_rule = CustomOperator(
+            task_id="task_with_non_default_trigger_rule", trigger_rule=TriggerRule.ALWAYS
+        )
+        non_fail_fast_dag = DAG(
+            dag_id="test_dag_add_task_checks_trigger_rule",
+            schedule=None,
+            start_date=DEFAULT_DATE,
+            fail_fast=False,
+        )
+        non_fail_fast_dag.add_task(task_with_non_default_trigger_rule)
+
+        # a fail stop dag should allow default trigger rule
+        from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_TRIGGER_RULE
+
+        fail_fast_dag = DAG(
+            dag_id="test_dag_add_task_checks_trigger_rule",
+            schedule=None,
+            start_date=DEFAULT_DATE,
+            fail_fast=True,
+        )
+        task_with_default_trigger_rule = CustomOperator(
+            task_id="task_with_default_trigger_rule", trigger_rule=DEFAULT_TRIGGER_RULE
+        )
+        fail_fast_dag.add_task(task_with_default_trigger_rule)
+
+        # a fail stop dag should not allow a non-default trigger rule
+        task_with_non_default_trigger_rule = CustomOperator(
+            task_id="task_with_non_default_trigger_rule", trigger_rule=TriggerRule.ALWAYS
+        )
+        with pytest.raises(FailFastDagInvalidTriggerRule):
+            fail_fast_dag.add_task(task_with_non_default_trigger_rule)
+
 
 # Test some of the arg validation. This is not all the validations we perform, just some of them.
 @pytest.mark.parametrize(

@@ -479,6 +479,22 @@ class WeightRule(str, Enum):
     ABSOLUTE = "absolute"
 
 
+class TriggerRule(str, Enum):
+    ALL_SUCCESS = "all_success"
+    ALL_FAILED = "all_failed"
+    ALL_DONE = "all_done"
+    ALL_DONE_MIN_ONE_SUCCESS = "all_done_min_one_success"
+    ALL_DONE_SETUP_SUCCESS = "all_done_setup_success"
+    ONE_SUCCESS = "one_success"
+    ONE_FAILED = "one_failed"
+    ONE_DONE = "one_done"
+    NONE_FAILED = "none_failed"
+    NONE_SKIPPED = "none_skipped"
+    ALWAYS = "always"
+    NONE_FAILED_MIN_ONE_SUCCESS = "none_failed_min_one_success"
+    ALL_SKIPPED = "all_skipped"
+
+
 class AssetEventDagRunReference(BaseModel):
     """
     Schema for AssetEvent model used in DagRun.
