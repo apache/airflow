@@ -624,7 +624,6 @@ class TriggerRuleDep(BaseTIDep):
                         )
                     )
             else:
-                print("true rule not implemented:", trigger_rule)
                 yield self._failing_status(
                     reason=f"No strategy to evaluate trigger rule '{getattr(trigger_rule, 'value', trigger_rule)}'."
                 )
