@@ -185,16 +185,14 @@ class AdbcHook(DbApiHook):
         self,
         sql: str | list[str],
         parameters: Iterable | Mapping[str, Any] | None = None,
-        handler: Callable[[Any], T] | None = fetch_all_handler,
     ) -> Any:
         """
         Execute the sql and return a set of records.
 
         :param sql: the sql statement to be executed (str) or a list of sql statements to execute
         :param parameters: The parameters to render the SQL query with.
-        :param handler: The result handler which is called with the result of each statement.
         """
-        return self.run(sql=sql, parameters=parameters, handler=handler)
+        return self.run(sql=sql, parameters=parameters, handler=fetch_all_handler)
 
     def _run_command(self, cur, sql_statement, parameters):
         """Run a statement using an already open cursor."""
