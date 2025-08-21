@@ -35,7 +35,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
-    from airflow.utils.log.file_task_handler import LogMessages, LogSourceInfo
+    from airflow.utils.log.file_task_handler import LogMessages, LogResponse, LogSourceInfo
 
 
 @attrs.define(kw_only=True)
@@ -75,6 +75,9 @@ class HdfsRemoteLogIO(LoggingMixin):  # noqa: D101
         else:
             messages.append(f"No logs found on hdfs for ti={ti}")
         return messages, logs
+
+    def stream(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
+        raise NotImplementedError
 
 
 class HdfsTaskHandler(FileTaskHandler, LoggingMixin):

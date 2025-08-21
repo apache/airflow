@@ -24,13 +24,36 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from airflow.providers.google.cloud.log.gcs_task_handler import GCSTaskHandler
+from airflow.providers.google.cloud.log.gcs_task_handler import GCSRemoteLogIO, GCSTaskHandler
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+
+@pytest.mark.db_test
+class TestGCSRemoteLogIO:
+    @pytest.fixture(autouse=True)
+    def setup_tests(self, create_runtime_ti):
+        from airflow.sdk import BaseOperator
+
+        # setup remote IO
+        self.base_log_folder = "local/airflow/logs"
+        self.gcs_log_folder = "gs://bucket/remote/log/location"
+        self.gcs_remote_log_io = GCSRemoteLogIO(
+            remote_base=self.gcs_log_folder,
+            base_log_folder=self.base_log_folder,
+            delete_local_copy=True,
+        )
+        # setup task instance
+        self.ti = create_runtime_ti(BaseOperator(task_id="task_1"))
+
+    def test_stream(self):
+        """Test that the stream method raises NotImplementedError."""
+        with pytest.raises(NotImplementedError):
+            self.gcs_remote_log_io.stream("some/log/path", self.ti)
 
 
 @pytest.mark.db_test
