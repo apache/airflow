@@ -765,7 +765,7 @@ default is to build ``both`` type of distributions ``sdist`` and ``wheel``.
   :alt: Breeze release-management prepare-task-sdk-distributions
 
 
-Preparing Airflow ctl distributions
+Preparing Airflow CTL distributions
 """""""""""""""""""""""""""""""""""
 
 You can prepare Airflow distributions using Breeze:
@@ -774,9 +774,9 @@ You can prepare Airflow distributions using Breeze:
 
      breeze release-management prepare-airflow-ctl-distributions
 
-This prepares Airflow Task SDK .whl package in the dist folder.
+This prepares Airflow CTL .whl package in the dist folder.
 
-Again, you can specify optional ``--distribution-format`` flag to build selected formats of the Airflow ctl distributions,
+Again, you can specify optional ``--distribution-format`` flag to build selected formats of the Airflow CTL distributions,
 default is to build ``both`` type of distributions ``sdist`` and ``wheel``.
 
 .. code-block:: bash
@@ -787,6 +787,29 @@ default is to build ``both`` type of distributions ``sdist`` and ``wheel``.
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-airflow-ctl-distributions.svg
   :width: 100%
   :alt: Breeze release-management prepare-airflow-ctl-distributions
+
+Preparing Airflow CTL Tarball
+"""""""""""""""""""""""""""""
+
+You can prepare Airflow CTL source tarball using Breeze:
+
+.. code-block:: bash
+
+     breeze release-management prepare-airflow-ctl-tarball
+
+This prepares airflowctl -source.tar.gz package in the dist folder.
+
+You must specify ``--version`` flag which is a pre-release version of Airflow CTL you are preparing the
+tarball for.
+
+.. code-block:: bash
+
+     breeze release-management prepare-airflow-ctl-tarball --version 2.8.0rc1
+
+.. image:: ./images/output_release-management_prepare-airflow-ctl-tarball.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-airflow-ctl-tarball.svg
+  :width: 100%
+  :alt: Breeze release-management prepare-airflow-ctl-tarball
 
 Publishing the documentation to S3
 """"""""""""""""""""""""""""""""""
