@@ -45,7 +45,7 @@ from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
-from airflow.jobs.job import Job, perform_heartbeat
+from airflow.jobs.job import Job, JobState, perform_heartbeat
 from airflow.models import Deadline, Log
 from airflow.models.asset import (
     AssetActive,
@@ -78,7 +78,7 @@ from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import is_lock_not_available_error, prohibit_commit, with_row_locks
-from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.thread_safe_dict import ThreadSafeDict
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
