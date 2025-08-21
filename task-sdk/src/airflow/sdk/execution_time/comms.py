@@ -891,7 +891,8 @@ class MaskSecret(BaseModel):
 
     # This is needed since calls to `mask_secret` in the Task process will otherwise only add the mask value
     # to the child process, but the redaction happens in the parent.
-
+    # We cannot use `string | Iterable | dict here` (would be more intuitive) because bug in Pydantic
+    # https://github.com/pydantic/pydantic/issues/9541 turns iterable into a ValidatorIterator
     value: JsonValue
     name: str | None = None
     type: Literal["MaskSecret"] = "MaskSecret"
