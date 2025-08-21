@@ -110,6 +110,8 @@ ReceiveMsgType = TypeVar("ReceiveMsgType", bound=BaseModel)
 def _msgpack_enc_hook(obj: Any) -> Any:
     import pendulum
 
+    builtin_types = [int, float, bool, str, bytes, complex, list, tuple, dict, set, frozenset]
+
     if isinstance(obj, pendulum.DateTime):
         # convert the pendulm Datetime subclass into a raw datetime so that msgspec can use it's native
         # encoding
@@ -120,6 +122,11 @@ def _msgpack_enc_hook(obj: Any) -> Any:
         return str(obj)
     if isinstance(obj, BaseModel):
         return obj.model_dump(exclude_unset=True)
+    # convert subclasses of built-ins to the built-in type
+    for builtin in builtin_types:
+        if isinstance(obj, builtin):
+            # If the object is a subclass of a built-in type, return the object as that type
+            return builtin(obj)
 
     # Raise a NotImplementedError for other types
     raise NotImplementedError(f"Objects of type {type(obj)} are not supported")
