@@ -713,16 +713,27 @@ class PubSubPublishMessageOperator(GoogleCloudBaseOperator):
         self.enable_message_ordering = enable_message_ordering
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Context) -> None:
-        hook = PubSubHook(
+    @cached_property
+    def pubsub_hook(self):
+        return PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
             enable_message_ordering=self.enable_message_ordering,
         )
 
+    def execute(self, context: Context) -> None:
         self.log.info("Publishing to topic %s", self.topic)
-        hook.publish(project_id=self.project_id, topic=self.topic, messages=self.messages)
+        self.pubsub_hook.publish(project_id=self.project_id, topic=self.topic, messages=self.messages)
         self.log.info("Published to topic %s", self.topic)
+
+    def get_openlineage_facets_on_complete(self, _) -> OperatorLineage:
+        from airflow.providers.common.compat.openlineage.facet import Dataset
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        project_id = self.project_id or self.pubsub_hook.project_id
+        output_dataset = [Dataset(namespace="pubsub", name=f"topic:{project_id}:{self.topic}")]
+
+        return OperatorLineage(outputs=output_dataset)
 
 
 class PubSubPullOperator(GoogleCloudBaseOperator):
