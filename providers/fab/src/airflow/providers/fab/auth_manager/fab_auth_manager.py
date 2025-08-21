@@ -652,6 +652,17 @@ class FabAuthManager(BaseAuthManager[User]):
             return []
         return getattr(user, "perms") or []
 
+    def cleanup_dag_permissions(self, dag_id: str, session: Session) -> None:
+        """
+        Clean up DAG-specific permissions from Flask-AppBuilder tables.
+
+        :param dag_id: the DAG ID to clean up permissions for
+        :param session: database session
+        """
+        from airflow.providers.fab.auth_manager.dag_permissions import cleanup_dag_permissions
+
+        cleanup_dag_permissions(dag_id=dag_id, session=session)
+
     def _sync_appbuilder_roles(self):
         """
         Sync appbuilder roles to DB.

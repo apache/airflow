@@ -88,7 +88,7 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session: Session =
         .execution_options(synchronize_session="fetch")
     )
 
-    # Clean up DAG-specific permissions from Flask-AppBuilder tables
+    # Clean up DAG-specific permissions
     _cleanup_dag_permissions(dag_id, session)
 
     return count
@@ -96,99 +96,26 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session: Session =
 
 def _cleanup_dag_permissions(dag_id: str, session: Session) -> None:
     """
-    Clean up DAG-specific permissions from Flask-AppBuilder tables.
+    Clean up DAG-specific permissions from the auth manager.
 
-    When a DAG is deleted, we need to clean up the corresponding permissions
-    to prevent orphaned entries in the ab_view_menu table.
-
-    This addresses issue #50905: Deleted DAGs not removed from ab_view_menu table
-    and show up in permissions.
+    This delegates the cleanup to the appropriate auth manager implementation.
     """
-    from airflow.configuration import conf
+    try:
+        from airflow.api_fastapi.app import get_auth_manager
 
-    if "FabAuthManager" not in conf.get("core", "auth_manager"):
-        return
-
-    # Try to import FAB models with version compatibility
-    def _get_fab_models():
-        """Get FAB models with version compatibility handling."""
-        try:
-            from airflow.providers.fab.auth_manager import models as fab_models
-
-            return fab_models
-        except ImportError:
-            try:
-                # Handle Pre-airflow 2.9 case where FAB was part of the core airflow
-                from airflow.providers.fab.auth.managers.fab import models as fab_models
-
-                return fab_models
-            except ImportError:
-                # If FAB provider is not available, skip cleanup
-                return None
-        except RuntimeError as e:
-            # Handle case where FAB provider is not even usable
-            if "needs Apache Airflow 2.9.0" in str(e):
-                try:
-                    from airflow.providers.fab.auth.managers.fab import models as fab_models
-
-                    return fab_models
-                except ImportError:
-                    return None
-            else:
-                return None
-
-    fab_models = _get_fab_models()
-    if fab_models is None:
-        return
-
-    Permission = fab_models.Permission
-    Resource = fab_models.Resource
-    assoc_permission_role = fab_models.assoc_permission_role
-
-    from airflow.security.permissions import RESOURCE_DAG_PREFIX
-
-    # Find all DAG-specific resources that match this dag_id
-    dag_resource_name = f"{RESOURCE_DAG_PREFIX}{dag_id}"
-    dag_resources = (
-        session.query(Resource)
-        .filter(
-            Resource.name.in_(
-                [
-                    dag_resource_name,  # DAG:dag_id
-                    f"DAG Run:{dag_id}",  # DAG_RUN:dag_id
-                    f"Task Instance:{dag_id}",  # TASK_INSTANCE:dag_id (if exists)
-                ]
+        auth_manager = get_auth_manager()
+        if hasattr(auth_manager, "cleanup_dag_permissions"):
+            auth_manager.cleanup_dag_permissions(dag_id, session)
+            log.info("Successfully cleaned up DAG permissions for dag_id: %s", dag_id)
+        else:
+            log.debug(
+                "Auth manager %s does not support DAG permission cleanup, skipping",
+                type(auth_manager).__name__,
             )
+    except Exception as e:
+        # If auth manager is not available or fails, silently skip cleanup
+        # This ensures DAG deletion continues even if permission cleanup fails
+        log.warning(
+            "Failed to clean up DAG permissions for dag_id %s: %s. DAG deletion will continue.", dag_id, e
         )
-        .all()
-    )
-
-    if not dag_resources:
-        return
-
-    dag_resource_ids = [resource.id for resource in dag_resources]
-
-    # Find all permissions associated with these resources
-    dag_permissions = session.query(Permission).filter(Permission.resource_id.in_(dag_resource_ids)).all()
-
-    if not dag_permissions:
-        # Delete resources even if no permissions exist
-        session.query(Resource).filter(Resource.id.in_(dag_resource_ids)).delete(synchronize_session=False)
-        return
-
-    dag_permission_ids = [permission.id for permission in dag_permissions]
-
-    # Delete permission-role associations first (foreign key constraint)
-    session.query(assoc_permission_role).filter(
-        assoc_permission_role.c.permission_view_id.in_(dag_permission_ids)
-    ).delete(synchronize_session=False)
-
-    # Delete permissions
-    session.query(Permission).filter(Permission.resource_id.in_(dag_resource_ids)).delete(
-        synchronize_session=False
-    )
-
-    # Delete resources (ab_view_menu entries)
-    session.query(Resource).filter(Resource.id.in_(dag_resource_ids)).delete(synchronize_session=False)
-
-    log.info("Cleaned up %d DAG-specific permissions for dag_id: %s", len(dag_permissions), dag_id)
+        pass
