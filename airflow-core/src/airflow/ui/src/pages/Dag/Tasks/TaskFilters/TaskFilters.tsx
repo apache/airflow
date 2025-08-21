@@ -90,13 +90,16 @@ export const TaskFilters = ({ tasksData }: { readonly tasksData: TaskCollectionR
 
   return (
     <>
-      <HStack>
+      <HStack justifyContent="space-between" style={{ marginBottom: "5px" }}>
         <SearchBar
           defaultValue={taskNamePattern}
           hideAdvanced={true}
           onChange={handleSearchChange}
           placeHolder={translate("tasks:searchTasks")}
         />
+        <Box>
+          <ResetButton filterCount={2} onClearFilters={onClearFilters} />
+        </Box>
       </HStack>
       <HStack>
         <AttrSelectFilterMulti
@@ -126,9 +129,6 @@ export const TaskFilters = ({ tasksData }: { readonly tasksData: TaskCollectionR
           selectedValue={selectedMapped}
           values={allMappedValues}
         />
-        <Box justifyContent="space-between">
-          <ResetButton filterCount={2} onClearFilters={onClearFilters} />
-        </Box>
       </HStack>
     </>
   );
