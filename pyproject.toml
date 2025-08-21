@@ -1313,7 +1313,7 @@ apache-airflow-kubernetes-tests = { workspace = true }
 apache-airflow-providers = { workspace = true }
 apache-aurflow-docker-stack = { workspace = true }
 apache-airflow-shared-timezones = { workspace = true }
-apache-airflow-shared-secrets-masker = { workspace = true }
+apache-airflow-shared-secrets_masker = { workspace = true }
 # Automatically generated provider workspace items (update_airflow_pyproject_toml.py)
 apache-airflow-providers-airbyte = { workspace = true }
 apache-airflow-providers-alibaba = { workspace = true }

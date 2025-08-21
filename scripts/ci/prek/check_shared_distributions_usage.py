@@ -63,6 +63,14 @@ def get_shared_distributions(pyproject_path: Path) -> list[str]:
     return data.get("tool", {}).get("airflow", {}).get("shared_distributions", [])
 
 
+def normalize_package_name_to_directory(package_name: str) -> str:
+    """
+    Normalize package name to directory name convention.
+    Converts hyphens to underscores: 'secrets-masker' -> 'secrets_masker'
+    """
+    return package_name.replace("-", "_")
+
+
 def verify_shared_distributions(shared_distributions: list[str], shared_dir: Path) -> list[str]:
     errors = []
     for dist in shared_distributions:
@@ -74,7 +82,9 @@ def verify_shared_distributions(shared_distributions: list[str], shared_dir: Pat
             console.print("    [red]Invalid name[/red]")
             continue
         subfolder = dist.replace("apache-airflow-shared-", "")
-        if not (shared_dir / subfolder).is_dir():
+        # Normalize package name to directory convention (hyphens -> underscores)
+        normalized_subfolder = normalize_package_name_to_directory(subfolder)
+        if not (shared_dir / normalized_subfolder).is_dir():
             errors.append(f"Shared distribution '{dist}' does not correspond to a subfolder in 'shared/'.")
             console.print("    [red]NOK[/red]")
         else:
@@ -129,7 +139,9 @@ def check_force_include(pyproject: Path, shared_distributions: list[str], shared
     console.print(f"  Checking force-include entries in {pyproject} ", end="")
     for dist in shared_distributions:
         dist_name = dist.replace("apache-airflow-shared-", "")
-        shared_src = f"../shared/{dist_name}/src/airflow_shared/{dist_name}"
+        # Normalize package name to directory convention (hyphens -> underscores)
+        normalized_dist_name = normalize_package_name_to_directory(dist_name)
+        shared_src = f"../shared/{normalized_dist_name}/src/airflow_shared/{normalized_dist_name}"
         found = False
         for src, _ in force_include.items():
             if src == shared_src:
@@ -137,7 +149,7 @@ def check_force_include(pyproject: Path, shared_distributions: list[str], shared
                 break
         if not found:
             # Add missing entry to pyproject.toml
-            rel_dest = f"{shared_folder.relative_to(pyproject.parent)}/{dist_name}"
+            rel_dest = f"{shared_folder.relative_to(pyproject.parent)}/{normalized_dist_name}"
             entry = f'"{shared_src}" = "{rel_dest}"\n'
             # Find or create the [tool.hatch.build.targets.sdist.force-include] section
             section_header = "[tool.hatch.build.targets.sdist.force-include]"
@@ -164,7 +176,7 @@ def check_force_include(pyproject: Path, shared_distributions: list[str], shared
             updated = True
             console.print(f"[yellow]Added missing force-include entry for {dist} in {pyproject}[/yellow]")
         else:
-            console.print("[green]OK[green]")
+            console.print("[green]OK[/green]")
     if updated:
         # Reload data for next checks if needed
         pass
@@ -194,9 +206,11 @@ def ensure_symlinks(shared_folder: Path, shared_distributions: list[str]) -> lis
     errors: list[str] = []
     for distribution in shared_distributions:
         subfolder = distribution.replace("apache-airflow-shared-", "")
-        symlink_path = shared_folder / subfolder
-        console.print(f"  Checking for symlink: [magenta]{subfolder}[/magenta].   ", end="")
-        target_path = SHARED_DIR / subfolder / "src" / "airflow_shared" / subfolder
+        # Normalize package name to directory convention (hyphens -> underscores)
+        normalized_subfolder = normalize_package_name_to_directory(subfolder)
+        symlink_path = shared_folder / normalized_subfolder
+        console.print(f"  Checking for symlink: [magenta]{normalized_subfolder}[/magenta].   ", end="")
+        target_path = SHARED_DIR / normalized_subfolder / "src" / "airflow_shared" / normalized_subfolder
         # Make symlink relative
         rel_target_path = os.path.relpath(target_path, symlink_path.parent)
         if not symlink_path.exists():
@@ -320,11 +334,13 @@ def sync_shared_dependencies(project_pyproject_path: Path, shared_distributions:
 
     for dist in shared_distributions:
         dist_name = dist.replace("apache-airflow-shared-", "")
+        # Normalize package name to directory convention (hyphens -> underscores)
+        normalized_dist_name = normalize_package_name_to_directory(dist_name)
         console.print(
             f"  Synchronizing shared dependencies for [magenta]{dist_name}[/magenta] in {project_pyproject_path}  ",
             end="",
         )
-        shared_pyproject = SHARED_DIR / dist_name / "pyproject.toml"
+        shared_pyproject = SHARED_DIR / normalized_dist_name / "pyproject.toml"
         if not shared_pyproject.exists():
             continue
         with open(shared_pyproject, "rb") as f:
@@ -347,7 +363,7 @@ def sync_shared_dependencies(project_pyproject_path: Path, shared_distributions:
                     dep_start, dep_end = find_dependencies_array_range(lines)
                     if dep_start is not None and dep_end is not None:
                         add_shared_dependencies_block(
-                            project_pyproject_path, dep_end, header, footer, content, dist_name
+                            project_pyproject_path, dep_end, header, footer, content, normalized_dist_name
                         )
                     else:
                         console.print(
