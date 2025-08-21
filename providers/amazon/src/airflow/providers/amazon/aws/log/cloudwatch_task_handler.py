@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
-    from airflow.utils.log.file_task_handler import LogMessages, LogSourceInfo
+    from airflow.utils.log.file_task_handler import LogMessages, LogResponse, LogSourceInfo
 
 
 def json_serialize_legacy(value: Any) -> str | None:
@@ -175,6 +175,9 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
             messages.append(str(e))
 
         return messages, logs
+
+    def stream(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
+        raise NotImplementedError
 
     def get_cloudwatch_logs(self, stream_name: str, task_instance: RuntimeTI):
         """
