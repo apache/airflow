@@ -1026,6 +1026,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/alibaba/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/amazon/src",
     "$MYPY_CONFIG_FILE_DIR/providers/amazon/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/apache/arrow/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/apache/arrow/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/beam/src",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/beam/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/cassandra/src",
@@ -1321,6 +1323,7 @@ apache-airflow-shared-timezones = { workspace = true }
 apache-airflow-providers-airbyte = { workspace = true }
 apache-airflow-providers-alibaba = { workspace = true }
 apache-airflow-providers-amazon = { workspace = true }
+apache-airflow-providers-apache-arrow = { workspace = true }
 apache-airflow-providers-apache-beam = { workspace = true }
 apache-airflow-providers-apache-cassandra = { workspace = true }
 apache-airflow-providers-apache-drill = { workspace = true }
@@ -1437,6 +1440,7 @@ members = [
     "providers/airbyte",
     "providers/alibaba",
     "providers/amazon",
+    "providers/apache/arrow",
     "providers/apache/beam",
     "providers/apache/cassandra",
     "providers/apache/drill",
