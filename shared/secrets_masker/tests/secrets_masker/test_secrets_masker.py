@@ -390,16 +390,16 @@ class TestSecretsMasker:
         masker1 = SecretsMasker()
         masker2 = SecretsMasker()
 
-        assert not masker1.is_log_masking_enabled()
-        assert not masker2.is_log_masking_enabled()
-
-        masker1.enable_log_masking()
         assert masker1.is_log_masking_enabled()
         assert masker2.is_log_masking_enabled()
 
         masker2.disable_log_masking()
         assert not masker1.is_log_masking_enabled()
         assert not masker2.is_log_masking_enabled()
+
+        masker1.enable_log_masking()
+        assert masker1.is_log_masking_enabled()
+        assert masker2.is_log_masking_enabled()
 
 
 class TestShouldHideValueForKey:
