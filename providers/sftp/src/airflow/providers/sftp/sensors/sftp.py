@@ -85,7 +85,6 @@ class SFTPSensor(BaseSensorOperator):
 
     def _get_files(self) -> list[str]:
         files_from_pattern = []
-        actual_files_present = []
         files_found = []
 
         if self.file_pattern:
@@ -143,7 +142,6 @@ class SFTPSensor(BaseSensorOperator):
         self.hook = SFTPHook(self.sftp_conn_id, use_managed_conn=self.use_managed_conn)
 
         self.log.info("Poking for %s, with pattern %s", self.path, self.file_pattern)
-        files_found = []
 
         if self.use_managed_conn:
             files_found = self._get_files()
